@@ -28,7 +28,7 @@ from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
-    ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum
+    ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -557,6 +557,8 @@ class Metadata(Resource):
 
     html_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
 
+    additional_urls = models.ManyToManyField('GenericUrl', blank=True)
+
     contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
@@ -664,6 +666,15 @@ class Metadata(Resource):
              True|False
         """
         return self.is_metadata_type(MetadataEnum.DATASET)
+
+    @property
+    def is_catalogue_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.CATALOGUE)
 
     def is_metadata_type(self, enum: MetadataEnum):
         """ Returns whether the metadata is of this MetadataEnum
@@ -1131,6 +1142,17 @@ class Metadata(Resource):
             self.external_authentication.delete()
         except ObjectDoesNotExist:
             pass
+
+        # Remove GenricUrls if they are not used anywhere else!
+        urls = self.additional_urls.all()
+        for url in urls:
+            other_dependencies = Metadata.objects.filter(
+                additional_urls=url
+            ).exclude(
+                id=self.id
+            ).exists()
+            if not other_dependencies:
+                url.delete()
 
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
@@ -2494,21 +2516,24 @@ class ServiceType(models.Model):
         return self.name
 
 
-class ServiceUrl(Resource):
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
-    method = models.CharField(max_length=255, choices=[("Get", "Get"), ("Post", "Post"),], blank=True, null=True)
+class GenericUrl(Resource):
+    description = models.TextField(null=True, blank=True)
+    method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
     url = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return "{}: {} ({})".format(self.operation, self.url, self.method)
+        return "{} ({})".format(self.url, self.method)
+
+
+class ServiceUrl(GenericUrl):
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
 
 
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
-    service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
-    categories = models.ManyToManyField(Category, blank=True)
+    service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
@@ -2526,7 +2551,6 @@ class Service(Resource):
         # non persisting attributes
         self.root_layer = None
         self.feature_type_list = []
-        #self.formats_list = []
         self.categories_list = []
 
     def __str__(self):

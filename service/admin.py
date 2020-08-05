@@ -181,8 +181,13 @@ class SecuredOperationAdmin(admin.ModelAdmin):
     search_fields = ['id', 'operation', 'secured_metadata__title', 'allowed_group__name']
 
 
+class GenericUrlAdmin(admin.ModelAdmin):
+    list_display = ('method', 'description', 'url')
+    search_fields = ['id', 'service__metadata__title']
+
+
 class ServiceUrlAdmin(admin.ModelAdmin):
-    list_display = ('operation', 'method', 'url')
+    list_display = ('operation', 'method', 'description', 'url')
     search_fields = ['id', 'service__metadata__title']
 
 
@@ -254,4 +259,5 @@ admin.site.register(Style, StyleAdmin)
 #admin.site.register(LegalDate, LegalDateAdmin)
 #admin.site.register(LegalReport, LegalReportAdmin)
 #admin.site.register(ServiceType, ServiceTypeAdmin)
-#admin.site.register(ServiceUrl, ServiceUrlAdmin)
+admin.site.register(ServiceUrl, ServiceUrlAdmin)
+admin.site.register(GenericUrl, GenericUrlAdmin)

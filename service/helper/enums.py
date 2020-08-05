@@ -20,6 +20,14 @@ class ConnectionEnum(EnumChoice):
     URLLIB = "urllib"
 
 
+class HttpMethodEnum(EnumChoice):
+    """ Defines all important http method types
+
+    """
+    GET = "Get"
+    POST = "Post"
+
+
 class OGCServiceVersionEnum(EnumChoice):
     """ Defines all supported versions
 

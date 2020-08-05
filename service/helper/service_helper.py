@@ -373,7 +373,10 @@ def get_resource_capabilities(request: HttpRequest, md: Metadata):
     else:
         pass
 
-    if stored_version == version_param or use_fallback is True or not md.is_root():
+    if md.is_catalogue_metadata:
+        doc = md.get_remote_original_capabilities_document(version_param)
+
+    elif stored_version == version_param or use_fallback is True or not md.is_root():
         # This is the case if
         # 1) a version is requested, which we have in our database
         # 2) the fallback parameter is set explicitly

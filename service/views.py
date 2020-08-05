@@ -571,6 +571,10 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         base_template = 'metadata/base/wfs/root_metadata_as_html.html'
         params.update(collect_wfs_root_data(md, request))
 
+    elif md.is_catalogue_metadata:
+        # ToDo: Add html view for CSW!
+        pass
+
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())
 

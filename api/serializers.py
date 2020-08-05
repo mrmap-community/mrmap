@@ -452,7 +452,8 @@ def serialize_categories(md: Metadata) -> list:
          data_list (list): The list containing serialized dict elements
     """
     categories = []
-    for cat in md.categories.all():
+    all_cat = md.categories.all()
+    for cat in all_cat:
         category = OrderedDict()
 
         category["id"] = cat.id

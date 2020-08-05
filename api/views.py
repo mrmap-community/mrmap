@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.paginator import InvalidPage
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
@@ -13,6 +14,7 @@ from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -134,6 +136,41 @@ class APIPagination(PageNumberPagination):
 
     """
     page_size_query_param = "rpp"
+
+    def paginate_queryset(self, queryset, request, view=None):
+        """ Overrides default paginate_queryset.
+
+        Speeds up pagination process by 50% by removing a list() casting in the end - which is not important for us.
+
+        Args:
+            queryset:
+            request:
+            view:
+        Returns:
+
+        """
+        page_size = self.get_page_size(request)
+        if not page_size:
+            return None
+        paginator = self.django_paginator_class(queryset, page_size)
+        page_number = request.query_params.get(self.page_query_param, 1)
+        if page_number in self.last_page_strings:
+            page_number = paginator.num_pages
+
+        try:
+            self.page = paginator.page(page_number)
+        except InvalidPage as exc:
+            msg = self.invalid_page_message.format(
+                page_number=page_number, message=str(exc)
+            )
+            raise NotFound(msg)
+
+        if paginator.num_pages > 1 and self.template is not None:
+            # The browsable API should display pagination controls.
+            self.display_page_controls = True
+
+        self.request = request
+        return self.page
 
 
 class PendingTaskViewSet(viewsets.GenericViewSet):
@@ -716,9 +753,6 @@ class CatalogueViewSet(viewsets.GenericViewSet):
              The queryset
         """
         # Prefetches multiple related attributes to reduce the access time later!
-        self.queryset = Metadata.objects.filter(
-            is_active=True,
-        )
         prefetches = [
             "keywords",
             "categories",
@@ -730,9 +764,13 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "licence",
             "featuretype__parent_service",
             "service__parent_service",
+            "additional_urls",
         ]
-        for prefetch in prefetches:
-            self.queryset = self.queryset.prefetch_related(prefetch)
+        self.queryset = Metadata.objects.filter(
+            is_active=True,
+        ).prefetch_related(
+            *prefetches
+        )
 
         # filter by dimensions
         time_min = self.request.query_params.get("time-min", None) or None
@@ -760,16 +798,16 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         type = self.request.query_params.get("type", None)
         self.queryset = view_helper.filter_queryset_metadata_type(self.queryset, type)
 
-        # filter by query
-        query = self.request.query_params.get("q", None)
-        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
-
         # filter by category
         category = self.request.query_params.get("cat", None)
         category_strict = utils.resolve_boolean_attribute_val(
             self.request.query_params.get("cat-strict", False) or False
         )
         self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category, category_strict)
+
+        # filter by query
+        query = self.request.query_params.get("q", None)
+        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)
@@ -783,10 +821,11 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
-        tmp = self.paginate_queryset(self.get_queryset())
+        qs = self.get_queryset()
+        tmp = self.paginate_queryset(qs)
         data = serialize_catalogue_metadata(tmp)
-
-        return self.get_paginated_response(data)
+        resp = self.get_paginated_response(data)
+        return resp
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
@@ -888,7 +927,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = {

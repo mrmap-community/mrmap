@@ -111,7 +111,7 @@ def create_category_query_filter(query):
     return _filter
 
 
-def filter_queryset_metadata_query(queryset, query):
+def filter_queryset_metadata_query(queryset, query, q_test: bool = False):
     """ Filters a given REST framework queryset by a given query.
 
     Only keeps elements which title, abstract or keyword can be matched to the given query.
@@ -119,20 +119,30 @@ def filter_queryset_metadata_query(queryset, query):
     Args:
         queryset: A queryset containing elements
         query: A text snippet which is used for a search
+        q_test (bool): In case of tests, all query settings will be set to True
     Returns:
         queryset: The given queryset which only contains matching elements
     """
     if query is not None:
+        if q_test:
+            q_abstract = True
+            q_keywords = True
+            q_title = True
+        else:
+            q_abstract = API_QUERY_ON_ABSTRACT
+            q_keywords = API_QUERY_ON_KEYWORDS
+            q_title = API_QUERY_ON_TITLE
+
         # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
         query_list = query.split(" ")
         q = Q()
         for query_elem in query_list:
             q_tmp = Q()
-            if API_QUERY_ON_TITLE:
+            if q_title:
                 q_tmp |= Q(title__icontains=query_elem)
-            if API_QUERY_ON_ABSTRACT:
+            if q_abstract:
                 q_tmp |= Q(abstract__icontains=query_elem)
-            if API_QUERY_ON_KEYWORDS:
+            if q_keywords:
                 q_tmp |= Q(keywords__keyword__icontains=query_elem)
             q &= q_tmp
 

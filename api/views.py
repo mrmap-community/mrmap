@@ -806,7 +806,8 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
         # filter by query
         query = self.request.query_params.get("q", None)
-        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+        q_test = self.request.query_params.get("q-test", False)
+        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query, q_test)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)

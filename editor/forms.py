@@ -203,12 +203,12 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['character_set_code'].initial = dataset.character_set_code
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
-            metadata_relations = MetadataRelation.objects.filter(metadata_to=self.instance_id)
-            additional_related_objects = []
-            for metadata_relation in metadata_relations:
-                if metadata_relation.origin != ResourceOriginEnum.CAPABILITIES.value:
-                    additional_related_objects.append(metadata_relation.metadata_from)
-            self.fields['additional_related_objects'].initial = additional_related_objects
+            metadata_relations = MetadataRelation.objects.filter(
+                metadata_to=self.instance_id
+            ).exclude(
+                origin=ResourceOriginEnum.CAPABILITIES.value
+            )
+            self.fields['additional_related_objects'].initial = metadata_relations
 
 
 class DatasetClassificationForm(MrMapWizardForm):

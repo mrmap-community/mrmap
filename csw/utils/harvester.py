@@ -106,11 +106,11 @@ class Harvester:
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
-        all_persisted_metadata_identifiers = self.metadata.related_metadata.filter(
-            relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-            metadata_to=self.metadata
+        all_persisted_metadata_identifiers = Metadata.objects.filter(
+            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+            related_metadata__metadata_to=self.metadata
         ).values_list(
-            "metadata_from__identifier", flat=True
+            "identifier", flat=True
         )
         # Use a set instead of list to increase lookup afterwards
         self.deleted_metadata.update(all_persisted_metadata_identifiers)
@@ -487,7 +487,6 @@ class Harvester:
                 if is_new:
                     md.related_metadata.add(
                         MetadataRelation.objects.create(
-                            metadata_from=md,
                             relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
                             metadata_to=self.metadata,
                             origin=ResourceOriginEnum.CATALOGUE.value
@@ -542,12 +541,10 @@ class Harvester:
                 ).exists()
                 if not rel_exists:
                     md_relation = MetadataRelation.objects.create(
-                        metadata_from=child,
                         relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
                         metadata_to=parent_md,
                         origin=ResourceOriginEnum.CATALOGUE.value
                     )
-                    parent_md.related_metadata.add(md_relation)
                     child.related_metadata.add(md_relation)
 
             # clear children list of parent afterwards so we don't work on them again

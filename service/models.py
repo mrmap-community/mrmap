@@ -455,14 +455,13 @@ class SecuredOperation(models.Model):
 
 class MetadataRelation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-    metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
-    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
+    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE)
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
-        return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
+        return "{} {}".format(self.relation_type, self.metadata_to.title)
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         """ Overwrites default save function
@@ -478,8 +477,6 @@ class MetadataRelation(models.Model):
 
         """
         super().save(force_insert, force_update, using, update_fields)
-        self.metadata_to.related_metadata.add(self)
-        self.metadata_from.related_metadata.add(self)
 
 
 class ExternalAuthentication(models.Model):
@@ -987,8 +984,7 @@ class Metadata(Resource):
              dataset_md (Metadata) | None
         """
         try:
-            dataset_md = MetadataRelation.objects.get(
-                metadata_from=self,
+            dataset_md = self.related_metadata.get(
                 metadata_to__metadata_type=OGCServiceEnum.DATASET.value
             )
             dataset_md = dataset_md.metadata_to
@@ -2731,7 +2727,7 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = MetadataRelation.objects.filter(metadata_from=child.metadata)
+        iso_mds = child.metadata.related_metadata.all()
         for iso_md in iso_mds:
             md_2 = iso_md.metadata_to
             md_2.delete()
@@ -2753,7 +2749,7 @@ class Service(Resource):
         Returns:
         """
         # remove related metadata
-        linked_mds = MetadataRelation.objects.filter(metadata_from=self.metadata)
+        linked_mds = self.metadata.related_metadata.all()
         for linked_md in linked_mds:
             md_2 = linked_md.metadata_to
             md_2.delete()
@@ -3021,7 +3017,6 @@ class Layer(Service):
         for md in rel_md:
             dependencies = MetadataRelation.objects.filter(
                 metadata_to=md.metadata_to,
-                metadata_from__is_active=True,
             )
             if dependencies.count() > 1 and new_status is False:
                 # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata

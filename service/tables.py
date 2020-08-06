@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
 from service.helper.enums import ResourceOriginEnum
+from service.models import MetadataRelation, Metadata
 from structure.models import Permission
 
 
@@ -709,32 +710,40 @@ class DatasetTable(MrMapTable):
                              new_tab=True)
 
     def render_dataset_related_objects(self, record):
-        relations = record.related_metadata.all()
+        related_metadatas = Metadata.objects.filter(
+            related_metadata__metadata_to=record
+        ).prefetch_related(
+            "related_metadata"
+        )
         link_list = []
-        for relation in relations:
-            url = reverse('resource:detail', args=(relation.metadata_from.id,))
-            tooltip = _(f'Click to open the detail view of related service <strong>{relation.metadata_from.title} [{relation.metadata_from.id}]"</strong>')
+        for metadata in related_metadatas:
+            url = reverse('resource:detail', args=(metadata.id,))
+            tooltip = _(f'Click to open the detail view of related service <strong>{metadata.title} [{metadata.id}]"</strong>')
             link = construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                                  href=url,
-                                 content=f"{relation.metadata_from.title} [{relation.metadata_from.id}]",
+                                 content=f"{metadata.title} [{metadata.id}]",
                                  tooltip=tooltip, )
             link_list.append(link, )
         return format_html(', '.join(link_list))
 
     def render_dataset_origins(self, record):
-        relations = record.related_metadata.all()
+        related_metadatas = Metadata.objects.filter(
+            related_metadata__metadata_to=record
+        ).prefetch_related(
+            "related_metadata"
+        )
         origin_list = []
-        for relation in relations:
-            origin_list.append(f"{relation.origin} [{relation.metadata_from.id}]")
+        for metadata in related_metadatas:
+            relation = metadata.related_metadata.get(metadata_to=record)
+            origin_list.append(f"{relation.origin} [{metadata.id}]")
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):
-        relations = record.related_metadata.all()
-        is_mr_map_origin = True
-        for relation in relations:
-            if relation.origin != ResourceOriginEnum.EDITOR:
-                is_mr_map_origin = False
-                break
+        is_mr_map_origin = not MetadataRelation.objects.filter(
+            metadata_to=record
+        ).exclude(
+            origin=ResourceOriginEnum.EDITOR.value
+        ).exists()
 
         btns = ''
         btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",

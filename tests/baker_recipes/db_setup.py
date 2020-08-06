@@ -91,10 +91,10 @@ def create_wms_service(group: MrMapGroup,
             md_origin = ResourceOriginEnum.CAPABILITIES.value
 
         md_relation = MetadataRelation()
-        md_relation.metadata_from = root_service_metadata
         md_relation.metadata_to = dataset_metadata
         md_relation.origin = md_origin
         md_relation.save()
+        root_service_metadata.related_metadata.add(md_relation)
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.capability_document',
@@ -198,11 +198,10 @@ def create_wfs_service(group: MrMapGroup,
             md_origin = ResourceOriginEnum.CAPABILITIES.value
 
         md_relation = MetadataRelation()
-        md_relation.metadata_from = root_service_metadata
         md_relation.metadata_to = dataset_metadata
         md_relation.origin = md_origin
-
         md_relation.save()
+        root_service_metadata.related_metadata.add(md_relation)
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.capability_document',

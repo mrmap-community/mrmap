@@ -66,7 +66,6 @@ class DatasetWizard(MrMapWizard):
             # New
             # Create instances
             metadata = Metadata()
-            metadata.identifier = metadata.uuid
             metadata.metadata_type = MetadataEnum.DATASET.value
             metadata.is_active = True
 
@@ -78,6 +77,7 @@ class DatasetWizard(MrMapWizard):
 
             # Pre-save objects to be able to add M2M relations
             metadata.save()
+            metadata.identifier = metadata.id
             dataset.metadata = metadata
             dataset.save()
             metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(dataset.id,))
@@ -159,13 +159,11 @@ class DatasetWizard(MrMapWizard):
         for additional_object in additional_related_objects:
             md_relation = MetadataRelation()
             md_relation.metadata_to = metadata
-            md_relation.metadata_from = additional_object
             md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
             md_relation.internal = True
             md_relation.origin = ResourceOriginEnum.EDITOR.value
             md_relation.save()
             additional_object.related_metadata.add(md_relation)
-            metadata.related_metadata.add(md_relation)
 
     @staticmethod
     def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):

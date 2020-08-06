@@ -96,7 +96,7 @@ class LayerAdmin(admin.ModelAdmin):
 class MetadataAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact')
     list_filter = ('metadata_type', 'is_active', 'is_broken')
-    search_fields = ['id', 'title', ]
+    search_fields = ['id', 'title', "identifier", "public_id"]
     ordering = ["-created"]
     readonly_fields = (
         "related_metadata",
@@ -104,15 +104,9 @@ class MetadataAdmin(admin.ModelAdmin):
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link')
+    list_display = ('id', 'relation_type', 'metadata_to_link')
     list_filter = ('relation_type',)
-    search_fields = ['metadata_from__title', 'metadata_to__title',]
-
-    def metadata_from_link(self, obj):
-        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata_from.id,)), escape(obj.metadata_from)))
-
-    metadata_from_link.allow_tags = True
-    metadata_from_link.short_description = "metadata_from"
+    search_fields = ['metadata_to__title',]
 
     def metadata_to_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata_to.id,)), escape(obj.metadata_to)))

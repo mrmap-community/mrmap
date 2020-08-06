@@ -297,11 +297,11 @@ class OGCLayer:
         for iso_md in self.iso_metadata:
             iso_md = iso_md.to_db_model(created_by=group)
             metadata_relation = MetadataRelation()
-            metadata_relation.metadata_from = metadata
             metadata_relation.metadata_to = iso_md
             metadata_relation.origin = iso_md.origin
             metadata_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
             metadata_relation.save()
+            metadata.related_metadata.add(metadata_relation)
 
         # Dimensions
         for dimension in self.dimension_list:

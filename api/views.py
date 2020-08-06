@@ -757,7 +757,6 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "keywords",
             "categories",
             "related_metadata",
-            "related_metadata__metadata_from",
             "related_metadata__metadata_to",
             "dimensions",
             "contact",
@@ -819,7 +818,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         qs = self.get_queryset()
         tmp = self.paginate_queryset(qs)

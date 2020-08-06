@@ -124,7 +124,6 @@ class MetadataRelationMetadataSerializer(serializers.Serializer):
     """
     id = serializers.IntegerField(read_only=True)
     type = serializers.CharField(read_only=True, source="metadata_type")
-    identifier = serializers.CharField(read_only=True)
 
     class Meta:
         model = Metadata
@@ -133,7 +132,6 @@ class MetadataRelationSerializer(serializers.Serializer):
     """ Serializer for MetadataRelation model
 
     """
-    relation_from = MetadataRelationMetadataSerializer(source="metadata_from")
     relation_type = serializers.CharField(read_only=True)
     relation_to = MetadataRelationMetadataSerializer(source="metadata_to")
 
@@ -346,20 +344,13 @@ def serialize_metadata_relation(md: Metadata) -> list:
         )
 
     for rel in md_relations:
-        md_from = rel.metadata_from
         md_to = rel.metadata_to
 
         rel_obj = OrderedDict()
-        rel_obj["relation_from"] = {
-            "id": md_from.id,
-            "type": md_from.metadata_type,
-            "file_identifier": md_from.identifier
-        }
         rel_obj["relation_type"] = rel.relation_type
-        rel_obj["relation_to"] = {
+        rel_obj["metadata"] = {
             "id": md_to.id,
             "type": md_to.metadata_type,
-            "file_identifier": md_to.identifier
         }
 
         relations.append(rel_obj)

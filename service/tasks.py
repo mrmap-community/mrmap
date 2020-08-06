@@ -72,9 +72,7 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
         md.save(update_last_modified=False)
 
         # activate related metadata (if exists)
-        md_relations = MetadataRelation.objects.filter(
-            metadata_from=md
-        )
+        md_relations = md.related_metadata.all()
         for relation in md_relations:
             related_md = relation.metadata_to
 
@@ -82,7 +80,6 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
             # We are only interested in dependencies from activated metadatas
             relations_from_others = MetadataRelation.objects.filter(
                 metadata_to=related_md,
-                metadata_from__is_active=True
             )
             if relations_from_others.count() > 1 and is_active is False:
                 # If there are more than our relation and we want to deactivate, we do NOT proceed

@@ -4,7 +4,6 @@ from collections import OrderedDict
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.paginator import InvalidPage
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
@@ -14,7 +13,6 @@ from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -136,41 +134,6 @@ class APIPagination(PageNumberPagination):
 
     """
     page_size_query_param = "rpp"
-
-    def paginate_queryset(self, queryset, request, view=None):
-        """ Overrides default paginate_queryset.
-
-        Speeds up pagination process by 50% by removing a list() casting in the end - which is not important for us.
-
-        Args:
-            queryset:
-            request:
-            view:
-        Returns:
-
-        """
-        page_size = self.get_page_size(request)
-        if not page_size:
-            return None
-        paginator = self.django_paginator_class(queryset, page_size)
-        page_number = request.query_params.get(self.page_query_param, 1)
-        if page_number in self.last_page_strings:
-            page_number = paginator.num_pages
-
-        try:
-            self.page = paginator.page(page_number)
-        except InvalidPage as exc:
-            msg = self.invalid_page_message.format(
-                page_number=page_number, message=str(exc)
-            )
-            raise NotFound(msg)
-
-        if paginator.num_pages > 1 and self.template is not None:
-            # The browsable API should display pagination controls.
-            self.display_page_controls = True
-
-        self.request = request
-        return self.page
 
 
 class PendingTaskViewSet(viewsets.GenericViewSet):
@@ -747,7 +710,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         self.orderable_fields = [field.name for field in Metadata._meta.fields]
 
     def get_queryset(self):
-        """ Specifies if the queryset shall be filtered or not
+        """ Fetch the base queryset
 
         Returns:
              The queryset
@@ -759,27 +722,64 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "related_metadata",
             "related_metadata__metadata_to",
             "dimensions",
+            "additional_urls",
             "contact",
             "licence",
             "featuretype__parent_service",
             "service__parent_service",
-            "additional_urls",
         ]
+        only = [
+            "id",
+            "public_id",
+            "identifier",
+            "metadata_type",
+            "title",
+            "abstract",
+            "bounding_geometry",
+            "online_resource",
+            "capabilities_uri",
+            "service_metadata_uri",
+            "html_metadata_uri",
+            "fees",
+            "access_constraints",
+            "licence",
+            "service",
+            "service__parent_service",
+            "contact",
+            "related_metadata",
+            "categories",
+            "dimensions",
+            "keywords",
+        ]
+
         self.queryset = Metadata.objects.filter(
             is_active=True,
+        )
+        self.queryset = self.queryset.only(
+            *only
         ).prefetch_related(
             *prefetches
         )
 
+        return self.queryset
+
+    def filter_queryset(self, queryset):
+        """ Filters the queryset
+
+        Args:
+            queryset (Queryset): Unfiltered queryset
+        Returns:
+             queryset (Queryset): Filtered queryset
+        """
         # filter by dimensions
         time_min = self.request.query_params.get("time-min", None) or None
         time_max = self.request.query_params.get("time-max", None) or None
         elevation_unit = self.request.query_params.get("elevation-unit", None) or None
         elevation_min = self.request.query_params.get("elevation-min", None) or None
         elevation_max = self.request.query_params.get("elevation-max", None) or None
-        self.queryset = view_helper.filter_queryset_metadata_dimension_time(self.queryset, time_min, time_max)
-        self.queryset = view_helper.filter_queryset_metadata_dimension_elevation(
-            self.queryset,
+        queryset = view_helper.filter_queryset_metadata_dimension_time(queryset, time_min, time_max)
+        queryset = view_helper.filter_queryset_metadata_dimension_elevation(
+            queryset,
             elevation_min,
             elevation_max,
             elevation_unit
@@ -791,37 +791,38 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         bbox_strict = utils.resolve_boolean_attribute_val(
             self.request.query_params.get("bbox-strict", False) or False
         )
-        self.queryset = view_helper.filter_queryset_metadata_bbox(self.queryset, bbox, bbox_srs, bbox_strict)
+        queryset = view_helper.filter_queryset_metadata_bbox(queryset, bbox, bbox_srs, bbox_strict)
 
         # filter by service type
         type = self.request.query_params.get("type", None)
-        self.queryset = view_helper.filter_queryset_metadata_type(self.queryset, type)
+        queryset = view_helper.filter_queryset_metadata_type(queryset, type)
 
         # filter by category
         category = self.request.query_params.get("cat", None)
         category_strict = utils.resolve_boolean_attribute_val(
             self.request.query_params.get("cat-strict", False) or False
         )
-        self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category, category_strict)
+        queryset = view_helper.filter_queryset_metadata_category(queryset, category, category_strict)
 
         # filter by query
         query = self.request.query_params.get("q", None)
         q_test = self.request.query_params.get("q-test", False)
-        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query, q_test)
+        queryset = view_helper.filter_queryset_metadata_query(queryset, query, q_test)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)
         if order_by not in self.orderable_fields:
             order_by = CATALOGUE_DEFAULT_ORDER
-        self.queryset = view_helper.order_queryset(self.queryset, order_by)
+        queryset = view_helper.order_queryset(queryset, order_by)
 
-        return self.queryset
+        return queryset
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         qs = self.get_queryset()
+        qs = self.filter_queryset(qs)
         tmp = self.paginate_queryset(qs)
         data = serialize_catalogue_metadata(tmp)
         resp = self.get_paginated_response(data)

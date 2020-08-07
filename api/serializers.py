@@ -473,6 +473,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     """
     # fetch keywords beforehand
     keywords = md.keywords.all()
+    additional_urls = md.additional_urls.all()
 
     # fetch bounding geometry beforehand
     bounding_geometry = md.bounding_geometry
@@ -504,7 +505,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["easy_capabilities_uri"] = (md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.capabilities_uri is not None else None
     serialized["easy_xml_metadata_uri"] = (md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.service_metadata_uri is not None else None
     serialized["easy_html_metadata_uri"] = (md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.html_metadata_uri is not None else None
-    serialized["additional_uris"] = [{uri.url: uri.description} for uri in md.additional_urls.all()]
+    serialized["additional_uris"] = [{uri.url: uri.description} for uri in additional_urls]
     serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),))) if can_have_preview else None
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints
@@ -535,9 +536,6 @@ def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
     if is_single_retrieve:
         ret_val = perform_catalogue_entry_serialization(md_queryset)
     else:
-        ret_val = []
-        for md in md_queryset:
-            serialized = perform_catalogue_entry_serialization(md)
-            ret_val.append(serialized)
+        ret_val = [perform_catalogue_entry_serialization(md) for md in md_queryset]
 
     return ret_val

@@ -11,6 +11,7 @@ from django.db.models import Q
 
 from MrMap.messages import PARAMETER_ERROR
 from api.settings import API_QUERY_ON_TITLE, API_QUERY_ON_KEYWORDS, API_QUERY_ON_ABSTRACT
+from service.models import Keyword
 from service.settings import DEFAULT_SRS
 
 
@@ -25,7 +26,7 @@ def filter_queryset_service_pid(queryset, pid):
     Returns:
         queryset: The given queryset which only contains elements with a matching id
     """
-    if pid is not None:
+    if pid is not None and len(pid) > 0:
         queryset = queryset.filter(
             parent_service__id=pid
         )
@@ -43,7 +44,7 @@ def filter_queryset_service_query(queryset, query):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if query is not None:
+    if query is not None and len(query) > 0:
         # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
         query_list = query.split(" ")
         q = Q()
@@ -66,7 +67,7 @@ def order_queryset(queryset, order_by):
     Returns:
         queryset: The given queryset which is ordered
     """
-    if queryset is not None:
+    if queryset is not None and len(order_by) > 0:
         queryset = queryset.order_by(
             order_by
         )
@@ -82,7 +83,7 @@ def create_keyword_query_filter(query):
         filter (Q): A filter object
     """
     _filter = Q()
-    if query is not None:
+    if query is not None and len(query) > 0:
         _filter = Q(
             keyword__istartswith=query
         )
@@ -98,7 +99,7 @@ def create_category_query_filter(query):
         filter (Q): A filter object
     """
     _filter = Q()
-    if query is not None:
+    if query is not None and len(query) > 0:
         _filter = Q(
             type__icontains=query
         ) | Q(
@@ -123,7 +124,7 @@ def filter_queryset_metadata_query(queryset, query, q_test: bool = False):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if query is not None:
+    if query is not None and len(query) > 0:
         if q_test:
             q_abstract = True
             q_keywords = True
@@ -136,17 +137,19 @@ def filter_queryset_metadata_query(queryset, query, q_test: bool = False):
         # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
         query_list = query.split(" ")
         q = Q()
+        all_keywords = Keyword.objects.all()
         for query_elem in query_list:
             q_tmp = Q()
+            if q_keywords:
+                matching_keywords = list(all_keywords.filter(keyword__icontains=query_elem))
+                q_tmp |= Q(keywords__in=matching_keywords)
             if q_title:
                 q_tmp |= Q(title__icontains=query_elem)
             if q_abstract:
                 q_tmp |= Q(abstract__icontains=query_elem)
-            if q_keywords:
-                q_tmp |= Q(keywords__keyword__icontains=query_elem)
             q &= q_tmp
 
-        queryset = queryset.filter(q).distinct()
+        queryset = queryset.filter(q)
     return queryset
 
 
@@ -162,7 +165,7 @@ def filter_queryset_metadata_category(queryset, category, category_strict):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if category is not None:
+    if category is not None and len(category) > 0:
         # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
         category_list = category.split(" ")
 
@@ -188,12 +191,12 @@ def filter_queryset_metadata_dimension_time(queryset, time_min: str, time_max: s
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if time_min is not None:
+    if time_min is not None and len(time_min) > 0:
         time_min = parse(timestr=time_min)
         queryset = queryset.filter(
             dimensions__time_extent_min__gte=time_min
         )
-    if time_max is not None:
+    if time_max is not None and len(time_max) > 0:
         time_max = parse(timestr=time_max)
         queryset = queryset.filter(
             dimensions__time_extent_max__lte=time_max
@@ -217,12 +220,12 @@ def filter_queryset_metadata_dimension_elevation(queryset, elev_min: str, elev_m
     """
     if not elevation_unit:
         elevation_unit = ""
-    if elev_min is not None:
+    if elev_min is not None and len(elev_min) > 0:
         queryset = queryset.filter(
             dimensions__units__icontains=elevation_unit,
             dimensions__elev_extent_min__lte=elev_min,
         )
-    if elev_max is not None:
+    if elev_max is not None and len(elev_max) > 0:
         queryset = queryset.filter(
             dimensions__units__icontains=elevation_unit,
             dimensions__elev_extent_max__gte=elev_max,
@@ -242,7 +245,7 @@ def filter_queryset_metadata_bbox(queryset, bbox: str, bbox_srs: str, bbox_stric
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if bbox is not None:
+    if bbox is not None and len(bbox) > 0:
         try:
             srs = int(bbox_srs.split(":")[-1])
         except ValueError:
@@ -284,7 +287,7 @@ def filter_queryset_metadata_type(queryset, type: str):
     ]
     if type in single_types:
         filter_identifier = "metadata_type"
-    if type is not None:
+    if type is not None and len(type) > 0:
         queryset = queryset.filter(
             **{filter_identifier: type},
         )
@@ -302,7 +305,7 @@ def filter_queryset_metadata_uuid(queryset, uuid):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if uuid is not None:
+    if uuid is not None and len(uuid) > 0:
         queryset = queryset.filter(
             uuid=uuid
         )
@@ -320,7 +323,7 @@ def filter_queryset_group_organization_id(queryset, orgid):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if orgid is not None:
+    if orgid is not None and len(orgid) > 0:
         queryset = queryset.filter(
             Q(organization=orgid)
         )
@@ -338,7 +341,7 @@ def filter_queryset_services_organization_id(queryset, orgid):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if orgid is not None:
+    if orgid is not None and len(orgid) > 0:
         queryset = queryset.filter(
             Q(metadata__contact_id=orgid)
         )
@@ -356,7 +359,7 @@ def filter_queryset_services_uuid(queryset, uuid):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if uuid is not None:
+    if uuid is not None and len(uuid) > 0:
         queryset = queryset.filter(
             Q(uuid=uuid)
         )
@@ -392,7 +395,7 @@ def filter_queryset_service_type(queryset, type):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    if type is not None:
+    if type is not None and len(type) > 0:
         queryset = queryset.filter(
             service_type__name=type
         )

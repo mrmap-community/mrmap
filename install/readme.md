@@ -9,11 +9,11 @@ Get it with:
 wget https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/install/mrmap_production_setup.bash
 ```  
 
-Change your hostname and desired database credentials at the beginning of the script.  
+Change your hostname and desired database credentials at the beginning of the script. Make the script executable.
 
 Afterwards execute it with:  
 ```
-bash mapskinner_production_setup.bash
+sudo bash mrmap_production_setup.bash
 ```  
 
 
@@ -60,7 +60,7 @@ apps need to be done manually!
 
 Usage:  
 ```
-bash /opt/MrMap/install/update_mapskinner.bash
+sudo bash /opt/MrMap/install/update_mapskinner.bash
 ```  
 
 **III.  mass_register.py**
@@ -83,6 +83,6 @@ or email the request to me: andre.holl@vermkv.rlp.de
 - You can disable it with:  
 
 ```
-sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/g' /etc/nginx/modsec/modsecurity.conf   
-/etc/init.d/nginx restart
+sudo sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/g' /etc/nginx/modsec/modsecurity.conf   
+sudo /etc/init.d/nginx restart
 ```    

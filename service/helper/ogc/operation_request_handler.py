@@ -1430,6 +1430,8 @@ class OGCOperationRequestHandler:
         # First get all polygons from the GeometryCollection and transform them according to the requested srs code
         for sec_op in sec_ops:
             bounding_geom_collection = sec_op.bounding_geometry
+            if bounding_geom_collection is None:
+                continue
             for bounding_geom in bounding_geom_collection.coords:
                 coords = bounding_geom[0]
                 geom = GEOSGeometry(Polygon(coords), bounding_geom_collection.srid)
@@ -1461,8 +1463,10 @@ class OGCOperationRequestHandler:
                 xml_helper.add_subelement(request_filter_elem, add_elem)
             _filter = xml_helper.xml_to_string(request_filter_elem)
 
-            self.filter_param = _filter
-            self.new_params_dict["FILTER"] = self.filter_param
+        if len(_filter) == 0:
+            _filter = None
+        self.filter_param = _filter
+        self.new_params_dict["FILTER"] = self.filter_param
 
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata, proxy_log: ProxyLog):
         """ Calls the operation of a service if it is secured.

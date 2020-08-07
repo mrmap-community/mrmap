@@ -49,6 +49,9 @@ class Iso19115MetadataBuilder:
         elif self.metadata.is_layer_metadata:
             self.service_type = OGCServiceEnum.WMS.value
             self.described_resource = Layer.objects.get(metadata=self.metadata)
+        elif self.metadata.is_catalogue_metadata:
+            self.service_type = OGCServiceEnum.CSW.value
+            self.described_resource = self.metadata.service
         else:
             raise NotImplementedError
         
@@ -74,17 +77,21 @@ class Iso19115MetadataBuilder:
 
         # create name LUT
         self.hierarchy_names = {
-            "wms": {
+            OGCServiceEnum.WMS.value: {
                 "en": "Web map service",
                 "de": "Darstellungsdienst",
             },
-            "wfs": {
+            OGCServiceEnum.WFS.value: {
                 "en": "Web feature service",
                 "de": "Downloaddienst",
             },
-            "dataset": {
+            OGCServiceEnum.DATASET.value: {
                 "en": "Dataset",
                 "de": "Datensatz",
+            },
+            OGCServiceEnum.CSW.value: {
+                "en": "Catalogue service for the web",
+                "de": "Katalogdienst",
             },
         }
 
@@ -203,6 +210,9 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         hierarchy_level = self.metadata.metadata_type
+        if hierarchy_level == MetadataEnum.CATALOGUE.value:
+            # Map the catalogue enum to 'service', since there is no catalogue scope code value
+            hierarchy_level = MetadataEnum.SERVICE.value
         hierarchy_level_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode"
         ret_elem = Element(
             self.gmd + "hierarchyLevel"

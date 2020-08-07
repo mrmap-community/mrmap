@@ -591,8 +591,7 @@ class GetDatasetMetadataViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_get_dataset_metadata(self):
-        dataset_md = MetadataRelation.objects.get(
-            metadata_from=self.wms_metadata,
+        dataset_md = self.wms_metadata.related_metadata.get(
             metadata_to__metadata_type=OGCServiceEnum.DATASET.value
         )
         dataset_md = dataset_md.metadata_to

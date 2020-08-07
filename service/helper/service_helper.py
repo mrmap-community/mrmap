@@ -10,16 +10,19 @@ import urllib
 
 from celery import Task
 from django.db import transaction
+from django.http import HttpResponse, HttpRequest
 
-from MrMap.messages import SERVICE_REMOVED
+from MrMap.messages import SERVICE_REMOVED, SERVICE_DISABLED, PARAMETER_ERROR
+from MrMap.utils import resolve_boolean_attribute_val
 from service import tasks
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, ExternalAuthentication, Metadata, Layer, FeatureType
+from service.models import Service, ExternalAuthentication, Metadata, Document
 from service.helper.crypto_handler import CryptoHandler
 from structure.models import PendingTask, MrMapGroup, MrMapUser
 from users.helper import user_helper
@@ -315,3 +318,92 @@ def remove_service(metadata: Metadata, user: MrMapUser):
 
     # call removing as async task
     tasks.async_remove_service_task.delay(metadata.service.id)
+
+
+def get_resource_capabilities(request: HttpRequest, md: Metadata):
+    """ Logic for retrieving a capabilities document.
+
+    If no capabilities document can be provided by the given parameter, a fallback document will be returned.
+
+    Args:
+        request:
+        md:
+    Returns:
+
+    """
+    from service.tasks import async_increase_hits
+    stored_version = md.get_service_version().value
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(md.id)
+
+    if not md.is_active:
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    # check that we have the requested version in our database
+    version_param = None
+    version_tag = None
+
+    request_param = None
+    request_tag = None
+
+    use_fallback = None
+
+    for k, v in request.GET.dict().items():
+        if k.upper() == "VERSION":
+            version_param = v
+            version_tag = k
+        elif k.upper() == "REQUEST":
+            request_param = v
+            request_tag = k
+        elif k.upper() == "FALLBACK":
+            use_fallback = resolve_boolean_attribute_val(v)
+
+    # No version parameter has been provided by the request - we simply use the one we have.
+    if version_param is None or len(version_param) == 0:
+        version_param = stored_version
+
+    if version_param not in [data.value for data in OGCServiceVersionEnum]:
+        # version number not valid
+        return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
+
+    elif request_param is not None and request_param != OGCOperationEnum.GET_CAPABILITIES.value:
+        # request not valid
+        return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
+
+    else:
+        pass
+
+    if md.is_catalogue_metadata:
+        doc = md.get_remote_original_capabilities_document(version_param)
+
+    elif stored_version == version_param or use_fallback is True or not md.is_root():
+        # This is the case if
+        # 1) a version is requested, which we have in our database
+        # 2) the fallback parameter is set explicitly
+        # 3) a subelement is requested, which normally do not have capability documents
+
+        # We can check the cache for this document or we need to generate it!
+        doc = md.get_current_capability_xml(version_param)
+    else:
+        # we have to fetch the remote document
+        # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
+        xml = md.get_remote_original_capabilities_document(version_param)
+        tmp = xml_helper.parse_xml(xml)
+
+        if tmp is None:
+            raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
+        # we fake the persisted service version, so the document setters will change the correct elements in the xml
+        # md.service.service_type.version = version_param
+        doc = Document(
+            content=xml,
+            metadata=md,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=True
+        )
+        doc.set_capabilities_secured(auto_save=False)
+
+        if md.use_proxy_uri:
+            doc.set_proxy(True, auto_save=False, force_version=version_param)
+        doc = doc.content
+
+    return doc

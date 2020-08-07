@@ -8,8 +8,9 @@ Created on: 15.07.20
 import json
 from time import time
 import datetime
+from urllib.parse import urlparse, parse_qs
 
-import requests
+import pytz
 from billiard.context import Process
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
@@ -21,12 +22,17 @@ from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
 from multiprocessing import cpu_count
 
+from MrMap.cacher import PageCacher
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
-from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES
+from api.settings import API_CACHE_KEY_PREFIX
+from csw.models import HarvestResult
+from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
+    CSW_CACHE_PREFIX
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, Service
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, \
+    GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
 
@@ -47,6 +53,8 @@ class Harvester:
 
         self.method = self.harvest_url.method
 
+        self.harvest_result = HarvestResult(service=self.metadata.service)
+
         self.harvest_url = getattr(self.harvest_url, "url", None)
         if self.harvest_url is None:
             raise ValueError(_("No get records URL available"))
@@ -62,7 +70,13 @@ class Harvester:
             raise ValueError(_("No XML output format available"))
 
         self.pending_task = None  # will be initialized in harvest()
-        self.deleted_metadata = {}
+
+        # used for generating a list of already persisted metadata -
+        # will be decreased each time the metadata is found during harvest.
+        # In the end we have a list of metadata that can be removed from the db
+        self.deleted_metadata = set()
+
+        # Used to map parent results of a csw to it's children
         self.parent_child_map = {}
 
     def harvest(self, task_id: str = None):
@@ -92,60 +106,89 @@ class Harvester:
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
-        all_harvested_metadata = Metadata.objects.filter(
-            related_metadata__origin=ResourceOriginEnum.CATALOGUE.value,
+        all_persisted_metadata_identifiers = Metadata.objects.filter(
             related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
             related_metadata__metadata_to=self.metadata
-        ).distinct()
-        # Use a dict instead of list to increase lookup afterwards
-        self.deleted_metadata = {str(md.identifier): None for md in all_harvested_metadata}
+        ).values_list(
+            "identifier", flat=True
+        )
+        # Use a set instead of list to increase lookup afterwards
+        self.deleted_metadata.update(all_persisted_metadata_identifiers)
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
-        hits_response = self._get_harvest_response(result_type="hits")
-        if hits_response.status_code != 200:
-            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(hits_response.status_code, hits_response.content))
-        xml_response = xml_helper.parse_xml(hits_response.content)
+        hits_response, status_code = self._get_harvest_response(result_type="hits")
+        if status_code != 200:
+            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(status_code, hits_response))
+        xml_response = xml_helper.parse_xml(hits_response)
         if xml_response is None:
-            raise ConnectionError(_("Response is no proper xml: \n{}".format(hits_response.content)))
+            raise ConnectionError(_("Response is no proper xml: \n{}".format(hits_response)))
 
-        total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
-            xml_response,
-            "numberOfRecordsMatched",
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
-            ))
+        try:
+            total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
+                xml_response,
+                "numberOfRecordsMatched",
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+                ))
+        except TypeError:
+            csw_logger.error("Malicious Harvest response: {}".format(hits_response))
+            raise AttributeError(_("Harvest response is missing important data!"))
 
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
+
+        # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
+        # nextRecord=1. We need to prevent endless loops by checking whether, we already worked on these positions and
+        # simply end it there!
+        processed_start_positions = set()
 
         t_start = time()
         number_rest_to_harvest = total_number_to_harvest
         number_of_harvested = 0
-        # Run as long as we can fetch data!
-        while self.start_position != 0:
-            # Get response
-            next_response = self._get_harvest_response(result_type="results", only_content=True)
+        self.harvest_result.timestamp_start = datetime.datetime.now(pytz.utc)
+        self.harvest_result.save()
 
-            self._process_harvest_response(next_response)
+        # Run as long as we can fetch data and as long as the user does not abort the pending task!
+        while self.pending_task is not None:
+            processed_start_positions.add(self.start_position)
+            # Get response
+            next_response, status_code = self._get_harvest_response(result_type="results")
+
+            found_entries = self._process_harvest_response(next_response)
 
             # Calculate time since loop started
             duration = time() - t_start
             number_rest_to_harvest -= self.max_records_per_request
-            number_of_harvested += self.max_records_per_request
-            if self.start_position == 0:
+            number_of_harvested += found_entries
+            self.harvest_result.number_results = number_of_harvested
+            self.harvest_result.save()
+
+            if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
+                break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = datetime.timedelta(seconds=seconds_for_rest)
+
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
-        # Delete Metadata records which could not be found in the catalogue anymore
-        deleted_metadata_ids = [k for k, v in self.deleted_metadata.items()]
-        deleted_metadatas = Metadata.objects.filter(
-            identifier__in=deleted_metadata_ids
-        )
-        deleted_metadatas.delete()
+        # Add HarvestResult infos
+        self.harvest_result.timestamp_end = datetime.datetime.now(pytz.utc)
+        self.harvest_result.number_results = number_of_harvested
+        self.harvest_result.save()
 
-        self.pending_task.delete()
+        # Delete Metadata records which could not be found in the catalogue anymore
+        # This has to be done if the harvesting run completely. Skip this part if the user aborted the harvest!
+        if self.pending_task is not None:
+            deleted_metadatas = Metadata.objects.filter(
+                identifier__in=self.deleted_metadata
+            )
+            deleted_metadatas.delete()
+            self.pending_task.delete()
+
+        # Remove cached pages of API and CSW
+        page_cacher = PageCacher()
+        page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+        page_cacher.remove_pages(CSW_CACHE_PREFIX)
 
     def _generate_request_POST_body(self, start_position: int, result_type: str = "results"):
         """ Creates a CSW POST body xml document for GetRecords
@@ -191,8 +234,8 @@ class Harvester:
                 "typeNames": "gmd:MD_Metadata"
             }
         )
-
-        return xml_helper.xml_to_string(root_elem)
+        post_content = xml_helper.xml_to_string(root_elem)
+        return post_content
 
     def _update_pending_task(self, next_record: int, total_records: int, progress_step: float, remaining_time):
         """ Updates the PendingTask object
@@ -205,21 +248,30 @@ class Harvester:
         Returns:
 
         """
-        descr = json.loads(self.pending_task.description)
-        descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
-        self.pending_task.description = json.dumps(descr)
-        self.pending_task.remaining_time = remaining_time
-        self.pending_task.progress += progress_step
-        self.pending_task.save()
+        try:
+            self.pending_task.refresh_from_db()
+            descr = json.loads(self.pending_task.description)
+            descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
+            self.pending_task.description = json.dumps(descr)
+            self.pending_task.remaining_time = remaining_time
+            self.pending_task.progress += progress_step
+            self.pending_task.save()
+        except ObjectDoesNotExist:
+            self.pending_task = None
 
-    def _get_harvest_response(self, result_type: str = "results", only_content: bool = False):
+    def _get_harvest_response(self, result_type: str = "results") -> (bytes, int):
         """ Fetch a response for the harvesting (GetRecords)
 
         Args:
             result_type (str): Which resultType should be used (hits|results)
         Returns:
              harvest_response (bytes): The response content
+             status_code (int): The response status code
         """
+        from service.helper.common_connector import CommonConnector
+        connector = CommonConnector(
+            url=self.harvest_url
+        )
         if self.method.upper() == "GET":
             params = {
                 "service": "CSW",
@@ -231,20 +283,20 @@ class Harvester:
                 "version": self.version,
                 "request": OGCOperationEnum.GET_RECORDS.value,
             }
-            harvest_response = requests.get(
-                url=self.harvest_url,
-                params=params
-            )
+            connector.load(params=params)
+            harvest_response = connector.content
         elif self.method.upper() == "POST":
             post_body = self._generate_request_POST_body(self.start_position, result_type=result_type)
-            harvest_response = requests.post(self.harvest_url, data=post_body)
+            connector.post(
+                data=post_body
+            )
+            harvest_response = connector.content
         else:
             raise NotImplementedError()
 
-        response = harvest_response if not only_content else harvest_response.content
-        return response
+        return harvest_response, connector.status_code
 
-    def _process_harvest_response(self, next_response: bytes):
+    def _process_harvest_response(self, next_response: bytes) -> int:
         """ Processes the harvest response content
 
         While the last response is being processed, the next one is already loaded to decrease run time
@@ -252,7 +304,7 @@ class Harvester:
         Args:
             response (bytes): The response as bytes
         Returns:
-             next_record (int): The nextRecord value (used for next startPosition)
+             number_found_entries (int): The amount of found metadata records in this response
         """
         xml_response = xml_helper.parse_xml(next_response)
         if xml_response is None:
@@ -277,6 +329,18 @@ class Harvester:
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
         ))
         self.start_position = next_record_position
+
+        # Fetch found identifiers in parent process, so self.deleted_metadata can be edited easily
+        for md_identifier in md_metadata_entries:
+            id = xml_helper.try_get_text_from_xml_element(
+                md_identifier,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            try:
+                self.deleted_metadata.remove(id)
+            except KeyError:
+                pass
 
         # Delete response to free memory
         del xml_response
@@ -309,6 +373,7 @@ class Harvester:
                 time() - t_start
             )
         )
+        return len(md_metadata_entries)
 
     def _create_metadata_from_md_metadata(self, start_index, end_index):
         """ Creates Metadata records from raw xml md_metadata data.
@@ -341,9 +406,11 @@ class Harvester:
              metadata (Metadata): The persisted metadata object
         """
         _id = md_data_entry["id"]
-        # Check if id can be found in dict of metadata to be deleted. If so, it can be removed
-        if self.deleted_metadata.get(_id, None) is not None:
-            del self.deleted_metadata[_id]
+        # Remove this id from the set of metadata which shall be deleted in the end.
+        try:
+            self.deleted_metadata.remove(_id)
+        except KeyError:
+            pass
 
         try:
             md = Metadata.objects.get(
@@ -369,9 +436,10 @@ class Harvester:
         md.metadata_type = md_data_entry.get("metadata_type", None)
         md.abstract = md_data_entry.get("abstract", None)
         md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
-        md.online_resource = md_data_entry.get("link", None)
         formats = md_data_entry.get("formats", [])
         md.is_active = True
+        md.capabilities_original_uri = md_data_entry.get("capabilities_original_url", None)
+        md.capabilities_uri = md_data_entry.get("capabilities_original_url", None)
 
         try:
             # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
@@ -390,10 +458,24 @@ class Harvester:
             formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
 
             with transaction.atomic():
-                q = Q()
-                for cat in md_data_entry["categories"]:
-                    q |= Q(title_EN__iexact=cat)
-                categories = Category.objects.filter(q)
+                if len(md_data_entry["categories"]) > 0:
+                    q = Q()
+                    for cat in md_data_entry["categories"]:
+                        q |= Q(title_EN__iexact=cat)
+                    categories = Category.objects.filter(q)
+                else:
+                    categories = []
+
+                for link in md_data_entry.get("links", []):
+                    url = link.get("link", None)
+                    if url is None:
+                        continue
+                    generic_url = GenericUrl()
+                    generic_url.description = "[HARVESTED URL] \n{}".format(link.get("description", ""))
+                    generic_url.method = "Get"
+                    generic_url.url = url
+                    generic_url.save()
+                    md.additional_urls.add(generic_url)
 
                 md.save(add_monitoring=False)
                 md.keywords.add(*kws)
@@ -405,7 +487,6 @@ class Harvester:
                 if is_new:
                     md.related_metadata.add(
                         MetadataRelation.objects.create(
-                            metadata_from=md,
                             relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
                             metadata_to=self.metadata,
                             origin=ResourceOriginEnum.CATALOGUE.value
@@ -460,12 +541,10 @@ class Harvester:
                 ).exists()
                 if not rel_exists:
                     md_relation = MetadataRelation.objects.create(
-                        metadata_from=child,
                         relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
                         metadata_to=parent_md,
                         origin=ResourceOriginEnum.CATALOGUE.value
                     )
-                    parent_md.related_metadata.add(md_relation)
                     child.related_metadata.add(md_relation)
 
             # clear children list of parent afterwards so we don't work on them again
@@ -556,15 +635,43 @@ class Harvester:
             )
             md_data_entry["abstract"] = abstract
 
-            resource_link = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
+            digital_transfer_elements = xml_helper.try_get_element_from_xml(
+                xml_elem=md_metadata,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
             )
-            md_data_entry["link"] = resource_link
+            links = []
+            for elem in digital_transfer_elements:
+                links_entry = {}
+                resource_link = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
+                )
+                descr = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("description")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+                )
+                links_entry["link"] = resource_link
+                links_entry["description"] = descr
+
+                if resource_link is not None:
+                    # Check on the type of online_resource we found -> could be GetCapabilities
+                    query_params = parse_qs(urlparse(resource_link.lower()).query)
+                    if OGCOperationEnum.GET_CAPABILITIES.value.lower() in query_params.get("request", []):
+                        # Parse all possibly relevant data from the dict
+                        version = query_params.get("version", [None])
+                        service_type = query_params.get("service", [None])
+                        md_data_entry["capabilities_original_url"] = resource_link
+                        md_data_entry["service_type"] = service_type[0]
+                        md_data_entry["version"] = version[0]
+                links.append(links_entry)
+
+            md_data_entry["links"] = links
 
             keywords = xml_helper.try_get_element_from_xml(
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")

@@ -216,7 +216,8 @@ class MrMapUser(AbstractUser):
                 metadata_type=MetadataEnum.DATASET.value,
                 created_by__in=user_groups,
             ).prefetch_related(
-                "related_metadata"
+                "related_metadata",
+                "related_metadata__metadata_to",
             ).order_by("title")
         return md_list
 
@@ -280,7 +281,7 @@ class MrMapUser(AbstractUser):
         self.permissions_cache = all_perm
         return all_perm
 
-    def has_permission(self, permission_needed: Permission):
+    def has_permission(self, permission_needed):
         """ Checks if needed permissions are provided by the users permission
 
         Args:
@@ -292,9 +293,15 @@ class MrMapUser(AbstractUser):
             return True
 
         all_perms = self.get_permissions()
-        permissions_needed = permission_needed.get_permission_set()
 
-        return permissions_needed.issubset(all_perms)
+        if isinstance(permission_needed, Permission):
+            # Transform single Permission into set
+            permission_needed = permission_needed.get_permission_set()
+        elif isinstance(permission_needed, set):
+            # Nothing to do here - keep this for clarification!
+            pass
+
+        return permission_needed.issubset(all_perms)
 
     def create_activation(self):
         """ Create an activation object

@@ -12,7 +12,7 @@ from django.utils.html import format_html
 
 from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MrMap.validators import validate_get_request_uri
+from MrMap.validators import validate_get_request_uri, check_uri_is_reachable
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
@@ -30,7 +30,11 @@ class ServiceURIForm(forms.Form):
 
 
 class RegisterNewResourceWizardPage1(MrMapWizardForm):
-    get_request_uri = forms.URLField(validators=[validate_get_request_uri])
+    get_request_uri = forms.URLField(
+        validators=[validate_get_request_uri],
+        label=_("Resource URL"),
+        help_text=_("In case of a OGC service you may provide the GetCapabilities url.")
+    )
 
 
 class RegisterNewResourceWizardPage2(MrMapWizardForm):
@@ -62,6 +66,8 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
         service_needs_authentication = None
         if service_needs_authentication_key in self.request.POST:
             service_needs_authentication = True if self.request.POST.get(service_needs_authentication_key) == 'on' else False
+        elif kwargs.get("initial", {}).get("service_needs_authentication", False):
+            service_needs_authentication = True
 
         # initial the fields if the values are transfered
         if self.requesting_user is not None:

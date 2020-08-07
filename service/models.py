@@ -28,7 +28,7 @@ from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
-    ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum
+    ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -82,6 +82,11 @@ class ProxyLog(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     response_wfs_num_features = models.IntegerField(null=True, blank=True)
     response_wms_megapixel = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = [
+            "-timestamp"
+        ]
 
     def __str__(self):
         return str(self.id)
@@ -450,14 +455,13 @@ class SecuredOperation(models.Model):
 
 class MetadataRelation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-    metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
-    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
+    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE)
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
-        return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
+        return "{} {}".format(self.relation_type, self.metadata_to.title)
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         """ Overwrites default save function
@@ -473,8 +477,6 @@ class MetadataRelation(models.Model):
 
         """
         super().save(force_insert, force_update, using, update_fields)
-        self.metadata_to.related_metadata.add(self)
-        self.metadata_from.related_metadata.add(self)
 
 
 class ExternalAuthentication(models.Model):
@@ -551,6 +553,8 @@ class Metadata(Resource):
     service_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
 
     html_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
+
+    additional_urls = models.ManyToManyField('GenericUrl', blank=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
@@ -659,6 +663,15 @@ class Metadata(Resource):
              True|False
         """
         return self.is_metadata_type(MetadataEnum.DATASET)
+
+    @property
+    def is_catalogue_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.CATALOGUE)
 
     def is_metadata_type(self, enum: MetadataEnum):
         """ Returns whether the metadata is of this MetadataEnum
@@ -971,8 +984,7 @@ class Metadata(Resource):
              dataset_md (Metadata) | None
         """
         try:
-            dataset_md = MetadataRelation.objects.get(
-                metadata_from=self,
+            dataset_md = self.related_metadata.get(
                 metadata_to__metadata_type=OGCServiceEnum.DATASET.value
             )
             dataset_md = dataset_md.metadata_to
@@ -990,7 +1002,7 @@ class Metadata(Resource):
             raise ValueError()
 
         doc = None
-        if self.has_external_authentication():
+        if self.has_external_authentication:
             ext_auth = self.external_authentication
             crypto_handler = CryptoHandler()
             key = crypto_handler.get_key_from_file(self.id)
@@ -1008,6 +1020,7 @@ class Metadata(Resource):
             raise ConnectionError()
         return doc
 
+    @property
     def has_external_authentication(self):
         """ Checks whether the metadata has a related ExternalAuthentication set
 
@@ -1125,6 +1138,17 @@ class Metadata(Resource):
             self.external_authentication.delete()
         except ObjectDoesNotExist:
             pass
+
+        # Remove GenricUrls if they are not used anywhere else!
+        urls = self.additional_urls.all()
+        for url in urls:
+            other_dependencies = Metadata.objects.filter(
+                additional_urls=url
+            ).exclude(
+                id=self.id
+            ).exists()
+            if not other_dependencies:
+                url.delete()
 
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
@@ -2488,21 +2512,24 @@ class ServiceType(models.Model):
         return self.name
 
 
-class ServiceUrl(Resource):
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
-    method = models.CharField(max_length=255, choices=[("Get", "Get"), ("Post", "Post"),], blank=True, null=True)
+class GenericUrl(Resource):
+    description = models.TextField(null=True, blank=True)
+    method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
     url = models.URLField(blank=True, null=True)
 
     def __str__(self):
-        return "{}: {} ({})".format(self.operation, self.url, self.method)
+        return "{} ({})".format(self.url, self.method)
+
+
+class ServiceUrl(GenericUrl):
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
 
 
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
-    service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
-    categories = models.ManyToManyField(Category, blank=True)
+    service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
@@ -2520,7 +2547,6 @@ class Service(Resource):
         # non persisting attributes
         self.root_layer = None
         self.feature_type_list = []
-        #self.formats_list = []
         self.categories_list = []
 
     def __str__(self):
@@ -2701,7 +2727,7 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = MetadataRelation.objects.filter(metadata_from=child.metadata)
+        iso_mds = child.metadata.related_metadata.all()
         for iso_md in iso_mds:
             md_2 = iso_md.metadata_to
             md_2.delete()
@@ -2723,7 +2749,7 @@ class Service(Resource):
         Returns:
         """
         # remove related metadata
-        linked_mds = MetadataRelation.objects.filter(metadata_from=self.metadata)
+        linked_mds = self.metadata.related_metadata.all()
         for linked_md in linked_mds:
             md_2 = linked_md.metadata_to
             md_2.delete()
@@ -2991,7 +3017,6 @@ class Layer(Service):
         for md in rel_md:
             dependencies = MetadataRelation.objects.filter(
                 metadata_to=md.metadata_to,
-                metadata_from__is_active=True,
             )
             if dependencies.count() > 1 and new_status is False:
                 # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata

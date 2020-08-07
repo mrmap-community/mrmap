@@ -205,7 +205,7 @@ class Monitoring:
         success = False
         duration = None
         connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout)
-        if self.metadata.has_external_authentication():
+        if self.metadata.has_external_authentication:
             connector.external_auth = self.metadata.external_authentication
         try:
             connector.load()

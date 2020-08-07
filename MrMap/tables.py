@@ -76,11 +76,12 @@ class MrMapTable(tables.Table):
                       per_page=self.request.GET.get(self.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     def check_render_permission(self, permission: Permission):
-        perm_identifier = str(permission.get_permission_set())
-        has_perm = self.permission_lookup.get(perm_identifier, None)
+        required_permissions_set = permission.get_permission_set()
+        hashed_perm_set = hash(str(required_permissions_set).encode("UTF-8"))
+        has_perm = self.permission_lookup.get(hashed_perm_set, None)
         if has_perm is None:
-            self.permission_lookup[perm_identifier] = self.user.has_permission(permission)
-            has_perm = self.permission_lookup[perm_identifier]
+            has_perm = self.user.has_permission(required_permissions_set)
+            self.permission_lookup[hashed_perm_set] = has_perm
         return has_perm
 
     def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: Permission):

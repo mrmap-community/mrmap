@@ -116,7 +116,7 @@ def edit(request: HttpRequest, metadata_id):
                               # ToDo: after refactoring of all forms is done, show_modal can be removed
                               show_modal=True,
                               has_autocomplete_fields=True,
-                              form_title=_(f"Edit metadata <strong>{metadata.title}</strong>")
+                              form_title=_("Edit metadata <strong>{}</strong>").format(metadata.title)
                               )
     return form.process_request(valid_func=form.process_edit_metadata)
 

@@ -6,8 +6,9 @@ class EnumChoice(Enum):
 
     """
     @classmethod
-    def as_choices(cls):
-        choices = [(None, "---")] + [(enum.value, enum.value) for enum in cls]
+    def as_choices(cls, drop_empty_choice: bool = False):
+        empty_choice = [] if drop_empty_choice else [(None, "---")]
+        choices = empty_choice + [(enum.value, enum.value) for enum in cls]
         return choices
 
 
@@ -18,6 +19,14 @@ class ConnectionEnum(EnumChoice):
     CURL = "curl"
     REQUESTS = "requests"
     URLLIB = "urllib"
+
+
+class HttpMethodEnum(EnumChoice):
+    """ Defines all important http method types
+
+    """
+    GET = "Get"
+    POST = "Post"
 
 
 class OGCServiceVersionEnum(EnumChoice):

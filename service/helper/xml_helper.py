@@ -10,7 +10,6 @@ from lxml.etree import XMLSyntaxError, _Element
 from requests.exceptions import ProxyError
 
 from MrMap.settings import XML_NAMESPACES
-from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum
 
 
@@ -70,6 +69,7 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
     Returns:
          None | str
     """
+    from service.helper.common_connector import CommonConnector
     connector = CommonConnector(url=uri, external_auth=external_auth)
     type_name = "typeName"
     if service_type_version == OGCServiceVersionEnum.V_2_0_0 or service_type_version == OGCServiceVersionEnum.V_2_0_2:

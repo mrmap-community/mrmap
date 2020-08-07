@@ -25,10 +25,6 @@ class Command(BaseCommand):
         mds = Metadata.objects.all().exclude(
             metadata_type=MetadataEnum.CATALOGUE.value
         )
-        Keyword.objects.all().delete()
-        MimeType.objects.filter(
-            operation=None
-        ).delete()
         self.stdout.write(self.style.NOTICE("Found {} records. Start removing...".format(mds.count())))
         t_start = time()
         mds.delete()

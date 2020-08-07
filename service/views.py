@@ -30,6 +30,7 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVer
 from service.helper.logger_helper import prepare_proxy_log_filter
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
     DatasetTable, CswTable
@@ -86,7 +87,12 @@ def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
     ).prefetch_related(
         "contact",
         "service",
+        "service__created_by",
+        "service__published_for",
         "service__service_type",
+        "external_authentication",
+        "service__parent_service__metadata",
+        "service__parent_service__metadata__external_authentication",
     ).order_by("title")
 
     if show_service:
@@ -131,7 +137,12 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
     ).prefetch_related(
         "contact",
         "service",
+        "service__created_by",
+        "service__published_for",
         "service__service_type",
+        "external_authentication",
+        "service__parent_service__metadata",
+        "service__parent_service__metadata__external_authentication",
     ).order_by("title")
 
     wfs_table = WfsServiceTable(request=request,
@@ -163,7 +174,10 @@ def _prepare_csw_table(request: HttpRequest, current_view: str, user_groups):
     ).prefetch_related(
         "contact",
         "service",
+        "service__created_by",
+        "service__published_for",
         "service__service_type",
+        "external_authentication",
     ).order_by("title")
 
     table = CswTable(request=request,
@@ -200,11 +214,12 @@ def add(request: HttpRequest):
         Returns:
              params (dict): The rendering parameter
     """
-    return NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,
-                                     current_view=request.GET.get('current-view'),
-                                     title=_(format_html('<b>Add New Resource</b>')),
-                                     id_wizard='add_new_resource_wizard',
-                                     )(request=request)
+    return NewResourceWizard.as_view(
+        form_list=NEW_RESOURCE_WIZARD_FORMS,
+        current_view=request.GET.get('current-view'),
+        title=_(format_html('<b>Add New Resource</b>')),
+        id_wizard='add_new_resource_wizard',
+    )(request=request)
 
 
 @login_required
@@ -324,15 +339,17 @@ def activate(request: HttpRequest, metadata_id):
     """
     md = get_object_or_404(Metadata, id=metadata_id)
 
-    form = ActivateServiceForm(data=request.POST or None,
-                               request=request,
-                               reverse_lookup='resource:activate',
-                               reverse_args=[metadata_id, ],
-                               # ToDo: after refactoring of all forms is done, show_modal can be removed
-                               show_modal=True,
-                               form_title=_(f"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"),
-                               is_confirmed_label=_(f"Do you really want to {'deactivate' if md.is_active else 'activate'} this service?"),
-                               instance=md,)
+    form = ActivateServiceForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='resource:activate',
+        reverse_args=[metadata_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _("Activate resource \n<strong>{}</strong>").format(md.title),
+        is_confirmed_label=_("Do you really want to deactivate this resource?") if md.is_active else _("Do you really want to activate this resource?"),
+        instance=md,
+    )
     return form.process_request(valid_func=form.process_activate_service)
 
 
@@ -489,81 +506,11 @@ def _get_capabilities(request: HttpRequest, metadata_id):
     """
 
     md = get_object_or_404(Metadata, id=metadata_id)
-    stored_version = md.get_service_version().value
-    # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(metadata_id)
-
-    if not md.is_active:
-        return HttpResponse(content=SERVICE_DISABLED, status=423)
-
-    # check that we have the requested version in our database
-    version_param = None
-    version_tag = None
-
-    request_param = None
-    request_tag = None
-
-    use_fallback = None
-
-    for k, v in request.GET.dict().items():
-        if k.upper() == "VERSION":
-            version_param = v
-            version_tag = k
-        elif k.upper() == "REQUEST":
-            request_param = v
-            request_tag = k
-        elif k.upper() == "FALLBACK":
-            use_fallback = utils.resolve_boolean_attribute_val(v)
-
-    # No version parameter has been provided by the request - we simply use the one we have.
-    if version_param is None or len(version_param) == 0:
-        version_param = stored_version
-
-    if version_param not in [data.value for data in OGCServiceVersionEnum]:
-        # version number not valid
-        return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
-
-    elif request_param is not None and request_param != OGCOperationEnum.GET_CAPABILITIES.value:
-        # request not valid
-        return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
-
-    else:
-        pass
-
-    if stored_version == version_param or use_fallback is True or not md.is_root():
-        # This is the case if
-        # 1) a version is requested, which we have in our database
-        # 2) the fallback parameter is set explicitly
-        # 3) a subelement is requested, which normally do not have capability documents
-
-        # We can check the cache for this document or we need to generate it!
-        doc = md.get_current_capability_xml(version_param)
-    else:
-        # we have to fetch the remote document
-        try:
-            # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
-            xml = md.get_remote_original_capabilities_document(version_param)
-
-            tmp = xml_helper.parse_xml(xml)
-            if tmp is None:
-                raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
-
-            # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            # md.service.service_type.version = version_param
-            doc = Document(
-                content=xml,
-                metadata=md,
-                document_type=DocumentEnum.CAPABILITY.value,
-                is_original=True
-            )
-            doc.set_capabilities_secured(auto_save=False)
-            if md.use_proxy_uri:
-                doc.set_proxy(True, auto_save=False, force_version=version_param)
-            doc = doc.content
-        except (ReadTimeout, TimeoutError, ConnectionError) as e:
-            # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
-            return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
-
+    try:
+        doc = get_resource_capabilities(request, md)
+    except (ReadTimeout, TimeoutError, ConnectionError) as e:
+        # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
+        return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
     return HttpResponse(doc, content_type='application/xml')
 
 
@@ -623,6 +570,10 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         # wfs root object
         base_template = 'metadata/base/wfs/root_metadata_as_html.html'
         params.update(collect_wfs_root_data(md, request))
+
+    elif md.is_catalogue_metadata:
+        # ToDo: Add html view for CSW!
+        pass
 
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())
@@ -1260,9 +1211,11 @@ def logs_view(request: HttpRequest, update_params: dict = None, status_code: int
     user = user_helper.get_user(request)
 
     params = {
-        "log_table": prepare_proxy_log_filter(request=request,
-                                              user=user,
-                                              current_view='resource:logs-view'),
+        "log_table": prepare_proxy_log_filter(
+            request=request,
+            user=user,
+            current_view='resource:logs-view'
+        ),
         "current_view": 'resource:logs-view',
     }
     if update_params:

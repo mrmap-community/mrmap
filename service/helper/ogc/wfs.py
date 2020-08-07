@@ -196,7 +196,7 @@ class OGCWebFeatureService(OGCWebService):
             xml_elem=service_xml,
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Keywords") +
                  "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword")
-        )
+        ) or []
         kw = []
         for keyword in keywords:
             text = keyword.text
@@ -880,11 +880,11 @@ class OGCWebFeatureService(OGCWebService):
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=md.created_by)
             md_relation = MetadataRelation()
-            md_relation.metadata_from = md
             md_relation.metadata_to = service.linked_service_metadata
             md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
             md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
             md_relation.save()
+            md.related_metadata.add(md_relation)
 
         # Keywords
         for kw in self.service_identification_keywords:
@@ -941,12 +941,12 @@ class OGCWebFeatureService(OGCWebService):
                 dataset_record = dataset_md.to_db_model(created_by=group)
                 dataset_record.save()
                 md_relation = MetadataRelation()
-                md_relation.metadata_from = f_t.metadata
                 md_relation.metadata_to = dataset_record
                 origin = ResourceOriginEnum.CAPABILITIES.value
                 md_relation.origin = origin
                 md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
                 md_relation.save()
+                f_t.metadata.related_metadata.add(md_relation)
 
             # keywords of feature types
             for kw in f_t.keywords_list:

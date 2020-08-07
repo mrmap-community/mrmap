@@ -914,11 +914,11 @@ class OGCWebMapService(OGCWebService):
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
             md_relation = MetadataRelation()
-            md_relation.metadata_from = metadata
             md_relation.metadata_to = service.linked_service_metadata
             md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
             md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
             md_relation.save()
+            metadata.related_metadata.add(md_relation)
 
 
 class OGCWebMapServiceLayer(OGCLayer):

@@ -43,6 +43,7 @@ class ApiParameterTestCase(TestCase):
         params = {
             "q": self.q_param,
             "format": "json",
+            "q-test": True
         }
         response = self.client.get(
             self.api_catalogue_uri,

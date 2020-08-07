@@ -20,6 +20,7 @@ from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
+from editor.tasks import async_process_securing_access
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum
 from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
@@ -28,7 +29,7 @@ from service.models import Metadata, MetadataRelation, Keyword, Category, Datase
     SecuredOperation
 from service.settings import ISO_19115_LANG_CHOICES
 from service.tasks import async_secure_service_task
-from structure.models import Organization, MrMapUser, MrMapGroup
+from structure.models import Organization
 from users.helper import user_helper
 from django.contrib import messages
 
@@ -55,6 +56,15 @@ class MetadataEditorForm(MrMapModelForm):
             "keywords",
             "categories",
         ]
+        labels = {
+            "title": _("Title"),
+            "abstract": _("Abstract"),
+            "language_code": _("Language Code"),
+            "access_constraints": _("Access Constraints"),
+            "licence": _("Licence"),
+            "keywords": _("Keywords"),
+            "categories": _("Categories"),
+        }
         help_texts = {
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
@@ -68,9 +78,8 @@ class MetadataEditorForm(MrMapModelForm):
             "categories": autocomplete.ModelSelect2Multiple(
                 url='editor:category-autocomplete',
                 attrs={
-                    "data-containercss": {
-                        "height": "3em",
-                        "width": "3em",
+                    "select2-container-css-style": {
+                        "height": "auto",
                     },
                 },
             ),
@@ -194,12 +203,12 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['character_set_code'].initial = dataset.character_set_code
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
-            metadata_relations = MetadataRelation.objects.filter(metadata_to=self.instance_id)
-            additional_related_objects = []
-            for metadata_relation in metadata_relations:
-                if metadata_relation.origin != ResourceOriginEnum.CAPABILITIES.value:
-                    additional_related_objects.append(metadata_relation.metadata_from)
-            self.fields['additional_related_objects'].initial = additional_related_objects
+            metadata_relations = MetadataRelation.objects.filter(
+                metadata_to=self.instance_id
+            ).exclude(
+                origin=ResourceOriginEnum.CAPABILITIES.value
+            )
+            self.fields['additional_related_objects'].initial = metadata_relations
 
 
 class DatasetClassificationForm(MrMapWizardForm):
@@ -456,7 +465,7 @@ class RestrictAccessForm(MrMapForm):
             self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
 
         # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-        if self.metadata.has_external_authentication() and not use_proxy:
+        if self.metadata.has_external_authentication and not use_proxy:
             raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
         return cleaned_data
@@ -473,27 +482,12 @@ class RestrictAccessForm(MrMapForm):
         log_proxy = self.cleaned_data.get("log_proxy", False)
         restrict_access = self.cleaned_data.get("restrict_access", False)
 
-        # Create list of main and sub metadatas for later use
-        metadatas = metadata.get_subelements_metadatas()
-        metadatas.append(metadata)
-
-        if metadata.use_proxy_uri != use_proxy:
-            metadata.set_proxy(use_proxy)
-
-        if metadata.log_proxy_access != log_proxy:
-            metadata.set_logging(log_proxy)
-
-        if metadata.is_secured != restrict_access:
-            metadata.set_secured(restrict_access)
-
-        for md in metadatas:
-            if restrict_access is False:
-                md.secured_operations.all().delete()
-            # Clear cached documents
-            ## There might be the case, that a user requests a subelements capability document just before the securing is finished
-            ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end
-            ## just to make sure!
-            md.clear_cached_documents()
+        async_process_securing_access.delay(
+            metadata.id,
+            use_proxy,
+            log_proxy,
+            restrict_access
+        )
 
 
 class RestrictAccessSpatially(MrMapForm):

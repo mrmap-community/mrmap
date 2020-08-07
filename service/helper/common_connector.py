@@ -19,6 +19,7 @@ import re
 from django.http import HttpResponse
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
+from service.helper import xml_helper
 from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT, service_logger
 from MrMap.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
@@ -44,12 +45,13 @@ class CommonConnector:
         self.http_content_type = None
         self.http_post_field_numbers = None
         self.http_external_headers = None
-        self.http_send_custom_headers = False
         self.http_cookie_session = None
         self.content = None
         self.encoding = None
         self.status_code = None
         self.is_local_request = False
+
+        self.additional_headers = {}
 
         if url is not None:
             self.set_url(url)
@@ -82,10 +84,10 @@ class CommonConnector:
         if url is None:
             url = self._url
         try:
-            response = requests.head(url)
-        except requests.exceptions.ConnectionError:
+            response = requests.head(url=url, proxies=PROXIES)
+        except requests.exceptions.ConnectionError as e:
             return False, -1
-        return response.status_code == 200, response.status_code
+        return True, response.status_code
 
     def load(self, params: dict = None):
         self.init_time = time.time()
@@ -212,6 +214,12 @@ class CommonConnector:
         Returns:
              nothing
         """
+        # Automatically set the Content-Type header to xml,
+        # if data is proper xml and no other Content-Type has been set, yet.
+        check_xml = xml_helper.parse_xml(data)
+        if check_xml is not None and self.additional_headers.get("Content-Type", None) is None:
+            self.additional_headers["Content-Type"] = "application/xml"
+
         self.init_time = time.time()
 
         if self.connection_type is ConnectionEnum.CURL:
@@ -226,6 +234,7 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
+                    headers=self.additional_headers,
                 )
             elif self.external_auth.auth_type == "http_basic":
                 response = requests.post(
@@ -233,7 +242,8 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
-                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password)
+                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password),
+                    headers=self.additional_headers,
                 )
             elif self.external_auth.auth_type == "http_digest":
                 response = requests.post(
@@ -241,7 +251,8 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
-                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password)
+                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password),
+                    headers=self.additional_headers,
                 )
             self.status_code = response.status_code
             self.content = response.content

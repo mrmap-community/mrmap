@@ -8,7 +8,7 @@ import json
 
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
-from MrMap.utils import get_theme, get_ok_nok_icon
+from MrMap.utils import get_theme
 from MrMap.consts import construct_url
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
@@ -87,9 +87,30 @@ TOOLTIP_REGISTERED_BY_GROUP = _('The group which registered the resource.')
 TOOLTIP_REGISTERED_FOR = _('The organization for which the resource is registered.')
 TOOLTIP_CREATED_ON = _('The registration date.')
 TOOLTIP_ACTIONS = _('Performable Actions')
+TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 
 
-class WmsServiceTable(MrMapTable):
+class ResourceTable(MrMapTable):
+    def get_status_icons(self, record):
+        icons = ''
+        if record.is_active:
+            icons += self.get_icon(icon_color='text-success',
+                                   icon=get_theme(self.user)["ICONS"]["POWER_OFF"],
+                                   tooltip=_('This resource is active.'))
+        else:
+            icons += self.get_icon(icon_color='text-danger',
+                                   icon=get_theme(self.user)["ICONS"]["POWER_OFF"],
+                                   tooltip=_('This resource is deactivated.'))
+        if record.is_secured:
+            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["WFS"],
+                                   tooltip=_('This resource is secured.'))
+        if hasattr(record, 'external_authentication'):
+            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
+                                   tooltip=_('This resource has external authentication.'))
+        return format_html(icons)
+
+
+class WmsServiceTable(ResourceTable):
 
     attrs = {
         "th": {
@@ -103,24 +124,11 @@ class WmsServiceTable(MrMapTable):
         attrs=attrs,
         tooltip=TOOLTIP_TITLE,
     )
-    wms_active = MrMapColumn(
-        accessor='is_active',
-        verbose_name=_('Active'),
-        attrs=attrs,
-        tooltip=TOOLTIP_ACTIVE
-    )
-    wms_secured_access = MrMapColumn(
-        accessor='is_secured',
-        verbose_name=_('Secured access'),
-        attrs=attrs,
-        tooltip=TOOLTIP_SECURED_ACCESS,
-    )
-    wms_secured_externally = MrMapColumn(
-        accessor='external_authentication',
-        verbose_name=_('Secured externally'),
+    wms_status = MrMapColumn(
+        verbose_name=_('Status'),
         empty_values=[False, ],
         attrs=attrs,
-        tooltip=TOOLTIP_SECURED_EXTERNALLY,
+        tooltip=TOOLTIP_STATUS,
     )
     wms_version = MrMapColumn(
         accessor='service.service_type.version',
@@ -168,17 +176,8 @@ class WmsServiceTable(MrMapTable):
                              content=value,
                              tooltip=tooltip, )
 
-    @staticmethod
-    def render_wms_active(value):
-        return get_ok_nok_icon(value)
-
-    @staticmethod
-    def render_wms_secured_access(value):
-        return get_ok_nok_icon(value)
-
-    @staticmethod
-    def render_wms_secured_externally(value):
-        return get_ok_nok_icon(value)
+    def render_wms_status(self, record):
+        return self.get_status_icons(record=record)
 
     def render_wms_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
@@ -270,7 +269,7 @@ class WmsLayerTableWms(WmsServiceTable):
         return queryset, True
 
 
-class WfsServiceTable(MrMapTable):
+class WfsServiceTable(ResourceTable):
     caption = _("Shows all registered WFS.")
 
     class Meta:
@@ -286,21 +285,10 @@ class WfsServiceTable(MrMapTable):
     wfs_featuretypes = MrMapColumn(
         verbose_name=_('Featuretypes'),
         empty_values=[], )
-    wfs_active = MrMapColumn(
-        accessor='is_active',
-        verbose_name=_('Active'),
-        tooltip=TOOLTIP_ACTIVE,
-    )
-    wfs_secured_access = MrMapColumn(
-        accessor='is_secured',
-        verbose_name=_('Secured access'),
-        tooltip=TOOLTIP_SECURED_ACCESS,
-    )
-    wfs_secured_externally = MrMapColumn(
-        accessor='external_authentication',
-        verbose_name=_('Secured externally'),
+    wfs_status = MrMapColumn(
+        verbose_name=_('Status'),
         empty_values=[False, ],
-        tooltip=TOOLTIP_SECURED_EXTERNALLY,
+        tooltip=TOOLTIP_STATUS,
     )
     wfs_version = MrMapColumn(
         accessor='service.service_type.version',
@@ -348,21 +336,8 @@ class WfsServiceTable(MrMapTable):
         count = record.service.featuretypes.count()
         return str(count)
 
-    @staticmethod
-    def render_wfs_active(value):
-        return get_ok_nok_icon(value)
-
-    @staticmethod
-    def render_wfs_active(value):
-        return get_ok_nok_icon(value)
-
-    @staticmethod
-    def render_wfs_secured_access(value):
-        return get_ok_nok_icon(value)
-
-    @staticmethod
-    def render_wfs_secured_externally(value):
-        return get_ok_nok_icon(value)
+    def render_wfs_status(self, record):
+        return self.get_status_icons(record=record)
 
     def render_wfs_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))

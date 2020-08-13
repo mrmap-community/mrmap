@@ -39,9 +39,6 @@ class DefaultContext:
             if index == len(breadcrumb_items)-1:
                 item.update({'is_last': True})
 
-            if index == len(breadcrumb_items)-2:
-                item.update({'is_penultimate': True})
-
             breadcrumb.append(item)
             index += 1
 

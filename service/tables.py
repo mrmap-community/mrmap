@@ -14,7 +14,7 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
-from service.helper.enums import ResourceOriginEnum
+from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
 
@@ -512,10 +512,16 @@ class PendingTasksTable(MrMapTable):
 
     def render_pt_actions(self, record):
         btns = ''
-        btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
-                             permission=Permission(),
-                             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-                             btn_value=get_theme(self.user)["ICONS"]['WINDOW_CLOSE'], )
+        if record.type != PendingTaskEnum.REGISTER or record.error_report:
+            btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
+                                 permission=Permission(),
+                                 btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                 btn_value=get_theme(self.user)["ICONS"]['WINDOW_CLOSE'], )
+        if record.error_report:
+            btns += self.get_btn(href=reverse('structure:generate-error-report', args=(record.error_report.id,)),
+                                 permission=Permission(),
+                                 btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+                                 btn_value=get_theme(self.user)["ICONS"]['CSW'],)
         return format_html(btns)
 
     @staticmethod

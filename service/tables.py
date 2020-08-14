@@ -508,11 +508,11 @@ class PendingTasksTable(MrMapTable):
     pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-3"}})
     pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-4"}})
     pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-3"}})
-    pt_actions = tables.Column(verbose_name=_('Cancel task'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
+    pt_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     def render_pt_actions(self, record):
         btns = ''
-        if record.type != PendingTaskEnum.REGISTER or record.error_report:
+        if record.type != PendingTaskEnum.REGISTER.value or record.error_report:
             btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
                                  permission=Permission(),
                                  btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],

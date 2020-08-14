@@ -284,7 +284,7 @@ def create_new_service(form, user: MrMapUser):
         "service": form.cleaned_data['uri'],
         "phase": "Parsing",
     })
-    pending_task_db.type = PendingTaskEnum.REGISTER
+    pending_task_db.type = PendingTaskEnum.REGISTER.value
 
     pending_task_db.save()
     return pending_task_db

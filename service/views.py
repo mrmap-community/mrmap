@@ -240,10 +240,10 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
     template = "views/index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups)
+    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
-                                 request=request, )
+                                 request=request,)
 
     params = {
         "pt_table": pt_table,
@@ -282,10 +282,10 @@ def pending_tasks(request: HttpRequest, update_params: dict = None, status_code:
     template = "includes/pending_tasks.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups()).order_by('id')
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
-                                 request=request, )
+                                 request=request,)
     params = {
         "pt_table": pt_table,
         "current_view": "resource:prending-tasks",
@@ -736,10 +736,10 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
     template = "views/wms_index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups)
+    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
-                                 request=request, )
+                                 request=request,)
 
     params = {
         "pt_table": pt_table,
@@ -776,10 +776,10 @@ def csw_index(request: HttpRequest, update_params: dict = None, status_code: int
     template = "views/csw_index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups)
+    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
-                                 request=request, )
+                                 request=request,)
 
     params = {
         "pt_table": pt_table,
@@ -1097,10 +1097,10 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
     template = "views/wfs_index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user_groups)
+    pending_tasks = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
     pt_table = PendingTasksTable(data=pending_tasks,
                                  orderable=False,
-                                 request=request, )
+                                 request=request,)
 
     params = {
         "pt_table": pt_table,

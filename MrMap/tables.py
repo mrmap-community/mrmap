@@ -115,6 +115,16 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
+    def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'top',):
+        context = {
+            "icon_color": icon_color,
+            "icon": icon,
+            "tooltip": tooltip,
+            "tooltip_placement": tooltip_placement,
+        }
+        return render_to_string(template_name="sceletons/icon_with_tooltip.html",
+                                context=context)
+
     def prepare_table_pagination_settings(self, request: HttpRequest, param_lead: str):
         return self.prepare_list_pagination_settings(request, param_lead)
 

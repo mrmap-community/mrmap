@@ -109,6 +109,13 @@ class ResourceTable(MrMapTable):
                                    tooltip=_('This resource has external authentication.'))
         return format_html(icons)
 
+    def order_status(self, queryset, is_descending):
+        is_descending_str = "-" if is_descending else ""
+        queryset = queryset.order_by(is_descending_str + "is_active",
+                                     is_descending_str + "is_secured",
+                                     is_descending_str + "external_authentication", )
+        return queryset, True
+
 
 class WmsServiceTable(ResourceTable):
 
@@ -208,6 +215,9 @@ class WmsServiceTable(ResourceTable):
 
     def render_wms_actions(self, record):
         return _get_action_btns_for_service_table(self, record)
+
+    def order_wms_status(self, queryset, is_descending):
+        return self.order_status(queryset=queryset, is_descending=is_descending)
 
 
 class WmsTableWms(WmsServiceTable):
@@ -375,6 +385,9 @@ class WfsServiceTable(ResourceTable):
             count=Count("service__featuretypes")
         ).order_by(("-" if is_descending else "") + "count")
         return queryset, True
+
+    def order_wfs_status(self, queryset, is_descending):
+        return self.order_status(queryset=queryset, is_descending=is_descending)
 
 
 class CswTable(MrMapTable):

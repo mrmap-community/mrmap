@@ -6,6 +6,7 @@ urlpatterns = [
     path('', index, name='index'),
 
     path('task/remove/<task_id>', remove_task, name='remove-task'),
+    path('report/error/<report_id>', generate_error_report, name='generate-error-report'),
 
     path('groups/', groups_index, name='groups-index'),
     path('groups/detail/<object_id>', detail_group, name='detail-group'),

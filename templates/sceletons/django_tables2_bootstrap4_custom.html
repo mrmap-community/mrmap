@@ -89,7 +89,7 @@
         <div class="overflow-auto">
         <div class="table-container">
             {% block table %}
-                <table class="table {{table.context.THEME.TABLE.HOVER}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
+                <table id="id_{{table.table_id}}" class="table {{table.context.THEME.TABLE.HOVER}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
                     <caption class="d-none">{{table.caption}}</caption>
                     {% block table.thead %}
                     {% if table.show_header %}

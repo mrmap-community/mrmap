@@ -1,10 +1,54 @@
 <script type="application/javascript">
+    var initialRowCount = $('#id_pending_tasks_div table tr').length -1;
     interval = setInterval(function(){
         $.get( '{% url 'resource:pending-tasks' %}', function( data ) {
             $( "#id_pending_tasks_div" ).html( data );
             $(function () {
               $('[data-toggle="tooltip"]').tooltip()
             })
+            // -1 for table header row
+            var rowCount = $('#id_pending_tasks_div table tr').length -1;
+            console.log('initial: ' + initialRowCount);
+            console.log('now: ' + rowCount);
+
+            if ( rowCount < 1 ){
+                // table is empty - stop interval
+                clearInterval(interval);
+                // remove pending task div
+                $( "#id_pending_tasks_div" ).remove();
+            }
+
+            if ( rowCount < initialRowCount || rowCount > initialRowCount ) {
+                initialRowCount = $('#id_pending_tasks_div table tr').length -1;
+                console.log('one task done or one more');
+                // refresh all resource tables
+                $.get( '{% url 'resource:wms-table' %}?current-view={{current_view}}', function( data ) {
+                    $( "#id_resource_wms_div" ).html( data );
+                    $(function () {
+                      $('[data-toggle="tooltip"]').tooltip()
+                    })
+                });
+                $.get( '{% url 'resource:wfs-table' %}?current-view={{current_view}}', function( data ) {
+                    $( "#id_resource_wfs_div" ).html( data );
+                    $(function () {
+                      $('[data-toggle="tooltip"]').tooltip()
+                    })
+                });
+                $.get( '{% url 'resource:csw-table' %}?current-view={{current_view}}', function( data ) {
+                    $( "#id_resource_csw_div" ).html( data );
+                    $(function () {
+                      $('[data-toggle="tooltip"]').tooltip()
+                    })
+                });
+                $.get( '{% url 'resource:dataset-table' %}?current-view={{current_view}}', function( data ) {
+                    $( "#id_resource_dataset_div" ).html( data );
+                    $(function () {
+                      $('[data-toggle="tooltip"]').tooltip()
+                    })
+                });
+
+            }
+
         });
     }, 1000);
 </script>

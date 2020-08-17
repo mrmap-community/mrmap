@@ -25,6 +25,11 @@ urlpatterns = [
     path('add/', add, name='add'),
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
+    path('wms-table/', wms_table, name="wms-table"),
+    path('wfs-table/', wfs_table, name="wfs-table"),
+    path('wms-table/', wms_table, name="wms-table"),
+    path('csw-table/', csw_table, name="csw-table"),
+    path('dataset-table/', datasets_table, name="dataset-table"),
 
     path('wms/', wms_index, name='wms-index'),
     path('wfs/', wfs_index, name='wfs-index'),

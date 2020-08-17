@@ -10,18 +10,24 @@
         {% include 'includes/pending_task_table_refresh_script.html' %}
 
     {% endif %}
-
-    {% include 'includes/index/wms.html' %}
-
-    {% include 'includes/index/wfs.html' %}
-
-    {% include 'includes/index/csw.html' %}
+    <div id="id_resource_wms_div">
+        {% include 'includes/index/wms.html' %}
+    </div>
+    <div id="id_resource_wfs_div">
+        {% include 'includes/index/wfs.html' %}
+    </div>
+    <div id="id_resource_csw_div">
+        {% include 'includes/index/csw.html' %}
+    </div>
 
     {% with 'Datasets' as service_type %}
         {% with dataset_table as table %}
+            <div id="id_resource_dataset_div">
                 {% include 'includes/index/datasets.html' %}
+            </div>
         {% endwith %}
     {% endwith %}
+
 
 </div>
 {% endblock %}

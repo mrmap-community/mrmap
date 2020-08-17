@@ -17,7 +17,7 @@ from MrMap.utils import resolve_boolean_attribute_val
 from service import tasks
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum, PendingTaskEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
@@ -284,6 +284,7 @@ def create_new_service(form, user: MrMapUser):
         "service": form.cleaned_data['uri'],
         "phase": "Parsing",
     })
+    pending_task_db.type = PendingTaskEnum.REGISTER.value
 
     pending_task_db.save()
     return pending_task_db

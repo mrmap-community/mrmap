@@ -503,20 +503,27 @@ class PendingTasksTable(MrMapTable):
         if record.type != PendingTaskEnum.REGISTER.value or record.error_report:
             btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
                                  permission=Permission(),
+                                 tooltip=_('Delete this running task.'),
                                  btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
                                  btn_value=get_theme(self.user)["ICONS"]['WINDOW_CLOSE'], )
         if record.error_report:
             btns += self.get_btn(href=reverse('structure:generate-error-report', args=(record.error_report.id,)),
                                  permission=Permission(),
+                                 tooltip=_('Download the error report as text file.'),
                                  btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
                                  btn_value=get_theme(self.user)["ICONS"]['CSW'],)
         return format_html(btns)
 
-    @staticmethod
-    def render_pt_status():
-        return format_html('<div class="spinner-border spinner-border-sm" role="status">'
-                           '<span class="sr-only">Loading...</span>'
-                           '</div>')
+    def render_pt_status(self, record):
+        json_description = json.loads(record.description)
+        if 'ERROR' in json_description['phase']:
+            return self.get_icon(icon=get_theme(self.user)["ICONS"]['ERROR'],
+                                 icon_color='text-danger',
+                                 tooltip='This task stopped with error.')
+        else:
+            return format_html('<div class="spinner-border spinner-border-sm" role="status">'
+                               '<span class="sr-only">Loading...</span>'
+                               '</div>')
 
     @staticmethod
     def render_pt_service(record):

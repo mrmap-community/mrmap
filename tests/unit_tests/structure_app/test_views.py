@@ -113,7 +113,7 @@ class StructurePendingTaskViewTestCase(TestCase):
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         self.assertEqual(PendingTask.objects.all().count(), 9)
 
 

@@ -33,6 +33,9 @@ API_ALLOWED_HTTP_METHODS = [
 # You should always keep the keyword setting on True, since this is the way a spatial data infrastructure is supposed to work!
 # Enable the other settings for further combinations. Test a little bit around and see what configuration fits the best for
 # your environment.
+# PLEASE NOTE: Enabling title and abstract querying next to keywords leads to duplicate entries in the resulting set.
+# Adding a distinct search would increase the response time too much, therefore the current way to go is to accept the fact
+# that some results might be duplicated.
 API_QUERY_ON_KEYWORDS = True  # The way OGC services should be queried in a perfect world. If the metadata are bad, you won't find anything.
 API_QUERY_ON_TITLE = False  # Extend the keyword querying by enabling this option. Be aware this slows down the DB lookup.
 API_QUERY_ON_ABSTRACT = False  # Extend the keyword querying by enabling this option. Be aware this slows down the DB lookup.

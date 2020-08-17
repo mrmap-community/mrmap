@@ -146,7 +146,7 @@ def filter_queryset_metadata_query(queryset, query, q_test: bool = False):
                 if kws_exist:
                     matching_keywords = matching_keywords.values_list("id")
                 else:
-                    matching_keywords = None
+                    matching_keywords = []
                 q_tmp |= Q(keywords__id__in=matching_keywords)
             if q_title:
                 q_tmp |= Q(title__icontains=query_elem)

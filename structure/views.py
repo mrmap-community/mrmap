@@ -1,8 +1,10 @@
+import io
 import json
+from datetime import datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponseRedirect, StreamingHttpResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
@@ -13,7 +15,7 @@ from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
     RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
-from structure.models import MrMapGroup, Permission, Organization, PendingRequest, PendingTask
+from structure.models import MrMapGroup, Permission, Organization, PendingRequest, PendingTask, ErrorReport
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
@@ -250,7 +252,7 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
                   context=context.get_context(),
                   status=200 if status_code is None else status_code)
 
-
+@login_required
 def remove_task(request: HttpRequest, task_id: int):
     """ Removes a pending task from the PendingTask table
 
@@ -265,7 +267,31 @@ def remove_task(request: HttpRequest, task_id: int):
     messages.info(request, message=SERVICE_REGISTRATION_ABORTED.format(descr.get("service", None)))
 
     task.delete()
-    return redirect(request.META.get("HTTP_REFERER"))
+    return HttpResponseRedirect(reverse("resource:index"), status=303)
+
+
+@login_required
+def generate_error_report(request: HttpRequest, report_id: int):
+    """ Provides the error report as txt download.
+
+    TXT is the only provided file type.
+
+    Args:
+        request (HttpRequest):
+        report_id:
+    Returns:
+
+    """
+    TXT = "text/plain"
+    error_report = get_object_or_404(ErrorReport, id=report_id)
+    data = error_report.generate_report()
+
+    # Create empty response object and fill it with dynamic csv content
+    timestamp_now = datetime.now()
+    response = HttpResponse(data, content_type=TXT)
+
+    response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.txt"'
+    return response
 
 
 @login_required

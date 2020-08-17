@@ -102,7 +102,7 @@
                                             </button>
                                         </span>
                                     {% endif %}
-                                    {% if wizard.steps.current != wizard.steps.last %}
+                                    {% if wizard.steps.current != wizard.steps.last and wizard.ignore_uncomitted_forms%}
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the last step'%}">
                                             <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.last }}">
                                                 {% autoescape off %}{{THEME.ICONS.LAST}}{% endautoescape %}

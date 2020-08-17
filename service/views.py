@@ -267,10 +267,12 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
 
 @login_required
 def pending_tasks(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a table of all pending tasks
+    """ Renders a table of all pending tasks without any css depending scripts or something else
 
     Args:
         request (HttpRequest): The incoming request
+        update_params:
+        status_code:
     Returns:
          A view
     """
@@ -288,6 +290,145 @@ def pending_tasks(request: HttpRequest, update_params: dict = None, status_code:
         "pt_table": pt_table,
         "current_view": "resource:prending-tasks",
     }
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
+
+@login_required
+def wms_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders a table of all wms without any css depending scripts or something else
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code:
+    Returns:
+         A view
+    """
+    user = user_helper.get_user(request)
+    user_groups = user.get_groups()
+
+    # Default content
+    template = "includes/index/wms.html"
+
+    current_view = request.GET.get('current-view', None)
+
+    params = {
+        "current_view": current_view,
+    }
+
+    params.update(_prepare_wms_table(request=request, current_view=current_view, user_groups=user_groups))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
+
+
+@login_required
+def wfs_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders a table of all wfs without any css depending scripts or something else
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code:
+    Returns:
+         A view
+    """
+    user = user_helper.get_user(request)
+    user_groups = user.get_groups()
+
+    # Default content
+    template = "includes/index/wfs.html"
+
+    current_view = request.GET.get('current-view', None)
+
+    params = {
+        "current_view": current_view,
+    }
+
+    params.update(_prepare_wfs_table(request=request, current_view=current_view, user_groups=user_groups))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
+
+
+@login_required
+def csw_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders a table of all csw without any css depending scripts or something else
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code:
+    Returns:
+         A view
+    """
+    user = user_helper.get_user(request)
+    user_groups = user.get_groups()
+
+    # Default content
+    template = "includes/index/csw.html"
+
+    current_view = request.GET.get('current-view', None)
+
+    params = {
+        "current_view": current_view,
+    }
+
+    params.update(_prepare_csw_table(request=request, current_view=current_view, user_groups=user_groups))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
+
+
+@login_required
+def datasets_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders a table of all datasets without any css depending scripts or something else
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code:
+    Returns:
+         A view
+    """
+    user = user_helper.get_user(request)
+    user_groups = user.get_groups()
+
+    # Default content
+    template = "includes/index/datasets.html"
+
+    current_view = request.GET.get('current-view', None)
+
+    params = {
+        "current_view": current_view,
+    }
+
+    params.update(_prepare_dataset_table(request=request, current_view=current_view, user_groups=user_groups))
 
     if update_params:
         params.update(update_params)

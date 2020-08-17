@@ -8,7 +8,9 @@ Created on: 12.08.19
 import base64
 import json
 import time
+import traceback
 
+import requests
 from celery import shared_task
 from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
 from django.db import transaction
@@ -26,7 +28,7 @@ from service.settings import DEFAULT_SRS
 from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog
 from service.settings import service_logger
-from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
+from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
 
@@ -206,7 +208,8 @@ def async_remove_service_task(service_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int, external_auth: dict):
+def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
+                      external_auth: dict):
     """ Async call of new service creation
 
     Since redis is used as broker, the objects can not be passed directly into the function. They have to be resolved using
@@ -300,8 +303,27 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             pending_task.delete()
 
     except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
+        url = url_dict['base_uri'] + f"SERVICE={url_dict['service'].value}&VERSION={url_dict['version'].value}&request={url_dict['request']}"
+        error_msg = f"Error while trying to register new resource for url: {url}\n"
+
+        response = requests.get(url)
+        if response.status_code == 200:
+            cap_doc = "-----------------------------------------------------------\n"\
+                      f"We could receive the following capabilities document:\n{response.text}"
+            error_msg += cap_doc
+
+        service_logger.error(msg=error_msg)
+        service_logger.exception(e, stack_info=True, exc_info=True)
+
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
+
+            register_group = MrMapGroup.objects.get(id=register_group_id)
+            error_report = ErrorReport(message=error_msg,
+                                       traceback=traceback.format_exc(),
+                                       created_by=register_group)
+            error_report.save()
+
             descr = json.loads(pending_task.description)
             pending_task.description = json.dumps({
                 "service": descr.get("service", None),
@@ -309,9 +331,13 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
                     "current": "0",
                 },
                 "exception": e.__str__(),
+                "phase": "ERROR: Something went wrong! Click on generate error report to inform your serveradmin about this error.",
             })
+            pending_task.error_report = error_report
             pending_task.save()
+
         raise e
+
 
 @shared_task(name="async_log_response")
 def async_log_response(proxy_log_id: int, response: str, request_param: str, format_param: str):

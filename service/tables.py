@@ -521,9 +521,9 @@ class PendingTasksTable(MrMapTable):
                                  icon_color='text-danger',
                                  tooltip='This task stopped with error.')
         else:
-            return format_html('<div class="spinner-border spinner-border-sm" role="status">'
-                               '<span class="sr-only">Loading...</span>'
-                               '</div>')
+            return self.get_icon(icon=get_theme(self.user)["ICONS"]['PLAY'],
+                                 icon_color='text-success',
+                                 tooltip='This task is still running.')
 
     @staticmethod
     def render_pt_service(record):

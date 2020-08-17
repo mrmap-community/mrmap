@@ -67,7 +67,8 @@ FONT_AWESOME_ICONS = {
     'OFF': format_html(ICON_PATTERN, 'fas', 'fa-toggle-off', ),
     'POWER_OFF': format_html(ICON_PATTERN, 'fas', 'fa-power-off'),
     'HARVEST': format_html(ICON_PATTERN, 'fas', 'fa-level-down-alt'),
-    'ERROR': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-circle')
+    'ERROR': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-circle'),
+    'PLAY': format_html(ICON_PATTERN, 'fas', 'fa-play'),
 }
 
 # dark theme settings

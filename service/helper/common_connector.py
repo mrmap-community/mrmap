@@ -204,7 +204,7 @@ class CommonConnector:
     def __load_urllib(self):
         pass
 
-    def post(self, data):
+    def post(self, data, check_xml_validity:bool = False):
         """ Wraps the post functionality of different request implementations (CURL, Requests).
 
         The response is written to self.content.
@@ -214,11 +214,12 @@ class CommonConnector:
         Returns:
              nothing
         """
-        # Automatically set the Content-Type header to xml,
-        # if data is proper xml and no other Content-Type has been set, yet.
-        check_xml = xml_helper.parse_xml(data)
-        if check_xml is not None and self.additional_headers.get("Content-Type", None) is None:
-            self.additional_headers["Content-Type"] = "application/xml"
+        if check_xml_validity:
+            # Automatically set the Content-Type header to xml,
+            # if data is proper xml and no other Content-Type has been set, yet.
+            check_xml = xml_helper.parse_xml(data)
+            if check_xml is not None and self.additional_headers.get("Content-Type", None) is None:
+                self.additional_headers["Content-Type"] = "application/xml"
 
         self.init_time = time.time()
 

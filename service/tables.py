@@ -727,15 +727,15 @@ class DatasetTable(MrMapTable):
         return format_html(', '.join(link_list))
 
     def render_dataset_origins(self, record):
-        related_metadatas = Metadata.objects.filter(
-            related_metadata__metadata_to=record
-        ).prefetch_related(
-            "related_metadata"
+        related_metadatas = MetadataRelation.objects.filter(
+            metadata_to=record
         )
         origin_list = []
-        for metadata in related_metadatas:
-            relation = metadata.related_metadata.get(metadata_to=record)
-            origin_list.append(f"{relation.origin} [{metadata.id}]")
+        rel_mds = list(record.related_metadata.all())
+        relations = list(related_metadatas) + rel_mds
+        for relation in relations:
+            origin_list.append(f"{relation.origin}")
+
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):

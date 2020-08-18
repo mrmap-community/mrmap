@@ -1150,7 +1150,7 @@ class Metadata(Resource):
             if not other_dependencies:
                 url.delete()
 
-        # check if there are MetadataRelations on this metadata record
+        # check if there are MetadataRelations to(!) this metadata record
         # if so, we can not remove it until these relations aren't used anymore
         dependencies = MetadataRelation.objects.filter(
             metadata_to=self
@@ -1160,6 +1160,9 @@ class Metadata(Resource):
             # the one dependency we can expect at least is the relation to the current metadata record
             return
         else:
+            # Remove all relations from(!) this metadata as well
+            md_rels = self.related_metadata.all()
+            md_rels.delete()
             # if we have one or less relations to this metadata record, we can remove it anyway
             super().delete(using, keep_parents)
 

@@ -28,7 +28,7 @@ from MrMap.utils import execute_threads
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
-    CSW_CACHE_PREFIX
+    CSW_CACHE_PREFIX, HARVEST_GET_REQUEST_OUTPUT_SCHEMA
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, \
@@ -41,10 +41,13 @@ class Harvester:
     def __init__(self, metadata: Metadata, group: MrMapGroup, max_records_per_request: int = 200):
         self.metadata = metadata
         self.harvesting_group = group
+        # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
         self.harvest_url = metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
         ).exclude(
             url=None
+        ).order_by(
+            "method"
         ).first()
 
         self.version = self.metadata.get_service_version().value
@@ -97,7 +100,7 @@ class Harvester:
                 task_id=async_task_id,
                 description=json.dumps({
                     "service": self.metadata.title,
-                    "phase": "Loading Harvest...",
+                    "phase": "Connecting...",
                 }),
                 progress=0,
                 remaining_time=None,
@@ -117,11 +120,18 @@ class Harvester:
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
         hits_response, status_code = self._get_harvest_response(result_type="hits")
+        descr = json.loads(self.pending_task.description)
         if status_code != 200:
+            descr["phase"] = "Harvest failed: HTTP Code {}"
+            self.pending_task.description = json.dumps(descr)
+            self.pending_task.save()
             raise ConnectionError(_("Harvest failed: Code {}\n{}").format(status_code, hits_response))
         xml_response = xml_helper.parse_xml(hits_response)
         if xml_response is None:
-            raise ConnectionError(_("Response is no proper xml: \n{}".format(hits_response)))
+            descr["phase"] = "Response is not a valid xml"
+            self.pending_task.description = json.dumps(descr)
+            self.pending_task.save()
+            raise ConnectionError(_("Response is not a valid xml: \n{}".format(hits_response)))
 
         try:
             total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
@@ -131,8 +141,14 @@ class Harvester:
                 ))
         except TypeError:
             csw_logger.error("Malicious Harvest response: {}".format(hits_response))
+            descr["phase"] = "Harvest response incorrect. Inform an administrator!"
+            self.pending_task.description = json.dumps(descr)
+            self.pending_task.save()
             raise AttributeError(_("Harvest response is missing important data!"))
 
+        descr["phase"] = "Start harvesting..."
+        self.pending_task.description = json.dumps(descr)
+        self.pending_task.save()
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
 
         # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
@@ -145,6 +161,8 @@ class Harvester:
         number_of_harvested = 0
         self.harvest_result.timestamp_start = datetime.datetime.now(pytz.utc)
         self.harvest_result.save()
+
+        page_cacher = PageCacher()
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
         while self.pending_task is not None:
@@ -161,6 +179,9 @@ class Harvester:
             self.harvest_result.number_results = number_of_harvested
             self.harvest_result.save()
 
+            # Remove cached pages of API and CSW
+            page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+            page_cacher.remove_pages(CSW_CACHE_PREFIX)
             if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
@@ -186,7 +207,6 @@ class Harvester:
             self.pending_task.delete()
 
         # Remove cached pages of API and CSW
-        page_cacher = PageCacher()
         page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
         page_cacher.remove_pages(CSW_CACHE_PREFIX)
 
@@ -222,6 +242,7 @@ class Harvester:
                 "outputFormat": self.output_format,
                 "startPosition": str(start_position),
                 "maxRecords": str(self.max_records_per_request),
+                "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
                 #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
             },
             nsmap=namespaces
@@ -282,6 +303,7 @@ class Harvester:
                 "maxRecords": self.max_records_per_request,
                 "version": self.version,
                 "request": OGCOperationEnum.GET_RECORDS.value,
+                "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
             }
             connector.load(params=params)
             harvest_response = connector.content
@@ -881,31 +903,32 @@ class Harvester:
             resp_party_elem,
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("organisationName")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
+        ) or ""
         person_name = xml_helper.try_get_text_from_xml_element(
             resp_party_elem,
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("individualName")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
+        ) or ""
         phone = xml_helper.try_get_text_from_xml_element(
             resp_party_elem,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Telephone")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("voice")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
+        ) or ""
         facsimile = xml_helper.try_get_text_from_xml_element(
             resp_party_elem,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Telephone")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("facsimile")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
+        ) or ""
+
         # Parse address information, create fallback values
-        address = None
-        city = None
-        postal_code = None
-        country = None
-        email = None
-        state = None
+        address = ""
+        city = ""
+        postal_code = ""
+        country = ""
+        email = ""
+        state = ""
         address_elem = xml_helper.try_get_single_element_from_xml(
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Address"),
             md_metadata
@@ -915,51 +938,67 @@ class Harvester:
                 address_elem,
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("deliveryPoint")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
+            ) or ""
             city = xml_helper.try_get_text_from_xml_element(
                 address_elem,
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("city")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
+            ) or ""
             postal_code = xml_helper.try_get_text_from_xml_element(
                 address_elem,
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("postalCode")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
+            ) or ""
             country = xml_helper.try_get_text_from_xml_element(
                 address_elem,
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("country")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
+            ) or ""
             email = xml_helper.try_get_text_from_xml_element(
                 address_elem,
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("electronicMailAddress")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
+            ) or ""
             state = xml_helper.try_get_text_from_xml_element(
                 address_elem,
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("administrativeArea")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
+            ) or ""
         is_auto_generated = True
         description = xml_helper.try_get_text_from_xml_element(
             resp_party_elem,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL")
-        )
-        org = Organization.objects.get_or_create(
-            person_name=person_name,
-            organization_name=organization_name,
-            phone=phone,
-            facsimile=facsimile,
-            address=address,
-            city=city,
-            postal_code=postal_code,
-            country=country,
-            email=email,
-            state_or_province=state,
-            is_auto_generated=is_auto_generated,
-            description=description,
-        )[0]
+        ) or ""
+        try:
+            org = Organization.objects.create(
+                person_name=person_name,
+                organization_name=organization_name,
+                phone=phone,
+                facsimile=facsimile,
+                address=address,
+                city=city,
+                postal_code=postal_code,
+                country=country,
+                email=email,
+                state_or_province=state,
+                is_auto_generated=is_auto_generated,
+                description=description,
+            )
+        except IntegrityError:
+            org = Organization.objects.get(
+                person_name=person_name,
+                organization_name=organization_name,
+                phone=phone,
+                facsimile=facsimile,
+                address=address,
+                city=city,
+                postal_code=postal_code,
+                country=country,
+                email=email,
+                state_or_province=state,
+                is_auto_generated=is_auto_generated,
+                description=description,
+            )
         return org

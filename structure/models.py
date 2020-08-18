@@ -111,6 +111,27 @@ class Organization(Contact):
     created_by = models.ForeignKey('MrMapUser', related_name='created_by', on_delete=models.SET_NULL, null=True,
                                    blank=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "organization_name",
+                    "person_name",
+                    "email",
+                    "phone",
+                    "facsimile",
+                    "city",
+                    "postal_code",
+                    "address_type",
+                    "address",
+                    "state_or_province",
+                    "country",
+                    "description",
+                ],
+                name="unique organizations"
+            )
+        ]
+
     def __str__(self):
         if self.organization_name is None:
             return ""

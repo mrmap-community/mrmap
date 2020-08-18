@@ -28,7 +28,7 @@ class RoleAdmin(admin.ModelAdmin):
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'organization_name', 'is_auto_generated', 'country', 'city', 'postal_code']
+    list_display = ['id', 'organization_name', 'is_auto_generated', 'person_name', 'country', 'city', 'postal_code']
     list_filter = ('is_auto_generated', )
     search_fields = ['id', 'organization_name', 'country', 'city', 'postal_code' ]
 

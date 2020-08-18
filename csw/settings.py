@@ -42,6 +42,8 @@ HARVEST_METADATA_TYPES = {
     MetadataEnum.MODEL.value: True,
 }
 
+HARVEST_GET_REQUEST_OUTPUT_SCHEMA = "http://www.isotc211.org/2005/gmd"
+
 
 CSW_CACHE_TIME = 60 * 60  # 60 minutes (min * sec)
 CSW_CACHE_PREFIX = "csw"

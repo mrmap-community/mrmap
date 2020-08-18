@@ -141,8 +141,13 @@ def filter_queryset_metadata_query(queryset, query, q_test: bool = False):
         for query_elem in query_list:
             q_tmp = Q()
             if q_keywords:
-                matching_keywords = list(all_keywords.filter(keyword__icontains=query_elem))
-                q_tmp |= Q(keywords__in=matching_keywords)
+                matching_keywords = all_keywords.filter(keyword__istartswith=query_elem)
+                kws_exist = matching_keywords.exists()
+                if kws_exist:
+                    matching_keywords = matching_keywords.values_list("id")
+                else:
+                    matching_keywords = []
+                q_tmp |= Q(keywords__id__in=matching_keywords)
             if q_title:
                 q_tmp |= Q(title__icontains=query_elem)
             if q_abstract:

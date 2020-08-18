@@ -111,15 +111,15 @@ class Role(models.Model):
 
 class Contact(models.Model):
     person_name = models.CharField(max_length=200, default="", null=True, blank=True)
-    email = models.CharField(max_length=100, null=True, blank=True)
-    phone = models.CharField(max_length=100, null=True, blank=True)
-    facsimile = models.CharField(max_length=100, null=True, blank=True)
-    city = models.CharField(max_length=100, null=True, blank=True)
-    postal_code = models.CharField(max_length=100, null=True, blank=True)
-    address_type = models.CharField(max_length=100, null=True, blank=True)
-    address = models.CharField(max_length=100, null=True, blank=True)
-    state_or_province = models.CharField(max_length=100, null=True, blank=True)
-    country = models.CharField(max_length=100, null=True, blank=True)
+    email = models.CharField(max_length=100, default="", null=True, blank=True)
+    phone = models.CharField(max_length=100, default="", null=True, blank=True)
+    facsimile = models.CharField(max_length=100, default="", null=True, blank=True)
+    city = models.CharField(max_length=100, default="", null=True, blank=True)
+    postal_code = models.CharField(max_length=100, default="", null=True, blank=True)
+    address_type = models.CharField(max_length=100, default="", null=True, blank=True)
+    address = models.CharField(max_length=100, default="", null=True, blank=True)
+    state_or_province = models.CharField(max_length=100, default="", null=True, blank=True)
+    country = models.CharField(max_length=100, default="", null=True, blank=True)
 
     def __str__(self):
         return self.person_name
@@ -130,11 +130,32 @@ class Contact(models.Model):
 
 class Organization(Contact):
     organization_name = models.CharField(max_length=255, null=True, default="")
-    description = models.TextField(null=True, blank=True)
+    description = models.TextField(default="", null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
     created_by = models.ForeignKey('MrMapUser', related_name='created_by', on_delete=models.SET_NULL, null=True,
                                    blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "organization_name",
+                    "person_name",
+                    "email",
+                    "phone",
+                    "facsimile",
+                    "city",
+                    "postal_code",
+                    "address_type",
+                    "address",
+                    "state_or_province",
+                    "country",
+                    "description",
+                ],
+                name="unique organizations"
+            )
+        ]
 
     def __str__(self):
         if self.organization_name is None:

@@ -1361,7 +1361,6 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(
             metadata=self,
@@ -1411,7 +1410,6 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(
             metadata=service.metadata

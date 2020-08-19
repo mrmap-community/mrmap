@@ -12,6 +12,9 @@
                     {% block modal-title %}
                     {% endblock %}
                 </h5><!-- </modal-title> -->
+                <a href="{% if current_view_arg %}{% url current_view current_view_arg %}{% else %}{% url current_view %}{% endif %}" role="button" class="close" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </a>
                 {% block modal-header %}
                 {% endblock %}
             </div><!-- </modal-header> -->
@@ -135,5 +138,16 @@
          $('#id_modal_form_{{id_modal}}').append(input);
          $('#id_modal_form_{{id_modal}}').submit();
        });
+    });
+
+    $("#id_modal_{{id_modal}}").on('keyup', function(event) {
+       if (event.keyCode === 27 || event.key === "Escape") {
+            $('#id_modal_{{id_modal}}').modal('hide');
+            {% if current_view_arg %}
+                location.replace("{{ROOT_URL}}{% url current_view current_view_arg %}");
+            {% else %}
+                location.replace("{{ROOT_URL}}{% url current_view %}");
+            {% endif %}
+       }
     });
 </script>

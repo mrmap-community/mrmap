@@ -1,7 +1,3 @@
-import os
-from datetime import timedelta
-import json
-
 from django.test import TestCase, Client
 
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
@@ -13,7 +9,9 @@ from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 
 OPERATION_BASE_URI_TEMPLATE = "/resource/metadata/{}/operation"
-EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}"
+EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}?current-view=resource:index"
+RESTORE_BASE_URI_TEMPLATE = "/editor/restore/{}?current-view=resource:index"
+
 
 class EditorTestCase(TestCase):
 
@@ -135,6 +133,8 @@ class EditorTestCase(TestCase):
             "title": test_title,
             "abstract": test_abstract,
             "access_constraints": test_access_constraints,
+            "language_code": "ger",
+            "licence": "",
         }
 
         ## case 0: User not logged in -> tries to edit -> fails
@@ -189,7 +189,7 @@ class EditorTestCase(TestCase):
 
         ## case 0: User not logged in -> tries to restore -> fails
         client = self._get_logged_out_client()
-        url = "/editor/restore/{}".format(self.service_wms.metadata.id)
+        url = RESTORE_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
         self._run_request({}, url, "get", client)
         self.assertEqual(self.service_wms.metadata.title, new_val, msg="Metadata was restored by not logged in user!")
         self.assertEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was restored by not logged in user!")
@@ -202,9 +202,9 @@ class EditorTestCase(TestCase):
         self.perm.can_edit_metadata = False
         self.perm.save()
 
-        url = "/editor/restore/{}".format(self.service_wms.metadata.id)
+        url = RESTORE_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
 
-        self._run_request({}, url, "get", client)
+        self._run_request({"is_confirmed": "on"}, url, "post", client)
         self.assertEqual(self.service_wms.metadata.title, new_val, msg="Metadata was restored by a user without permission!")
         self.assertEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was restored by a user without permission!")
         self.assertEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was restored by a user without permission!")
@@ -214,7 +214,7 @@ class EditorTestCase(TestCase):
         self.perm.save()
 
         ## case 1.2: User logged in -> tries to restore -> success
-        self._run_request({}, url, "get", client)
+        self._run_request({"is_confirmed": "on"}, url, "post", client)
         self.service_wms.metadata.refresh_from_db()
         self.service_wms.refresh_from_db()
         self.assertNotEqual(self.service_wms.metadata.title, new_val, msg="Metadata was not restored by logged in user!")
@@ -600,7 +600,7 @@ class EditorTestCase(TestCase):
             "log_proxy": "on",
             "secured-operation-groups": '[{"operation":"GetFeature","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\": \\"Polygon\\", \\"coordinates\\": [[[6.207275, 48.950263], [6.207275, 49.886814], [7.327881, 49.886814], [7.327881, 48.950263], [6.207275, 48.950263]]]}]","securedOperation":"233","remove":"false"}]}]',
         }
-        async_process_secure_operations_form(params_wfs, self.service_wfs.metadata.id)
+        #async_process_secure_operations_form(params_wfs, self.service_wfs.metadata.id)
 
         # Get the new logged record for the WFS
         proxy_log = ProxyLog.objects.get(

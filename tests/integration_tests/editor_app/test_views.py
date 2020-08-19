@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from editor.tasks import async_process_securing_access
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper import service_helper, xml_helper
 from service.models import Document, ProxyLog, Layer, SecuredOperation
@@ -11,6 +12,8 @@ from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 OPERATION_BASE_URI_TEMPLATE = "/resource/metadata/{}/operation"
 EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}?current-view=resource:index"
 RESTORE_BASE_URI_TEMPLATE = "/editor/restore/{}?current-view=resource:index"
+
+EDIT_ACCESS_BASE_URI_TEMPLATE = "/editor/access/{}?current-view=resource:index"
 
 
 class EditorTestCase(TestCase):
@@ -221,8 +224,7 @@ class EditorTestCase(TestCase):
         self.assertNotEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was not restored by logged in user!")
         self.assertNotEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was not restored by logged in user!")
 
-    # ToDo: Rewrite these tests based on new securing logic
-    def _proxy_setting(self):
+    def test_proxy_setting(self):
         """ Tests whether the proxy can be set properly.
 
         Returns:
@@ -231,12 +233,12 @@ class EditorTestCase(TestCase):
 
         # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
         # is used to process access settings directly.
-        params = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-        }
-
-        #async_process_secure_operations_form(params, metadata.id)
+        async_process_securing_access(
+            metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
 
         self.cap_doc_wms.refresh_from_db()
         doc_unsecured = self.cap_doc_wms.content

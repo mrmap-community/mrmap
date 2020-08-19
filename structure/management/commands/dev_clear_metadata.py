@@ -27,5 +27,6 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.NOTICE("Found {} records. Start removing...".format(mds.count())))
         t_start = time()
-        mds.delete()
+        for md in mds:
+            md.delete()
         self.stdout.write(self.style.NOTICE("Removing finished. Took {}s".format(time() - t_start)))

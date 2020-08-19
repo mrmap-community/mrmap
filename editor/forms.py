@@ -372,9 +372,9 @@ class RestoreMetadataForm(MrMapConfirmForm):
     def process_restore_metadata(self):
         ext_auth = self.instance.get_external_authentication_object()
         service_type = self.instance.get_service_type()
-        if service_type == 'wms':
+        if service_type == OGCServiceEnum.WMS.value:
             children_md = Metadata.objects.filter(service__parent_service__metadata=self.instance, is_custom=True)
-        elif service_type == 'wfs':
+        elif service_type == OGCServiceEnum.WFS.value:
             children_md = Metadata.objects.filter(featuretype__parent_service__metadata=self.instance, is_custom=True)
 
         if not self.instance.is_custom and len(children_md) == 0:
@@ -390,9 +390,9 @@ class RestoreMetadataForm(MrMapConfirmForm):
             md.save()
         messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
         if not self.instance.is_root():
-            if service_type == 'wms':
+            if service_type == OGCServiceEnum.WMS.value:
                 parent_metadata = self.instance.service.parent_service.metadata
-            elif service_type == 'wfs':
+            elif service_type == OGCServiceEnum.WFS.value:
                 parent_metadata = self.instance.featuretype.parent_service.metadata
             else:
                 # This case is not important now

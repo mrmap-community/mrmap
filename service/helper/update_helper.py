@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.06.19
 
 """
-from copy import copy, deepcopy
+from copy import deepcopy
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction

@@ -1,19 +1,24 @@
-import os
-from datetime import timedelta
-import json
+import base64
+from time import sleep, time
 
 from django.test import TestCase, Client
 
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from editor.tasks import async_process_securing_access
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper import service_helper, xml_helper
 from service.models import Document, ProxyLog, Layer, SecuredOperation
+from service.tasks import async_log_response, async_secure_service_task
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 
 OPERATION_BASE_URI_TEMPLATE = "/resource/metadata/{}/operation"
-EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}"
+EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}?current-view=resource:index"
+RESTORE_BASE_URI_TEMPLATE = "/editor/restore/{}?current-view=resource:index"
+
+EDIT_ACCESS_BASE_URI_TEMPLATE = "/editor/access/{}?current-view=resource:index"
+
 
 class EditorTestCase(TestCase):
 
@@ -135,6 +140,8 @@ class EditorTestCase(TestCase):
             "title": test_title,
             "abstract": test_abstract,
             "access_constraints": test_access_constraints,
+            "language_code": "ger",
+            "licence": "",
         }
 
         ## case 0: User not logged in -> tries to edit -> fails
@@ -189,7 +196,7 @@ class EditorTestCase(TestCase):
 
         ## case 0: User not logged in -> tries to restore -> fails
         client = self._get_logged_out_client()
-        url = "/editor/restore/{}".format(self.service_wms.metadata.id)
+        url = RESTORE_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
         self._run_request({}, url, "get", client)
         self.assertEqual(self.service_wms.metadata.title, new_val, msg="Metadata was restored by not logged in user!")
         self.assertEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was restored by not logged in user!")
@@ -202,9 +209,9 @@ class EditorTestCase(TestCase):
         self.perm.can_edit_metadata = False
         self.perm.save()
 
-        url = "/editor/restore/{}".format(self.service_wms.metadata.id)
+        url = RESTORE_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
 
-        self._run_request({}, url, "get", client)
+        self._run_request({"is_confirmed": "on"}, url, "post", client)
         self.assertEqual(self.service_wms.metadata.title, new_val, msg="Metadata was restored by a user without permission!")
         self.assertEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was restored by a user without permission!")
         self.assertEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was restored by a user without permission!")
@@ -214,15 +221,14 @@ class EditorTestCase(TestCase):
         self.perm.save()
 
         ## case 1.2: User logged in -> tries to restore -> success
-        self._run_request({}, url, "get", client)
+        self._run_request({"is_confirmed": "on"}, url, "post", client)
         self.service_wms.metadata.refresh_from_db()
         self.service_wms.refresh_from_db()
         self.assertNotEqual(self.service_wms.metadata.title, new_val, msg="Metadata was not restored by logged in user!")
         self.assertNotEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was not restored by logged in user!")
         self.assertNotEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was not restored by logged in user!")
 
-    # ToDo: Rewrite these tests based on new securing logic
-    def _proxy_setting(self):
+    def test_proxy_setting(self):
         """ Tests whether the proxy can be set properly.
 
         Returns:
@@ -231,12 +237,12 @@ class EditorTestCase(TestCase):
 
         # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
         # is used to process access settings directly.
-        params = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-        }
-
-        #async_process_secure_operations_form(params, metadata.id)
+        async_process_securing_access(
+            metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
 
         self.cap_doc_wms.refresh_from_db()
         doc_unsecured = self.cap_doc_wms.content
@@ -397,8 +403,8 @@ class EditorTestCase(TestCase):
             else:
                 pass
 
-    # ToDo: Rewrite these tests based on new securing logic
-    def _proxy_logging(self):
+
+    def test_proxy_logging(self):
         """ Tests whether the proxy logger logs correctly.
 
         Returns:
@@ -413,12 +419,18 @@ class EditorTestCase(TestCase):
 
         # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
         # is used to process access settings directly.
-        params = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-        }
-        #async_process_secure_operations_form(params, self.service_wms.metadata.id)
-        #async_process_secure_operations_form(params, self.service_wfs.metadata.id)
+        async_process_securing_access(
+            self.service_wms.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
+        async_process_securing_access(
+            self.service_wfs.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
 
         self.service_wms.metadata.refresh_from_db()
         self.service_wms.refresh_from_db()
@@ -452,6 +464,18 @@ class EditorTestCase(TestCase):
         response = self._run_request(params, url, "get", client)
         self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
 
+        # Postfetch for WMS
+        proxy_logs_wms = ProxyLog.objects.filter(metadata=self.service_wms.metadata)
+        post_proxy_logs_wms_num = proxy_logs_wms.count()
+        proxy_log_wms = proxy_logs_wms.first()
+        async_log_response(
+            proxy_log_wms.id,
+            base64.b64encode(response.content).decode("UTF-8"),
+            "GetMap",
+            None
+        )
+        proxy_log_wms.refresh_from_db()
+
         # Run regular /operation request for WFS
         feature = self.service_wfs.subelements[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
@@ -467,10 +491,17 @@ class EditorTestCase(TestCase):
         response = self._run_request(params, url, "get", client)
         self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
 
-        # Postfetch for WMS
-        proxy_logs_wms = ProxyLog.objects.filter(metadata=self.service_wms.metadata)
-        post_proxy_logs_wms_num = proxy_logs_wms.count()
-        proxy_log_wms = proxy_logs_wms.first()
+        # Postfetch for WFS
+        proxy_logs_wfs = ProxyLog.objects.filter(metadata=self.service_wfs.metadata)
+        post_proxy_logs_wfs_num = proxy_logs_wfs.count()
+        proxy_log_wfs = proxy_logs_wfs.first()
+        async_log_response(
+            proxy_log_wfs.id,
+            base64.b64encode(b"".join(response.streaming_content)).decode("UTF-8"),
+            "GetFeature",
+            "gml3",
+        )
+        proxy_log_wfs.refresh_from_db()
 
         # Assertions for WMS Log
         self.assertNotEqual(pre_proxy_logs_wms_num, post_proxy_logs_wms_num, msg="No new proxy log record created!")
@@ -479,19 +510,13 @@ class EditorTestCase(TestCase):
         expected_logged_megapixel = round((param_height * param_height) / 1000000, 4)
         self.assertEqual(proxy_log_wms.response_wms_megapixel, expected_logged_megapixel, msg="Wrong megapixel count! Was {} but {} expected!".format(proxy_log_wms.response_wms_megapixel, expected_logged_megapixel))
 
-        # Postfetch for WFS
-        proxy_logs_wfs = ProxyLog.objects.filter(metadata=self.service_wfs.metadata)
-        post_proxy_logs_wfs_num = proxy_logs_wfs.count()
-        proxy_log_wfs = proxy_logs_wfs.first()
-
         # Assertions for WFS Log
         self.assertNotEqual(pre_proxy_logs_wfs_num, post_proxy_logs_wfs_num, msg="No new proxy log record created!")
         self.assertEqual(pre_proxy_logs_wfs_num + 1, post_proxy_logs_wfs_num, msg="More than one log record was created!")
-        self.assertEqual(proxy_log_wfs.operation, "GetFeature", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wms.operation, "GetMap"))
+        self.assertEqual(proxy_log_wfs.operation, "GetFeature", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wfs.operation, "GetFeature"))
         self.assertGreater(proxy_log_wfs.response_wfs_num_features, 0, msg="Wrong returned feature count! Was {}!".format(proxy_log_wfs.response_wfs_num_features))
 
-    # ToDo: Rewrite these tests based on new securing logic
-    def _access_securing(self):
+    def test_access_securing(self):
         """ Tests whether the securing of a service changes the returned restuls on GetFeature and GetMap.
 
         Since we cannot qualify the content itself, we need to check the quantity inside the response.
@@ -508,38 +533,31 @@ class EditorTestCase(TestCase):
         Returns:
 
         """
-        # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
-        # is used to process access settings directly.
-        params_wms = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-            "secured-operation-groups": '[{"operation":"GetMap","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\":\\"Feature\\",\\"properties\\":{},\\"geometry\\":{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[7.534046,50.325703],[7.534046,50.380049],[7.637043,50.380049],[7.637043,50.325703],[7.534046,50.325703]]]}}]","securedOperation":"-1","remove":"false"}]},{"operation":"GetFeatureInfo","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\":\\"Feature\\",\\"properties\\":{},\\"geometry\\":{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[7.534046,50.325703],[7.534046,50.380049],[7.637043,50.380049],[7.637043,50.325703],[7.534046,50.325703]]]}}]","securedOperation":"-1","remove":"false"}]}]',
-        }
-        params_wfs = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-        }
-        #async_process_secure_operations_form(params_wms, self.service_wms.metadata.id)
-        #async_process_secure_operations_form(params_wfs, self.service_wfs.metadata.id)
+        client = self._get_logged_in_client()
+
+        # Secure WMS using geometry
+        async_process_securing_access(
+            self.service_wms.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=True,
+        )
+        async_secure_service_task(
+            self.service_wms.metadata.id,
+            self.group.id,
+            ["GetMap", "GetFeatureInfo"],
+            '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[7.223511,50.312919],[7.223511,50.461826],[7.616272,50.461826],[7.616272,50.312919],[7.223511,50.312919]]]}}]}',
+        )
 
         # Assert existing securedoperations for service and all subelements
         wms_elements = [self.service_wms.metadata] + [elem.metadata for elem in self.service_wms.subelements]
-        wfs_elements = [self.service_wfs.metadata] + [elem.metadata for elem in self.service_wfs.subelements]
         secured_operations_wms = SecuredOperation.objects.filter(
             secured_metadata__in=wms_elements
-        )
-        secured_operations_wfs = SecuredOperation.objects.filter(
-            secured_metadata__in=wfs_elements
         )
 
         wms_operations = ["GetMap", "GetFeatureInfo"]
         for op in secured_operations_wms:
             self.assertTrue(op.operation in wms_operations, msg="Wrong operation stored in secured operation! Found {}!".format(op.operation))
-            self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
-            self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
-
-        for op in secured_operations_wfs:
-            self.assertEqual(op.operation, "GetFeature", msg="Wrong operation stored in secured operation!")
             self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
             self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
 
@@ -549,14 +567,13 @@ class EditorTestCase(TestCase):
             parent_service=self.service_wms,
             parent_layer=None
         )
-        client = self._get_logged_in_client()
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
         param_width = 1000
         param_height = 1000
         params = {
             "request": "GetMap",
             "service": "WMS",
-            "bbox": "7.518260643092100182,50.31584133059208597,7.644704820723687178,50.38426523684209002",
+            "bbox": "7.393799,50.359379,7.68219,50.534343",
             "srs": "EPSG:4326",
             "version": OGCServiceVersionEnum.V_1_1_1.value,
             "width": str(param_width),
@@ -565,15 +582,30 @@ class EditorTestCase(TestCase):
             "format": "image/png",
         }
         response = self._run_request(params, url, "get", client)
+        proxy_log = ProxyLog.objects.get(
+            metadata=self.service_wms.metadata
+        )
+        async_log_response(
+            proxy_log.id,
+            base64.b64encode(response.content).decode("UTF-8"),
+            "GetMap",
+            None
+        )
+        proxy_log.refresh_from_db()
 
         self.assertEqual(response.status_code, 200, msg="Wrong")
 
         full_logged_megapixel = round((param_height * param_height) / 1000000, 4)
-        proxy_log = ProxyLog.objects.get(
-            metadata=self.service_wms.metadata
-        )
         self.assertLessEqual(proxy_log.response_wms_megapixel, full_logged_megapixel, msg="Logged megapixel ({}) not smaller than full image megapixel ({}). Securing might not worked!".format(proxy_log.response_wms_megapixel, full_logged_megapixel))
 
+        # WFS
+        # Activate the logging for WFS
+        async_process_securing_access(
+            self.service_wfs.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
         # First run an unsecured request, to get the amount of unsecured features that are returned!
         feature = self.service_wfs.subelements[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
@@ -587,25 +619,57 @@ class EditorTestCase(TestCase):
             "typename": feature.metadata.identifier,
         }
         response = self._run_request(params, url, "get", client)
-
         self.assertEqual(response.status_code, 200, msg="Wrong status code returned: {}".format(response.status_code))
-        proxy_log = ProxyLog.objects.get(
+        proxy_log = ProxyLog.objects.filter(
             metadata=self.service_wfs.metadata
+        ).first()
+        async_log_response(
+            proxy_log.id,
+            base64.b64encode(b"".join(response.streaming_content)).decode("UTF-8"),
+            "GetFeature",
+            "gml3",
         )
+        proxy_log.refresh_from_db()
         pre_num_logged_features = proxy_log.response_wfs_num_features
 
-        # Then run securing!
-        params_wfs = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-            "secured-operation-groups": '[{"operation":"GetFeature","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\": \\"Polygon\\", \\"coordinates\\": [[[6.207275, 48.950263], [6.207275, 49.886814], [7.327881, 49.886814], [7.327881, 48.950263], [6.207275, 48.950263]]]}]","securedOperation":"233","remove":"false"}]}]',
-        }
-        async_process_secure_operations_form(params_wfs, self.service_wfs.metadata.id)
+        # Secure WFS using geometry
+        async_process_securing_access(
+            self.service_wfs.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=True,
+        )
+        async_secure_service_task(
+            self.service_wfs.metadata.id,
+            self.group.id,
+            ["GetFeature"],
+            '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[7.223511,50.312919],[7.223511,50.461826],[7.616272,50.461826],[7.616272,50.312919],[7.223511,50.312919]]]}}]}',
+        )
+
+        wfs_elements = [self.service_wfs.metadata] + [elem.metadata for elem in self.service_wfs.subelements]
+        secured_operations_wfs = SecuredOperation.objects.filter(
+            secured_metadata__in=wfs_elements
+        )
+        for op in secured_operations_wfs:
+            self.assertEqual(op.operation, "GetFeature", msg="Wrong operation stored in secured operation!")
+            self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
+            self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
+
+        # Rerun request
+        response = self._run_request(params, url, "get", client)
+        self.assertEqual(response.status_code, 200, msg="Wrong status code returned: {}".format(response.status_code))
 
         # Get the new logged record for the WFS
-        proxy_log = ProxyLog.objects.get(
+        proxy_log = ProxyLog.objects.filter(
             metadata=self.service_wfs.metadata
+        ).first()
+        async_log_response(
+            proxy_log.id,
+            base64.b64encode(response.content).decode("UTF-8"),
+            "GetFeature",
+            "gml3",
         )
+        proxy_log.refresh_from_db()
         post_num_logged_features = proxy_log.response_wfs_num_features
 
         self.assertLessEqual(post_num_logged_features, pre_num_logged_features, msg="Logged number of features ({}) not smaller than unsecured number of features ({}). Securing might not worked!".format(post_num_logged_features, pre_num_logged_features))

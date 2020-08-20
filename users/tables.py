@@ -101,7 +101,7 @@ class SubscriptionTable(MrMapTable):
     def render_actions(self, record):
         btns = ''
         btns += format_html(self.get_btn(
-            href="#",
+            href=reverse('monitoring:run-monitoring', args=(record.id, ))+f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['HEARTBEAT'],
             permission=Permission(),

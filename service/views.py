@@ -567,20 +567,27 @@ def get_service_preview(request: HttpRequest, metadata_id):
     if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
         layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
+        # Fake the preview image for the whole service by using the root layer instead
+        md = layer.metadata
     elif md.service.is_service_type(OGCServiceEnum.WMS) and not md.service.is_root:
         layer = md.service.layer
 
     layer = layer.identifier
-    bbox = md.find_max_bounding_box()
+    if md.bounding_geometry.area == 0:
+        bbox = md.find_max_bounding_box()
+    else:
+        bbox = md.bounding_geometry
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
     img_width = 200
     img_heigt = 200
 
     try:
-        # Fetch a supported version of png
+        # Fetch a pixel based image mime type. We can not use vector types
         png_format = md.get_supported_formats().filter(
             mime_type__icontains="image/"
+        ).exclude(
+            mime_type__icontains="svg"
         ).first()
         img_format = png_format.mime_type
     except AttributeError:

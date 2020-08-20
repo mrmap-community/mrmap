@@ -1227,8 +1227,13 @@ class Metadata(Resource):
             )
         else:
             return DEFAULT_SERVICE_BOUNDING_BOX
-        children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
-        max_box = children_bboxes.get(max(children_bboxes), None)
+
+        try:
+            children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
+            max_box = children_bboxes.get(max(children_bboxes), None)
+        except ValueError:
+            # happens in max() on empty iterables
+            max_box = None
 
         if max_box is None:
             max_box = DEFAULT_SERVICE_BOUNDING_BOX

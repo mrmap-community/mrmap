@@ -516,7 +516,7 @@ class PendingTasksTable(MrMapTable):
 
     def render_pt_status(self, record):
         json_description = json.loads(record.description)
-        if 'ERROR' in json_description['phase']:
+        if 'ERROR' in json_description.get('phase', ""):
             return self.get_icon(icon=get_theme(self.user)["ICONS"]['ERROR'],
                                  icon_color='text-danger',
                                  tooltip='This task stopped with error.')
@@ -528,12 +528,12 @@ class PendingTasksTable(MrMapTable):
     @staticmethod
     def render_pt_service(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description)['service']) if 'service' in json.loads(record.description) else _('unknown')
+        return str(json.loads(record.description).get('service', "resource_name_missing")) if 'service' in json.loads(record.description) else _('unknown')
 
     @staticmethod
     def render_pt_phase(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description)['phase']) if 'phase' in json.loads(record.description) else _('unknown')
+        return str(json.loads(record.description).get('phase', "phase_information_missing")) if 'phase' in json.loads(record.description) else _('unknown')
 
     @staticmethod
     def render_pt_progress(record):

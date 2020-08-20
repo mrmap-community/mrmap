@@ -13,6 +13,7 @@ from celery.signals import beat_init
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
 from django_celery_beat.models import PeriodicTask, IntervalSchedule
 
+from monitoring.enums import MonitoringSettingEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.monitoring import Monitoring as Monitor
 
@@ -53,3 +54,5 @@ def run_monitoring(setting_id, *args, **kwargs):
     monitoring_run.end = end_time
     monitoring_run.duration = duration
     monitoring_run.save()
+    if setting.type.value == MonitoringSettingEnum.SPORADICALLY.value:
+        setting.delete()

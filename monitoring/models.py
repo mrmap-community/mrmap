@@ -7,10 +7,11 @@ Created on: 26.02.2020
 """
 import uuid
 from django.contrib.gis.db import models
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django_celery_beat.models import PeriodicTask,CrontabSchedule
 
 from MrMap.settings import TIME_ZONE
+from monitoring.enums import MonitoringSettingEnum
 
 
 class MonitoringSetting(models.Model):
@@ -18,6 +19,7 @@ class MonitoringSetting(models.Model):
     check_time = models.TimeField()
     timeout = models.IntegerField()
     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
+    type = models.CharField(max_length=255, choices=MonitoringSettingEnum.as_choices(), null=True, blank=True)
 
     def update_periodic_tasks(self):
         """ Updates related PeriodicTask record based on the current MonitoringSetting
@@ -86,7 +88,7 @@ class Monitoring(models.Model):
     error_msg = models.TextField(null=True, blank=True)
     available = models.BooleanField(null=True)
     monitored_uri = models.CharField(max_length=2000)
-    monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE)
+    monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='monitoring_results')
 
     class Meta:
         ordering = ["-timestamp"]

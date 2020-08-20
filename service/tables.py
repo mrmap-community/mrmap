@@ -15,7 +15,7 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
-from monitoring.models import Monitoring
+from monitoring.models import Monitoring, MonitoringRun
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
@@ -122,24 +122,29 @@ class ResourceTable(MrMapTable):
         return format_html(icons)
 
     def get_health_icons(self, record):
+        is_available = True
+        last_run = 'unknown'
+
         try:
             last_monitoring_object = Monitoring.objects.filter(metadata=record).order_by('-timestamp').first()
+            last_monitoring_run = MonitoringRun.objects.get(monitoring_results=last_monitoring_object)
+            last_run = last_monitoring_run.end
+            for monitoring_item in last_monitoring_run.monitoring_results.all():
+                if not monitoring_item.available:
+                    is_available = False
+
         except ObjectDoesNotExist:
-            last_monitoring_object = None
+            is_available = False
 
         icons = ''
-        if last_monitoring_object:
-            if last_monitoring_object.available:
-                icon_color = 'text-success'
-            else:
-                icon_color = 'text-danger'
-            icons += self.get_icon(icon_color=icon_color,
-                                   icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
-                                   tooltip=_(f'Last check runs on {last_monitoring_object.timestamp}'))
+
+        if is_available:
+            icon_color = 'text-success'
         else:
-            icons += self.get_icon(icon_color='text-secondary',
-                                   icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
-                                   tooltip=_(f'Last check state is unknown'))
+            icon_color = 'text-danger'
+        icons += self.get_icon(icon_color=icon_color,
+                               icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
+                               tooltip=_(f'Last check runs {last_run}'))
 
         return format_html(icons)
 

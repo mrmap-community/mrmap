@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils.datetime_safe import datetime
 
 from MrMap.decorator import check_permission
+from monitoring.enums import MonitoringSettingEnum
 from monitoring.models import MonitoringSetting
 from monitoring.tasks import run_monitoring
 from service.helper.enums import MetadataEnum
@@ -23,7 +24,9 @@ def call_run_monitoring(request: HttpRequest, metadata_id):
                                  ~Q(metadata_type=MetadataEnum.DATASET.value),
                                  id=metadata_id, )
 
-    mon_setting = MonitoringSetting(timeout=30, check_time=datetime.now())
+    mon_setting = MonitoringSetting(timeout=30,
+                                    check_time=datetime.now(),
+                                    type=MonitoringSettingEnum.SPORADICALLY.value)
     mon_setting.save()
     mon_setting.metadatas.add(metadata)
     mon_setting.save()
@@ -32,7 +35,5 @@ def call_run_monitoring(request: HttpRequest, metadata_id):
         run_monitoring(setting_id=mon_setting.id)
     except:
         pass
-
-
 
     return HttpResponseRedirect(reverse(request.GET.get('current-view') or reverse('home'),), status=303)

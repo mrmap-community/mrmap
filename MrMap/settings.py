@@ -172,7 +172,6 @@ ALLOWED_HOSTS = [
 ]
 
 # Application definition
-
 INSTALLED_APPS = [
     'dal',
     'dal_select2',
@@ -229,6 +228,15 @@ if DEBUG:
         }
     }
 
+# Holds all apps which needs migrations. Will be used in command 'dev_makemigrations'
+# If you added a new app with models, which need to be migrated, you have to put the app's name in this list
+MIGRATABLE_APPS = [
+    'csw',
+    'structure',
+    'service',
+    'users',
+    'monitoring',
+]
 
 TEMPLATE_LOADERS = (
     'django.template.loaders.structure.mr_map_filters.py',

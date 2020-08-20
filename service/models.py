@@ -114,7 +114,6 @@ class ProxyLog(models.Model):
             # For future implementation
             pass
         self.operation = request_param
-        self.operation = request_param
         self.save()
         service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 

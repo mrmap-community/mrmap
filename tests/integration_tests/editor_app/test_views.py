@@ -1,3 +1,6 @@
+import base64
+from time import sleep, time
+
 from django.test import TestCase, Client
 
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
@@ -5,6 +8,7 @@ from editor.tasks import async_process_securing_access
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper import service_helper, xml_helper
 from service.models import Document, ProxyLog, Layer, SecuredOperation
+from service.tasks import async_log_response
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
@@ -399,8 +403,8 @@ class EditorTestCase(TestCase):
             else:
                 pass
 
-    # ToDo: Rewrite these tests based on new securing logic
-    def _proxy_logging(self):
+
+    def test_proxy_logging(self):
         """ Tests whether the proxy logger logs correctly.
 
         Returns:
@@ -415,12 +419,18 @@ class EditorTestCase(TestCase):
 
         # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
         # is used to process access settings directly.
-        params = {
-            "use_proxy": "on",
-            "log_proxy": "on",
-        }
-        #async_process_secure_operations_form(params, self.service_wms.metadata.id)
-        #async_process_secure_operations_form(params, self.service_wfs.metadata.id)
+        async_process_securing_access(
+            self.service_wms.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
+        async_process_securing_access(
+            self.service_wfs.metadata.id,
+            use_proxy=True,
+            log_proxy=True,
+            restrict_access=False,
+        )
 
         self.service_wms.metadata.refresh_from_db()
         self.service_wms.refresh_from_db()
@@ -454,6 +464,18 @@ class EditorTestCase(TestCase):
         response = self._run_request(params, url, "get", client)
         self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
 
+        # Postfetch for WMS
+        proxy_logs_wms = ProxyLog.objects.filter(metadata=self.service_wms.metadata)
+        post_proxy_logs_wms_num = proxy_logs_wms.count()
+        proxy_log_wms = proxy_logs_wms.first()
+        async_log_response(
+            proxy_log_wms.id,
+            base64.b64encode(response.content).decode("UTF-8"),
+            "GetMap",
+            None
+        )
+        proxy_log_wms.refresh_from_db()
+
         # Run regular /operation request for WFS
         feature = self.service_wfs.subelements[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
@@ -469,10 +491,17 @@ class EditorTestCase(TestCase):
         response = self._run_request(params, url, "get", client)
         self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
 
-        # Postfetch for WMS
-        proxy_logs_wms = ProxyLog.objects.filter(metadata=self.service_wms.metadata)
-        post_proxy_logs_wms_num = proxy_logs_wms.count()
-        proxy_log_wms = proxy_logs_wms.first()
+        # Postfetch for WFS
+        proxy_logs_wfs = ProxyLog.objects.filter(metadata=self.service_wfs.metadata)
+        post_proxy_logs_wfs_num = proxy_logs_wfs.count()
+        proxy_log_wfs = proxy_logs_wfs.first()
+        async_log_response(
+            proxy_log_wfs.id,
+            base64.b64encode(b"".join(response.streaming_content)).decode("UTF-8"),
+            "GetFeature",
+            "gml3",
+        )
+        proxy_log_wfs.refresh_from_db()
 
         # Assertions for WMS Log
         self.assertNotEqual(pre_proxy_logs_wms_num, post_proxy_logs_wms_num, msg="No new proxy log record created!")
@@ -481,15 +510,10 @@ class EditorTestCase(TestCase):
         expected_logged_megapixel = round((param_height * param_height) / 1000000, 4)
         self.assertEqual(proxy_log_wms.response_wms_megapixel, expected_logged_megapixel, msg="Wrong megapixel count! Was {} but {} expected!".format(proxy_log_wms.response_wms_megapixel, expected_logged_megapixel))
 
-        # Postfetch for WFS
-        proxy_logs_wfs = ProxyLog.objects.filter(metadata=self.service_wfs.metadata)
-        post_proxy_logs_wfs_num = proxy_logs_wfs.count()
-        proxy_log_wfs = proxy_logs_wfs.first()
-
         # Assertions for WFS Log
         self.assertNotEqual(pre_proxy_logs_wfs_num, post_proxy_logs_wfs_num, msg="No new proxy log record created!")
         self.assertEqual(pre_proxy_logs_wfs_num + 1, post_proxy_logs_wfs_num, msg="More than one log record was created!")
-        self.assertEqual(proxy_log_wfs.operation, "GetFeature", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wms.operation, "GetMap"))
+        self.assertEqual(proxy_log_wfs.operation, "GetFeature", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wfs.operation, "GetFeature"))
         self.assertGreater(proxy_log_wfs.response_wfs_num_features, 0, msg="Wrong returned feature count! Was {}!".format(proxy_log_wfs.response_wfs_num_features))
 
     # ToDo: Rewrite these tests based on new securing logic

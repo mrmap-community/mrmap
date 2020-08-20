@@ -1,6 +1,7 @@
 import csv
 
 import django_tables2 as tables
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
@@ -14,6 +15,7 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
+from monitoring.models import Monitoring
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
@@ -35,6 +37,14 @@ def _get_action_btns_for_service_table(table, record):
         btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
         permission=Permission(can_update_resource=True),
         tooltip=format_html(_("Update"), ),
+        tooltip_placement='left', )
+
+    btns += table.get_btn(
+        href="#",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['HEARTBEAT'],
+        permission=Permission(),
+        tooltip=format_html(_("Run health check"), ),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -88,6 +98,7 @@ TOOLTIP_REGISTERED_FOR = _('The organization for which the resource is registere
 TOOLTIP_CREATED_ON = _('The registration date.')
 TOOLTIP_ACTIONS = _('Performable Actions')
 TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, secured access state and secured externally state.')
+TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 
 
 class ResourceTable(MrMapTable):
@@ -107,6 +118,29 @@ class ResourceTable(MrMapTable):
         if hasattr(record, 'external_authentication'):
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
                                    tooltip=_('This resource has external authentication.'))
+
+        return format_html(icons)
+
+    def get_health_icons(self, record):
+        try:
+            last_monitoring_object = Monitoring.objects.filter(metadata=record).order_by('-timestamp').first()
+        except ObjectDoesNotExist:
+            last_monitoring_object = None
+
+        icons = ''
+        if last_monitoring_object:
+            if last_monitoring_object.available:
+                icon_color = 'text-success'
+            else:
+                icon_color = 'text-danger'
+            icons += self.get_icon(icon_color=icon_color,
+                                   icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
+                                   tooltip=_(f'Last check runs on {last_monitoring_object.timestamp}'))
+        else:
+            icons += self.get_icon(icon_color='text-secondary',
+                                   icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
+                                   tooltip=_(f'Last check state is unknown'))
+
         return format_html(icons)
 
     def order_status(self, queryset, is_descending):
@@ -114,6 +148,10 @@ class ResourceTable(MrMapTable):
         queryset = queryset.order_by(is_descending_str + "is_active",
                                      is_descending_str + "is_secured",
                                      is_descending_str + "external_authentication", )
+        return queryset, True
+
+    def order_health(self, queryset, is_descending):
+        # TODO:
         return queryset, True
 
 
@@ -136,6 +174,12 @@ class WmsServiceTable(ResourceTable):
         empty_values=[False, ],
         attrs=attrs,
         tooltip=TOOLTIP_STATUS,
+    )
+    wms_health = MrMapColumn(
+        verbose_name=_('Health'),
+        empty_values=[False, ],
+        attrs=attrs,
+        tooltip=TOOLTIP_HEALTH,
     )
     wms_version = MrMapColumn(
         accessor='service.service_type.version',
@@ -186,6 +230,9 @@ class WmsServiceTable(ResourceTable):
     def render_wms_status(self, record):
         return self.get_status_icons(record=record)
 
+    def render_wms_health(self, record):
+        return self.get_health_icons(record=record)
+
     def render_wms_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
         tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
@@ -218,6 +265,9 @@ class WmsServiceTable(ResourceTable):
 
     def order_wms_status(self, queryset, is_descending):
         return self.order_status(queryset=queryset, is_descending=is_descending)
+
+    def order_wms_health(self, queryset, is_descending):
+        return self.order_health(queryset=queryset, is_descending=is_descending)
 
 
 class WmsTableWms(WmsServiceTable):
@@ -300,6 +350,11 @@ class WfsServiceTable(ResourceTable):
         empty_values=[False, ],
         tooltip=TOOLTIP_STATUS,
     )
+    wfs_health = MrMapColumn(
+        verbose_name=_('Health'),
+        empty_values=[False, ],
+        tooltip=TOOLTIP_HEALTH,
+    )
     wfs_version = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Version'),
@@ -349,6 +404,9 @@ class WfsServiceTable(ResourceTable):
     def render_wfs_status(self, record):
         return self.get_status_icons(record=record)
 
+    def render_wfs_health(self, record):
+        return self.get_health_icons(record=record)
+
     def render_wfs_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
         tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
@@ -388,6 +446,9 @@ class WfsServiceTable(ResourceTable):
 
     def order_wfs_status(self, queryset, is_descending):
         return self.order_status(queryset=queryset, is_descending=is_descending)
+
+    def order_wfs_health(self, queryset, is_descending):
+        return self.order_health(queryset=queryset, is_descending=is_descending)
 
 
 class CswTable(MrMapTable):

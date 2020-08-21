@@ -12,7 +12,7 @@ from django.utils.html import format_html
 
 from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MrMap.validators import validate_get_request_uri, check_uri_is_reachable
+from MrMap.validators import validate_get_capablities_uri, check_uri_is_reachable
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
@@ -31,7 +31,7 @@ class ServiceURIForm(forms.Form):
 
 class RegisterNewResourceWizardPage1(MrMapWizardForm):
     get_request_uri = forms.URLField(
-        validators=[validate_get_request_uri],
+        validators=[validate_get_capablities_uri],
         label=_("Resource URL"),
         help_text=_("In case of a OGC service you may provide the GetCapabilities url.")
     )
@@ -93,7 +93,7 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
 class UpdateServiceCheckForm(MrMapForm):
     url_dict = ''
     get_capabilities_uri = forms.URLField(
-        validators=[validate_get_request_uri]
+        validators=[validate_get_capablities_uri]
     )
     keep_custom_md = forms.BooleanField(
         label=_("Keep custom metadata"),

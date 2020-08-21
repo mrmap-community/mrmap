@@ -72,7 +72,7 @@ def run_manual_monitoring(metadatas, *args, **kwargs):
             monitor.run_checks()
             monitoring_logger.debug(f'Health checks completed for {metadata}')
         except Exception as e:
-            monitoring_logger.exception(e, exc_info=True, stack_info=True)
+            monitoring_logger.exception(e, exc_info=True, stack_info=True, )
 
     end_time = datetime.datetime.now(pytz.utc)
     duration = end_time - monitoring_run.start

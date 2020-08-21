@@ -163,7 +163,7 @@ def account(request: HttpRequest, update_params: dict = None, status_code: int =
     """
     template = "views/account.html"
     user = user_helper.get_user(request)
-    subscriptions_count = Subscription.objects.all().count()
+    subscriptions_count = Subscription.objects.filter(user=user).count()
     params = {
         "subscriptions_count": subscriptions_count,
         "current_view": 'account',

@@ -90,7 +90,7 @@ class MrMapTable(tables.Table):
         if has_perm:
             context = {
                 "href": href,
-                "value": format_html(value),
+                "value": value,
                 "link_color": get_theme(self.user)["TABLE"]["LINK_COLOR"],
                 "tooltip": tooltip,
                 "tooltip_placement": tooltip_placement,

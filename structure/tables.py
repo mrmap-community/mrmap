@@ -155,7 +155,7 @@ class GroupTable(MrMapTable):
             tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
         return self.get_link(tooltip=tooltip,
                              href=url,
-                             value=f"{icon} {value}",
+                             value=format_html(f"{icon} {value}"),
                              permission=Permission(),
                              open_in_new_tab=True, )
 

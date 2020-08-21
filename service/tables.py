@@ -121,30 +121,29 @@ class ResourceTable(MrMapTable):
         return format_html(icons)
 
     def get_health_icons(self, record):
-        is_available = True
-        last_run = 'unknown'
-
-        try:
-            last_monitoring_object = Monitoring.objects.filter(metadata=record).order_by('-timestamp').first()
-            last_monitoring_run = MonitoringRun.objects.get(monitoring_results=last_monitoring_object)
-            last_run = last_monitoring_run.end
-            for monitoring_item in last_monitoring_run.monitoring_results.all():
-                if not monitoring_item.available:
-                    is_available = False
-
-        except ObjectDoesNotExist:
-            is_available = False
-
         icons = ''
+        health_state = record.get_health_state()
+        if health_state:
+            tooltip = _(f'Last check runs {health_state["general"]["end"]}')
 
-        if is_available:
-            icon_color = 'text-success'
+            if health_state["health_state"]["code"] == 1:
+                # state is healthy
+                icon_color = 'text-success'
+            elif health_state["health_state"]["code"] == -1:
+                # state is ill
+                icon_color = 'text-danger'
+            else:
+                # state is unknown
+                icon_color = 'text-secondary'
+                tooltip = _(f'The health state is unknown cause the health check task is not completed.')
         else:
-            icon_color = 'text-danger'
+            # state is unknown
+            icon_color = 'text-secondary'
+            tooltip = _(f'The health state is unknown cause no health check runs for this resource.')
+
         icons += self.get_icon(icon_color=icon_color,
                                icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
-                               tooltip=_(f'Last check runs {last_run}'))
-
+                               tooltip=tooltip)
         return format_html(icons)
 
     def order_status(self, queryset, is_descending):

@@ -5,10 +5,11 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
+import re
 import uuid
 from django.contrib.gis.db import models
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from django_celery_beat.models import PeriodicTask,CrontabSchedule
+from django.core.exceptions import ValidationError
+from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
 from MrMap.settings import TIME_ZONE
 
@@ -75,6 +76,41 @@ class MonitoringRun(models.Model):
 
     class Meta:
         ordering = ["-end"]
+
+    def get_health_state(self, metadata):
+        result = {
+            "general":
+                {"uuid": self.uuid,
+                 "start": self.start,
+                 "end": self.end,
+                 "duration": self.duration},
+            "health_state":
+                {"state": "unknown",
+                 "code": 0, }
+        }
+
+        if not self.end:
+            # The health check task is not done. Return unknown health state.
+            return result
+
+        monitoring_objects = Monitoring.objects.filter(monitoring_run=self, metadata=metadata)
+
+        if monitoring_objects:
+            result.update({
+                "health_state":
+                    {"state": "healthy",
+                     "code": 1}
+            })
+            for monitoring_result in monitoring_objects:
+                if not re.match(r"(20[0-8])|(401)", str(monitoring_result.status_code)):
+                    result.update({
+                        "health_state":
+                            {"state": "ill",
+                             "code": -1}
+                    })
+                    return result
+
+        return result
 
 
 class Monitoring(models.Model):

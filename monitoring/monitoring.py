@@ -27,7 +27,7 @@ from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersion
 
 class Monitoring:
 
-    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting):
+    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting = None):
         self.metadata = metadata
         self.linked_metadata = None
         self.monitoring_run = monitoring_run
@@ -204,7 +204,7 @@ class Monitoring:
         """
         success = False
         duration = None
-        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout)
+        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else 30)
         if self.metadata.has_external_authentication:
             connector.external_auth = self.metadata.external_authentication
         try:

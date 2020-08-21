@@ -15,7 +15,7 @@ class MonitoringSettingAdmin(admin.ModelAdmin):
 
 
 class MonitoringRunAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'start', 'end', 'duration')
+    list_display = ('uuid', 'start', 'end', 'duration', )
 
 
 class MonitoringAdmin(admin.ModelAdmin):
@@ -31,4 +31,4 @@ admin.site.register(Monitoring, MonitoringAdmin)
 admin.site.register(MonitoringCapability, MonitoringCapabilityAdmin)
 
 # Should not be visible for daily use
-#admin.site.register(MonitoringRun, MonitoringRunAdmin)
+admin.site.register(MonitoringRun, MonitoringRunAdmin)

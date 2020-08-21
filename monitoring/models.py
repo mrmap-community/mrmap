@@ -11,7 +11,6 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django_celery_beat.models import PeriodicTask,CrontabSchedule
 
 from MrMap.settings import TIME_ZONE
-from monitoring.enums import MonitoringSettingEnum
 
 
 class MonitoringSetting(models.Model):
@@ -19,7 +18,6 @@ class MonitoringSetting(models.Model):
     check_time = models.TimeField()
     timeout = models.IntegerField()
     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
-    type = models.CharField(max_length=255, choices=MonitoringSettingEnum.as_choices(), null=True, blank=True)
 
     def update_periodic_tasks(self):
         """ Updates related PeriodicTask record based on the current MonitoringSetting

@@ -12,7 +12,7 @@ from django.utils.html import format_html
 
 from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MrMap.validators import validate_get_capablities_uri, check_uri_is_reachable
+from MrMap.validators import validate_get_capablities_uri
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 

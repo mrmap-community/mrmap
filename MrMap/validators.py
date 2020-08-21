@@ -95,6 +95,10 @@ def check_uri_provides_ogc_capabilities(value) -> ValidationError:
     """
     connector = CommonConnector(url=value)
     connector.load()
+    if connector.status_code == 401:
+        # This means the resource needs authentication to be called. At this point we can not check whether this is
+        # a proper OGC capabilities or not. Skip this check.
+        return None
     try:
         xml_response = xml_helper.parse_xml(connector.content)
         root_elem = xml_response.getroot()

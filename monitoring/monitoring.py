@@ -15,6 +15,7 @@ from io import BytesIO
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
+from MrMap.settings import MONITORING_REQUEST_TIMEOUT
 from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
@@ -204,7 +205,7 @@ class Monitoring:
         """
         success = False
         duration = None
-        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else 30)
+        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else MONITORING_REQUEST_TIMEOUT)
         if self.metadata.has_external_authentication:
             connector.external_auth = self.metadata.external_authentication
         try:

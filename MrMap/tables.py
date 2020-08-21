@@ -84,7 +84,7 @@ class MrMapTable(tables.Table):
             self.permission_lookup[hashed_perm_set] = has_perm
         return has_perm
 
-    def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: Permission):
+    def get_link(self, href: str, value: str, tooltip: str, permission: Permission, tooltip_placement: str = 'left', open_in_new_tab: bool = False):
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {
@@ -93,6 +93,7 @@ class MrMapTable(tables.Table):
                 "link_color": get_theme(self.user)["TABLE"]["LINK_COLOR"],
                 "tooltip": tooltip,
                 "tooltip_placement": tooltip_placement,
+                "new_tab": open_in_new_tab,
             }
             return render_to_string(template_name="sceletons/open-link.html",
                                     context=context)
@@ -115,7 +116,7 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
-    def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'top',):
+    def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'left',):
         context = {
             "icon_color": icon_color,
             "icon": icon,

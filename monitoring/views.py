@@ -22,7 +22,7 @@ def call_run_monitoring(request: HttpRequest, metadata_id):
                                  ~Q(metadata_type=MetadataEnum.DATASET.value),
                                  id=metadata_id, )
 
-    run_manual_monitoring(metadatas=[metadata, ])
+    run_manual_monitoring.delay(metadatas=[metadata_id, ])
     messages.info(request, _(f"Health check for {metadata} started."))
 
     return HttpResponseRedirect(reverse(request.GET.get('current-view') or reverse('home'),), status=303)

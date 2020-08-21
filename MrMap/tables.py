@@ -2,6 +2,7 @@ import uuid
 
 from django.http import HttpRequest
 from django.template.loader import render_to_string
+from django.utils.html import format_html
 from django_tables2 import tables, RequestConfig
 from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
@@ -89,7 +90,7 @@ class MrMapTable(tables.Table):
         if has_perm:
             context = {
                 "href": href,
-                "value": value,
+                "value": format_html(value),
                 "link_color": get_theme(self.user)["TABLE"]["LINK_COLOR"],
                 "tooltip": tooltip,
                 "tooltip_placement": tooltip_placement,

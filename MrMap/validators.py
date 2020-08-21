@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum, PendingTaskEnum
 
@@ -84,6 +85,27 @@ def check_uri_is_reachable(value) -> (bool, bool, int):
     return is_reachable, needs_authentication, status_code
 
 
+def check_uri_provides_ogc_capabilities(value) -> ValidationError:
+    """ Checks whether a proper XML OGC Capabilities document can be found at the given url.
+
+    Args:
+        value: The url parameter
+    Returns:
+         None|ValidationError: None if the checks are valid, ValidationError else
+    """
+    connector = CommonConnector(url=value)
+    connector.load()
+    try:
+        xml_response = xml_helper.parse_xml(connector.content)
+        root_elem = xml_response.getroot()
+        tag_text = root_elem.tag
+        if "Capabilities" not in tag_text:
+            return ValidationError(_("This is no capabilities document."))
+    except AttributeError:
+        # No xml found!
+        return ValidationError(_("No XML found."))
+
+
 def _get_request_uri_has_no_request_parameter(value):
     from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
@@ -152,7 +174,7 @@ def _get_request_uri_has_no_service_parameter(value):
         )
 
 
-def validate_get_request_uri(value):
+def validate_get_capablities_uri(value):
     """ Validates a GetRequest URI
 
     Args:
@@ -164,6 +186,7 @@ def validate_get_request_uri(value):
 
     validate_funcs = [
         check_uri_is_reachable,
+        check_uri_provides_ogc_capabilities,
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,

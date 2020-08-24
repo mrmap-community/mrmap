@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load i18n static tz %}
+
+{% block body %}
+<div class="container-fluid px-5">
+    {% if warning_reasons.rows %}
+        {% include 'includes/warning_reasons.html' %}
+    {% endif %}
+    {% if critical_reasons.rows %}
+        {% include 'includes/critical_reasons.html' %}
+    {% endif %}
+</div>
+{% endblock %}

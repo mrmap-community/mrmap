@@ -122,7 +122,7 @@ class ResourceTable(MrMapTable):
 
     def get_health_icons(self, record):
         icons = ''
-        health_state = record.get_last_health_state()
+        health_state = record.get_health_state()
         if health_state:
             if health_state.health_state_code == HealthStateEnum.OK.value:
                 # state is OK
@@ -142,9 +142,15 @@ class ResourceTable(MrMapTable):
             icon_color = 'text-secondary'
             tooltip = DEFAULT_UNKNOWN_MESSAGE
 
-        icons += self.get_icon(icon_color=icon_color,
-                               icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
-                               tooltip=tooltip)
+        icon = self.get_icon(icon_color=icon_color,
+                             icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
+                             tooltip=tooltip)
+        icon_link = self.get_link(href=reverse('monitoring:health-state', args=(record.id, )),
+                                  value=icon,
+                                  permission=Permission())
+
+        icons += icon_link
+
         return format_html(icons)
 
     def order_status(self, queryset, is_descending):

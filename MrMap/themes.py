@@ -70,6 +70,8 @@ FONT_AWESOME_ICONS = {
     'ERROR': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-circle'),
     'PLAY': format_html(ICON_PATTERN, 'fas', 'fa-play'),
     'HEARTBEAT': format_html(ICON_PATTERN, 'fas', 'fa-heartbeat'),
+    'WARNING': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-triangle'),
+    'CRITICAL': format_html(ICON_PATTERN, 'fas', 'fa-bolt'),
 }
 
 # dark theme settings

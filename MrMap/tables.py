@@ -85,7 +85,7 @@ class MrMapTable(tables.Table):
             self.permission_lookup[hashed_perm_set] = has_perm
         return has_perm
 
-    def get_link(self, href: str, value: str, tooltip: str, permission: Permission, tooltip_placement: str = 'left', open_in_new_tab: bool = False):
+    def get_link(self, href: str, value: str, permission: Permission, tooltip_placement: str = 'left', open_in_new_tab: bool = False, tooltip: str = None,):
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {

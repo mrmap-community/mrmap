@@ -1,0 +1,20 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n static tz %}
+{% load django_tables2 %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
+
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WARNING}}{% endautoescape %} {% trans 'Warnings' %}</h4>
+{% endblock %}
+
+{% block card-header-title-center%}
+{% endblock %}
+
+{% block card-header-title-right %}
+{% endblock %}
+{% block card-body %}
+
+{% render_table warning_reasons %}
+
+{% endblock %}

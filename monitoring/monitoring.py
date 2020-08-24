@@ -35,8 +35,6 @@ class Monitoring:
         self.monitoring_run = monitoring_run
         self.monitoring_settings = monitoring_setting
 
-        self.health_state = HealthState()
-
     class ServiceStatus:
         """ Holds all required information about the service status.
 
@@ -81,7 +79,8 @@ class Monitoring:
             self.check_dataset()
 
         # all checks are done. Calculate the health state for all monitoring results
-        self.health_state.calculate_health_state()
+        health_state = HealthState(metadata=self.metadata, monitoring_run=self.monitoring_run)
+        health_state.calculate_health_state(update_metadata=True)
 
     def check_wfs(self, service: Service):
         """ Check the availability of wfs operations.
@@ -318,16 +317,15 @@ class Monitoring:
                 monitoring_capability = MonitoringCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
-                    needs_update=needs_update, monitoring_run=self.monitoring_run, health_state=self.health_state,
+                    needs_update=needs_update, monitoring_run=self.monitoring_run,
                 )
             else:
                 needs_update = False
                 monitoring_capability = MonitoringCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
-                    needs_update=needs_update, monitoring_run=self.monitoring_run, health_state=self.health_state,
+                    needs_update=needs_update, monitoring_run=self.monitoring_run,
                 )
-            self.health_state.save()
             monitoring_capability.save()
         else:
             self.handle_service_error(service_status)
@@ -374,15 +372,14 @@ class Monitoring:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
-                monitoring_run=self.monitoring_run, health_state=self.health_state,
+                monitoring_run=self.monitoring_run,
             )
         else:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
-                duration=service_status.duration, monitoring_run=self.monitoring_run, health_state=self.health_state,
+                duration=service_status.duration, monitoring_run=self.monitoring_run,
             )
-        self.health_state.save()
         monitoring_result.save()
 
     def handle_service_success(self, service_status: ServiceStatus):
@@ -400,7 +397,5 @@ class Monitoring:
             duration=service_status.duration,
             monitored_uri=service_status.monitored_uri,
             monitoring_run=self.monitoring_run,
-            health_state=self.health_state,
         )
-        self.health_state.save()
         monitoring_result.save()

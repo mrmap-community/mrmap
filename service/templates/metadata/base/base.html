@@ -15,14 +15,14 @@
     <div class="d-none">
         {% comment %} TODO: this is mess, insert the data from view by dynamic object {% endcomment %}
         <div itemprop="sdPublisher" itemscope itemtype="https://schema.org/Organization">
-            <p itemprop="legalName">Zentrale Stelle GDI-RP</p>
-            <p itemprop="email">kontakt@geoportal.rlp.de</p>
+            <p itemprop="legalName">{{ SEMANTIC_WEB_HTML_INFORMATION.legalName }}</p>
+            <p itemprop="email">{{ SEMANTIC_WEB_HTML_INFORMATION.email }}</p>
             <div itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
-                <p itemprop="addressCountry">DE</p>
-                <p itemprop="streetAddress">Von-Kuhl-Straße 49</p>
-                <span itemprop="addressRegion">RLP</span>
-                <span itemprop="postalCode">56070</span>
-                <span itemprop="addressLocality">Koblenz</span>
+                <p itemprop="addressCountry">{{ SEMANTIC_WEB_HTML_INFORMATION.addressCountry }}</p>
+                <p itemprop="streetAddress">{{ SEMANTIC_WEB_HTML_INFORMATION.streetAddress }}</p>
+                <span itemprop="addressRegion">{{ SEMANTIC_WEB_HTML_INFORMATION.addressRegion }}</span>
+                <span itemprop="postalCode">{{ SEMANTIC_WEB_HTML_INFORMATION.postalCode }}</span>
+                <span itemprop="addressLocality">{{ SEMANTIC_WEB_HTML_INFORMATION.addressLocality }}</span>
             </div>
         </div>
     </div>

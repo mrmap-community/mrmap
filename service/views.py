@@ -20,6 +20,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MrMap.responses import DefaultContext
+from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from service.helper import xml_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
@@ -686,7 +687,8 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         'access_constraints': md.access_constraints,
         'capabilities_original_uri': md.capabilities_original_uri,
         'capabilities_uri': reverse('resource:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
-        'contact': collect_contact_data(md.contact)
+        'contact': collect_contact_data(md.contact),
+        "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
     }
 
     params.update(collect_metadata_related_objects(md, request, ))

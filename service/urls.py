@@ -7,6 +7,7 @@ urlpatterns = [
     path('', index, name='index'),
 
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),
+    path('metadata/<metadata_id>/subscribe', metadata_subscription_new, name='subscription-new'),
     path('metadata/dataset/<metadata_id>', get_dataset_metadata, name='get-dataset-metadata'),
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),
 

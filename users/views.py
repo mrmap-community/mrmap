@@ -24,7 +24,7 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.messages import USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
-    RESOURCE_NOT_FOUND_OR_NOT_OWNER, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SUBSCRIPTION_CREATED_TEMPLATE
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from service.helper.crypto_handler import CryptoHandler
@@ -427,30 +427,6 @@ def subscription_new_view(request: HttpRequest, ):
                             show_modal=True,
                             )
     return form.process_request(valid_func=form.process_new_subscription)
-
-
-@login_required
-def subscription_new(request: HttpRequest, metadata_id: str):
-    """ Creates a new subscription for a metadat without a form
-
-    Args:
-        request (HttpRequest): The incoming request
-        metadata_id (str): The id of the metadata which shall be subscribed
-    Returns:
-         A rendered view
-    """
-    md = get_object_or_404(Metadata, id=metadata_id)
-    user = user_helper.get_user(request)
-    subscription_created = Subscription.objects.get_or_create(
-        metadata=md,
-        user=user,
-    )[1]
-    if subscription_created:
-        messages.success(request, SUBSCRIPTION_CREATED_TEMPLATE.format(md.title))
-    else:
-        messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(md.title))
-
-    return redirect("subscription-index")
 
 
 @login_required

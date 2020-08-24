@@ -37,7 +37,7 @@
         <div class="tab-content">
             <div class="row">
                 <div class="col">
-                    <a href="{% url 'subscription-new-direct' md_id %}" >
+                    <a href="{% url 'resource:subscription-new' md_id %}" >
                         <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" title="{% trans 'Subscribe to keep updated' %}">
                             {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Subscribe'%}
                         </button>

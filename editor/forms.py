@@ -11,7 +11,7 @@ from dal import autocomplete
 from django.db.models import Q
 from django.forms import ModelMultipleChoiceField
 from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.utils.translation import gettext_lazy as _
 from django import forms
 from MrMap.cacher import PageCacher
@@ -379,7 +379,19 @@ class RestoreMetadataForm(MrMapConfirmForm):
 
         if not self.instance.is_custom and len(children_md) == 0:
             messages.add_message(self.request, messages.INFO, METADATA_IS_ORIGINAL)
-            return HttpResponseRedirect(reverse(self.request.GET.get('current-view', 'home')), status=303)
+            try:
+                redirect = HttpResponseRedirect(
+                    reverse(
+                        self.request.GET.get('current-view', 'home'),
+                        args=(
+                            self.request.GET.get('current-view-arg', ""),
+                        ),
+                    ),
+                    status=303
+                )
+            except NoReverseMatch:
+                redirect = HttpResponseRedirect(reverse(self.request.GET.get('current-view', 'home')), status=303)
+            return redirect
 
         if self.instance.is_custom:
             self.instance.restore(self.instance.identifier, external_auth=ext_auth)

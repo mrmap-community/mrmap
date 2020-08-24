@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 09:11+0200\n"
+"POT-Creation-Date: 2020-08-24 10:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -468,35 +468,35 @@ msgstr "Passwort muss mindestens eine Ziffer haben."
 msgid "Special or non printable characters are not allowed"
 msgstr "Spezielle Symbole sind nicht erlaubt"
 
-#: MrMap/validators.py:103
+#: MrMap/validators.py:107
 msgid "This is no capabilities document."
 msgstr "Das ist kein Capabilities Dokument."
 
-#: MrMap/validators.py:106
+#: MrMap/validators.py:110
 msgid "No XML found."
 msgstr "Kein XML gefunden."
 
-#: MrMap/validators.py:117
-msgid "The given requested method is not GetCapabilities."
-msgstr "Die angegebene Anfrage ist nicht GetCapabilities."
-
 #: MrMap/validators.py:121
+msgid "The given requested method is not GetCapabilities."
+msgstr "Die angegebene Anfragemethode ist nicht GetCapabilities."
+
+#: MrMap/validators.py:125
 msgid "The given uri is not valid cause there is no request parameter."
 msgstr "Die URI ist ungültig, da kein 'request' Parameter enthalten ist."
 
-#: MrMap/validators.py:148
+#: MrMap/validators.py:152
 msgid "The given service typ is not supported from Mr. Map."
 msgstr "Dieser Servicetyp wird von Mr. Map nicht unterstützt."
 
-#: MrMap/validators.py:158
+#: MrMap/validators.py:162
 msgid "The given {} version {} is not supported from Mr. Map."
 msgstr "Die {} Version {} wird von Mr. Map nicht unterstützt."
 
-#: MrMap/validators.py:163
+#: MrMap/validators.py:167
 msgid "The given uri is not valid cause there is no version parameter."
 msgstr "Die URI ist ungültig, da kein 'version' Parameter enthalten ist."
 
-#: MrMap/validators.py:173
+#: MrMap/validators.py:177
 msgid "The given uri is not valid cause there is no service parameter."
 msgstr "Die URI ist ungültig, da kein 'service' Parameter enthalten ist."
 
@@ -562,10 +562,6 @@ msgstr ""
 "{}"
 
 #: csw/utils/harvester.py:134
-#, fuzzy
-#| msgid ""
-#| "Response is no proper xml: \n"
-#| "{}"
 msgid ""
 "Response is not a valid xml: \n"
 "{}"
@@ -586,8 +582,8 @@ msgstr "Harveste {} von {}"
 msgid "Harvest <strong>{metadata}</strong>"
 msgstr "Harveste <strong>{metadata}</strong>"
 
-#: editor/filters.py:8 service/filters.py:36 structure/filters.py:10
-#: structure/filters.py:26
+#: editor/filters.py:8 service/filters.py:37 service/filters.py:186
+#: structure/filters.py:10 structure/filters.py:26
 msgid "Search"
 msgstr "Suche"
 
@@ -693,7 +689,7 @@ msgstr "Zugangsbeschränkungen"
 msgid "Bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: editor/forms.py:280 editor/forms.py:514
+#: editor/forms.py:280 editor/forms.py:526
 msgid "Unfold the leaflet client by clicking on the polygon icon."
 msgstr ""
 "Öffnen Sie die interaktive Karte, indem Sie auf das Polygon Symbol klicken."
@@ -733,38 +729,38 @@ msgstr ""
 msgid "Dataset successfully deleted."
 msgstr "Datensatz erfolgreich gelöscht."
 
-#: editor/forms.py:430
+#: editor/forms.py:442
 msgid "Use proxy"
 msgstr "Proxy verwenden"
 
-#: editor/forms.py:432
+#: editor/forms.py:444
 msgid "Activate to reroute all traffic for this service on MrMap"
 msgstr "Aktivieren um alle Anfragen für diesen Dienst über Mr.Map umzuleiten"
 
-#: editor/forms.py:437
+#: editor/forms.py:449
 msgid "Log proxy activity"
 msgstr "Proxy Protokollierung"
 
-#: editor/forms.py:439
+#: editor/forms.py:451
 msgid "Activate to log every traffic activity for this service"
 msgstr ""
 "Aktivieren um alle Anfragen und Antworten für diesen Dienst zu protokollieren"
 
-#: editor/forms.py:444
+#: editor/forms.py:456
 msgid "Restrict access"
 msgstr "Zugriff beschränken"
 
-#: editor/forms.py:446
+#: editor/forms.py:458
 msgid "Activate to restrict access on this service"
 msgstr "Aktivieren um Zugriff auf diesen Dienst einzuschränken"
 
-#: editor/forms.py:465
+#: editor/forms.py:477
 msgid "Log proxy or restrict access without using proxy is'nt possible!"
 msgstr ""
 "Proxy Protokollierung oder Einschränkung des Zugriffs nicht möglich ohne "
 "Proxy Aktivierung!"
 
-#: editor/forms.py:494
+#: editor/forms.py:506
 msgid ""
 "Activate to allow <strong>{}</strong> in the area defined in the map viewer "
 "below.\n"
@@ -776,7 +772,7 @@ msgstr ""
 "Falls Sie {} überall erlauben möchten, stellen Sie sicher, dass kein Gebiet "
 "im Kartenviewer eingezeichnet ist."
 
-#: editor/forms.py:511
+#: editor/forms.py:523
 msgid "Allowed area"
 msgstr "Erlaubte Bereiche"
 
@@ -956,62 +952,66 @@ msgstr "Zugangsbeschränkungen"
 msgid "Quality"
 msgstr "Qualität"
 
-#: service/filters.py:17
+#: service/filters.py:18
 msgid "Layer title contains"
 msgstr "Ebenen Titel enthält"
 
-#: service/filters.py:27
+#: service/filters.py:28
 msgid "Featuretype tile contains"
 msgstr "Featuretype Titel enthält"
 
-#: service/filters.py:87 service/tables.py:636 service/tables.py:664
+#: service/filters.py:88 service/tables.py:636 service/tables.py:664
 msgid "Timestamp"
 msgstr "Zeitpunkt"
 
-#: service/filters.py:91
+#: service/filters.py:92
 msgid "Search in a date range."
 msgstr "Im Zeitfenster suchen."
 
-#: service/filters.py:94
+#: service/filters.py:95
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:11
 msgid "Service type"
 msgstr "Diensttyp"
 
-#: service/filters.py:98
+#: service/filters.py:101
 msgid "Filter by a service type."
 msgstr "Nach Diensttyp filtern."
 
-#: service/filters.py:101
+#: service/filters.py:104
 msgid "Service title"
 msgstr "Diensttitel"
 
-#: service/filters.py:104
+#: service/filters.py:107
 msgid "Filter by the title of a service."
 msgstr "Nach Diensttitel filtern."
 
-#: service/filters.py:108
+#: service/filters.py:110
 msgid "Metadata ID"
 msgstr "Metadaten ID"
 
-#: service/filters.py:110
+#: service/filters.py:112
 msgid "Filter by the ID of the metadata (#123 in service title)."
 msgstr "Filter nach der ID des Metadatensatzes (#123 im Diensttitel)."
 
-#: service/filters.py:113 service/tables.py:631 service/tables.py:660
+#: service/filters.py:115 service/tables.py:631 service/tables.py:660
 msgid "User"
 msgstr "Nutzer"
 
-#: service/filters.py:116
+#: service/filters.py:118
 msgid "Filter by a username."
 msgstr "Nach Nutzernamen filtern."
 
-#: service/filters.py:120
+#: service/filters.py:122
 msgid "User group"
 msgstr "Gruppe"
 
-#: service/filters.py:122
+#: service/filters.py:124
 msgid "Filter by the ID of a group."
 msgstr "Nach Gruppen ID filtern."
+
+#: service/filters.py:191
+msgid "Show harvested"
+msgstr "Zeige Harvests"
 
 #: service/forms.py:27
 msgid "GetRequest URI"
@@ -1186,28 +1186,20 @@ msgid ""
 msgstr ""
 
 #: service/tables.py:99
-#, fuzzy
-#| msgid "The resource title"
 msgid "This resource is active."
-msgstr "Ressourcentitel"
+msgstr "Diese Ressource ist aktiviert."
 
 #: service/tables.py:103
-#, fuzzy
-#| msgid "The resource title"
 msgid "This resource is deactivated."
-msgstr "Ressourcentitel"
+msgstr "Diese Ressource ist deaktiviert."
 
 #: service/tables.py:106
-#, fuzzy
-#| msgid "is access secured"
 msgid "This resource is secured."
-msgstr "Zugriff eingeschränkt"
+msgstr "Diese Ressource ist abgesichert."
 
 #: service/tables.py:109
-#, fuzzy
-#| msgid "Service needs authentication"
 msgid "This resource has external authentication."
-msgstr "Dienst benötigt Authentifizierung"
+msgstr "Diese Ressource verwendet eine externe Authentifizierung."
 
 #: service/tables.py:135 service/tables.py:299 service/tables.py:495
 #: service/templates/metadata/tabs/content/quality_tab.html:7
@@ -1341,10 +1333,8 @@ msgid "Delete this running task."
 msgstr ""
 
 #: service/tables.py:512
-#, fuzzy
-#| msgid "Download the current table as csv file."
 msgid "Download the error report as text file."
-msgstr "Gefilterte Tabelle als CSV herunterladen"
+msgstr "Fehlermeldung als Textdatei herunterladen."
 
 #: service/tables.py:531 service/tables.py:536
 msgid "unknown"
@@ -1452,16 +1442,11 @@ msgid "Click to open the html view of dataset <strong>{value}</strong>"
 msgstr "Öffnet die HTML Ansicht des Datensatzes <strong>{value}</strong>"
 
 #: service/tables.py:722
-#, fuzzy, python-brace-format
-#| msgid ""
-#| "Click to open the detail view of related service <strong>{relation."
-#| "metadata_from.title} [{relation.metadata_from.id}]\"</strong>"
 msgid ""
 "Click to open the detail view of related service <strong>{metadata.title} "
 "[{metadata.id}]\"</strong>"
 msgstr ""
-"Öffnet die Detailansicht des zugehörigen Dienstes <strong>{relation."
-"metadata_from.title} [{relation.metadata_from.id}]</strong>"
+"Öffnet die Detailansicht des zugehörigen Dienstes <strong>{metadata.title} [{metadata.id}]</strong>"
 
 #: service/tables.py:752
 #, python-brace-format

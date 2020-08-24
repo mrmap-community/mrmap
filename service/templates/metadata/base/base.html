@@ -1,5 +1,6 @@
 {% load fontawesome_5 %}
 {% load static %}
+{% load i18n %}
 
 {% block head %}
 {% fontawesome_5_static %}
@@ -34,6 +35,15 @@
     </div>
     <div class="card-body">
         <div class="tab-content">
+            <div class="row">
+                <div class="col">
+                    <a href="{% url 'subscription-new-direct' md_id %}" >
+                        <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" title="{% trans 'Subscribe to keep updated' %}">
+                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Subscribe'%}
+                        </button>
+                    </a>
+                </div>
+            </div>
             {% block tab_content %}
             {% endblock %}
         </div>

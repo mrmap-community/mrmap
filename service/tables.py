@@ -42,7 +42,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('monitoring:run-monitoring', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['HEARTBEAT'],
-        permission=Permission(),
+        permission=Permission(can_run_monitoring=True),
         tooltip=format_html(_("Run health check"), ),
         tooltip_placement='left', )
 

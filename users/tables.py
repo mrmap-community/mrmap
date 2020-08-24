@@ -104,7 +104,7 @@ class SubscriptionTable(MrMapTable):
             href=reverse('monitoring:run-monitoring', args=(record.metadata.id, ))+f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['HEARTBEAT'],
-            permission=Permission(),
+            permission=Permission(can_run_monitoring=True),
             tooltip=format_html(_("Run health check"), ),
             tooltip_placement='left',
         ))

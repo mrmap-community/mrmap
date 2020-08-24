@@ -66,6 +66,7 @@ DEFAULT_GROUPS = [
             Permission.can_toggle_publish_requests,
             Permission.can_remove_publisher,
             Permission.can_request_to_become_publisher,
+            Permission.can_run_monitoring,
         ]
     },
 ]

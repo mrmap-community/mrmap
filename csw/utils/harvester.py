@@ -310,8 +310,7 @@ class Harvester:
         elif self.method.upper() == "POST":
             post_body = self._generate_request_POST_body(self.start_position, result_type=result_type)
             connector.post(
-                data=post_body,
-                check_xml_validity=True
+                data=post_body
             )
             harvest_response = connector.content
         else:

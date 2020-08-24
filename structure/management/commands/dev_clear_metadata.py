@@ -11,7 +11,7 @@ from django.core.management import BaseCommand
 from django.db import transaction
 
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, Keyword, MimeType
+from service.models import Metadata
 
 
 class Command(BaseCommand):
@@ -27,5 +27,6 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.NOTICE("Found {} records. Start removing...".format(mds.count())))
         t_start = time()
-        mds.delete()
+        for md in mds:
+            md.delete()
         self.stdout.write(self.style.NOTICE("Removing finished. Took {}s".format(time() - t_start)))

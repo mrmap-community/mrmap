@@ -21,6 +21,8 @@ def parse_xml(xml: str, encoding=None):
     Returns:
         nothing
     """
+    if not isinstance(xml, str) and not isinstance(xml, bytes):
+        raise ValueError
     default_encoding = "UTF-8"
     if not isinstance(xml, bytes):
         if encoding is None:

@@ -5,6 +5,7 @@ from django.db.models import Q
 
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
+from service.helper.enums import OGCServiceEnum, MetadataRelationEnum
 from service.models import Metadata, Layer, FeatureType, ProxyLog, ServiceType
 from django.utils.translation import gettext_lazy as _
 
@@ -90,11 +91,13 @@ class ProxyLogTableFilter(MrMapFilterSet):
         widget=BootstrapDatePickerRangeWidget(),
         help_text=_("Search in a date range.")
     )
-    t = django_filters.ModelMultipleChoiceFilter(
+    t = django_filters.ChoiceFilter(
         label=_("Service type"),
-        field_name='metadata__service__service_type',
-        queryset=ServiceType.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
+        field_name='metadata__service__service_type__name',
+        choices=[
+            (OGCServiceEnum.WMS.value, OGCServiceEnum.WMS.value),
+            (OGCServiceEnum.WFS.value, OGCServiceEnum.WFS.value)
+        ],
         help_text=_("Filter by a service type.")
     )
     s = django_filters.CharFilter(
@@ -103,8 +106,7 @@ class ProxyLogTableFilter(MrMapFilterSet):
         lookup_expr='icontains',
         help_text=_("Filter by the title of a service.")
     )
-    mid = django_filters.NumberFilter(
-        min_value=1,
+    mid = django_filters.UUIDFilter(
         label=_("Metadata ID"),
         field_name='metadata__id',
         help_text=_("Filter by the ID of the metadata (#123 in service title).")
@@ -179,8 +181,37 @@ class ProxyLogTableFilter(MrMapFilterSet):
 
 
 class MetadataDatasetFilter(django_filters.FilterSet):
-    dataset_search = django_filters.CharFilter(method='filter_search_over_all',
-                                               label='Search')
+    ds = django_filters.CharFilter(
+        method='filter_search_over_all',
+        label=_('Search')
+    )
+    dsh = django_filters.BooleanFilter(
+        method='filter_show_harvested',
+        widget=forms.CheckboxInput(),
+        label=_('Show harvested'),
+    )
+
+    @staticmethod
+    def filter_show_harvested(queryset, name, value):
+        """ Filters dataset records for table
+
+        Includes/Excludes harvested results identified by their related_metadata relation_type values
+
+        Args:
+            queryset: The queryset to be filtered
+            name: The parameter name
+            value: The parameter value
+        Returns:
+             queryset: The filtered queryset
+        """
+        if value:
+            # include harvested ones - do not filter anything
+            pass
+        else:
+            queryset = queryset.exclude(
+                related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value
+            )
+        return queryset
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected

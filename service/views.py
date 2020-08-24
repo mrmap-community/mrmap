@@ -18,8 +18,10 @@ from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
+    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
+from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from service.helper import xml_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
@@ -43,6 +45,8 @@ from structure.models import MrMapUser, Permission, PendingTask
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
+
+from users.models import Subscription
 
 
 def _is_updatecandidate(metadata: Metadata):
@@ -514,6 +518,30 @@ def get_service_metadata(request: HttpRequest, metadata_id):
     return HttpResponse(doc, content_type=APP_XML)
 
 
+@login_required
+def metadata_subscription_new(request: HttpRequest, metadata_id: str):
+    """ Creates a new subscription for a metadat without a form
+
+    Args:
+        request (HttpRequest): The incoming request
+        metadata_id (str): The id of the metadata which shall be subscribed
+    Returns:
+         A rendered view
+    """
+    md = get_object_or_404(Metadata, id=metadata_id)
+    user = user_helper.get_user(request)
+    subscription_created = Subscription.objects.get_or_create(
+        metadata=md,
+        user=user,
+    )[1]
+    if subscription_created:
+        messages.success(request, SUBSCRIPTION_CREATED_TEMPLATE.format(md.title))
+    else:
+        messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(md.title))
+
+    return redirect("subscription-index")
+
+
 @resolve_metadata_public_id
 def get_dataset_metadata(request: HttpRequest, metadata_id):
     """ Returns the dataset metadata xml file for a given metadata id
@@ -567,20 +595,27 @@ def get_service_preview(request: HttpRequest, metadata_id):
     if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
         layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
+        # Fake the preview image for the whole service by using the root layer instead
+        md = layer.metadata
     elif md.service.is_service_type(OGCServiceEnum.WMS) and not md.service.is_root:
         layer = md.service.layer
 
     layer = layer.identifier
-    bbox = md.find_max_bounding_box()
+    if md.bounding_geometry.area == 0:
+        bbox = md.find_max_bounding_box()
+    else:
+        bbox = md.bounding_geometry
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
     img_width = 200
     img_heigt = 200
 
     try:
-        # Fetch a supported version of png
+        # Fetch a pixel based image mime type. We can not use vector types
         png_format = md.get_supported_formats().filter(
             mime_type__icontains="image/"
+        ).exclude(
+            mime_type__icontains="svg"
         ).first()
         img_format = png_format.mime_type
     except AttributeError:
@@ -679,7 +714,8 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         'access_constraints': md.access_constraints,
         'capabilities_original_uri': md.capabilities_original_uri,
         'capabilities_uri': reverse('resource:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
-        'contact': collect_contact_data(md.contact)
+        'contact': collect_contact_data(md.contact),
+        "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
     }
 
     params.update(collect_metadata_related_objects(md, request, ))

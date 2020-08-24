@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum, PendingTaskEnum
 
@@ -73,18 +74,40 @@ def check_uri_is_reachable(value) -> (bool, bool, int):
         url=value
     )
     is_reachable, status_code = connector.url_is_reachable()
-    needs_authentication = False
     if not is_reachable:
         if status_code < 0:
             # Not even callable!
             msg_suffix = "URL could not be resolved to a server. Please check your input!"
-            return ValidationError(message="URL not valid! {}".format(msg_suffix))
-        elif status_code == 401:
-            needs_authentication = True
         else:
             msg_suffix = "Status code was {}".format(status_code)
-            return ValidationError(message="URL not valid! {}".format(msg_suffix))
+        return ValidationError(message="URL not valid! {}".format(msg_suffix))
+    needs_authentication = status_code == 401
     return is_reachable, needs_authentication, status_code
+
+
+def check_uri_provides_ogc_capabilities(value) -> ValidationError:
+    """ Checks whether a proper XML OGC Capabilities document can be found at the given url.
+
+    Args:
+        value: The url parameter
+    Returns:
+         None|ValidationError: None if the checks are valid, ValidationError else
+    """
+    connector = CommonConnector(url=value)
+    connector.load()
+    if connector.status_code == 401:
+        # This means the resource needs authentication to be called. At this point we can not check whether this is
+        # a proper OGC capabilities or not. Skip this check.
+        return None
+    try:
+        xml_response = xml_helper.parse_xml(connector.content)
+        root_elem = xml_response.getroot()
+        tag_text = root_elem.tag
+        if "Capabilities" not in tag_text:
+            return ValidationError(_("This is no capabilities document."))
+    except AttributeError:
+        # No xml found!
+        return ValidationError(_("No XML found."))
 
 
 def _get_request_uri_has_no_request_parameter(value):
@@ -155,7 +178,7 @@ def _get_request_uri_has_no_service_parameter(value):
         )
 
 
-def validate_get_request_uri(value):
+def validate_get_capablities_uri(value):
     """ Validates a GetRequest URI
 
     Args:
@@ -167,6 +190,7 @@ def validate_get_request_uri(value):
 
     validate_funcs = [
         check_uri_is_reachable,
+        check_uri_provides_ogc_capabilities,
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,

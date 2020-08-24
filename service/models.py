@@ -114,7 +114,6 @@ class ProxyLog(models.Model):
             # For future implementation
             pass
         self.operation = request_param
-        self.operation = request_param
         self.save()
         service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
@@ -1227,8 +1226,13 @@ class Metadata(Resource):
             )
         else:
             return DEFAULT_SERVICE_BOUNDING_BOX
-        children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
-        max_box = children_bboxes.get(max(children_bboxes), None)
+
+        try:
+            children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
+            max_box = children_bboxes.get(max(children_bboxes), None)
+        except ValueError:
+            # happens in max() on empty iterables
+            max_box = None
 
         if max_box is None:
             max_box = DEFAULT_SERVICE_BOUNDING_BOX
@@ -1356,14 +1360,18 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.use_proxy_uri = False
 
-        cap_doc = Document.objects.get(
-            metadata=self,
-            document_type=DocumentEnum.CAPABILITY.value,
-            is_original=False,
-        )
-        cap_doc.restore()
+        try:
+            cap_doc = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
+            )
+            cap_doc.restore()
+        except ObjectDoesNotExist:
+            service_logger.error(
+                "Restoring of metadata {} didn't find any capability document!".format(self.id)
+            )
 
     def _restore_wfs(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wfs service
@@ -1406,12 +1414,16 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.use_proxy_uri = False
 
-        cap_doc = Document.objects.get(
-            metadata=service.metadata
-        )
-        cap_doc.restore()
+        try:
+            cap_doc = Document.objects.get(
+                metadata=service.metadata
+            )
+            cap_doc.restore()
+        except ObjectDoesNotExist:
+            service_logger.error(
+                "Restoring of metadata {} didn't find any capability document!".format(self.id)
+            )
 
     def _restore_dataset_md(self, ):
         """ Private function for restoring dataset metadata
@@ -1465,16 +1477,21 @@ class Metadata(Resource):
         self.dataset.lineage_statement = original_metadata_document.lineage
         self.dataset.character_set_code = original_metadata_document.character_set_code
 
-        doc = Document.objects.get(
-            metadata=self,
-            document_type=DocumentEnum.METADATA.value,
-            is_original=False,)
+        try:
+            doc = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.METADATA.value,
+                is_original=False,)
 
-        doc.content = Document.objects.get(
-            metadata=self,
-            document_type=DocumentEnum.METADATA.value,
-            is_original=True,).content
-        doc.save()
+            doc.content = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.METADATA.value,
+                is_original=True,).content
+            doc.save()
+        except ObjectDoesNotExist:
+            service_logger.error(
+                "Restoring of metadata {} didn't find any capability document!".format(self.id)
+            )
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata

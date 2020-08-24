@@ -41,6 +41,16 @@ HOST_IP = "127.0.0.1:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
+SEMANTIC_WEB_HTML_INFORMATION = {
+    "legalName": "Zentrale Stelle GDI-RP",
+    "email": "kontakt@geoportal.rlp.de",
+    "addressCountry": "DE",
+    "streetAddress": "Von-Kuhl-Straße 49",
+    "addressRegion": "RLP",
+    "postalCode": "56070",
+    "addressLocality": "Koblenz",
+}
+
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
 PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
@@ -172,7 +182,6 @@ ALLOWED_HOSTS = [
 ]
 
 # Application definition
-
 INSTALLED_APPS = [
     'dal',
     'dal_select2',
@@ -229,6 +238,15 @@ if DEBUG:
         }
     }
 
+# Holds all apps which needs migrations. Will be used in command 'dev_makemigrations'
+# If you added a new app with models, which need to be migrated, you have to put the app's name in this list
+MIGRATABLE_APPS = [
+    'csw',
+    'structure',
+    'service',
+    'users',
+    'monitoring',
+]
 
 TEMPLATE_LOADERS = (
     'django.template.loaders.structure.mr_map_filters.py',

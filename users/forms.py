@@ -135,11 +135,16 @@ class SubscriptionForm(MrMapModelForm):
         }
 
     def __init__(self, is_edit: bool = False, *args, **kwargs):
+        from service.helper.enums import MetadataRelationEnum
+
         super().__init__(*args, **kwargs)
 
         if is_edit:
             # Prevent user from changing the subscribed metadata itself
             self.fields['metadata'].disabled = True
+        self.fields['metadata'].queryset = self.fields['metadata'].queryset.exclude(
+            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+        )
 
     def process_new_subscription(self):
         subscription = self.save(commit=False)

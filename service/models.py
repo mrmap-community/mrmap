@@ -1696,22 +1696,17 @@ class Metadata(Resource):
         for sub in subscriptions:
             sub.inform_subscriptor()
 
-    def get_health_state(self, monitoring_run: MonitoringRun = None):
-        """ Returns the last health state of the metadata object by default. If a MonitoringRun object is passed, the
-        state from this run will be returned.
+    def get_last_health_state(self, ):
+        """ Returns the last health state of the metadata object by default.
 
         Returns: the health state or None if no Monitoring results where found
 
         """
-        if monitoring_run:
-            return monitoring_run.get_health_state(metadata=self)
+        last_monitoring_result = Monitoring.objects.filter(metadata=self).order_by('-timestamp').first()
+        if last_monitoring_result:
+            return last_monitoring_result.health_state
         else:
-            last_monitoring_object = Monitoring.objects.filter(metadata=self).order_by('-timestamp').first()
-            if last_monitoring_object:
-                last_monitoring_run = MonitoringRun.objects.get(monitoring_results=last_monitoring_object)
-                return last_monitoring_run.get_health_state(metadata=self)
-            else:
-                return None
+            return None
 
 
 class Document(Resource):

@@ -1,7 +1,6 @@
 import csv
 
 import django_tables2 as tables
-from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
@@ -14,7 +13,8 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
-from monitoring.models import Monitoring, MonitoringRun
+from monitoring.enums import HealthStateEnum
+from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
@@ -122,24 +122,25 @@ class ResourceTable(MrMapTable):
 
     def get_health_icons(self, record):
         icons = ''
-        health_state = record.get_health_state()
+        health_state = record.get_last_health_state()
         if health_state:
-            tooltip = _(f'Last check runs {health_state["general"]["end"]}')
-
-            if health_state["health_state"]["code"] == 1:
-                # state is healthy
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                # state is OK
                 icon_color = 'text-success'
-            elif health_state["health_state"]["code"] == -1:
-                # state is ill
+            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
+                # state is WARNING
+                icon_color = 'text-warning'
+            elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
+                # state is CRITICAL
                 icon_color = 'text-danger'
             else:
                 # state is unknown
                 icon_color = 'text-secondary'
-                tooltip = _(f'The health state is unknown cause the health check task is not completed.')
+            tooltip = health_state.health_message
         else:
             # state is unknown
             icon_color = 'text-secondary'
-            tooltip = _(f'The health state is unknown cause no health check runs for this resource.')
+            tooltip = DEFAULT_UNKNOWN_MESSAGE
 
         icons += self.get_icon(icon_color=icon_color,
                                icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],

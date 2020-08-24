@@ -13,7 +13,7 @@ from celery.signals import beat_init
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 
-from monitoring.models import MonitoringSetting, MonitoringRun
+from monitoring.models import MonitoringSetting, MonitoringRun, HealthState
 from monitoring.monitoring import Monitoring as Monitor
 from monitoring.settings import monitoring_logger
 from service.models import Metadata
@@ -47,7 +47,7 @@ def run_monitoring(setting_id, *args, **kwargs):
     metadatas = setting.metadatas.all()
     for metadata in metadatas:
         try:
-            monitor = Monitor(metadata, monitoring_run, setting)
+            monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
             monitoring_logger.debug(f'Health checks completed for {metadata}')
         except Exception as e:
@@ -68,7 +68,7 @@ def run_manual_monitoring(metadatas, *args, **kwargs):
     for metadata_id in metadatas:
         try:
             metadata = Metadata.objects.get(id=metadata_id)
-            monitor = Monitor(metadata, monitoring_run)
+            monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
             monitoring_logger.debug(f'Health checks completed for {metadata}')
         except Exception as e:

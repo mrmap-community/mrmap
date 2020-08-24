@@ -1,21 +1,22 @@
 import logging
-from collections import Iterable
 
-from django.db.models import QuerySet
 from django.test import TestCase, Client
+from django.urls import reverse
 
 from MrMap.messages import SECURITY_PROXY_NOT_ALLOWED
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum, DocumentEnum
-from service.models import Service, Document, Metadata
+from service.models import Document
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, ALLOWED_SRS
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 # Prevent uninteresting logging of request connection pool
+from users.models import Subscription
+
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
@@ -88,9 +89,19 @@ class ServiceTestCase(TestCase):
              client (Client): The client object, which holds an active session for the user
              user_id (int): The user (id) who shall be logged in
         """
-        client = Client()
+        if self.client is None:
+            self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        return client
+        return self.client
+
+    def _get_logged_out_client(self):
+        """ Helping function to encapsulate the logout process
+
+        Returns:
+             client (Client): The client object, which holds an active session for the user
+        """
+        self.client.logout()
+        return self.client
 
     def _get_num_of_layers(self, xml_obj):
         """ Helping function to get the number of the layers in the service
@@ -273,8 +284,6 @@ class ServiceTestCase(TestCase):
                 self.assertTrue(ref_system.code in ALLOWED_SRS, msg="Unallowed reference system registered: {}".format(ref_system.code))
                 self.assertTrue(ref_system.code in xml_ref_systems_strings, msg="Reference system registered, which was not in the service: {}".format(ref_system.code))
 
-
-    #  This is an integration test, cause this test performs operation on a real service.
     def test_secure_service(self):
         """ Tests the securing functionalities
 
@@ -346,3 +355,34 @@ class ServiceTestCase(TestCase):
         elif request_type == "post":
             response = client.post(uri, params)
         return response
+
+    def test_subscriptions(self):
+        """ Tests the functionality of subscribing a metadata record
+
+        Returns:
+
+        """
+        md = self.service_wms.metadata
+
+        uri = reverse("resource:subscription-new", args=(md.id,))
+
+        # Case 0: User not logged in -> redirect to /home
+        response = self._run_request({}, uri, "get")
+        self.assertEqual(response.status_code, 302, msg="Anonymous user request has not been redirected to /home!")
+        subscription_num = Subscription.objects.filter(
+            metadata=md
+        ).count()
+        self.assertEqual(subscription_num, 0)
+
+        # Case 1: user logged in -> redirect to subscription index
+        client = self._get_logged_in_client()
+        response = self._run_request({}, uri, "get", client)
+        self.assertEqual(response.status_code, 302, msg="Logged in user has not been redirected to subscriptions index")
+        subs_filtered = Subscription.objects.filter(
+            metadata=md
+        )
+        subscription_num = subs_filtered.count()
+        subscription = subs_filtered.first()
+        self.assertEqual(subscription_num, 1)
+        self.assertIsNotNone(subscription)
+        self.assertEqual(subscription.user.id, self.user.id)

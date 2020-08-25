@@ -183,6 +183,7 @@ ALLOWED_HOSTS = [
 
 # Application definition
 INSTALLED_APPS = [
+    'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
     'django.forms',

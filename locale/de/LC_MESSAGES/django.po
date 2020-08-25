@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-24 11:02+0200\n"
+"POT-Creation-Date: 2020-08-25 13:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,6 +30,10 @@ msgstr "Formular aktualisieren"
 #: MrMap/forms.py:215
 msgid "Check this field"
 msgstr "Feld prüfen"
+
+#: MrMap/management/commands/setup.py:221
+msgid "The default role for all groups. Has no permissions."
+msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
 #: MrMap/messages.py:15
 msgid "Publish request created"
@@ -448,11 +452,11 @@ msgstr "'{}' abonniert."
 msgid "'{}' already subscribed."
 msgstr "'{}' bereits abonniert."
 
-#: MrMap/settings.py:364 service/settings.py:29
+#: MrMap/settings.py:365 service/settings.py:29
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:365 service/settings.py:28
+#: MrMap/settings.py:366 service/settings.py:28
 msgid "German"
 msgstr "Deutsch"
 
@@ -575,7 +579,7 @@ msgstr ""
 
 #: csw/utils/harvester.py:147
 msgid "Harvest response is missing important data!"
-msgstr ""
+msgstr "Harvest Antwort fehlen wichtige Daten!"
 
 #: csw/utils/harvester.py:275
 msgid "Harvesting {} of {}"
@@ -1188,6 +1192,8 @@ msgid ""
 "Shows the status of the resource. You can see active state, secured access "
 "state and secured externally state."
 msgstr ""
+"Zeigt den Status der Ressource an. Sie können den aktiven Status, den "
+"gesicherten Zugriffsstatus und den gesicherten externen Status anzeigen."
 
 #: service/tables.py:99
 msgid "This resource is active."
@@ -1334,7 +1340,7 @@ msgstr "Fortschritt"
 
 #: service/tables.py:506
 msgid "Delete this running task."
-msgstr ""
+msgstr "Laufenden Prozess löschen."
 
 #: service/tables.py:512
 msgid "Download the error report as text file."
@@ -2201,7 +2207,7 @@ msgstr "Eigenschaften des WMS für "
 #: service/templates/metadata/tabs/header/default_header.html:10
 #: service/templates/metadata/tabs/header/wfs_root_header.html:10
 msgid "Click to switch to overview tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Übersicht zu wechseln"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:11
 #: service/templates/metadata/tabs/header/default_header.html:11
@@ -2213,7 +2219,7 @@ msgstr "Übersicht"
 #: service/templates/metadata/tabs/header/dataset_header.html:18
 #: service/templates/metadata/tabs/header/default_header.html:18
 msgid "Click to switch to properties tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Eigenschaften zu wechseln"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:19
 #: service/templates/metadata/tabs/header/default_header.html:19
@@ -2224,7 +2230,7 @@ msgstr "Eigenschaften"
 #: service/templates/metadata/tabs/header/default_header.html:26
 #: service/templates/metadata/tabs/header/wfs_root_header.html:18
 msgid "Click to switch to contact tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Kontakt zu wechseln"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:27
 #: service/templates/metadata/tabs/header/default_header.html:27
@@ -2236,7 +2242,7 @@ msgstr "Kontakt"
 #: service/templates/metadata/tabs/header/default_header.html:34
 #: service/templates/metadata/tabs/header/wfs_root_header.html:26
 msgid "Click to switch to terms of use tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Nutzungsbedingungen zu wechseln"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:35
 #: service/templates/metadata/tabs/header/default_header.html:35
@@ -2246,7 +2252,7 @@ msgstr "Nutzungsbedingungen"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:42
 msgid "Click to switch to interface tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Benutzeroberfläche zu wechseln"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:43
 #: service/templates/metadata/tabs/header/default_header.html:52
@@ -2257,27 +2263,27 @@ msgstr "Schnittstellen"
 #: service/templates/metadata/tabs/header/default_header.html:43
 #: service/templates/metadata/tabs/header/wfs_root_header.html:35
 msgid "Click to switch to quality tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Qualität zu wechseln"
 
 #: service/templates/metadata/tabs/header/default_header.html:51
 #: service/templates/metadata/tabs/header/wfs_root_header.html:43
 msgid "Click to switch to interfaces tab"
-msgstr ""
+msgstr "Klicken Sie hier, um zur Registerkarte Schnittstellen zu wechseln"
 
 #: service/templates/modals/update_service.html:16
 msgid "Next"
 msgstr "Weiter"
 
-#: service/views.py:463
+#: service/views.py:466
 msgid "Do you really want to remove this service?"
 msgstr "Wollen Sie diesen Dienst wirklich löschen?"
 
-#: service/views.py:464
+#: service/views.py:467
 #, python-brace-format
 msgid "Remove service <strong>{metadata}</strong>"
 msgstr "Lösche Dienst <strong>{metadata}</strong>"
 
-#: service/views.py:491
+#: service/views.py:494
 msgid ""
 "Deactivate resource \n"
 "<strong>{}</strong>"
@@ -2285,7 +2291,7 @@ msgstr ""
 "Deaktiviere Ressource \n"
 "<strong>{}</strong>"
 
-#: service/views.py:491
+#: service/views.py:494
 msgid ""
 "Activate resource \n"
 "<strong>{}</strong>"
@@ -2293,19 +2299,19 @@ msgstr ""
 "Aktiviere Ressource \n"
 " <strong>{}</strong>"
 
-#: service/views.py:492
+#: service/views.py:495
 msgid "Do you really want to deactivate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich deaktivieren?"
 
-#: service/views.py:492
+#: service/views.py:495
 msgid "Do you really want to activate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich aktivieren?"
 
-#: service/views.py:547
+#: service/views.py:574
 msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
-#: service/views.py:873
+#: service/views.py:900
 #, python-brace-format
 msgid ""
 "Update service: <strong>{current_service.metadata.title} [{current_service."
@@ -2314,31 +2320,31 @@ msgstr ""
 "Aktualisiere Dienst: <strong>{current_service.metadata.title} "
 "[{current_service.metadata.id}]</strong>"
 
-#: service/views.py:914
+#: service/views.py:941
 msgid "No updatecandidate was found."
 msgstr "Kein Updatekandidat gefunden"
 
-#: service/views.py:916
+#: service/views.py:943
 msgid "Update candidates will be deleted after 7 days."
 msgstr "Updatekandidaten werden nach 7 Tagen gelöscht."
 
-#: service/views.py:986
+#: service/views.py:1013
 msgid "Pending update successfully dismissed."
 msgstr "Ausstehendes Update abgebrochen."
 
-#: service/views.py:988
+#: service/views.py:1015
 msgid "You are not the owner of this pending update. Rejected!"
 msgstr "Sie sind nicht der Eigentümer dieses Updates!"
 
-#: service/views.py:1173
+#: service/views.py:1200
 msgid "Shows informations about the featuretype."
 msgstr "Zeigt Informationen über den Featuretype."
 
-#: service/views.py:1180
+#: service/views.py:1207
 msgid "Shows informations about the service."
 msgstr "Zeigt Informationen über den Dienst."
 
-#: service/views.py:1185
+#: service/views.py:1212
 msgid "Shows informations about the sublayer."
 msgstr "Zeigt Informationen über die Unterebene."
 
@@ -2412,10 +2418,6 @@ msgstr "Ich bin kein Roboter"
 #: structure/forms.py:314 users/forms.py:75
 msgid "Password and confirmed password does not match"
 msgstr "Passwörter stimmen nicht überein"
-
-#: structure/management/commands/setup.py:222
-msgid "The default role for all groups. Has no permissions."
-msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
 #: structure/tables.py:19 structure/tables.py:89
 msgid "Group"
@@ -2595,7 +2597,7 @@ msgstr "Person"
 
 #: structure/templates/includes/detail/publisher_requests_accept_reject.html:17
 msgid "Accept the request"
-msgstr ""
+msgstr "Anfrage akzeptieren"
 
 #: structure/templates/includes/detail/publisher_requests_accept_reject.html:25
 msgid "Deny the request"
@@ -3062,7 +3064,7 @@ msgstr "Erstellt am "
 
 #: users/templates/includes/account_change.html:5
 msgid "Settings"
-msgstr ""
+msgstr "Einstellungen"
 
 #: users/templates/includes/account_change.html:13 users/views.py:222
 msgid "Change password"
@@ -3090,7 +3092,7 @@ msgstr "Beigetreten"
 
 #: users/templates/includes/account_info.html:26
 msgid "Newsletter subscribed"
-msgstr ""
+msgstr "Newsletter abonniert"
 
 #: users/templates/includes/account_info.html:30
 msgid "Participate in surveys"
@@ -3100,9 +3102,10 @@ msgstr "An Umfragen teilnehmen"
 msgid "Services subscribed"
 msgstr "Dienste abonniert"
 
+#: users/templates/includes/login.html:11
 #: users/templates/includes/login.html:48
 msgid "Sign in"
-msgstr "Einloggen"
+msgstr "Anmelden"
 
 #: users/templates/includes/login.html:55
 msgid "Don`t have an account?"
@@ -3141,7 +3144,7 @@ msgid "Subscriptions"
 msgstr "Abonnements"
 
 #: users/templates/includes/subscriptions.html:12 users/views.py:425
-#: users/views.py:483
+#: users/views.py:459
 msgid "New Subscription"
 msgstr "Neues Abonnement"
 
@@ -3184,7 +3187,7 @@ msgstr ""
 msgid "<strong>Edit your account information's</strong>"
 msgstr "<strong>Account Informationen bearbeiten</strong>"
 
-#: users/views.py:509
+#: users/views.py:485
 #, python-brace-format
 msgid ""
 "Remove Subscription for service <strong>{subscription.metadata}</strong>"
@@ -3375,7 +3378,7 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django/core/validators.py:522
 msgid "Null characters are not allowed."
-msgstr ""
+msgstr "Nullzeichen sind nicht erlaubt."
 
 #: venv/lib/python3.7/site-packages/django/db/models/base.py:1181
 #: venv/lib/python3.7/site-packages/django/forms/models.py:759
@@ -3385,7 +3388,7 @@ msgstr "und"
 #: venv/lib/python3.7/site-packages/django/db/models/base.py:1183
 #, python-format
 msgid "%(model_name)s with this %(field_labels)s already exists."
-msgstr ""
+msgstr "%(model_name)s mit %(field_labels)s existiert bereits."
 
 #: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:104
 #, python-format
@@ -3416,7 +3419,7 @@ msgstr ""
 #: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:130
 #, python-format
 msgid "Field of type: %(field_type)s"
-msgstr ""
+msgstr "Feldtyp: %(field_type)s"
 
 #: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:937
 #, python-format
@@ -3762,7 +3765,7 @@ msgstr[1] ""
 #: venv/lib/python3.7/site-packages/django/forms/formsets.py:379
 #: venv/lib/python3.7/site-packages/django/forms/formsets.py:386
 msgid "Order"
-msgstr ""
+msgstr "Reihenfolge"
 
 #: venv/lib/python3.7/site-packages/django/forms/formsets.py:391
 msgid "Delete"
@@ -3787,11 +3790,11 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django/forms/models.py:773
 msgid "Please correct the duplicate values below."
-msgstr ""
+msgstr "Bitte korrigieren Sie die doppelten Werte unten."
 
 #: venv/lib/python3.7/site-packages/django/forms/models.py:1094
 msgid "The inline value did not match the parent instance."
-msgstr ""
+msgstr "Der Inline-Wert stimmte nicht mit der übergeordneten Instanz überein."
 
 #: venv/lib/python3.7/site-packages/django/forms/models.py:1161
 msgid "Select a valid choice. That choice is not one of the available choices."
@@ -4186,7 +4189,7 @@ msgstr "oder"
 #: venv/lib/python3.7/site-packages/django/utils/text.py:254
 #: venv/lib/python3.7/site-packages/django/utils/timesince.py:83
 msgid ", "
-msgstr ""
+msgstr ", "
 
 #: venv/lib/python3.7/site-packages/django/utils/timesince.py:9
 #, python-format
@@ -4240,7 +4243,7 @@ msgstr "Verboten"
 
 #: venv/lib/python3.7/site-packages/django/views/csrf.py:111
 msgid "CSRF verification failed. Request aborted."
-msgstr ""
+msgstr "CSRF-Überprüfung fehlgeschlagen. Anfrage abgebrochen."
 
 #: venv/lib/python3.7/site-packages/django/views/csrf.py:115
 msgid ""
@@ -4285,7 +4288,7 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django/views/generic/dates.py:41
 msgid "No year specified"
-msgstr ""
+msgstr "Kein Jahr angegeben"
 
 #: venv/lib/python3.7/site-packages/django/views/generic/dates.py:61
 #: venv/lib/python3.7/site-packages/django/views/generic/dates.py:111
@@ -4327,15 +4330,17 @@ msgstr "Ungültiges Datum “%(datestr)s” mit “%(format)s” Format"
 #, python-format
 msgid "No %(verbose_name)s found matching the query"
 msgstr ""
+"Es wurde kein %(verbose_name)s gefunden, der mit der Abfrage übereinstimmt."
 
 #: venv/lib/python3.7/site-packages/django/views/generic/list.py:67
 msgid "Page is not “last”, nor can it be converted to an int."
 msgstr ""
+"Die Seite ist weder “Letzte” noch kann sie in ein int konvertiert werden."
 
 #: venv/lib/python3.7/site-packages/django/views/generic/list.py:72
 #, python-format
 msgid "Invalid page (%(page_number)s): %(message)s"
-msgstr ""
+msgstr "Ungültige Seite (%(page_number)s): %(message)s"
 
 #: venv/lib/python3.7/site-packages/django/views/generic/list.py:154
 #, python-format
@@ -4344,7 +4349,7 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django/views/static.py:40
 msgid "Directory indexes are not allowed here."
-msgstr ""
+msgstr "Verzeichnisindizes sind hier nicht erlaubt."
 
 #: venv/lib/python3.7/site-packages/django/views/static.py:42
 #, python-format
@@ -4358,7 +4363,7 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django/views/templates/default_urlconf.html:7
 msgid "Django: the Web framework for perfectionists with deadlines."
-msgstr ""
+msgstr "Django: das Web-Framework für Perfektionisten mit Fristen."
 
 #: venv/lib/python3.7/site-packages/django/views/templates/default_urlconf.html:346
 #, python-format
@@ -4434,19 +4439,19 @@ msgstr ""
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:175
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:237
 msgid "was,were"
-msgstr ""
+msgstr "war,waren"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:184
 msgid "Enable selected tasks"
-msgstr ""
+msgstr "Ausgewählte Aufgaben aktivieren"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:190
 msgid "Disable selected tasks"
-msgstr ""
+msgstr "Ausgewählte Aufgaben deaktivieren"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:202
 msgid "Toggle activity of selected tasks"
-msgstr ""
+msgstr "Aktivität ausgewählter Aufgaben ändern"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:222
 #, python-brace-format
@@ -4460,7 +4465,7 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/admin.py:240
 msgid "Run selected tasks"
-msgstr ""
+msgstr "Ausgewählte Aufgaben starten"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/apps.py:13
 msgid "Periodic Tasks"

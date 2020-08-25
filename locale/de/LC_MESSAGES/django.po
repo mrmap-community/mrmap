@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-24 11:02+0200\n"
+"POT-Creation-Date: 2020-08-25 11:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,6 +30,10 @@ msgstr "Formular aktualisieren"
 #: MrMap/forms.py:215
 msgid "Check this field"
 msgstr "Feld prüfen"
+
+#: MrMap/management/commands/setup.py:221
+msgid "The default role for all groups. Has no permissions."
+msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
 #: MrMap/messages.py:15
 msgid "Publish request created"
@@ -448,11 +452,11 @@ msgstr "'{}' abonniert."
 msgid "'{}' already subscribed."
 msgstr "'{}' bereits abonniert."
 
-#: MrMap/settings.py:364 service/settings.py:29
+#: MrMap/settings.py:365 service/settings.py:29
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:365 service/settings.py:28
+#: MrMap/settings.py:366 service/settings.py:28
 msgid "German"
 msgstr "Deutsch"
 
@@ -2268,16 +2272,16 @@ msgstr ""
 msgid "Next"
 msgstr "Weiter"
 
-#: service/views.py:463
+#: service/views.py:466
 msgid "Do you really want to remove this service?"
 msgstr "Wollen Sie diesen Dienst wirklich löschen?"
 
-#: service/views.py:464
+#: service/views.py:467
 #, python-brace-format
 msgid "Remove service <strong>{metadata}</strong>"
 msgstr "Lösche Dienst <strong>{metadata}</strong>"
 
-#: service/views.py:491
+#: service/views.py:494
 msgid ""
 "Deactivate resource \n"
 "<strong>{}</strong>"
@@ -2285,7 +2289,7 @@ msgstr ""
 "Deaktiviere Ressource \n"
 "<strong>{}</strong>"
 
-#: service/views.py:491
+#: service/views.py:494
 msgid ""
 "Activate resource \n"
 "<strong>{}</strong>"
@@ -2293,19 +2297,19 @@ msgstr ""
 "Aktiviere Ressource \n"
 " <strong>{}</strong>"
 
-#: service/views.py:492
+#: service/views.py:495
 msgid "Do you really want to deactivate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich deaktivieren?"
 
-#: service/views.py:492
+#: service/views.py:495
 msgid "Do you really want to activate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich aktivieren?"
 
-#: service/views.py:547
+#: service/views.py:574
 msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
-#: service/views.py:873
+#: service/views.py:900
 #, python-brace-format
 msgid ""
 "Update service: <strong>{current_service.metadata.title} [{current_service."
@@ -2314,31 +2318,31 @@ msgstr ""
 "Aktualisiere Dienst: <strong>{current_service.metadata.title} "
 "[{current_service.metadata.id}]</strong>"
 
-#: service/views.py:914
+#: service/views.py:941
 msgid "No updatecandidate was found."
 msgstr "Kein Updatekandidat gefunden"
 
-#: service/views.py:916
+#: service/views.py:943
 msgid "Update candidates will be deleted after 7 days."
 msgstr "Updatekandidaten werden nach 7 Tagen gelöscht."
 
-#: service/views.py:986
+#: service/views.py:1013
 msgid "Pending update successfully dismissed."
 msgstr "Ausstehendes Update abgebrochen."
 
-#: service/views.py:988
+#: service/views.py:1015
 msgid "You are not the owner of this pending update. Rejected!"
 msgstr "Sie sind nicht der Eigentümer dieses Updates!"
 
-#: service/views.py:1173
+#: service/views.py:1200
 msgid "Shows informations about the featuretype."
 msgstr "Zeigt Informationen über den Featuretype."
 
-#: service/views.py:1180
+#: service/views.py:1207
 msgid "Shows informations about the service."
 msgstr "Zeigt Informationen über den Dienst."
 
-#: service/views.py:1185
+#: service/views.py:1212
 msgid "Shows informations about the sublayer."
 msgstr "Zeigt Informationen über die Unterebene."
 
@@ -2412,10 +2416,6 @@ msgstr "Ich bin kein Roboter"
 #: structure/forms.py:314 users/forms.py:75
 msgid "Password and confirmed password does not match"
 msgstr "Passwörter stimmen nicht überein"
-
-#: structure/management/commands/setup.py:222
-msgid "The default role for all groups. Has no permissions."
-msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
 #: structure/tables.py:19 structure/tables.py:89
 msgid "Group"
@@ -3141,7 +3141,7 @@ msgid "Subscriptions"
 msgstr "Abonnements"
 
 #: users/templates/includes/subscriptions.html:12 users/views.py:425
-#: users/views.py:483
+#: users/views.py:459
 msgid "New Subscription"
 msgstr "Neues Abonnement"
 
@@ -3184,7 +3184,7 @@ msgstr ""
 msgid "<strong>Edit your account information's</strong>"
 msgstr "<strong>Account Informationen bearbeiten</strong>"
 
-#: users/views.py:509
+#: users/views.py:485
 #, python-brace-format
 msgid ""
 "Remove Subscription for service <strong>{subscription.metadata}</strong>"

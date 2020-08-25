@@ -8,6 +8,7 @@ from django.urls import reverse
 from MrMap.decorator import check_permission
 from MrMap.responses import DefaultContext
 from monitoring.filters import HealthReasonFilter
+from monitoring.models import MonitoringRun
 from monitoring.tables import HealthStateReasonsTable
 from monitoring.tasks import run_manual_monitoring
 from service.helper.enums import MetadataEnum
@@ -33,7 +34,7 @@ def call_run_monitoring(request: HttpRequest, metadata_id):
 
 
 @login_required
-def monitoring_results(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200,):
+def monitoring_results(request: HttpRequest, metadata_id, monitoring_run_id = None, update_params: dict = None, status_code: int = 200,):
     """ Renders a table with all health state messages
 
         Args:
@@ -47,8 +48,11 @@ def monitoring_results(request: HttpRequest, metadata_id, update_params: dict = 
     # Default content
     template = "views/health_state.html"
     metadata = get_object_or_404(Metadata, id=metadata_id)
-
-    health_state = metadata.get_health_state()
+    if monitoring_run_id:
+        monitoring_run = get_object_or_404(MonitoringRun, uuid=monitoring_run_id)
+        health_state = metadata.get_health_state(monitoring_run=monitoring_run)
+    else:
+        health_state = metadata.get_health_state()
     if not health_state:
         return HttpResponseNotFound()
 
@@ -61,9 +65,12 @@ def monitoring_results(request: HttpRequest, metadata_id, update_params: dict = 
                                             current_view='monitoring:health-state',
                                             )
 
+    last_ten_health_states = metadata.get_health_states()
+
     params = {
         "reasons_table": reasons_table,
         "health_state": health_state,
+        "last_ten_health_states": last_ten_health_states,
         "current_view": "monitoring:health-state",
     }
 

@@ -32,6 +32,12 @@
                 <th scope="row">{% trans 'Monitored resource id' %}</th>
                 <td><a href="{% url 'resource:detail' health_state.metadata.id %}" >{{health_state.metadata.id}}</a></td>
             </tr>
+            {% if last_ten_health_states %}
+            <tr>
+                <th scope="row">{% trans 'Last monitoring runs' %}</th>
+                <td>{% include 'includes/general_health_state_history.html' %}</td>
+            </tr>
+            {% endif %}
         {% endblock %}
     </div><!--</col-->
 </div><!--row-->

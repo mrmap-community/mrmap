@@ -1712,6 +1712,16 @@ class Metadata(Resource):
             health_state = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end').first()
             return health_state
 
+    def get_health_states(self, last_x_items: int = 10):
+        """ Returns the last 10 health states of the metadata object by default.
+
+        Returns:
+
+        """
+        from monitoring.models import HealthState
+        health_states = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
+        return health_states
+
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices

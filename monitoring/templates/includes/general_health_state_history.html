@@ -1,0 +1,23 @@
+{% if last_ten_health_states %}
+<ul class="nav nav-pills">
+  {% for health_state in last_ten_health_states %}
+    <li class="nav-item mr-1">
+      <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="left" data-html="true" title="{{health_state.monitoring_run.end}}">
+        <a href="{% url 'monitoring:health-state-specific' metadata_id=health_state.metadata.id monitoring_run_id=health_state.monitoring_run.uuid%}"
+           class="nav-link badge badge-pill
+                {% if health_state.health_state_code == 'ok' %}
+                badge-success
+                {% elif health_state.health_state_code == 'warning' %}
+                badge-warning
+                {% elif health_state.health_state_code == 'critical' %}
+                badge-danger
+                {% else %}
+                badge-secondary
+                {%endif%}">
+          {{health_state.health_state_code}}
+        </a>
+      </span>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}

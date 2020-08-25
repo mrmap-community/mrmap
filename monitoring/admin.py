@@ -28,7 +28,7 @@ class MonitoringAdmin(admin.ModelAdmin):
 class MonitoringCapabilityAdmin(admin.ModelAdmin):
     list_display = ('uuid', 'metadata', 'needs_update', 'diff')
 
-
+admin.site.register(HealthState, HealthStateAdmin)
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)
 admin.site.register(Monitoring, MonitoringAdmin)
 admin.site.register(MonitoringCapability, MonitoringCapabilityAdmin)

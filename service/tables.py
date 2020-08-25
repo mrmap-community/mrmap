@@ -122,34 +122,36 @@ class ResourceTable(MrMapTable):
 
     def get_health_icons(self, record):
         icons = ''
-        if record.health_state_code == HealthStateEnum.OK.value:
-            # state is OK
-            icon_color = 'text-success'
-            tooltip = record.health_message
-        elif record.health_state_code == HealthStateEnum.WARNING.value:
-            # state is WARNING
-            icon_color = 'text-warning'
-            tooltip = record.health_message
-        elif record.health_state_code == HealthStateEnum.CRITICAL.value:
-            # state is CRITICAL
-            icon_color = 'text-danger'
-            tooltip = record.health_message
-        elif record.health_state_code == HealthStateEnum.UNKNOWN.value:
-            # state is unknown
-            icon_color = 'text-secondary'
-            tooltip = record.health_message
+        health_state = record.get_health_state()
+        if health_state:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                # state is OK
+                icon_color = 'text-success'
+            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
+                # state is WARNING
+                icon_color = 'text-warning'
+            elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
+                # state is CRITICAL
+                icon_color = 'text-danger'
+            elif health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
+                # state is unknown
+                icon_color = 'text-secondary'
+            tooltip = health_state.health_message
         else:
             # state is unknown
             icon_color = 'text-secondary'
             tooltip = DEFAULT_UNKNOWN_MESSAGE
 
         icon = self.get_icon(icon_color=icon_color,
-                             icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
-                             tooltip=tooltip)
-        icon_link = self.get_link(href=reverse('monitoring:health-state', args=(record.id, )),
-                                  value=icon,
-                                  permission=Permission())
-        icons += icon_link
+                             icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
+
+        icon_btn = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
+                                btn_value=icon,
+                                btn_color='btn-light',
+                                permission=Permission(),
+                                tooltip=tooltip,)
+
+        icons += icon_btn
 
         return format_html(icons)
 

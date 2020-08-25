@@ -1,12 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponseRedirect, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
 from MrMap.decorator import check_permission
 from MrMap.responses import DefaultContext
+from monitoring.filters import HealthReasonFilter
 from monitoring.tables import HealthStateReasonsTable
 from monitoring.tasks import run_manual_monitoring
 from service.helper.enums import MetadataEnum
@@ -47,16 +48,22 @@ def monitoring_results(request: HttpRequest, metadata_id, update_params: dict = 
     template = "views/health_state.html"
     metadata = get_object_or_404(Metadata, id=metadata_id)
 
-    healt_state = metadata.get_health_state()
-    data = healt_state.warning_reasons + healt_state.critical_reasons
+    health_state = metadata.get_health_state()
+    if not health_state:
+        return HttpResponseNotFound()
 
-    reasons_table = HealthStateReasonsTable(data=data,
+    filtered_reasons = HealthReasonFilter(request=request, queryset=health_state.reasons)
+    reasons_table = HealthStateReasonsTable(queryset=filtered_reasons.qs,
                                             request=request,
-                                            current_view='monitoring:health-state',)
+                                            filter_set_class=HealthReasonFilter,
+                                            order_by_field='sreasons',  # sreasons = sort reasons
+                                            param_lead='reasons-t',
+                                            current_view='monitoring:health-state',
+                                            )
 
     params = {
         "reasons_table": reasons_table,
-        "metadata": metadata,
+        "health_state": health_state,
         "current_view": "monitoring:health-state",
     }
 

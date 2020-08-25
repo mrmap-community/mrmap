@@ -1,3 +1,5 @@
+from django.utils.html import format_html
+
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
@@ -9,11 +11,13 @@ from monitoring.enums import HealthStateEnum
 class HealthStateReasonsTable(MrMapTable):
 
     type = MrMapColumn(
+        accessor='health_state_code',
         verbose_name=_('Type'),
         empty_values=[],
     )
 
     reason = MrMapColumn(
+        accessor='reason',
         verbose_name=_('Reason'),
         empty_values=[],
     )
@@ -29,3 +33,7 @@ class HealthStateReasonsTable(MrMapTable):
                                  icon=get_theme(self.user)["ICONS"]["CRITICAL"],
                                  tooltip=_('This is a critical reason.'))
         return icon
+
+    @staticmethod
+    def render_reason(value):
+        return format_html(value)

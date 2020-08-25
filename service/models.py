@@ -26,7 +26,7 @@ from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, R
 from MrMap import utils
 from MrMap.validators import not_uuid
 from monitoring.enums import HealthStateEnum
-from monitoring.models import MonitoringSetting, MonitoringRun, Monitoring, HealthState
+from monitoring.models import MonitoringSetting, MonitoringRun, Monitoring
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
@@ -605,9 +605,6 @@ class Metadata(Resource):
     related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
-
-    health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value, choices=HealthStateEnum.as_choices(drop_empty_choice=True), max_length=10)
-    health_message = models.TextField(default=DEFAULT_UNKNOWN_MESSAGE, null=True, blank=True)
 
     class Meta:
         indexes = [
@@ -1707,24 +1704,13 @@ class Metadata(Resource):
         Returns: the health state or None if no Monitoring results where found
 
         """
+        from monitoring.models import HealthState
         if monitoring_run:
-            health_state = HealthState(metadata=self, monitoring_run=monitoring_run)
-            health_state.calculate_health_state()
+            health_state = HealthState.objects.get(metadata=self, monitoring_run=monitoring_run, )
             return health_state
         else:
-            # get the last monitoring object from db
-            last_monitoring_object = Monitoring.objects.filter(metadata=self).order_by('-timestamp').first()
-            if last_monitoring_object:
-                try:
-                    last_monitoring_run = MonitoringRun.objects.get(monitoring_results=last_monitoring_object)
-                except ObjectDoesNotExist:
-                    return HealthState(metadata=self, )
-                health_state = HealthState(metadata=self, monitoring_run=last_monitoring_run)
-                health_state.calculate_health_state()
-                return health_state
-            else:
-                # if we don't have any results, return default healthstate
-                return HealthState(metadata=self, )
+            health_state = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end').first()
+            return health_state
 
 
 class Document(Resource):

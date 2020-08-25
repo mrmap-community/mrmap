@@ -79,8 +79,9 @@ class Monitoring:
             self.check_dataset()
 
         # all checks are done. Calculate the health state for all monitoring results
-        health_state = HealthState(metadata=self.metadata, monitoring_run=self.monitoring_run)
-        health_state.calculate_health_state(update_metadata=True)
+        health_state = HealthState(monitoring_run=self.monitoring_run, metadata=self.metadata)
+        health_state.save()
+        health_state.calculate_health_state()
 
     def check_wfs(self, service: Service):
         """ Check the availability of wfs operations.

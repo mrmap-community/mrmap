@@ -105,15 +105,14 @@ class MonitoringCapability(Monitoring):
     diff = models.TextField(null=True, blank=True)
 
 
-class HealthState:
-
-    def __init__(self, metadata, monitoring_run: MonitoringRun = None,):
-        self.monitoring_run = monitoring_run
-        self.metadata = metadata
-        self.health_state_code = HealthStateEnum.UNKNOWN.value
-        self.health_message = DEFAULT_UNKNOWN_MESSAGE
-        self.warning_reasons = []
-        self.critical_reasons = []
+class HealthState(models.Model):
+    monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, )
+    metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_state', )
+    health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
+                                         choices=HealthStateEnum.as_choices(drop_empty_choice=True),
+                                         max_length=10)
+    health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
+                                      max_length=512, )     # this is the teaser for tooltips
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):
@@ -121,7 +120,7 @@ class HealthState:
                f'{monitoring_result.monitoring_run.start.strftime("%Y-%m-%d %H:%M:%S")}</span>.<br>' + \
                'Click on this icon to see details.'
 
-    def calculate_health_state(self, update_metadata: bool = False):
+    def calculate_health_state(self, ):
         # Monitoring objects that are related to this run and given metadata
         monitoring_objects = Monitoring.objects.filter(monitoring_run=self.monitoring_run, metadata=self.metadata)
 
@@ -131,19 +130,23 @@ class HealthState:
             for monitoring_result in monitoring_objects:
                 if not re.match(SUCCESS_HTTP_CODE_REGEX, str(monitoring_result.status_code)):
                     critical = True
-                    self.critical_reasons.append({
-                        'type': HealthStateEnum.CRITICAL.value,
-                        'reason': format_html(_(f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did not response.<br> The http status code was <strong class="text-danger">{monitoring_result.status_code}</strong>.'))})
+                    HealthStateReason(health_state=self,
+                                      health_state_code=HealthStateEnum.CRITICAL.value,
+                                      reason=_(f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did not response.<br> The http status code was <strong class="text-danger">{monitoring_result.status_code}</strong>.'),
+                                      ).save()
                 if monitoring_result.duration >= timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
                     critical = True
-                    self.critical_reasons.append({
-                        'type': HealthStateEnum.CRITICAL.value,
-                        'reason': format_html(_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-danger">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'))})
+                    HealthStateReason(health_state=self,
+                                      health_state_code=HealthStateEnum.CRITICAL.value,
+                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-danger">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                      ).save()
                 elif monitoring_result.duration >= timedelta(milliseconds=WARNING_RESPONSE_TIME):
                     warning = True
-                    self.warning_reasons.append({
-                        'type': HealthStateEnum.WARNING.value,
-                        'reason': format_html(_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-warning">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-warning">{WARNING_RESPONSE_TIME} ms</strong>.'))})
+                    HealthStateReason(health_state=self,
+                                      health_state_code=HealthStateEnum.WARNING.value,
+                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-warning">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-warning">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                      ).save()
+
             if critical:
                 self.health_state_code = HealthStateEnum.CRITICAL.value
                 self.health_message = _('The state of this resource is <strong class="text-danger">critical</strong>.<br>' +
@@ -157,8 +160,16 @@ class HealthState:
                 self.health_state_code = HealthStateEnum.OK.value
                 self.health_message = _(f'Everthing is <strong class="text-success">OK</strong>.<br>' +
                                       self._get_last_check_runs_on_msg(monitoring_result))
+            self.save()
 
-            if update_metadata:
-                self.metadata.health_state_code = self.health_state_code
-                self.metadata.health_message = self.health_message
-                self.metadata.save()
+
+class HealthStateReason(models.Model):
+    health_state = models.ForeignKey(HealthState,
+                                     on_delete=models.CASCADE,
+                                     related_name='reasons', )
+    reason = models.TextField(verbose_name=_('Reason'), )
+    health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
+                                         choices=HealthStateEnum.as_choices(drop_empty_choice=True),
+                                         max_length=10, )
+
+

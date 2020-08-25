@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from MrMap.decorator import check_permission
 from MrMap.responses import DefaultContext
-from monitoring.tables import WarningReasonsTable, CriticalReasonsTable
+from monitoring.tables import HealthStateReasonsTable
 from monitoring.tasks import run_manual_monitoring
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
@@ -48,19 +48,15 @@ def monitoring_results(request: HttpRequest, metadata_id, update_params: dict = 
     metadata = get_object_or_404(Metadata, id=metadata_id)
 
     healt_state = metadata.get_health_state()
+    data = healt_state.warning_reasons + healt_state.critical_reasons
 
-    warning_reasons_table = WarningReasonsTable(data=healt_state.warning_reasons,
-                                                orderable=False,
-                                                request=request,
-                                                current_view='monitoring:health-state',)
+    reasons_table = HealthStateReasonsTable(data=data,
+                                            request=request,
+                                            current_view='monitoring:health-state',)
 
-    critical_reasons_table = CriticalReasonsTable(data=healt_state.critical_reasons,
-                                                  orderable=False,
-                                                  request=request,
-                                                  current_view='monitoring:health-state',)
     params = {
-        "warning_reasons": warning_reasons_table,
-        "critical_reasons": critical_reasons_table,
+        "reasons_table": reasons_table,
+        "metadata": metadata,
         "current_view": "monitoring:health-state",
     }
 

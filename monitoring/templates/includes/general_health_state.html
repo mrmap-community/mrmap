@@ -5,7 +5,7 @@
 {% load bootstrap4 %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WARNING}}{% endautoescape %} {% trans 'Warnings' %}</h4>
+<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.HEARTBEAT}}{% endautoescape %} {% trans 'General health state' %}</h4>
 {% endblock %}
 
 {% block card-header-title-center%}
@@ -15,6 +15,6 @@
 {% endblock %}
 {% block card-body %}
 
-{% render_table warning_reasons %}
+{% include 'includes/general_health_state_table.html' %}
 
 {% endblock %}

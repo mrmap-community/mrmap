@@ -1,0 +1,37 @@
+{% extends 'sceletons/table.html' %}
+{% load static i18n %}
+<div class="row mb-2 ">
+    <div class="col">
+        {% block table %}
+            <tr>
+                <th scope="row">{% trans 'Health state' %}</th>
+                <td class="
+                {% if metadata.health_state_code == 'critical' %}
+                text-danger
+                {% elif metadata.health_state_code == 'warning'%}
+                text-warning
+                {% elif metadata.health_state_code == 'unknown'%}
+                text-secondary
+                {% elif metadata.health_state_code == 'ok'%}
+                text-success
+                {%endif%}">
+                    <strong>{{metadata.health_state_code}}</strong>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">{% trans 'Health message' %}</th>
+                <td>
+                    {% autoescape off %}{{metadata.health_message}}{% endautoescape %}
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">{% trans 'Monitored resource' %}</th>
+                <td>{{metadata.title}}</td>
+            </tr>
+            <tr>
+                <th scope="row">{% trans 'Monitored resource id' %}</th>
+                <td><a href="{% url 'resource:detail' metadata.id %}" >{{metadata.id}}</a></td>
+            </tr>
+        {% endblock %}
+    </div><!--</col-->
+</div><!--row-->

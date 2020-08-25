@@ -3,11 +3,9 @@
 
 {% block body %}
 <div class="container-fluid px-5">
-    {% if warning_reasons.rows %}
-        {% include 'includes/warning_reasons.html' %}
-    {% endif %}
-    {% if critical_reasons.rows %}
-        {% include 'includes/critical_reasons.html' %}
-    {% endif %}
+    {% include 'sceletons/breadcrumb.html'%}
+    {% include 'includes/general_health_state.html' %}
+    {% include 'includes/health_state_reasons.html' %}
+
 </div>
 {% endblock %}

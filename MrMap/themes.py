@@ -72,6 +72,7 @@ FONT_AWESOME_ICONS = {
     'HEARTBEAT': format_html(ICON_PATTERN, 'fas', 'fa-heartbeat'),
     'WARNING': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-triangle'),
     'CRITICAL': format_html(ICON_PATTERN, 'fas', 'fa-bolt'),
+    'LIST': format_html(ICON_PATTERN, 'fas', 'fa-th-list'),
 }
 
 # dark theme settings

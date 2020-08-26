@@ -19,6 +19,12 @@
                 </td>
             </tr>
             <tr>
+                <th scope="row">{% trans 'All time reliability' %}</th>
+                <td>
+                    <span class="badge badge-pill badge-success">{{health_state.reliability}} %</span>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row">{% trans 'Health message' %}</th>
                 <td>
                     {% autoescape off %}{{health_state.health_message}}{% endautoescape %}

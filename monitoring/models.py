@@ -11,6 +11,7 @@ from datetime import timedelta
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -112,6 +113,8 @@ class HealthState(models.Model):
                                          max_length=10)
     health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
                                       max_length=512, )     # this is the teaser for tooltips
+    reliability = models.FloatField(default=100,
+                                    validators=[MaxValueValidator(100), MinValueValidator(1)])
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):

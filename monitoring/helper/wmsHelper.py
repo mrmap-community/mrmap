@@ -5,7 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-
+from monitoring.settings import monitoring_logger
 from service.models import Service, Layer
 from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper
@@ -89,10 +89,17 @@ class WmsHelper:
         uri = uri.url
         request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         layer = self.layer.identifier
-        all_formats = self.service.metadata.formats.all()
-        service_format = str(all_formats.first() or "")
-        if 'image/png' in [str(f) for f in all_formats]:
-            service_format = 'image/png'
+
+        service_format = self.service.metadata.formats.filter(
+            mime_type__istartswith='image/'
+        ).exclude(
+            mime_type__icontains='svg'
+        ).first()
+
+        if not service_format:
+            # no formats are supported... return None
+            return
+
         version = self.service.service_type.version
         service_type = self.service.service_type.name
 
@@ -131,6 +138,8 @@ class WmsHelper:
             ('VERSION', service_version),
             ('SERVICE', service_type),
             ('LAYERS', layers),
+            ('WIDTH', 1),
+            ('HEIGHT', 1),
         ]
         url = UrlHelper.build(uri, queries)
         return url
@@ -206,10 +215,12 @@ class WmsHelper:
         styles = ''
         width = 1
         height = 1
-        all_formats = self.service.metadata.formats.all()
-        service_format = str(all_formats.first() or "")
-        if 'image/png' in [str(f) for f in all_formats]:
-            service_format = 'image/png'
+        service_format = self.parent_service.metadata.formats.filter(
+            operation=OGCOperationEnum.GET_MAP.value,
+            mime_type__istartswith='image/'
+        ).exclude(
+            mime_type__icontains='svg'
+        ).first()
 
         queries = [
             ('REQUEST', request_type),

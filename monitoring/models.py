@@ -11,14 +11,13 @@ from datetime import timedelta
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.utils.html import format_html
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from django.utils.translation import gettext_lazy as _
-
+from django.utils import timezone
 from MrMap.settings import TIME_ZONE
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, SUCCESS_HTTP_CODE_REGEX, \
-    monitoring_logger, DEFAULT_UNKNOWN_MESSAGE
+    DEFAULT_UNKNOWN_MESSAGE
 
 
 class MonitoringSetting(models.Model):
@@ -117,7 +116,7 @@ class HealthState(models.Model):
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):
         return 'Last check runs on <span class="font-italic text-info">' + \
-               f'{monitoring_result.monitoring_run.start.strftime("%Y-%m-%d %H:%M:%S")}</span>.<br>' + \
+               f'{timezone.localtime(monitoring_result.monitoring_run.end).strftime("%Y-%m-%d %H:%M:%S")}</span>.<br>' + \
                'Click on this icon to see details.'
 
     def calculate_health_state(self, ):

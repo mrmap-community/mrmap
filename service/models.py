@@ -2417,6 +2417,8 @@ class Document(Resource):
             document_type=DocumentEnum.CAPABILITY.value
         )
         self.content = original_doc.content
+        self.set_capabilities_secured()
+        self.set_proxy(use_proxy=self.metadata.use_proxy_uri)
         self.save()
 
     def restore_subelement(self, identifier: str):

@@ -210,7 +210,7 @@ class OGCCatalogueService(OGCWebService):
         service.operation_urls.add(*operation_urls)
 
         # Persist capabilities document
-        service.persist_capabilities_doc(self.service_capabilities_xml)
+        service.persist_original_capabilities_doc(self.service_capabilities_xml)
 
         return service
 

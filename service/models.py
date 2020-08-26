@@ -2417,6 +2417,8 @@ class Document(Resource):
             document_type=DocumentEnum.CAPABILITY.value
         )
         self.content = original_doc.content
+        self.set_capabilities_secured()
+        self.set_proxy(use_proxy=self.metadata.use_proxy_uri)
         self.save()
 
     def restore_subelement(self, identifier: str):
@@ -2846,7 +2848,7 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
-    def persist_capabilities_doc(self, xml: str):
+    def persist_original_capabilities_doc(self, xml: str):
         """ Persists the capabilities document
 
         Args:
@@ -2855,13 +2857,12 @@ class Service(Resource):
              nothing
         """
         # save original capabilities document
-        cap_doc = Document(
+        Document.objects.create(
             content=xml,
             metadata=self.metadata,
             is_original=True,
             document_type=DocumentEnum.CAPABILITY.value
         )
-        cap_doc.set_capabilities_secured()
 
 
 class Layer(Service):

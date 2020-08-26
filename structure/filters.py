@@ -1,4 +1,5 @@
 import django_filters
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.forms import TextInput, CheckboxInput, ChoiceField, CharField, CheckboxSelectMultiple, BooleanField
 from structure.models import MrMapGroup, Organization
@@ -33,12 +34,29 @@ class OrganizationFilter(django_filters.FilterSet):
                                         )
 
     @staticmethod
-    def filter_oiag(queryset, name, value): # parameter name is needed cause 3 values are expected
+    def filter_oiag(queryset, name, value):
+        """ Filters by is_auto_generated
+
+        Excludes organization records which do not hold proper organization_name values.
+
+        Args:
+            queryset: The queryset to be filtered
+            name: The parameter name
+            value: The parameter value
+        Returns:
+
+        """
         if value:
-            q = (queryset.filter(is_auto_generated=True) | queryset.filter(is_auto_generated=False))
+            # Do not filter anything, show all!
+            pass
         else:
-            q = queryset.filter(is_auto_generated=False)
-        return q
+            queryset = queryset.filter(is_auto_generated=False)
+
+        queryset = queryset.exclude(
+            Q(organization_name="") |
+            Q(organization_name=None)
+        )
+        return queryset
 
     @staticmethod
     def filter_search_over_all(queryset, name, value): # parameter name is needed cause 3 values are expected

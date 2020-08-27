@@ -32,7 +32,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    MetadataRelation, Style, ExternalAuthentication, ServiceUrl
+    MetadataRelation, Style, ExternalAuthentication, ServiceUrl, RequestOperation
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
 
@@ -114,7 +114,7 @@ class OGCWebMapService(OGCWebService):
 
         # check possible operations on this service
         start_time = time.time()
-        self.get_service_operations(xml_obj)
+        self.get_service_operations_and_formats(xml_obj)
         service_logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
@@ -128,6 +128,34 @@ class OGCWebMapService(OGCWebService):
             start_time = time.time()
             self._parse_layers(xml_obj=xml_obj, async_task=async_task)
             service_logger.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+
+    def get_service_operations_and_formats(self, xml_obj):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Creates MimeType records
+
+        Args:
+            xml_obj: The xml document object
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            xml_obj
+        )
+        operations = cap_request.getchildren()
+        for operation in operations:
+            RequestOperation.objects.get_or_create(
+                operation_name=operation.tag,
+            )
+            # Parse formats
+            formats = xml_helper.try_get_element_from_xml(
+                "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
+                operation
+            )
+            formats = [f.text for f in formats]
+            self.operation_format_map[operation.tag] = formats
 
     ### DATASET METADATA ###
     def parse_dataset_md(self, layer, layer_obj):
@@ -444,7 +472,7 @@ class OGCWebMapService(OGCWebService):
             self.parse_opaque,
             self.parse_cascaded,
             self.parse_request_uris,
-            self.parse_formats,
+            #self.parse_formats,
             self.parse_dimension,
             self.parse_style,
             self.parse_identifier,
@@ -714,7 +742,7 @@ class OGCWebMapService(OGCWebService):
         service = self._create_service_record(group, orga_published_for, metadata, is_update_candidate_for)
 
         # Additionals (keywords, mimetypes, ...)
-        self._create_additional_records(service, metadata)
+        self._create_additional_records(service, metadata, group)
 
         # Begin creation of Layer records. Calling the found root layer will
         # iterate through all parent-child related layer objects
@@ -894,7 +922,7 @@ class OGCWebMapService(OGCWebService):
 
         return service
 
-    def _create_additional_records(self, service: Service, metadata: Metadata):
+    def _create_additional_records(self, service: Service, metadata: Metadata, group: MrMapGroup):
         """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
 
         Args:
@@ -909,6 +937,16 @@ class OGCWebMapService(OGCWebService):
                 continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             metadata.keywords.add(keyword)
+
+        # MimeTypes / Formats
+        for operation, formats in self.operation_format_map.items():
+            for format in formats:
+                mime_type = MimeType.objects.get_or_create(
+                    operation=operation,
+                    mime_type=format,
+                    created_by=group
+                )[0]
+                metadata.formats.add(mime_type)
 
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:

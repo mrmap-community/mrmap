@@ -89,8 +89,8 @@ class WmsHelper:
         uri = uri.url
         request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         layer = self.layer.identifier
-        service_format = str(self.service.metadata.formats.all()[0])
-        if 'image/png' in [str(f) for f in self.service.metadata.formats.all()]:
+        service_format = str(self.service.metadata.get_formats()[0])
+        if 'image/png' in [str(f) for f in self.service.metadata.get_formats()]:
             service_format = 'image/png'
         version = self.service.service_type.version
         service_type = self.service.service_type.name
@@ -205,8 +205,8 @@ class WmsHelper:
         styles = ''
         width = 1
         height = 1
-        service_format = str(self.service.metadata.formats.all()[0])
-        if 'image/png' in [str(f) for f in self.service.metadata.formats.all()]:
+        service_format = str(self.service.metadata.get_formats()[0])
+        if 'image/png' in [str(f) for f in self.service.metadata.get_formats()]:
             service_format = 'image/png'
 
         queries = [

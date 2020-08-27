@@ -612,7 +612,7 @@ def get_service_preview(request: HttpRequest, metadata_id):
 
     try:
         # Fetch a pixel based image mime type. We can not use vector types
-        png_format = md.get_supported_formats().filter(
+        png_format = md.get_formats().filter(
             mime_type__icontains="image/"
         ).exclude(
             mime_type__icontains="svg"
@@ -1222,7 +1222,7 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
 
     mime_types = {}
 
-    formats = service_md.formats.all()
+    formats = service_md.get_formats()
     for mime in formats:
         op = mime_types.get(mime.operation)
         if op is None:

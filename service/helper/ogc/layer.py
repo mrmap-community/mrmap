@@ -311,13 +311,3 @@ class OGCLayer:
                 extent=dimension.get("extent"),
             )[0]
             layer.metadata.dimensions.add(dim)
-
-        # iterate over all available mime types and actions
-        for action, format_list in self.format_list.items():
-            for _format in format_list:
-                service_to_format = MimeType.objects.get_or_create(
-                    operation=action,
-                    mime_type=_format,
-                    created_by=group
-                )[0]
-                layer.metadata.formats.add(service_to_format)

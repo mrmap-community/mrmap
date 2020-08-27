@@ -62,7 +62,7 @@ class OGCCatalogueService(OGCWebService):
         self.get_service_metadata_from_capabilities(xml_obj, async_task)
 
         # Parse <OperationsMetadata>
-        self.get_service_operations(xml_obj)
+        self.get_service_operations_and_formats(xml_obj)
 
     def _create_contact_organization_record(self):
         """ Creates a contact record from the OGCWebFeatureService object
@@ -334,7 +334,7 @@ class OGCCatalogueService(OGCWebService):
             elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInstructions")
         )
 
-    def get_service_operations(self, xml_obj):
+    def get_service_operations_and_formats(self, xml_obj):
         """ Parses
 
         Args:

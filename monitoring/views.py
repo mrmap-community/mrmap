@@ -9,6 +9,7 @@ from MrMap.decorator import check_permission
 from MrMap.responses import DefaultContext
 from monitoring.filters import HealthReasonFilter
 from monitoring.models import MonitoringRun
+from monitoring.settings import MONITORING_THRESHOLDS
 from monitoring.tables import HealthStateReasonsTable
 from monitoring.tasks import run_manual_monitoring
 from service.helper.enums import MetadataEnum
@@ -72,6 +73,7 @@ def monitoring_results(request: HttpRequest, metadata_id, monitoring_run_id = No
         "health_state": health_state,
         "last_ten_health_states": last_ten_health_states,
         "current_view": "monitoring:health-state",
+        "MONITORING_THRESHOLDS": MONITORING_THRESHOLDS,
     }
 
     if update_params:

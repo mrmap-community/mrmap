@@ -5,10 +5,10 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-import re
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 
+import pytz
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -17,8 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from MrMap.settings import TIME_ZONE
 from monitoring.enums import HealthStateEnum
-from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, SUCCESS_HTTP_CODE_REGEX, \
-    DEFAULT_UNKNOWN_MESSAGE
+from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 
 
 class MonitoringSetting(models.Model):
@@ -113,14 +112,52 @@ class HealthState(models.Model):
                                          max_length=10)
     health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
                                       max_length=512, )     # this is the teaser for tooltips
-    reliability = models.FloatField(default=100,
-                                    validators=[MaxValueValidator(100), MinValueValidator(1)])
+    reliability_1w = models.FloatField(default=0,
+                                       validators=[MaxValueValidator(100), MinValueValidator(1)])
+    reliability_1m = models.FloatField(default=0,
+                                       validators=[MaxValueValidator(100), MinValueValidator(1)])
+    reliability_3m = models.FloatField(default=0,
+                                       validators=[MaxValueValidator(100), MinValueValidator(1)])
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):
         return 'Last check runs on <span class="font-italic text-info">' + \
                f'{timezone.localtime(monitoring_result.monitoring_run.end).strftime("%Y-%m-%d %H:%M:%S")}</span>.<br>' + \
                'Click on this icon to see details.'
+
+    def calculate_reliability(self):
+        now = datetime.now()
+        now_with_tz = pytz.utc.localize(now)
+
+        health_states_3m = HealthState.objects.filter(metadata=self.metadata,
+                                                      monitoring_run__end__gte=now-timedelta(days=90))\
+                                              .order_by('-monitoring_run__end')
+        # get only health states for 1m and 1w calculation to prevent from sql statements
+        health_states_1m = list(filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz-timedelta(days=30), list(health_states_3m)))
+        health_states_1w = list(filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz-timedelta(days=7), list(health_states_3m)))
+
+        reliability_1w = 0
+        for health_state in health_states_1w:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                reliability_1w += 1
+
+        reliability_1m = 0
+        for health_state in health_states_1m:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                reliability_1m += 1
+
+        reliability_3m = 0
+        for health_state in health_states_3m:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                reliability_3m += 1
+
+        if health_states_1w:
+            self.reliability_1w = reliability_1w * 100 / len(health_states_1w)
+        if health_states_1m:
+            self.reliability_1m = reliability_1m * 100 / len(health_states_1m)
+        if health_states_3m:
+            self.reliability_3m = reliability_3m * 100 / len(health_states_3m)
+        self.save()
 
     def calculate_health_state(self, ):
         # Monitoring objects that are related to this run and given metadata
@@ -130,12 +167,23 @@ class HealthState(models.Model):
             warning = False
             critical = False
             for monitoring_result in monitoring_objects:
-                if not re.match(SUCCESS_HTTP_CODE_REGEX, str(monitoring_result.status_code)):
+                if not monitoring_result.available:
                     critical = True
-                    HealthStateReason(health_state=self,
-                                      health_state_code=HealthStateEnum.CRITICAL.value,
-                                      reason=_(f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did not response.<br> The http status code was <strong class="text-danger">{monitoring_result.status_code}</strong>.'),
-                                      ).save()
+                    if 200 <= monitoring_result.status_code <= 208 or monitoring_result.status_code == 401:
+                        HealthStateReason(health_state=self,
+                                          health_state_code=HealthStateEnum.CRITICAL.value,
+                                          reason=_(
+                                              f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did receive an exception.<br> '
+                                              f'Exception:<br>{monitoring_result.error_msg}<br>'
+                                              f'The http status code was <strong class="text-success">{monitoring_result.status_code}</strong>.'),
+                                          ).save()
+                    else:
+                        HealthStateReason(health_state=self,
+                                          health_state_code=HealthStateEnum.CRITICAL.value,
+                                          reason=_(
+                                              f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did not response.<br> '
+                                              f'The http status code was <strong class="text-danger">{monitoring_result.status_code}</strong>.'),
+                                          ).save()
                 if monitoring_result.duration >= timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
                     critical = True
                     HealthStateReason(health_state=self,

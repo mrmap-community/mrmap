@@ -145,13 +145,14 @@ class ResourceTable(MrMapTable):
         icon = self.get_icon(icon_color=icon_color,
                              icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
 
-        icon_btn = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
+        if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
+            icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
                                 btn_value=icon,
                                 btn_color='btn-light',
                                 permission=Permission(),
                                 tooltip=tooltip,)
 
-        icons += icon_btn
+        icons += icon
 
         return format_html(icons)
 

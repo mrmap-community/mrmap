@@ -82,6 +82,7 @@ class Monitoring:
         health_state = HealthState(monitoring_run=self.monitoring_run, metadata=self.metadata)
         health_state.save()
         health_state.calculate_health_state()
+        health_state.calculate_reliability()
 
     def check_wfs(self, service: Service):
         """ Check the availability of wfs operations.

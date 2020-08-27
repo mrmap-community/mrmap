@@ -19,9 +19,32 @@
                 </td>
             </tr>
             <tr>
-                <th scope="row">{% trans 'All time reliability' %}</th>
+                <th scope="row">{% trans 'Reliability' %}</th>
                 <td>
-                    <span class="badge badge-pill badge-success">{{health_state.reliability}} %</span>
+                    <span class="badge badge-pill
+                    {% if health_state.reliability_1w < MONITORING_THRESHOLDS.CRITICAL_RELIABILITY %}
+                    badge-danger
+                    {% elif health_state.reliability_1w < MONITORING_THRESHOLDS.WARNING_RELIABILITY %}
+                    badge-warning
+                    {% else %}
+                    badge-success
+                    {%endif%}">1W - {{health_state.reliability_1w|floatformat:2}} %</span>
+                    <span class="badge badge-pill
+                    {% if health_state.reliability_1m < MONITORING_THRESHOLDS.CRITICAL_RELIABILITY %}
+                    badge-danger
+                    {% elif health_state.reliability_1m < MONITORING_THRESHOLDS.WARNING_RELIABILITY %}
+                    badge-warning
+                    {% else %}
+                    badge-success
+                    {%endif%}">1M - {{health_state.reliability_1m|floatformat:2}} %</span>
+                    <span class="badge badge-pill
+                    {% if health_state.reliability_3m < MONITORING_THRESHOLDS.CRITICAL_RELIABILITY %}
+                    badge-danger
+                    {% elif health_state.reliability_3m < MONITORING_THRESHOLDS.WARNING_RELIABILITY %}
+                    badge-warning
+                    {% else %}
+                    badge-success
+                    {%endif%}">3M - {{health_state.reliability_3m|floatformat:2}} %</span>
                 </td>
             </tr>
             <tr>

@@ -215,7 +215,7 @@ class WmsHelper:
         styles = ''
         width = 1
         height = 1
-        service_format = self.parent_service.metadata.formats.filter(
+        service_format = self.service.metadata.get_supported_formats().filter(
             operation=OGCOperationEnum.GET_MAP.value,
             mime_type__istartswith='image/'
         ).exclude(

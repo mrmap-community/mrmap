@@ -99,7 +99,13 @@ class MetadataAdmin(admin.ModelAdmin):
     search_fields = ['id', 'title', "identifier", "public_id"]
     ordering = ["-created"]
     readonly_fields = (
+        "additional_urls",
         "related_metadata",
+        "formats",
+        "reference_system",
+        "dimensions",
+        "legal_dates",
+        "legal_reports",
     )
 
 

@@ -1229,7 +1229,7 @@ class OGCOperationRequestHandler:
         height = int(self.height_param)
         try:
             for op in sec_ops:
-                if op.bounding_geometry.empty:
+                if op.bounding_geometry is None or op.bounding_geometry.empty:
                     return None
                 request_dict = {
                     "map": MAPSERVER_SECURITY_MASK_FILE_PATH,

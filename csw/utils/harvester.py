@@ -62,7 +62,7 @@ class Harvester:
         if self.harvest_url is None:
             raise ValueError(_("No get records URL available"))
         self.output_format = getattr(
-            self.metadata.formats.filter(
+            self.metadata.get_formats().filter(
                 mime_type__icontains="xml"
             ).first(),
             "mime_type",

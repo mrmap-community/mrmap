@@ -361,8 +361,10 @@ class DublinCoreMetadataConverter(MetadataConverter):
         attribute_element_map[TITLE_TEMPLATE.format(self.dc_ns)] = md.title
         attribute_element_map[TYPE_TEMPLATE.format(
             self.dc_ns)] = md.metadata_type if md.metadata_type == MetadataEnum.DATASET.value else MetadataEnum.SERVICE.value
-        attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
-        attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
+        kws = md.keywords.all()
+        formats = md.get_formats()
+        attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in kws]
+        attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in formats]
         attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime(DATE_STRF)
         attribute_element_map["{}abstract".format(self.dct_ns)] = md.abstract
 
@@ -393,8 +395,10 @@ class DublinCoreMetadataConverter(MetadataConverter):
         attribute_element_map["{}description".format(self.dc_ns)] = md.abstract
         attribute_element_map[TYPE_TEMPLATE.format(
             self.dc_ns)] = md.metadata_type if md.metadata_type == MetadataEnum.DATASET.value else MetadataEnum.SERVICE.value
-        attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
-        attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
+        kws = md.keywords.all()
+        formats = md.get_formats()
+        attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in kws]
+        attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in formats]
         attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime(DATE_STRF)
         attribute_element_map["{}rights".format(self.dc_ns)] = "ToDo"  # ToDo
 

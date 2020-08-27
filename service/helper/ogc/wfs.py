@@ -130,11 +130,6 @@ class OGCWebFeatureService(OGCWebService):
         self.get_service_metadata_from_capabilities(xml_obj, async_task)
         self.get_capability_metadata(xml_obj)
 
-        # check possible operations on this service
-        start_time = time.time()
-        self.get_service_operations(xml_obj)
-        service_logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
-
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(
             xml_elem=xml_obj,
@@ -154,7 +149,6 @@ class OGCWebFeatureService(OGCWebService):
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
         self.get_version_specific_metadata(xml_obj)
-
 
     @abstractmethod
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
@@ -343,12 +337,12 @@ class OGCWebFeatureService(OGCWebService):
 
             # Parse the possible outputFormats for every operation object
             output_format_element = xml_helper.try_get_single_element_from_xml(
-                './/' +  GENERIC_NAMESPACE_TEMPLATE.format('Parameter') + '[@name="outputFormat"]',
+                './/' + GENERIC_NAMESPACE_TEMPLATE.format('Parameter') + '[@name="outputFormat"]',
                 operation_elem
             )
             if output_format_element is not None:
                 output_format_value_elements = xml_helper.try_get_element_from_xml(
-                    "./" + GENERIC_NAMESPACE_TEMPLATE.format("Value"),
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Value"),
                     output_format_element
                 )
                 for value_elem in output_format_value_elements:
@@ -862,7 +856,7 @@ class OGCWebFeatureService(OGCWebService):
         service.operation_urls.add(*operation_urls)
 
         # Persist capabilities document
-        service.persist_capabilities_doc(self.service_capabilities_xml)
+        service.persist_original_capabilities_doc(self.service_capabilities_xml)
 
         return service
 
@@ -1034,7 +1028,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
-    def get_service_operations(self, xml_obj):
+    def get_service_operations_and_formats(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
@@ -1343,7 +1337,7 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
-    def get_service_operations(self, xml_obj):
+    def get_service_operations_and_formats(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
@@ -1378,7 +1372,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
-    def get_service_operations(self, xml_obj):
+    def get_service_operations_and_formats(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
@@ -1481,7 +1475,7 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
-    def get_service_operations(self, xml_obj):
+    def get_service_operations_and_formats(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:

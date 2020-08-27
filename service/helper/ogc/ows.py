@@ -88,6 +88,8 @@ class OGCWebService:
         self.get_styles_uri_GET = None
         self.get_styles_uri_POST = None
 
+        self.operation_format_map = {}
+
         class Meta:
             abstract = True
 
@@ -151,26 +153,6 @@ class OGCWebService:
     """
     Methods that have to be implemented in the sub classes
     """
-    @abstractmethod
-    def get_service_operations(self, xml_obj):
-        """ Creates table records from <Capability><Request></Request></Capability contents
-
-        Args:
-            xml_obj: The xml document object
-        Returns:
-
-        """
-        cap_request = xml_helper.try_get_single_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
-            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
-            xml_obj
-        )
-        operations = cap_request.getchildren()
-        for operation in operations:
-            RequestOperation.objects.get_or_create(
-                operation_name=operation.tag,
-            )
-
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         pass

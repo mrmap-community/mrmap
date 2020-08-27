@@ -629,6 +629,25 @@ class Metadata(Resource):
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
 
+    def get_formats(self, filter: dict = {}):
+        """ Returns supported formats/MimeTypes.
+
+        If the metadata record itself does not hold any format information, the parent metadata will be requested.
+
+        Args:
+            filter (dict): Prefilter
+        Returns:
+             QuerySet
+        """
+        if self.is_root() or self.formats.all().count() != 0:
+            formats = self.formats.filter(**filter)
+        else:
+            try:
+                formats = self.service.parent_service.metadata.formats.filter(**filter)
+            except Exception:
+                formats = MimeType.objects.none()
+        return formats
+
     @property
     def is_service_metadata(self):
         """ Returns whether the metadata record describes this type of data
@@ -713,29 +732,6 @@ class Metadata(Resource):
         elif self.is_featuretype_metadata:
             ret_val = self.featuretype
         return ret_val
-
-    def get_supported_formats(self):
-        """ Returns supported formats.
-
-        If no formats are set for the metadata, the subelement metadatas will be searched for valid formats
-
-        Returns:
-
-        """
-        formats = self.formats.all()
-        if formats.count() > 0:
-            return formats
-        sub_mds = self.get_subelements_metadatas()
-        for sub_md in sub_mds:
-            formats = formats.union(sub_md.formats.all())
-
-        # After union() usage filter() options are not possible anymore. Therefore we fetch the formats again from the
-        # db, since we have their ids now.
-        formats = [format.id for format in formats]
-        formats = MimeType.objects.filter(
-            id__in=formats
-        )
-        return formats
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -2443,6 +2439,8 @@ class Document(Resource):
             document_type=DocumentEnum.CAPABILITY.value
         )
         self.content = original_doc.content
+        self.set_capabilities_secured()
+        self.set_proxy(use_proxy=self.metadata.use_proxy_uri)
         self.save()
 
     def restore_subelement(self, identifier: str):
@@ -2872,7 +2870,7 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
-    def persist_capabilities_doc(self, xml: str):
+    def persist_original_capabilities_doc(self, xml: str):
         """ Persists the capabilities document
 
         Args:
@@ -2881,13 +2879,12 @@ class Service(Resource):
              nothing
         """
         # save original capabilities document
-        cap_doc = Document(
+        Document.objects.create(
             content=xml,
             metadata=self.metadata,
             is_original=True,
             document_type=DocumentEnum.CAPABILITY.value
         )
-        cap_doc.set_capabilities_secured()
 
 
 class Layer(Service):

@@ -90,7 +90,7 @@ class WmsHelper:
         request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         layer = self.layer.identifier
 
-        service_format = self.service.metadata.formats.filter(
+        service_format = self.service.metadata.get_formats().filter(
             mime_type__istartswith='image/'
         ).exclude(
             mime_type__icontains='svg'
@@ -215,7 +215,8 @@ class WmsHelper:
         styles = ''
         width = 1
         height = 1
-        service_format = self.service.metadata.get_supported_formats().filter(
+
+        service_format = self.service.metadata.get_formats().filter(
             operation=OGCOperationEnum.GET_MAP.value,
             mime_type__istartswith='image/'
         ).exclude(

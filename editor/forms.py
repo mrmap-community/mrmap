@@ -466,6 +466,11 @@ class RestrictAccessForm(MrMapForm):
         self.fields["log_proxy"].initial = metadata.log_proxy_access
         self.fields["restrict_access"].initial = metadata.is_secured
 
+        is_root = metadata.is_root()
+        self.fields["use_proxy"].disabled = not is_root
+        self.fields["log_proxy"].disabled = not is_root
+        self.fields["restrict_access"].disabled = not is_root
+
     def clean(self):
         cleaned_data = super(RestrictAccessForm, self).clean()
         use_proxy = cleaned_data.get("use_proxy")

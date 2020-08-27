@@ -178,7 +178,7 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
     if request.method == 'POST':
         # Check if update form is valid or action is performed on a root metadata
         if not is_root:
-            messages.info(request, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
+            messages.error(request, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
         elif form.is_valid():
             form.process_securing_access(md)
 

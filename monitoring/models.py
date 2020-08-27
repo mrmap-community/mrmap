@@ -135,20 +135,26 @@ class HealthState(models.Model):
         # get only health states for 1m and 1w calculation to prevent from sql statements
         health_states_1m = list(filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz-timedelta(days=30), list(health_states_3m)))
         health_states_1w = list(filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz-timedelta(days=7), list(health_states_3m)))
+        health_states_3m = list(health_states_3m)
+        # append self, cause transaction is atomic in parent function,
+        # so self would'nt be part of the calculation
+        health_states_1w.append(self)
+        health_states_1m.append(self)
+        health_states_3m.append(self)
 
         reliability_1w = 0
         for health_state in health_states_1w:
-            if health_state.health_state_code == HealthStateEnum.OK.value:
+            if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
                 reliability_1w += 1
 
         reliability_1m = 0
         for health_state in health_states_1m:
-            if health_state.health_state_code == HealthStateEnum.OK.value:
+            if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
                 reliability_1m += 1
 
         reliability_3m = 0
         for health_state in health_states_3m:
-            if health_state.health_state_code == HealthStateEnum.OK.value:
+            if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
                 reliability_3m += 1
 
         if health_states_1w:

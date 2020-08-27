@@ -472,7 +472,6 @@ class OGCWebMapService(OGCWebService):
             self.parse_opaque,
             self.parse_cascaded,
             self.parse_request_uris,
-            #self.parse_formats,
             self.parse_dimension,
             self.parse_style,
             self.parse_identifier,

@@ -13,7 +13,10 @@ class HealthReasonFilter(django_filters.FilterSet):
                                                     )
     reason = django_filters.CharFilter(field_name='reason',
                                        lookup_expr='icontains',
-                                       label=_('Select health state code'))
+                                       label=_('Search for a reason'))
+    exception = django_filters.CharFilter(field_name='monitoring_result__error_msg',
+                                          lookup_expr='icontains',
+                                          label=_('Search for an error message from remote service'))
 
     class Meta:
         model = HealthStateReason

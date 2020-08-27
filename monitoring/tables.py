@@ -22,6 +22,12 @@ class HealthStateReasonsTable(MrMapTable):
         empty_values=[],
     )
 
+    exception = MrMapColumn(
+        accessor='monitoring_result__error_msg',
+        verbose_name=_('Remote error message'),
+        empty_values=[],
+    )
+
     def render_type(self, value):
         icon = value
         if value == HealthStateEnum.WARNING.value:
@@ -37,3 +43,10 @@ class HealthStateReasonsTable(MrMapTable):
     @staticmethod
     def render_reason(value):
         return format_html(value)
+
+    @staticmethod
+    def render_exception(record, value):
+        if record.health_state_code == HealthStateEnum.CRITICAL.value:
+            return value
+        else:
+            return ''

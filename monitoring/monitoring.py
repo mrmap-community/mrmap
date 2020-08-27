@@ -23,8 +23,8 @@ from monitoring.helper.wfsHelper import WfsHelper
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.common_connector import CommonConnector
 from service.helper.xml_helper import parse_xml
-from service.models import Metadata, Document, Service, MetadataRelation, FeatureType
-from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersionEnum, DocumentEnum
+from service.models import Metadata, Document, Service, FeatureType
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, DocumentEnum
 
 
 class Monitoring:

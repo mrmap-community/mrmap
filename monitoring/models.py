@@ -180,8 +180,8 @@ class HealthState(models.Model):
                                           health_state_code=HealthStateEnum.CRITICAL.value,
                                           reason=_(
                                               f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did receive an exception.<br> '
-                                              f'Exception:<br>{monitoring_result.error_msg}<br>'
                                               f'The http status code was <strong class="text-success">{monitoring_result.status_code}</strong>.'),
+                                          monitoring_result=monitoring_result,
                                           ).save()
                     else:
                         HealthStateReason(health_state=self,
@@ -189,18 +189,22 @@ class HealthState(models.Model):
                                           reason=_(
                                               f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did not response.<br> '
                                               f'The http status code was <strong class="text-danger">{monitoring_result.status_code}</strong>.'),
+                                          monitoring_result=monitoring_result,
                                           ).save()
+
                 if monitoring_result.duration >= timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
                     critical = True
                     HealthStateReason(health_state=self,
                                       health_state_code=HealthStateEnum.CRITICAL.value,
                                       reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-danger">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                      monitoring_result=monitoring_result,
                                       ).save()
                 elif monitoring_result.duration >= timedelta(milliseconds=WARNING_RESPONSE_TIME):
                     warning = True
                     HealthStateReason(health_state=self,
                                       health_state_code=HealthStateEnum.WARNING.value,
                                       reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-warning">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-warning">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                      monitoring_result=monitoring_result,
                                       ).save()
 
             if critical:
@@ -227,5 +231,5 @@ class HealthStateReason(models.Model):
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=10, )
-
+    monitoring_result = models.ForeignKey(Monitoring, on_delete=models.CASCADE, related_name='health_state_reasons',)
 

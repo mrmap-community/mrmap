@@ -11,6 +11,11 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.template.defaultfilters import escape
 
+
+class HealthStateReasonAdmin(admin.ModelAdmin):
+    list_display = ('id', 'health_state', 'monitoring_result', 'reason', 'health_state_code', )
+
+
 class HealthStateAdmin(admin.ModelAdmin):
     list_display = ('id', 'health_state_code', 'health_message', )
 
@@ -38,6 +43,7 @@ class MonitoringCapabilityAdmin(admin.ModelAdmin):
     list_display = ('uuid', 'metadata', 'needs_update', 'diff')
 
 
+admin.site.register(HealthStateReason, HealthStateReasonAdmin)
 admin.site.register(HealthState, HealthStateAdmin)
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)
 admin.site.register(Monitoring, MonitoringAdmin)

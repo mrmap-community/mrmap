@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
-from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE
+from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
@@ -153,6 +153,25 @@ class ResourceTable(MrMapTable):
                                 tooltip=tooltip,)
 
         icons += icon
+
+        if health_state:
+            badge_color = 'badge-success'
+            if health_state.reliability_1w < CRITICAL_RELIABILITY:
+                badge_color = 'badge-danger'
+            elif health_state.reliability_1w < WARNING_RELIABILITY:
+                badge_color = 'badge-warning'
+            icons += self.get_badge(badge_color=badge_color,
+                                    badge_pill=True,
+                                    value=f'{round(health_state.reliability_1w, 2)} %',
+                                    tooltip=_('Reliability statistic for one week.'))
+
+            for reason in health_state.reasons.all():
+                if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
+                    icons += self.get_icon(icon_color='text-info',
+                                           icon=get_theme(self.user)["ICONS"]["PASSWORD"],
+                                           tooltip=_(
+                                               'Some checks can\'t get a result, cause the service needs an authentication for this request.'))
+                    break
 
         return format_html(icons)
 

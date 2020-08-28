@@ -38,6 +38,10 @@ class HealthStateReasonsTable(MrMapTable):
             icon = self.get_icon(icon_color='text-danger',
                                  icon=get_theme(self.user)["ICONS"]["CRITICAL"],
                                  tooltip=_('This is a critical reason.'))
+        elif value == HealthStateEnum.UNAUTHORIZED.value:
+            icon = self.get_icon(icon_color='text-info',
+                                 icon=get_theme(self.user)["ICONS"]["PASSWORD"],
+                                 tooltip=_('This check runs without getting state relevant results, cause the service needs an authentication for this request.'))
         return icon
 
     @staticmethod

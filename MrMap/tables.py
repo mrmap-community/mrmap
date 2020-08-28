@@ -117,6 +117,17 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
+    def get_badge(self, value: str, badge_color: str, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
+        context = {
+            "badge_color": badge_color,
+            "badge_pill": badge_pill,
+            "value": value,
+            "tooltip": tooltip,
+            "tooltip_placement": tooltip_placement,
+        }
+        return render_to_string(template_name="sceletons/badge_with_tooltip.html",
+                                context=context)
+
     def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'left',):
         context = {
             "icon_color": icon_color,

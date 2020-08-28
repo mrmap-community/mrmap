@@ -363,7 +363,7 @@ class RegistrationForm(forms.Form):
         password_check = cleaned_data.get("password_check")
 
         if password != password_check:
-            self.add_error("password_check", forms.ValidationError(_("Password and confirmed password does not match")))
+            self.add_error("password_check", forms.ValidationError(_("Passwords do not match.")))
 
         return cleaned_data
 

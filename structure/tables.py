@@ -149,15 +149,21 @@ class GroupTable(MrMapTable):
     def render_groups_name(self, value, record):
         url = reverse('structure:detail-group', args=(record.id,))
         icon = ''
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>')
-        if value == 'Public':
+        value = _(value)
+        tooltip = _('Click to open the detail view of <strong>{}</strong>').format(value)
+        if record.is_public_group:
             icon = get_theme(self.user)['ICONS']['PUBLIC']
-            tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
+            tooltip = "{} {}".format(_('This is the anonymous public user group.'), tooltip)
 
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
-                             content=icon + ' ' + value,
+                             content="{} {}".format(icon, value),
                              tooltip=tooltip, )
+
+    @staticmethod
+    def render_groups_description(value, record):
+        value = _(value)
+        return value
 
     def render_groups_organization(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))

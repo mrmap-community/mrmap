@@ -16,7 +16,8 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.management.commands.setup_settings import DEFAULT_GROUPS
 from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
-from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
+from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME, \
+    SUPERUSER_GROUP_DESCRIPTION, PUBLIC_GROUP_DESCRIPTION
 from monitoring.models import MonitoringSetting
 
 
@@ -99,9 +100,9 @@ class Command(BaseCommand):
         orga = self._create_default_organization()
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser '" + name + "' added to group '" + group.name + "'!"
+        msg = "Superuser '" + name + "' added to group '" + str(group.name) + "'!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
-        msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
+        msg = "Superuser '" + name + "' added to organization '" + str(orga.organization_name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()
@@ -121,6 +122,7 @@ class Command(BaseCommand):
              group (MrMapGroup): The created group object
         """
         group_name = setting["name"]
+        group_desc = setting["description"]
         group_permissions = setting["permissions"]
         parent_group = MrMapGroup.objects.filter(
             name=setting["parent_group"]
@@ -140,6 +142,8 @@ class Command(BaseCommand):
             role=role,
             created_by=user
         )[0]
+        group.description = group_desc
+        group.save()
         return group
 
     @staticmethod
@@ -163,6 +167,7 @@ class Command(BaseCommand):
         """
         group = MrMapGroup.objects.get_or_create(
             name=PUBLIC_GROUP_NAME,
+            description=PUBLIC_GROUP_DESCRIPTION,
             created_by=user,
             is_public_group=True
         )[0]
@@ -190,7 +195,11 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(name=SUPERUSER_GROUP_NAME, created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(
+            name=SUPERUSER_GROUP_NAME,
+            description=SUPERUSER_GROUP_DESCRIPTION,
+            created_by=user,
+        )[0]
         if group.role is None:
             role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]
             if role.permission is None:

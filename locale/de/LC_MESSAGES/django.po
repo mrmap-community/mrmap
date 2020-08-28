@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 10:44+0200\n"
+"POT-Creation-Date: 2020-08-28 11:21+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,9 +31,65 @@ msgstr "Formular aktualisieren"
 msgid "Check this field"
 msgstr "Feld prüfen"
 
-#: MrMap/management/commands/setup.py:221
+#: MrMap/management/commands/setup.py:230
 msgid "The default role for all groups. Has no permissions."
 msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
+
+#: MrMap/management/commands/setup_settings.py:17
+msgid "Group Administrator"
+msgstr ""
+
+#: MrMap/management/commands/setup_settings.py:18
+msgid "Permission group. Holds users which are allowed to manage groups."
+msgstr ""
+
+#: MrMap/management/commands/setup_settings.py:31
+msgid "Organization Administrator"
+msgstr "Organisationsadministrator"
+
+#: MrMap/management/commands/setup_settings.py:32
+msgid ""
+"Permission group. Holds users which are allowed to manage organizations."
+msgstr ""
+"Berechtigungsgruppe. Gruppiert Nutzer die Organisationen verwalten können."
+
+#: MrMap/management/commands/setup_settings.py:42
+msgid "Editor"
+msgstr "Editor"
+
+#: MrMap/management/commands/setup_settings.py:43
+msgid ""
+"Permission group. Holds users which are allowed to edit metadata or activate "
+"resources."
+msgstr ""
+"Berechtigungsgruppe. Gruppiert Nutzer die Metadaten editieren oder "
+"Ressourcen aktivieren können."
+
+#: MrMap/management/commands/setup_settings.py:52
+msgid "Controller"
+msgstr "Controller"
+
+#: MrMap/management/commands/setup_settings.py:53
+msgid ""
+"Permission group. Holds users which are allowed to access and download logs "
+"or generate an API token."
+msgstr ""
+"Berechtigungsgruppe. Gruppiert Nutzer die Protokolle einsehen und "
+"herunterladen oder API Token generien können."
+
+#: MrMap/management/commands/setup_settings.py:62
+msgid "Resource Administrator"
+msgstr "Ressourcenadministrator"
+
+#: MrMap/management/commands/setup_settings.py:63
+msgid ""
+"Permission group. Holds users which are allowed to manage resource. This "
+"includes e.g. registration or removing of services and managing publisher "
+"requests."
+msgstr ""
+"Berechtigungsgruppe. Gruppiert Nutzer die Ressourcen verwalten können. Das "
+"beinhaltet z.B. das Registrieren oder Löschen von Diensten und verwalten von "
+"Veröffentlichungsrechten."
 
 #: MrMap/messages.py:15
 msgid "Publish request created"
@@ -822,11 +878,11 @@ msgstr "Zugriff räumlich beschränkt oder nicht"
 
 #: editor/tables.py:40 service/tables.py:171 service/tables.py:329
 #: service/tables.py:420 service/tables.py:499 service/tables.py:698
-#: structure/tables.py:140 structure/tables.py:209 users/tables.py:39
+#: structure/tables.py:140 structure/tables.py:215 users/tables.py:39
 msgid "Actions"
 msgstr "Aktionen"
 
-#: editor/tables.py:43 structure/tables.py:141 structure/tables.py:210
+#: editor/tables.py:43 structure/tables.py:141 structure/tables.py:216
 msgid "Actions you can perform"
 msgstr "Ausführbare Aktionen"
 
@@ -835,7 +891,7 @@ msgstr "Ausführbare Aktionen"
 msgid "Click to open the detail view of <strong>{record.name}</strong>"
 msgstr "Öffnet die Detailansicht von <strong>{record.name}</strong>"
 
-#: editor/tables.py:61 structure/tables.py:155
+#: editor/tables.py:61 structure/tables.py:156
 msgid "This is the anonymous public user group."
 msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
 
@@ -1251,7 +1307,7 @@ msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 #: service/tables.py:191 service/tables.py:199 service/tables.py:208
 #: service/tables.py:338 service/tables.py:354 service/tables.py:362
 #: service/tables.py:371 service/tables.py:448 service/tables.py:456
-#: structure/tables.py:220
+#: structure/tables.py:226
 #, python-brace-format
 msgid "Click to open the detail view of <strong>{value}</strong>."
 msgstr "Öffnet die Detailansicht für <strong>{value}</strong>."
@@ -1792,7 +1848,7 @@ msgstr ""
 "Diese Elemente existieren nach wie vor im Dienst und werden aktualisiert."
 
 #: service/templates/includes/wfs/element_accordion.html:10
-#: structure/tables.py:129 structure/tables.py:194
+#: structure/tables.py:129 structure/tables.py:200
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:375
 msgid "Name"
 msgstr "Name"
@@ -2369,7 +2425,7 @@ msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
 #: structure/forms.py:28 structure/forms.py:164 structure/forms.py:191
-#: structure/tables.py:133 structure/tables.py:198
+#: structure/tables.py:133 structure/tables.py:204
 #: structure/templates/includes/detail/groups_table.html:9
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
 msgid "Description"
@@ -2405,7 +2461,7 @@ msgstr "Nachricht"
 msgid "Organization name"
 msgstr "Organisationsname"
 
-#: structure/forms.py:192 structure/tables.py:206
+#: structure/forms.py:192 structure/tables.py:212
 #: structure/templates/includes/detail/groups_table.html:21
 #: structure/templates/includes/detail/organizations_table.html:41
 msgid "Parent"
@@ -2473,6 +2529,31 @@ msgstr "Nutzername ist bereits vergeben. Versuchen Sie etwas anderes."
 msgid "Passwords do not match."
 msgstr "Passwörter stimmen nicht überein."
 
+#: structure/settings.py:22 structure/settings.py:23
+msgid "Administrator"
+msgstr "Administrator"
+
+#: structure/settings.py:24
+msgid "Permission group. Holds user which are allowed to perform any action."
+msgstr ""
+"Berechtigungsgruppe. Gruppiert Nutzer die alle Funktionen nutzen können."
+
+#: structure/settings.py:25
+msgid "public_role"
+msgstr "public_role"
+
+#: structure/settings.py:26
+msgid "Public"
+msgstr "Öffentlich"
+
+#: structure/settings.py:27
+msgid ""
+"The public group. Used to create access for secured resources to external "
+"users. Every user is member of this group by default."
+msgstr ""
+"Die öffentliche Gruppe. Ermöglicht Zugang zu abgesicherten Diensten für "
+"externe Nutzer. Jeder interne Nutzer ist standardmäßig Teil dieser Gruppe."
+
 #: structure/tables.py:20 structure/tables.py:90
 msgid "Group organization"
 msgstr "Gruppen Organisation"
@@ -2501,38 +2582,37 @@ msgstr "Die Organisation dieser Gruppe"
 msgid "Shows all groups which are configured in your Mr. Map environment."
 msgstr "Zeigt alle Gruppen, zu denen Sie gehören."
 
-#: structure/tables.py:152
-#, python-brace-format
-msgid "Click to open the detail view of <strong>{value}</strong>"
-msgstr "Klicken für die Detailansicht von <strong>{value}</strong>"
+#: structure/tables.py:153
+msgid "Click to open the detail view of <strong>{}</strong>"
+msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
-#: structure/tables.py:164
+#: structure/tables.py:170
 msgid "Click to open the detail view of the organization"
 msgstr "Klicken für die Detailansicht der Organisation"
 
-#: structure/tables.py:176
+#: structure/tables.py:182
 #, python-brace-format
 msgid "Edit <strong>{record.name} [{record.id}]</strong> group"
 msgstr "Bearbeite Gruppe <strong>{record.name} [{record.id}]</strong>"
 
-#: structure/tables.py:184
+#: structure/tables.py:190
 #, python-brace-format
 msgid "Remove <strong>{record.name} [{record.id}]</strong> group"
 msgstr "Lösche Gruppe <strong>{record.name} [{record.id}]</strong>"
 
-#: structure/tables.py:195
+#: structure/tables.py:201
 msgid "Name of the given organizations"
 msgstr "Name der Organisation"
 
-#: structure/tables.py:199
+#: structure/tables.py:205
 msgid "Description of the given organizations"
 msgstr "Beschreibungen der Organisationen"
 
-#: structure/tables.py:202
+#: structure/tables.py:208
 msgid "Real organization"
 msgstr "Echte Organisation"
 
-#: structure/tables.py:203
+#: structure/tables.py:209
 msgid ""
 "If an organization comes from the capabilities, it will be marked as "
 "autogenerated"
@@ -2540,20 +2620,20 @@ msgstr ""
 "Wenn eine Organisation automatisch aus den Capabilities generiert wird, wird "
 "diese als autogeneriert markiert"
 
-#: structure/tables.py:207
+#: structure/tables.py:213
 msgid "Parent organizations of the given organization"
 msgstr "Überorganisation dieser Organisation"
 
-#: structure/tables.py:215
+#: structure/tables.py:221
 msgid ""
 "Shows all organizations which are configured in your Mr. Map environment."
 msgstr "Zeigt alle verfügbaren Organisationen."
 
-#: structure/tables.py:223
+#: structure/tables.py:229
 msgid "This is your organization."
 msgstr "Das ist Ihre Organisation."
 
-#: structure/tables.py:250
+#: structure/tables.py:256
 #, python-brace-format
 msgid ""
 "Edit <strong>{record.organization_name} [{record.id}]</strong> organization"
@@ -2561,7 +2641,7 @@ msgstr ""
 "Bearbeite Organisation <strong>{record.organization_name} [{record.id}]</"
 "strong>"
 
-#: structure/tables.py:259
+#: structure/tables.py:265
 #, python-brace-format
 msgid ""
 "Become publisher for organization <strong>{record.organization_name} "
@@ -2570,7 +2650,7 @@ msgstr ""
 "Veröffentlicher für Organisation <strong>{record.organization_name} [{record."
 "id}]</strong> werden"
 
-#: structure/tables.py:267
+#: structure/tables.py:273
 #, python-brace-format
 msgid ""
 "Remove <strong>{record.organization_name} [{record.id}]</strong> organization"
@@ -4897,6 +4977,9 @@ msgstr ""
 #, python-format
 msgid "Unable to connect to qpid with SASL mechanism %s"
 msgstr ""
+
+#~ msgid "Click to open the detail view of <strong>{value}</strong>"
+#~ msgstr "Klicken für die Detailansicht von <strong>{value}</strong>"
 
 #~ msgid "Active"
 #~ msgstr "Aktiv"

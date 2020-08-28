@@ -223,14 +223,14 @@ class OrganizationTable(MrMapTable):
     def render_orgs_organization_name(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
         icon = ''
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        tooltip = _('Click to open the detail view of <strong>{}</strong>.').format(value)
         if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
-            tooltip = _('This is your organization.') + f' {tooltip}'
+            tooltip = "{} {}".format(_('This is your organization.'), tooltip)
 
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
-                             content=icon + ' ' + value,
+                             content="{} {}".format(icon, value),
                              tooltip=tooltip, )
 
     @staticmethod

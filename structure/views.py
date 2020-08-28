@@ -420,8 +420,6 @@ def accept_publish_request(request: HttpRequest, request_id: int):
 
 @login_required
 @check_permission(Permission(can_remove_publisher=True))
-@check_ownership(Organization, 'org_id')
-@check_ownership(MrMapGroup, 'group_id')
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     """ Removes a publisher for an organization
 
@@ -443,7 +441,7 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
                 group=group,
                 user=user,
                 msg=_("Publisher changed"),
-                metadata_title=_("Group '{}' has been removed as publisher for '{}'.".format(group, org)),
+                metadata_title=_("Group '{}' has been removed as publisher for '{}'.").format(group, org),
             )
             messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
             return HttpResponseRedirect(reverse("structure:detail-organization",

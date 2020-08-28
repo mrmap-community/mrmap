@@ -1,6 +1,7 @@
 import datetime
 from captcha.fields import CaptchaField
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
@@ -39,7 +40,8 @@ class GroupForm(MrMapModelForm):
             "name",
             "description",
             "role",
-            "parent_group"
+            "parent_group",
+            "organization",
         ]
         labels = {
             "parent_group": _("Parent group"),
@@ -395,3 +397,21 @@ class RemovePublisher(forms.Form):
         self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
         self.group = None if 'group' not in kwargs else kwargs.pop('group')
         super(RemovePublisher, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        """
+
+        Checks whether only member of the organization or member of the publishing group are valid users!
+
+        Returns:
+
+        """
+        user_groups = self.user.get_groups()
+        org = self.organization
+        publishers = org.can_publish_for.all()
+        user_is_publisher = (publishers & user_groups).exists()
+        user_is_org_member = self.user.organization == org
+        if not user_is_publisher and not user_is_org_member:
+            raise ValidationError
+
+

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 09:06+0200\n"
+"POT-Creation-Date: 2020-08-28 10:33+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1073,11 +1073,11 @@ msgstr "Keine"
 msgid "Service needs authentication"
 msgstr "Dienst benötigt Authentifizierung"
 
-#: service/forms.py:54 structure/forms.py:21 structure/forms.py:286
+#: service/forms.py:54 structure/forms.py:21 structure/forms.py:300
 msgid "Username"
 msgstr "Nutzername"
 
-#: service/forms.py:55 structure/forms.py:22 structure/forms.py:293
+#: service/forms.py:55 structure/forms.py:22 structure/forms.py:307
 msgid "Password"
 msgstr "Passwort"
 
@@ -1579,18 +1579,19 @@ msgid "Responsible Person"
 msgstr "Ansprechpartner"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:69
-#: structure/forms.py:314
+#: structure/forms.py:181 structure/forms.py:328
 #: structure/templates/includes/detail/organizations_table.html:13
 msgid "Phone"
 msgstr "Telefon"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:73
-#: structure/forms.py:315
+#: structure/forms.py:180 structure/forms.py:329
 #: structure/templates/includes/detail/organizations_table.html:17
 msgid "Facsimile"
 msgstr "Fax"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:77
+#: structure/forms.py:182
 #: structure/templates/includes/detail/organizations_table.html:9
 #: users/forms.py:27
 msgid "E-Mail"
@@ -1599,13 +1600,13 @@ msgstr "E-Mail"
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:81
 #: service/templates/metadata/tabs/content/contact_tab.html:26
 #: service/templates/metadata/tabs/content/dataset/contact_tab.html:21
-#: structure/forms.py:311
+#: structure/forms.py:185 structure/forms.py:325
 #: structure/templates/includes/detail/organizations_table.html:21
 msgid "Address"
 msgstr "Adresse"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:85
-#: structure/forms.py:313
+#: structure/forms.py:183 structure/forms.py:327
 #: structure/templates/includes/detail/organizations_table.html:29
 msgid "City"
 msgstr "Stadt"
@@ -1615,11 +1616,13 @@ msgid "Post code"
 msgstr "Postleitzahl"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:93
+#: structure/forms.py:186
 #: structure/templates/includes/detail/organizations_table.html:33
 msgid "State or province"
 msgstr "Bundesland"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:97
+#: structure/forms.py:187
 #: structure/templates/includes/detail/organizations_table.html:37
 msgid "Country"
 msgstr "Land"
@@ -1928,7 +1931,7 @@ msgid "Responsible organization for service for "
 msgstr "Verantwortlich für Dienst von"
 
 #: service/templates/metadata/tabs/content/contact_tab.html:53
-#: structure/forms.py:166
+#: structure/forms.py:167
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
@@ -2365,7 +2368,8 @@ msgstr "URL"
 msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
-#: structure/forms.py:28 structure/tables.py:133 structure/tables.py:198
+#: structure/forms.py:28 structure/forms.py:164 structure/forms.py:178
+#: structure/tables.py:133 structure/tables.py:198
 #: structure/templates/includes/detail/groups_table.html:9
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
 msgid "Description"
@@ -2397,48 +2401,58 @@ msgstr ""
 msgid "Message"
 msgstr "Nachricht"
 
-#: structure/forms.py:231
-msgid "Organization {} successfully created."
-msgstr "Organisation {} erstellt."
+#: structure/forms.py:177
+msgid "Organization name"
+msgstr "Organisationsname"
 
-#: structure/forms.py:271
-msgid "You have to confirm the checkbox."
-msgstr "Sie müssen die Checkbox anwählen."
+#: structure/forms.py:179 structure/tables.py:206
+#: structure/templates/includes/detail/groups_table.html:21
+#: structure/templates/includes/detail/organizations_table.html:41
+msgid "Parent"
+msgstr "Gehört zu"
 
-#: structure/forms.py:278
-msgid "Organization {} successfully deleted."
-msgstr "Organisation {} gelöscht."
-
-#: structure/forms.py:302
-msgid "Password again"
-msgstr "Passwort wiederholen"
-
-#: structure/forms.py:308
-msgid "First name"
-msgstr "Vorname"
-
-#: structure/forms.py:309
-msgid "Last name"
-msgstr "Nachname"
-
-#: structure/forms.py:310
-msgid "E-mail address"
-msgstr "E-Mail Adresse"
-
-#: structure/forms.py:312
+#: structure/forms.py:184 structure/forms.py:326
 #: structure/templates/includes/detail/organizations_table.html:25
 msgid "Postal code"
 msgstr "Postleitzahl"
 
+#: structure/forms.py:245
+msgid "Organization {} successfully created."
+msgstr "Organisation {} erstellt."
+
+#: structure/forms.py:285
+msgid "You have to confirm the checkbox."
+msgstr "Sie müssen die Checkbox anwählen."
+
+#: structure/forms.py:292
+msgid "Organization {} successfully deleted."
+msgstr "Organisation {} gelöscht."
+
 #: structure/forms.py:316
+msgid "Password again"
+msgstr "Passwort wiederholen"
+
+#: structure/forms.py:322
+msgid "First name"
+msgstr "Vorname"
+
+#: structure/forms.py:323
+msgid "Last name"
+msgstr "Nachname"
+
+#: structure/forms.py:324
+msgid "E-mail address"
+msgstr "E-Mail Adresse"
+
+#: structure/forms.py:330
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: structure/forms.py:317
+#: structure/forms.py:331
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: structure/forms.py:320
+#: structure/forms.py:334
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -2447,11 +2461,11 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: structure/forms.py:323
+#: structure/forms.py:337
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/forms.py:331 users/forms.py:75
+#: structure/forms.py:345 users/forms.py:75
 msgid "Password and confirmed password does not match"
 msgstr "Passwörter stimmen nicht überein"
 
@@ -2521,12 +2535,6 @@ msgid ""
 msgstr ""
 "Wenn eine Organisation automatisch aus den Capabilities generiert wird, wird "
 "diese als autogeneriert markiert"
-
-#: structure/tables.py:206
-#: structure/templates/includes/detail/groups_table.html:21
-#: structure/templates/includes/detail/organizations_table.html:41
-msgid "Parent"
-msgstr "Gehört zu"
 
 #: structure/tables.py:207
 msgid "Parent organizations of the given organization"

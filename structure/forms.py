@@ -161,17 +161,44 @@ class PublisherForOrganizationForm(MrMapForm):
 class OrganizationForm(MrMapModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
+        label=_('Description'),
         required=False, )
     person_name = forms.CharField(
         label=_("Contact person"),
         required=True, )
 
-    field_order = ["organization_name", "description", "parent"]
+    field_order = [
+        "organization_name",
+        "description",
+        "parent",
+        "person_name",
+        "email",
+        "phone",
+        "facsimile",
+        "country",
+        "state_or_province",
+        "city",
+        "postal_code",
+        "address",
+    ]
 
     class Meta:
         model = Organization
         fields = '__all__'
         exclude = ["created_by", "address_type", "is_auto_generated"]
+        labels = {
+            "organization_name": _("Organization name"),
+            "description": _("Description"),
+            "parent": _("Parent"),
+            "facsimile": _("Facsimile"),
+            "phone": _("Phone"),
+            "email": _("E-Mail"),
+            "city": _("City"),
+            "postal_code": _("Postal code"),
+            "address": _("Address"),
+            "state_or_province": _("State or province"),
+            "country": _("Country"),
+        }
 
     def __init__(self, *args, **kwargs):
         super(OrganizationForm, self).__init__(*args, **kwargs)

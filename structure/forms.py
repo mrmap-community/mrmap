@@ -12,7 +12,7 @@ from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_SUCCESSFULLY_EDITED
 from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role, PendingRequest
+from structure.models import MrMapGroup, Organization, Role, PendingRequest, MrMapUser
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING, PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
 from django.contrib import messages
 
@@ -351,6 +351,14 @@ class RegistrationForm(forms.Form):
 
     def clean(self):
         cleaned_data = super(RegistrationForm, self).clean()
+
+        # Username taken check
+        u_name = cleaned_data.get("username", None)
+        u_exists = MrMapUser.objects.filter(username=u_name).exists()
+        if u_exists:
+            self.add_error("username", forms.ValidationError(_("Username is already taken. Try another.")))
+
+        # Password check
         password = cleaned_data.get("password")
         password_check = cleaned_data.get("password_check")
 

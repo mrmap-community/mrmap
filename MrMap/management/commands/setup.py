@@ -13,8 +13,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from MrMap.management.commands.setup_settings import DEFAULT_GROUPS
 from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
-from MrMap.management import DEFAULT_GROUPS
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
 from monitoring.models import MonitoringSetting

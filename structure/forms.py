@@ -25,9 +25,11 @@ class LoginForm(forms.Form):
 
 class GroupForm(MrMapModelForm):
     description = forms.CharField(
+        label=_("Description"),
         widget=forms.Textarea(),
         required=False, )
     role = forms.ModelChoiceField(
+        label=_("Role"),
         queryset=Role.objects.all(),
         empty_label=None, )
 
@@ -39,6 +41,11 @@ class GroupForm(MrMapModelForm):
             "role",
             "parent_group"
         ]
+        labels = {
+            "parent_group": _("Parent group"),
+        }
+        help_text = {
+        }
 
     def __init__(self, *args, **kwargs):
         super(GroupForm, self).__init__(*args, **kwargs)
@@ -95,8 +102,18 @@ class GroupForm(MrMapModelForm):
 
 class PublisherForOrganizationForm(MrMapForm):
     action_url = ''
-    organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
-    group = forms.ModelChoiceField(queryset=None)
+    organization_name = forms.CharField(
+        max_length=500,
+        label_suffix=" ",
+        label=_("Organization"),
+        disabled=True,
+        help_text=_("The organization you are requesting"),
+    )
+    group = forms.ModelChoiceField(
+        queryset=None,
+        label=_("Group"),
+        help_text=_("Select your group for which you want to request publisher rights"),
+    )
     request_msg = forms.CharField(
         widget=forms.Textarea(),
         required=True,

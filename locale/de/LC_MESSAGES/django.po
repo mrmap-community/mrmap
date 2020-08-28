@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 13:57+0200\n"
+"POT-Creation-Date: 2020-08-28 09:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,174 +56,182 @@ msgid "Service metadata edited"
 msgstr "Dienst Metadaten bearbeitet"
 
 #: MrMap/messages.py:20
+msgid "Service activated"
+msgstr "Dienst aktiviert"
+
+#: MrMap/messages.py:21
 msgid "Service {} activated"
 msgstr "Dienst {} aktiviert"
 
-#: MrMap/messages.py:21
+#: MrMap/messages.py:22
+msgid "Service deactivated"
+msgstr "Dienst deaktiviert"
+
+#: MrMap/messages.py:23
 msgid "Service {} deactivated"
 msgstr "Dienst {} deaktiviert"
 
-#: MrMap/messages.py:22
+#: MrMap/messages.py:24
 msgid "Service metadata restored"
 msgstr "Dienst Metadaten zurückgesetzt"
 
-#: MrMap/messages.py:23
+#: MrMap/messages.py:25
 msgid "Group edited"
 msgstr "Gruppe bearbeitet"
 
-#: MrMap/messages.py:24
+#: MrMap/messages.py:26
 msgid "Dataset metadata edited"
 msgstr "Datensatz Metadaten bearbeitet"
 
-#: MrMap/messages.py:28
+#: MrMap/messages.py:30
 msgid "The parameter '{}' is invalid."
 msgstr "Der Parameter '{}' ist ungültig."
 
-#: MrMap/messages.py:30
+#: MrMap/messages.py:32
 msgid "The input was not valid."
 msgstr "Eine Eingabe ist ungültig"
 
-#: MrMap/messages.py:32
+#: MrMap/messages.py:34
 msgid "Username or password incorrect"
 msgstr "Nutzername oder Passwort falsch"
 
-#: MrMap/messages.py:33
+#: MrMap/messages.py:35
 msgid "Registration failed due to missing form data."
 msgstr "Registrierung aufgrund fehlender Formulardaten fehlgeschlagen."
 
-#: MrMap/messages.py:34
+#: MrMap/messages.py:36
 msgid "Account updated successfully!"
 msgstr "Account aktualisiert!"
 
-#: MrMap/messages.py:35
+#: MrMap/messages.py:37
 msgid "Your account is currently not activated"
 msgstr "Dieser Account ist nicht aktiviert"
 
-#: MrMap/messages.py:36
+#: MrMap/messages.py:38
 msgid "You have been logged out."
 msgstr "Sie wurden ausgeloggt."
 
-#: MrMap/messages.py:38
+#: MrMap/messages.py:40
 msgid "Your activation link was invalid. Please contact an administrator."
 msgstr ""
 "Ihr Aktivierungslink war ungültig. Kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:39
+#: MrMap/messages.py:41
 msgid "Your account was not activated in time. Please register again."
 msgstr ""
 "Ihr Account wurde nicht rechtzeitig aktiviert. Bitte registrieren Sie sich "
 "erneut."
 
-#: MrMap/messages.py:40
+#: MrMap/messages.py:42
 msgid ""
 "An activation link for your account was sent. Please check your e-mails!"
 msgstr "Ein Aktivierungslink für Ihren Account wurde per E-Mail versendet."
 
-#: MrMap/messages.py:42
+#: MrMap/messages.py:44
 msgid "This e-mail is not known"
 msgstr "Diese E-Mail Adresse ist nicht bekannt"
 
-#: MrMap/messages.py:43
+#: MrMap/messages.py:45
 msgid "Successfully logged out!"
 msgstr "Erfolgreich ausgeloggt"
 
-#: MrMap/messages.py:44
+#: MrMap/messages.py:46
 msgid "The e-mail address was not valid"
 msgstr "Die E-Mail Adresse ist ungültig"
 
-#: MrMap/messages.py:46
+#: MrMap/messages.py:48
 msgid "Password successfully changed!"
 msgstr "Passwort erfolgreich geändert!"
 
-#: MrMap/messages.py:47
+#: MrMap/messages.py:49
 msgid "Old password was wrong!"
 msgstr "Altes Passwort war falsch!"
 
-#: MrMap/messages.py:48
+#: MrMap/messages.py:50
 msgid "Passwords didn't match!"
 msgstr "Passwörter stimmen nicht überein"
 
-#: MrMap/messages.py:49
+#: MrMap/messages.py:51
 msgid "A new password has been sent. Please check your e-mails!"
 msgstr "Ein neues Passwort wurde per E-Mail an Sie gesendet."
 
-#: MrMap/messages.py:51
+#: MrMap/messages.py:53
 msgid "Session timeout. You have been logged out."
 msgstr "Sitzung abgelaufen. Sie wurden ausgeloggt."
 
-#: MrMap/messages.py:52
+#: MrMap/messages.py:54
 msgid "Timeout while loading '{}'!"
 msgstr "Zeitüberschreitung während '{}' geladen wurde!"
 
-#: MrMap/messages.py:54
+#: MrMap/messages.py:56
 msgid "You do not have permissions for this!"
 msgstr "Sie haben hierzu keine Berechtigung!"
 
-#: MrMap/messages.py:55
+#: MrMap/messages.py:57
 msgid "Resource is owned by another group. Access denied."
 msgstr "Ressource gehört einer anderen Gruppe. Zugriff verweigert."
 
-#: MrMap/messages.py:56
+#: MrMap/messages.py:58
 msgid "Requesting user is not member of the group. Access denied."
 msgstr "Anfragender Nutzer ist kein Gruppenmitglied. Zugriff verweigert."
 
-#: MrMap/messages.py:57
+#: MrMap/messages.py:59
 msgid "Requesting user is not member of the organization. Access denied."
 msgstr "Anfragender Nutzer ist kein Organisationsmitglied. Zugriff verweigert."
 
-#: MrMap/messages.py:60
+#: MrMap/messages.py:62
 msgid "Metadata restored to original"
 msgstr "Metadaten auf Originalzustand wiederhergestellt"
 
-#: MrMap/messages.py:61
+#: MrMap/messages.py:63
 msgid "Metadata editing successful"
 msgstr "Metadaten erfolgreich editiert"
 
-#: MrMap/messages.py:62
+#: MrMap/messages.py:64
 msgid "Metadata added successful"
 msgstr "Metadaten erfolgreich editiert"
 
-#: MrMap/messages.py:63
+#: MrMap/messages.py:65
 msgid "Metadata is original. Reset aborted."
 msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
 
-#: MrMap/messages.py:64
+#: MrMap/messages.py:66
 msgid ""
 "You have to turn off the secured access before you can turn off the proxy."
 msgstr ""
 "Der abgesicherte Zugriff muss abgeschaltet werden, bevor der Proxy "
 "deaktiviert werden darf."
 
-#: MrMap/messages.py:66
+#: MrMap/messages.py:68
 msgid "The requested resource could not be found."
 msgstr "Die angeforderte Ressource konnte nicht gefunden werden."
 
-#: MrMap/messages.py:67
+#: MrMap/messages.py:69
 msgid "The requested resource does not exist or you are not the owner."
 msgstr "Die angeforderte Ressource existiert nicht oder gehört Ihnen nicht."
 
-#: MrMap/messages.py:69
+#: MrMap/messages.py:71
 msgid "The request was not activated in time. Request was deleted."
 msgstr ""
 "Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
 
-#: MrMap/messages.py:71
+#: MrMap/messages.py:73
 msgid "Publish request has been sent to the organization!"
 msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
 
-#: MrMap/messages.py:72
+#: MrMap/messages.py:74
 msgid "Publisher request accepted for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde akzeptiert"
 
-#: MrMap/messages.py:73
+#: MrMap/messages.py:75
 msgid "Publisher request denied for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde abgelehnt"
 
-#: MrMap/messages.py:74
+#: MrMap/messages.py:76
 msgid "Your group already is a publisher for this organization!"
 msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
 
-#: MrMap/messages.py:75
+#: MrMap/messages.py:77
 msgid ""
 "You cannot be a publisher to your group's own organization! You publish by "
 "default like this."
@@ -231,16 +239,16 @@ msgstr ""
 "Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer Organisation "
 "beantragen. Sie veröffentlichen standardmäßig für diese Organisation."
 
-#: MrMap/messages.py:76
+#: MrMap/messages.py:78
 msgid "Your group already has sent a request. Please be patient!"
 msgstr ""
 "Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
 
-#: MrMap/messages.py:78
+#: MrMap/messages.py:80
 msgid "Publishing permission of {} for {} removed."
 msgstr "Veröffentlichungsrechte von {} für {} entfernt."
 
-#: MrMap/messages.py:79
+#: MrMap/messages.py:81
 msgid ""
 "Publish permission removing denied. You are not a member of the organization "
 "nor a member of the publishing group!"
@@ -248,50 +256,50 @@ msgstr ""
 "Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der "
 "Organisation, noch ein Mitglied der veröffentlichenden Gruppe"
 
-#: MrMap/messages.py:81
+#: MrMap/messages.py:83
 msgid "A group can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MrMap/messages.py:82
+#: MrMap/messages.py:84
 msgid "This group is owned by another user. Action denied."
 msgstr "Diese Gruppe gehört einem anderen Nutzer. Aktion abgebrochen."
 
-#: MrMap/messages.py:84
+#: MrMap/messages.py:86
 msgid "Group '{}' successfully deleted."
 msgstr "Gruppe '{}' erfolgreich gelöscht."
 
-#: MrMap/messages.py:85
+#: MrMap/messages.py:87
 msgid "Group '{}' successfully edited."
 msgstr "Gruppe '{}' erfolgreich bearbeitet."
 
-#: MrMap/messages.py:86
+#: MrMap/messages.py:88
 msgid "Group {} successfully created."
 msgstr "Gruppe '{}' erfolgreich erstellt."
 
-#: MrMap/messages.py:87
+#: MrMap/messages.py:89
 msgid "An organization can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MrMap/messages.py:88
+#: MrMap/messages.py:90
 msgid "This organization is owned by another user. Action denied."
 msgstr "Diese Organisation gehört einem anderen Nutzer. Aktion abgebrochen."
 
-#: MrMap/messages.py:89
+#: MrMap/messages.py:91
 msgid "Organization '{}' successfully edited."
 msgstr "Organisation '{}' erfolgreich bearbeitet."
 
-#: MrMap/messages.py:91
+#: MrMap/messages.py:93
 msgid "The service registration for '{}' was canceled"
 msgstr "Die Diensteregistrierung für '{}' wurde abgebrochen."
 
-#: MrMap/messages.py:92
+#: MrMap/messages.py:94
 msgid ""
 "You tried to update a service to another service type. This is not possible!"
 msgstr ""
 "Sie versuchen einen Dienst auf einen anderen Diensttypen zu aktualisieren. "
 "Das ist nicht möglich!"
 
-#: MrMap/messages.py:93
+#: MrMap/messages.py:95
 msgid ""
 "The provided capabilities document is not different from the currently "
 "registered. Update canceled!"
@@ -299,7 +307,7 @@ msgstr ""
 "Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
 "registrierten. Update abgebrochen!"
 
-#: MrMap/messages.py:94
+#: MrMap/messages.py:96
 msgid ""
 "The service could not be registered. Please check your metadata and contact "
 "an administrator."
@@ -307,19 +315,19 @@ msgstr ""
 "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
 "und kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:95
+#: MrMap/messages.py:97
 msgid "The requested layer could not be found."
 msgstr "Der angefragte Layer konnte nicht gefunden werden."
 
-#: MrMap/messages.py:96
+#: MrMap/messages.py:98
 msgid "The requested service could not be found."
 msgstr "Der angeforderte Dienst konnte nicht gefunden werden."
 
-#: MrMap/messages.py:97
+#: MrMap/messages.py:99
 msgid "423 - The requested resource is currently disabled."
 msgstr "423 - Die angeforderte Ressource ist aktuell deaktiviert."
 
-#: MrMap/messages.py:98
+#: MrMap/messages.py:100
 msgid ""
 "The requested capabilities are currently unavailable. Add 'fallback=true' to "
 "your query if you want a cached document."
@@ -328,11 +336,11 @@ msgstr ""
 "'fallback=true' zu Ihrem Request hinzu um ein alternatives Dokument zu "
 "erhalten."
 
-#: MrMap/messages.py:99
+#: MrMap/messages.py:101
 msgid "No root layer could be found for this service!"
 msgstr "Keine Root Ebene für diesen Dienst gefunden!"
 
-#: MrMap/messages.py:101
+#: MrMap/messages.py:103
 msgid ""
 "There are multiple secured operations for one metadata. Please contact an "
 "administator."
@@ -340,43 +348,43 @@ msgstr ""
 "Es existieren verschiedene abgesicherte Einstellungen für diesen Dienst. "
 "Kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:102
+#: MrMap/messages.py:104
 msgid "You have no permission to access this resource."
 msgstr "Sie haben keine Berechtigung um auf diese Ressource zuzugreifen!"
 
-#: MrMap/messages.py:103
+#: MrMap/messages.py:105
 msgid "The resource is authenticated externally. Proxy can not be deactivated."
 msgstr ""
 "Die Ressource erfordert eine externe Authentifizierung. Der Proxy kann nicht "
 "deaktiviert werden."
 
-#: MrMap/messages.py:104
+#: MrMap/messages.py:106
 msgid "Proxy must be activated to be logged!"
 msgstr "Proxy muss aktiviert sein um protokollieren zu können!"
 
-#: MrMap/messages.py:105
+#: MrMap/messages.py:107
 msgid "Proxy must be enabled if service shall stay secured!"
 msgstr "Proxy muss aktiviert sein wenn der Dienst abgesichert bleiben soll!"
 
-#: MrMap/messages.py:106
+#: MrMap/messages.py:108
 msgid "The requested operation is not supported by this resource."
 msgstr "Diese Operation wird von der Ressource nicht unterstützt."
 
-#: MrMap/messages.py:107
+#: MrMap/messages.py:109
 msgid "The requested uri seems to be broken. Please inform an administrator."
 msgstr ""
 "Die angefragte URI scheint nicht defekt zu sein. Bitte informieren Sie einen "
 "Administrator."
 
-#: MrMap/messages.py:108
+#: MrMap/messages.py:110
 msgid "This setting is only available for the top level element."
 msgstr "Diese Einstellung ist nur für Elemente der obersten Ebene verfügbar."
 
-#: MrMap/messages.py:109
+#: MrMap/messages.py:111
 msgid "No 'request' parameter provided."
 msgstr "Kein 'request' Parameter."
 
-#: MrMap/messages.py:110
+#: MrMap/messages.py:112
 msgid ""
 "Login credentials for external authentication could not be decrypted. The "
 "key is missing. Please inform an administrator."
@@ -384,7 +392,7 @@ msgstr ""
 "Logindaten für externe Authentifizierung konnten nicht entschlüsselt werden. "
 "Der Schlüssel fehlt. Bitte informieren Sie einen Administrator"
 
-#: MrMap/messages.py:111
+#: MrMap/messages.py:113
 msgid ""
 "Login credentials for external authentication could not be decrypted. The "
 "key is wrong. Please inform an administrator."
@@ -392,7 +400,7 @@ msgstr ""
 "Logindaten für externe Authentifizierung konnten nicht entschlüsselt werden. "
 "Der Schlüssel ist falsch. Bitte informieren Sie einen Administrator"
 
-#: MrMap/messages.py:113
+#: MrMap/messages.py:115
 msgid ""
 "No logable outputformat given. Logable formats are {}. \n"
 "Alternatively remove the OUTPUTFORMAT parameter from your request."
@@ -400,7 +408,7 @@ msgstr ""
 "Kein protokollierbares Ausgabeformat angegeben. Mögliche Formate sind {}. \n"
 "Alternativ entfernen Sie den OUTPUTFORMAT Parameter aus Ihrem Request."
 
-#: MrMap/messages.py:115
+#: MrMap/messages.py:117
 msgid ""
 "Multiple feature queries in a single request detected. Please use one query "
 "per request."
@@ -408,7 +416,7 @@ msgstr ""
 "Mehrere Features in einer einzigen Abfrage entdeckt. Bitte fragen Sie genau "
 "ein Feature pro Request an."
 
-#: MrMap/messages.py:117
+#: MrMap/messages.py:119
 msgid ""
 "There are several service metadata documents for this service. Please "
 "contact an administrator."
@@ -416,39 +424,39 @@ msgstr ""
 "Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. Keine "
 "Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:119
+#: MrMap/messages.py:121
 msgid "'{}' was invalid."
 msgstr "'{}' ist ungültig."
 
-#: MrMap/messages.py:120
+#: MrMap/messages.py:122
 msgid "Access for '{}' changed successfully."
 msgstr "Zugang für '{}' erfolgreich bearbeitet!"
 
-#: MrMap/messages.py:122
+#: MrMap/messages.py:124
 msgid "2D-Points must hold two values for x and y."
 msgstr "2D-Punkte müssen zwei Werte, für x und y, haben."
 
-#: MrMap/messages.py:124
+#: MrMap/messages.py:126
 msgid "Inserted email address is unknown."
 msgstr "E-Mail Adresse ist unbekannt."
 
-#: MrMap/messages.py:126
+#: MrMap/messages.py:128
 msgid "Subscription edited successfully."
 msgstr "Abonnement erfolgreich bearbeitet!"
 
-#: MrMap/messages.py:127
+#: MrMap/messages.py:129
 msgid "Subscription could not be edited."
 msgstr "Abonnement konnte nicht bearbeitet werden."
 
-#: MrMap/messages.py:128
+#: MrMap/messages.py:130
 msgid "Subscription for '{}' was removed."
 msgstr "Abonnement für '{}' gelöscht."
 
-#: MrMap/messages.py:129
+#: MrMap/messages.py:131
 msgid "Subscription for '{}' created."
 msgstr "'{}' abonniert."
 
-#: MrMap/messages.py:130
+#: MrMap/messages.py:132
 msgid "'{}' already subscribed."
 msgstr "'{}' bereits abonniert."
 
@@ -591,7 +599,7 @@ msgid "Harvest <strong>{metadata}</strong>"
 msgstr "Harveste <strong>{metadata}</strong>"
 
 #: editor/filters.py:8 service/filters.py:37 service/filters.py:186
-#: structure/filters.py:10 structure/filters.py:26
+#: structure/filters.py:11 structure/filters.py:27
 msgid "Search"
 msgstr "Suche"
 
@@ -697,7 +705,7 @@ msgstr "Zugangsbeschränkungen"
 msgid "Bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: editor/forms.py:280 editor/forms.py:526
+#: editor/forms.py:280 editor/forms.py:531
 msgid "Unfold the leaflet client by clicking on the polygon icon."
 msgstr ""
 "Öffnen Sie die interaktive Karte, indem Sie auf das Polygon Symbol klicken."
@@ -719,7 +727,7 @@ msgstr "Infos zur Historie"
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:23
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:54
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:46
-#: structure/forms.py:98 structure/tables.py:60 structure/tables.py:137
+#: structure/forms.py:108 structure/tables.py:60 structure/tables.py:137
 #: structure/templates/includes/detail/groups_table.html:5
 msgid "Organization"
 msgstr "Organisation"
@@ -762,13 +770,13 @@ msgstr "Zugriff beschränken"
 msgid "Activate to restrict access on this service"
 msgstr "Aktivieren um Zugriff auf diesen Dienst einzuschränken"
 
-#: editor/forms.py:477
+#: editor/forms.py:482
 msgid "Log proxy or restrict access without using proxy is'nt possible!"
 msgstr ""
 "Proxy Protokollierung oder Einschränkung des Zugriffs nicht möglich ohne "
 "Proxy Aktivierung!"
 
-#: editor/forms.py:506
+#: editor/forms.py:511
 msgid ""
 "Activate to allow <strong>{}</strong> in the area defined in the map viewer "
 "below.\n"
@@ -780,7 +788,7 @@ msgstr ""
 "Falls Sie {} überall erlauben möchten, stellen Sie sicher, dass kein Gebiet "
 "im Kartenviewer eingezeichnet ist."
 
-#: editor/forms.py:523
+#: editor/forms.py:528
 msgid "Allowed area"
 msgstr "Erlaubte Bereiche"
 
@@ -1065,11 +1073,11 @@ msgstr "Keine"
 msgid "Service needs authentication"
 msgstr "Dienst benötigt Authentifizierung"
 
-#: service/forms.py:54 structure/forms.py:21 structure/forms.py:269
+#: service/forms.py:54 structure/forms.py:21 structure/forms.py:286
 msgid "Username"
 msgstr "Nutzername"
 
-#: service/forms.py:55 structure/forms.py:22 structure/forms.py:276
+#: service/forms.py:55 structure/forms.py:22 structure/forms.py:293
 msgid "Password"
 msgstr "Passwort"
 
@@ -1104,7 +1112,7 @@ msgstr ""
 "Wählen Sie den alten Elementnamen, falls dieses neue Feature nur umbenannt "
 "wurde."
 
-#: service/models.py:2493
+#: service/models.py:2491
 msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 
@@ -1571,13 +1579,13 @@ msgid "Responsible Person"
 msgstr "Ansprechpartner"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:69
-#: structure/forms.py:297
+#: structure/forms.py:314
 #: structure/templates/includes/detail/organizations_table.html:13
 msgid "Phone"
 msgstr "Telefon"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:73
-#: structure/forms.py:298
+#: structure/forms.py:315
 #: structure/templates/includes/detail/organizations_table.html:17
 msgid "Facsimile"
 msgstr "Fax"
@@ -1591,13 +1599,13 @@ msgstr "E-Mail"
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:81
 #: service/templates/metadata/tabs/content/contact_tab.html:26
 #: service/templates/metadata/tabs/content/dataset/contact_tab.html:21
-#: structure/forms.py:294
+#: structure/forms.py:311
 #: structure/templates/includes/detail/organizations_table.html:21
 msgid "Address"
 msgstr "Adresse"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:85
-#: structure/forms.py:296
+#: structure/forms.py:313
 #: structure/templates/includes/detail/organizations_table.html:29
 msgid "City"
 msgstr "Stadt"
@@ -1920,7 +1928,7 @@ msgid "Responsible organization for service for "
 msgstr "Verantwortlich für Dienst von"
 
 #: service/templates/metadata/tabs/content/contact_tab.html:53
-#: structure/forms.py:149
+#: structure/forms.py:166
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
@@ -2353,56 +2361,84 @@ msgstr "Zeigt Informationen über die Unterebene."
 msgid "URL"
 msgstr "URL"
 
-#: structure/filters.py:32
+#: structure/filters.py:33
 msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
-#: structure/forms.py:103 structure/tables.py:91
+#: structure/forms.py:28 structure/tables.py:133 structure/tables.py:198
+#: structure/templates/includes/detail/groups_table.html:9
+#: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
+msgid "Description"
+msgstr "Beschreibung"
+
+#: structure/forms.py:32
+msgid "Role"
+msgstr "Rolle"
+
+#: structure/forms.py:45
+msgid "Parent group"
+msgstr "Untergruppe von"
+
+#: structure/forms.py:110
+msgid "The organization you are requesting"
+msgstr "Die angefragte Organisation"
+
+#: structure/forms.py:114 structure/tables.py:19 structure/tables.py:89
+msgid "Group"
+msgstr "Gruppen"
+
+#: structure/forms.py:115
+msgid "Select your group for which you want to request publisher rights"
+msgstr ""
+"Wählen Sie eine Ihrer Gruppen, für welche Sie Veröffentlichungsrechte "
+"anfordern wollen"
+
+#: structure/forms.py:120 structure/tables.py:91
 msgid "Message"
 msgstr "Nachricht"
 
-#: structure/forms.py:214
+#: structure/forms.py:231
 msgid "Organization {} successfully created."
 msgstr "Organisation {} erstellt."
 
-#: structure/forms.py:254
+#: structure/forms.py:271
 msgid "You have to confirm the checkbox."
 msgstr "Sie müssen die Checkbox anwählen."
 
-#: structure/forms.py:261
+#: structure/forms.py:278
 msgid "Organization {} successfully deleted."
 msgstr "Organisation {} gelöscht."
 
-#: structure/forms.py:285
+#: structure/forms.py:302
 msgid "Password again"
 msgstr "Passwort wiederholen"
 
-#: structure/forms.py:291
+#: structure/forms.py:308
 msgid "First name"
 msgstr "Vorname"
 
-#: structure/forms.py:292
+#: structure/forms.py:309
 msgid "Last name"
 msgstr "Nachname"
 
-#: structure/forms.py:293
+#: structure/forms.py:310
 msgid "E-mail address"
 msgstr "E-Mail Adresse"
 
-#: structure/forms.py:295
+#: structure/forms.py:312
 #: structure/templates/includes/detail/organizations_table.html:25
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: structure/forms.py:299
+#: structure/forms.py:316
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: structure/forms.py:300
+#: structure/forms.py:317
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: structure/forms.py:303
+#: structure/forms.py:320
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -2411,17 +2447,13 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: structure/forms.py:306
+#: structure/forms.py:323
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/forms.py:314 users/forms.py:75
+#: structure/forms.py:331 users/forms.py:75
 msgid "Password and confirmed password does not match"
 msgstr "Passwörter stimmen nicht überein"
-
-#: structure/tables.py:19 structure/tables.py:89
-msgid "Group"
-msgstr "Gruppen"
 
 #: structure/tables.py:20 structure/tables.py:90
 msgid "Group organization"
@@ -2438,12 +2470,6 @@ msgstr "Aktivierung bis"
 #: structure/tables.py:130
 msgid "The name of the group"
 msgstr "Name der Gruppe"
-
-#: structure/tables.py:133 structure/tables.py:198
-#: structure/templates/includes/detail/groups_table.html:9
-#: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
-msgid "Description"
-msgstr "Beschreibung"
 
 #: structure/tables.py:134
 msgid "The description of the group"

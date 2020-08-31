@@ -8,6 +8,7 @@ from django.utils import timezone
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
+from structure.permissionEnums import PermissionEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
@@ -48,44 +49,10 @@ class PendingTask(models.Model):
 
 
 class Permission(models.Model):
-    can_create_organization = models.BooleanField(default=False)
-    can_edit_organization = models.BooleanField(default=False)
-    can_delete_organization = models.BooleanField(default=False)
-
-    can_create_group = models.BooleanField(default=False)
-    can_delete_group = models.BooleanField(default=False)
-    can_edit_group = models.BooleanField(default=False)
-
-    can_add_user_to_group = models.BooleanField(default=False)
-    can_remove_user_from_group = models.BooleanField(default=False)
-
-    can_edit_group_role = models.BooleanField(default=False)
-
-    can_edit_metadata = models.BooleanField(default=False)
-    can_activate_resource = models.BooleanField(default=False)
-    can_update_resource = models.BooleanField(default=False)
-    can_register_resource = models.BooleanField(default=False)
-    can_remove_resource = models.BooleanField(default=False)
-
-    can_add_dataset_metadata = models.BooleanField(default=False)
-    can_remove_dataset_metadata = models.BooleanField(default=False)
-
-    can_toggle_publish_requests = models.BooleanField(default=False)
-
-    can_remove_publisher = models.BooleanField(default=False)
-    can_request_to_become_publisher = models.BooleanField(default=False)
-
-    can_generate_api_token = models.BooleanField(default=False)
-
-    can_harvest = models.BooleanField(default=False)
-
-    can_access_logs = models.BooleanField(default=False)
-    can_download_logs = models.BooleanField(default=False)
-
-    # more permissions coming
+    name = models.CharField(max_length=500, choices=PermissionEnum.as_choices(), unique=True)
 
     def __str__(self):
-        return str(self.id)
+        return str(self.name)
 
     def get_permission_set(self) -> set:
         p_list = set()
@@ -103,10 +70,22 @@ class Permission(models.Model):
 class Role(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
-    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, null=True)
+    permissions = models.ManyToManyField(Permission)
 
     def __str__(self):
         return self.name
+
+    def has_permission(self, perm: PermissionEnum):
+        """ Checks whether a permission can be found inside this role
+
+        Args:
+            perm (PermissionEnum): The permission to be checked
+        Returns:
+             bool
+        """
+        return self.permissions.filter(
+            name=perm.value
+        ).exists()
 
 
 class Contact(models.Model):
@@ -194,8 +173,6 @@ class MrMapUser(AbstractUser):
     confirmed_dsgvo = models.DateTimeField(auto_now_add=True, null=True,
                                            blank=True)  # ToDo: For production this is not supposed to be nullable!!!
     theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
-    permissions_cache = None
-    groups_cache = None
 
     def __str__(self):
         return self.username
@@ -281,20 +258,14 @@ class MrMapUser(AbstractUser):
         Returns:
              queryset
         """
-        if self.groups_cache is not None:
-            return self.groups_cache
-
         groups = MrMapGroup.objects.filter(
             id__in=self.groups.all().values('id')
         ).filter(
             **filter_by
         ).prefetch_related(
             "role",
-            "role__permission",
+            "role__permissions",
         )
-
-        # Hold these data for more actions so we do not need to fetch it again from the db
-        self.groups_cache = groups
         return groups
 
     def get_permissions(self, group: MrMapGroup = None) -> set:
@@ -308,26 +279,16 @@ class MrMapUser(AbstractUser):
         Returns:
              A set of permission strings
         """
-        if self.permissions_cache is not None:
-            return self.permissions_cache
-
-        all_perm = set()
         if group is not None:
-            groups = [group]
+            groups = MrMapGroup.objects.filter(id=group.id)
         else:
-            groups = self.get_groups()
+            groups = self.get_groups().prefetch_related("role__permissions")
 
-        for group in groups:
-            perm = group.role.permission
-            for field_key, field_val in perm.__dict__.items():
-                if field_val is True:
-                    all_perm.add(field_key)
+        all_perm = set(groups.values_list("role__permissions__name", flat=True))
 
-        # Hold these data for more actions so we do not need to fetch it again from the db
-        self.permissions_cache = all_perm
         return all_perm
 
-    def has_permission(self, permission_needed):
+    def has_permission(self, permission_needed: PermissionEnum):
         """ Checks if needed permissions are provided by the users permission
 
         Args:
@@ -338,16 +299,11 @@ class MrMapUser(AbstractUser):
         if permission_needed is None:
             return True
 
-        all_perms = self.get_permissions()
-
-        if isinstance(permission_needed, Permission):
-            # Transform single Permission into set
-            permission_needed = permission_needed.get_permission_set()
-        elif isinstance(permission_needed, set):
-            # Nothing to do here - keep this for clarification!
-            pass
-
-        return permission_needed.issubset(all_perms)
+        has_perm = self.get_groups().filter(
+            role__permissions__name=permission_needed.value
+        )
+        has_perm = has_perm.exists()
+        return has_perm
 
     def create_activation(self):
         """ Create an activation object

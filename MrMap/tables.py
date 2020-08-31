@@ -6,7 +6,7 @@ from django_tables2 import tables, RequestConfig
 from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MrMap.utils import get_theme
-from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
@@ -75,16 +75,14 @@ class MrMapTable(tables.Table):
         self.paginate(page=self.request.GET.get(self.pagination.get('page_name'), PAGE_DEFAULT),
                       per_page=self.request.GET.get(self.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
-    def check_render_permission(self, permission: Permission):
-        required_permissions_set = permission.get_permission_set()
-        hashed_perm_set = hash(str(required_permissions_set).encode("UTF-8"))
-        has_perm = self.permission_lookup.get(hashed_perm_set, None)
+    def check_render_permission(self, permission: PermissionEnum):
+        has_perm = self.permission_lookup.get(permission, None)
         if has_perm is None:
-            has_perm = self.user.has_permission(required_permissions_set)
-            self.permission_lookup[hashed_perm_set] = has_perm
+            has_perm = self.user.has_permission(permission)
+            self.permission_lookup[permission] = has_perm
         return has_perm
 
-    def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: Permission):
+    def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: PermissionEnum):
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {
@@ -99,7 +97,7 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
-    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: Permission, tooltip: str = '', tooltip_placement: str = 'left',):
+    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: PermissionEnum, tooltip: str = '', tooltip_placement: str = 'left',):
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {

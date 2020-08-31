@@ -12,19 +12,21 @@ Created on: 28.07.20
 from structure.models import Permission
 from django.utils.translation import gettext_lazy as _
 
+from structure.permissionEnums import PermissionEnum
+
 DEFAULT_GROUPS = [
     {
         "name": _("Group Administrator"),
         "description": _("Permission group. Holds users which are allowed to manage groups."),
         "parent_group": None,
         "permissions": [
-            Permission.can_create_group,
-            Permission.can_delete_group,
-            Permission.can_edit_group,
-            Permission.can_add_user_to_group,
-            Permission.can_remove_user_from_group,
-            Permission.can_toggle_publish_requests,
-            Permission.can_request_to_become_publisher,
+            PermissionEnum.CAN_CREATE_GROUP,
+            PermissionEnum.CAN_DELETE_GROUP,
+            PermissionEnum.CAN_EDIT_GROUP,
+            PermissionEnum.CAN_ADD_USER_TO_GROUP,
+            PermissionEnum.CAN_REMOVE_USER_FROM_GROUP,
+            PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS,
+            PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER,
         ]
     },
     {
@@ -32,10 +34,10 @@ DEFAULT_GROUPS = [
         "description": _("Permission group. Holds users which are allowed to manage organizations."),
         "parent_group": None,
         "permissions": [
-            Permission.can_create_organization,
-            Permission.can_edit_organization,
-            Permission.can_delete_organization,
-            Permission.can_remove_publisher,
+            PermissionEnum.CAN_CREATE_ORGANIZATION,
+            PermissionEnum.CAN_EDIT_ORGANIZATION,
+            PermissionEnum.CAN_DELETE_ORGANIZATION,
+            PermissionEnum.CAN_REMOVE_PUBLISHER,
         ]
     },
     {
@@ -43,9 +45,9 @@ DEFAULT_GROUPS = [
         "description": _("Permission group. Holds users which are allowed to edit metadata or activate resources."),
         "parent_group": None,
         "permissions": [
-            Permission.can_activate_resource,
-            Permission.can_edit_metadata,
-            Permission.can_edit_metadata,
+            PermissionEnum.CAN_ACTIVATE_RESOURCE,
+            PermissionEnum.CAN_EDIT_METADATA,
+            PermissionEnum.CAN_EDIT_METADATA,
         ]
     },
     {
@@ -53,9 +55,9 @@ DEFAULT_GROUPS = [
         "description": _("Permission group. Holds users which are allowed to access and download logs or generate an API token."),
         "parent_group": None,
         "permissions": [
-            Permission.can_generate_api_token,
-            Permission.can_access_logs,
-            Permission.can_download_logs,
+            PermissionEnum.CAN_GENERATE_API_TOKEN,
+            PermissionEnum.CAN_ACCESS_LOGS,
+            PermissionEnum.CAN_DOWNLOAD_LOGS,
         ]
     },
     {
@@ -63,15 +65,15 @@ DEFAULT_GROUPS = [
         "description": _("Permission group. Holds users which are allowed to manage resource. This includes e.g. registration or removing of services and managing publisher requests."),
         "parent_group": "Editor",
         "permissions": [
-            Permission.can_activate_resource,
-            Permission.can_update_resource,
-            Permission.can_register_resource,
-            Permission.can_remove_resource,
-            Permission.can_add_dataset_metadata,
-            Permission.can_remove_dataset_metadata,
-            Permission.can_toggle_publish_requests,
-            Permission.can_remove_publisher,
-            Permission.can_request_to_become_publisher,
+            PermissionEnum.CAN_ACTIVATE_RESOURCE,
+            PermissionEnum.CAN_UPDATE_RESOURCE,
+            PermissionEnum.CAN_REGISTER_RESOURCE,
+            PermissionEnum.CAN_REMOVE_RESOURCE,
+            PermissionEnum.CAN_ADD_DATASET_METADATA,
+            PermissionEnum.CAN_REMOVE_DATASET_METADATA,
+            PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS,
+            PermissionEnum.CAN_REMOVE_PUBLISHER,
+            PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER,
         ]
     },
 ]

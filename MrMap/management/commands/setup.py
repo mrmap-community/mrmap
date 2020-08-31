@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.management.commands.setup_settings import DEFAULT_GROUPS
 from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
+from structure.permissionEnums import PermissionEnum
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME, \
     SUPERUSER_GROUP_DESCRIPTION, PUBLIC_GROUP_DESCRIPTION
 from monitoring.models import MonitoringSetting
@@ -127,21 +128,21 @@ class Command(BaseCommand):
         parent_group = MrMapGroup.objects.filter(
             name=setting["parent_group"]
         ).first()
-        permission = Permission()
-        for perm in group_permissions:
-            perm_name = perm.field.attname
-            setattr(permission, perm_name, True)
-        permission.save()
         role = Role.objects.get_or_create(
             name=group_name,
-            permission=permission,
         )[0]
+
+        for perm in group_permissions:
+            p = Permission.objects.get(name=perm.value)
+            role.permissions.add(p)
+
         group = MrMapGroup.objects.get_or_create(
             name=group_name,
             parent_group=parent_group,
             role=role,
             created_by=user
         )[0]
+
         group.description = group_desc
         group.save()
         return group
@@ -173,15 +174,6 @@ class Command(BaseCommand):
         )[0]
         if group.role is None:
             role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
-            if role.permission is None:
-                perm = Permission()
-                for key, val in perm.__dict__.items():
-                    if 'can_' in key:
-                        setattr(perm, key, False)
-
-                perm.save()
-                role.permission = perm
-            role.save()
             group.role = role
             group.created_by = user
         return group
@@ -202,14 +194,11 @@ class Command(BaseCommand):
         )[0]
         if group.role is None:
             role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]
-            if role.permission is None:
-                perm = Permission()
-                for key, val in perm.__dict__.items():
-                    if 'can_' in key:
-                        setattr(perm, key, True)
 
-                perm.save()
-                role.permission = perm
+            all_permissions = PermissionEnum.as_choices(drop_empty_choice=True)
+            for perm in all_permissions:
+                p = Permission.objects.get_or_create(name=perm[1])[0]
+                role.permissions.add(p)
             role.save()
             group.role = role
             group.created_by = user
@@ -222,13 +211,10 @@ class Command(BaseCommand):
         Returns:
              role (Role): The role which holds the permission
         """
-        role = Role.objects.get_or_create(name="_default_")[0]
-        if role.permission is None:
-            perm = Permission()
-            perm.save()
-            role.permission = perm
-            role.description = _("The default role for all groups. Has no permissions.")
-        role.save()
+        Role.objects.get_or_create(
+            name="_default_",
+            description=_("The default role for all groups. Has no permissions."),
+        )
 
     @staticmethod
     def _create_default_organization():

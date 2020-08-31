@@ -38,6 +38,7 @@ from service.helper import service_helper
 from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
 from structure.models import Organization, MrMapGroup, Permission, PendingTask
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
@@ -77,9 +78,7 @@ def menu_view(request: HttpRequest):
 
 
 @check_permission(
-    Permission(
-        can_generate_api_token=True
-    )
+    PermissionEnum.CAN_GENERATE_API_TOKEN
 )
 def generate_token(request: HttpRequest):
     """ Generates a token for the user.

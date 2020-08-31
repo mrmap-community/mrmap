@@ -118,6 +118,9 @@ class HealthState(models.Model):
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
     reliability_3m = models.FloatField(default=0,
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
+    average_response_time_1w = models.DurationField(null=True, blank=True)
+    average_response_time_1m = models.DurationField(null=True, blank=True)
+    average_response_time_3m = models.DurationField(null=True, blank=True)
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):
@@ -205,14 +208,14 @@ class HealthState(models.Model):
                     critical = True
                     HealthStateReason(health_state=self,
                                       health_state_code=HealthStateEnum.CRITICAL.value,
-                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-danger">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-danger">{monitoring_result.duration.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
                                       monitoring_result=monitoring_result,
                                       ).save()
                 elif monitoring_result.duration >= timedelta(milliseconds=WARNING_RESPONSE_TIME):
                     warning = True
                     HealthStateReason(health_state=self,
                                       health_state_code=HealthStateEnum.WARNING.value,
-                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-warning">{monitoring_result.duration.microseconds / 1000} ms</strong> is greater than threshold <strong class="text-warning">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-warning">{monitoring_result.duration.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-warning">{WARNING_RESPONSE_TIME} ms</strong>.'),
                                       monitoring_result=monitoring_result,
                                       ).save()
 

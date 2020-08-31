@@ -155,16 +155,6 @@ class ResourceTable(MrMapTable):
         icons += icon
 
         if health_state:
-            badge_color = 'badge-success'
-            if health_state.reliability_1w < CRITICAL_RELIABILITY:
-                badge_color = 'badge-danger'
-            elif health_state.reliability_1w < WARNING_RELIABILITY:
-                badge_color = 'badge-warning'
-            icons += self.get_badge(badge_color=badge_color,
-                                    badge_pill=True,
-                                    value=f'{round(health_state.reliability_1w, 2)} %',
-                                    tooltip=_('Reliability statistic for one week.'))
-
             for reason in health_state.reasons.all():
                 if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
                     icons += self.get_icon(icon_color='text-info',
@@ -172,6 +162,16 @@ class ResourceTable(MrMapTable):
                                            tooltip=_(
                                                'Some checks can\'t get a result, cause the service needs an authentication for this request.'))
                     break
+
+            badge_color = 'badge-success'
+            if health_state.reliability_1w < CRITICAL_RELIABILITY:
+                badge_color = 'badge-danger'
+            elif health_state.reliability_1w < WARNING_RELIABILITY:
+                badge_color = 'badge-warning'
+            icons += '<br>' + self.get_badge(badge_color=badge_color,
+                                             badge_pill=True,
+                                             value=f'{round(health_state.reliability_1w, 2)} %',
+                                             tooltip=_('Reliability statistic for one week.'))
 
         return format_html(icons)
 

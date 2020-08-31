@@ -16,7 +16,6 @@ from django.utils.translation import gettext_lazy as _
 from csw.models import HarvestResult
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 
 

@@ -263,7 +263,6 @@ class MrMapUser(AbstractUser):
         ).filter(
             **filter_by
         ).prefetch_related(
-            "role",
             "role__permissions",
         )
         return groups

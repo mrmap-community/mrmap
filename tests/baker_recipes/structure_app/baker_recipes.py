@@ -1,11 +1,13 @@
 import os
 import random
+from itertools import cycle
 
 from django.contrib.auth.hashers import make_password
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
-from structure.models import Organization, PendingRequest, PendingTask
-from structure.models import MrMapUser, Theme, Role, Permission, MrMapGroup
+from structure.models import Organization, PendingRequest, PendingTask, Permission
+from structure.models import MrMapUser, Theme, Role, MrMapGroup
+from structure.permissionEnums import PermissionEnum
 from structure.settings import SUPERUSER_GROUP_NAME, PUBLIC_GROUP_NAME
 from tests.test_data import get_password_data
 
@@ -20,68 +22,14 @@ light_theme = Recipe(
     name=seq("LIGHT")
 )
 
-superadmin_permission = Recipe(
-    Permission,
-    can_create_organization=True,
-    can_edit_organization=True,
-    can_delete_organization=True,
-
-    can_create_group=True,
-    can_delete_group=True,
-    can_edit_group=True,
-
-    can_add_user_to_group=True,
-    can_remove_user_from_group=True,
-
-    can_edit_group_role=True,
-
-    can_activate_resource=True,
-    can_update_resource=True,
-    can_register_resource=True,
-    can_remove_resource=True,
-    can_edit_metadata=True,
-
-    can_add_dataset_metadata=True,
-    can_remove_dataset_metadata=True,
-    can_toggle_publish_requests=True,
-    can_remove_publisher=True,
-    can_request_to_become_publisher=True,
-    can_generate_api_token=True,
-    can_access_logs=True,
-    can_download_logs=True,
-)
-
-guest_permission = Recipe(
-    Permission,
-    can_create_organization=False,
-    can_edit_organization=False,
-    can_delete_organization=False,
-    can_create_group=False,
-    can_delete_group=False,
-    can_edit_group=False,
-    can_add_user_to_group=False,
-    can_remove_user_from_group=False,
-    can_edit_group_role=False,
-    can_activate_resource=False,
-    can_update_resource=False,
-    can_register_resource=False,
-    can_remove_resource=False,
-    can_edit_metadata=False,
-    can_toggle_publish_requests=False,
-    can_remove_publisher=False,
-    can_request_to_become_publisher=False,
-)
-
 superadmin_role = Recipe(
     Role,
     name="superadmin_role",
-    permission=foreign_key(superadmin_permission)
 )
 
 guest_role = Recipe(
     Role,
     name="guest_role",
-    permission=foreign_key(guest_permission)
 )
 
 

@@ -256,7 +256,7 @@ class OrganizationTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
             tooltip=format_html(_(f"Edit <strong>{record.organization_name} [{record.id}]</strong> organization"), ),
             tooltip_placement='left',
-            permission=Permission(can_edit_organization=True),
+            permission=PermissionEnum.CAN_EDIT_ORGANIZATION,
         ))
         btns += format_html(self.get_btn(
             href=reverse('structure:publish-request', args=(record.id,)) + f"?current-view={self.current_view}",
@@ -265,7 +265,7 @@ class OrganizationTable(MrMapTable):
             tooltip=format_html(
                 _(f"Become publisher for organization <strong>{record.organization_name} [{record.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission(can_request_to_become_publisher=True),
+            permission=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER,
         ))
         btns += format_html(self.get_btn(
             href=reverse('structure:delete-organization', args=(record.id,)) + f"?current-view={self.current_view}",
@@ -273,6 +273,6 @@ class OrganizationTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
             tooltip=format_html(_(f"Remove <strong>{record.organization_name} [{record.id}]</strong> organization"), ),
             tooltip_placement='left',
-            permission=Permission(can_delete_organization=True),
+            permission=PermissionEnum.CAN_DELETE_ORGANIZATION,
         ))
         return format_html(btns)

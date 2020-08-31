@@ -147,11 +147,9 @@ class ServiceRemoveViewTestCase(TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_permission_denied_remove(self):
-
         # remove permission to remove services
-        perm = self.user.get_groups()[0].role.permission
-        perm.can_remove_resource = False
-        perm.save()
+        perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_REMOVE_RESOURCE.value)[0]
+        self.user.get_groups()[0].role.permissions.remove(perm)
 
         response = self.client.post(
             reverse(
@@ -178,7 +176,6 @@ class ServiceActivateViewTestCase(TestCase):
         self.wms_service_metadatas = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_activate_service(self):
-
         md = self.wms_service_metadatas[0]
         response = self.client.post(reverse('resource:activate', args=[md.id])+"?current-view=resource:index",
                                     data={'is_confirmed': 'True'})
@@ -193,14 +190,17 @@ class ServiceActivateViewTestCase(TestCase):
 
     def test_permission_denied_activate_service(self):
         # remove permission to remove services
-        perm = self.user.get_groups()[0].role.permission
-        perm.can_activate_resource = False
-        perm.save()
+        perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_ACTIVATE_RESOURCE.value)[0]
+        self.user.get_groups()[0].role.permissions.remove(perm)
 
         md = self.wms_service_metadatas[0]
-        response = self.client.post(reverse('resource:activate',
-                                            args=[str(md.id)]),
-                                    HTTP_REFERER=reverse('resource:activate', args=[str(md.id)]), )
+        response = self.client.post(
+            reverse(
+                'resource:activate',
+                args=[str(md.id)]
+            ),
+            HTTP_REFERER=reverse('resource:activate', args=[str(md.id)]),
+        )
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('You do not have permissions for this!', messages)

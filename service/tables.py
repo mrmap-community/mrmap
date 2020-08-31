@@ -17,6 +17,7 @@ from csw.models import HarvestResult
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 
 
 def _get_action_btns_for_service_table(table, record):
@@ -25,7 +26,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('resource:activate', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]["POWER_OFF"],
-        permission=Permission(can_edit_metadata=True),
+        permission=PermissionEnum.CAN_EDIT_METADATA,
         tooltip=format_html(_("Deactivate") if record.is_active else _("Activate")),
         tooltip_placement='left', )
 
@@ -33,7 +34,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('resource:new-pending-update', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
-        permission=Permission(can_update_resource=True),
+        permission=PermissionEnum.CAN_UPDATE_RESOURCE,
         tooltip=format_html(_("Update"), ),
         tooltip_placement='left', )
 
@@ -41,7 +42,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('editor:edit', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['EDIT'],
-        permission=Permission(can_edit_metadata=True),
+        permission=PermissionEnum.CAN_EDIT_METADATA,
         tooltip=format_html(_("Edit metadata"), ),
         tooltip_placement='left', )
 
@@ -49,7 +50,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('editor:edit_access', args=(record.id,)),
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['ACCESS'],
-        permission=Permission(can_edit_metadata=True),
+        permission=PermissionEnum.CAN_EDIT_METADATA,
         tooltip=format_html(_("Edit access"), ),
         tooltip_placement='left', )
 
@@ -57,7 +58,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('editor:restore', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UNDO'],
-        permission=Permission(can_edit_metadata=True),
+        permission=PermissionEnum.CAN_EDIT_METADATA,
         tooltip=format_html(_("Restore metadata"), ),
         tooltip_placement='left',
     )
@@ -66,7 +67,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('resource:remove', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['REMOVE'],
-        permission=Permission(can_remove_resource=True),
+        permission=PermissionEnum.CAN_REMOVE_RESOURCE,
         tooltip=format_html(_("Remove"), ),
         tooltip_placement='left',
     )
@@ -465,7 +466,7 @@ class CswTable(MrMapTable):
             href=reverse('resource:activate', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]["POWER_OFF"],
-            permission=Permission(can_edit_metadata=True),
+            permission=PermissionEnum.CAN_EDIT_METADATA,
             tooltip=format_html(_(
                 f"{'Deactivate' if record.is_active else 'Activate'} resource <strong>{record.title} [{record.id}]</strong>"), ),
             tooltip_placement='left', )
@@ -474,7 +475,7 @@ class CswTable(MrMapTable):
             href=reverse('csw:harvest-catalogue', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]["HARVEST"],
-            permission=Permission(can_edit_metadata=True),
+            permission=PermissionEnum.CAN_EDIT_METADATA,
             tooltip=format_html(_(
                 f"Havest resource <strong>{record.title} [{record.id}]</strong>"), ),
             tooltip_placement='left', )
@@ -483,7 +484,7 @@ class CswTable(MrMapTable):
             href=reverse('resource:remove', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-            permission=Permission(can_remove_resource=True),
+            permission=PermissionEnum.CAN_REMOVE_RESOURCE,
             tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong>"), ),
             tooltip_placement='left',
         )
@@ -502,13 +503,13 @@ class PendingTasksTable(MrMapTable):
         btns = ''
         if record.type != PendingTaskEnum.REGISTER.value or record.error_report:
             btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
-                                 permission=Permission(),
+                                 permission=None,
                                  tooltip=_('Delete this running task.'),
                                  btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
                                  btn_value=get_theme(self.user)["ICONS"]['WINDOW_CLOSE'], )
         if record.error_report:
             btns += self.get_btn(href=reverse('structure:generate-error-report', args=(record.error_report.id,)),
-                                 permission=Permission(),
+                                 permission=None,
                                  tooltip=_('Download the error report as text file.'),
                                  btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
                                  btn_value=get_theme(self.user)["ICONS"]['CSW'],)
@@ -748,14 +749,14 @@ class DatasetTable(MrMapTable):
 
         btns = ''
         btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",
-                             permission=Permission(can_edit_metadata=True),
+                             permission=PermissionEnum.CAN_EDIT_METADATA,
                              tooltip=format_html(_(f"Edit <strong>{record.title} [{record.id}]</strong> dataset")),
                              tooltip_placement='left',
                              btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
                              btn_value=get_theme(self.user)["ICONS"]['EDIT'],)
 
         btns += self.get_btn(href=reverse('editor:restore-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
-                             permission=Permission(can_edit_metadata=True),
+                             permission=PermissionEnum.CAN_EDIT_METADATA,
                              tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> dataset")),
                              tooltip_placement='left',
                              btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
@@ -763,7 +764,7 @@ class DatasetTable(MrMapTable):
                              ) if not is_mr_map_origin else ''
 
         btns += self.get_btn(href=reverse('editor:remove-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
-                             permission=Permission(can_remove_dataset_metadata=True),
+                             permission=PermissionEnum.CAN_REMOVE_DATASET_METADATA,
                              tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> dataset"), ),
                              tooltip_placement='left',
                              btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],

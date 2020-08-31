@@ -13,3 +13,10 @@ def get_order_by_alias_from_request(request, order_by_alias):
 def isinst(value, class_str):
     split = class_str.split('.')
     return isinstance(value, getattr(import_module('.'.join(split[:-1])), split[-1]))
+
+
+@register.filter
+def duration_to_ms(duration):
+    seconds = duration.total_seconds()
+    milliseconds = seconds * 1000
+    return milliseconds

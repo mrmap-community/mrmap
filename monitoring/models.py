@@ -118,6 +118,7 @@ class HealthState(models.Model):
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
     reliability_3m = models.FloatField(default=0,
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
+    average_response_time = models.DurationField(null=True, blank=True)
     average_response_time_1w = models.DurationField(null=True, blank=True)
     average_response_time_1m = models.DurationField(null=True, blank=True)
     average_response_time_3m = models.DurationField(null=True, blank=True)
@@ -128,23 +129,77 @@ class HealthState(models.Model):
                f'{timezone.localtime(monitoring_result.monitoring_run.end).strftime("%Y-%m-%d %H:%M:%S")}</span>.<br>' + \
                'Click on this icon to see details.'
 
-    def calculate_reliability(self):
+    def run_health_state(self):
+        # Monitoring objects that are related to this run and given metadata
+        monitoring_objects = Monitoring.objects.filter(monitoring_run=self.monitoring_run, metadata=self.metadata)
+        # Get health states of the last 3 months, for statistic calculating
         now = datetime.now()
         now_with_tz = pytz.utc.localize(now)
-
         health_states_3m = HealthState.objects.filter(metadata=self.metadata,
-                                                      monitoring_run__end__gte=now-timedelta(days=90))\
+                                                      monitoring_run__end__gte=datetime.now()-timedelta(days=90))\
                                               .order_by('-monitoring_run__end')
+
         # get only health states for 1m and 1w calculation to prevent from sql statements
-        health_states_1m = list(filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz-timedelta(days=30), list(health_states_3m)))
-        health_states_1w = list(filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz-timedelta(days=7), list(health_states_3m)))
+        health_states_1m = list(
+            filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=30),
+                   list(health_states_3m)))
+        health_states_1w = list(
+            filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=7),
+                   list(health_states_3m)))
         health_states_3m = list(health_states_3m)
         # append self, cause transaction is atomic in parent function,
-        # so self would'nt be part of the calculation
+        # so self would'nt be part of any calculation
         health_states_1w.append(self)
         health_states_1m.append(self)
         health_states_3m.append(self)
 
+        self._calculate_average_response_times(monitoring_objects=monitoring_objects,
+                                               health_states_1w=health_states_1w,
+                                               health_states_1m=health_states_1m,
+                                               health_states_3m=health_states_3m)
+        self._calculate_health_state(monitoring_objects=monitoring_objects)
+        self._calculate_reliability(health_states_1w=health_states_1w,
+                                    health_states_1m=health_states_1m,
+                                    health_states_3m=health_states_3m)
+
+    def _calculate_average_response_times(self, monitoring_objects, health_states_1w, health_states_1m, health_states_3m):
+        if monitoring_objects:
+            average_response_time = None
+            for monitoring_result in monitoring_objects:
+                if not average_response_time:
+                    average_response_time = monitoring_result.duration
+                else:
+                    average_response_time += monitoring_result.duration
+            self.average_response_time = average_response_time / len(monitoring_objects)
+            self.save()
+
+            average_response_time_1w = None
+            for health_state in health_states_1w:
+                if average_response_time_1w:
+                    average_response_time_1w += health_state.average_response_time
+                else:
+                    average_response_time_1w = health_state.average_response_time
+            self.average_response_time_1w = average_response_time_1w / len(health_states_1w)
+
+            average_response_time_1m = None
+            for health_state in health_states_1m:
+                if average_response_time_1m:
+                    average_response_time_1m += health_state.average_response_time
+                else:
+                    average_response_time_1m = health_state.average_response_time
+            self.average_response_time_1m = average_response_time_1m / len(health_states_1m)
+
+            average_response_time_3m = None
+            for health_state in health_states_3m:
+                if average_response_time_3m:
+                    average_response_time_3m += health_state.average_response_time
+                else:
+                    average_response_time_3m = health_state.average_response_time
+            self.average_response_time_3m = average_response_time_3m / len(health_states_3m)
+
+            self.save()
+
+    def _calculate_reliability(self, health_states_1w, health_states_1m, health_states_3m):
         reliability_1w = 0
         for health_state in health_states_1w:
             if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
@@ -168,14 +223,13 @@ class HealthState(models.Model):
             self.reliability_3m = reliability_3m * 100 / len(health_states_3m)
         self.save()
 
-    def calculate_health_state(self, ):
-        # Monitoring objects that are related to this run and given metadata
-        monitoring_objects = Monitoring.objects.filter(monitoring_run=self.monitoring_run, metadata=self.metadata)
-
+    def _calculate_health_state(self, monitoring_objects):
         if monitoring_objects:
             warning = False
             critical = False
+
             for monitoring_result in monitoring_objects:
+                # evaluate availability
                 if not monitoring_result.available:
                     if monitoring_result.status_code == 401:
                         HealthStateReason(health_state=self,
@@ -204,20 +258,21 @@ class HealthState(models.Model):
                                               monitoring_result=monitoring_result,
                                               ).save()
 
-                if monitoring_result.duration >= timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
-                    critical = True
-                    HealthStateReason(health_state=self,
-                                      health_state_code=HealthStateEnum.CRITICAL.value,
-                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-danger">{monitoring_result.duration.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
-                                      monitoring_result=monitoring_result,
-                                      ).save()
-                elif monitoring_result.duration >= timedelta(milliseconds=WARNING_RESPONSE_TIME):
-                    warning = True
-                    HealthStateReason(health_state=self,
-                                      health_state_code=HealthStateEnum.WARNING.value,
-                                      reason=_(f'The response for <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> took to long.<br> <strong class="text-warning">{monitoring_result.duration.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-warning">{WARNING_RESPONSE_TIME} ms</strong>.'),
-                                      monitoring_result=monitoring_result,
-                                      ).save()
+            # evaluate response time
+            if self.average_response_time_1w >= timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
+                critical = True
+                HealthStateReason(health_state=self,
+                                  health_state_code=HealthStateEnum.CRITICAL.value,
+                                  reason=_(f'The average response time for 1 week statistic is to high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                  monitoring_result=monitoring_result,
+                                  ).save()
+            elif self.average_response_time_1w >= timedelta(milliseconds=WARNING_RESPONSE_TIME):
+                warning = True
+                HealthStateReason(health_state=self,
+                                  health_state_code=HealthStateEnum.WARNING.value,
+                                  reason=_(f'The average response time for 1 week statistic is to high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                  monitoring_result=monitoring_result,
+                                  ).save()
 
             if critical:
                 self.health_state_code = HealthStateEnum.CRITICAL.value

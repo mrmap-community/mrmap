@@ -11,7 +11,7 @@ from django.urls import reverse_lazy
 from django.utils.html import format_html
 
 from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
-from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED_TEMPLATE, SERVICE_DEACTIVATED_TEMPLATE
 from MrMap.validators import validate_get_capablities_uri
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
@@ -195,7 +195,7 @@ class ActivateServiceForm(MrMapConfirmForm):
 
         # If metadata WAS active, then it will be deactivated now
         if self.instance.is_active:
-            msg = SERVICE_ACTIVATED.format(self.instance.title)
+            msg = SERVICE_ACTIVATED_TEMPLATE.format(self.instance.title)
         else:
-            msg = SERVICE_DEACTIVATED.format(self.instance.title)
+            msg = SERVICE_DEACTIVATED_TEMPLATE.format(self.instance.title)
         messages.success(self.request, msg)

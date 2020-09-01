@@ -149,8 +149,9 @@ class GroupTable(MrMapTable):
     def render_groups_name(self, value, record):
         url = reverse('structure:detail-group', args=(record.id,))
         icon = ''
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>')
-        if value == 'Public':
+        value = _(value)
+        tooltip = _('Click to open the detail view of <strong>{}</strong>').format(value)
+        if record.is_public_group:
             icon = get_theme(self.user)['ICONS']['PUBLIC']
             tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
         return self.get_link(tooltip=tooltip,
@@ -158,6 +159,11 @@ class GroupTable(MrMapTable):
                              value=format_html(f"{icon} {value}"),
                              permission=Permission(),
                              open_in_new_tab=True, )
+
+    @staticmethod
+    def render_groups_description(value, record):
+        value = _(value)
+        return value
 
     def render_groups_organization(self, value, record):
         return self.get_link(tooltip=_('Click to open the detail view of the organization'),
@@ -216,7 +222,7 @@ class OrganizationTable(MrMapTable):
     def render_orgs_organization_name(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
         icon = ''
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        tooltip = _('Click to open the detail view of <strong>{}</strong>.').format(value)
         if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
             tooltip = _('This is your organization.') + f' {tooltip}'

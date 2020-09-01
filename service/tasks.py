@@ -96,9 +96,9 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
     # the group activity list. We reuse a message template, which uses a '{}' placeholder.
     # Since we do not show the title in here, we remove the placeholder with an empty string.
     if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED.format("")
+        msg = SERVICE_ACTIVATED
     else:
-        msg = SERVICE_DEACTIVATED.format("")
+        msg = SERVICE_DEACTIVATED
 
     # clear page cacher for API and csw
     page_cacher = PageCacher()

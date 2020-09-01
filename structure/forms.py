@@ -1,6 +1,7 @@
 import datetime
 from captcha.fields import CaptchaField
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
@@ -12,7 +13,7 @@ from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_SUCCESSFULLY_EDITED
 from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role, PendingRequest
+from structure.models import MrMapGroup, Organization, Role, PendingRequest, MrMapUser
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING, PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
 from django.contrib import messages
 
@@ -25,9 +26,11 @@ class LoginForm(forms.Form):
 
 class GroupForm(MrMapModelForm):
     description = forms.CharField(
+        label=_("Description"),
         widget=forms.Textarea(),
         required=False, )
     role = forms.ModelChoiceField(
+        label=_("Role"),
         queryset=Role.objects.all(),
         empty_label=None, )
 
@@ -37,8 +40,14 @@ class GroupForm(MrMapModelForm):
             "name",
             "description",
             "role",
-            "parent_group"
+            "parent_group",
+            "organization",
         ]
+        labels = {
+            "parent_group": _("Parent group"),
+        }
+        help_text = {
+        }
 
     def __init__(self, *args, **kwargs):
         super(GroupForm, self).__init__(*args, **kwargs)
@@ -95,8 +104,18 @@ class GroupForm(MrMapModelForm):
 
 class PublisherForOrganizationForm(MrMapForm):
     action_url = ''
-    organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
-    group = forms.ModelChoiceField(queryset=None)
+    organization_name = forms.CharField(
+        max_length=500,
+        label_suffix=" ",
+        label=_("Organization"),
+        disabled=True,
+        help_text=_("The organization you are requesting"),
+    )
+    group = forms.ModelChoiceField(
+        queryset=None,
+        label=_("Group"),
+        help_text=_("Select your group for which you want to request publisher rights"),
+    )
     request_msg = forms.CharField(
         widget=forms.Textarea(),
         required=True,
@@ -144,17 +163,44 @@ class PublisherForOrganizationForm(MrMapForm):
 class OrganizationForm(MrMapModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
+        label=_('Description'),
         required=False, )
     person_name = forms.CharField(
         label=_("Contact person"),
         required=True, )
 
-    field_order = ["organization_name", "description", "parent"]
+    field_order = [
+        "organization_name",
+        "description",
+        "parent",
+        "person_name",
+        "email",
+        "phone",
+        "facsimile",
+        "country",
+        "state_or_province",
+        "city",
+        "postal_code",
+        "address",
+    ]
 
     class Meta:
         model = Organization
         fields = '__all__'
         exclude = ["created_by", "address_type", "is_auto_generated"]
+        labels = {
+            "organization_name": _("Organization name"),
+            "description": _("Description"),
+            "parent": _("Parent"),
+            "facsimile": _("Facsimile"),
+            "phone": _("Phone"),
+            "email": _("E-Mail"),
+            "city": _("City"),
+            "postal_code": _("Postal code"),
+            "address": _("Address"),
+            "state_or_province": _("State or province"),
+            "country": _("Country"),
+        }
 
     def __init__(self, *args, **kwargs):
         super(OrganizationForm, self).__init__(*args, **kwargs)
@@ -307,11 +353,19 @@ class RegistrationForm(forms.Form):
 
     def clean(self):
         cleaned_data = super(RegistrationForm, self).clean()
+
+        # Username taken check
+        u_name = cleaned_data.get("username", None)
+        u_exists = MrMapUser.objects.filter(username=u_name).exists()
+        if u_exists:
+            self.add_error("username", forms.ValidationError(_("Username is already taken. Try another.")))
+
+        # Password check
         password = cleaned_data.get("password")
         password_check = cleaned_data.get("password_check")
 
         if password != password_check:
-            self.add_error("password_check", forms.ValidationError(_("Password and confirmed password does not match")))
+            self.add_error("password_check", forms.ValidationError(_("Passwords do not match.")))
 
         return cleaned_data
 
@@ -343,3 +397,21 @@ class RemovePublisher(forms.Form):
         self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
         self.group = None if 'group' not in kwargs else kwargs.pop('group')
         super(RemovePublisher, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        """
+
+        Checks whether only member of the organization or member of the publishing group are valid users!
+
+        Returns:
+
+        """
+        user_groups = self.user.get_groups()
+        org = self.organization
+        publishers = org.can_publish_for.all()
+        user_is_publisher = (publishers & user_groups).exists()
+        user_is_org_member = self.user.organization == org
+        if not user_is_publisher and not user_is_org_member:
+            raise ValidationError
+
+

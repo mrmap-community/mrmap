@@ -4,7 +4,7 @@ import uuid
 from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
-from MrMap.messages import SERVICE_ACTIVATED, SERVICE_DEACTIVATED, SERVICE_UPDATE_WRONG_TYPE
+from MrMap.messages import SERVICE_DEACTIVATED_TEMPLATE, SERVICE_ACTIVATED_TEMPLATE
 from service.forms import UpdateOldToNewElementsForm
 from service.helper.enums import OGCServiceEnum
 from service.helper.service_comparator import ServiceComparator
@@ -187,9 +187,9 @@ class ServiceActivateViewTestCase(TestCase):
 
         activated_status = md.is_active
         if activated_status:
-            self.assertIn(SERVICE_DEACTIVATED.format(self.wms_service_metadatas[0].title), messages)
+            self.assertIn(SERVICE_DEACTIVATED_TEMPLATE.format(self.wms_service_metadatas[0].title), messages)
         else:
-            self.assertIn(SERVICE_ACTIVATED.format(self.wms_service_metadatas[0].title), messages)
+            self.assertIn(SERVICE_ACTIVATED_TEMPLATE.format(self.wms_service_metadatas[0].title), messages)
 
     def test_permission_denied_activate_service(self):
         # remove permission to remove services

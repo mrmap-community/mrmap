@@ -10,10 +10,12 @@ Created on: 28.07.20
 # If you want to add more default groups, which inherit from one another:
 # Make sure that the parent_group, has been declared above the child group in this list!
 from structure.models import Permission
+from django.utils.translation import gettext_lazy as _
 
 DEFAULT_GROUPS = [
     {
-        "name": "Group Administrator",
+        "name": _("Group Administrator"),
+        "description": _("Permission group. Holds users which are allowed to manage groups."),
         "parent_group": None,
         "permissions": [
             Permission.can_create_group,
@@ -26,7 +28,8 @@ DEFAULT_GROUPS = [
         ]
     },
     {
-        "name": "Organization Administrator",
+        "name": _("Organization Administrator"),
+        "description": _("Permission group. Holds users which are allowed to manage organizations."),
         "parent_group": None,
         "permissions": [
             Permission.can_create_organization,
@@ -36,7 +39,8 @@ DEFAULT_GROUPS = [
         ]
     },
     {
-        "name": "Editor",
+        "name": _("Editor"),
+        "description": _("Permission group. Holds users which are allowed to edit metadata or activate resources."),
         "parent_group": None,
         "permissions": [
             Permission.can_activate_resource,
@@ -45,7 +49,8 @@ DEFAULT_GROUPS = [
         ]
     },
     {
-        "name": "Controller",
+        "name": _("Controller"),
+        "description": _("Permission group. Holds users which are allowed to access and download logs or generate an API token."),
         "parent_group": None,
         "permissions": [
             Permission.can_generate_api_token,
@@ -54,7 +59,8 @@ DEFAULT_GROUPS = [
         ]
     },
     {
-        "name": "Resource Administrator",
+        "name": _("Resource Administrator"),
+        "description": _("Permission group. Holds users which are allowed to manage resource. This includes e.g. registration or removing of services and managing publisher requests."),
         "parent_group": "Editor",
         "permissions": [
             Permission.can_activate_resource,

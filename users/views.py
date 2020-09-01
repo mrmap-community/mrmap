@@ -369,7 +369,9 @@ def register(request: HttpRequest):
         user.save()
 
         # Add user to Public group
-        public_group = MrMapGroup.objects.get(name=PUBLIC_GROUP_NAME)
+        public_group = MrMapGroup.objects.get(
+            is_public_group=True
+        )
         public_group.user_set.add(user)
 
         # create user_activation object to improve checking against activation link

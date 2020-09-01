@@ -12,6 +12,7 @@ from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, PUB
     SERVICE_REGISTRATION_ABORTED
 from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
+from structure.permissionEnums import PermissionEnum
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
     RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
@@ -295,7 +296,7 @@ def generate_error_report(request: HttpRequest, report_id: int):
 
 
 @login_required
-@check_permission(Permission(can_edit_organization=True))
+@check_permission(PermissionEnum.CAN_EDIT_ORGANIZATION)
 @check_ownership(Organization, 'object_id')
 def edit_org(request: HttpRequest, object_id: int):
     """ The edit view for changing organization values
@@ -321,7 +322,9 @@ def edit_org(request: HttpRequest, object_id: int):
 
 
 @login_required
-@check_permission(Permission(can_delete_organization=True))
+@check_permission(
+    PermissionEnum.CAN_DELETE_ORGANIZATION
+)
 @check_ownership(Organization, 'object_id')
 def remove_org(request: HttpRequest, object_id: int):
     """ Renders the remove form for an organization
@@ -347,7 +350,9 @@ def remove_org(request: HttpRequest, object_id: int):
 
 
 @login_required
-@check_permission(Permission(can_create_organization=True))
+@check_permission(
+    PermissionEnum.CAN_CREATE_ORGANIZATION
+)
 def new_org(request: HttpRequest):
     """ Renders the new organization form and saves the input
     Args:
@@ -366,7 +371,9 @@ def new_org(request: HttpRequest):
 
 
 @login_required
-@check_permission(Permission(can_toggle_publish_requests=True))
+@check_permission(
+    PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS
+)
 def accept_publish_request(request: HttpRequest, request_id: int):
     """ Activate or decline the publishing request.
 
@@ -419,7 +426,9 @@ def accept_publish_request(request: HttpRequest, request_id: int):
 
 
 @login_required
-@check_permission(Permission(can_remove_publisher=True))
+@check_permission(
+    PermissionEnum.CAN_REMOVE_PUBLISHER
+)
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     """ Removes a publisher for an organization
 
@@ -458,7 +467,9 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
 
 
 @login_required
-@check_permission(Permission(can_request_to_become_publisher=True))
+@check_permission(
+    PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER
+)
 def publish_request(request: HttpRequest, org_id: int):
     """ Performs creation of a publishing request between a user/group and an organization
 
@@ -483,7 +494,9 @@ def publish_request(request: HttpRequest, org_id: int):
 
 
 @login_required
-@check_permission(Permission(can_create_group=True))
+@check_permission(
+    PermissionEnum.CAN_CREATE_GROUP
+)
 def new_group(request: HttpRequest):
     """ Renders the new group form and saves the input
 
@@ -527,7 +540,9 @@ def list_publisher_group(request: HttpRequest, group_id: int):
 
 
 @login_required
-@check_permission(Permission(can_delete_group=True))
+@check_permission(
+    PermissionEnum.CAN_DELETE_GROUP
+)
 @check_ownership(MrMapGroup, 'object_id')
 def remove_group(request: HttpRequest, object_id: int):
     """ Renders the remove form for a group
@@ -553,7 +568,9 @@ def remove_group(request: HttpRequest, object_id: int):
 
 
 @login_required
-@check_permission(Permission(can_edit_group=True))
+@check_permission(
+    PermissionEnum.CAN_EDIT_GROUP
+)
 @check_ownership(MrMapGroup, 'object_id')
 def edit_group(request: HttpRequest, object_id: int):
     """ The edit view for changing group values

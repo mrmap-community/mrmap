@@ -15,22 +15,14 @@ class PendingTaskAdmin(admin.ModelAdmin):
 
 
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'description', 'permission_link')
+    list_display = ('id', 'name', 'description')
     search_fields = ['id', 'name', 'description', ]
-
-    def permission_link(self, obj):
-        if obj.permission:
-            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_permission_change", args=(obj.permission.id,)), escape(obj.permission)))
-        else:
-            "-"
-    permission_link.allow_tags = True
-    permission_link.short_description = "permission"
 
 
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = ['id', 'organization_name', 'is_auto_generated', 'person_name', 'country', 'city', 'postal_code']
     list_filter = ('is_auto_generated', )
-    search_fields = ['id', 'organization_name', 'country', 'city', 'postal_code' ]
+    search_fields = ['id', 'organization_name', 'country', 'city', 'postal_code']
 
 
 class ThemeAdmin(admin.ModelAdmin):
@@ -93,7 +85,7 @@ class GroupActivityAdmin(admin.ModelAdmin):
 
 
 class PermissionAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in Permission._meta.fields]
+    list_display = ["name",]
 
 
 class MrMapUserAdmin(UserAdmin):

@@ -12,6 +12,7 @@ from django.http import HttpRequest
 from service.helper.enums import MetadataEnum
 from service.models import Keyword, Category, ReferenceSystem
 from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 from users.helper.user_helper import get_user
 
 
@@ -48,9 +49,7 @@ class KeywordAutocomplete(autocomplete.Select2QuerySetView):
         """
         user = get_user(request)
 
-        perm = Permission(
-            can_edit_metadata=True
-        )
+        perm = PermissionEnum.CAN_EDIT_METADATA
         is_editor = user.has_permission(perm)
         return user is not None and is_editor
 

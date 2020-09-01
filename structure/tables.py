@@ -9,6 +9,7 @@ from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 
 
 class PublisherTable(MrMapTable):
@@ -157,7 +158,7 @@ class GroupTable(MrMapTable):
         return self.get_link(tooltip=tooltip,
                              href=url,
                              value=format_html(f"{icon} {value}"),
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     @staticmethod
@@ -169,7 +170,7 @@ class GroupTable(MrMapTable):
         return self.get_link(tooltip=_('Click to open the detail view of the organization'),
                              href=reverse('structure:detail-organization', args=(record.id,)),
                              value=value,
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     def render_groups_actions(self, record):
@@ -180,7 +181,7 @@ class GroupTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
             tooltip=format_html(_(f"Edit <strong>{record.name} [{record.id}]</strong> group"), ),
             tooltip_placement='left',
-            permission=Permission(can_edit_group=True),
+            permission=PermissionEnum.CAN_EDIT_GROUP,
         ))
         btns += format_html(self.get_btn(
             href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
@@ -188,7 +189,7 @@ class GroupTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
             tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
             tooltip_placement='left',
-            permission=Permission(can_delete_group=True),
+            permission=PermissionEnum.CAN_DELETE_GROUP,
         ))
         return format_html(btns)
 
@@ -229,7 +230,7 @@ class OrganizationTable(MrMapTable):
         return self.get_link(tooltip=tooltip,
                              href=url,
                              value=f"{icon} {value}",
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     @staticmethod
@@ -254,7 +255,7 @@ class OrganizationTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
             tooltip=format_html(_(f"Edit <strong>{record.organization_name} [{record.id}]</strong> organization"), ),
             tooltip_placement='left',
-            permission=Permission(can_edit_organization=True),
+            permission=PermissionEnum.CAN_EDIT_ORGANIZATION,
         ))
         btns += format_html(self.get_btn(
             href=reverse('structure:publish-request', args=(record.id,)) + f"?current-view={self.current_view}",
@@ -263,7 +264,7 @@ class OrganizationTable(MrMapTable):
             tooltip=format_html(
                 _(f"Become publisher for organization <strong>{record.organization_name} [{record.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission(can_request_to_become_publisher=True),
+            permission=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER,
         ))
         btns += format_html(self.get_btn(
             href=reverse('structure:delete-organization', args=(record.id,)) + f"?current-view={self.current_view}",
@@ -271,6 +272,6 @@ class OrganizationTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
             tooltip=format_html(_(f"Remove <strong>{record.organization_name} [{record.id}]</strong> organization"), ),
             tooltip_placement='left',
-            permission=Permission(can_delete_organization=True),
+            permission=PermissionEnum.CAN_DELETE_ORGANIZATION,
         ))
         return format_html(btns)

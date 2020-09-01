@@ -18,12 +18,13 @@ from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.models import MetadataRelation
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata
-from structure.models import Permission, MrMapGroup
+from structure.models import MrMapGroup
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
 @login_required
-@check_permission(Permission(can_remove_dataset_metadata=True))
+@check_permission(PermissionEnum.CAN_REMOVE_DATASET_METADATA)
 @check_ownership(Metadata, 'metadata_id')
 def remove_dataset(request: HttpRequest, metadata_id):
     """ The remove view for dataset metadata
@@ -61,7 +62,9 @@ def remove_dataset(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(Permission(can_add_dataset_metadata=True))
+@check_permission(
+    PermissionEnum.CAN_ADD_DATASET_METADATA
+)
 def add_new_dataset_wizard(request: HttpRequest, ):
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,
@@ -72,7 +75,7 @@ def add_new_dataset_wizard(request: HttpRequest, ):
 
 
 @login_required
-@check_permission(Permission(can_edit_metadata=True))
+@check_permission(PermissionEnum.CAN_EDIT_METADATA)
 @check_ownership(Metadata, 'metadata_id')
 def edit_dataset_wizard(request, metadata_id):
     metadata = get_object_or_404(Metadata,
@@ -89,7 +92,9 @@ def edit_dataset_wizard(request, metadata_id):
 
 
 @login_required
-@check_permission(Permission(can_edit_metadata=True))
+@check_permission(
+    PermissionEnum.CAN_EDIT_METADATA
+)
 @check_ownership(Metadata, 'metadata_id')
 def edit(request: HttpRequest, metadata_id):
     """ The edit view for metadata
@@ -122,7 +127,9 @@ def edit(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(Permission(can_edit_metadata=True))
+@check_permission(
+    PermissionEnum.CAN_EDIT_METADATA
+)
 @check_ownership(Metadata, 'object_id')
 def edit_access(request: HttpRequest, object_id, update_params: dict = None, status_code: int = 200,):
     """ The edit view for the operations access
@@ -222,7 +229,9 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
 
 
 @login_required
-@check_permission(Permission(can_edit_metadata=True))
+@check_permission(
+    PermissionEnum.CAN_EDIT_METADATA
+)
 @check_ownership(Metadata, 'metadata_id')
 def restore(request: HttpRequest, metadata_id):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
@@ -250,7 +259,9 @@ def restore(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(Permission(can_edit_metadata=True))
+@check_permission(
+    PermissionEnum.CAN_EDIT_METADATA
+)
 @check_ownership(Metadata, 'metadata_id')
 def restore_dataset_metadata(request: HttpRequest, metadata_id):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata

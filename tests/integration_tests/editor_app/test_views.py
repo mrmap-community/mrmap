@@ -9,6 +9,8 @@ from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOpera
 from service.helper import service_helper, xml_helper
 from service.models import Document, ProxyLog, Layer, SecuredOperation
 from service.tasks import async_log_response, async_secure_service_task
+from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
@@ -35,7 +37,7 @@ class EditorTestCase(TestCase):
 
         cls.group = cls.user.get_groups().first()
 
-        cls.perm = cls.group.role.permission
+        cls.perms = cls.group.role.permissions
 
         cls.test_wms = {
             "title": "Karte RP",
@@ -156,8 +158,8 @@ class EditorTestCase(TestCase):
         client = self._get_logged_in_client()
 
         # manipulate user permissions
-        self.perm.can_edit_metadata = False
-        self.perm.save()
+        edit_md_perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_EDIT_METADATA.value)[0]
+        self.perms.remove(edit_md_perm)
 
         self._run_request(params, EDIT_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id), "post", client)
         self.service_wms.refresh_from_db()
@@ -166,8 +168,7 @@ class EditorTestCase(TestCase):
         self.assertNotEqual(self.service_wms.metadata.access_constraints, test_access_constraints, msg="Metadata access constraints could be edited by user without permission!")
 
         # restore user permissions
-        self.perm.can_edit_metadata = True
-        self.perm.save()
+        self.perms.add(edit_md_perm)
 
         ## case 1.2: User logged in -> tries to edit -> success
         client = self._get_logged_in_client()
@@ -206,8 +207,8 @@ class EditorTestCase(TestCase):
         client = self._get_logged_in_client()
 
         # manipulate user permissions
-        self.perm.can_edit_metadata = False
-        self.perm.save()
+        edit_md_perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_EDIT_METADATA.value)[0]
+        self.perms.remove(edit_md_perm)
 
         url = RESTORE_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
 
@@ -217,8 +218,7 @@ class EditorTestCase(TestCase):
         self.assertEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was restored by a user without permission!")
 
         # restore permissions
-        self.perm.can_edit_metadata = True
-        self.perm.save()
+        self.perms.add(edit_md_perm)
 
         ## case 1.2: User logged in -> tries to restore -> success
         self._run_request({"is_confirmed": "on"}, url, "post", client)
@@ -402,7 +402,6 @@ class EditorTestCase(TestCase):
                     self.assertTrue(HOST_NAME in post_secured)
             else:
                 pass
-
 
     def test_proxy_logging(self):
         """ Tests whether the proxy logger logs correctly.

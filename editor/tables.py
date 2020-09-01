@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 from MrMap.utils import get_theme, get_ok_nok_icon
 from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 
 
 class EditorAcessTable(MrMapTable):
@@ -61,7 +62,7 @@ class EditorAcessTable(MrMapTable):
         return self.get_link(tooltip=tooltip,
                              href=url,
                              value=f"{icon} {record.name}",
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     def render_editor_organization(self, record):
@@ -71,7 +72,7 @@ class EditorAcessTable(MrMapTable):
             return self.get_link(tooltip=tooltip,
                                  href=url,
                                  value=record.organization.organization_name,
-                                 permission=Permission(),
+                                 permission=None,
                                  open_in_new_tab=True, )
         else:
             return '-'
@@ -101,7 +102,7 @@ class EditorAcessTable(MrMapTable):
             href=reverse('editor:access_geometry_form', args=(self.related_metadata.id, record.id,)) + f"?current-view={self.current_view}&current-view-arg={self.related_metadata.id}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
-            permission=Permission(can_edit_metadata=True),
+            permission=PermissionEnum.CAN_EDIT_METADATA,
             tooltip=format_html(_(f"Edit access for group <strong>{record.name}</strong>"), ),
             tooltip_placement='left', )
 

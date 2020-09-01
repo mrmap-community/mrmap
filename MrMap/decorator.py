@@ -17,13 +17,14 @@ from django.urls import reverse
 from MrMap.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
     REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
 from MrMap.utils import get_dict_value_insensitive
-from service.models import Metadata, ProxyLog, Resource
+from service.models import Metadata, ProxyLog
 from service.settings import NONE_UUID
-from structure.models import Permission, MrMapUser, MrMapGroup, Organization
+from structure.models import Permission, MrMapGroup, Organization
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
-def check_permission(permission_needed: Permission):
+def check_permission(permission_needed: PermissionEnum):
     """ Checks whether the user has the required permission for the requested action
 
     Args:

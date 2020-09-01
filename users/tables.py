@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.utils import get_ok_nok_icon, get_theme
 from monitoring.models import Monitoring
 from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 from users.models import Subscription
 
 
@@ -61,7 +62,7 @@ class SubscriptionTable(MrMapTable):
             tooltip=format_html(
                 _(f"Go to the detail view of service <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission()
+            permission=None
         ))
 
     @staticmethod
@@ -104,7 +105,7 @@ class SubscriptionTable(MrMapTable):
             href=reverse('monitoring:run-monitoring', args=(record.metadata.id, ))+f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['HEARTBEAT'],
-            permission=Permission(can_run_monitoring=True),
+            permission=PermissionEnum.CAN_RUN_MONITORING,
             tooltip=format_html(_("Run health check"), ),
             tooltip_placement='left',
         ))
@@ -114,7 +115,7 @@ class SubscriptionTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
             tooltip=format_html(_(f"Edit subscription for <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission(),
+            permission=None,
         ))
         btns += format_html(self.get_btn(
             href=reverse('subscription-remove', args=(record.id, )) + f"?current-view={self.current_view}",
@@ -122,7 +123,7 @@ class SubscriptionTable(MrMapTable):
             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
             tooltip=format_html(_(f"Remove subscription for <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission(),
+            permission=None,
         ))
 
 

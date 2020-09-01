@@ -19,6 +19,7 @@ from service.helper import service_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.models import Metadata
 from structure.models import Permission, Role, MrMapGroup, MrMapUser
+from structure.permissionEnums import PermissionEnum
 
 
 class MonitoringTests(TestCase):
@@ -26,18 +27,14 @@ class MonitoringTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         # create superuser
-        cls.perm = Permission()
-        cls.perm.name = "_default_"
-        for key, val in cls.perm.__dict__.items():
-            if not isinstance(val, bool) and 'can_' not in key:
-                continue
-            setattr(cls.perm, key, True)
-        cls.perm.save()
+        all_perm_choices = PermissionEnum.as_choices(drop_empty_choice=True)
+        [Permission.objects.get_or_create(name=choice[1]) for choice in all_perm_choices]
 
         role = Role.objects.create(
             name="Testrole",
-            permission=cls.perm,
         )
+        all_permissions = list(Permission.objects.all())
+        role.permissions.add(*all_permissions)
 
         cls.pw = "test"
         salt = str(os.urandom(25).hex())

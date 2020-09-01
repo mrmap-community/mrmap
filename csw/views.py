@@ -19,7 +19,7 @@ from csw.utils.parameter import ParameterResolver
 from csw.utils.request_resolver import RequestResolver
 from service.helper.ogc.ows import OWSException
 from service.models import Metadata
-from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 
 
 @cache_page(CSW_CACHE_TIME, key_prefix=CSW_CACHE_PREFIX)
@@ -48,9 +48,7 @@ def get_csw_results(request: HttpRequest):
 @login_required
 @resolve_metadata_public_id
 @check_permission(
-    Permission(
-        can_harvest=True
-    )
+    PermissionEnum.CAN_HARVEST
 )
 def harvest_catalogue(request: HttpRequest, metadata_id: str):
     """ Starts harvesting procedure for catalogue

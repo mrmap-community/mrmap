@@ -158,7 +158,7 @@ class GroupTable(MrMapTable):
         return self.get_link(tooltip=tooltip,
                              href=url,
                              value=format_html(f"{icon} {value}"),
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     @staticmethod
@@ -170,7 +170,7 @@ class GroupTable(MrMapTable):
         return self.get_link(tooltip=_('Click to open the detail view of the organization'),
                              href=reverse('structure:detail-organization', args=(record.id,)),
                              value=value,
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     def render_groups_actions(self, record):
@@ -230,7 +230,7 @@ class OrganizationTable(MrMapTable):
         return self.get_link(tooltip=tooltip,
                              href=url,
                              value=f"{icon} {value}",
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     @staticmethod

@@ -62,7 +62,7 @@ class EditorAcessTable(MrMapTable):
         return self.get_link(tooltip=tooltip,
                              href=url,
                              value=f"{icon} {record.name}",
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True, )
 
     def render_editor_organization(self, record):
@@ -72,7 +72,7 @@ class EditorAcessTable(MrMapTable):
             return self.get_link(tooltip=tooltip,
                                  href=url,
                                  value=record.organization.organization_name,
-                                 permission=Permission(),
+                                 permission=None,
                                  open_in_new_tab=True, )
         else:
             return '-'

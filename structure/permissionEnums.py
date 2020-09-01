@@ -35,3 +35,4 @@ class PermissionEnum(EnumChoice):
     CAN_HARVEST = "can_harvest"
     CAN_ACCESS_LOGS = "can_access_logs"
     CAN_DOWNLOAD_LOGS = "can_download_logs"
+    CAN_RUN_MONITORING = "can_run_monitoring"

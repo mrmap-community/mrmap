@@ -42,7 +42,7 @@ def _get_action_btns_for_service_table(table, record):
         href=reverse('monitoring:run-monitoring', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['HEARTBEAT'],
-        permission=Permission(can_run_monitoring=True),
+        permission=PermissionEnum.CAN_RUN_MONITORING,
         tooltip=format_html(_("Run health check"), ),
         tooltip_placement='left', )
 
@@ -149,7 +149,7 @@ class ResourceTable(MrMapTable):
             icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
                                 btn_value=icon,
                                 btn_color='btn-light',
-                                permission=Permission(),
+                                permission=None,
                                 tooltip=tooltip,)
 
         icons += icon
@@ -255,7 +255,7 @@ class WmsServiceTable(ResourceTable):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('resource:detail', args=(record.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_wms_status(self, record):
         return self.get_status_icons(record=record)
@@ -267,20 +267,20 @@ class WmsServiceTable(ResourceTable):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('structure:detail-organization', args=(record.contact.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_wms_registered_by_group(self, value, record):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_wms_registered_for(self, value, record):
         if record.service.published_for is not None:
             return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                                  href=reverse('structure:detail-organization', args=(record.service.published_for.id,)),
                                  value=value,
-                                 permission=Permission())
+                                 permission=None)
         else:
             return value
 
@@ -341,7 +341,7 @@ class WmsLayerTableWms(WmsServiceTable):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{record.service.parent_service.metadata.title}</strong>.'),
                              href=reverse('resource:detail', args=(record.service.parent_service.metadata.id,)),
                              value=record.service.parent_service.metadata.title,
-                             permission=Permission())
+                             permission=None)
 
     @staticmethod
     def order_wms_parent_service(queryset, is_descending):
@@ -414,7 +414,7 @@ class WfsServiceTable(ResourceTable):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('resource:detail', args=(record.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     @staticmethod
     def render_wfs_featuretypes(record):
@@ -431,20 +431,20 @@ class WfsServiceTable(ResourceTable):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('structure:detail-organization', args=(record.contact.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_wfs_registered_by_group(self, value, record):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_wfs_registered_for(self, value, record):
         if record.service.published_for is not None:
             return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                                  href=reverse('structure:detail-organization', args=(record.service.published_for.id,)),
                                  value=value,
-                                 permission=Permission())
+                                 permission=None)
         else:
             return value
 
@@ -522,13 +522,13 @@ class CswTable(MrMapTable):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('resource:detail', args=(record.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_csw_registered_by_group(self, value, record):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
                              href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
                              value=value,
-                             permission=Permission())
+                             permission=None)
 
     def render_csw_actions(self, record):
         btns = ''
@@ -776,7 +776,7 @@ class DatasetTable(MrMapTable):
         return self.get_link(tooltip=_(f'Click to open the html view of dataset <strong>{value}</strong>'),
                              href=reverse('resource:get-metadata-html', args=(record.id,)),
                              value=value,
-                             permission=Permission(),
+                             permission=None,
                              open_in_new_tab=True,)
 
     def render_dataset_related_objects(self, record):
@@ -790,7 +790,7 @@ class DatasetTable(MrMapTable):
             link = self.get_link(tooltip=_(f'Click to open the detail view of related service <strong>{metadata.title} [{metadata.id}]"</strong>'),
                                  href=reverse('resource:detail', args=(metadata.id,)),
                                  value=f"{metadata.title} [{metadata.id}]",
-                                 permission=Permission(),)
+                                 permission=None,)
             link_list.append(link, )
         return format_html(', '.join(link_list))
 

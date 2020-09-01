@@ -17,11 +17,12 @@ from service.models import Metadata
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import Permission
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
 @login_required
-@check_permission(Permission(can_run_monitoring=True))
+@check_permission(PermissionEnum.CAN_RUN_MONITORING)
 def call_run_monitoring(request: HttpRequest, metadata_id):
     metadata = get_object_or_404(Metadata,
                                  ~Q(metadata_type=MetadataEnum.CATALOGUE.value),

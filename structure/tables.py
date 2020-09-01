@@ -5,7 +5,7 @@ from django.urls import reverse
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
-from MrMap.consts import URL_PATTERN, construct_url
+from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import Permission
@@ -153,12 +153,12 @@ class GroupTable(MrMapTable):
         tooltip = _('Click to open the detail view of <strong>{}</strong>').format(value)
         if record.is_public_group:
             icon = get_theme(self.user)['ICONS']['PUBLIC']
-            tooltip = "{} {}".format(_('This is the anonymous public user group.'), tooltip)
-
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+            tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
+        return self.get_link(tooltip=tooltip,
                              href=url,
-                             content="{} {}".format(icon, value),
-                             tooltip=tooltip, )
+                             value=format_html(f"{icon} {value}"),
+                             permission=Permission(),
+                             open_in_new_tab=True, )
 
     @staticmethod
     def render_groups_description(value, record):
@@ -166,12 +166,11 @@ class GroupTable(MrMapTable):
         return value
 
     def render_groups_organization(self, value, record):
-        url = reverse('structure:detail-organization', args=(record.id,))
-        tooltip = _('Click to open the detail view of the organization')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_('Click to open the detail view of the organization'),
+                             href=reverse('structure:detail-organization', args=(record.id,)),
+                             value=value,
+                             permission=Permission(),
+                             open_in_new_tab=True, )
 
     def render_groups_actions(self, record):
         btns = ''
@@ -226,12 +225,12 @@ class OrganizationTable(MrMapTable):
         tooltip = _('Click to open the detail view of <strong>{}</strong>.').format(value)
         if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
-            tooltip = "{} {}".format(_('This is your organization.'), tooltip)
-
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+            tooltip = _('This is your organization.') + f' {tooltip}'
+        return self.get_link(tooltip=tooltip,
                              href=url,
-                             content="{} {}".format(icon, value),
-                             tooltip=tooltip, )
+                             value=f"{icon} {value}",
+                             permission=Permission(),
+                             open_in_new_tab=True, )
 
     @staticmethod
     def render_orgs_is_auto_generated(value):

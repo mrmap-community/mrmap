@@ -9,11 +9,12 @@ import json
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme
-from MrMap.consts import construct_url
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
+from monitoring.enums import HealthStateEnum
+from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import Permission
@@ -35,6 +36,14 @@ def _get_action_btns_for_service_table(table, record):
         btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
         permission=Permission(can_update_resource=True),
         tooltip=format_html(_("Update"), ),
+        tooltip_placement='left', )
+
+    btns += table.get_btn(
+        href=reverse('monitoring:run-monitoring', args=(record.id, ))+f"?current-view={table.current_view}",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['HEARTBEAT'],
+        permission=Permission(can_run_monitoring=True),
+        tooltip=format_html(_("Run health check"), ),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -88,6 +97,7 @@ TOOLTIP_REGISTERED_FOR = _('The organization for which the resource is registere
 TOOLTIP_CREATED_ON = _('The registration date.')
 TOOLTIP_ACTIONS = _('Performable Actions')
 TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, secured access state and secured externally state.')
+TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 
 
 class ResourceTable(MrMapTable):
@@ -107,6 +117,62 @@ class ResourceTable(MrMapTable):
         if hasattr(record, 'external_authentication'):
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
                                    tooltip=_('This resource has external authentication.'))
+
+        return format_html(icons)
+
+    def get_health_icons(self, record):
+        icons = ''
+        health_state = record.get_health_state()
+        if health_state:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                # state is OK
+                icon_color = 'text-success'
+            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
+                # state is WARNING
+                icon_color = 'text-warning'
+            elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
+                # state is CRITICAL
+                icon_color = 'text-danger'
+            elif health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
+                # state is unknown
+                icon_color = 'text-secondary'
+            tooltip = health_state.health_message
+        else:
+            # state is unknown
+            icon_color = 'text-secondary'
+            tooltip = DEFAULT_UNKNOWN_MESSAGE
+
+        icon = self.get_icon(icon_color=icon_color,
+                             icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
+
+        if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
+            icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
+                                btn_value=icon,
+                                btn_color='btn-light',
+                                permission=Permission(),
+                                tooltip=tooltip,)
+
+        icons += icon
+
+        if health_state:
+            for reason in health_state.reasons.all():
+                if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
+                    icons += self.get_icon(icon_color='text-info',
+                                           icon=get_theme(self.user)["ICONS"]["PASSWORD"],
+                                           tooltip=_(
+                                               'Some checks can\'t get a result, cause the service needs an authentication for this request.'))
+                    break
+
+            badge_color = 'badge-success'
+            if health_state.reliability_1w < CRITICAL_RELIABILITY:
+                badge_color = 'badge-danger'
+            elif health_state.reliability_1w < WARNING_RELIABILITY:
+                badge_color = 'badge-warning'
+            icons += '<br>' + self.get_badge(badge_color=badge_color,
+                                             badge_pill=True,
+                                             value=f'{round(health_state.reliability_1w, 2)} %',
+                                             tooltip=_('Reliability statistic for one week.'))
+
         return format_html(icons)
 
     def order_status(self, queryset, is_descending):
@@ -114,6 +180,10 @@ class ResourceTable(MrMapTable):
         queryset = queryset.order_by(is_descending_str + "is_active",
                                      is_descending_str + "is_secured",
                                      is_descending_str + "external_authentication", )
+        return queryset, True
+
+    def order_health(self, queryset, is_descending):
+        # TODO:
         return queryset, True
 
 
@@ -136,6 +206,12 @@ class WmsServiceTable(ResourceTable):
         empty_values=[False, ],
         attrs=attrs,
         tooltip=TOOLTIP_STATUS,
+    )
+    wms_health = MrMapColumn(
+        verbose_name=_('Health'),
+        empty_values=[False, ],
+        attrs=attrs,
+        tooltip=TOOLTIP_HEALTH,
     )
     wms_version = MrMapColumn(
         accessor='service.service_type.version',
@@ -176,40 +252,35 @@ class WmsServiceTable(ResourceTable):
     )
 
     def render_wms_title(self, value, record):
-        url = reverse('resource:detail', args=(record.id,))
-        tooltip = _('Click to open the detail view of <strong>{}</strong>.'.format(value))
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('resource:detail', args=(record.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_wms_status(self, record):
         return self.get_status_icons(record=record)
 
+    def render_wms_health(self, record):
+        return self.get_health_icons(record=record)
+
     def render_wms_data_provider(self, value, record):
-        url = reverse('structure:detail-organization', args=(record.contact.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('structure:detail-organization', args=(record.contact.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_wms_registered_by_group(self, value, record):
-        url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_wms_registered_for(self, value, record):
         if record.service.published_for is not None:
-            url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-            return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                                 href=url,
-                                 content=value,
-                                 tooltip=tooltip, )
+            return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                                 href=reverse('structure:detail-organization', args=(record.service.published_for.id,)),
+                                 value=value,
+                                 permission=Permission())
         else:
             return value
 
@@ -218,6 +289,9 @@ class WmsServiceTable(ResourceTable):
 
     def order_wms_status(self, queryset, is_descending):
         return self.order_status(queryset=queryset, is_descending=is_descending)
+
+    def order_wms_health(self, queryset, is_descending):
+        return self.order_health(queryset=queryset, is_descending=is_descending)
 
 
 class WmsTableWms(WmsServiceTable):
@@ -264,12 +338,10 @@ class WmsLayerTableWms(WmsServiceTable):
         }
 
     def render_wms_parent_service(self, record):
-        url = reverse('resource:detail', args=(record.service.parent_service.metadata.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{record.service.parent_service.metadata.title}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=record.service.parent_service.metadata.title,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{record.service.parent_service.metadata.title}</strong>.'),
+                             href=reverse('resource:detail', args=(record.service.parent_service.metadata.id,)),
+                             value=record.service.parent_service.metadata.title,
+                             permission=Permission())
 
     @staticmethod
     def order_wms_parent_service(queryset, is_descending):
@@ -299,6 +371,11 @@ class WfsServiceTable(ResourceTable):
         verbose_name=_('Status'),
         empty_values=[False, ],
         tooltip=TOOLTIP_STATUS,
+    )
+    wfs_health = MrMapColumn(
+        verbose_name=_('Health'),
+        empty_values=[False, ],
+        tooltip=TOOLTIP_HEALTH,
     )
     wfs_version = MrMapColumn(
         accessor='service.service_type.version',
@@ -334,12 +411,10 @@ class WfsServiceTable(ResourceTable):
     )
 
     def render_wfs_title(self, value, record):
-        url = reverse('resource:detail', args=(record.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('resource:detail', args=(record.id,)),
+                             value=value,
+                             permission=Permission())
 
     @staticmethod
     def render_wfs_featuretypes(record):
@@ -349,30 +424,27 @@ class WfsServiceTable(ResourceTable):
     def render_wfs_status(self, record):
         return self.get_status_icons(record=record)
 
+    def render_wfs_health(self, record):
+        return self.get_health_icons(record=record)
+
     def render_wfs_data_provider(self, value, record):
-        url = reverse('structure:detail-organization', args=(record.contact.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('structure:detail-organization', args=(record.contact.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_wfs_registered_by_group(self, value, record):
-        url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_wfs_registered_for(self, value, record):
         if record.service.published_for is not None:
-            url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-            return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                                 href=url,
-                                 content=value,
-                                 tooltip=tooltip, )
+            return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                                 href=reverse('structure:detail-organization', args=(record.service.published_for.id,)),
+                                 value=value,
+                                 permission=Permission())
         else:
             return value
 
@@ -388,6 +460,9 @@ class WfsServiceTable(ResourceTable):
 
     def order_wfs_status(self, queryset, is_descending):
         return self.order_status(queryset=queryset, is_descending=is_descending)
+
+    def order_wfs_health(self, queryset, is_descending):
+        return self.order_health(queryset=queryset, is_descending=is_descending)
 
 
 class CswTable(MrMapTable):
@@ -444,20 +519,16 @@ class CswTable(MrMapTable):
         return harvest_result.number_results if harvest_result is not None else None
 
     def render_csw_title(self, value, record):
-        url = reverse('resource:detail', args=(record.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('resource:detail', args=(record.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_csw_registered_by_group(self, value, record):
-        url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip, )
+        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
+                             href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
+                             value=value,
+                             permission=Permission())
 
     def render_csw_actions(self, record):
         btns = ''
@@ -702,13 +773,11 @@ class DatasetTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_dataset_title(self, value, record):
-        url = reverse('resource:get-metadata-html', args=(record.id,))
-        tooltip = _(f'Click to open the html view of dataset <strong>{value}</strong>')
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                             href=url,
-                             content=value,
-                             tooltip=tooltip,
-                             new_tab=True)
+        return self.get_link(tooltip=_(f'Click to open the html view of dataset <strong>{value}</strong>'),
+                             href=reverse('resource:get-metadata-html', args=(record.id,)),
+                             value=value,
+                             permission=Permission(),
+                             open_in_new_tab=True,)
 
     def render_dataset_related_objects(self, record):
         related_metadatas = Metadata.objects.filter(
@@ -718,12 +787,10 @@ class DatasetTable(MrMapTable):
         )
         link_list = []
         for metadata in related_metadatas:
-            url = reverse('resource:detail', args=(metadata.id,))
-            tooltip = _(f'Click to open the detail view of related service <strong>{metadata.title} [{metadata.id}]"</strong>')
-            link = construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                                 href=url,
-                                 content=f"{metadata.title} [{metadata.id}]",
-                                 tooltip=tooltip, )
+            link = self.get_link(tooltip=_(f'Click to open the detail view of related service <strong>{metadata.title} [{metadata.id}]"</strong>'),
+                                 href=reverse('resource:detail', args=(metadata.id,)),
+                                 value=f"{metadata.title} [{metadata.id}]",
+                                 permission=Permission(),)
             link_list.append(link, )
         return format_html(', '.join(link_list))
 

@@ -82,6 +82,8 @@ class Permission(models.Model):
     can_access_logs = models.BooleanField(default=False)
     can_download_logs = models.BooleanField(default=False)
 
+    can_run_monitoring = models.BooleanField(default=False)
+
     # more permissions coming
 
     def __str__(self):

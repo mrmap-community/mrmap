@@ -1,9 +1,11 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 from django.utils.html import format_html
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 from MrMap.utils import get_ok_nok_icon, get_theme
+from monitoring.models import Monitoring
 from structure.models import Permission
 from users.models import Subscription
 
@@ -34,6 +36,12 @@ class SubscriptionTable(MrMapTable):
         tooltip=_('Notify on changed service access'),
         empty_values=[],
         orderable=True,
+    )
+    health = MrMapColumn(
+        verbose_name=_('Health'),
+        tooltip=_('Health state of the ressource'),
+        empty_values=[False,],
+        orderable=False,
     )
     actions = MrMapColumn(
         verbose_name=_('Actions'),
@@ -68,8 +76,38 @@ class SubscriptionTable(MrMapTable):
     def render_notify_on_access_edit(value):
         return get_ok_nok_icon(value)
 
+    def render_health(self, record):
+        try:
+            last_monitoring_object = Monitoring.objects.filter(metadata=record.metadata).order_by('-timestamp').first()
+        except ObjectDoesNotExist:
+            last_monitoring_object = None
+
+        icons = ''
+        if last_monitoring_object:
+            if last_monitoring_object.available:
+                icon_color = 'text-success'
+            else:
+                icon_color = 'text-danger'
+            icons += self.get_icon(icon_color=icon_color,
+                                   icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
+                                   tooltip=_(f'Last check runs on {last_monitoring_object.timestamp}'))
+        else:
+            icons += self.get_icon(icon_color='text-secondary',
+                                   icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],
+                                   tooltip=_(f'Last check state is unknown'))
+
+        return format_html(icons)
+
     def render_actions(self, record):
         btns = ''
+        btns += format_html(self.get_btn(
+            href=reverse('monitoring:run-monitoring', args=(record.metadata.id, ))+f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['HEARTBEAT'],
+            permission=Permission(can_run_monitoring=True),
+            tooltip=format_html(_("Run health check"), ),
+            tooltip_placement='left',
+        ))
         btns += format_html(self.get_btn(
             href=reverse('subscription-edit', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
@@ -87,4 +125,9 @@ class SubscriptionTable(MrMapTable):
             permission=Permission(),
         ))
 
+
         return format_html(btns)
+
+    def order_health(self, queryset, is_descending):
+        # TODO:
+        return queryset, True

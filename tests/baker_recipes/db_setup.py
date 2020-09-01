@@ -1,9 +1,14 @@
+from datetime import timedelta, datetime
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from model_bakery import baker, seq
+
+from monitoring.models import MonitoringRun
+from monitoring.settings import WARNING_RESPONSE_TIME
 from structure.models import MrMapUser, Organization
 from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum
-from service.models import Service, MetadataRelation
+from service.models import Service, MetadataRelation, Metadata
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
 
@@ -341,3 +346,41 @@ def create_proxy_logs(user, num: int = 1):
         _quantity=num,
         user=user,
     )
+
+
+def create_monitoring_run(end=datetime.now(), how_much_runs: int = 1,):
+    return baker.make_recipe(
+        "tests.baker_recipes.monitoring_app.monitoring_run",
+        end=end,
+        _quantity=how_much_runs,
+    )
+
+
+def create_monitoring_result(metadata: Metadata,
+                             monitoring_run: MonitoringRun = create_monitoring_run(),
+                             duration=timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
+                             status_code: int = 200,
+                             available: bool = True,
+                             timestamp=None,
+                             how_much_results: int = 1,):
+    if timestamp:
+        return baker.make_recipe(
+            "tests.baker_recipes.monitoring_app.monitoring_result",
+            _quantity=how_much_results,
+            metadata=metadata,
+            duration=duration,
+            status_code=status_code,
+            available=available,
+            monitoring_run=monitoring_run,
+            timestamp=timestamp,
+        )
+    else:
+        return baker.make_recipe(
+            "tests.baker_recipes.monitoring_app.monitoring_result",
+            _quantity=how_much_results,
+            metadata=metadata,
+            duration=duration,
+            status_code=status_code,
+            available=available,
+            monitoring_run=monitoring_run,
+        )

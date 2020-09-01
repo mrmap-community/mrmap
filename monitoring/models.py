@@ -6,9 +6,6 @@ Created on: 26.02.2020
 
 """
 import uuid
-from datetime import datetime, timedelta
-
-import pytz
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -133,18 +130,17 @@ class HealthState(models.Model):
         # Monitoring objects that are related to this run and given metadata
         monitoring_objects = Monitoring.objects.filter(monitoring_run=self.monitoring_run, metadata=self.metadata)
         # Get health states of the last 3 months, for statistic calculating
-        now = datetime.now()
-        now_with_tz = pytz.utc.localize(now)
+        now = timezone.now()
         health_states_3m = HealthState.objects.filter(metadata=self.metadata,
-                                                      monitoring_run__end__gte=datetime.now()-timedelta(days=(3 * 365 / 12)))\
+                                                      monitoring_run__end__gte=now - timezone.timedelta(days=(3 * 365 / 12)))\
                                               .order_by('-monitoring_run__end')
 
         # get only health states for 1m and 1w calculation to prevent from sql statements
         health_states_1m = list(
-            filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=(365 / 12)),
+            filter(lambda _health_state: _health_state.monitoring_run.end > now - timezone.timedelta(days=(365 / 12)),
                    list(health_states_3m)))
         health_states_1w = list(
-            filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=7),
+            filter(lambda _health_state: _health_state.monitoring_run.end > now - timezone.timedelta(days=7),
                    list(health_states_3m)))
         health_states_3m = list(health_states_3m)
         # append self, cause transaction is atomic in parent function,
@@ -259,14 +255,14 @@ class HealthState(models.Model):
                                               ).save()
 
             # evaluate response time
-            if self.average_response_time_1w >= timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
+            if self.average_response_time_1w >= timezone.timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
                 critical = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.CRITICAL.value,
                                   reason=_(f'The average response time for 1 week statistic is to high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
-            elif self.average_response_time_1w >= timedelta(milliseconds=WARNING_RESPONSE_TIME):
+            elif self.average_response_time_1w >= timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME):
                 warning = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.WARNING.value,

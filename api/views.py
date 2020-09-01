@@ -1,5 +1,5 @@
 # Create your views here.
-from datetime import timedelta
+from django.utils import timezone
 from collections import OrderedDict
 
 from celery.result import AsyncResult
@@ -870,7 +870,7 @@ class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
             if monitor.available:
                 sum_availability += 1
         avg_response_microseconds = sum_response / len(tmp)
-        avg_response_time = timedelta(microseconds=avg_response_microseconds)
+        avg_response_time = timezone.timedelta(microseconds=avg_response_microseconds)
         avg_availability = sum_availability / len(tmp) * 100
         result = {
             'last_monitoring': last_monitoring,

@@ -7,9 +7,8 @@ Created on: 15.07.20
 """
 import json
 from time import time
-import datetime
 from urllib.parse import urlparse, parse_qs
-
+from django.utils import timezone
 import pytz
 from billiard.context import Process
 from dateutil.parser import parse
@@ -159,7 +158,7 @@ class Harvester:
         t_start = time()
         number_rest_to_harvest = total_number_to_harvest
         number_of_harvested = 0
-        self.harvest_result.timestamp_start = datetime.datetime.now(pytz.utc)
+        self.harvest_result.timestamp_start = timezone.now()
         self.harvest_result.save()
 
         page_cacher = PageCacher()
@@ -184,16 +183,16 @@ class Harvester:
             page_cacher.remove_pages(CSW_CACHE_PREFIX)
             if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
-                estimated_time_for_all = datetime.timedelta(seconds=0)
+                estimated_time_for_all = timezone.timedelta(seconds=0)
                 break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
-                estimated_time_for_all = datetime.timedelta(seconds=seconds_for_rest)
+                estimated_time_for_all = timezone.timedelta(seconds=seconds_for_rest)
 
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Add HarvestResult infos
-        self.harvest_result.timestamp_end = datetime.datetime.now(pytz.utc)
+        self.harvest_result.timestamp_end = timezone.now()
         self.harvest_result.number_results = number_of_harvested
         self.harvest_result.save()
 

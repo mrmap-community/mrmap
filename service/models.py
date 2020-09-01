@@ -25,9 +25,7 @@ from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.validators import not_uuid
-from monitoring.enums import HealthStateEnum
-from monitoring.models import MonitoringSetting, MonitoringRun, Monitoring
-from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE
+from monitoring.models import MonitoringSetting, MonitoringRun
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
     ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum

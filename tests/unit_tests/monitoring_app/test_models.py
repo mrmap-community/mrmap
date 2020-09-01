@@ -5,13 +5,11 @@ Contact: jonas.kiefer@vermkv.rlp.de
 Created on: 31.08.20
 
 """
-from datetime import timedelta, datetime
-import datetime
 from django.test import TestCase
-
+from django.utils import timezone
 from monitoring.enums import HealthStateEnum
 from monitoring.models import HealthState
-from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME
+from monitoring.settings import WARNING_RESPONSE_TIME
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_monitoring_result, \
     create_monitoring_run
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -39,9 +37,9 @@ class ServiceFiltersTestCase(TestCase):
         health_state.run_health_state()
 
         self.assertEqual(health_state.health_state_code, HealthStateEnum.OK.value, msg="The health state is not ok")
-        self.assertEqual(health_state.average_response_time_1w, timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
-        self.assertEqual(health_state.average_response_time_1m, timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
-        self.assertEqual(health_state.average_response_time_3m, timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
+        self.assertEqual(health_state.average_response_time_1w, timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
+        self.assertEqual(health_state.average_response_time_1m, timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
+        self.assertEqual(health_state.average_response_time_3m, timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
         self.assertEqual(health_state.reliability_1w, 100)
         self.assertEqual(health_state.reliability_1m, 100)
         self.assertEqual(health_state.reliability_3m, 100)
@@ -61,9 +59,9 @@ class ServiceFiltersTestCase(TestCase):
         health_state.run_health_state()
 
         self.assertEqual(health_state.health_state_code, HealthStateEnum.OK.value, msg="The health state is not ok")
-        self.assertEqual(health_state.average_response_time_1w, timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
-        self.assertEqual(health_state.average_response_time_1m, timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
-        self.assertEqual(health_state.average_response_time_3m, timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
+        self.assertEqual(health_state.average_response_time_1w, timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
+        self.assertEqual(health_state.average_response_time_1m, timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
+        self.assertEqual(health_state.average_response_time_3m, timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1))
         self.assertEqual(health_state.reliability_1w, 100)
         self.assertEqual(health_state.reliability_1m, 100)
         self.assertEqual(health_state.reliability_3m, 100)
@@ -77,20 +75,20 @@ class ServiceFiltersTestCase(TestCase):
         # create two HealthStateEnum.OK results
         create_monitoring_result(monitoring_run=self.monitoring_run,
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=100),
+                                 duration=timezone.timedelta(milliseconds=100),
                                  how_much_results=2,)
         # create two HealthStateEnum.CRITICAL results
         create_monitoring_result(monitoring_run=self.monitoring_run,
                                  metadata=self.wms_services[0],
                                  status_code=404,
                                  available=False,
-                                 duration=timedelta(milliseconds=100),
+                                 duration=timezone.timedelta(milliseconds=100),
                                  how_much_results=1, )
         create_monitoring_result(monitoring_run=self.monitoring_run,
                                  metadata=self.wms_services[0],
                                  status_code=200,
                                  available=True,
-                                 duration=timedelta(seconds=10, ),
+                                 duration=timezone.timedelta(seconds=10, ),
                                  how_much_results=1, )
 
         # we've got 3 monitoring results that are available and 1 that is not available
@@ -122,7 +120,7 @@ class ServiceFiltersTestCase(TestCase):
         # create two HealthStateEnum.OK results for the first monitoring run
         create_monitoring_result(monitoring_run=monitoring_runs[0],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=100),
+                                 duration=timezone.timedelta(milliseconds=100),
                                  how_much_results=2,)
 
         # run_health_state for the first monitoring run ==> HealthStateEnum.OK.value
@@ -135,7 +133,7 @@ class ServiceFiltersTestCase(TestCase):
                                  metadata=self.wms_services[0],
                                  available=False,
                                  status_code=404,
-                                 duration=timedelta(milliseconds=200),
+                                 duration=timezone.timedelta(milliseconds=200),
                                  how_much_results=2, )
 
         # run_health_state for the 2. monitoring run ==> HealthStateEnum.CRITICAL.value
@@ -147,7 +145,7 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_runs[2],
                                  metadata=self.wms_services[0],
                                  status_code=200,
-                                 duration=timedelta(minutes=1),
+                                 duration=timezone.timedelta(minutes=1),
                                  how_much_results=1, )
 
         # run_health_state for the 3. monitoring run ==> HealthStateEnum.CRITICAL.value
@@ -167,10 +165,10 @@ class ServiceFiltersTestCase(TestCase):
         self.assertEqual(round(health_state.reliability_3m, 2), round(1/3*100, 2))
 
     def test_3m_statistics(self):
-        today = datetime.date.today()
-        three_mon_timedelta = datetime.timedelta(days=(3 * 365 / 12) - 1)
-        one_mon_timedelta = datetime.timedelta(days=(1 * 365 / 12) - 1)
-        one_week_timedelta = datetime.timedelta(days=6)
+        today = timezone.now()
+        three_mon_timedelta = timezone.timedelta(days=(3 * 365 / 12) - 1)
+        one_mon_timedelta = timezone.timedelta(days=(1 * 365 / 12) - 1)
+        one_week_timedelta = timezone.timedelta(days=6)
 
         three_mon_ago = today - three_mon_timedelta
         one_mon_ago = today - one_mon_timedelta
@@ -184,7 +182,7 @@ class ServiceFiltersTestCase(TestCase):
         # create three monitoring runs with different timestamps
         create_monitoring_result(monitoring_run=monitoring_run_three_mon_ago[0],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=100),
+                                 duration=timezone.timedelta(milliseconds=100),
                                  timestamp=three_mon_ago,
                                  how_much_results=2,)
         # run_health_state for the first monitoring run ==> HealthStateEnum.OK.value
@@ -194,7 +192,7 @@ class ServiceFiltersTestCase(TestCase):
 
         create_monitoring_result(monitoring_run=monitoring_run_three_mon_ago[1],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=200),
+                                 duration=timezone.timedelta(milliseconds=200),
                                  timestamp=three_mon_ago,
                                  how_much_results=2, )
         health_state_3m_2 = HealthState(monitoring_run=monitoring_run_three_mon_ago[1],
@@ -203,7 +201,7 @@ class ServiceFiltersTestCase(TestCase):
 
         create_monitoring_result(monitoring_run=monitoring_run_one_mon_ago[0],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=100),
+                                 duration=timezone.timedelta(milliseconds=100),
                                  timestamp=one_mon_ago,
                                  how_much_results=2, )
         health_state_1m_1 = HealthState(monitoring_run=monitoring_run_one_mon_ago[0],
@@ -212,7 +210,7 @@ class ServiceFiltersTestCase(TestCase):
 
         create_monitoring_result(monitoring_run=monitoring_run_one_mon_ago[1],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=200),
+                                 duration=timezone.timedelta(milliseconds=200),
                                  timestamp=three_mon_ago,
                                  how_much_results=2, )
 
@@ -222,7 +220,7 @@ class ServiceFiltersTestCase(TestCase):
 
         create_monitoring_result(monitoring_run=monitoring_run_one_week_ago[0],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(minutes=1),
+                                 duration=timezone.timedelta(minutes=1),
                                  timestamp=one_week_ago,
                                  how_much_results=2, )
         health_state_1w_1 = HealthState(monitoring_run=monitoring_run_one_week_ago[0],
@@ -230,7 +228,7 @@ class ServiceFiltersTestCase(TestCase):
         health_state_1w_1.run_health_state()
         create_monitoring_result(monitoring_run=monitoring_run_one_week_ago[1],
                                  metadata=self.wms_services[0],
-                                 duration=timedelta(milliseconds=200),
+                                 duration=timezone.timedelta(milliseconds=200),
                                  timestamp=three_mon_ago,
                                  how_much_results=2, )
 

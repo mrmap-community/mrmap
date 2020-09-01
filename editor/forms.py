@@ -149,7 +149,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
     abstract = forms.CharField(label=_('Abstract'), )
     language_code = forms.ChoiceField(label=_('Language'), choices=ISO_19115_LANG_CHOICES)
     character_set_code = forms.ChoiceField(label=_('Character Encoding'), choices=Dataset.CHARACTER_SET_CHOICES)
-    date_stamp = forms.DateField(label=_('Metadata creation date'),
+    date_stamp = forms.DateTimeField(label=_('Metadata creation date'),
                                  widget=BootstrapDatePickerInput())
     reference_system = ReferenceSystemModelMultipleChoiceField(
         queryset=None,

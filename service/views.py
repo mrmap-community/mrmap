@@ -1,6 +1,5 @@
 import base64
 import io
-from datetime import datetime
 from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
@@ -12,7 +11,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import ReadTimeout
-from MrMap import utils
+from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
@@ -1442,7 +1441,7 @@ def logs_download(request: HttpRequest):
 
     # Create empty response object and fill it with dynamic csv content
     stream = io.StringIO()
-    timestamp_now = datetime.now()
+    timestamp_now = timezone.now()
     data = proxy_log_table.fill_csv_response(stream)
 
     data_size = len(data)

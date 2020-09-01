@@ -1,11 +1,9 @@
-import io
 import json
-from datetime import datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
-from django.http import HttpRequest, HttpResponseRedirect, StreamingHttpResponse, HttpResponse
-from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
+from django.shortcuts import render, get_object_or_404
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
 from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, PUBLISH_PERMISSION_REMOVED, \
@@ -16,12 +14,13 @@ from structure.permissionEnums import PermissionEnum
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
     RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
-from structure.models import MrMapGroup, Permission, Organization, PendingRequest, PendingTask, ErrorReport
+from structure.models import MrMapGroup, Organization, PendingRequest, PendingTask, ErrorReport
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
 from users.helper import user_helper
 from users.helper.user_helper import create_group_activity
+from django.utils import timezone
 
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, current_view: str):
@@ -288,7 +287,7 @@ def generate_error_report(request: HttpRequest, report_id: int):
     data = error_report.generate_report()
 
     # Create empty response object and fill it with dynamic csv content
-    timestamp_now = datetime.now()
+    timestamp_now = timezone.now()
     response = HttpResponse(data, content_type=TXT)
 
     response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.txt"'

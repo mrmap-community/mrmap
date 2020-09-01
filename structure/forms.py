@@ -1,10 +1,8 @@
-import datetime
 from captcha.fields import CaptchaField
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-
 from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
 from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
@@ -153,7 +151,7 @@ class PublisherForOrganizationForm(MrMapForm):
         publish_request_obj.organization = self.organization
         publish_request_obj.message = self.cleaned_data["request_msg"]
         publish_request_obj.group = self.cleaned_data["group"]
-        publish_request_obj.activation_until = timezone.now() + datetime.timedelta(
+        publish_request_obj.activation_until = timezone.now() + timezone.timedelta(
             hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
         publish_request_obj.save()
         # create pending publish request for organization!

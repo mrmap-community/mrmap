@@ -1,10 +1,10 @@
-from datetime import datetime
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
 from service.models import Metadata, Service, ServiceType, Layer, FeatureType, Keyword, Category, \
     Document, RequestOperation, MimeType, ProxyLog, Dataset
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_orga
+from django.utils import timezone
 
 
 mimetype = Recipe(
@@ -151,5 +151,5 @@ proxy_log = Recipe(
     ProxyLog,
     metadata=foreign_key(active_wms_service_metadata),
     operation="GetMap",
-    timestamp=datetime.now()
+    timestamp=timezone.now()
 )

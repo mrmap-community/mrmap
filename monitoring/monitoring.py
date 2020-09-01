@@ -15,19 +15,21 @@ from io import BytesIO
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
-from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting
+from MrMap.settings import MONITORING_REQUEST_TIMEOUT
+from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting, \
+    HealthState
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.common_connector import CommonConnector
 from service.helper.xml_helper import parse_xml
-from service.models import Metadata, Document, Service, MetadataRelation, FeatureType
-from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersionEnum, DocumentEnum
+from service.models import Metadata, Document, Service, FeatureType
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, DocumentEnum
 
 
 class Monitoring:
 
-    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting):
+    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting = None, ):
         self.metadata = metadata
         self.linked_metadata = None
         self.monitoring_run = monitoring_run
@@ -75,6 +77,11 @@ class Monitoring:
             self.check_featuretype(check_obj)
         elif self.metadata.is_dataset_metadata:
             self.check_dataset()
+
+        # all checks are done. Calculate the health state for all monitoring results
+        health_state = HealthState(monitoring_run=self.monitoring_run, metadata=self.metadata)
+        health_state.save()
+        health_state.run_health_state()
 
     def check_wfs(self, service: Service):
         """ Check the availability of wfs operations.
@@ -204,7 +211,7 @@ class Monitoring:
         """
         success = False
         duration = None
-        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout)
+        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else MONITORING_REQUEST_TIMEOUT)
         if self.metadata.has_external_authentication:
             connector.external_auth = self.metadata.external_authentication
         try:
@@ -311,14 +318,14 @@ class Monitoring:
                 monitoring_capability = MonitoringCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
-                    needs_update=needs_update, monitoring_run=self.monitoring_run
+                    needs_update=needs_update, monitoring_run=self.monitoring_run,
                 )
             else:
                 needs_update = False
                 monitoring_capability = MonitoringCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
-                    needs_update=needs_update, monitoring_run=self.monitoring_run
+                    needs_update=needs_update, monitoring_run=self.monitoring_run,
                 )
             monitoring_capability.save()
         else:
@@ -366,15 +373,14 @@ class Monitoring:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
-                monitoring_run=self.monitoring_run
+                monitoring_run=self.monitoring_run,
             )
         else:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
-                duration=service_status.duration, monitoring_run=self.monitoring_run
+                duration=service_status.duration, monitoring_run=self.monitoring_run,
             )
-
         monitoring_result.save()
 
     def handle_service_success(self, service_status: ServiceStatus):
@@ -391,6 +397,6 @@ class Monitoring:
             status_code=service_status.status,
             duration=service_status.duration,
             monitored_uri=service_status.monitored_uri,
-            monitoring_run=self.monitoring_run
+            monitoring_run=self.monitoring_run,
         )
         monitoring_result.save()

@@ -1,11 +1,7 @@
 {% if tooltip %}
 <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="{% if tooltip_placement %}{{tooltip_placement}}{% else %}top{% endif %}" data-html="true" title="{{tooltip}}">
-    <a class="{{link_color}}" {% if new_tab %}target="_blank"{%endif%} href="{{href}}">
-        {{value}}
-    </a>
+    <span class="badge {% if badge_pill %}badge-pill{% endif %} {{badge_color}}">{{value}}</span>
 </span>
 {% else %}
-<a class="{{link_color}}" {% if new_tab %}target="_blank"{%endif%} href="{{href}}">
-    {{value}}
-</a>
+<span class="badge {% if badge_pill %}badge-pill{% endif %} {{badge_color}}">{{value}}</span>
 {% endif %}

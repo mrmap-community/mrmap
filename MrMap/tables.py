@@ -2,6 +2,7 @@ import uuid
 
 from django.http import HttpRequest
 from django.template.loader import render_to_string
+from django.utils.html import format_html
 from django_tables2 import tables, RequestConfig
 from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
@@ -82,7 +83,7 @@ class MrMapTable(tables.Table):
             self.permission_lookup[permission] = has_perm
         return has_perm
 
-    def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: PermissionEnum):
+    def get_link(self, href: str, value: str, permission: PermissionEnum, tooltip_placement: str = 'left', open_in_new_tab: bool = False, tooltip: str = None,):
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {
@@ -91,6 +92,7 @@ class MrMapTable(tables.Table):
                 "link_color": get_theme(self.user)["TABLE"]["LINK_COLOR"],
                 "tooltip": tooltip,
                 "tooltip_placement": tooltip_placement,
+                "new_tab": open_in_new_tab,
             }
             return render_to_string(template_name="sceletons/open-link.html",
                                     context=context)
@@ -113,7 +115,18 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
-    def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'top',):
+    def get_badge(self, value: str, badge_color: str, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
+        context = {
+            "badge_color": badge_color,
+            "badge_pill": badge_pill,
+            "value": value,
+            "tooltip": tooltip,
+            "tooltip_placement": tooltip_placement,
+        }
+        return render_to_string(template_name="sceletons/badge_with_tooltip.html",
+                                context=context)
+
+    def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'left',):
         context = {
             "icon_color": icon_color,
             "icon": icon,

@@ -69,6 +69,10 @@ FONT_AWESOME_ICONS = {
     'HARVEST': format_html(ICON_PATTERN, 'fas', 'fa-level-down-alt'),
     'ERROR': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-circle'),
     'PLAY': format_html(ICON_PATTERN, 'fas', 'fa-play'),
+    'HEARTBEAT': format_html(ICON_PATTERN, 'fas', 'fa-heartbeat'),
+    'WARNING': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-triangle'),
+    'CRITICAL': format_html(ICON_PATTERN, 'fas', 'fa-bolt'),
+    'LIST': format_html(ICON_PATTERN, 'fas', 'fa-th-list'),
 }
 
 # dark theme settings

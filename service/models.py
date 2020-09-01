@@ -25,7 +25,9 @@ from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.validators import not_uuid
-from monitoring.models import MonitoringSetting
+from monitoring.enums import HealthStateEnum
+from monitoring.models import MonitoringSetting, MonitoringRun, Monitoring
+from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
     ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
@@ -1691,6 +1693,30 @@ class Metadata(Resource):
         )
         for sub in subscriptions:
             sub.inform_subscriptor()
+
+    def get_health_state(self, monitoring_run: MonitoringRun = None, ):
+        """ Returns the last health state of the metadata object by default.
+
+        Returns: the health state or None if no Monitoring results where found
+
+        """
+        from monitoring.models import HealthState
+        if monitoring_run:
+            health_state = HealthState.objects.get(metadata=self, monitoring_run=monitoring_run, )
+            return health_state
+        else:
+            health_state = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end').first()
+            return health_state
+
+    def get_health_states(self, last_x_items: int = 10):
+        """ Returns the last 10 health states of the metadata object by default.
+
+        Returns:
+
+        """
+        from monitoring.models import HealthState
+        health_states = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
+        return health_states
 
 
 class Document(Resource):

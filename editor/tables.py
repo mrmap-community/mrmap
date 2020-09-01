@@ -2,7 +2,6 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from MrMap.columns import MrMapColumn
-from MrMap.consts import construct_url
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 
@@ -60,20 +59,21 @@ class EditorAcessTable(MrMapTable):
         if record.name == 'Public':
             icon = get_theme(self.user)['ICONS']['PUBLIC']
             tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
-
-        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+        return self.get_link(tooltip=tooltip,
                              href=url,
-                             content=icon + ' ' + record.name,
-                             tooltip=tooltip, )
+                             value=f"{icon} {record.name}",
+                             permission=Permission(),
+                             open_in_new_tab=True, )
 
     def render_editor_organization(self, record):
         if record.organization:
             url = reverse('structure:detail-organization', args=(record.organization.id,))
             tooltip = _(f'Click to open the detail view of <strong>{record.organization.organization_name}</strong>.')
-            return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+            return self.get_link(tooltip=tooltip,
                                  href=url,
-                                 content=record.organization.organization_name,
-                                 tooltip=tooltip, )
+                                 value=record.organization.organization_name,
+                                 permission=Permission(),
+                                 open_in_new_tab=True, )
         else:
             return '-'
 

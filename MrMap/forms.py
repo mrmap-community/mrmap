@@ -60,7 +60,6 @@ class MrMapModalForm:
                                 template_name=self.template_name,
                                 context=self.default_context)
 
-    # ToDo: use process_request() and hide this function _
     def render_view(self, status_code: int = 200):
         view_function = resolve(reverse(viewname=self.current_view, )) if self.current_view_arg is None \
             else resolve(reverse(viewname=self.current_view, args=[self.current_view_arg, ]))

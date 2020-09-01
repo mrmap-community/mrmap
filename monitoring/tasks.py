@@ -10,11 +10,13 @@ import datetime
 
 from celery import shared_task
 from celery.signals import beat_init
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
-from django_celery_beat.models import PeriodicTask, IntervalSchedule
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.db import transaction
 
-from monitoring.models import MonitoringSetting, MonitoringRun
+from monitoring.models import MonitoringSetting, MonitoringRun, HealthState
 from monitoring.monitoring import Monitoring as Monitor
+from monitoring.settings import monitoring_logger
+from service.models import Metadata
 
 
 @beat_init.connect
@@ -33,6 +35,7 @@ def init_periodic_tasks(sender, **kwargs):
 
 
 @shared_task(name='run_service_monitoring')
+@transaction.atomic
 def run_monitoring(setting_id, *args, **kwargs):
     monitoring_run = MonitoringRun.objects.create()
 
@@ -44,10 +47,33 @@ def run_monitoring(setting_id, *args, **kwargs):
     metadatas = setting.metadatas.all()
     for metadata in metadatas:
         try:
-            monitor = Monitor(metadata, monitoring_run, setting)
+            monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
+            monitoring_logger.debug(f'Health checks completed for {metadata}')
         except Exception as e:
-            pass
+            monitoring_logger.exception(e, exc_info=True, stack_info=True)
+
+    end_time = datetime.datetime.now(pytz.utc)
+    duration = end_time - monitoring_run.start
+    monitoring_run.end = end_time
+    monitoring_run.duration = duration
+    monitoring_run.save()
+
+
+@shared_task(name='run_manual_service_monitoring')
+@transaction.atomic
+def run_manual_monitoring(metadatas, *args, **kwargs):
+    monitoring_run = MonitoringRun.objects.create()
+
+    for metadata_id in metadatas:
+        try:
+            metadata = Metadata.objects.get(id=metadata_id)
+            monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
+            monitor.run_checks()
+            monitoring_logger.debug(f'Health checks completed for {metadata}')
+        except Exception as e:
+            monitoring_logger.exception(e, exc_info=True, stack_info=True, )
+
     end_time = datetime.datetime.now(pytz.utc)
     duration = end_time - monitoring_run.start
     monitoring_run.end = end_time

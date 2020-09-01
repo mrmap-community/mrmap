@@ -1,0 +1,122 @@
+{% extends 'sceletons/table.html' %}
+{% load static i18n %}
+{% load mr_map_filters %}
+{% block table %}
+    <tr>
+        <th scope="row">{% trans 'Health state' %}</th>
+        <td class="
+        {% if health_state.health_state_code == 'critical' %}
+        text-danger
+        {% elif health_state.health_state_code == 'warning'%}
+        text-warning
+        {% elif health_state.health_state_code == 'unknown'%}
+        text-secondary
+        {% elif health_state.health_state_code == 'ok'%}
+        text-success
+        {%endif%}">
+            <strong>{{health_state.health_state_code}}</strong>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Reliability' %}</th>
+        <td>
+            <span class="badge badge-pill
+            {% if health_state.reliability_1w < MONITORING_THRESHOLDS.CRITICAL_RELIABILITY %}
+            badge-danger
+            {% elif health_state.reliability_1w < MONITORING_THRESHOLDS.WARNING_RELIABILITY %}
+            badge-warning
+            {% else %}
+            badge-success
+            {%endif%}">
+                <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="left" data-html="true" title="{% trans 'This is the statistic for one week'%}">
+                    {{health_state.reliability_1w|floatformat:2}} %
+                </span>
+            </span>
+            <span class="badge badge-pill
+            {% if health_state.reliability_1m < MONITORING_THRESHOLDS.CRITICAL_RELIABILITY %}
+            badge-danger
+            {% elif health_state.reliability_1m < MONITORING_THRESHOLDS.WARNING_RELIABILITY %}
+            badge-warning
+            {% else %}
+            badge-success
+            {%endif%}">
+                <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="left" data-html="true" title="{% trans 'This is the statistic for one month'%}">
+                {{health_state.reliability_1m|floatformat:2}} %
+                </span>
+            </span>
+            <span class="badge badge-pill
+            {% if health_state.reliability_3m < MONITORING_THRESHOLDS.CRITICAL_RELIABILITY %}
+            badge-danger
+            {% elif health_state.reliability_3m < MONITORING_THRESHOLDS.WARNING_RELIABILITY %}
+            badge-warning
+            {% else %}
+            badge-success
+            {%endif%}">
+                <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="left" data-html="true" title="{% trans 'This is the statistic for three months'%}">
+                {{health_state.reliability_3m|floatformat:2}} %
+                </span>
+            </span>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Average response time' %}</th>
+        <td>
+            <span class="badge badge-pill
+            {% if health_state.average_response_time_1w < MONITORING_THRESHOLDS.CRITICAL_RESPONSE_TIME %}
+            badge-danger
+            {% elif health_state.average_response_time_1w < MONITORING_THRESHOLDS.WARNING_RESPONSE_TIME %}
+            badge-warning
+            {% else %}
+            badge-success
+            {%endif%}">
+                <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="left" data-html="true" title="{% trans 'This is the statistic for one week'%}">
+                {{health_state.average_response_time_1w|duration_to_ms|floatformat:2}} ms
+                </span>
+            </span>
+            <span class="badge badge-pill
+            {% if health_state.average_response_time_1m < MONITORING_THRESHOLDS.CRITICAL_RESPONSE_TIME %}
+            badge-danger
+            {% elif health_state.average_response_time_1m < MONITORING_THRESHOLDS.WARNING_RESPONSE_TIME %}
+            badge-warning
+            {% else %}
+            badge-success
+            {%endif%}">
+                <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="left" data-html="true" title="{% trans 'This is the statistic for one month'%}">
+                {{health_state.average_response_time_1m|duration_to_ms|floatformat:2}} ms
+                </span>
+            </span>
+            <span class="badge badge-pill
+            {% if health_state.average_response_time_3m < MONITORING_THRESHOLDS.CRITICAL_RESPONSE_TIME %}
+            badge-danger
+            {% elif health_state.average_response_time_3m < MONITORING_THRESHOLDS.WARNING_RESPONSE_TIME %}
+            badge-warning
+            {% else %}
+            badge-success
+            {%endif%}">
+                <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="left" data-html="true" title="{% trans 'This is the statistic for three months'%}">
+                {{health_state.average_response_time_3m|duration_to_ms|floatformat:2}} ms
+                </span>
+            </span>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Health message' %}</th>
+        <td>
+            {% autoescape off %}{{health_state.health_message}}{% endautoescape %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Monitored resource' %}</th>
+        <td>{{health_state.metadata.title}}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Monitored resource id' %}</th>
+        <td><a href="{% url 'resource:detail' health_state.metadata.id %}" >{{health_state.metadata.id}}</a></td>
+    </tr>
+    {% if last_ten_health_states %}
+    <tr>
+        <th scope="row">{% trans 'Last monitoring runs' %}</th>
+        <td>{% include 'includes/general_health_state_history.html' %}</td>
+    </tr>
+    {% endif %}
+{% endblock %}

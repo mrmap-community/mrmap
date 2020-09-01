@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
@@ -348,9 +348,10 @@ def create_proxy_logs(user, num: int = 1):
     )
 
 
-def create_monitoring_run(how_much_runs: int = 1,):
+def create_monitoring_run(end=datetime.now(), how_much_runs: int = 1,):
     return baker.make_recipe(
         "tests.baker_recipes.monitoring_app.monitoring_run",
+        end=end,
         _quantity=how_much_runs,
     )
 
@@ -360,13 +361,26 @@ def create_monitoring_result(metadata: Metadata,
                              duration=timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
                              status_code: int = 200,
                              available: bool = True,
+                             timestamp=None,
                              how_much_results: int = 1,):
-    return baker.make_recipe(
-        "tests.baker_recipes.monitoring_app.monitoring_result",
-        _quantity=how_much_results,
-        metadata=metadata,
-        duration=duration,
-        status_code=status_code,
-        available=available,
-        monitoring_run=monitoring_run,
-    )
+    if timestamp:
+        return baker.make_recipe(
+            "tests.baker_recipes.monitoring_app.monitoring_result",
+            _quantity=how_much_results,
+            metadata=metadata,
+            duration=duration,
+            status_code=status_code,
+            available=available,
+            monitoring_run=monitoring_run,
+            timestamp=timestamp,
+        )
+    else:
+        return baker.make_recipe(
+            "tests.baker_recipes.monitoring_app.monitoring_result",
+            _quantity=how_much_results,
+            metadata=metadata,
+            duration=duration,
+            status_code=status_code,
+            available=available,
+            monitoring_run=monitoring_run,
+        )

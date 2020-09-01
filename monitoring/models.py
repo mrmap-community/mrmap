@@ -136,12 +136,12 @@ class HealthState(models.Model):
         now = datetime.now()
         now_with_tz = pytz.utc.localize(now)
         health_states_3m = HealthState.objects.filter(metadata=self.metadata,
-                                                      monitoring_run__end__gte=datetime.now()-timedelta(days=90))\
+                                                      monitoring_run__end__gte=datetime.now()-timedelta(days=(3 * 365 / 12)))\
                                               .order_by('-monitoring_run__end')
 
         # get only health states for 1m and 1w calculation to prevent from sql statements
         health_states_1m = list(
-            filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=30),
+            filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=(365 / 12)),
                    list(health_states_3m)))
         health_states_1w = list(
             filter(lambda _health_state: _health_state.monitoring_run.end > now_with_tz - timedelta(days=7),

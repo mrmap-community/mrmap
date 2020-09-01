@@ -5,8 +5,8 @@ Contact: jonas.kiefer@vermkv.rlp.de
 Created on: 31.08.20
 
 """
-from datetime import timedelta
-
+from datetime import timedelta, datetime
+import datetime
 from django.test import TestCase
 
 from monitoring.enums import HealthStateEnum
@@ -165,3 +165,90 @@ class ServiceFiltersTestCase(TestCase):
         self.assertEqual(round(health_state.reliability_1w, 2), round(1/3*100, 2))
         self.assertEqual(round(health_state.reliability_1m, 2), round(1/3*100, 2))
         self.assertEqual(round(health_state.reliability_3m, 2), round(1/3*100, 2))
+
+    def test_3m_statistics(self):
+        today = datetime.date.today()
+        three_mon_timedelta = datetime.timedelta(days=(3 * 365 / 12) - 1)
+        one_mon_timedelta = datetime.timedelta(days=(1 * 365 / 12) - 1)
+        one_week_timedelta = datetime.timedelta(days=6)
+
+        three_mon_ago = today - three_mon_timedelta
+        one_mon_ago = today - one_mon_timedelta
+        one_week_ago = today - one_week_timedelta
+
+        # create three monitoring runs with different datetimes
+        monitoring_run_three_mon_ago = create_monitoring_run(end=three_mon_ago, how_much_runs=2)
+        monitoring_run_one_mon_ago = create_monitoring_run(end=one_mon_ago, how_much_runs=2)
+        monitoring_run_one_week_ago = create_monitoring_run(end=one_week_ago, how_much_runs=2)
+
+        # create three monitoring runs with different timestamps
+        create_monitoring_result(monitoring_run=monitoring_run_three_mon_ago[0],
+                                 metadata=self.wms_services[0],
+                                 duration=timedelta(milliseconds=100),
+                                 timestamp=three_mon_ago,
+                                 how_much_results=2,)
+        # run_health_state for the first monitoring run ==> HealthStateEnum.OK.value
+        health_state_3m_1 = HealthState(monitoring_run=monitoring_run_three_mon_ago[0],
+                                        metadata=self.wms_services[0])
+        health_state_3m_1.run_health_state()
+
+        create_monitoring_result(monitoring_run=monitoring_run_three_mon_ago[1],
+                                 metadata=self.wms_services[0],
+                                 duration=timedelta(milliseconds=200),
+                                 timestamp=three_mon_ago,
+                                 how_much_results=2, )
+        health_state_3m_2 = HealthState(monitoring_run=monitoring_run_three_mon_ago[1],
+                                        metadata=self.wms_services[0])
+        health_state_3m_2.run_health_state()
+
+        create_monitoring_result(monitoring_run=monitoring_run_one_mon_ago[0],
+                                 metadata=self.wms_services[0],
+                                 duration=timedelta(milliseconds=100),
+                                 timestamp=one_mon_ago,
+                                 how_much_results=2, )
+        health_state_1m_1 = HealthState(monitoring_run=monitoring_run_one_mon_ago[0],
+                                        metadata=self.wms_services[0])
+        health_state_1m_1.run_health_state()
+
+        create_monitoring_result(monitoring_run=monitoring_run_one_mon_ago[1],
+                                 metadata=self.wms_services[0],
+                                 duration=timedelta(milliseconds=200),
+                                 timestamp=three_mon_ago,
+                                 how_much_results=2, )
+
+        health_state_1m_2 = HealthState(monitoring_run=monitoring_run_one_mon_ago[1],
+                                        metadata=self.wms_services[0])
+        health_state_1m_2.run_health_state()
+
+        create_monitoring_result(monitoring_run=monitoring_run_one_week_ago[0],
+                                 metadata=self.wms_services[0],
+                                 duration=timedelta(minutes=1),
+                                 timestamp=one_week_ago,
+                                 how_much_results=2, )
+        health_state_1w_1 = HealthState(monitoring_run=monitoring_run_one_week_ago[0],
+                                        metadata=self.wms_services[0])
+        health_state_1w_1.run_health_state()
+        create_monitoring_result(monitoring_run=monitoring_run_one_week_ago[1],
+                                 metadata=self.wms_services[0],
+                                 duration=timedelta(milliseconds=200),
+                                 timestamp=three_mon_ago,
+                                 how_much_results=2, )
+
+        health_state_1w_2 = HealthState(monitoring_run=monitoring_run_one_week_ago[1],
+                                        metadata=self.wms_services[0])
+        health_state_1w_2.run_health_state()
+
+        # health_state_1w is critical:
+        # reliability: reliability_3m is 4 / 6 % | reliability_1m is 2 / 4 % | reliability_1w is 0 / 2 %
+        # average_response_time_3m is ( 150 + 150 + 30100 ) / 3 ms
+        # average_response_time_1m ( 150 + 30100 ) / 2 ms
+        # average_response_time_1w 30100 ms
+
+        self.assertEqual(health_state_1w_2.health_state_code, HealthStateEnum.CRITICAL.value, msg="The health state is not critical")
+        self.assertEqual(round(health_state_1w_2.average_response_time_3m.total_seconds()*1000, 2), round((100 + 200 + 100 + 200 + 60000 + 200) / 6, 2))
+        self.assertEqual(round(health_state_1w_2.average_response_time_1m.total_seconds()*1000, 2), round((60000 + 200 + 100 + 200) / 4, 2))
+        self.assertEqual(round(health_state_1w_2.average_response_time_1w.total_seconds()*1000, 2), round((60000 + 200) / 2, 2))
+
+        self.assertEqual(round(health_state_1w_2.reliability_3m, 2), round(4/6*100, 2))
+        self.assertEqual(round(health_state_1w_2.reliability_1m, 2), round(2/4*100, 2))
+        self.assertEqual(round(health_state_1w_2.reliability_1w, 2), round(0/2*100, 2))

@@ -7,10 +7,8 @@ Created on: 20.05.20
 """
 from abc import abstractmethod
 from collections import OrderedDict
-from datetime import datetime
-
 from lxml.etree import Element, QName
-
+from django.utils import timezone
 from django.db.models import QuerySet
 
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
@@ -124,7 +122,7 @@ class MetadataConverter:
         Returns:
              search_status_elem (_Element): The lxml element
         """
-        now = datetime.now()
+        now = timezone.now()
         now = now.strftime("%Y-%m-%dT%H:%M:%S")
         search_status_elem = Element(
             "{}SearchStatus".format(self.csw_ns),

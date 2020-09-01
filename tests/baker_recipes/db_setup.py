@@ -1,5 +1,4 @@
-from datetime import timedelta, datetime
-
+from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from model_bakery import baker, seq
@@ -373,7 +372,7 @@ def create_proxy_logs(user, num: int = 1):
     )
 
 
-def create_monitoring_run(end=datetime.now(), how_much_runs: int = 1,):
+def create_monitoring_run(end=timezone.now(), how_much_runs: int = 1,):
     return baker.make_recipe(
         "tests.baker_recipes.monitoring_app.monitoring_run",
         end=end,
@@ -383,7 +382,7 @@ def create_monitoring_run(end=datetime.now(), how_much_runs: int = 1,):
 
 def create_monitoring_result(metadata: Metadata,
                              monitoring_run: MonitoringRun = create_monitoring_run(),
-                             duration=timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
+                             duration=timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
                              status_code: int = 200,
                              available: bool = True,
                              timestamp=None,

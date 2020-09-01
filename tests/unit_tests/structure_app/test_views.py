@@ -1,16 +1,10 @@
-from datetime import date, timedelta
-
 from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
-from model_bakery import baker
 
-from MrMap.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT, REQUEST_ACTIVATION_TIMEOVER, \
-    PUBLISH_PERMISSION_REMOVING_DENIED
+from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME
-from structure.forms import GroupForm, OrganizationForm, RemoveOrganizationForm, PublisherForOrganizationForm, \
-    RemoveGroupForm
 from structure.permissionEnums import PermissionEnum
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.models import Organization, PendingTask, MrMapGroup, Role, PendingRequest, Permission
@@ -595,7 +589,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
                                                       how_much_requests=10)
 
         for pending_request in self.pending_request:
-            pending_request.activation_until = timezone.now() + timedelta(days=10)
+            pending_request.activation_until = timezone.now() + timezone.timedelta(days=10)
             pending_request.save()
 
         self.pending_tasks = create_pending_task(group=self.groups[0], how_much_pending_tasks=10)
@@ -638,7 +632,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
         post_params = {'is_accepted': True, }
 
         pending_task = PendingRequest.objects.first()
-        pending_task.activation_until = timezone.now() - timedelta(days=1)
+        pending_task.activation_until = timezone.now() - timezone.timedelta(days=1)
         pending_task.save()
 
         response = self.client.post(

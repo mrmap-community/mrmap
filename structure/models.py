@@ -1,5 +1,3 @@
-import datetime
-
 from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -313,7 +311,7 @@ class MrMapUser(AbstractUser):
         # user does not exist yet! We need to create an activation object
         user_activation = UserActivation()
         user_activation.user = self
-        user_activation.activation_until = timezone.now() + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
+        user_activation.activation_until = timezone.now() + timezone.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
         sec_handler = CryptoHandler()
         user_activation.activation_hash = sec_handler.sha256(
             self.username + self.salt + str(user_activation.activation_until))

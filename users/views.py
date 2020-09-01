@@ -6,10 +6,9 @@ Created on: 28.05.19
 
 """
 
-import datetime
 import os
 from random import random
-
+from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -125,7 +124,7 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
 
     datasets_count = user.get_datasets_as_qs(count=True)
 
-    activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
+    activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
         "-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)

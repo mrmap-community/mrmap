@@ -6,7 +6,7 @@ Created on: 09.12.2019
 
 """
 
-from datetime import timedelta
+from django.utils import timezone
 import difflib
 from typing import Union
 from PIL import Image, UnidentifiedImageError
@@ -45,7 +45,7 @@ class Monitoring:
             message (str): The response text of the request.
             duration (timedelta): The duration of the request.
         """
-        def __init__(self, uri: str, success: bool, message: str, status: int = None, duration: timedelta = None):
+        def __init__(self, uri: str, success: bool, message: str, status: int = None, duration: timezone.timedelta = None):
             self.monitored_uri = uri
             self.success = success
             self.status = status
@@ -221,7 +221,7 @@ class Monitoring:
             response_text = str(e)
             return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
 
-        duration = timedelta(seconds=connector.run_time)
+        duration = timezone.timedelta(seconds=connector.run_time)
         response_text = connector.content
         if connector.status_code == 200:
             success = True

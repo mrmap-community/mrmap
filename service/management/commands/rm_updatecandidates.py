@@ -1,7 +1,5 @@
-from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-
 from service.models import Service
 
 
@@ -19,7 +17,7 @@ class Command(BaseCommand):
         if options['older-than']:
             older_than = options['older-than']
 
-        elements = Service.objects.filter(last_modified__lte=timezone.localtime()-timedelta(days=older_than))\
+        elements = Service.objects.filter(last_modified__lte=timezone.localtime()-timezone.timedelta(days=older_than))\
                                   .exclude(is_update_candidate_for=None)
 
         count = len(elements)

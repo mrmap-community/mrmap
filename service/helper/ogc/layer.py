@@ -129,10 +129,11 @@ class OGCLayer:
         # Save metadata to use id afterwards
         metadata.save()
 
-        metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(
-            OGCOperationEnum.GET_CAPABILITIES.value)
-        metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
-        metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
+        #447
+        #metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(
+        #    OGCOperationEnum.GET_CAPABILITIES.value)
+        #metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
+        #metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
 
         # create bounding box polygon
         bounding_points = (

@@ -16,8 +16,10 @@ from MrMap.settings import ROOT_URL
 from api.settings import API_EXCLUDE_METADATA_RELATIONS
 from service.forms import RegisterNewResourceWizardPage2
 from service.helper import service_helper
+from service.helper.enums import OGCOperationEnum
 from service.models import ServiceType, Metadata, Category, Dimension
-from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY, SERVICE_OPERATION_URI_TEMPLATE, \
+    SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
 from structure.models import MrMapGroup, Role, Permission
 from monitoring.models import Monitoring
 from users.helper import user_helper
@@ -490,6 +492,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
 
     can_have_preview = md.is_service_metadata or md.is_featuretype_metadata or md.is_layer_metadata
 
+    # Create response data
     serialized = OrderedDict()
     serialized["id"] = md.id
     serialized["easy_id"] = md.public_id
@@ -502,9 +505,6 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["capabilities_uri"] = md.capabilities_uri
     serialized["xml_metadata_uri"] = md.service_metadata_uri
     serialized["html_metadata_uri"] = md.html_metadata_uri
-    serialized["easy_capabilities_uri"] = (md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.capabilities_uri is not None else None
-    serialized["easy_xml_metadata_uri"] = (md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.service_metadata_uri is not None else None
-    serialized["easy_html_metadata_uri"] = (md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.html_metadata_uri is not None else None
     serialized["additional_uris"] = [{uri.url: uri.description} for uri in additional_urls]
     serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),))) if can_have_preview else None
     serialized["fees"] = md.fees

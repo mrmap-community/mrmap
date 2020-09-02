@@ -74,7 +74,7 @@
               <div class="dropdown-menu" aria-labelledby="id_caps_dropdown">
                 <a class="dropdown-item" target="_blank" href="{{ service_md.capabilities_original_uri }}">{% trans 'Original' %}</a>
                 {% if not service.is_csw %}
-                  <a class="dropdown-item" target="_blank" href="{% url 'resource:metadata-proxy-operation' service_md.id %}?request=GetCapabilities">{% trans 'Current' %}</a>
+                  <a class="dropdown-item" target="_blank" href="{{ service_md.capabilities_uri }}">{% trans 'Current' %}</a>
                 {% endif %}
               </div>
             </div>
@@ -85,8 +85,8 @@
             {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}
           </button>
           <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
-              <a class="dropdown-item" target="_blank" href="{% url 'resource:get-metadata-html' service_md.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
-              <a class="dropdown-item" target="_blank" href="{% url 'resource:get-service-metadata' service_md.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+              <a class="dropdown-item" target="_blank" href="{{ service_md.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+              <a class="dropdown-item" target="_blank" href="{{ service_md.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
               {% if not service.is_csw %}
               <a class="dropdown-item" href="{% url 'editor:restore' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
               {% endif %}

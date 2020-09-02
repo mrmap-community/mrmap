@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
+from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
 from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
@@ -92,7 +93,7 @@ class GroupForm(MrMapModelForm):
         group = self.save(commit=False)
         group.created_by = self.requesting_user
         if group.role is None:
-            group.role = Role.objects.get(name="_default_")
+            group.role = Role.objects.get_or_create(name=DEFAULT_ROLE_NAME)[0]
         group.save()
         group.user_set.add(self.requesting_user)
         messages.success(self.request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))

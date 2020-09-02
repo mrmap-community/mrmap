@@ -110,7 +110,7 @@ class OGCCatalogueService(OGCWebService):
         md.fees = self.service_identification_fees
         md.created_by = register_group
         md.capabilities_original_uri = self.service_connect_url
-        md.capabilities_uri = self.service_connect_url
+        #md.capabilities_uri = self.service_connect_url #447
         if self.service_bounding_box is not None:
             md.bounding_geometry = self.service_bounding_box
 
@@ -127,9 +127,10 @@ class OGCCatalogueService(OGCWebService):
 
         md.formats.add(*self.formats_list)
 
-        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
+        #447
+        #md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        #md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+        #md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
         md.save()
 
         service = self._create_service_record(register_group, register_for_organization, md, is_update_candidate_for)

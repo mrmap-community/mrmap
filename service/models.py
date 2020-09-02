@@ -16,6 +16,7 @@ from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -546,13 +547,7 @@ class Metadata(Resource):
     online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
     capabilities_original_uri = models.CharField(max_length=1000, blank=True, null=True)
-    capabilities_uri = models.CharField(max_length=1000, blank=True, null=True)
-
     service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
-    service_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
-
-    html_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
-
     additional_urls = models.ManyToManyField('GenericUrl', blank=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
@@ -645,6 +640,45 @@ class Metadata(Resource):
             except Exception:
                 formats = MimeType.objects.none()
         return formats
+
+    @property
+    def capabilities_uri(self):
+        """ Creates the capabilities uri for this metadata record
+
+        Returns:
+             capabilities_uri (str)
+        """
+        p_id = self.public_id or self.id
+        return "{}{}{}".format(
+            ROOT_URL,
+            reverse("resource:metadata-proxy-operation", args=(str(p_id),)),
+            "?request={}".format(OGCOperationEnum.GET_CAPABILITIES.value),
+        ) if not self.is_dataset_metadata else None
+
+    @property
+    def service_metadata_uri(self):
+        """ Creates the metadata uri for this metadata record
+
+        Returns:
+             metadata_uri (str)
+        """
+        p_id = self.public_id or self.id
+        if not self.is_dataset_metadata:
+            url_name = reverse("resource:get-service-metadata", args=(str(p_id),))
+        else:
+            url_name = reverse("resource:get-dataset-metadata", args=(str(p_id),))
+        return "{}{}".format(ROOT_URL, url_name)
+
+    @property
+    def html_metadata_uri(self):
+        """ Creates the html view uri for this metadata record
+
+        Returns:
+             metadata_uri (str)
+        """
+        p_id = self.public_id or self.id
+        url_name = reverse("resource:get-metadata-html", args=(str(p_id),))
+        return "{}{}".format(ROOT_URL, url_name)
 
     @property
     def is_service_metadata(self):
@@ -1067,7 +1101,7 @@ class Metadata(Resource):
              public_id (str): The generated public id
         """
         if stump is None:
-            stump = self.title
+            stump = "{} {}".format(self.title, self.metadata_type)
 
         slug_stump = slugify(stump)
         # To prevent too long public ids (keep them < 255 character)

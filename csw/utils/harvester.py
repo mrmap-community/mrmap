@@ -460,7 +460,7 @@ class Harvester:
         formats = md_data_entry.get("formats", [])
         md.is_active = True
         md.capabilities_original_uri = md_data_entry.get("capabilities_original_url", None)
-        md.capabilities_uri = md_data_entry.get("capabilities_original_url", None)
+        #md.capabilities_uri = md_data_entry.get("capabilities_original_url", None)  #447
 
         try:
             # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform

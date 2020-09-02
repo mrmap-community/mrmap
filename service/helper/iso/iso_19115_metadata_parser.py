@@ -692,9 +692,10 @@ class ISOMetadata:
 
         # Add links for dataset metadata
         # There is no capabilities link for dataset -> leave it None
-        metadata.capabilities_uri = None
-        metadata.service_metadata_uri = SERVICE_DATASET_URI_TEMPLATE.format(metadata.id)
-        metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
+        #447
+        #metadata.capabilities_uri = None
+        #metadata.service_metadata_uri = SERVICE_DATASET_URI_TEMPLATE.format(metadata.id)
+        #metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
 
         metadata.save()
 

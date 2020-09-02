@@ -149,6 +149,7 @@ class MrMapGroup(Group):
     publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
     is_public_group = models.BooleanField(default=False)
+    is_permission_group = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

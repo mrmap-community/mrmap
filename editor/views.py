@@ -157,10 +157,17 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
         metadata=md
     )
 
-    all_groups = MrMapGroup.objects.all().order_by(
+    all_groups = MrMapGroup.objects.filter(
+        is_permission_group=False
+    )
+    all_groups = MrMapGroup.objects.filter(
+        is_public_group=True
+    ) | all_groups
+
+    all_groups = all_groups.order_by(
         Case(
             When(
-                name='Public',
+                is_public_group=True,
                 then=0
             )
         ),

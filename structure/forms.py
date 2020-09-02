@@ -28,22 +28,24 @@ class GroupForm(MrMapModelForm):
         label=_("Description"),
         widget=forms.Textarea(),
         required=False, )
-    role = forms.ModelChoiceField(
-        label=_("Role"),
-        queryset=Role.objects.all(),
-        empty_label=None, )
+    parent_group = forms.ModelChoiceField(
+        label=_("Parent group"),
+        queryset=MrMapGroup.objects.filter(
+            is_permission_group=False
+        ),
+        empty_label='---------',
+        required=False,
+    )
 
     class Meta:
         model = MrMapGroup
         fields = [
             "name",
             "description",
-            "role",
             "parent_group",
             "organization",
         ]
         labels = {
-            "parent_group": _("Parent group"),
         }
         help_text = {
         }

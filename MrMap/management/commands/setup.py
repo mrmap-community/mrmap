@@ -140,7 +140,8 @@ class Command(BaseCommand):
             name=group_name,
             parent_group=parent_group,
             role=role,
-            created_by=user
+            created_by=user,
+            is_permission_group=True,
         )[0]
 
         group.description = group_desc
@@ -170,7 +171,8 @@ class Command(BaseCommand):
             name=PUBLIC_GROUP_NAME,
             description=PUBLIC_GROUP_DESCRIPTION,
             created_by=user,
-            is_public_group=True
+            is_public_group=True,
+            is_permission_group=True,
         )[0]
         if group.role is None:
             role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
@@ -191,6 +193,7 @@ class Command(BaseCommand):
             name=SUPERUSER_GROUP_NAME,
             description=SUPERUSER_GROUP_DESCRIPTION,
             created_by=user,
+            is_permission_group=True,
         )[0]
         if group.role is None:
             role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]

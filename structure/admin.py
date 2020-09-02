@@ -30,7 +30,7 @@ class ThemeAdmin(admin.ModelAdmin):
 
 
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'description', 'parent_group_link', 'organization_link', 'role_link', 'created_by_link', 'is_public_group', )
+    list_display = ('id', 'name', 'description', 'parent_group_link', 'organization_link', 'role_link', 'created_by_link', 'is_public_group', 'is_permission_group', )
     list_filter = ('role', 'created_by', 'is_public_group' )
     search_fields = ['id', 'name', 'description', 'parent_group__name', ]
     readonly_fields = (

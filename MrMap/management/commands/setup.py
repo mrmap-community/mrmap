@@ -99,6 +99,7 @@ class Command(BaseCommand):
 
         # handle root organization
         orga = self._create_default_organization()
+        default_group = self._create_default_group(orga, superuser)
         superuser.organization = orga
         superuser.save()
         msg = "Superuser '" + name + "' added to group '" + str(group.name) + "'!"
@@ -229,6 +230,16 @@ class Command(BaseCommand):
         orga = Organization.objects.get_or_create(organization_name="Testorganization")[0]
 
         return orga
+
+    @staticmethod
+    def _create_default_group(org: Organization, user: MrMapUser):
+        group = MrMapGroup.objects.get_or_create(
+            name="Testgroup",
+            organization=org,
+            created_by=user,
+        )[0]
+        group.user_set.add(user)
+        return group
 
     @staticmethod
     def _create_default_monitoring_setting():

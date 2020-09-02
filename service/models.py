@@ -1625,6 +1625,7 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
+            self.get_current_capability_xml(self.service.service_type.version)
             root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,
@@ -1929,23 +1930,23 @@ class Document(Resource):
         service = self.metadata.service
         operation_urls = service.operation_urls.all()
         op_uri_dict = {
-            "GetMap": {
+            OGCOperationEnum.GET_MAP.value: {
                 "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),"url", None),
                 "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),"url", None),
             },
-            "GetFeatureInfo": {
+            OGCOperationEnum.GET_FEATURE_INFO.value: {
                 "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),"url", None),
                 "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),"url", None),
             },
-            "DescribeLayer": {
+            OGCOperationEnum.DESCRIBE_LAYER.value: {
                 "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(),"url", None),
                 "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(),"url", None),
             },
-            "GetLegendGraphic": {
+            OGCOperationEnum.GET_LEGEND_GRAPHIC.value: {
                 "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(),"url", None),
                 "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(),"url", None),
             },
-            "GetStyles": {
+            OGCOperationEnum.GET_STYLES.value: {
                 "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(),"url", None),
                 "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(),"url", None),
             },

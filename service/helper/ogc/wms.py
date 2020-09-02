@@ -797,7 +797,6 @@ class OGCWebMapService(OGCWebService):
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = self.service_provider_onlineresource_linkage
         metadata.capabilities_original_uri = self.service_connect_url
-        #metadata.capabilities_uri = self.service_connect_url #447
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
         if self.service_bounding_box is not None:
@@ -810,12 +809,6 @@ class OGCWebMapService(OGCWebService):
         # Save metadata instance to be able to add M2M entities
         metadata.save()
 
-        #447
-        #metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-        #metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
-        #metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
-
-        metadata.save()
         return metadata
 
     def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, metadata: Metadata, is_update_candidate_for: Service):

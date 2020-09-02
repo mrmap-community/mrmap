@@ -719,18 +719,10 @@ class OGCWebFeatureService(OGCWebService):
         md.fees = self.service_identification_fees
         md.created_by = group
         md.capabilities_original_uri = self.service_connect_url
-        #md.capabilities_uri = self.service_connect_url  #447
         if self.service_bounding_box is not None:
             md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
-        md.save()
-
-        #447
-       # md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-       # md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-       # md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
-
         md.save()
 
         return md
@@ -909,7 +901,6 @@ class OGCWebFeatureService(OGCWebService):
             f_t.parent_service = service
             f_t.metadata.contact = contact
             f_t.metadata.capabilities_original_uri = self.service_connect_url
-            #f_t.metadata.capabilities_uri = self.service_connect_url #447
 
             f_t.dataset_md_list = feature_type_val.get("dataset_md_list", [])
             f_t.additional_srs_list = feature_type_val.get("srs_list", [])
@@ -919,11 +910,6 @@ class OGCWebFeatureService(OGCWebService):
 
             f_t.parent_service = service
             md = f_t.metadata
-            md.save()
-            #447
-            #md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
-            #    OGCOperationEnum.GET_CAPABILITIES.value)
-            #md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
             md.save()
             f_t.metadata = md
             f_t.save()

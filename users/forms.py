@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 28.05.19
 
 """
+from dal import autocomplete
 from django import forms
 from django.contrib.auth import login
 from django.core.exceptions import ObjectDoesNotExist
@@ -17,6 +18,7 @@ from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG,
     RESOURCE_NOT_FOUND_OR_NOT_OWNER, PASSWORD_CHANGE_SUCCESS, ACCOUNT_UPDATE_SUCCESS
 from MrMap.settings import MIN_PASSWORD_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS
+from editor.forms import MetadataModelMultipleChoiceField
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from structure.models import MrMapUser, Theme
@@ -112,7 +114,10 @@ class SubscriptionForm(MrMapModelForm):
         queryset=Metadata.objects.filter(
             metadata_type=MetadataEnum.SERVICE.value,
             is_active=True,
-        )
+        ),
+        widget=autocomplete.ModelSelect2(
+            url='editor:service-autocomplete',
+        ),
     )
 
     class Meta:

@@ -420,13 +420,15 @@ def subscription_new_view(request: HttpRequest, ):
     Returns:
          A rendered view
     """
-    form = SubscriptionForm(data=request.POST or None,
-                            request=request,
-                            reverse_lookup='subscription-new',
-                            form_title=_('New Subscription'),
-                            # ToDo: show_modal will be default True in future
-                            show_modal=True,
-                            )
+    form = SubscriptionForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='subscription-new',
+        form_title=_('New Subscription'),
+        # ToDo: show_modal will be default True in future
+        show_modal=True,
+        has_autocomplete_fields=True,
+     )
     return form.process_request(valid_func=form.process_new_subscription)
 
 

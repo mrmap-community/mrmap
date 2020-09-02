@@ -10,13 +10,13 @@ from csw.tasks import async_harvest
 
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
-from structure.models import PendingTask
+from structure.models import PendingTask, MrMapGroup
 
 
 class HarvestGroupForm(MrMapForm):
     harvest_with_group = forms.ModelChoiceField(
         label=_("Harvest with group"),
-        queryset=None,
+        queryset=MrMapGroup.objects.none(),
         initial=1
     )
 

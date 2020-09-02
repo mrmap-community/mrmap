@@ -42,19 +42,34 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
     ogc_service = forms.CharField(label=_('OGC Service'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_version = forms.CharField(label=_('OGC Version'), widget=forms.TextInput(attrs={'readonly': '', }))
     uri = forms.CharField(label=_('URI'), widget=forms.TextInput(attrs={'readonly': '', }))
-    registering_with_group = forms.ModelChoiceField(label=_("Registration with group"),
-                                                    widget=forms.Select(attrs={'class': 'auto_submit_item'}),
-                                                    queryset=None, to_field_name='id', initial=1)
-    registering_for_other_organization = forms.ModelChoiceField(label=_("Registration for other organization"),
-                                                                required=False, queryset=None, to_field_name='id',
-                                                                empty_label=_("No other"))
+    registering_with_group = forms.ModelChoiceField(
+        label=_("Registration with group"),
+        widget=forms.Select(attrs={'class': 'auto_submit_item'}),
+        queryset=None,
+        to_field_name='id',
+        initial=1
+    )
+    registering_for_other_organization = forms.ModelChoiceField(
+        label=_("Registration for other organization"),
+        required=False,
+        queryset=None,
+        to_field_name='id',
+        empty_label=_("No other")
+    )
 
-    service_needs_authentication = forms.BooleanField(label=_("Service needs authentication"), required=False,
-                                                      widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', }))
+    service_needs_authentication = forms.BooleanField(
+        label=_("Service needs authentication"),
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', })
+    )
     username = forms.CharField(label=_("Username"), required=False, disabled=True)
     password = forms.CharField(label=_("Password"), required=False, widget=forms.PasswordInput, disabled=True)
-    authentication_type = forms.ChoiceField(label=_("Authentication type"), required=False, disabled=True,
-                                            choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
+    authentication_type = forms.ChoiceField(
+        label=_("Authentication type"),
+        required=False,
+        disabled=True,
+        choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic'))
+    )
 
     def __init__(self,  *args, **kwargs):
         super(RegisterNewResourceWizardPage2, self).__init__(*args, **kwargs)
@@ -71,7 +86,7 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
 
         # initial the fields if the values are transfered
         if self.requesting_user is not None:
-            user_groups = self.requesting_user.get_groups({"is_public_group": False})
+            user_groups = self.requesting_user.get_groups({"is_public_group": False, "is_permission_group": False})
             self.fields["registering_with_group"].queryset = user_groups.all()
             self.fields["registering_with_group"].initial = user_groups.first()
         if selected_group is not None:

@@ -719,7 +719,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         'abstract': md.abstract,
         'access_constraints': md.access_constraints,
         'capabilities_original_uri': md.capabilities_original_uri,
-        'capabilities_uri': reverse('resource:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
+        'capabilities_uri': md.capabilities_uri,
         'contact': collect_contact_data(md.contact),
         "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
     }

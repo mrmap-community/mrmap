@@ -189,22 +189,22 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
+
+        role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]
+
+        all_permissions = PermissionEnum.as_choices(drop_empty_choice=True)
+        for perm in all_permissions:
+            p = Permission.objects.get_or_create(name=perm[1])[0]
+            role.permissions.add(p)
+        role.save()
+
         group = MrMapGroup.objects.get_or_create(
             name=SUPERUSER_GROUP_NAME,
             description=SUPERUSER_GROUP_DESCRIPTION,
             created_by=user,
             is_permission_group=True,
+            role=role,
         )[0]
-        if group.role is None:
-            role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]
-
-            all_permissions = PermissionEnum.as_choices(drop_empty_choice=True)
-            for perm in all_permissions:
-                p = Permission.objects.get_or_create(name=perm[1])[0]
-                role.permissions.add(p)
-            role.save()
-            group.role = role
-            group.created_by = user
         return group
 
     @staticmethod

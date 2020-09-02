@@ -259,14 +259,14 @@ class HealthState(models.Model):
                 critical = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.CRITICAL.value,
-                                  reason=_(f'The average response time for 1 week statistic is to high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                  reason=_(f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
             elif self.average_response_time_1w >= timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME):
                 warning = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.WARNING.value,
-                                  reason=_(f'The average response time for 1 week statistic is to high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                  reason=_(f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
 

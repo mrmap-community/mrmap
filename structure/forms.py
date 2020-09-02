@@ -1,6 +1,7 @@
 from captcha.fields import CaptchaField
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
@@ -166,6 +167,12 @@ class OrganizationForm(MrMapModelForm):
     person_name = forms.CharField(
         label=_("Contact person"),
         required=True, )
+    create_group = forms.BooleanField(
+        widget=forms.CheckboxInput(),
+        label=_("Create group"),
+        help_text=_("If set, a group will be automatically created for this organization. Groups are needed for e.g. registration of services."),
+        required=False,
+    )
 
     field_order = [
         "organization_name",
@@ -249,6 +256,7 @@ class OrganizationForm(MrMapModelForm):
         self.save()
         messages.success(self.request, message=ORGANIZATION_SUCCESSFULLY_EDITED.format(self.instance.organization_name))
 
+    @transaction.atomic
     def process_new_org(self):
         # save changes of group
         org = self.save(commit=False)
@@ -256,6 +264,17 @@ class OrganizationForm(MrMapModelForm):
         org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
         org.save()
         messages.success(self.request, message=_('Organization {} successfully created.'.format(org.organization_name)))
+
+        create_group = self.cleaned_data.get('create_group', False)
+        if create_group:
+            org_group = MrMapGroup.objects.create(
+                name=_("{} group").format(org.organization_name),
+                organization=org,
+                created_by=self.requesting_user,
+            )
+            org_group.user_set.add(self.requesting_user)
+            org_group.save()
+            messages.success(self.request, message=_('Group {} successfully created.'.format(org_group.name)))
 
 
 class RemoveGroupForm(MrMapConfirmForm):

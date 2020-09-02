@@ -7,7 +7,7 @@ Created on: 09.07.19
 """
 from django.urls import path
 from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
-    ReferenceSystemAutocomplete
+    ReferenceSystemAutocomplete, ServiceMetadataAutocomplete
 from editor.views import *
 
 app_name = 'editor'
@@ -16,6 +16,7 @@ urlpatterns = [
     path('keyword-autocomplete/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword-autocomplete"),
     path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
     path('metadata-autocomplete/', DatasetMetadataAutocomplete.as_view(), name="metadata-autocomplete"),
+    path('service-autocomplete/', ServiceMetadataAutocomplete.as_view(), name="service-autocomplete"),
     path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
 
     path('metadata/<metadata_id>', edit, name='edit'),

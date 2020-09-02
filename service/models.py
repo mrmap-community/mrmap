@@ -1101,7 +1101,7 @@ class Metadata(Resource):
              public_id (str): The generated public id
         """
         if stump is None:
-            stump = self.title
+            stump = "{} {}".format(self.title, self.metadata_type)
 
         slug_stump = slugify(stump)
         # To prevent too long public ids (keep them < 255 character)

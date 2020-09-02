@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-02 10:40+0200\n"
+"POT-Creation-Date: 2020-09-02 10:43+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -609,7 +609,7 @@ msgstr "Einen neuen Zugangstoken generieren und speichern"
 msgid "Generate"
 msgstr "Generieren"
 
-#: csw/forms.py:17
+#: csw/forms.py:18
 msgid "Harvest with group"
 msgstr "Harvest mit Gruppe"
 
@@ -1495,11 +1495,11 @@ msgstr "Registriert durch Gruppe"
 
 #: service/tables.py:236 service/tables.py:397
 msgid "Registered for"
-msgstr "Registriere für"
+msgstr "Registriert für"
 
 #: service/tables.py:242 service/tables.py:402
 msgid "Created on"
-msgstr "Erstellt am "
+msgstr "Erstellt am"
 
 #: service/tables.py:255 service/tables.py:267 service/tables.py:273
 #: service/tables.py:280 service/tables.py:414 service/tables.py:431

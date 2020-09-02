@@ -6,7 +6,6 @@ from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.utils import get_theme, get_ok_nok_icon
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 
 
@@ -55,13 +54,13 @@ class EditorAcessTable(MrMapTable):
     def render_editor_group_name(self, record):
         url = reverse('structure:detail-group', args=(record.id,))
         icon = ''
-        tooltip = _(f'Click to open the detail view of <strong>{record.name}</strong>')
-        if record.name == 'Public':
+        tooltip = _('Click to open the detail view of <strong>{}</strong>'.format(record.name))
+        if record.is_public_group:
             icon = get_theme(self.user)['ICONS']['PUBLIC']
-            tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
+            tooltip = _('This is the anonymous public user group.') + " {}".format(tooltip)
         return self.get_link(tooltip=tooltip,
                              href=url,
-                             value=f"{icon} {record.name}",
+                             value="{} {}".format(icon, record.name),
                              permission=None,
                              open_in_new_tab=True, )
 

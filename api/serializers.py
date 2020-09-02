@@ -490,16 +490,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     except Exception:
         parent_service = None
 
-    # Precalculate some data
     can_have_preview = md.is_service_metadata or md.is_featuretype_metadata or md.is_layer_metadata
-    p_id = md.public_id if md.public_id is not None else md.id
-    cap_uri = "{}{}{}".format(
-        ROOT_URL,
-        reverse("resource:metadata-proxy-operation", args=(str(p_id),)),
-        "?request={}".format(OGCOperationEnum.GET_CAPABILITIES.value),
-    ) if not md.is_dataset_metadata else None
-    md_uri = SERVICE_METADATA_URI_TEMPLATE.format(p_id)
-    html_uri = HTML_METADATA_URI_TEMPLATE.format(p_id)
 
     # Create response data
     serialized = OrderedDict()
@@ -511,9 +502,9 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["abstract"] = md.abstract
     serialized["spatial_extent_geojson"] = bounding_geometry.geojson
     serialized["online_resource_uri"] = md.online_resource
-    serialized["capabilities_uri"] = cap_uri
-    serialized["xml_metadata_uri"] = md_uri
-    serialized["html_metadata_uri"] = html_uri
+    serialized["capabilities_uri"] = md.capabilities_uri
+    serialized["xml_metadata_uri"] = md.service_metadata_uri
+    serialized["html_metadata_uri"] = md.html_metadata_uri
     serialized["additional_uris"] = [{uri.url: uri.description} for uri in additional_urls]
     serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),))) if can_have_preview else None
     serialized["fees"] = md.fees

@@ -2,7 +2,6 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
-
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
@@ -141,7 +140,7 @@ class Organization(Contact):
 
 
 class MrMapGroup(Group):
-    description = models.TextField(blank=True, null=True)
+    description = models.TextField(blank=True)
     parent_group = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True,
                                      related_name="children_groups")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
@@ -153,6 +152,14 @@ class MrMapGroup(Group):
 
     def __str__(self):
         return self.name
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
+        if self.role is None:
+            default_role = Role.objects.get(name=DEFAULT_ROLE_NAME)
+            self.role = default_role
+        super().save(force_insert, force_update, using, update_fields)
 
 
 class Theme(models.Model):

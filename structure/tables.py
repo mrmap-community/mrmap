@@ -168,7 +168,7 @@ class GroupTable(MrMapTable):
 
     def render_groups_organization(self, value, record):
         return self.get_link(tooltip=_('Click to open the detail view of the organization'),
-                             href=reverse('structure:detail-organization', args=(record.id,)),
+                             href=reverse('structure:detail-organization', args=(record.organization.id,)),
                              value=value,
                              permission=None,
                              open_in_new_tab=True, )

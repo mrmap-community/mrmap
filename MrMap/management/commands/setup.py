@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.management.commands.setup_settings import DEFAULT_GROUPS
+from MrMap.management.commands.setup_settings import DEFAULT_GROUPS, DEFAULT_ROLE_NAME
 from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.permissionEnums import PermissionEnum
@@ -212,9 +212,9 @@ class Command(BaseCommand):
              role (Role): The role which holds the permission
         """
         Role.objects.get_or_create(
-            name="_default_",
+            name=DEFAULT_ROLE_NAME,
             description=_("The default role for all groups. Has no permissions."),
-        )
+        )[0]
 
     @staticmethod
     def _create_default_organization():

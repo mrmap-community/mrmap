@@ -78,3 +78,5 @@ DEFAULT_GROUPS = [
         ]
     },
 ]
+
+DEFAULT_ROLE_NAME = "_default_"

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 12:56+0200\n"
+"POT-Creation-Date: 2020-09-02 09:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,45 +19,45 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/forms.py:21 MrMap/forms.py:99 MrMap/forms.py:132
+#: MrMap/forms.py:21 MrMap/forms.py:98 MrMap/forms.py:131
 msgid "Form"
 msgstr ""
 
-#: MrMap/forms.py:163
+#: MrMap/forms.py:162
 msgid "form update"
 msgstr "Formular aktualisieren"
 
-#: MrMap/forms.py:215
+#: MrMap/forms.py:214
 msgid "Check this field"
 msgstr "Feld prüfen"
 
-#: MrMap/management/commands/setup.py:230
+#: MrMap/management/commands/setup.py:216
 msgid "The default role for all groups. Has no permissions."
 msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
-#: MrMap/management/commands/setup_settings.py:17
+#: MrMap/management/commands/setup_settings.py:19
 msgid "Group Administrator"
 msgstr "Gruppenadministrator"
 
-#: MrMap/management/commands/setup_settings.py:18
+#: MrMap/management/commands/setup_settings.py:20
 msgid "Permission group. Holds users which are allowed to manage groups."
 msgstr "Berechtigungsgruppe. Gruppiert Nutzer die Gruppen verwalten können."
 
-#: MrMap/management/commands/setup_settings.py:31
+#: MrMap/management/commands/setup_settings.py:33
 msgid "Organization Administrator"
 msgstr "Organisationsadministrator"
 
-#: MrMap/management/commands/setup_settings.py:32
+#: MrMap/management/commands/setup_settings.py:34
 msgid ""
 "Permission group. Holds users which are allowed to manage organizations."
 msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die Organisationen verwalten können."
 
-#: MrMap/management/commands/setup_settings.py:42
+#: MrMap/management/commands/setup_settings.py:44
 msgid "Editor"
 msgstr "Editor"
 
-#: MrMap/management/commands/setup_settings.py:43
+#: MrMap/management/commands/setup_settings.py:45
 msgid ""
 "Permission group. Holds users which are allowed to edit metadata or activate "
 "resources."
@@ -65,11 +65,11 @@ msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die Metadaten editieren oder "
 "Ressourcen aktivieren können."
 
-#: MrMap/management/commands/setup_settings.py:52
+#: MrMap/management/commands/setup_settings.py:54
 msgid "Controller"
 msgstr "Controller"
 
-#: MrMap/management/commands/setup_settings.py:53
+#: MrMap/management/commands/setup_settings.py:55
 msgid ""
 "Permission group. Holds users which are allowed to access and download logs "
 "or generate an API token."
@@ -77,11 +77,11 @@ msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die Protokolle einsehen und "
 "herunterladen oder API Token generien können."
 
-#: MrMap/management/commands/setup_settings.py:62
+#: MrMap/management/commands/setup_settings.py:64
 msgid "Resource Administrator"
 msgstr "Ressourcenadministrator"
 
-#: MrMap/management/commands/setup_settings.py:63
+#: MrMap/management/commands/setup_settings.py:65
 msgid ""
 "Permission group. Holds users which are allowed to manage resource. This "
 "includes e.g. registration or removing of services and managing publisher "
@@ -328,7 +328,7 @@ msgstr "Gruppe '{}' erfolgreich gelöscht."
 msgid "Group '{}' successfully edited."
 msgstr "Gruppe '{}' erfolgreich bearbeitet."
 
-#: MrMap/messages.py:88
+#: MrMap/messages.py:88 structure/forms.py:279
 msgid "Group {} successfully created."
 msgstr "Gruppe '{}' erfolgreich erstellt."
 
@@ -613,19 +613,19 @@ msgstr "Generieren"
 msgid "Harvest with group"
 msgstr "Harvest mit Gruppe"
 
-#: csw/utils/harvester.py:63
+#: csw/utils/harvester.py:62
 msgid "No get records URL available"
 msgstr "Keine GetRecords URL verfügbar"
 
-#: csw/utils/harvester.py:73
+#: csw/utils/harvester.py:72
 msgid "No XML output format available"
 msgstr "Kein XML OutputFormat verfügbar"
 
-#: csw/utils/harvester.py:96
+#: csw/utils/harvester.py:95
 msgid "Harvesting is currently performed"
 msgstr "Harvest wird gerade durchgeführt"
 
-#: csw/utils/harvester.py:128
+#: csw/utils/harvester.py:127
 msgid ""
 "Harvest failed: Code {}\n"
 "{}"
@@ -633,7 +633,7 @@ msgstr ""
 "Harvest fehlgeschlagen: Code {} \n"
 "{}"
 
-#: csw/utils/harvester.py:134
+#: csw/utils/harvester.py:133
 msgid ""
 "Response is not a valid xml: \n"
 "{}"
@@ -641,15 +641,15 @@ msgstr ""
 "Response ist kein valides XML: \n"
 "{}"
 
-#: csw/utils/harvester.py:147
+#: csw/utils/harvester.py:146
 msgid "Harvest response is missing important data!"
 msgstr "Harvest Antwort fehlen wichtige Daten!"
 
-#: csw/utils/harvester.py:275
+#: csw/utils/harvester.py:274
 msgid "Harvesting {} of {}"
 msgstr "Harveste {} von {}"
 
-#: csw/views.py:74
+#: csw/views.py:72
 #, python-brace-format
 msgid "Harvest <strong>{metadata}</strong>"
 msgstr "Harveste <strong>{metadata}</strong>"
@@ -659,9 +659,9 @@ msgstr "Harveste <strong>{metadata}</strong>"
 msgid "Search"
 msgstr "Suche"
 
-#: editor/forms.py:60 editor/forms.py:148 service/tables.py:129
-#: service/tables.py:292 service/tables.py:396 service/tables.py:659
-#: service/tables.py:686
+#: editor/forms.py:60 editor/forms.py:148 service/tables.py:199
+#: service/tables.py:364 service/tables.py:471 service/tables.py:730
+#: service/tables.py:757
 #: service/templates/includes/wfs/featuretype_detail_table.html:17
 #: service/templates/includes/wms/child_layer_detail_table.html:21
 #: service/templates/metadata/tabs/content/dataset/overview_tab.html:9
@@ -783,7 +783,7 @@ msgstr "Infos zur Historie"
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:23
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:54
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:46
-#: structure/forms.py:110 structure/tables.py:60 structure/tables.py:137
+#: structure/forms.py:110 structure/tables.py:61 structure/tables.py:138
 #: structure/templates/includes/detail/groups_table.html:5
 msgid "Organization"
 msgstr "Organisation"
@@ -876,13 +876,13 @@ msgstr "Zugriff räumlich eingeschränkt"
 msgid "Boolean flag if the access is spatially restricted or not."
 msgstr "Zugriff räumlich beschränkt oder nicht"
 
-#: editor/tables.py:40 service/tables.py:171 service/tables.py:329
-#: service/tables.py:420 service/tables.py:499 service/tables.py:698
-#: structure/tables.py:140 structure/tables.py:215 users/tables.py:39
+#: editor/tables.py:40 service/tables.py:247 service/tables.py:406
+#: service/tables.py:495 service/tables.py:570 service/tables.py:769
+#: structure/tables.py:141 structure/tables.py:215 users/tables.py:48
 msgid "Actions"
 msgstr "Aktionen"
 
-#: editor/tables.py:43 structure/tables.py:141 structure/tables.py:216
+#: editor/tables.py:43 structure/tables.py:142 structure/tables.py:216
 msgid "Actions you can perform"
 msgstr "Ausführbare Aktionen"
 
@@ -891,7 +891,7 @@ msgstr "Ausführbare Aktionen"
 msgid "Click to open the detail view of <strong>{record.name}</strong>"
 msgstr "Öffnet die Detailansicht von <strong>{record.name}</strong>"
 
-#: editor/tables.py:61 structure/tables.py:156
+#: editor/tables.py:61 structure/tables.py:157
 msgid "This is the anonymous public user group."
 msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
 
@@ -904,7 +904,7 @@ msgstr ""
 "Öffnet die Detailansicht von <strong>{record.organization.organization_name}"
 "</strong>."
 
-#: editor/tables.py:105
+#: editor/tables.py:106
 #, python-brace-format
 msgid "Edit access for group <strong>{record.name}</strong>"
 msgstr "Bearbeite Zugriff für Gruppe <strong>{record.name}</strong>"
@@ -952,48 +952,48 @@ msgstr "Metadaten Editor"
 msgid "Service detail view"
 msgstr "Dienst Detailansicht"
 
-#: editor/templates/includes/editor_metadata.html:43 service/tables.py:61
+#: editor/templates/includes/editor_metadata.html:43 service/tables.py:70
 #: service/templates/includes/detail/service_detail.html:92
 #: service/templates/includes/wfs/featuretype_detail.html:60
 #: service/templates/includes/wms/sublayer_detail.html:59
 msgid "Restore metadata"
 msgstr "Metadaten wiederherstellen"
 
-#: editor/views.py:39
+#: editor/views.py:40
 msgid "You can't delete metadata record"
 msgstr "Sie können diese Metadaten nicht löschen"
 
-#: editor/views.py:49
+#: editor/views.py:50
 msgid "You can't delete autogenerated datasets"
 msgstr "Sie können automatisch generierte Datensätze nicht löschen"
 
-#: editor/views.py:58
+#: editor/views.py:59
 msgid "Do you really want to delete this dataset?"
 msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
 
-#: editor/views.py:119
+#: editor/views.py:124
 msgid "Edit metadata <strong>{}</strong>"
 msgstr "Bearbeite Metadaten <strong>{}</strong>"
 
-#: editor/views.py:217
+#: editor/views.py:224
 #, python-brace-format
 msgid "Edit spatial area for group <strong>{group.name}</strong>"
 msgstr "Bearbeite räumlichen Zugriff für Gruppe <strong>{group.name}</strong>"
 
-#: editor/views.py:246
+#: editor/views.py:255
 msgid "Do you really want to restore this metadata?"
 msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
 
-#: editor/views.py:247
+#: editor/views.py:256
 #, python-brace-format
 msgid "Restore metadata <strong>{metadata.title}</strong>"
 msgstr "Setze <strong>{metadata.title}</strong> zurück"
 
-#: editor/views.py:274
+#: editor/views.py:285
 msgid "Do you really want to restore this dataset?"
 msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
 
-#: editor/views.py:275
+#: editor/views.py:286
 #, python-brace-format
 msgid "Restore dataset metadata <strong>{metadata.title}</strong>"
 msgstr "Stelle <strong>{metadata.title}</strong> Datensatz zurück"
@@ -1024,6 +1024,183 @@ msgstr "Zugangsbeschränkungen"
 msgid "Quality"
 msgstr "Qualität"
 
+#: monitoring/filters.py:12
+msgid "Select health state code"
+msgstr ""
+
+#: monitoring/filters.py:16
+msgid "Search for a reason"
+msgstr "Suche Grund"
+
+#: monitoring/filters.py:19
+msgid "Search for an error message from remote service"
+msgstr "Suche nach Fehlermeldung"
+
+#: monitoring/models.py:234 monitoring/models.py:244
+#, python-brace-format
+msgid ""
+"The resource <span class=\"font-italic text-info\">'{monitoring_result."
+"monitored_uri}'</span> did response an exception.<br> "
+msgstr ""
+"Die Ressource <span class=\"font-italic text-info\">'{monitoring_result."
+"monitored_uri}'</span> antwortete mit einer Exception.<br> "
+
+#: monitoring/models.py:252
+#, python-brace-format
+msgid ""
+"The resource <span class=\"font-italic text-info\">'{monitoring_result."
+"monitored_uri}'</span> did not response.<br> "
+msgstr ""
+"Die Ressource <span class=\"font-italic text-info\">'{monitoring_result."
+"monitored_uri}'</span> hat nicht geantwortet.<br> "
+
+#: monitoring/models.py:262
+#, fuzzy
+#| msgid ""
+#| "The average response time for 1 week statistic is tot high.<br> <strong "
+#| "class=\"text-danger\">{self.average_response_time_1w."
+#| "total_seconds()*1000} ms</strong> is greater than threshold <strong class="
+#| "\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
+msgid ""
+"The average response time for 1 week statistic is too high.<br> <strong "
+"class=\"text-danger\">{self.average_response_time_1w.total_seconds()*1000} "
+"ms</strong> is greater than threshold <strong class=\"text-danger"
+"\">{CRITICAL_RESPONSE_TIME} ms</strong>."
+msgstr ""
+"Die durchschnittliche Antwortzeit im Zeitraum 1 Woche ist zu hoch.<br> "
+"<strong class=\"text-danger\">{self.average_response_time_1w."
+"total_seconds()*1000} ms</strong> ist höher als der Grenzwert <strong class="
+"\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
+
+#: monitoring/models.py:269
+#, fuzzy
+#| msgid ""
+#| "The average response time for 1 week statistic is to high.<br> <strong "
+#| "class=\"text-danger\">{self.average_response_time_1w.total_seconds() * "
+#| "1000} ms</strong> is greater than threshold <strong class=\"text-danger"
+#| "\">{WARNING_RESPONSE_TIME} ms</strong>."
+msgid ""
+"The average response time for 1 week statistic is too high.<br> <strong "
+"class=\"text-danger\">{self.average_response_time_1w.total_seconds() * 1000} "
+"ms</strong> is greater than threshold <strong class=\"text-danger"
+"\">{WARNING_RESPONSE_TIME} ms</strong>."
+msgstr ""
+"Die durchschnittliche Antwortzeit im Zeitraum 1 Woche ist zu hoch.<br> "
+"<strong class=\"text-danger\">{self.average_response_time_1w."
+"total_seconds()*1000} ms</strong> ist höher als der Grenzwert <strong class="
+"\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
+
+#: monitoring/models.py:275
+msgid ""
+"The state of this resource is <strong class=\"text-danger\">critical</"
+"strong>.<br>"
+msgstr ""
+"Der Status dieser Ressource ist <strong class=\"text-danger\">kritisch</"
+"strong>.<br>"
+
+#: monitoring/models.py:279
+msgid ""
+"This resource has some <strong class=\"text-warning\">warnings</strong>.<br>"
+msgstr ""
+"Für diese Ressource liegen <strong class=\"text-warning\">Warnungen</"
+"strong><br> vor."
+
+#: monitoring/models.py:284
+msgid "Everthing is <strong class=\"text-success\">OK</strong>.<br>"
+msgstr "Alles <strong class=\"text-success\">OK</strong>.<br>"
+
+#: monitoring/models.py:293 monitoring/tables.py:21
+msgid "Reason"
+msgstr "Grund"
+
+#: monitoring/settings.py:18
+msgid ""
+"The health state is unknown, cause no health checks runs for this resource."
+msgstr ""
+"Gesundheitszustand unbekannt, da kein Check für diese Ressource durchgeführt "
+"wurde."
+
+#: monitoring/tables.py:15
+#: service/templates/includes/wfs/element_accordion.html:14
+msgid "Type"
+msgstr "Typ"
+
+#: monitoring/tables.py:27
+msgid "Remote error message"
+msgstr ""
+
+#: monitoring/tables.py:36
+msgid "This is a warning reason."
+msgstr "Dies ist ein Warnungsgrund."
+
+#: monitoring/tables.py:40
+msgid "This is a critical reason."
+msgstr "Das ist ein kritischer Grund."
+
+#: monitoring/tables.py:44
+msgid ""
+"This check runs without getting state relevant results, cause the service "
+"needs an authentication for this request."
+msgstr ""
+"Dieser Check konnte kein eindeutiges Ergebnis erhalten, da der Dienst für "
+"diese Anfrage eine Authentifizierung am Server benötigt."
+
+#: monitoring/templates/includes/general_health_state.html:8
+msgid "General health state"
+msgstr "Allgemeiner Gesundheitszustand"
+
+#: monitoring/templates/includes/general_health_state_table.html:6
+msgid "Health state"
+msgstr "Gesundheitszustand"
+
+#: monitoring/templates/includes/general_health_state_table.html:21
+msgid "Reliability"
+msgstr "Verlässlichkeit"
+
+#: monitoring/templates/includes/general_health_state_table.html:31
+#: monitoring/templates/includes/general_health_state_table.html:72
+msgid "This is the statistic for one week"
+msgstr "Statistik für eine Woche"
+
+#: monitoring/templates/includes/general_health_state_table.html:43
+#: monitoring/templates/includes/general_health_state_table.html:84
+msgid "This is the statistic for one month"
+msgstr "Statistik für einen Monat"
+
+#: monitoring/templates/includes/general_health_state_table.html:55
+#: monitoring/templates/includes/general_health_state_table.html:96
+msgid "This is the statistic for three months"
+msgstr "Statistik für drei Monate"
+
+#: monitoring/templates/includes/general_health_state_table.html:62
+msgid "Average response time"
+msgstr "Durchschnittliche Antwortzeit"
+
+#: monitoring/templates/includes/general_health_state_table.html:103
+msgid "Health message"
+msgstr "Gesundheitsnachricht"
+
+#: monitoring/templates/includes/general_health_state_table.html:109
+msgid "Monitored resource"
+msgstr "Überwachte Ressource"
+
+#: monitoring/templates/includes/general_health_state_table.html:113
+msgid "Monitored resource id"
+msgstr "Überwachte Ressourcen ID"
+
+#: monitoring/templates/includes/general_health_state_table.html:118
+msgid "Last monitoring runs"
+msgstr "Letzte Checks"
+
+#: monitoring/templates/includes/health_state_reasons.html:8
+msgid "Health state reasons"
+msgstr "Gesundheitszustand Gründe"
+
+#: monitoring/views.py:33
+#, python-brace-format
+msgid "Health check for {metadata} started."
+msgstr "Gesundheitscheck für {metadata} startet."
+
 #: service/filters.py:18
 msgid "Layer title contains"
 msgstr "Ebenen Titel enthält"
@@ -1032,7 +1209,7 @@ msgstr "Ebenen Titel enthält"
 msgid "Featuretype tile contains"
 msgstr "Featuretype Titel enthält"
 
-#: service/filters.py:88 service/tables.py:636 service/tables.py:664
+#: service/filters.py:88 service/tables.py:707 service/tables.py:735
 msgid "Timestamp"
 msgstr "Zeitpunkt"
 
@@ -1065,7 +1242,7 @@ msgstr "Metadaten ID"
 msgid "Filter by the ID of the metadata (#123 in service title)."
 msgstr "Filter nach der ID des Metadatensatzes (#123 im Diensttitel)."
 
-#: service/filters.py:115 service/tables.py:631 service/tables.py:660
+#: service/filters.py:115 service/tables.py:702 service/tables.py:731
 msgid "User"
 msgstr "Nutzer"
 
@@ -1129,11 +1306,11 @@ msgstr "Keine"
 msgid "Service needs authentication"
 msgstr "Dienst benötigt Authentifizierung"
 
-#: service/forms.py:54 structure/forms.py:22 structure/forms.py:315
+#: service/forms.py:54 structure/forms.py:22 structure/forms.py:334
 msgid "Username"
 msgstr "Nutzername"
 
-#: service/forms.py:55 structure/forms.py:23 structure/forms.py:322
+#: service/forms.py:55 structure/forms.py:23 structure/forms.py:341
 msgid "Password"
 msgstr "Passwort"
 
@@ -1168,52 +1345,56 @@ msgstr ""
 "Wählen Sie den alten Elementnamen, falls dieses neue Feature nur umbenannt "
 "wurde."
 
-#: service/models.py:2491
+#: service/models.py:2515
 msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 
-#: service/tables.py:29
+#: service/tables.py:30
 #: service/templates/includes/detail/service_detail.html:30
 msgid "Deactivate"
 msgstr "Deaktivieren"
 
-#: service/tables.py:29
+#: service/tables.py:30
 #: service/templates/includes/detail/service_detail.html:34
 msgid "Activate"
 msgstr "Aktivieren"
 
-#: service/tables.py:37
+#: service/tables.py:38
 #: service/templates/includes/detail/service_detail.html:49
 #: service/templates/modals/update_service.html:6
 msgid "Update"
 msgstr "Aktualisieren"
 
-#: service/tables.py:45
+#: service/tables.py:46 users/tables.py:109
+msgid "Run health check"
+msgstr ""
+
+#: service/tables.py:54
 msgid "Edit metadata"
 msgstr "Bearbeite Metadaten"
 
-#: service/tables.py:53
+#: service/tables.py:62
 msgid "Edit access"
 msgstr "Bearbeite Zugriff"
 
-#: service/tables.py:70
+#: service/tables.py:79
 #: service/templates/includes/detail/service_detail.html:100
 msgid "Remove"
 msgstr "Löschen"
 
-#: service/tables.py:76
+#: service/tables.py:85
 msgid "No permissions!"
 msgstr "Keine Berechtigung!"
 
-#: service/tables.py:80
+#: service/tables.py:89
 msgid "The resource title"
 msgstr "Ressourcentitel"
 
-#: service/tables.py:81
+#: service/tables.py:90
 msgid "Shows whether the resource is active or not."
 msgstr "Zeigt an ob die Ressource aktiv ist oder nicht"
 
-#: service/tables.py:82
+#: service/tables.py:91
 msgid ""
 "Shows whether the resource is only accessible for certain groups and/or in "
 "certain areas."
@@ -1221,37 +1402,37 @@ msgstr ""
 "Zeigt an ob die Ressource nur für ausgewählte Gruppen und/oder in "
 "ausgewählten Bereichen verfügbar ist."
 
-#: service/tables.py:83
+#: service/tables.py:92
 msgid "Shows whether the resource needs authentication to its origin server."
 msgstr ""
 "Zeigt an ob die Ressource eine Nutzerauthentifizierung am Ursprungsserver "
 "benötigt."
 
-#: service/tables.py:84
+#: service/tables.py:93
 msgid "The resource version"
 msgstr "Ressourcenversion"
 
-#: service/tables.py:85
+#: service/tables.py:94
 msgid "The organization which provides the resource."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: service/tables.py:86
+#: service/tables.py:95
 msgid "The group which registered the resource."
 msgstr "Die Gruppe, die diesen Dienst registriert hat"
 
-#: service/tables.py:87
+#: service/tables.py:96
 msgid "The organization for which the resource is registered."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: service/tables.py:88
+#: service/tables.py:97
 msgid "The registration date."
 msgstr "Registrierungsdatum"
 
-#: service/tables.py:89
+#: service/tables.py:98
 msgid "Performable Actions"
 msgstr "Ausführbare Aktionen"
 
-#: service/tables.py:90
+#: service/tables.py:99
 msgid ""
 "Shows the status of the resource. You can see active state, secured access "
 "state and secured externally state."
@@ -1259,81 +1440,98 @@ msgstr ""
 "Zeigt den Status der Ressource an. Sie können den aktiven Status, den "
 "gesicherten Zugriffsstatus und den gesicherten externen Status anzeigen."
 
-#: service/tables.py:99
+#: service/tables.py:100
+msgid "Shows the health status of the resource."
+msgstr "Zeigt den Gesundheitszustand der Ressource."
+
+#: service/tables.py:109
 msgid "This resource is active."
 msgstr "Diese Ressource ist aktiviert."
 
-#: service/tables.py:103
+#: service/tables.py:113
 msgid "This resource is deactivated."
 msgstr "Diese Ressource ist deaktiviert."
 
-#: service/tables.py:106
+#: service/tables.py:116
 msgid "This resource is secured."
 msgstr "Diese Ressource ist abgesichert."
 
-#: service/tables.py:109
+#: service/tables.py:119
 msgid "This resource has external authentication."
 msgstr "Diese Ressource verwendet eine externe Authentifizierung."
 
-#: service/tables.py:135 service/tables.py:299 service/tables.py:495
+#: service/tables.py:163
+msgid ""
+"Some checks can't get a result, cause the service needs an authentication "
+"for this request."
+msgstr ""
+"Einige Checks verliefen ohne Ergebnis, da der Dienst eine Authentifizierung "
+"für diese Anfrage am Server benötigt."
+
+#: service/tables.py:174
+msgid "Reliability statistic for one week."
+msgstr ""
+
+#: service/tables.py:205 service/tables.py:371 service/tables.py:566
 #: service/templates/metadata/tabs/content/quality_tab.html:7
 msgid "Status"
 msgstr "Status"
 
-#: service/tables.py:142 service/tables.py:305 service/tables.py:401
+#: service/tables.py:211 service/tables.py:376 users/tables.py:42
+msgid "Health"
+msgstr ""
+
+#: service/tables.py:218 service/tables.py:382 service/tables.py:476
 msgid "Version"
 msgstr "Version"
 
-#: service/tables.py:148 service/tables.py:310
+#: service/tables.py:224 service/tables.py:387
 msgid "Data provider"
 msgstr "Datenanbieter"
 
-#: service/tables.py:154 service/tables.py:315 service/tables.py:416
+#: service/tables.py:230 service/tables.py:392 service/tables.py:491
 msgid "Registered by group"
 msgstr "Registriert durch Gruppe"
 
-#: service/tables.py:160 service/tables.py:320
+#: service/tables.py:236 service/tables.py:397
 msgid "Registered for"
 msgstr "Registriere für"
 
-#: service/tables.py:166 service/tables.py:325
+#: service/tables.py:242 service/tables.py:402
 msgid "Created on"
 msgstr "Erstellt am "
 
-#: service/tables.py:180 structure/tables.py:226
-msgid "Click to open the detail view of <strong>{}</strong>."
-msgstr "Öffnet Detailansicht für <strong>{}</strong>."
-
-#: service/tables.py:191 service/tables.py:199 service/tables.py:208
-#: service/tables.py:338 service/tables.py:354 service/tables.py:362
-#: service/tables.py:371 service/tables.py:448 service/tables.py:456
+#: service/tables.py:255 service/tables.py:267 service/tables.py:273
+#: service/tables.py:280 service/tables.py:414 service/tables.py:431
+#: service/tables.py:437 service/tables.py:444 service/tables.py:522
+#: service/tables.py:528
 #, python-brace-format
 msgid "Click to open the detail view of <strong>{value}</strong>."
 msgstr "Öffnet die Detailansicht für <strong>{value}</strong>."
 
-#: service/tables.py:224
+#: service/tables.py:298
 msgid "Shows all registered WMS."
 msgstr "Zeigt alle registrierten WMS."
 
-#: service/tables.py:231
+#: service/tables.py:305
 msgid "Layers"
 msgstr "Ebenen"
 
-#: service/tables.py:254
+#: service/tables.py:328
 #: service/templates/includes/wfs/featuretype_detail_table.html:5
 #: service/templates/includes/wms/child_layer_detail_table.html:13
 msgid "Parent service"
 msgstr "Übergeordneter Dienst"
 
-#: service/tables.py:256
+#: service/tables.py:330
 msgid "The root service of this layer"
 msgstr "Der zugehörige Dienst zu dieser Ebene"
 
-#: service/tables.py:258
+#: service/tables.py:332
 msgid "Shows all registered WMS sublayers."
 msgstr "Zeigt alle registrierten WMS Ebenen"
 
-#: service/tables.py:268
+#: service/tables.py:341
 #, python-brace-format
 msgid ""
 "Click to open the detail view of <strong>{record.service.parent_service."
@@ -1342,32 +1540,32 @@ msgstr ""
 "Öffnet die Detailansicht von <strong>{record.service.parent_service.metadata."
 "title}</strong>."
 
-#: service/tables.py:283
+#: service/tables.py:355
 msgid "Shows all registered WFS."
 msgstr "Zeigt alle registrierten WFS."
 
-#: service/tables.py:296
+#: service/tables.py:368
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:37
 msgid "Featuretypes"
 msgstr "Featuretypen"
 
-#: service/tables.py:406
+#: service/tables.py:481
 msgid "Last harvest"
 msgstr "Letzte Harvest"
 
-#: service/tables.py:407
+#: service/tables.py:482
 msgid "Timestamp of the last harvest"
 msgstr "Zeitstempel der letzten Harvest"
 
-#: service/tables.py:411
+#: service/tables.py:486
 msgid "Collected harvest records"
 msgstr "Gesammelte Harvest Einträge"
 
-#: service/tables.py:412
+#: service/tables.py:487
 msgid "Count of all haverest records"
 msgstr "Anzahl aller Harvest Einträge"
 
-#: service/tables.py:470
+#: service/tables.py:541
 msgid ""
 "{'Deactivate' if record.is_active else 'Activate'} resource <strong>{record."
 "title} [{record.id}]</strong>"
@@ -1375,117 +1573,117 @@ msgstr ""
 "{'Deaktiviere' if record.is_active else 'Aktiviere'} Resource "
 "<strong>{record.title} [{record.id}]</strong>"
 
-#: service/tables.py:479
+#: service/tables.py:550
 #, python-brace-format
 msgid "Havest resource <strong>{record.title} [{record.id}]</strong>"
 msgstr "Harveste Ressource <strong>{record.title} [{record.id}]</strong>"
 
-#: service/tables.py:487
+#: service/tables.py:558
 #, python-brace-format
 msgid "Remove <strong>{record.title} [{record.id}]</strong>"
 msgstr "Lösche <strong>{record.title} [{record.id}]</strong>"
 
-#: service/tables.py:494
+#: service/tables.py:565
 msgid "Shows all currently running pending tasks."
 msgstr "Zeigt alle aktuell laufenden Prozesse."
 
-#: service/tables.py:496 users/forms.py:110
+#: service/tables.py:567 users/forms.py:110
 msgid "Service"
 msgstr "Dienst"
 
-#: service/tables.py:497
+#: service/tables.py:568
 msgid "Phase"
 msgstr "Phase"
 
-#: service/tables.py:498
+#: service/tables.py:569
 msgid "Progress"
 msgstr "Fortschritt"
 
-#: service/tables.py:506
+#: service/tables.py:577
 msgid "Delete this running task."
 msgstr "Laufenden Prozess löschen."
 
-#: service/tables.py:512
+#: service/tables.py:583
 msgid "Download the error report as text file."
 msgstr "Fehlermeldung als Textdatei herunterladen."
 
-#: service/tables.py:531 service/tables.py:536
+#: service/tables.py:602 service/tables.py:607
 msgid "unknown"
 msgstr "unbekannt"
 
-#: service/tables.py:558
+#: service/tables.py:629
 msgid "Shows all child layer of current WMS."
 msgstr "Zeigt alle Unterebenen des aktuellen WMS."
 
-#: service/tables.py:580
+#: service/tables.py:651
 msgid "Shows all featuretypes of current WFS."
 msgstr "Zeigt alle Features des aktuellen WFS."
 
-#: service/tables.py:596
+#: service/tables.py:667
 msgid "Shows all coupled metadata of current service."
 msgstr "Zeigt alle verknüpften Metadaten des aktuellen Dienstes."
 
-#: service/tables.py:613
+#: service/tables.py:684
 msgid "Shows all logs for a service."
 msgstr "Zeigt alle Protokolle für einen Dienst."
 
-#: service/tables.py:621
+#: service/tables.py:692
 msgid "Service ID"
 msgstr "Dienst ID"
 
-#: service/tables.py:622 service/tables.py:627
+#: service/tables.py:693 service/tables.py:698
 msgid "The title of the related service"
 msgstr "Der Titel des zugehörigen Dienstes"
 
-#: service/tables.py:626
+#: service/tables.py:697
 msgid "Service Title"
 msgstr "Diensttitel"
 
-#: service/tables.py:632
+#: service/tables.py:703
 msgid "Name of the user which produced this log entry"
 msgstr "Protokollierter Nutzer"
 
-#: service/tables.py:637
+#: service/tables.py:708
 msgid "Timestamp when the entry was produced"
 msgstr "Zeitpunkt des Eintrags"
 
-#: service/tables.py:641
+#: service/tables.py:712
 msgid "Operation param of the request"
 msgstr "Verwendete Operation"
 
-#: service/tables.py:642 service/tables.py:661
+#: service/tables.py:713 service/tables.py:732
 msgid "Operation"
 msgstr "Operation"
 
-#: service/tables.py:646
+#: service/tables.py:717
 msgid "Delivered megapixel of map material"
 msgstr "Ausgelieferte Megapixel Kartenmaterial"
 
-#: service/tables.py:647
+#: service/tables.py:718
 msgid "Response megapixel"
 msgstr "Rückgabe Megapixel"
 
-#: service/tables.py:651
+#: service/tables.py:722
 msgid "Delivered number of features"
 msgstr "Anzahl ausgelieferter Features "
 
-#: service/tables.py:652
+#: service/tables.py:723
 msgid "Response features"
 msgstr "Rückgabe Features"
 
-#: service/tables.py:658
+#: service/tables.py:729
 msgid "ID"
 msgstr "ID"
 
-#: service/tables.py:662
+#: service/tables.py:733
 msgid "Delivered Features (WFS)"
 msgstr "Ausgelieferte Features (WFS)"
 
-#: service/tables.py:663
+#: service/tables.py:734
 msgid "Delivered Megapixel (WMS)"
 msgstr "Ausgelieferte Megapixel (WMS)"
 
-#: service/tables.py:682
+#: service/tables.py:753
 msgid ""
 "Shows all datasets which are configured in your Mr. Map environment. You can "
 "Edit them if you want."
@@ -1493,28 +1691,28 @@ msgstr ""
 "Listet alle Datensätze, die für Sie registriert sind. Sie können diese "
 "bearbeiten, wenn Sie wollen."
 
-#: service/tables.py:690
+#: service/tables.py:761
 msgid "Related objects"
 msgstr "Gehört zu"
 
-#: service/tables.py:692
+#: service/tables.py:763
 msgid "The related service from which this dataset is referenced"
 msgstr "Der Dienst, zu dem dieser Datensatz gehört"
 
-#: service/tables.py:694
+#: service/tables.py:765
 msgid "Origins"
 msgstr "Herkunft"
 
-#: service/tables.py:696
+#: service/tables.py:767
 msgid "How the resource got into the system."
 msgstr "Wie die Ressource ins System geladen wurde."
 
-#: service/tables.py:706
+#: service/tables.py:776
 #, python-brace-format
 msgid "Click to open the html view of dataset <strong>{value}</strong>"
 msgstr "Öffnet die HTML Ansicht des Datensatzes <strong>{value}</strong>"
 
-#: service/tables.py:722
+#: service/tables.py:790
 #, python-brace-format
 msgid ""
 "Click to open the detail view of related service <strong>{metadata.title} "
@@ -1523,17 +1721,17 @@ msgstr ""
 "Öffnet die Detailansicht des zugehörigen Dienstes <strong>{metadata.title} "
 "[{metadata.id}]</strong>"
 
-#: service/tables.py:752
+#: service/tables.py:819
 #, python-brace-format
 msgid "Edit <strong>{record.title} [{record.id}]</strong> dataset"
 msgstr "Bearbeite Datensatz <strong>{record.title} [{record.id}]</strong>"
 
-#: service/tables.py:759
+#: service/tables.py:826
 #, python-brace-format
 msgid "Restore <strong>{record.title} [{record.id}]</strong> dataset"
 msgstr "Setze Datensatz <strong>{record.title} [{record.id}]</strong> zurück"
 
-#: service/tables.py:767
+#: service/tables.py:834
 #, python-brace-format
 msgid "Remove <strong>{record.title} [{record.id}]</strong> dataset"
 msgstr "Lösche Datensatz <strong>{record.title} [{record.id}]</strong>"
@@ -1634,19 +1832,19 @@ msgid "Responsible Person"
 msgstr "Ansprechpartner"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:69
-#: structure/forms.py:196 structure/forms.py:343
+#: structure/forms.py:202 structure/forms.py:362
 #: structure/templates/includes/detail/organizations_table.html:13
 msgid "Phone"
 msgstr "Telefon"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:73
-#: structure/forms.py:195 structure/forms.py:344
+#: structure/forms.py:201 structure/forms.py:363
 #: structure/templates/includes/detail/organizations_table.html:17
 msgid "Facsimile"
 msgstr "Fax"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:77
-#: structure/forms.py:197
+#: structure/forms.py:203
 #: structure/templates/includes/detail/organizations_table.html:9
 #: users/forms.py:27
 msgid "E-Mail"
@@ -1655,13 +1853,13 @@ msgstr "E-Mail"
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:81
 #: service/templates/metadata/tabs/content/contact_tab.html:26
 #: service/templates/metadata/tabs/content/dataset/contact_tab.html:21
-#: structure/forms.py:200 structure/forms.py:340
+#: structure/forms.py:206 structure/forms.py:359
 #: structure/templates/includes/detail/organizations_table.html:21
 msgid "Address"
 msgstr "Adresse"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:85
-#: structure/forms.py:198 structure/forms.py:342
+#: structure/forms.py:204 structure/forms.py:361
 #: structure/templates/includes/detail/organizations_table.html:29
 msgid "City"
 msgstr "Stadt"
@@ -1671,13 +1869,13 @@ msgid "Post code"
 msgstr "Postleitzahl"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:93
-#: structure/forms.py:201
+#: structure/forms.py:207
 #: structure/templates/includes/detail/organizations_table.html:33
 msgid "State or province"
 msgstr "Bundesland"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:97
-#: structure/forms.py:202
+#: structure/forms.py:208
 #: structure/templates/includes/detail/organizations_table.html:37
 msgid "Country"
 msgstr "Land"
@@ -1847,14 +2045,10 @@ msgstr ""
 "Diese Elemente existieren nach wie vor im Dienst und werden aktualisiert."
 
 #: service/templates/includes/wfs/element_accordion.html:10
-#: structure/tables.py:129 structure/tables.py:200
+#: structure/tables.py:130 structure/tables.py:200
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:375
 msgid "Name"
 msgstr "Name"
-
-#: service/templates/includes/wfs/element_accordion.html:14
-msgid "Type"
-msgstr "Typ"
 
 #: service/templates/includes/wfs/featuretype_detail.html:9
 #: service/templates/includes/wms/sublayer_detail.html:9
@@ -2340,16 +2534,16 @@ msgstr "Klicken Sie hier, um zur Registerkarte Schnittstellen zu wechseln"
 msgid "Next"
 msgstr "Weiter"
 
-#: service/views.py:466
+#: service/views.py:470
 msgid "Do you really want to remove this service?"
 msgstr "Wollen Sie diesen Dienst wirklich löschen?"
 
-#: service/views.py:467
+#: service/views.py:471
 #, python-brace-format
 msgid "Remove service <strong>{metadata}</strong>"
 msgstr "Lösche Dienst <strong>{metadata}</strong>"
 
-#: service/views.py:494
+#: service/views.py:500
 msgid ""
 "Deactivate resource \n"
 "<strong>{}</strong>"
@@ -2357,7 +2551,7 @@ msgstr ""
 "Deaktiviere Ressource \n"
 "<strong>{}</strong>"
 
-#: service/views.py:494
+#: service/views.py:500
 msgid ""
 "Activate resource \n"
 "<strong>{}</strong>"
@@ -2365,19 +2559,19 @@ msgstr ""
 "Aktiviere Ressource \n"
 " <strong>{}</strong>"
 
-#: service/views.py:495
+#: service/views.py:501
 msgid "Do you really want to deactivate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich deaktivieren?"
 
-#: service/views.py:495
+#: service/views.py:501
 msgid "Do you really want to activate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich aktivieren?"
 
-#: service/views.py:574
+#: service/views.py:580
 msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
-#: service/views.py:900
+#: service/views.py:910
 #, python-brace-format
 msgid ""
 "Update service: <strong>{current_service.metadata.title} [{current_service."
@@ -2386,31 +2580,31 @@ msgstr ""
 "Aktualisiere Dienst: <strong>{current_service.metadata.title} "
 "[{current_service.metadata.id}]</strong>"
 
-#: service/views.py:941
+#: service/views.py:953
 msgid "No updatecandidate was found."
 msgstr "Kein Updatekandidat gefunden"
 
-#: service/views.py:943
+#: service/views.py:955
 msgid "Update candidates will be deleted after 7 days."
 msgstr "Updatekandidaten werden nach 7 Tagen gelöscht."
 
-#: service/views.py:1013
+#: service/views.py:1027
 msgid "Pending update successfully dismissed."
 msgstr "Ausstehendes Update abgebrochen."
 
-#: service/views.py:1015
+#: service/views.py:1029
 msgid "You are not the owner of this pending update. Rejected!"
 msgstr "Sie sind nicht der Eigentümer dieses Updates!"
 
-#: service/views.py:1200
+#: service/views.py:1216
 msgid "Shows informations about the featuretype."
 msgstr "Zeigt Informationen über den Featuretype."
 
-#: service/views.py:1207
+#: service/views.py:1223
 msgid "Shows informations about the service."
 msgstr "Zeigt Informationen über den Dienst."
 
-#: service/views.py:1212
+#: service/views.py:1228
 msgid "Shows informations about the sublayer."
 msgstr "Zeigt Informationen über die Unterebene."
 
@@ -2423,8 +2617,8 @@ msgstr "URL"
 msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
-#: structure/forms.py:29 structure/forms.py:166 structure/forms.py:193
-#: structure/tables.py:133 structure/tables.py:204
+#: structure/forms.py:29 structure/forms.py:166 structure/forms.py:199
+#: structure/tables.py:134 structure/tables.py:204
 #: structure/templates/includes/detail/groups_table.html:9
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
 msgid "Description"
@@ -2442,7 +2636,7 @@ msgstr "Untergruppe von"
 msgid "The organization you are requesting"
 msgstr "Die angefragte Organisation"
 
-#: structure/forms.py:116 structure/tables.py:19 structure/tables.py:89
+#: structure/forms.py:116 structure/tables.py:20 structure/tables.py:90
 msgid "Group"
 msgstr "Gruppen"
 
@@ -2452,62 +2646,76 @@ msgstr ""
 "Wählen Sie eine Ihrer Gruppen, für welche Sie Veröffentlichungsrechte "
 "anfordern wollen"
 
-#: structure/forms.py:122 structure/tables.py:91
+#: structure/forms.py:122 structure/tables.py:92
 msgid "Message"
 msgstr "Nachricht"
 
-#: structure/forms.py:192
+#: structure/forms.py:173
+msgid "Create group"
+msgstr "Erstelle mit Gruppe"
+
+#: structure/forms.py:174
+msgid ""
+"If set, a group will be automatically created for this organization. Groups "
+"are needed for e.g. registration of services."
+msgstr ""
+
+#: structure/forms.py:198
 msgid "Organization name"
 msgstr "Organisationsname"
 
-#: structure/forms.py:194 structure/tables.py:212
+#: structure/forms.py:200 structure/tables.py:212
 #: structure/templates/includes/detail/groups_table.html:21
 #: structure/templates/includes/detail/organizations_table.html:41
 msgid "Parent"
 msgstr "Gehört zu"
 
-#: structure/forms.py:199 structure/forms.py:341
+#: structure/forms.py:205 structure/forms.py:360
 #: structure/templates/includes/detail/organizations_table.html:25
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: structure/forms.py:260
+#: structure/forms.py:267
 msgid "Organization {} successfully created."
 msgstr "Organisation {} erstellt."
 
-#: structure/forms.py:300
+#: structure/forms.py:272
+msgid "{} group"
+msgstr "{} Gruppe"
+
+#: structure/forms.py:319
 msgid "You have to confirm the checkbox."
 msgstr "Sie müssen die Checkbox anwählen."
 
-#: structure/forms.py:307
+#: structure/forms.py:326
 msgid "Organization {} successfully deleted."
 msgstr "Organisation {} gelöscht."
 
-#: structure/forms.py:331
+#: structure/forms.py:350
 msgid "Password again"
 msgstr "Passwort wiederholen"
 
-#: structure/forms.py:337
+#: structure/forms.py:356
 msgid "First name"
 msgstr "Vorname"
 
-#: structure/forms.py:338
+#: structure/forms.py:357
 msgid "Last name"
 msgstr "Nachname"
 
-#: structure/forms.py:339
+#: structure/forms.py:358
 msgid "E-mail address"
 msgstr "E-Mail Adresse"
 
-#: structure/forms.py:345
+#: structure/forms.py:364
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: structure/forms.py:346
+#: structure/forms.py:365
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: structure/forms.py:349
+#: structure/forms.py:368
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -2516,15 +2724,15 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: structure/forms.py:352
+#: structure/forms.py:371
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/forms.py:361
+#: structure/forms.py:380
 msgid "Username is already taken. Try another."
 msgstr "Nutzername ist bereits vergeben. Versuchen Sie etwas anderes."
 
-#: structure/forms.py:368
+#: structure/forms.py:387
 msgid "Passwords do not match."
 msgstr "Passwörter stimmen nicht überein."
 
@@ -2553,35 +2761,35 @@ msgstr ""
 "Die öffentliche Gruppe. Ermöglicht Zugang zu abgesicherten Diensten für "
 "externe Nutzer. Jeder interne Nutzer ist standardmäßig Teil dieser Gruppe."
 
-#: structure/tables.py:20 structure/tables.py:90
+#: structure/tables.py:21 structure/tables.py:91
 msgid "Group organization"
 msgstr "Gruppen Organisation"
 
-#: structure/tables.py:23 structure/tables.py:63 structure/tables.py:95
+#: structure/tables.py:24 structure/tables.py:64 structure/tables.py:96
 msgid "Action"
 msgstr "Aktionen"
 
-#: structure/tables.py:92
+#: structure/tables.py:93
 msgid "Activation until"
 msgstr "Aktivierung bis"
 
-#: structure/tables.py:130
+#: structure/tables.py:131
 msgid "The name of the group"
 msgstr "Name der Gruppe"
 
-#: structure/tables.py:134
+#: structure/tables.py:135
 msgid "The description of the group"
 msgstr "Die Gruppenbeschreibung"
 
-#: structure/tables.py:138
+#: structure/tables.py:139
 msgid "The organization wich is the home organization of the group"
 msgstr "Die Organisation dieser Gruppe"
 
-#: structure/tables.py:147
+#: structure/tables.py:148
 msgid "Shows all groups which are configured in your Mr. Map environment."
 msgstr "Zeigt alle Gruppen, zu denen Sie gehören."
 
-#: structure/tables.py:153
+#: structure/tables.py:154
 msgid "Click to open the detail view of <strong>{}</strong>"
 msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
@@ -2627,6 +2835,10 @@ msgstr "Überorganisation dieser Organisation"
 msgid ""
 "Shows all organizations which are configured in your Mr. Map environment."
 msgstr "Zeigt alle verfügbaren Organisationen."
+
+#: structure/tables.py:226
+msgid "Click to open the detail view of <strong>{}</strong>."
+msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
 #: structure/tables.py:229
 msgid "This is your organization."
@@ -2765,55 +2977,55 @@ msgstr "Zeigt Informationen über die Gruppe."
 msgid "Edit organization <strong>{org}</strong>"
 msgstr "Bearbeite Organisation <strong>{org}</strong>"
 
-#: structure/views.py:343
+#: structure/views.py:345
 msgid "Do you really want to remove this organization?"
 msgstr "Wollen Sie diese Organisation wirklich löschen?"
 
-#: structure/views.py:344
+#: structure/views.py:346
 #, python-brace-format
 msgid "Remove organization <strong>{org}</strong>"
 msgstr "Lösche Organisation <strong>{org}</strong>"
 
-#: structure/views.py:364
+#: structure/views.py:368
 msgid "Add new organization"
 msgstr "Neue Organisation hinzufügen"
 
-#: structure/views.py:393 structure/views.py:402 structure/views.py:443
+#: structure/views.py:399 structure/views.py:408 structure/views.py:451
 msgid "Publisher changed"
 msgstr "Veröffentlicher geändert"
 
-#: structure/views.py:394
+#: structure/views.py:400
 msgid "Group '{}' has been accepted as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' akzeptiert"
 
-#: structure/views.py:403
+#: structure/views.py:409
 msgid "Group '{}' has been rejected as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' abgelehnt"
 
-#: structure/views.py:444
+#: structure/views.py:452
 msgid "Group '{}' has been removed as publisher for '{}'."
 msgstr "Gruppe '{}' darf nicht mehr für '{}' veröffentlichen."
 
-#: structure/views.py:480
+#: structure/views.py:490
 #, python-brace-format
 msgid "Request to become publisher for organization <strong>{org}</strong>"
 msgstr ""
 "Anfrage um für Organisation <strong>{org}</strong> veröffentlichen zu dürfen"
 
-#: structure/views.py:500
+#: structure/views.py:512
 msgid "Add new group"
 msgstr "Neue Gruppe hinzufügen"
 
-#: structure/views.py:549
+#: structure/views.py:563
 msgid "Do you really want to remove this group?"
 msgstr "Wollen Sie diese Gruppe wirklich löschen?"
 
-#: structure/views.py:550
+#: structure/views.py:564
 #, python-brace-format
 msgid "Remove group <strong>{group}</strong>"
 msgstr "Lösche Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:574
+#: structure/views.py:590
 #, python-brace-format
 msgid "Edit group <strong>{group}</strong>"
 msgstr "Bearbeite Gruppe <strong>{group}</strong>"
@@ -2877,7 +3089,7 @@ msgstr "Anmelden"
 
 #: templates/includes/navbar-sign-out.html:22
 #: users/templates/includes/login.html:56
-#: users/templates/includes/register.html:25 users/views.py:347
+#: users/templates/includes/register.html:25 users/views.py:346
 msgid "Sign up"
 msgstr "Registrieren"
 
@@ -3052,47 +3264,51 @@ msgstr "Bei Metadatenänderungen informieren"
 msgid "Do you realy want to remove this subscription?"
 msgstr "Wollen Sie dieses Abonnemment wirklich löschen?"
 
-#: users/tables.py:12
+#: users/tables.py:15
 msgid "Shows your subscripted services."
 msgstr "Zeigt Ihre abonnierten Dienste."
 
-#: users/tables.py:16
+#: users/tables.py:19
 msgid "Services"
 msgstr "Dienste"
 
-#: users/tables.py:17
+#: users/tables.py:20
 msgid "Subscribed services"
 msgstr "Abonnierte Dienste"
 
-#: users/tables.py:21
+#: users/tables.py:24
 msgid "Update notification"
 msgstr "Updatebenachrichtigung"
 
-#: users/tables.py:22
+#: users/tables.py:25
 msgid "Notify on any service update"
 msgstr "Benachrichtigung bei jeglichem Dienstupdate"
 
-#: users/tables.py:27
+#: users/tables.py:30
 msgid "Change notification"
 msgstr "Benachrichtigungen ändern"
 
-#: users/tables.py:28
+#: users/tables.py:31
 msgid "Notify on changed service metadata"
 msgstr "Benachrichtige bei geänderten Dienstmetadaten"
 
-#: users/tables.py:33
+#: users/tables.py:36
 msgid "Access notification"
 msgstr "Zugangsbenachrichtigung"
 
-#: users/tables.py:34
+#: users/tables.py:37
 msgid "Notify on changed service access"
 msgstr "Benachrichtige bei geändertem Dienstzugang"
 
-#: users/tables.py:40
+#: users/tables.py:43
+msgid "Health state of the ressource"
+msgstr "Gesundheitszustand der Ressource"
+
+#: users/tables.py:49
 msgid "Actions to perform"
 msgstr "Aktionen"
 
-#: users/tables.py:54
+#: users/tables.py:63
 #, python-brace-format
 msgid ""
 "Go to the detail view of service <strong>{record.metadata.title} [{record."
@@ -3101,7 +3317,16 @@ msgstr ""
 "Detailansicht für Dienst <strong>{record.metadata.title} [{record.metadata."
 "id}]</strong>"
 
-#: users/tables.py:77
+#: users/tables.py:94
+#, python-brace-format
+msgid "Last check runs on {last_monitoring_object.timestamp}"
+msgstr ""
+
+#: users/tables.py:98
+msgid "Last check state is unknown"
+msgstr ""
+
+#: users/tables.py:116
 #, python-brace-format
 msgid ""
 "Edit subscription for <strong>{record.metadata.title} [{record.metadata."
@@ -3110,7 +3335,7 @@ msgstr ""
 "Bearbeite Abonnements für <strong>{record.metadata.title} [{record.metadata."
 "id}]</strong>"
 
-#: users/tables.py:85
+#: users/tables.py:124
 #, python-brace-format
 msgid ""
 "Remove subscription for <strong>{record.metadata.title} [{record.metadata."
@@ -3187,7 +3412,7 @@ msgstr "Erstellt am "
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: users/templates/includes/account_change.html:13 users/views.py:222
+#: users/templates/includes/account_change.html:13 users/views.py:221
 msgid "Change password"
 msgstr "Passwort ändern"
 
@@ -3264,8 +3489,8 @@ msgstr "Passwort senden"
 msgid "Subscriptions"
 msgstr "Abonnements"
 
-#: users/templates/includes/subscriptions.html:12 users/views.py:427
-#: users/views.py:461
+#: users/templates/includes/subscriptions.html:12 users/views.py:426
+#: users/views.py:460
 msgid "New Subscription"
 msgstr "Neues Abonnement"
 
@@ -3287,11 +3512,11 @@ msgstr ""
 "nicht warten wollen klicken Sie einfach auf Mr. Map!\n"
 "        "
 
-#: users/views.py:90
+#: users/views.py:89
 msgid "Sign in for Mr. Map"
 msgstr "Melden Sie sich für Mr. Map an"
 
-#: users/views.py:92 users/views.py:346
+#: users/views.py:91 users/views.py:345
 msgid ""
 "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
 "eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
@@ -3304,11 +3529,11 @@ msgid ""
 "amet. "
 msgstr ""
 
-#: users/views.py:243
+#: users/views.py:242
 msgid "<strong>Edit your account information's</strong>"
 msgstr "<strong>Account Informationen bearbeiten</strong>"
 
-#: users/views.py:487
+#: users/views.py:486
 #, python-brace-format
 msgid ""
 "Remove Subscription for service <strong>{subscription.metadata}</strong>"

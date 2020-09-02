@@ -36,8 +36,8 @@
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
                 </button>
                 <div class="dropdown-menu" aria-labelledby="id_dataset_metadata_dropdown">
-                    <a class="dropdown-item" target="_blank" href="{% url 'resource:get-metadata-html' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{% url 'resource:get-dataset-metadata' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ has_dataset_metadata.metadata.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ has_dataset_metadata.metadata.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
                     <a class="dropdown-item" target="_blank" href="{% url 'editor:dataset-metadata-wizard-instance' has_dataset_metadata.metadata.id %}?current-view={{current_view}}&current-view-arg={{service_md.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
                 </div>
             </div>
@@ -49,8 +49,8 @@
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %}
                 </button>
                 <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
-                    <a class="dropdown-item" target="_blank" href="{% url 'resource:get-metadata-html' service_md.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{% url 'resource:get-service-metadata' service_md.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ service_md.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ service_md.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
                 </div>
             </div>
         </div>

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-02 10:43+0200\n"
+"POT-Creation-Date: 2020-09-02 11:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -774,7 +774,7 @@ msgstr "Wartungs- und Aktualisierungshäufigkeit"
 msgid "Lineage Statement"
 msgstr "Infos zur Historie"
 
-#: editor/forms.py:328 editor/tables.py:23
+#: editor/forms.py:328 editor/tables.py:22
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:65
 #: service/templates/metadata/tabs/content/contact_tab.html:16
 #: service/templates/metadata/tabs/content/contact_tab.html:49
@@ -848,63 +848,57 @@ msgstr ""
 msgid "Allowed area"
 msgstr "Erlaubte Bereiche"
 
-#: editor/tables.py:17
+#: editor/tables.py:16
 msgid "Group Name"
 msgstr "Gruppenname"
 
-#: editor/tables.py:19
+#: editor/tables.py:18
 msgid "The group for that the access is restricted or not."
 msgstr "Die Gruppe für welchen der Zugriff eingeschränkt werden kann"
 
-#: editor/tables.py:25
+#: editor/tables.py:24
 msgid "The organization for that the access is restricted or not."
 msgstr "Die Organisation für welche der (nicht) Zugriff beschränkt ist."
 
-#: editor/tables.py:29
+#: editor/tables.py:28
 msgid "Access allowed"
 msgstr "Zugriff erlaubt"
 
-#: editor/tables.py:31
+#: editor/tables.py:30
 msgid "Boolean flag if the access is restricted or not."
 msgstr "Zugriff eingeschränkt oder nicht"
 
-#: editor/tables.py:35
+#: editor/tables.py:34
 msgid "Access restricted spatially"
 msgstr "Zugriff räumlich eingeschränkt"
 
-#: editor/tables.py:37
+#: editor/tables.py:36
 msgid "Boolean flag if the access is spatially restricted or not."
 msgstr "Zugriff räumlich beschränkt oder nicht"
 
-#: editor/tables.py:40 service/tables.py:247 service/tables.py:406
+#: editor/tables.py:39 service/tables.py:247 service/tables.py:406
 #: service/tables.py:495 service/tables.py:570 service/tables.py:769
 #: structure/tables.py:141 structure/tables.py:215 users/tables.py:48
 msgid "Actions"
 msgstr "Aktionen"
 
-#: editor/tables.py:43 structure/tables.py:142 structure/tables.py:216
+#: editor/tables.py:42 structure/tables.py:142 structure/tables.py:216
 msgid "Actions you can perform"
 msgstr "Ausführbare Aktionen"
 
-#: editor/tables.py:58
-#, python-brace-format
-msgid "Click to open the detail view of <strong>{record.name}</strong>"
-msgstr "Öffnet die Detailansicht von <strong>{record.name}</strong>"
+#: editor/tables.py:57 structure/tables.py:154
+msgid "Click to open the detail view of <strong>{}</strong>"
+msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
-#: editor/tables.py:61 structure/tables.py:157
+#: editor/tables.py:60 structure/tables.py:157
 msgid "This is the anonymous public user group."
 msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
 
-#: editor/tables.py:71
-#, python-brace-format
-msgid ""
-"Click to open the detail view of <strong>{record.organization."
-"organization_name}</strong>."
-msgstr ""
-"Öffnet die Detailansicht von <strong>{record.organization.organization_name}"
-"</strong>."
+#: editor/tables.py:70 structure/tables.py:226
+msgid "Click to open the detail view of <strong>{}</strong>."
+msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
-#: editor/tables.py:106
+#: editor/tables.py:105
 #, python-brace-format
 msgid "Edit access for group <strong>{record.name}</strong>"
 msgstr "Bearbeite Zugriff für Gruppe <strong>{record.name}</strong>"
@@ -975,25 +969,25 @@ msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
 msgid "Edit metadata <strong>{}</strong>"
 msgstr "Bearbeite Metadaten <strong>{}</strong>"
 
-#: editor/views.py:224
+#: editor/views.py:231
 #, python-brace-format
 msgid "Edit spatial area for group <strong>{group.name}</strong>"
 msgstr "Bearbeite räumlichen Zugriff für Gruppe <strong>{group.name}</strong>"
 
-#: editor/views.py:255
+#: editor/views.py:262
 msgid "Do you really want to restore this metadata?"
 msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
 
-#: editor/views.py:256
+#: editor/views.py:263
 #, python-brace-format
 msgid "Restore metadata <strong>{metadata.title}</strong>"
 msgstr "Setze <strong>{metadata.title}</strong> zurück"
 
-#: editor/views.py:285
+#: editor/views.py:292
 msgid "Do you really want to restore this dataset?"
 msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
 
-#: editor/views.py:286
+#: editor/views.py:293
 #, python-brace-format
 msgid "Restore dataset metadata <strong>{metadata.title}</strong>"
 msgstr "Stelle <strong>{metadata.title}</strong> Datensatz zurück"
@@ -1055,12 +1049,6 @@ msgstr ""
 "monitored_uri}'</span> hat nicht geantwortet.<br> "
 
 #: monitoring/models.py:262
-#, fuzzy
-#| msgid ""
-#| "The average response time for 1 week statistic is tot high.<br> <strong "
-#| "class=\"text-danger\">{self.average_response_time_1w."
-#| "total_seconds()*1000} ms</strong> is greater than threshold <strong class="
-#| "\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
 msgid ""
 "The average response time for 1 week statistic is too high.<br> <strong "
 "class=\"text-danger\">{self.average_response_time_1w.total_seconds()*1000} "
@@ -1073,12 +1061,6 @@ msgstr ""
 "\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
 
 #: monitoring/models.py:269
-#, fuzzy
-#| msgid ""
-#| "The average response time for 1 week statistic is to high.<br> <strong "
-#| "class=\"text-danger\">{self.average_response_time_1w.total_seconds() * "
-#| "1000} ms</strong> is greater than threshold <strong class=\"text-danger"
-#| "\">{WARNING_RESPONSE_TIME} ms</strong>."
 msgid ""
 "The average response time for 1 week statistic is too high.<br> <strong "
 "class=\"text-danger\">{self.average_response_time_1w.total_seconds() * 1000} "
@@ -2785,10 +2767,6 @@ msgstr "Die Organisation dieser Gruppe"
 msgid "Shows all groups which are configured in your Mr. Map environment."
 msgstr "Zeigt alle Gruppen, zu denen Sie gehören."
 
-#: structure/tables.py:154
-msgid "Click to open the detail view of <strong>{}</strong>"
-msgstr "Öffnet Detailansicht für <strong>{}</strong>."
-
 #: structure/tables.py:170
 msgid "Click to open the detail view of the organization"
 msgstr "Klicken für die Detailansicht der Organisation"
@@ -2831,10 +2809,6 @@ msgstr "Überorganisation dieser Organisation"
 msgid ""
 "Shows all organizations which are configured in your Mr. Map environment."
 msgstr "Zeigt alle verfügbaren Organisationen."
-
-#: structure/tables.py:226
-msgid "Click to open the detail view of <strong>{}</strong>."
-msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
 #: structure/tables.py:229
 msgid "This is your organization."
@@ -5197,6 +5171,16 @@ msgstr ""
 #, python-format
 msgid "Unable to connect to qpid with SASL mechanism %s"
 msgstr ""
+
+#~ msgid ""
+#~ "Click to open the detail view of <strong>{record.organization."
+#~ "organization_name}</strong>."
+#~ msgstr ""
+#~ "Öffnet die Detailansicht von <strong>{record.organization."
+#~ "organization_name}</strong>."
+
+#~ msgid "Click to open the detail view of <strong>{record.name}</strong>"
+#~ msgstr "Öffnet die Detailansicht von <strong>{record.name}</strong>"
 
 #~ msgid "Role"
 #~ msgstr "Rolle"

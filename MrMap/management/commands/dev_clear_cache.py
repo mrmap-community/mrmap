@@ -12,7 +12,7 @@ from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum
 
 
 class Command(BaseCommand):
-    help = "(DEV COMMAND) Clears caches."
+    help = "(DEV COMMAND) Clears cache."
 
     def add_arguments(self, parser):
         pass
@@ -27,6 +27,6 @@ class Command(BaseCommand):
         )
         for key in cached_keys:
             cacher.remove(key, False)
-            self.stdout.write(self.style.INFO("    -- Removed {}".format(key)))
+            self.stdout.write(self.style.NOTICE("    -- Removed {}".format(key)))
 
         self.stdout.write(self.style.SUCCESS("Cache cleared!"))

@@ -114,7 +114,7 @@ class PublisherForOrganizationForm(MrMapForm):
         help_text=_("The organization you are requesting"),
     )
     group = forms.ModelChoiceField(
-        queryset=None,
+        queryset=MrMapGroup.objects.none(),
         label=_("Group"),
         help_text=_("Select your group for which you want to request publisher rights"),
     )

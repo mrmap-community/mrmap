@@ -29,7 +29,7 @@ from service.models import Metadata, MetadataRelation, Keyword, Category, Datase
     SecuredOperation
 from service.settings import ISO_19115_LANG_CHOICES
 from service.tasks import async_secure_service_task
-from structure.models import Organization
+from structure.models import Organization, MrMapGroup
 from users.helper import user_helper
 from django.contrib import messages
 
@@ -152,7 +152,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
     date_stamp = forms.DateTimeField(label=_('Metadata creation date'),
                                  widget=BootstrapDatePickerInput())
     reference_system = ReferenceSystemModelMultipleChoiceField(
-        queryset=None,
+        queryset=ReferenceSystem.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
             url='editor:reference-system-autocomplete',
             attrs={
@@ -165,7 +165,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
         required=False,)
 
     additional_related_objects = MetadataModelMultipleChoiceField(
-        queryset=None,
+        queryset=Metadata.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
             url='editor:metadata-autocomplete',
 
@@ -175,7 +175,9 @@ class DatasetIdentificationForm(MrMapWizardForm):
     created_by = forms.ModelChoiceField(
         label=_("Create with group"),
         widget=forms.Select(attrs={'class': 'auto_submit_item'}),
-        queryset=None, to_field_name='id', initial=1
+        queryset=MrMapGroup.objects.none(),
+        to_field_name='id',
+        initial=1
     )
 
     def __init__(self, *args, **kwargs):
@@ -326,7 +328,7 @@ class DatasetQualityForm(MrMapWizardForm):
 class DatasetResponsiblePartyForm(MrMapWizardForm):
     organization = forms.ModelChoiceField(
         label=_('Organization'),
-        queryset=None,
+        queryset=Organization.objects.none(),
         required=False,
         help_text=_('Select an other Organization to overwrite the original. You can select your organization and the ones you are allowed to publish for.')
     )

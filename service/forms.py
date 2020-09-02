@@ -21,6 +21,7 @@ from service.helper.enums import OGCServiceEnum
 from service.models import Service, MrMapGroup
 from service import tasks
 from service.settings import NONE_UUID
+from structure.models import Organization
 
 
 class ServiceURIForm(forms.Form):
@@ -44,15 +45,17 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
     uri = forms.CharField(label=_('URI'), widget=forms.TextInput(attrs={'readonly': '', }))
     registering_with_group = forms.ModelChoiceField(
         label=_("Registration with group"),
+        help_text=_("Select a group for which this resource shall be registered."),
         widget=forms.Select(attrs={'class': 'auto_submit_item'}),
-        queryset=None,
+        queryset=MrMapGroup.objects.none(),
         to_field_name='id',
-        initial=1
+        initial=1,
     )
     registering_for_other_organization = forms.ModelChoiceField(
         label=_("Registration for other organization"),
+        help_text=_("If you need to register for another organization, select the group which has the publisher rights and select the organization in here."),
         required=False,
-        queryset=None,
+        queryset=Organization.objects.none(),
         to_field_name='id',
         empty_label=_("No other")
     )

@@ -434,7 +434,7 @@ def datasets_table(request: HttpRequest, update_params: dict = None, status_code
         "current_view": current_view,
     }
 
-    params.update(_prepare_dataset_table(request=request, current_view=current_view, user_groups=user_groups))
+    params.update(_prepare_dataset_table(request=request, current_view=current_view, user_groups=user_groups, user=user))
 
     if update_params:
         params.update(update_params)

@@ -11,7 +11,7 @@ import uuid
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from MrMap.settings import CATEGORIES, CATEGORIES_LANG
+from MrMap.management.commands.setup_settings import CATEGORIES, CATEGORIES_LANG
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import CategoryOriginEnum
 from service.models import Category
@@ -35,7 +35,6 @@ class Command(BaseCommand):
             for lang_key, lang_val in CATEGORIES_LANG.items():
                 raw_categories = self.get_category_json(category_url, lang_val)
                 self.update_categories(raw_categories, lang_key, category_src)
-
 
     def get_category_json(self, category_url, language):
         """ Loads the json response from a connector class

@@ -7,6 +7,7 @@ Created on: 24.04.20
 """
 from django.test import TestCase
 
+from editor.filters import EditorAccessFilter
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
@@ -18,6 +19,8 @@ class EditorFiltersTestCase(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
+
+        self.user_groups = self.user.get_groups()
 
         create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
         create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
@@ -55,3 +58,17 @@ class EditorFiltersTestCase(TestCase):
             self.wfs_service_metadatas
         )
         self.assertTrue(result, msg="MetadataWfsFilter not filtered properly")
+
+    def test_editor_access_group_filtering(self):
+        """ Tests the EditorAccessFilter functionality
+
+        Returns:
+
+        """
+        result = check_filtering(
+            EditorAccessFilter,
+            "q",
+            "name",
+            self.user_groups
+        )
+        self.assertTrue(result, msg="EditorAccessFilter not filtered properly")

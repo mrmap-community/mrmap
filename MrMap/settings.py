@@ -7,12 +7,13 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-from django.utils.translation import gettext_lazy as _
-# Include other settings files
+
+# Include other settings files (DO NOT TOUCH THESE!)
 from MrMap.sub_settings.django_settings import *
 from MrMap.sub_settings.dev_settings import *
 from MrMap.sub_settings.db_settings import *
 from MrMap.sub_settings.logging_settings import *
+from api.settings import REST_FRAMEWORK
 
 # GIT repo links
 GIT_REPO_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/src/branch/pre_master"

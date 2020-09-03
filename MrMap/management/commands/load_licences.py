@@ -8,7 +8,7 @@ Created on: 02.07.20
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from MrMap.settings import LICENCES
+from MrMap.management.commands.setup_settings import LICENCES
 from service.models import Licence
 
 

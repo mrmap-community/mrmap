@@ -16,10 +16,8 @@ from MrMap.settings import ROOT_URL
 from api.settings import API_EXCLUDE_METADATA_RELATIONS
 from service.forms import RegisterNewResourceWizardPage2
 from service.helper import service_helper
-from service.helper.enums import OGCOperationEnum
 from service.models import ServiceType, Metadata, Category, Dimension
-from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY, SERVICE_OPERATION_URI_TEMPLATE, \
-    SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
 from monitoring.models import Monitoring
 from users.helper import user_helper

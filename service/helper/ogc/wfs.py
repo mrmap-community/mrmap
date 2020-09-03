@@ -12,7 +12,7 @@ from lxml.etree import _Element
 from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
     HTML_METADATA_URI_TEMPLATE, service_logger
 from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
-    MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
+    MULTITHREADING_THRESHOLD, GENERIC_NAMESPACE_TEMPLATE
 from MrMap.messages import SERVICE_GENERIC_ERROR
 from MrMap.utils import execute_threads
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, ResourceOriginEnum, \
@@ -24,7 +24,7 @@ from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication, ServiceUrl
-from service.settings import ALLOWED_SRS
+from service.settings import ALLOWED_SRS, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
 

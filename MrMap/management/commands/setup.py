@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.management.commands.setup_settings import DEFAULT_GROUPS, DEFAULT_ROLE_NAME
-from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
+from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.permissionEnums import PermissionEnum
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME, \

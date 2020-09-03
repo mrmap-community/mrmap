@@ -159,3 +159,6 @@ DIMENSION_TYPE_CHOICES = [
 ]
 
 NONE_UUID = "00000000-0000-0000-0000-000000000000"
+
+# Progress bar
+PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing

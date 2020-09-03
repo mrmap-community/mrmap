@@ -9,6 +9,7 @@ Created on: 28.07.20
 # PLEASE NOTE
 # If you want to add more default groups, which inherit from one another:
 # Make sure that the parent_group, has been declared above the child group in this list!
+from service.helper.enums import CategoryOriginEnum
 from structure.models import Permission
 from django.utils.translation import gettext_lazy as _
 

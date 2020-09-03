@@ -66,8 +66,11 @@ class MrMapTable(tables.Table):
         self._configure_pagination()
 
     def _configure_filter_set(self, queryset=None):
-        self.filter_set = self.filter_set_class(data=self.request.GET,
-                                                queryset=queryset or self.queryset)
+        self.filter_set = self.filter_set_class(
+            data=self.request.GET,
+            queryset=queryset or self.queryset,
+            request=self.request,
+        )
 
     def _configure_pagination(self):
         RequestConfig(self.request).configure(self)

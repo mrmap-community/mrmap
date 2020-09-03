@@ -22,9 +22,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        mds = Metadata.objects.all().exclude(
-            metadata_type=MetadataEnum.CATALOGUE.value
-        )
+        mds = Metadata.objects.all()
         self.stdout.write(self.style.NOTICE("Found {} records. Start removing...".format(mds.count())))
         t_start = time()
         for md in mds:

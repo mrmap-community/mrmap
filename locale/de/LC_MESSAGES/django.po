@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-02 11:07+0200\n"
+"POT-Creation-Date: 2020-09-03 11:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,33 +31,33 @@ msgstr "Formular aktualisieren"
 msgid "Check this field"
 msgstr "Feld prüfen"
 
-#: MrMap/management/commands/setup.py:219
+#: MrMap/management/commands/setup.py:220
 msgid "The default role for all groups. Has no permissions."
 msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
-#: MrMap/management/commands/setup_settings.py:19
+#: MrMap/management/commands/setup_settings.py:20
 msgid "Group Administrator"
 msgstr "Gruppenadministrator"
 
-#: MrMap/management/commands/setup_settings.py:20
+#: MrMap/management/commands/setup_settings.py:21
 msgid "Permission group. Holds users which are allowed to manage groups."
 msgstr "Berechtigungsgruppe. Gruppiert Nutzer die Gruppen verwalten können."
 
-#: MrMap/management/commands/setup_settings.py:33
+#: MrMap/management/commands/setup_settings.py:34
 msgid "Organization Administrator"
 msgstr "Organisationsadministrator"
 
-#: MrMap/management/commands/setup_settings.py:34
+#: MrMap/management/commands/setup_settings.py:35
 msgid ""
 "Permission group. Holds users which are allowed to manage organizations."
 msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die Organisationen verwalten können."
 
-#: MrMap/management/commands/setup_settings.py:44
+#: MrMap/management/commands/setup_settings.py:45
 msgid "Editor"
 msgstr "Editor"
 
-#: MrMap/management/commands/setup_settings.py:45
+#: MrMap/management/commands/setup_settings.py:46
 msgid ""
 "Permission group. Holds users which are allowed to edit metadata or activate "
 "resources."
@@ -65,11 +65,11 @@ msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die Metadaten editieren oder "
 "Ressourcen aktivieren können."
 
-#: MrMap/management/commands/setup_settings.py:54
+#: MrMap/management/commands/setup_settings.py:55
 msgid "Controller"
 msgstr "Controller"
 
-#: MrMap/management/commands/setup_settings.py:55
+#: MrMap/management/commands/setup_settings.py:56
 msgid ""
 "Permission group. Holds users which are allowed to access and download logs "
 "or generate an API token."
@@ -77,11 +77,11 @@ msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die Protokolle einsehen und "
 "herunterladen oder API Token generien können."
 
-#: MrMap/management/commands/setup_settings.py:64
+#: MrMap/management/commands/setup_settings.py:65
 msgid "Resource Administrator"
 msgstr "Ressourcenadministrator"
 
-#: MrMap/management/commands/setup_settings.py:65
+#: MrMap/management/commands/setup_settings.py:66
 msgid ""
 "Permission group. Holds users which are allowed to manage resource. This "
 "includes e.g. registration or removing of services and managing publisher "
@@ -328,7 +328,7 @@ msgstr "Gruppe '{}' erfolgreich gelöscht."
 msgid "Group '{}' successfully edited."
 msgstr "Gruppe '{}' erfolgreich bearbeitet."
 
-#: MrMap/messages.py:88 structure/forms.py:279
+#: MrMap/messages.py:88 structure/forms.py:280
 msgid "Group {} successfully created."
 msgstr "Gruppe '{}' erfolgreich erstellt."
 
@@ -516,11 +516,11 @@ msgstr "'{}' abonniert."
 msgid "'{}' already subscribed."
 msgstr "'{}' bereits abonniert."
 
-#: MrMap/settings.py:365 service/settings.py:29
+#: MrMap/settings.py:289 service/settings.py:29
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:366 service/settings.py:28
+#: MrMap/settings.py:290 service/settings.py:28
 msgid "German"
 msgstr "Deutsch"
 
@@ -654,10 +654,18 @@ msgstr "Harveste {} von {}"
 msgid "Harvest <strong>{metadata}</strong>"
 msgstr "Harveste <strong>{metadata}</strong>"
 
-#: editor/filters.py:8 service/filters.py:37 service/filters.py:186
+#: editor/filters.py:11 service/filters.py:37 service/filters.py:186
 #: structure/filters.py:11 structure/filters.py:27
 msgid "Search"
 msgstr "Suche"
+
+#: editor/filters.py:16
+msgid "My groups"
+msgstr "Meine Gruppen"
+
+#: editor/filters.py:21
+msgid "My organization's groups"
+msgstr "Gruppen meiner Organisation"
 
 #: editor/forms.py:60 editor/forms.py:148 service/tables.py:199
 #: service/tables.py:364 service/tables.py:471 service/tables.py:730
@@ -698,14 +706,14 @@ msgstr "Zugangsbeschränkungen"
 msgid "Licence"
 msgstr "Lizenz"
 
-#: editor/forms.py:65 editor/forms.py:216
+#: editor/forms.py:65 editor/forms.py:218
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:37
 #: service/templates/includes/wfs/featuretype_detail_table.html:25
 #: service/templates/includes/wms/child_layer_detail_table.html:29
 msgid "Keywords"
 msgstr "Schlüsselwörter"
 
-#: editor/forms.py:66 editor/forms.py:229
+#: editor/forms.py:66 editor/forms.py:231
 msgid "Categories"
 msgstr "Kategorien"
 
@@ -746,35 +754,35 @@ msgstr "Erstelldatum der Metadaten"
 msgid "Create with group"
 msgstr "Erstelle mit Gruppe"
 
-#: editor/forms.py:256
+#: editor/forms.py:258
 msgid "Terms of use"
 msgstr "Nutzungsbedingungen"
 
-#: editor/forms.py:262
+#: editor/forms.py:264
 #: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:7
 msgid "Access constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: editor/forms.py:277
+#: editor/forms.py:279
 #: service/templates/includes/wfs/featuretype_detail_table.html:55
 #: service/templates/includes/wms/child_layer_detail_table.html:97
 msgid "Bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: editor/forms.py:280 editor/forms.py:531
+#: editor/forms.py:282 editor/forms.py:533
 msgid "Unfold the leaflet client by clicking on the polygon icon."
 msgstr ""
 "Öffnen Sie die interaktive Karte, indem Sie auf das Polygon Symbol klicken."
 
-#: editor/forms.py:307
+#: editor/forms.py:309
 msgid "Maintenance and update frequency"
 msgstr "Wartungs- und Aktualisierungshäufigkeit"
 
-#: editor/forms.py:311
+#: editor/forms.py:313
 msgid "Lineage Statement"
 msgstr "Infos zur Historie"
 
-#: editor/forms.py:328 editor/tables.py:22
+#: editor/forms.py:330 editor/tables.py:22
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:65
 #: service/templates/metadata/tabs/content/contact_tab.html:16
 #: service/templates/metadata/tabs/content/contact_tab.html:49
@@ -783,12 +791,12 @@ msgstr "Infos zur Historie"
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:23
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:54
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:46
-#: structure/forms.py:111 structure/tables.py:61 structure/tables.py:138
+#: structure/forms.py:112 structure/tables.py:61 structure/tables.py:138
 #: structure/templates/includes/detail/groups_table.html:5
 msgid "Organization"
 msgstr "Organisation"
 
-#: editor/forms.py:331
+#: editor/forms.py:333
 msgid ""
 "Select an other Organization to overwrite the original. You can select your "
 "organization and the ones you are allowed to publish for."
@@ -797,42 +805,42 @@ msgstr ""
 "Sie können Ihre Organisation wählen sowie die, für welche Sie "
 "veröffentlichen dürfen."
 
-#: editor/forms.py:364
+#: editor/forms.py:366
 msgid "Dataset successfully deleted."
 msgstr "Datensatz erfolgreich gelöscht."
 
-#: editor/forms.py:442
+#: editor/forms.py:444
 msgid "Use proxy"
 msgstr "Proxy verwenden"
 
-#: editor/forms.py:444
+#: editor/forms.py:446
 msgid "Activate to reroute all traffic for this service on MrMap"
 msgstr "Aktivieren um alle Anfragen für diesen Dienst über Mr.Map umzuleiten"
 
-#: editor/forms.py:449
+#: editor/forms.py:451
 msgid "Log proxy activity"
 msgstr "Proxy Protokollierung"
 
-#: editor/forms.py:451
+#: editor/forms.py:453
 msgid "Activate to log every traffic activity for this service"
 msgstr ""
 "Aktivieren um alle Anfragen und Antworten für diesen Dienst zu protokollieren"
 
-#: editor/forms.py:456
+#: editor/forms.py:458
 msgid "Restrict access"
 msgstr "Zugriff beschränken"
 
-#: editor/forms.py:458
+#: editor/forms.py:460
 msgid "Activate to restrict access on this service"
 msgstr "Aktivieren um Zugriff auf diesen Dienst einzuschränken"
 
-#: editor/forms.py:482
+#: editor/forms.py:484
 msgid "Log proxy or restrict access without using proxy is'nt possible!"
 msgstr ""
 "Proxy Protokollierung oder Einschränkung des Zugriffs nicht möglich ohne "
 "Proxy Aktivierung!"
 
-#: editor/forms.py:511
+#: editor/forms.py:513
 msgid ""
 "Activate to allow <strong>{}</strong> in the area defined in the map viewer "
 "below.\n"
@@ -844,7 +852,7 @@ msgstr ""
 "Falls Sie {} überall erlauben möchten, stellen Sie sicher, dass kein Gebiet "
 "im Kartenviewer eingezeichnet ist."
 
-#: editor/forms.py:528
+#: editor/forms.py:530
 msgid "Allowed area"
 msgstr "Erlaubte Bereiche"
 
@@ -886,19 +894,19 @@ msgstr "Aktionen"
 msgid "Actions you can perform"
 msgstr "Ausführbare Aktionen"
 
-#: editor/tables.py:57 structure/tables.py:154
+#: editor/tables.py:56 structure/tables.py:154
 msgid "Click to open the detail view of <strong>{}</strong>"
 msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
-#: editor/tables.py:60 structure/tables.py:157
+#: editor/tables.py:59 structure/tables.py:157
 msgid "This is the anonymous public user group."
 msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
 
-#: editor/tables.py:70 structure/tables.py:226
+#: editor/tables.py:69 structure/tables.py:226
 msgid "Click to open the detail view of <strong>{}</strong>."
 msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
-#: editor/tables.py:105
+#: editor/tables.py:104
 #, python-brace-format
 msgid "Edit access for group <strong>{record.name}</strong>"
 msgstr "Bearbeite Zugriff für Gruppe <strong>{record.name}</strong>"
@@ -1244,90 +1252,103 @@ msgstr "Nach Gruppen ID filtern."
 msgid "Show harvested"
 msgstr "Zeige Harvests"
 
-#: service/forms.py:27
+#: service/forms.py:28
 msgid "GetRequest URI"
 msgstr "GetRequest URI"
 
-#: service/forms.py:35
+#: service/forms.py:36
 msgid "Resource URL"
 msgstr "Ressourcen URL"
 
-#: service/forms.py:36
+#: service/forms.py:37
 msgid "In case of a OGC service you may provide the GetCapabilities url."
 msgstr "Für einen OGC Dienst geben Sie die GetCapabilities URL an."
 
-#: service/forms.py:41
+#: service/forms.py:42
 msgid "OGC Request"
 msgstr "OGC Request"
 
-#: service/forms.py:42
+#: service/forms.py:43
 msgid "OGC Service"
 msgstr "OGC Dienst"
 
-#: service/forms.py:43
+#: service/forms.py:44
 msgid "OGC Version"
 msgstr "OGC Version"
 
-#: service/forms.py:44
+#: service/forms.py:45
 msgid "URI"
 msgstr "URI"
 
-#: service/forms.py:46
+#: service/forms.py:47
 msgid "Registration with group"
 msgstr "Registriere mit Gruppe"
 
-#: service/forms.py:53
+#: service/forms.py:48
+msgid "Select a group for which this resource shall be registered."
+msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
+
+#: service/forms.py:55
 msgid "Registration for other organization"
 msgstr "Registriere für andere Organisation"
 
-#: service/forms.py:57
+#: service/forms.py:56
+msgid ""
+"If you need to register for another organization, select the group which has "
+"the publisher rights and select the organization in here."
+msgstr ""
+"Falls Sie für eine andere Organisation registrieren wollen, wählen Sie die "
+"Gruppe, die Veröffentlichungsrechte hat und wählen Sie anschließend hier die "
+"jeweilige Organisation aus."
+
+#: service/forms.py:60
 msgid "No other"
 msgstr "Keine"
 
-#: service/forms.py:61
+#: service/forms.py:64
 msgid "Service needs authentication"
 msgstr "Dienst benötigt Authentifizierung"
 
-#: service/forms.py:65 structure/forms.py:21 structure/forms.py:334
+#: service/forms.py:68 structure/forms.py:22 structure/forms.py:335
 msgid "Username"
 msgstr "Nutzername"
 
-#: service/forms.py:66 structure/forms.py:22 structure/forms.py:341
+#: service/forms.py:69 structure/forms.py:23 structure/forms.py:342
 msgid "Password"
 msgstr "Passwort"
 
-#: service/forms.py:68
+#: service/forms.py:71
 msgid "Authentication type"
 msgstr "Authentifizierungstyp"
 
-#: service/forms.py:114
+#: service/forms.py:117
 msgid "Keep custom metadata"
 msgstr "Behalte benutzerdefinierte Metadaten"
 
-#: service/forms.py:148
+#: service/forms.py:151
 msgid ""
 "There are still pending update requests from user '{}' for this service."
 msgstr ""
 "Es läuft bereits eine Aktualisierung für diesen Dienst von Nutzer '{}'."
 
-#: service/forms.py:171
+#: service/forms.py:174
 msgid "---"
 msgstr "---"
 
-#: service/forms.py:180
+#: service/forms.py:183
 msgid "Select the old layer name, if this new layer was just renamed."
 msgstr ""
 "Wählen Sie den alten Elementnamen, falls diese neue Ebene nur umbenannt "
 "wurde."
 
-#: service/forms.py:182
+#: service/forms.py:185
 msgid ""
 "Select the old featuretype name, if this new featuretype was just renamed."
 msgstr ""
 "Wählen Sie den alten Elementnamen, falls dieses neue Feature nur umbenannt "
 "wurde."
 
-#: service/models.py:2515
+#: service/models.py:2550
 msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 
@@ -1569,7 +1590,7 @@ msgstr "Lösche <strong>{record.title} [{record.id}]</strong>"
 msgid "Shows all currently running pending tasks."
 msgstr "Zeigt alle aktuell laufenden Prozesse."
 
-#: service/tables.py:567 users/forms.py:110
+#: service/tables.py:567 users/forms.py:112
 msgid "Service"
 msgstr "Dienst"
 
@@ -1814,34 +1835,34 @@ msgid "Responsible Person"
 msgstr "Ansprechpartner"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:69
-#: structure/forms.py:203 structure/forms.py:362
+#: structure/forms.py:204 structure/forms.py:363
 #: structure/templates/includes/detail/organizations_table.html:13
 msgid "Phone"
 msgstr "Telefon"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:73
-#: structure/forms.py:202 structure/forms.py:363
+#: structure/forms.py:203 structure/forms.py:364
 #: structure/templates/includes/detail/organizations_table.html:17
 msgid "Facsimile"
 msgstr "Fax"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:77
-#: structure/forms.py:204
+#: structure/forms.py:205
 #: structure/templates/includes/detail/organizations_table.html:9
-#: users/forms.py:27
+#: users/forms.py:29
 msgid "E-Mail"
 msgstr "E-Mail"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:81
 #: service/templates/metadata/tabs/content/contact_tab.html:26
 #: service/templates/metadata/tabs/content/dataset/contact_tab.html:21
-#: structure/forms.py:207 structure/forms.py:359
+#: structure/forms.py:208 structure/forms.py:360
 #: structure/templates/includes/detail/organizations_table.html:21
 msgid "Address"
 msgstr "Adresse"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:85
-#: structure/forms.py:205 structure/forms.py:361
+#: structure/forms.py:206 structure/forms.py:362
 #: structure/templates/includes/detail/organizations_table.html:29
 msgid "City"
 msgstr "Stadt"
@@ -1851,13 +1872,13 @@ msgid "Post code"
 msgstr "Postleitzahl"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:93
-#: structure/forms.py:208
+#: structure/forms.py:209
 #: structure/templates/includes/detail/organizations_table.html:33
 msgid "State or province"
 msgstr "Bundesland"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:97
-#: structure/forms.py:209
+#: structure/forms.py:210
 #: structure/templates/includes/detail/organizations_table.html:37
 msgid "Country"
 msgstr "Land"
@@ -2162,7 +2183,7 @@ msgid "Responsible organization for service for "
 msgstr "Verantwortlich für Dienst von"
 
 #: service/templates/metadata/tabs/content/contact_tab.html:53
-#: structure/forms.py:170
+#: structure/forms.py:171
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
@@ -2591,7 +2612,7 @@ msgid "Shows informations about the sublayer."
 msgstr "Zeigt Informationen über die Unterebene."
 
 #: service/wizards.py:11
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2191
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2214
 msgid "URL"
 msgstr "URL"
 
@@ -2599,101 +2620,101 @@ msgstr "URL"
 msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
-#: structure/forms.py:28 structure/forms.py:167 structure/forms.py:200
+#: structure/forms.py:29 structure/forms.py:168 structure/forms.py:201
 #: structure/tables.py:134 structure/tables.py:204
 #: structure/templates/includes/detail/groups_table.html:9
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
 msgid "Description"
 msgstr "Beschreibung"
 
-#: structure/forms.py:32
+#: structure/forms.py:33
 msgid "Parent group"
 msgstr "Untergruppe von"
 
-#: structure/forms.py:113
+#: structure/forms.py:114
 msgid "The organization you are requesting"
 msgstr "Die angefragte Organisation"
 
-#: structure/forms.py:117 structure/tables.py:20 structure/tables.py:90
+#: structure/forms.py:118 structure/tables.py:20 structure/tables.py:90
 msgid "Group"
 msgstr "Gruppen"
 
-#: structure/forms.py:118
+#: structure/forms.py:119
 msgid "Select your group for which you want to request publisher rights"
 msgstr ""
 "Wählen Sie eine Ihrer Gruppen, für welche Sie Veröffentlichungsrechte "
 "anfordern wollen"
 
-#: structure/forms.py:123 structure/tables.py:92
+#: structure/forms.py:124 structure/tables.py:92
 msgid "Message"
 msgstr "Nachricht"
 
-#: structure/forms.py:174
+#: structure/forms.py:175
 msgid "Create group"
 msgstr "Erstelle mit Gruppe"
 
-#: structure/forms.py:175
+#: structure/forms.py:176
 msgid ""
 "If set, a group will be automatically created for this organization. Groups "
 "are needed for e.g. registration of services."
 msgstr ""
 
-#: structure/forms.py:199
+#: structure/forms.py:200
 msgid "Organization name"
 msgstr "Organisationsname"
 
-#: structure/forms.py:201 structure/tables.py:212
+#: structure/forms.py:202 structure/tables.py:212
 #: structure/templates/includes/detail/groups_table.html:21
 #: structure/templates/includes/detail/organizations_table.html:41
 msgid "Parent"
 msgstr "Gehört zu"
 
-#: structure/forms.py:206 structure/forms.py:360
+#: structure/forms.py:207 structure/forms.py:361
 #: structure/templates/includes/detail/organizations_table.html:25
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: structure/forms.py:268
+#: structure/forms.py:269
 msgid "Organization {} successfully created."
 msgstr "Organisation {} erstellt."
 
-#: structure/forms.py:273
+#: structure/forms.py:274
 msgid "{} group"
 msgstr "{} Gruppe"
 
-#: structure/forms.py:319
+#: structure/forms.py:320
 msgid "You have to confirm the checkbox."
 msgstr "Sie müssen die Checkbox anwählen."
 
-#: structure/forms.py:326
+#: structure/forms.py:327
 msgid "Organization {} successfully deleted."
 msgstr "Organisation {} gelöscht."
 
-#: structure/forms.py:350
+#: structure/forms.py:351
 msgid "Password again"
 msgstr "Passwort wiederholen"
 
-#: structure/forms.py:356
+#: structure/forms.py:357
 msgid "First name"
 msgstr "Vorname"
 
-#: structure/forms.py:357
+#: structure/forms.py:358
 msgid "Last name"
 msgstr "Nachname"
 
-#: structure/forms.py:358
+#: structure/forms.py:359
 msgid "E-mail address"
 msgstr "E-Mail Adresse"
 
-#: structure/forms.py:364
+#: structure/forms.py:365
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: structure/forms.py:365
+#: structure/forms.py:366
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: structure/forms.py:368
+#: structure/forms.py:369
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -2702,15 +2723,15 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: structure/forms.py:371
+#: structure/forms.py:372
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/forms.py:380
+#: structure/forms.py:381
 msgid "Username is already taken. Try another."
 msgstr "Nutzername ist bereits vergeben. Versuchen Sie etwas anderes."
 
-#: structure/forms.py:387
+#: structure/forms.py:388
 msgid "Passwords do not match."
 msgstr "Passwörter stimmen nicht überein."
 
@@ -3182,23 +3203,23 @@ msgstr "Geometrie laden"
 msgid "Export as GeoJSON"
 msgstr "Exportiere als GeoJSON"
 
-#: users/forms.py:43
+#: users/forms.py:45
 msgid "Old password"
 msgstr "Altes Passwort"
 
-#: users/forms.py:50
+#: users/forms.py:52
 msgid "New password"
 msgstr "Neues Passwort"
 
-#: users/forms.py:57
+#: users/forms.py:59
 msgid "Confirm new Password"
 msgstr "Neues Passwort bestätigen"
 
-#: users/forms.py:75
+#: users/forms.py:77
 msgid "Password and confirmed password does not match"
 msgstr "Passwörter stimmen nicht überein"
 
-#: users/forms.py:111
+#: users/forms.py:113
 msgid ""
 "Select the service you want to subscribe. When you edit an existing "
 "subscription, you can not change this selection."
@@ -3206,31 +3227,31 @@ msgstr ""
 "Wählen Sie den Dienst aus, den Sie abonnieren wollen. Falls Sie ein "
 "bestehendes Abonnemment bearbeiten, kann diese Auswahl nicht geändert werden."
 
-#: users/forms.py:127
+#: users/forms.py:132
 msgid "Sends an e-mai if the service has been updated."
 msgstr "Schickt eine E-Mail, falls der Dienst aktualisiert wird."
 
-#: users/forms.py:128
+#: users/forms.py:133
 msgid "Sends an e-mai if the service's access has been changed."
 msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
 
-#: users/forms.py:129
+#: users/forms.py:134
 msgid "Sends an e-mai if the service's metadata has been changed."
 msgstr "Schickt eine E-Mail, falls die Metadaten des Dienstes geändert wurden."
 
-#: users/forms.py:132
+#: users/forms.py:137
 msgid "Notify on update"
 msgstr "Bei Update informieren"
 
-#: users/forms.py:133
+#: users/forms.py:138
 msgid "Notify on access changes"
 msgstr "Bei Zugangsänderungen informieren"
 
-#: users/forms.py:134
+#: users/forms.py:139
 msgid "Notify on metadata changes"
 msgstr "Bei Metadatenänderungen informieren"
 
-#: users/forms.py:177
+#: users/forms.py:182
 msgid "Do you realy want to remove this subscription?"
 msgstr "Wollen Sie dieses Abonnemment wirklich löschen?"
 
@@ -3459,8 +3480,8 @@ msgstr "Passwort senden"
 msgid "Subscriptions"
 msgstr "Abonnements"
 
-#: users/templates/includes/subscriptions.html:12 users/views.py:426
-#: users/views.py:460
+#: users/templates/includes/subscriptions.html:12 users/views.py:427
+#: users/views.py:462
 msgid "New Subscription"
 msgstr "Neues Abonnement"
 
@@ -3503,7 +3524,7 @@ msgstr ""
 msgid "<strong>Edit your account information's</strong>"
 msgstr "<strong>Account Informationen bearbeiten</strong>"
 
-#: users/views.py:486
+#: users/views.py:488
 #, python-brace-format
 msgid ""
 "Remove Subscription for service <strong>{subscription.metadata}</strong>"
@@ -3531,44 +3552,44 @@ msgstr ""
 msgid "Syndication"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/core/paginator.py:45
+#: venv/lib/python3.7/site-packages/django/core/paginator.py:48
 msgid "That page number is not an integer"
 msgstr "Diese Seitennummer ist keine Zahl"
 
-#: venv/lib/python3.7/site-packages/django/core/paginator.py:47
+#: venv/lib/python3.7/site-packages/django/core/paginator.py:50
 msgid "That page number is less than 1"
 msgstr "Die Seitennummer ist kleiner als 1"
 
-#: venv/lib/python3.7/site-packages/django/core/paginator.py:52
+#: venv/lib/python3.7/site-packages/django/core/paginator.py:55
 msgid "That page contains no results"
 msgstr "Diese Seite enthält keine Ergebnisse"
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:32
+#: venv/lib/python3.7/site-packages/django/core/validators.py:20
 msgid "Enter a valid value."
 msgstr "Geben Sie einen gültigen Wert ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:103
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:659
+#: venv/lib/python3.7/site-packages/django/core/validators.py:91
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:671
 msgid "Enter a valid URL."
 msgstr "Geben Sie eine gültige URL ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:155
+#: venv/lib/python3.7/site-packages/django/core/validators.py:145
 msgid "Enter a valid integer."
 msgstr "Geben Sie eine gültige Nummer ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:166
+#: venv/lib/python3.7/site-packages/django/core/validators.py:156
 msgid "Enter a valid email address."
 msgstr "Geben Sie eine gültige E-Mail Adresse ein."
 
 #. Translators: "letters" means latin letters: a-z and A-Z.
-#: venv/lib/python3.7/site-packages/django/core/validators.py:240
+#: venv/lib/python3.7/site-packages/django/core/validators.py:230
 msgid ""
 "Enter a valid “slug” consisting of letters, numbers, underscores or hyphens."
 msgstr ""
 "Geben Sie einen validen 'slug' ein, bestehend aus Buchstaben, Zahlen, Unter- "
 "oder Bindestrichen."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:247
+#: venv/lib/python3.7/site-packages/django/core/validators.py:237
 msgid ""
 "Enter a valid “slug” consisting of Unicode letters, numbers, underscores, or "
 "hyphens."
@@ -3576,45 +3597,45 @@ msgstr ""
 "Geben Sie einen validen 'slug' ein, bestehend aus Unicode Buchstaben, "
 "Zahlen, Unter- oder Bindestrichen."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:256
-#: venv/lib/python3.7/site-packages/django/core/validators.py:276
+#: venv/lib/python3.7/site-packages/django/core/validators.py:246
+#: venv/lib/python3.7/site-packages/django/core/validators.py:266
 msgid "Enter a valid IPv4 address."
 msgstr "Geben Sie eine gültige IPv4 Adresse ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:261
-#: venv/lib/python3.7/site-packages/django/core/validators.py:277
+#: venv/lib/python3.7/site-packages/django/core/validators.py:251
+#: venv/lib/python3.7/site-packages/django/core/validators.py:267
 msgid "Enter a valid IPv6 address."
 msgstr "Geben Sie eine gültige IPv6 Adresse ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:271
-#: venv/lib/python3.7/site-packages/django/core/validators.py:275
+#: venv/lib/python3.7/site-packages/django/core/validators.py:261
+#: venv/lib/python3.7/site-packages/django/core/validators.py:265
 msgid "Enter a valid IPv4 or IPv6 address."
 msgstr "Geben Sie eine gültige IPv4 oder IPv6 Adresse ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:305
+#: venv/lib/python3.7/site-packages/django/core/validators.py:295
 msgid "Enter only digits separated by commas."
 msgstr "Geben Sie nur kommaseparierte Ziffern ein."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:311
+#: venv/lib/python3.7/site-packages/django/core/validators.py:301
 #, python-format
 msgid "Ensure this value is %(limit_value)s (it is %(show_value)s)."
 msgstr ""
 "Stellen Sie sicher, dass der Wert %(limit_value)s ist (eingegeben: "
 "%(show_value)s)"
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:343
+#: venv/lib/python3.7/site-packages/django/core/validators.py:334
 #, python-format
 msgid "Ensure this value is less than or equal to %(limit_value)s."
 msgstr ""
 "Stellen Sie sicher, dass der Wert kleiner oder gleich %(limit_value)s ist."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:352
+#: venv/lib/python3.7/site-packages/django/core/validators.py:343
 #, python-format
 msgid "Ensure this value is greater than or equal to %(limit_value)s."
 msgstr ""
 "Stellen Sie sicher, dass der Wert größer oder gleich %(limit_value)s ist."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:362
+#: venv/lib/python3.7/site-packages/django/core/validators.py:353
 #, python-format
 msgid ""
 "Ensure this value has at least %(limit_value)d character (it has "
@@ -3629,7 +3650,7 @@ msgstr[1] ""
 "Stellen Sie sicher, dass die Eingabe mindestens %(limit_value)d Zeichen hat "
 "(momentan: %(show_value)d)"
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:377
+#: venv/lib/python3.7/site-packages/django/core/validators.py:368
 #, python-format
 msgid ""
 "Ensure this value has at most %(limit_value)d character (it has "
@@ -3644,13 +3665,13 @@ msgstr[1] ""
 "Stellen Sie sicher, dass die Eingabe mindestens %(limit_value)d Zeichen hat "
 "(momentan: %(show_value)d)"
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:396
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:291
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:326
+#: venv/lib/python3.7/site-packages/django/core/validators.py:387
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:292
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:327
 msgid "Enter a number."
 msgstr "Seitennummer eingeben."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:398
+#: venv/lib/python3.7/site-packages/django/core/validators.py:389
 #, python-format
 msgid "Ensure that there are no more than %(max)s digit in total."
 msgid_plural "Ensure that there are no more than %(max)s digits in total."
@@ -3661,7 +3682,7 @@ msgstr[1] ""
 "Stellen Sie sicher, dass nicht mehr als %(max)s Ziffern eingegeben worden "
 "sind."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:403
+#: venv/lib/python3.7/site-packages/django/core/validators.py:394
 #, python-format
 msgid "Ensure that there are no more than %(max)s decimal place."
 msgid_plural "Ensure that there are no more than %(max)s decimal places."
@@ -3672,7 +3693,7 @@ msgstr[1] ""
 "Stellen Sie sicher, dass nicht mehr als %(max)s Nachkommastellen eingegeben "
 "worden sind."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:408
+#: venv/lib/python3.7/site-packages/django/core/validators.py:399
 #, python-format
 msgid ""
 "Ensure that there are no more than %(max)s digit before the decimal point."
@@ -3685,82 +3706,82 @@ msgstr[1] ""
 "Stellen Sie sicher, dass nicht mehr als %(max)s Stellen vor dem Komma "
 "eingegeben worden sind."
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:470
+#: venv/lib/python3.7/site-packages/django/core/validators.py:461
 #, python-format
 msgid ""
 "File extension “%(extension)s” is not allowed. Allowed extensions are: "
 "%(allowed_extensions)s."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/core/validators.py:522
+#: venv/lib/python3.7/site-packages/django/core/validators.py:513
 msgid "Null characters are not allowed."
 msgstr "Nullzeichen sind nicht erlaubt."
 
-#: venv/lib/python3.7/site-packages/django/db/models/base.py:1181
-#: venv/lib/python3.7/site-packages/django/forms/models.py:759
+#: venv/lib/python3.7/site-packages/django/db/models/base.py:1187
+#: venv/lib/python3.7/site-packages/django/forms/models.py:760
 msgid "and"
 msgstr "und"
 
-#: venv/lib/python3.7/site-packages/django/db/models/base.py:1183
+#: venv/lib/python3.7/site-packages/django/db/models/base.py:1189
 #, python-format
 msgid "%(model_name)s with this %(field_labels)s already exists."
 msgstr "%(model_name)s mit %(field_labels)s existiert bereits."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:104
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:100
 #, python-format
 msgid "Value %(value)r is not a valid choice."
 msgstr "Wert %(value)r ist keine gültige Auswahl."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:105
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:101
 msgid "This field cannot be null."
 msgstr "Dieses Feld darf nicht Null sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:106
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:102
 msgid "This field cannot be blank."
 msgstr "Dieses Feld darf nicht leer sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:107
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:103
 #, python-format
 msgid "%(model_name)s with this %(field_label)s already exists."
 msgstr ""
 
 #. Translators: The 'lookup_type' is one of 'date', 'year' or 'month'.
 #. Eg: "Title must be unique for pub_date year"
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:111
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:107
 #, python-format
 msgid ""
 "%(field_label)s must be unique for %(date_field_label)s %(lookup_type)s."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:130
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:126
 #, python-format
 msgid "Field of type: %(field_type)s"
 msgstr "Feldtyp: %(field_type)s"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:937
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:939
 #, python-format
 msgid "“%(value)s” value must be either True or False."
 msgstr "“%(value)s” muss entweder True oder False sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:938
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:940
 #, python-format
 msgid "“%(value)s” value must be either True, False, or None."
 msgstr "“%(value)s” muss entweder True, False oder None sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:940
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:942
 msgid "Boolean (Either True or False)"
 msgstr "Boolean (Entweder True oder False)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:981
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:983
 #, python-format
 msgid "String (up to %(max_length)s)"
 msgstr "String (erlaubtb is zu %(max_length)s Zeichen)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1045
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1047
 msgid "Comma-separated integers"
 msgstr "Kommaseparierte Zahlen"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1094
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1096
 #, python-format
 msgid ""
 "“%(value)s” value has an invalid date format. It must be in YYYY-MM-DD "
@@ -3768,19 +3789,19 @@ msgid ""
 msgstr ""
 "“%(value)s” hat ein ungültiges Datumsformat. Format muss YYYY-MM-DD sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1096
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1239
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1098
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1241
 #, python-format
 msgid ""
 "“%(value)s” value has the correct format (YYYY-MM-DD) but it is an invalid "
 "date."
 msgstr "“%(value)s” hat ein korrektes Format, aber das Datum ist ungültig."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1099
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1101
 msgid "Date (without time)"
 msgstr "Datum (ohne Uhrzeit)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1237
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1239
 #, python-format
 msgid ""
 "“%(value)s” value has an invalid format. It must be in YYYY-MM-DD HH:MM[:ss[."
@@ -3789,7 +3810,7 @@ msgstr ""
 "“%(value)s” hat ungültiges Format. Format muss YYYY-MM-DD HH:MM[:ss[.uuuuuu]]"
 "[TZ] sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1241
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1243
 #, python-format
 msgid ""
 "“%(value)s” value has the correct format (YYYY-MM-DD HH:MM[:ss[.uuuuuu]]"
@@ -3798,20 +3819,20 @@ msgstr ""
 "“%(value)s” hat ein korrektes Format (YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ]) "
 "aber das Datum/die Uhrzeit sind ungültig."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1245
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1247
 msgid "Date (with time)"
 msgstr "Datum (mit Uhrzeit)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1393
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1395
 #, python-format
 msgid "“%(value)s” value must be a decimal number."
 msgstr "“%(value)s” muss ein Dezimalwert sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1395
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1397
 msgid "Decimal number"
 msgstr "Dezimalwert"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1534
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1536
 #, python-format
 msgid ""
 "“%(value)s” value has an invalid format. It must be in [DD] [[HH:]MM:]ss[."
@@ -3820,80 +3841,84 @@ msgstr ""
 "“%(value)s” hat ein ungültiges Format. Format muss [DD] [[HH:]MM:]ss[."
 "uuuuuu] sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1537
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1539
 msgid "Duration"
 msgstr "Dauer"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1587
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1589
 msgid "Email address"
 msgstr "E-Mail Adresse"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1610
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1612
 msgid "File path"
 msgstr "Dateipfad"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1676
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1678
 #, python-format
 msgid "“%(value)s” value must be a float."
 msgstr "“%(value)s” muss ein Float sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1678
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1680
 msgid "Floating point number"
 msgstr "Fließkommazahl"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1716
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1718
 #, python-format
 msgid "“%(value)s” value must be an integer."
 msgstr "“%(value)s” muss ein Integer sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1718
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1720
 msgid "Integer"
 msgstr "Ganzzahl"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1801
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1803
 msgid "Big (8 byte) integer"
 msgstr "Große (8 Byte) Ganzzahl"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1817
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1819
 msgid "IPv4 address"
 msgstr "IPv4 Adresse"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1848
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1850
 msgid "IP address"
 msgstr "IP Adresse"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1928
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1929
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1930
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1931
 #, python-format
 msgid "“%(value)s” value must be either None, True or False."
 msgstr "“%(value)s” muss entweder None, True oder False sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1931
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1933
 msgid "Boolean (Either True, False or None)"
 msgstr "Boolean (Entweder True, False oder None)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1966
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1976
+msgid "Positive big integer"
+msgstr "Positiver Biginteger"
+
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1989
 msgid "Positive integer"
 msgstr "Positiver Integer"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1979
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2002
 msgid "Positive small integer"
 msgstr "Positiver kleiner Integer"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:1993
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2016
 #, python-format
 msgid "Slug (up to %(max_length)s)"
 msgstr "Slug (bis zu %(max_length)s Zeichen)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2025
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2048
 msgid "Small integer"
 msgstr "Kleiner Integer"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2032
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2055
 msgid "Text"
 msgstr "Text"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2060
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2083
 #, python-format
 msgid ""
 "“%(value)s” value has an invalid format. It must be in HH:MM[:ss[.uuuuuu]] "
@@ -3901,115 +3926,123 @@ msgid ""
 msgstr ""
 "“%(value)s” hat ein ungültiges Format. Format muss HH:MM[:ss[.uuuuuu]] sein."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2062
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2085
 #, python-format
 msgid ""
 "“%(value)s” value has the correct format (HH:MM[:ss[.uuuuuu]]) but it is an "
 "invalid time."
 msgstr "“%(value)s” hat ein korrektes Format aber die Zeit ist ungültig."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2065
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2088
 msgid "Time"
 msgstr "Zeit"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2213
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2236
 msgid "Raw binary data"
 msgstr "Binärdaten"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2278
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2301
 #, python-format
 msgid "“%(value)s” is not a valid UUID."
 msgstr "“%(value)s” ist keine gültige UUID."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2280
+#: venv/lib/python3.7/site-packages/django/db/models/fields/__init__.py:2303
 msgid "Universally unique identifier"
 msgstr "Universeller eindeutiger Indentifikator"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/files.py:221
+#: venv/lib/python3.7/site-packages/django/db/models/fields/files.py:231
 msgid "File"
 msgstr "Datei"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/files.py:360
+#: venv/lib/python3.7/site-packages/django/db/models/fields/files.py:377
 msgid "Image"
 msgstr "Bild"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:778
+#: venv/lib/python3.7/site-packages/django/db/models/fields/json.py:18
+msgid "A JSON object"
+msgstr ""
+
+#: venv/lib/python3.7/site-packages/django/db/models/fields/json.py:20
+msgid "Value must be valid JSON."
+msgstr ""
+
+#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:790
 #, python-format
 msgid "%(model)s instance with %(field)s %(value)r does not exist."
 msgstr "%(model)s Instanz mit %(field)s %(value)r existiert nicht."
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:780
+#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:792
 msgid "Foreign Key (type determined by related field)"
 msgstr "Foregin Key (type determined by related field)"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1012
+#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1045
 msgid "One-to-one relationship"
 msgstr "Eins-zu-Eins Relation"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1066
+#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1099
 #, python-format
 msgid "%(from)s-%(to)s relationship"
 msgstr "%(from)s-%(to)s Relation"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1067
+#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1100
 #, python-format
 msgid "%(from)s-%(to)s relationships"
 msgstr "%(from)s-%(to)s Relationen"
 
-#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1109
+#: venv/lib/python3.7/site-packages/django/db/models/fields/related.py:1142
 msgid "Many-to-many relationship"
 msgstr "Viele-zu-Viele Relation"
 
 #. Translators: If found as last label character, these punctuation
 #. characters will prevent the default label_suffix to be appended to the label
-#: venv/lib/python3.7/site-packages/django/forms/boundfield.py:149
+#: venv/lib/python3.7/site-packages/django/forms/boundfield.py:150
 msgid ":?.!"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:53
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:54
 msgid "This field is required."
 msgstr "Eingabe erforderlich."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:246
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:247
 msgid "Enter a whole number."
 msgstr "Ganze Zahl eingeben."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:397
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:1127
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:398
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:1139
 msgid "Enter a valid date."
 msgstr "Gültiges Datum eingeben."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:421
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:1128
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:422
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:1140
 msgid "Enter a valid time."
 msgstr "Gültige Uhrzeit eingeben."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:443
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:450
 msgid "Enter a valid date/time."
 msgstr "Gültiges Datum/Uhrzeit eingeben"
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:472
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:484
 msgid "Enter a valid duration."
 msgstr "Gültige Dauer eingeben"
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:473
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:485
 #, python-brace-format
 msgid "The number of days must be between {min_days} and {max_days}."
 msgstr "Die Anzahl der Tage muss zwischen {min_days} und {max_days} liegen."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:533
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:545
 msgid "No file was submitted. Check the encoding type on the form."
 msgstr "Keine Datei erhalten. Prüfen Sie die Kodierung des Formulars."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:534
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:546
 msgid "No file was submitted."
 msgstr "Keine Datei erhalten."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:535
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:547
 msgid "The submitted file is empty."
 msgstr "Erhaltene Datei ist leer."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:537
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:549
 #, python-format
 msgid "Ensure this filename has at most %(max)d character (it has %(length)d)."
 msgid_plural ""
@@ -4017,45 +4050,49 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:540
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:552
 msgid "Please either submit a file or check the clear checkbox, not both."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:601
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:613
 msgid ""
 "Upload a valid image. The file you uploaded was either not an image or a "
 "corrupted image."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:763
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:853
-#: venv/lib/python3.7/site-packages/django/forms/models.py:1275
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:775
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:865
+#: venv/lib/python3.7/site-packages/django/forms/models.py:1296
 #, python-format
 msgid "Select a valid choice. %(value)s is not one of the available choices."
 msgstr ""
 "Wählen Sie eine gültige Option aus. %(value)s ist keine der verfügbaren "
 "Optionen."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:854
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:969
-#: venv/lib/python3.7/site-packages/django/forms/models.py:1274
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:866
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:981
+#: venv/lib/python3.7/site-packages/django/forms/models.py:1295
 msgid "Enter a list of values."
 msgstr "Geben Sie eine Liste von Werten ein."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:970
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:982
 msgid "Enter a complete value."
 msgstr "Geben Sie einen ganzen Wert an."
 
-#: venv/lib/python3.7/site-packages/django/forms/fields.py:1186
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:1198
 msgid "Enter a valid UUID."
 msgstr "Geben Sie eine gültige UUID ein."
 
-#. Translators: This is the default suffix added to form field labels
-#: venv/lib/python3.7/site-packages/django/forms/forms.py:81
-msgid ":"
-msgstr ""
+#: venv/lib/python3.7/site-packages/django/forms/fields.py:1228
+msgid "Enter a valid JSON."
+msgstr "Geben Sie gültiges JSON ein."
 
-#: venv/lib/python3.7/site-packages/django/forms/forms.py:207
+#. Translators: This is the default suffix added to form field labels
+#: venv/lib/python3.7/site-packages/django/forms/forms.py:78
+msgid ":"
+msgstr ":"
+
+#: venv/lib/python3.7/site-packages/django/forms/forms.py:205
 #, python-format
 msgid "(Hidden field %(name)s) %(error)s"
 msgstr ""
@@ -4087,58 +4124,58 @@ msgstr "Reihenfolge"
 msgid "Delete"
 msgstr "Löschen"
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:754
+#: venv/lib/python3.7/site-packages/django/forms/models.py:755
 #, python-format
 msgid "Please correct the duplicate data for %(field)s."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:758
+#: venv/lib/python3.7/site-packages/django/forms/models.py:759
 #, python-format
 msgid "Please correct the duplicate data for %(field)s, which must be unique."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:764
+#: venv/lib/python3.7/site-packages/django/forms/models.py:765
 #, python-format
 msgid ""
 "Please correct the duplicate data for %(field_name)s which must be unique "
 "for the %(lookup)s in %(date_field)s."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:773
+#: venv/lib/python3.7/site-packages/django/forms/models.py:774
 msgid "Please correct the duplicate values below."
 msgstr "Bitte korrigieren Sie die doppelten Werte unten."
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:1094
+#: venv/lib/python3.7/site-packages/django/forms/models.py:1096
 msgid "The inline value did not match the parent instance."
 msgstr "Der Inline-Wert stimmte nicht mit der übergeordneten Instanz überein."
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:1161
+#: venv/lib/python3.7/site-packages/django/forms/models.py:1180
 msgid "Select a valid choice. That choice is not one of the available choices."
 msgstr ""
 "Wählen Sie eine gültige Option. Der gegebene Wert ist keine der gültigen "
 "Optionen."
 
-#: venv/lib/python3.7/site-packages/django/forms/models.py:1277
+#: venv/lib/python3.7/site-packages/django/forms/models.py:1298
 #, python-format
 msgid "“%(pk)s” is not a valid value."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/utils.py:162
+#: venv/lib/python3.7/site-packages/django/forms/utils.py:167
 #, python-format
 msgid ""
 "%(datetime)s couldn’t be interpreted in time zone %(current_timezone)s; it "
 "may be ambiguous or it may not exist."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/forms/widgets.py:395
+#: venv/lib/python3.7/site-packages/django/forms/widgets.py:398
 msgid "Clear"
 msgstr "Leeren"
 
-#: venv/lib/python3.7/site-packages/django/forms/widgets.py:396
+#: venv/lib/python3.7/site-packages/django/forms/widgets.py:399
 msgid "Currently"
 msgstr "Momentane"
 
-#: venv/lib/python3.7/site-packages/django/forms/widgets.py:397
+#: venv/lib/python3.7/site-packages/django/forms/widgets.py:400
 msgid "Change"
 msgstr "Ändern"
 
@@ -4154,64 +4191,65 @@ msgstr "Ja"
 msgid "No"
 msgstr "Nein"
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:788
+#. Translators: Please do not add spaces around commas.
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:790
 msgid "yes,no,maybe"
 msgstr "Ja, nein, vielleicht"
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:817
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:834
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:819
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:836
 #, python-format
 msgid "%(size)d byte"
 msgid_plural "%(size)d bytes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:836
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:838
 #, python-format
 msgid "%s KB"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:838
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:840
 #, python-format
 msgid "%s MB"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:840
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:842
 #, python-format
 msgid "%s GB"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:842
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:844
 #, python-format
 msgid "%s TB"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:844
+#: venv/lib/python3.7/site-packages/django/template/defaultfilters.py:846
 #, python-format
 msgid "%s PB"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:62
+#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:65
 msgid "p.m."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:63
+#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:66
 msgid "a.m."
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:68
+#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:71
 msgid "PM"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:69
+#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:72
 msgid "AM"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:150
+#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:149
 msgid "midnight"
 msgstr "Mitternacht"
 
-#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:152
+#: venv/lib/python3.7/site-packages/django/utils/dateformat.py:151
 msgid "noon"
 msgstr "Abend"
 
@@ -4491,18 +4529,18 @@ msgstr "Dezember"
 msgid "This is not a valid IPv6 address."
 msgstr "Das ist keine gültige IPv6 Adresse"
 
-#: venv/lib/python3.7/site-packages/django/utils/text.py:69
+#: venv/lib/python3.7/site-packages/django/utils/text.py:70
 #, python-format
 msgctxt "String to return when truncating text"
 msgid "%(truncated_text)s…"
 msgstr ""
 
-#: venv/lib/python3.7/site-packages/django/utils/text.py:235
+#: venv/lib/python3.7/site-packages/django/utils/text.py:236
 msgid "or"
 msgstr "oder"
 
 #. Translators: This string is used as a separator between list elements
-#: venv/lib/python3.7/site-packages/django/utils/text.py:254
+#: venv/lib/python3.7/site-packages/django/utils/text.py:255
 #: venv/lib/python3.7/site-packages/django/utils/timesince.py:83
 msgid ", "
 msgstr ", "
@@ -4548,10 +4586,6 @@ msgid "%d minute"
 msgid_plural "%d minutes"
 msgstr[0] "%d Minute"
 msgstr[1] "%d Minuten"
-
-#: venv/lib/python3.7/site-packages/django/utils/timesince.py:72
-msgid "0 minutes"
-msgstr "0 Minuten"
 
 #: venv/lib/python3.7/site-packages/django/views/csrf.py:110
 msgid "Forbidden"
@@ -5171,6 +5205,9 @@ msgstr ""
 #, python-format
 msgid "Unable to connect to qpid with SASL mechanism %s"
 msgstr ""
+
+#~ msgid "0 minutes"
+#~ msgstr "0 Minuten"
 
 #~ msgid ""
 #~ "Click to open the detail view of <strong>{record.organization."

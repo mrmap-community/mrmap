@@ -46,7 +46,6 @@ class EditorAcessTable(MrMapTable):
                  related_metadata,
                  *args,
                  **kwargs):
-
         self.related_metadata = related_metadata
         self.secured_operations = related_metadata.secured_operations.all()
         super(EditorAcessTable, self).__init__(*args, **kwargs)

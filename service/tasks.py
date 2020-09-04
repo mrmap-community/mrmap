@@ -21,13 +21,13 @@ from requests.exceptions import InvalidURL
 from MrMap import utils
 from MrMap.cacher import PageCacher
 from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MrMap.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
+from MrMap.settings import EXEC_TIME_PRINT
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
 from service.settings import DEFAULT_SRS
 from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog
-from service.settings import service_logger
+from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import service_helper, task_helper
 from users.helper import user_helper

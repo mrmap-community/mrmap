@@ -15,7 +15,7 @@ from io import BytesIO
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
-from MrMap.settings import MONITORING_REQUEST_TIMEOUT
+from monitoring.settings import MONITORING_REQUEST_TIMEOUT
 from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting, \
     HealthState
 from monitoring.helper.wmsHelper import WmsHelper

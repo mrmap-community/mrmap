@@ -3,6 +3,10 @@ from django.utils.translation import gettext_lazy as _
 
 monitoring_logger = logging.getLogger('MrMap.monitoring')
 
+# Defines monitoring constants
+MONITORING_TIME = "23:59:00"
+MONITORING_REQUEST_TIMEOUT = 30  # seconds
+
 # Define some thresholds for monitoring health check
 WARNING_RESPONSE_TIME = 300     # time in ms (milliseconds)
 CRITICAL_RESPONSE_TIME = 600    # time in ms (milliseconds)

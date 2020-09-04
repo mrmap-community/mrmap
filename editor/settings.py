@@ -15,10 +15,10 @@ If a group is allowed to perform the operation 'GetFeatureInfo', it must(!) be a
 Calling 'GetFeatureInfo' without calling 'GetMap' is nonsense. 
 
 """
-WMS_SECURED_OPERATIONS = [
+WMS_SECURED_OPERATIONS = {
     "GetFeatureInfo",
     "GetMap",
-]
+}
 
 """ WFS SECURED OPERATIONS
 
@@ -30,7 +30,7 @@ Allowing 'GetFeature' includes allowing of the operations
     * GetFeatureWithLock
 
 """
-WFS_SECURED_OPERATIONS = [
+WFS_SECURED_OPERATIONS = {
     "GetFeature",
     "Transaction",
-]
+}

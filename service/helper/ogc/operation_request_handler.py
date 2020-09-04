@@ -127,6 +127,7 @@ class OGCOperationRequestHandler:
         for key, val in self.original_params_dict.items():
             self.new_params_dict[key.upper()] = val
 
+        t_start = time.time()
         self._parse_GET_params()
         self._check_for_srs_in_bbox_param()
         self._resolve_original_operation_uri(request, metadata)
@@ -141,6 +142,7 @@ class OGCOperationRequestHandler:
         if self.srs_param is not None and self.srs_code is None:
             self.srs_code = int(self.srs_param.split(":")[-1])
 
+        print("ORhandler took {}s".format(time.time() - t_start))
         # Only work on the requested param objects, if the metadata is secured.
         # Otherwise we can pass this, since it's too expensive for a basic, non secured request
         if metadata.is_secured:
@@ -149,6 +151,7 @@ class OGCOperationRequestHandler:
             if not metadata.is_root():
                 md = metadata.service.parent_service.metadata
             self._filter_not_allowed_subelements(md)
+        print("ORhandler took {}s".format(time.time() - t_start))
 
     def _parse_GET_params(self):
         """ Parses the GET parameters into all member variables, which can be found in new_params_dict.
@@ -327,26 +330,22 @@ class OGCOperationRequestHandler:
         if md.is_service_type(OGCServiceEnum.WMS):
             self._resolve_layer_param_to_leaf_layers(md)
 
+        t_start = time.time()
         if self.layers_param is not None and self.type_name_param is None:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
 
-            allowed_layers = Metadata.objects.filter(
+            layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
+            )
+            allowed_layers = layers.filter(
                 secured_operations__allowed_group__in=self.user_groups,
                 secured_operations__operation__iexact=self.request_param,
             )
-            allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
 
-            restricted_layers = []
-            allowed_layers = []
-            for l_i in layer_identifiers:
-                if l_i in allowed_layers_identifier_list:
-                    allowed_layers.append(l_i)
-                else:
-                    restricted_layers.append(l_i)
-            self.new_params_dict["LAYERS"] = ",".join(allowed_layers)
+            restricted_layers = layers.difference(allowed_layers)
+            self.new_params_dict["LAYERS"] = ",".join(allowed_layers.values_list("identifier", flat=True))
 
             # create text for image of restricted layers
             if RENDER_TEXT_ON_IMG:
@@ -355,7 +354,7 @@ class OGCOperationRequestHandler:
                 draw = ImageDraw.Draw(text_img)
                 font_size = int(height * FONT_IMG_RATIO)
 
-                num_res_layers = len(restricted_layers)
+                num_res_layers = restricted_layers.count()
                 if font_size * num_res_layers > height:
                     # if area of text would be larger than requested height, we simply create a new font_size, that fits!
                     # increase the num_res_layers by 1 to create some space at the bottom for a better feeling
@@ -371,9 +370,10 @@ class OGCOperationRequestHandler:
 
                 for restricted_layer in restricted_layers:
                     # render text listed one under another
-                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
+                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer.identifier), (0, 0, 0), font=font)
                     y += font_size
                 self.access_denied_img = text_img
+        print("filter subelements took {}".format(time.time() - t_start))
 
     def _create_image_with_text(self, w: int, h: int, txt: str):
         """ Renders text on an empty image

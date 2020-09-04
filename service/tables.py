@@ -338,10 +338,12 @@ class WmsLayerTableWms(WmsServiceTable):
         }
 
     def render_wms_parent_service(self, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{record.service.parent_service.metadata.title}</strong>.'),
-                             href=reverse('resource:detail', args=(record.service.parent_service.metadata.id,)),
-                             value=record.service.parent_service.metadata.title,
-                             permission=None)
+        return self.get_link(
+            tooltip=_('Click to open the detail view of <strong>{}</strong>.'.format(record.service.parent_service.metadata.title)),
+            href=reverse('resource:detail', args=(record.service.parent_service.metadata.id,)),
+            value=record.service.parent_service.metadata.title,
+            permission=None
+        )
 
     @staticmethod
     def order_wms_parent_service(queryset, is_descending):

@@ -72,7 +72,6 @@ def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
@@ -84,7 +83,6 @@ def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
 
     queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WMS.value,
-        service__is_root=show_service,
         created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
@@ -113,11 +111,6 @@ def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
                                      order_by_field='swms',  # swms = sort wms
                                      current_view=current_view,
                                      param_lead='wms-t', )
-
-    # add boolean field to filter.form; this is needed, cause the search form sends it if show layer dropdown is set
-    # add it after table is created; otherwise we get a KeyError
-    show_layers_ = forms.BooleanField(required=False, initial=False)
-    wms_table.filter_set.form.fields.update({'show_layers': show_layers_})
 
     return {
         "wms_table": wms_table,

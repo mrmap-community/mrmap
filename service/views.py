@@ -1,6 +1,8 @@
 import base64
 import io
 from io import BytesIO
+from time import time
+
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -1281,9 +1283,11 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
     get_query_string = request.environ.get("QUERY_STRING", "")
 
     try:
+        t_start = time()
         # redirects request to parent service, if the given id is not the root of the service
         metadata = Metadata.objects.get(id=metadata_id)
         operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
+        print("Took {}s".format(time() - t_start))
 
         if not metadata.is_active:
             return HttpResponse(status=423, content=SERVICE_DISABLED)
@@ -1308,8 +1312,9 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
                 identifier__in=layers,
                 service__parent_service__metadata=metadata
             )
-            md_secured = True in [l_md.is_secured for l_md in layers_md]
+            md_secured = layers_md.filter(is_secured=True).exists()
 
+            print("Took {}s".format(time() - t_start))
             if layers_md.count() != len(layers):
                 # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
@@ -1318,6 +1323,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         else:
             response_dict = operation_handler.get_operation_response(proxy_log=proxy_log)
 
+        print("Took {}s".format(time() - t_start))
         response = response_dict.get("response", None)
         content_type = response_dict.get("response_type", "")
 

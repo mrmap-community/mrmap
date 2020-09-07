@@ -8,7 +8,7 @@
     <tbody>
     <tr>
         <th scope="row">{% trans 'Title' %}</th>
-        <td itemprop="about headline">
+        <td itemprop="about headline" class="col">
             {{ title }}
         </td>
     </tr>
@@ -20,11 +20,11 @@
     </tr>
     <tr>
         <th scope="row">{% trans 'Parent Service' %}</th>
-        <td><a href="{% url 'service:get-metadata-html' parent_service.metadata.id %}">{{ parent_service.metadata.title }}</a>
+        <td><a href="{% url 'resource:get-metadata-html' parent_service.metadata.id %}">{{ parent_service.metadata.title }}</a>
         </td>
     </tr>
     <tr>
-        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <th scope="row">{% trans 'Name of resource' %}</th>
         <td>{{ name_of_the_resource }}</td>
     </tr>
     <tr>

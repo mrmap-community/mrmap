@@ -1,21 +1,28 @@
 <!-- Modal -->
 {% load bootstrap4 %}
 {# Usage: use with parameter on expanding template to declare show_modal, id_modal and form variable  #}
-<div class="modal {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
+<div class="modal {% if form.errors|length > 0  %} animated shake {% endif %} {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}">
             <div class="modal-header">
                 <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
+                    {{form.form_title}}
                     {% block modal-title %}
                     {% endblock %}
                 </h5>
+                <a href="{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}" role="button" class="close" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </a>
+                {% block modal-header %}
+                {% endblock %}
             </div>
             <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
                 {% csrf_token %}
                 <div class="modal-body">
-                    {% if form %}
                     {% bootstrap_form form %}
+                    {% if form.has_autocomplete_fields %}
+                        {% include 'sceletons/autocomplete_form_media.html' %}
                     {% endif %}
                 </div>
                 <div class="modal-footer">
@@ -26,7 +33,7 @@
         </div>
     </div>
 </div>
-{% if show_modal %}
+{% if form.show_modal %}
     <script type="application/javascript">
         $('#id_modal_{{id_modal}}').modal('show');
     </script>
@@ -34,9 +41,17 @@
 
 <script type="application/javascript">
     $(function() {
-       $(".auto_submit_item").change(function() {
+       $("#id_modal_form_{{id_modal}} .auto_submit_item").change(function() {
          $('#id_is_form_update').val('True');
          $('#id_modal_form_{{id_modal}}').submit();
        });
     });
+
+    $("#id_modal_{{id_modal}}").on('keyup', function(event) {
+       if (event.keyCode === 27 || event.key === "Escape") {
+            $('#id_modal_{{id_modal}}').modal('hide');
+            location.replace("{{ROOT_URL}}{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}");
+       }
+    });
 </script>
+

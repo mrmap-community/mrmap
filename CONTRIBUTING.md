@@ -5,11 +5,11 @@ When contributing to this repository, please first discuss the change you wish t
 Please follow the following steps on working in our Git:
 
 1. Create an issue
-    * Explain your problem precisely. Please use an issue style like [this](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/45)
+    * Explain your problem precisely. Please use an issue style like [this](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/45)
 2. Tag the issue correctly (Discussion, Bug, Improvement, New Feature, ...)
 3. Assigne the correct person. If you are not sure who would be the correct one, just assigne someone. They will know if they can do it or delegate it further
 4. If your are responsible for the issue, create an own branch per issue. This workflow is nicely done in Gitlab, but Github does not support the automatic creation of a branch from an issue. However, if your issue has the name `#42 Great Issue`, please use the following as branch name `42_Great_Issue`. 
-5. **Always** fork the issue branch from the depending milestone branch your developing for. (See the [tags](https://git.osgeo.org/gitea/hollsandre/MapSkinner/releases))The master branch will only be pulled, if we want to get a current "milestone" status.
+5. **Always** fork the issue branch from the depending milestone branch your developing for. (See the [tags](https://git.osgeo.org/gitea/GDI-RP/MrMap/releases))The master branch will only be pulled, if we want to get a current "milestone" status.
 6. Work on the branch
 7. Use a good commit style as following described.
 8. When the work is done, create a Pull-Request and explain what you did. **Please note**: Always set the Pull-Request relation to **milestone --- your_branch**
@@ -17,9 +17,9 @@ Please follow the following steps on working in our Git:
 
 ##Issue Style
 Please use `markdown` for styling your issue. Always explain **what currently exists**, like how the bug can be triggered, followed by a **"wish" or suggestion** what **should** happen on this specific problem. Take a look on older Issues to get an idea:
-* [#44](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/44)
-* [#45](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/45)
-* [#36](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/36)
+* [#44](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/44)
+* [#45](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/45)
+* [#36](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/36)
 
 ##Commit Style
 Commits are a great thing to rethink your last actions again and are useful for code review. So please follow the following style to improve the quality of your commits:
@@ -105,7 +105,7 @@ Please try not only to explain what you are doing (which is obvious in most case
 ```python
 
 
-@check_permission(Permission(can_update_service=True))
+@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
 @transaction.atomic
 def update_service(request: HttpRequest, id: int):
     """ Compare old service with new service and collect differences
@@ -139,7 +139,7 @@ def update_service(request: HttpRequest, id: int):
 
     # parse new capabilities into db model
     registrating_group = old_service.created_by
-    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
+    new_service = service_helper.create_service(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
     xml = new_service["raw_data"].service_capabilities_xml
     new_service = new_service["service"]
 
@@ -149,7 +149,7 @@ def update_service(request: HttpRequest, id: int):
 
     if update_confirmed:
         # check cross service update attempt
-        if old_service.servicetype.name != new_service_type.value:
+        if old_service.service_type.name != new_service_type.value:
             # cross update attempt -> forbidden!
             messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
             return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
@@ -167,14 +167,14 @@ def update_service(request: HttpRequest, id: int):
         old_service = update_helper.update_service(old_service, new_service)
         old_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == ServiceTypes.WFS.value:
+        if new_service.service_type.name == ServiceTypes.WFS.value:
             old_service = update_helper.update_wfs_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
-        elif new_service.servicetype.name == ServiceTypes.WMS.value:
+        elif new_service.service_type.name == ServiceTypes.WMS.value:
             old_service = update_helper.update_wms_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
-        cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
-        cap_document.current_capability_document = xml
+        cap_document = CapabilityDocument.objects.get(metadata=old_service.metadata)
+        cap_document.content = xml
         cap_document.save()
 
         old_service.save()

@@ -8,6 +8,7 @@ The system provides the following functionalities:
 * Service management
   * Register web map services in all current versions (1.0.0 - 1.3.0)
   * Register web feature services in all current versions (1.0.0 - 2.0.2)
+  * Register catalogue services for the web in version 2.0.2
   * Create automatically organizations from service metadata
   * Generate Capabilities links to use in any map viewer which supports WMS/WFS imports
 * Metadata Editor 
@@ -27,6 +28,10 @@ The system provides the following functionalities:
 * Dashboard
   * Have an overview on all newest activities of your groups, all your registered services or 
   pending publisher requests
-* Catalogue and API
+* JSON Catalogue and API
   * Find services using the catalogue JSON interface 
   * Have reading access to metadata, whole services, layers, organizations or groups
+* CSW 
+  * Functionally reduced implementation of a CSW
+  * Read-only access provided, no transactional functionality
+  * Capable of performing harvesting operations on registered CSW

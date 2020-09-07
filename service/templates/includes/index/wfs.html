@@ -10,10 +10,10 @@
 <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</h4>
 {% endblock %}
 {% block card-header-title-right %}
-    {% if 'can_register_service' in user_permissions %}
-        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
-            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
-        </button>
+    {% if 'can_register_resource' in user_permissions %}
+        <a role="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'resource:add' %}?current-view={{current_view}} ">
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New resource' %}
+        </a>
     {% endif %}
 {% endblock %}
 {% block card-body %}

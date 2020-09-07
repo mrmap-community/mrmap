@@ -5,7 +5,7 @@ All integration tests are placed in the tests/integration_tests/ directory. To r
 
 Before you run integration tests start the celary worker:
 
-    (venv) $ celary -A MapSkinner worker -l info
+    (venv) $ celary -A MrMap worker -l info
 
 Run unit tests with following command:
 

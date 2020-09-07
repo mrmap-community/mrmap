@@ -1,6 +1,10 @@
 # Create your views here.
+from django.utils import timezone
+from collections import OrderedDict
+
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -13,24 +17,28 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from MapSkinner import utils
-from MapSkinner.decorator import check_permission
-from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
+from MrMap import utils
+from MrMap.decorator import check_permission, resolve_metadata_public_id
+from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
-from MapSkinner.responses import DefaultContext, APIResponse
+from MrMap.responses import DefaultContext, APIResponse
 from api import view_helper
+from monitoring.models import Monitoring, MonitoringRun
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer
+    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer, \
+    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
-    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
+    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
+    SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
 from service import tasks
 from service.helper import service_helper
-from service.models import Service, Layer, Metadata
+from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
 from structure.models import Organization, MrMapGroup, Permission, PendingTask
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
@@ -70,9 +78,7 @@ def menu_view(request: HttpRequest):
 
 
 @check_permission(
-    Permission(
-        can_generate_api_token=True
-    )
+    PermissionEnum.CAN_GENERATE_API_TOKEN
 )
 def generate_token(request: HttpRequest):
     """ Generates a token for the user.
@@ -238,7 +244,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = ServiceSerializer(tmp, many=True)
@@ -253,12 +259,8 @@ class ServiceViewSet(viewsets.GenericViewSet):
              response (Response)
         """
         service_serializer = ServiceSerializer()
-        user = user_helper.get_user(request)
-        params = {
-            "user": user
-        }
-        params.update(request.POST.dict())
-        pending_task = service_serializer.create(validated_data=params)
+        params = request.POST.dict()
+        pending_task = service_serializer.create(validated_data=params, request=request)
 
         response = APIResponse()
         response.data["success"] = pending_task is not None
@@ -272,7 +274,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
         try:
             tmp = Layer.objects.get(metadata__id=pk)
@@ -280,10 +282,13 @@ class ServiceViewSet(viewsets.GenericViewSet):
                 return Response(status=423)
             serializer = LayerSerializer(tmp)
         except ObjectDoesNotExist:
-            tmp = Service.objects.get(metadata__id=pk)
-            if not tmp.metadata.is_active:
-                return Response(status=423)
-            serializer = ServiceSerializer(tmp)
+            try:
+                tmp = Service.objects.get(metadata__id=pk)
+                if not tmp.metadata.is_active:
+                    return Response(status=423)
+                serializer = ServiceSerializer(tmp)
+            except ObjectDoesNotExist:
+                return Response(RESOURCE_NOT_FOUND, status=404)
 
         return Response(serializer.data)
 
@@ -324,9 +329,11 @@ class ServiceViewSet(viewsets.GenericViewSet):
             return Response(data=response.data, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
@@ -409,7 +416,7 @@ class LayerViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = LayerSerializer(tmp, many=True)
@@ -420,20 +427,26 @@ class LayerViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Layer.objects.get(metadata__id=pk)
-        if not tmp.metadata.is_active:
-            return Response(status=423)
-        return Response(LayerSerializer(tmp).data)
+        try:
+            tmp = Layer.objects.get(metadata__id=pk)
+            if not tmp.metadata.is_active:
+                return Response(status=423)
+            return Response(LayerSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -526,7 +539,7 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = MetadataSerializer(tmp, many=True)
@@ -537,20 +550,26 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Metadata.objects.get(id=pk)
-        if not tmp.is_active:
-            return Response(status=423)
-        return Response(MetadataSerializer(tmp).data)
+        try:
+            tmp = Metadata.objects.get(id=pk)
+            if not tmp.is_active:
+                return Response(status=423)
+            return Response(MetadataSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -595,7 +614,7 @@ class GroupViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = GroupSerializer(tmp, many=True)
@@ -606,18 +625,24 @@ class GroupViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = MrMapGroup.objects.get(id=pk)
-        return Response(ServiceSerializer(tmp).data)
+        try:
+            tmp = MrMapGroup.objects.get(id=pk)
+            return Response(ServiceSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -658,6 +683,22 @@ class CatalogueViewSet(viewsets.GenericViewSet):
                                     * Type: bool
                                     * If not set, overlapping results will be returned as well.
 
+            -----   DIMENSION    -----
+            time-min:           optional, specifies a date in ISO format (YYYY-mm-dd)
+                                    * Type: str
+                                    * only results with a time dimension on or after time-min will be returned
+            time-max:           optional, specifies a date in ISO format (YYYY-mm-dd)
+                                    * Type: str
+                                    * only results with a time dimension on or before time-max will be returned
+            elevation-unit:     optional, specifies a unit, that evaluates the evalution-min/-max parameters
+                                    * Type: str
+            elevation-min:      optional, specifies a numerical value
+                                    * Type: float
+                                    * only results with an elevation dimension larger or equal to elevation-min will be returned
+            elevation-max:      optional, specifies a numerical value
+                                    * Type: float
+                                    * only results with an elevation dimension smaller or equal to elevation-min will be returned
+
     """
     serializer_class = CatalogueMetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -668,13 +709,76 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         self.orderable_fields = [field.name for field in Metadata._meta.fields]
 
     def get_queryset(self):
-        """ Specifies if the queryset shall be filtered or not
+        """ Fetch the base queryset
 
         Returns:
              The queryset
         """
+        # Prefetches multiple related attributes to reduce the access time later!
+        prefetches = [
+            "keywords",
+            "categories",
+            "related_metadata",
+            "related_metadata__metadata_to",
+            "dimensions",
+            "additional_urls",
+            "contact",
+            "licence",
+            "featuretype__parent_service",
+            "service__parent_service",
+        ]
+        only = [
+            "id",
+            "public_id",
+            "identifier",
+            "metadata_type",
+            "title",
+            "abstract",
+            "bounding_geometry",
+            "online_resource",
+            "fees",
+            "access_constraints",
+            "licence",
+            "service",
+            "service__parent_service",
+            "contact",
+            "related_metadata",
+            "categories",
+            "dimensions",
+            "keywords",
+        ]
+
         self.queryset = Metadata.objects.filter(
             is_active=True,
+        )
+        self.queryset = self.queryset.only(
+            *only
+        ).prefetch_related(
+            *prefetches
+        )
+
+        return self.queryset
+
+    def filter_queryset(self, queryset):
+        """ Filters the queryset
+
+        Args:
+            queryset (Queryset): Unfiltered queryset
+        Returns:
+             queryset (Queryset): Filtered queryset
+        """
+        # filter by dimensions
+        time_min = self.request.query_params.get("time-min", None) or None
+        time_max = self.request.query_params.get("time-max", None) or None
+        elevation_unit = self.request.query_params.get("elevation-unit", None) or None
+        elevation_min = self.request.query_params.get("elevation-min", None) or None
+        elevation_max = self.request.query_params.get("elevation-max", None) or None
+        queryset = view_helper.filter_queryset_metadata_dimension_time(queryset, time_min, time_max)
+        queryset = view_helper.filter_queryset_metadata_dimension_elevation(
+            queryset,
+            elevation_min,
+            elevation_max,
+            elevation_unit
         )
 
         # filter by bbox extent. fully-inside and partially-inside are mutually exclusive
@@ -683,44 +787,194 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         bbox_strict = utils.resolve_boolean_attribute_val(
             self.request.query_params.get("bbox-strict", False) or False
         )
-        self.queryset = view_helper.filter_queryset_metadata_bbox(self.queryset, bbox, bbox_srs, bbox_strict)
+        queryset = view_helper.filter_queryset_metadata_bbox(queryset, bbox, bbox_srs, bbox_strict)
 
         # filter by service type
         type = self.request.query_params.get("type", None)
-        self.queryset = view_helper.filter_queryset_metadata_type(self.queryset, type)
-
-        # filter by query
-        query = self.request.query_params.get("q", None)
-        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+        queryset = view_helper.filter_queryset_metadata_type(queryset, type)
 
         # filter by category
         category = self.request.query_params.get("cat", None)
         category_strict = utils.resolve_boolean_attribute_val(
             self.request.query_params.get("cat-strict", False) or False
         )
-        self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category, category_strict)
+        queryset = view_helper.filter_queryset_metadata_category(queryset, category, category_strict)
+
+        # filter by query
+        query = self.request.query_params.get("q", None)
+        q_test = self.request.query_params.get("q-test", False)
+        queryset = view_helper.filter_queryset_metadata_query(queryset, query, q_test)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)
         if order_by not in self.orderable_fields:
             order_by = CATALOGUE_DEFAULT_ORDER
-        self.queryset = view_helper.order_queryset(self.queryset, order_by)
+        queryset = view_helper.order_queryset(queryset, order_by)
+
+        return queryset
+
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for time t
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    def list(self, request):
+        qs = self.get_queryset()
+        qs = self.filter_queryset(qs)
+        tmp = self.paginate_queryset(qs)
+        data = serialize_catalogue_metadata(tmp)
+        resp = self.get_paginated_response(data)
+        return resp
+
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for time t
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    @resolve_metadata_public_id
+    def retrieve(self, request, pk=None):
+        try:
+            tmp = Metadata.objects.get(id=pk)
+            if not tmp.is_active:
+                return Response(status=423)
+            data = serialize_catalogue_metadata(tmp)
+            return Response(data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
+
+
+class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
+    """ Overview of the last Monitoring results
+
+    """
+    serializer_class = MonitoringSerializer
+
+    def get_queryset(self):
+        try:
+            monitoring_run = MonitoringRun.objects.latest('start')
+            monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+        except ObjectDoesNotExist:
+            return Monitoring.objects.all()
+        return monitorings
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        tmp = Monitoring.objects.filter(metadata=pk).order_by('-timestamp')
+
+        if len(tmp) == 0:
+            return Response(status=404)
+
+        last_monitoring = tmp[0]
+        sum_response = 0
+        sum_availability = 0
+        for monitor in tmp:
+            sum_response += monitor.duration.microseconds
+            if monitor.available:
+                sum_availability += 1
+        avg_response_microseconds = sum_response / len(tmp)
+        avg_response_time = timezone.timedelta(microseconds=avg_response_microseconds)
+        avg_availability = sum_availability / len(tmp) * 100
+        result = {
+            'last_monitoring': last_monitoring,
+            'avg_response_time': avg_response_time,
+            'avg_availability_percent': avg_availability
+        }
+        return Response(MonitoringSummarySerializer(result).data)
+
+
+class SuggestionViewSet(viewsets.GenericViewSet):
+    """ Returns suggestions based on the given input.
+
+    Suggestions are currently created using the existing keywords and their relevance.
+
+        Query parameters:
+
+            -----   REGULAR    -----
+            q:                  optional, query
+                                    * Type: str
+                                    * no multiple query arguments possible, only single
+            max:                optional, max number of returned suggestions
+                                    * Type: int
+                                    * if not set, the default is 10
+
+    """
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        # Prefilter search on database access to reduce amount of work
+        query = self.request.query_params.get("q", None)
+        filter = view_helper.create_keyword_query_filter(query)
+        try:
+            max_results = int(self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS))
+        except ValueError:
+            # Happens if non-numeric value has been given. Use fallback!
+            max_results = SUGGESTIONS_MAX_RESULTS
+
+        # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
+        self.queryset = Keyword.objects.filter(
+            filter
+        ).annotate(
+            metadata_count=Count('metadata')
+        ).order_by(
+            '-metadata_count'
+        )[:max_results]
 
         return self.queryset
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
-        serializer = CatalogueMetadataSerializer(tmp, many=True)
-        return self.get_paginated_response(serializer.data)
+        data = {
+            "suggestions":
+                {
+                    result.keyword: result.metadata_count for result in tmp
+                }
+        }
+        data = OrderedDict(data)
+        return self.get_paginated_response(data)
+
+
+class CategoryViewSet(viewsets.GenericViewSet):
+    """ Returns available categories and the number of related services.
+
+        Query parameters:
+
+            -----   REGULAR    -----
+            q:                  optional, query
+                                    * Type: str
+                                    * no multiple query arguments possible, only single
+
+    """
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        # Prefilter search on database access to reduce amount of work
+        query = self.request.query_params.get("q", None)
+        filter = view_helper.create_category_query_filter(query)
+
+        # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
+        self.queryset = Category.objects.filter(
+            filter
+        ).annotate(
+            metadata_count=Count('metadata')
+        )
+
+        return self.queryset
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
-    def retrieve(self, request, pk=None):
-        tmp = Metadata.objects.get(id=pk)
-        if not tmp.is_active:
-            return Response(status=423)
-        return Response(CatalogueMetadataSerializer(tmp).data)
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    def list(self, request):
+        tmp = self.paginate_queryset(self.get_queryset())
+        serializer = CategorySerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)

@@ -9,8 +9,7 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError, _Element
 from requests.exceptions import ProxyError
 
-from MapSkinner.settings import XML_NAMESPACES
-from service.helper.common_connector import CommonConnector
+from MrMap.settings import XML_NAMESPACES
 from service.helper.enums import OGCServiceVersionEnum
 
 
@@ -22,6 +21,8 @@ def parse_xml(xml: str, encoding=None):
     Returns:
         nothing
     """
+    if not isinstance(xml, str) and not isinstance(xml, bytes):
+        raise ValueError
     default_encoding = "UTF-8"
     if not isinstance(xml, bytes):
         if encoding is None:
@@ -31,7 +32,8 @@ def parse_xml(xml: str, encoding=None):
     else:
         xml_b = xml
     try:
-        xml_obj = etree.ElementTree(etree.fromstring(text=xml_b))
+        parser = etree.XMLParser(huge_tree=len(xml_b) > 10000000)
+        xml_obj = etree.ElementTree(etree.fromstring(text=xml_b, parser=parser))
         if encoding != xml_obj.docinfo.encoding:
             # there might be problems e.g. with german Umlaute ä,ö,ü, ...
             # try to parse again but with the correct encoding
@@ -69,6 +71,7 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
     Returns:
          None | str
     """
+    from service.helper.common_connector import CommonConnector
     connector = CommonConnector(url=uri, external_auth=external_auth)
     type_name = "typeName"
     if service_type_version == OGCServiceVersionEnum.V_2_0_0 or service_type_version == OGCServiceVersionEnum.V_2_0_2:
@@ -317,7 +320,7 @@ def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: d
     return ret_element
 
 
-def add_subelement(parent_elem: _Element, sub_element: _Element):
+def add_subelement(parent_elem: _Element, sub_element: _Element, after: str = None):
     """ Adds an existing xml element after
 
     Args:
@@ -326,7 +329,16 @@ def add_subelement(parent_elem: _Element, sub_element: _Element):
     Returns:
          parent_elem: The modified xml element, holding the subelement as a child
     """
-    parent_elem.append(sub_element)
+    if after is not None:
+        after_element = try_get_single_element_from_xml("./{}".format(after), parent_elem)
+        if after_element is None:
+            # If this element could not be found, we append this element at the end
+            after_element_index = -1
+        else:
+            after_element_index = parent_elem.index(after_element) + 1
+        parent_elem.insert(after_element_index, sub_element)
+    else:
+        parent_elem.append(sub_element)
     return parent_elem
 
 

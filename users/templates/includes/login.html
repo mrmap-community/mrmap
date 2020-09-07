@@ -8,7 +8,7 @@
         <div class="col-md mt-5 mb-5">
             <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
                 <div class="card-body">
-                    <h4 class="card-title text-center">Sign in</h4>
+                    <h4 class="card-title text-center">{% trans 'Sign in' %}</h4>
                     <hr>
                     <div class="media">
                         <img class="align-self-start w-25 mr-3" src="{% static '/images/mr_map.png' %}" alt="mr. map">
@@ -28,11 +28,11 @@
                                 <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 <div class="form-group input-group">
 
-                                    {% if 'Username' in field.label %}
+                                    {% if username_label == field.label %}
                                     <div class="input-group-prepend">
                                         <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %}</div>
                                     </div>
-                                    {% elif 'Password' in field.label %}
+                                    {% elif password_label == field.label %}
                                     <div class="input-group-prepend">
                                         <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.PASSWORD}}{% endautoescape %}</div>
                                     </div>
@@ -52,7 +52,7 @@
                     </div>
                     <hr>
                     <div class="text-center">
-                        <span>{% trans 'Don\'t have an account?' %} </span>
+                        <span>{% trans 'Don`t have an account?' %} </span>
                         <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'register' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
                         <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'password-reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
                     </div>

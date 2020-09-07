@@ -16,50 +16,45 @@ sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
         
 1. create virtualenv
 
-        $ virtualenv -p python3 `PATH-TO-MAPSKINNER`/venv
+        $ virtualenv -p python3 `PATH-TO-MrMap`/venv
         
-> to use the virtualenv run: source `PATH-TO-MAPSKINNER`/venv/bin/activate
+> to use the virtualenv run: source `PATH-TO-MrMap`/venv/bin/activate
 
-##Install apache2 with mapserver
-> We use mapserver to produce the masks for spatial restrictions.
+##Install nginx with mapserver
+We use mapserver to produce the masks for spatial restrictions.  
+
 1. Install all needed packages:
 
-        $ sudo apt install apache2 apache2-bin apache2-utils cgi-mapserver \
-                     mapserver-bin mapserver-doc libmapscript-perl\
-                     python-mapscript ruby-mapscript\
-                     libcurl4-openssl-dev libssl-dev\
-                     libapache2-mod-fcgid
+        $ sudo apt install cgi-mapserver nginx fcgiwrap
                      
-1. Enable cgi and fastcgi:
-
-        $ sudo a2enmod cgi fcgid
         
-1. Configure mapserver on default page (`/etc/apache2/sites-available/000-default.conf`):
-
-        ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
-        <Directory "/usr/lib/cgi-bin/">
-            AllowOverride All
-            Options +ExecCGI -MultiViews +FollowSymLinks
-            AddHandler fcgid-script .fcgi
-            Require all granted
-        </Directory>
+1. Configure mapserver on default page (`/etc/nginx/sites-available/default`):
+```
+        location /cgi-bin/ {
+   		gzip off;
+		root  /usr/lib;
+		fastcgi_pass  unix:/var/run/fcgiwrap.socket;
+		include /etc/nginx/fastcgi_params;
+		fastcgi_param SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        }
+```
          
-1. Restart apache2 daemon:
+1. Restart nginx:
 
-        $ sudo systemctl restart apache2
+        $ sudo systemctl restart nginx
         
-1. Proof mapserver installation:
+1. Verify mapserver installation:
     * type from terminal:
-    
           $ mapserv -v
-    * on the browser for cgi script http://localhost/cgi-bin/mapserv?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities that normally return the following message:
+    * Open the browser and go to http://localhost/cgi-bin/mapserv?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities   
+        You should see the following message:
     
           msCGILoadMap(): Web application error. CGI variable "map" is not set.
           
 ##Install and setup postgresql
 1. install all dependencies:
         
-        $ sudo apt install postgresql postgresql-client postgis
+        $ sudo apt install postgresql postgresql-client postgis postgresql-server-dev-11
         
 1. login as postgres
 
@@ -83,25 +78,14 @@ sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
         
             $ sudo vim /etc/postgresql/11/main/pg_hba.conf 
     
-    1. change authentication method to trust for all:
+    1. change authentication method to trust for local IPv4 connections, line 92 on a fresh prostgres installation:
         ```vim
-        # Database administrative login by Unix domain socket
-        local   all             postgres                                trust
-        
-        # TYPE  DATABASE        USER            ADDRESS                 METHOD
-        
-        # "local" is for Unix domain socket connections only
-        local   all             all                                     trust
+        ...
         # IPv4 local connections:
         host    all             all             127.0.0.1/32            trust
-        # IPv6 local connections:
-        host    all             all             ::1/128                 trust
-        # Allow replication connections from localhost, by a user with the
-        # replication privilege.
-        local   replication     all                                     trust
-        host    replication     all             127.0.0.1/32            trust
-        host    replication     all             ::1/128                 trust
-        ```     
+        ...
+        ```
+             
        
 1. restart postgres daemon
 

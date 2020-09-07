@@ -13,18 +13,11 @@
 
         accordionButton.click(function() {
           if ( accordionButton.hasClass('collapsed') ) {
-            $.get( '{% url 'service:detail' featuretype.metadata.id %}?no-base', function( data ) {
+            $.get( '{% url 'resource:detail' featuretype.metadata.id %}?no-base', function( data ) {
                 $( "#id_content_service_{{featuretype.metadata.id}}" ).html( data );
-
-                // Check for dataset metadata of subelement
-                var url = "{% url 'service:check-for-dataset-metadata' featuretype.metadata.id %}?serviceType=wfs";
-                var datasetButton = $("#dataset-metadata-button-{{ featuretype.metadata.id }}");
-                $.get(url, function(data){
-                    var hasDatasetDoc = data["has_dataset_doc"];
-                    if(hasDatasetDoc){
-                        datasetButton.removeClass("invisible");
-                    }
-                });
+                $(function () {
+                  $('[data-toggle="tooltip"]').tooltip()
+                })
             });
           }
         });

@@ -8,20 +8,17 @@ Created on: 31.07.19
 from collections import OrderedDict
 from time import time
 
+from django.contrib.gis.gdal import GDALException
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from lxml.etree import Element, QName
 
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
-from MapSkinner.utils import print_debug_mode
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer, Document, FeatureType
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, MD_RELATION_TYPE_DESCRIBED_BY, \
-    SERVICE_DATASET_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
-
-from structure.models import Contact
+from service.models import Metadata, Layer, Document, FeatureType
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, service_logger
 
 
 class CapabilityXMLBuilder:
@@ -37,16 +34,15 @@ class CapabilityXMLBuilder:
         self.metadata = metadata
 
         # A single FeatureType is not a service, therefore we can not use the regular metadata.service call.
-        md_type = metadata.metadata_type.type
-        if md_type == MetadataEnum.SERVICE.value:
+        if metadata.is_metadata_type(MetadataEnum.SERVICE):
             service = metadata.service
             parent_service = service
-        elif md_type == MetadataEnum.FEATURETYPE.value:
+        elif metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             service = FeatureType.objects.get(
                 metadata=metadata
             ).parent_service
             parent_service = service
-        elif md_type == MetadataEnum.LAYER.value:
+        elif metadata.is_metadata_type(MetadataEnum.LAYER):
             service = metadata.service
             if not service.is_root:
                 parent_service = service.parent_service
@@ -56,8 +52,8 @@ class CapabilityXMLBuilder:
         self.service = service
         self.parent_service = parent_service
 
-        self.service_type = self.service.servicetype.name
-        self.service_version = force_version or self.service.servicetype.version
+        self.service_type = self.service.service_type.name
+        self.service_version = force_version or self.service.service_type.version
 
         self.namespaces = {
             "sld": XML_NAMESPACES["sld"],
@@ -83,11 +79,22 @@ class CapabilityXMLBuilder:
         self.schema_location = ""
 
         self.original_doc = None
-        self.original_doc = xml_helper.parse_xml(
-            metadata.get_remote_original_capabilities_document(
-                version=force_version
+        try:
+            doc = Document.objects.get(
+                metadata=parent_service.metadata,
+                is_original=True,
+                document_type=DocumentEnum.CAPABILITY.value
             )
-        )
+            self.original_doc = xml_helper.parse_xml(
+                doc.content
+            )
+        except ObjectDoesNotExist:
+            # If no document can be found in the databse, we have to fetch the original remote document
+            self.original_doc = xml_helper.parse_xml(
+                metadata.get_remote_original_capabilities_document(
+                    version=force_version
+                )
+            )
 
     def generate_xml(self):
         """ Generates the capability xml
@@ -97,7 +104,7 @@ class CapabilityXMLBuilder:
         """
         xml_builder = None
 
-        if self.service_type == OGCServiceEnum.WMS.value:
+        if self.parent_service.is_service_type(OGCServiceEnum.WMS):
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
                 xml_builder = CapabilityWMS100Builder(self.metadata, self.service_version)
@@ -112,7 +119,7 @@ class CapabilityXMLBuilder:
                 # If something unknown has been passed as version, we use 1.1.1 as default
                 xml_builder = CapabilityWMS111Builder(self.metadata, self.service_version)
 
-        elif self.service_type == OGCServiceEnum.WFS.value:
+        elif self.parent_service.is_service_type(OGCServiceEnum.WFS):
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
                 xml_builder = CapabilityWFS100Builder(self.metadata, self.service_version)
@@ -131,6 +138,25 @@ class CapabilityXMLBuilder:
 
         xml = xml_builder._generate_xml()
         return xml
+
+    def _generate_licence_related_constraints(self) -> (str, str):
+        """ Generates the string content for fees and access constraints elements based on a given metadata
+
+        Returns:
+             fees (str): The fees string
+             access_constraints (str): The access constraints string
+        """
+        md = self.metadata
+        fees = md.fees
+        access_constraints = md.access_constraints
+
+        licence = md.licence
+        if licence is not None:
+            appendix = "\n {} ({}), \n {}, \n {}".format(licence.name, licence.identifier, licence.description, licence.description_url)
+            fees += appendix
+            access_constraints += appendix
+
+        return fees, access_constraints
 
     def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict, ns: str=None):
         """ Generate multiple subelements of a xml object
@@ -350,16 +376,16 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         start_time = time()
         service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
         self._generate_service_xml(service)
-        print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
+        service_logger.debug("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         capability = xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
         self._generate_capability_xml(capability)
-        print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
+        service_logger.debug("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
+        service_logger.debug("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 
@@ -392,9 +418,10 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_service_contact_information_xml(service_elem)
 
         # Create generic xml end elements
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
-            "{}Fees": service_md.fees,
-            "{}AccessConstraints": service_md.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -428,7 +455,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contact_info_elem = xml_helper.create_subelement(
             service_elem,
@@ -469,7 +495,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contents = OrderedDict({
             "{}ContactPerson": contact.person_name,
@@ -487,7 +512,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contents = {
             "{}AddressType": contact.address_type,
@@ -524,7 +548,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_exception_xml(capability_elem)
 
         layer_md = self.metadata
-        if self.metadata.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
             layer_md = self.root_layer.metadata
 
         self._generate_capability_layer_xml(capability_elem, layer_md)
@@ -544,8 +568,16 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         # metadata document object.
         try:
             original_doc = Document.objects.get(
-                related_metadata=self.service.metadata,
-            ).original_capability_document
+                metadata=self.service.metadata,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=True,
+            ).content
+            if original_doc is None:
+                original_doc = Document.objects.get(
+                    metadata=self.service.parent_service.metadata,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=True,
+                ).content
         except ObjectDoesNotExist as e:
             return
         original_doc = xml_helper.parse_xml(original_doc)
@@ -567,7 +599,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         service = md.service
-        service: Service
 
         contents = OrderedDict({
             "{}GetCapabilities": "",
@@ -575,22 +606,23 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             "{}GetFeatureInfo": "",
         })
 
+        operation_urls = service.operation_urls.all()
         additional_contents = OrderedDict({
             OGCOperationEnum.DESCRIBE_LAYER.value: {
-                "get": service.describe_layer_uri_GET,
-                "post": service.describe_layer_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_LEGEND_GRAPHIC.value: {
-                "get": service.get_legend_graphic_uri_GET,
-                "post": service.get_legend_graphic_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_STYLES.value: {
-                "get": service.get_styles_uri_GET,
-                "post": service.get_styles_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.PUT_STYLES.value: {
-                "get": "",  # ToDo: Implement putStyles in registration
-                "post": "",
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Post").first(), "url", None),
             },
         })
 
@@ -602,7 +634,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
                 contents.update({"{}" + key: ""})
 
         # Create xml elements
-        service_mime_types = service.get_supported_formats()
+        service_mime_types = service.metadata.get_formats()
         for key, val in contents.items():
             k = key.format(self.default_ns)
             elem = xml_helper.create_subelement(request_elem, k)
@@ -621,34 +653,35 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         service = md.service
         tag = QName(operation_elem).localname
 
+        operation_urls = service.operation_urls.all()
         operations = OrderedDict({
             OGCOperationEnum.GET_CAPABILITIES.value: {
-                "get": service.get_capabilities_uri_GET,
-                "post": service.get_capabilities_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_CAPABILITIES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_CAPABILITIES.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_MAP.value: {
-                "get": service.get_map_uri_GET,
-                "post": service.get_map_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_FEATURE_INFO.value: {
-                "get": service.get_feature_info_uri_GET,
-                "post": service.get_feature_info_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.DESCRIBE_LAYER.value: {
-                "get": service.describe_layer_uri_GET,
-                "post": service.describe_layer_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_LEGEND_GRAPHIC.value: {
-                "get": service.get_legend_graphic_uri_GET,
-                "post": service.get_legend_graphic_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_STYLES.value: {
-                "get": service.get_styles_uri_GET,
-                "post": service.get_styles_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.PUT_STYLES.value: {
-                "get": "",  # ToDo: Implement putStyles in registration
-                "post": "",
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Post").first(), "url", None),
             },
         })
 
@@ -674,20 +707,22 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.default_ns))
         get_elem = xml_helper.create_subelement(http_elem, "{}Get".format(self.default_ns))
         post_elem = xml_helper.create_subelement(http_elem, "{}Post".format(self.default_ns))
-        xml_helper.create_subelement(
-            get_elem,
-            "{}OnlineResource",
-            attrib={
-                "{}href".format(self.xlink_ns): get_uri
-            }
-        )
-        xml_helper.create_subelement(
-            post_elem,
-            "{}OnlineResource",
-            attrib={
-                "{}href".format(self.xlink_ns): post_uri
-            }
-        )
+        if get_elem is not None and get_uri is not None:
+            xml_helper.create_subelement(
+                get_elem,
+                "{}OnlineResource",
+                attrib={
+                    "{}href".format(self.xlink_ns): get_uri
+                }
+            )
+        if post_elem is not None and post_uri is not None:
+            xml_helper.create_subelement(
+                post_elem,
+                "{}OnlineResource",
+                attrib={
+                    "{}href".format(self.xlink_ns): post_uri
+                }
+            )
 
     def _generate_capability_layer_xml(self, layer_elem: Element, md: Metadata):
         """ Generate the 'Layer' subelement of a capability xml object
@@ -733,8 +768,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_layer_bounding_box_xml(layer_elem, layer)
 
         # Dimension
-        elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt=md.dimension)
+        self._generate_capability_layer_dimension_xml(layer_elem, layer)
 
         # Attribution
         elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))
@@ -844,15 +878,19 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         # client may transform a bounding box by itself.
         epsg_handler = EpsgApi()
         for reference_system in reference_systems:
-            bounding_geometry.transform(reference_system.code)
-            bbox = list(bounding_geometry.extent)
+            try:
+                bounding_geometry.transform(reference_system.code)
+                bbox = list(bounding_geometry.extent)
 
-            switch_axis = epsg_handler.check_switch_axis_order(self.service_type, self.service_version, reference_system.code)
-            if switch_axis:
-                for i in range(0, len(bbox), 2):
-                    tmp = bbox[i]
-                    bbox[i] = bbox[i+1]
-                    bbox[i+1] = tmp
+                switch_axis = epsg_handler.check_switch_axis_order(self.service_type, self.service_version, reference_system.code)
+                if switch_axis:
+                    for i in range(0, len(bbox), 2):
+                        tmp = bbox[i]
+                        bbox[i] = bbox[i+1]
+                        bbox[i+1] = tmp
+            except GDALException:
+                # Some srs can not be transformed, like EPSG:31467
+                bbox = list(bounding_geometry.extent)
 
             xml_helper.create_subelement(
                 layer_elem,
@@ -864,6 +902,43 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
                     "maxx": str(bbox[2]),
                     "maxy": str(bbox[3]),
                 })
+            )
+
+    def _generate_capability_layer_dimension_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'Dimension' subelement of a xml capability layer object
+
+        Since not all information of the original Dimension object are persisted, we simply take the Dimension/Extent
+        elements from the original.
+
+        Args:
+            layer_elem (_Element): The layer xml element
+            layer (Layer): The layer object
+        Returns:
+            nothing
+        """
+
+        if self.original_doc is None:
+            return
+
+        original_layer_elem = xml_helper.try_get_single_element_from_xml(
+            "//Layer/Name[text()='{}']/parent::Layer".format(layer.identifier),
+            self.original_doc
+        )
+
+        original_dimension_elems = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
+            original_layer_elem
+        )
+        original_extent_elems = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent"),
+            original_layer_elem
+        )
+        elems = original_dimension_elems + original_extent_elems
+
+        for elem in elems:
+            xml_helper.add_subelement(
+                layer_elem,
+                elem
             )
 
     def _generate_capability_layer_metadata_url_xml(self, layer_elem, layer):
@@ -879,13 +954,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         dataset_md = md.get_related_dataset_metadata()
         if dataset_md is None:
             return
-        try:
-            doc = Document.objects.get(
-                related_metadata=dataset_md
-            )
-        except ObjectDoesNotExist as e:
-            # If there is no related Metadata, we can skip this element
-            return
 
         metadata_elem = xml_helper.create_subelement(
             layer_elem,
@@ -900,7 +968,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        uri = doc.related_metadata.metadata_url
+        uri = dataset_md.metadata_url
         xml_helper.create_subelement(
             metadata_elem,
             "{}OnlineResource".format(self.default_ns),
@@ -937,7 +1005,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
             uri = style.legend_uri
 
-            elem = xml_helper.create_subelement(
+            xml_helper.create_subelement(
                 legend_url_elem,
                 "{}OnlineResource".format(self.default_ns),
                 attrib={
@@ -1014,7 +1082,7 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
             self.original_doc = self.metadata.get_remote_original_capabilities_document(self.service_version)
             self.original_doc = xml_helper.parse_xml(self.original_doc)
         except ConnectionError as e:
-            print_debug_mode(e)
+            service_logger.error(e)
             self.original_doc = None
 
     def _generate_keyword_xml(self, upper_elem, md: Metadata):
@@ -1254,9 +1322,10 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         self._generate_service_contact_information_xml(service_elem)
 
         # Create end of <Service> elements
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
-            "{}Fees": service_md.fees,
-            "{}AccessConstraints": service_md.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
             "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
@@ -1397,7 +1466,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self.rs_declaration = "SRS"
 
         self.feature_type_list = []
-        if self.metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+        if self.metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             self.feature_type_list = FeatureType.objects.filter(
                 metadata=metadata,
             )
@@ -1426,27 +1495,27 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
 
         start_time = time()
         self._generate_service_identification_xml(root)
-        print_debug_mode("ServiceIdentification creation took {} seconds".format((time() - start_time)))
+        service_logger.debug("ServiceIdentification creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         self._generate_service_provider_xml(root)
-        print_debug_mode("ServiceProvider creation took {} seconds".format(time() - start_time))
+        service_logger.debug("ServiceProvider creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_operations_metadata_xml(root)
-        print_debug_mode("OperationsMetadata creation took {} seconds".format(time() - start_time))
+        service_logger.debug("OperationsMetadata creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_feature_type_list_xml(root)
-        print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
+        service_logger.debug("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_filter_capabilities_xml(root)
-        print_debug_mode("Filter_Capabilities creation took {} seconds".format(time() - start_time))
+        service_logger.debug("Filter_Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
+        service_logger.debug("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 
@@ -1495,10 +1564,11 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self._generate_keyword_xml(service_elem, self.service.metadata)
         self._generate_service_type(service_elem)
 
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
             "{}ServiceTypeVersion": self.service_version,
-            "{}Fees": self.service.metadata.fees,
-            "{}AccessConstraints": self.service.metadata.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -1646,7 +1716,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem, feature_type_obj)
 
             # MetadataURL
-            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
+            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem, feature_type_obj)
 
     def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'DefaultSRS|OtherSRS' subelement of a xml service object
@@ -1689,7 +1759,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             upper_elem,
             "{}OutputFormats".format(self.wfs_ns)
         )
-        for format in feature_type_obj.formats.all():
+        formats = feature_type_obj.metadata.get_formats()
+        for format in formats:
             elem = xml_helper.create_subelement(
                 output_format_elem,
                 "{}Format".format(self.wfs_ns)
@@ -1749,7 +1820,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         dataset_mds = feature_type_obj.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -1800,7 +1871,6 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         # WFS 1.0.0 expects a /Service/Name
         self.default_identifier = "WFS"
 
-
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -1821,23 +1891,23 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
 
         start_time = time()
         self._generate_service_xml(root)
-        print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
+        service_logger.debug("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         self._generate_capability_xml(root)
-        print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
+        service_logger.debug("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_feature_type_list_xml(root)
-        print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
+        service_logger.debug("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_filter_capabilities_xml(root)
-        print_debug_mode("Filter_Capabilities creation took {} seconds".format(time() - start_time))
+        service_logger.debug("Filter_Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
+        service_logger.debug("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 
@@ -1867,9 +1937,10 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         self._generate_online_resource_xml(service_elem, service_md)
 
         # Create generic xml end elements
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
-            "{}Fees": service_md.fees,
-            "{}AccessConstraints": service_md.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -1914,7 +1985,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        capability_elem =  xml_helper.create_subelement(upper_elem, "{}Capability".format(self.default_ns))
+        capability_elem = xml_helper.create_subelement(upper_elem, "{}Capability".format(self.default_ns))
 
         # Request
         self._generate_capability_request_xml(capability_elem)
@@ -1979,7 +2050,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             post_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
 
         # Add all mime types that are supported by this operation
-        supported_formats = service.formats.filter(
+        supported_formats = service.metadata.get_formats().filter(
             operation=tag
         )
         for format in supported_formats:
@@ -2105,7 +2176,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2114,7 +2185,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2180,7 +2251,7 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
         """
         pass
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType = None):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2189,7 +2260,7 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2251,7 +2322,7 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
         """
         pass
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType = None):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2260,7 +2331,7 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:

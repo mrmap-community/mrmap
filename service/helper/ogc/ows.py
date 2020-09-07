@@ -1,20 +1,22 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
-
 from abc import abstractmethod
+from urllib.parse import urlencode
 
 from celery import Task
 from django.contrib.gis.geos import Polygon
-from django.db import transaction
+from lxml.etree import Element
 from requests.exceptions import ReadTimeout
 
-from MapSkinner.messages import CONNECTION_TIMEOUT
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
+from MrMap.messages import CONNECTION_TIMEOUT
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
-from service.helper.iso.iso_metadata import ISOMetadata
-from service.models import RequestOperation, ExternalAuthentication
+from service.helper.crypto_handler import CryptoHandler
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
+from service.models import RequestOperation, ExternalAuthentication, Metadata
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import MrMapUser
 
 
@@ -86,6 +88,8 @@ class OGCWebService:
         self.get_styles_uri_GET = None
         self.get_styles_uri_POST = None
 
+        self.operation_format_map = {}
+
         class Meta:
             abstract = True
 
@@ -98,12 +102,18 @@ class OGCWebService:
         Returns:
              nothing
         """
-        self.service_connect_url = self.service_connect_url + \
-                                   '&REQUEST=GetCapabilities' + '&VERSION=' + self.service_version.value + \
-                                   '&SERVICE=' + self.service_type.value
-        ows_connector = CommonConnector(url=self.service_connect_url,
-                                        external_auth=self.external_authentification,
-                                        connection_type=ConnectionEnum.REQUESTS)
+        params = {
+            "request": OGCOperationEnum.GET_CAPABILITIES.value,
+            "version": self.service_version.value if self.service_version is not None else "",
+            "service": (self.service_type.value if self.service_type is not None else "").upper(),
+        }
+        concat = "&" if self.service_connect_url[-1] != "&" else ""
+        self.service_connect_url = "{}{}{}".format(self.service_connect_url, concat, urlencode(params))
+        ows_connector = CommonConnector(
+            url=self.service_connect_url,
+            external_auth=self.external_authentification,
+            connection_type=ConnectionEnum.REQUESTS
+        )
         ows_connector.http_method = 'GET'
         try:
             ows_connector.load()
@@ -143,26 +153,6 @@ class OGCWebService:
     """
     Methods that have to be implemented in the sub classes
     """
-    @abstractmethod
-    def get_service_operations(self, xml_obj):
-        """ Creates table records from <Capability><Request></Request></Capability contents
-
-        Args:
-            xml_obj: The xml document object
-        Returns:
-
-        """
-        cap_request = xml_helper.try_get_single_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
-            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
-            xml_obj
-        )
-        operations = cap_request.getchildren()
-        for operation in operations:
-            RequestOperation.objects.get_or_create(
-                operation_name=operation.tag,
-            )
-
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         pass
@@ -214,7 +204,7 @@ class OGCWebService:
         for keyword in iso_metadata.keywords:
             self.service_identification_keywords.append(keyword)
         # add multiple other data that can not be found in the capabilities document
-        self.service_create_date = iso_metadata.create_date
+        self.service_create_date = iso_metadata.date_stamp
         self.service_last_change = iso_metadata.last_change_date
         self.service_iso_md_uri = iso_metadata.uri
         self.service_file_iso_identifier = iso_metadata.file_identifier
@@ -234,7 +224,70 @@ class OGCWebService:
     def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         pass
 
-    @transaction.atomic
-    @abstractmethod
-    def persist_service_model(self, service, external_auth):
-        pass
+    def _process_external_authentication(self, md: Metadata, external_auth: ExternalAuthentication):
+        """ Fills needed data into the ExternalAuthentication object
+
+        Args:
+            md (Metadata): The externally secured metadata record
+            external_auth (ExternalAuthentication): The external authentication record
+        Returns:
+
+        """
+        if external_auth is not None:
+            external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
+            external_auth.save()
+
+
+class OWSException:
+    def __init__(self, exception: Exception):
+        self.exception = exception
+        try:
+            self.text = exception.args[0]
+        except IndexError:
+            self.text = "None"
+        try:
+            self.locator = exception.args[1]
+        except IndexError:
+            self.locator = "None"
+
+        self.namespace_map = {
+            None: XML_NAMESPACES["ows"],
+            "xsi": XML_NAMESPACES["xsi"],
+        }
+
+        self.xsi_ns = "{" + self.namespace_map["xsi"] + "}"
+        self.ows_ns = "{" + self.namespace_map[None] + "}"
+
+    def get_exception_report(self):
+        """ Creates an OWSExceptionReport from a given Exception object
+
+        Returns:
+             report (str): The exception report as string
+        """
+        root = Element(
+            "{}ExceptionReport".format(self.ows_ns),
+            nsmap=self.namespace_map,
+            attrib={
+                "{}schemaLocation".format(self.xsi_ns): "http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd",
+                "version": "1.2.0",
+            }
+        )
+        exception_elem = xml_helper.create_subelement(
+            root,
+            "{}Exception".format(self.ows_ns),
+            attrib={
+                "exceptionCode": self.exception.__class__.__name__,
+                "locator": self.locator,
+            }
+        )
+        text_elem = xml_helper.create_subelement(
+            exception_elem,
+            "{}ExceptionText".format(self.ows_ns)
+        )
+        text_elem.text = self.text
+
+        return xml_helper.xml_to_string(root, pretty_print=True)

@@ -19,10 +19,11 @@ import re
 from django.http import HttpResponse
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
-from MapSkinner.utils import print_debug_mode
-from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
-from MapSkinner.settings import HTTP_PROXY, PROXIES
+from service.helper import xml_helper
+from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT, service_logger
+from MrMap.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
+
 
 try:
     from io import BytesIO
@@ -31,25 +32,26 @@ except ImportError:
 
 
 class CommonConnector:
-    def __init__(self, url=None, external_auth=None, connection_type=None):
+    def __init__(self, url=None, external_auth=None, connection_type=None, timeout=5):
         self._url = None
         self.external_auth = external_auth
         self.connection_type = connection_type if connection_type is not None else DEFAULT_CONNECTION_TYPE
         self.init_time = time.time()
         self.run_time = None
-        self.timeout = 5
+        self.timeout = timeout
         self.http_method = 'GET'
         self.http_version = '1.0'
         self.http_post_data = None
         self.http_content_type = None
         self.http_post_field_numbers = None
         self.http_external_headers = None
-        self.http_send_custom_headers = False
         self.http_cookie_session = None
         self.content = None
         self.encoding = None
         self.status_code = None
         self.is_local_request = False
+
+        self.additional_headers = {}
 
         if url is not None:
             self.set_url(url)
@@ -66,6 +68,26 @@ class CommonConnector:
         if "127.0.0.1" in url_obj.hostname or "localhost" in url_obj.hostname:
             self.is_local_request = True
         self._url = url
+
+    def url_is_reachable(self, url: str = None) -> (bool, int):
+        """ Performs a HEAD request on the given url to check whether it's reachable or not.
+
+        Returns a tuple of
+        0 -> status_code == 200
+        1 -> status_code
+
+        Args:
+            url (str): An url to be used instead of the member attribute
+        Returns:
+
+        """
+        if url is None:
+            url = self._url
+        try:
+            response = requests.head(url=url, proxies=PROXIES)
+        except requests.exceptions.ConnectionError as e:
+            return False, -1
+        return True, response.status_code
 
     def load(self, params: dict = None):
         self.init_time = time.time()
@@ -146,14 +168,14 @@ class CommonConnector:
             match = re.search('charset=(\S+)', content_type)
             if match:
                 encoding = match.group(1)
-                print_debug_mode('Decoding using %s' % encoding)
-                
+                service_logger.debug('Decoding using %s' % encoding)
+
         if encoding is None:
             # Default encoding for HTML is iso-8859-1.
             # Other content types may have different default encoding,
             # or in case of binary data, may have no encoding at all.
             encoding = 'iso-8859-1'
-            print_debug_mode('Assuming encoding is %s' % encoding)
+            service_logger.debug('Assuming encoding is %s' % encoding)
 
         response.content = buffer.getvalue()
         response.encoding = encoding
@@ -192,6 +214,16 @@ class CommonConnector:
         Returns:
              nothing
         """
+        try:
+            # Automatically set the Content-Type header to xml,
+            # if data is proper xml and no other Content-Type has been set, yet.
+            check_xml = xml_helper.parse_xml(data)
+            if check_xml is not None and self.additional_headers.get("Content-Type", None) is None:
+                self.additional_headers["Content-Type"] = "application/xml"
+        except ValueError:
+            # In case of data not being xml, a value error will be thrown. We can skip the header setting in that case
+            pass
+
         self.init_time = time.time()
 
         if self.connection_type is ConnectionEnum.CURL:
@@ -206,6 +238,7 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
+                    headers=self.additional_headers,
                 )
             elif self.external_auth.auth_type == "http_basic":
                 response = requests.post(
@@ -213,7 +246,8 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
-                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password)
+                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password),
+                    headers=self.additional_headers,
                 )
             elif self.external_auth.auth_type == "http_digest":
                 response = requests.post(
@@ -221,7 +255,8 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
-                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password)
+                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password),
+                    headers=self.additional_headers,
                 )
             self.status_code = response.status_code
             self.content = response.content

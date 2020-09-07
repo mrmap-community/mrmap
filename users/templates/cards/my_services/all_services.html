@@ -15,9 +15,9 @@
 
 {% block card-body %}
 <p class="card-text">
-    {% trans 'All registered Web Map and Web Feature Services.' %}
+    {% trans 'All registered resources' %}
 </p>
-<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'service:index' %}" role="button">
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'resource:index' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% endblock %}

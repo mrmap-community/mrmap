@@ -15,9 +15,14 @@
 
 {% block card-body %}
 <p class="card-text">
-    {% trans 'Your registered Web Map Services.' %}
+    {% trans 'Your registered Web Map Services' %}
 </p>
-<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'service:wms-index' %}" role="button">
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'resource:wms-index' %}" role="button">
     {% trans 'Show'%}
 </a>
+{% if 'can_register_resource' in user_permissions %}
+<a class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'resource:add' %}?current-view={{current_view}}" role="button">
+    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
+</a>
+{% endif %}
 {% endblock %}

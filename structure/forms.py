@@ -1,17 +1,21 @@
 from captcha.fields import CaptchaField
 from django import forms
-from django.forms import ModelForm
-from django.urls import reverse
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
+from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
+from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
+from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
-    PUBLISH_PERMISSION_REMOVING_DENIED
-from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
-from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role, PendingRequest
-from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
+    ORGANIZATION_SUCCESSFULLY_EDITED, PUBLISH_REQUEST_SENT, GROUP_SUCCESSFULLY_CREATED, GROUP_SUCCESSFULLY_DELETED, \
+    GROUP_SUCCESSFULLY_EDITED
+from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
+from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
+from structure.models import MrMapGroup, Organization, Role, PendingRequest, MrMapUser
+from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING, PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
+from django.contrib import messages
 
 
 class LoginForm(forms.Form):
@@ -20,39 +24,48 @@ class LoginForm(forms.Form):
     next = forms.CharField(max_length=255, show_hidden_initial=False, widget=forms.HiddenInput(), required=False)
 
 
-class GroupForm(ModelForm):
-    # this action_url must fill after this object is created,
-    # cause the action_url containing the id of the group, which is not present on building time;
-    # maybe we could fill it by the constructor
-    action_url = ''
-
+class GroupForm(MrMapModelForm):
     description = forms.CharField(
+        label=_("Description"),
         widget=forms.Textarea(),
+        required=False, )
+    parent_group = forms.ModelChoiceField(
+        label=_("Parent group"),
+        queryset=MrMapGroup.objects.filter(
+            is_permission_group=False
+        ),
+        empty_label='---------',
         required=False,
     )
-    role = forms.ModelChoiceField(queryset=Role.objects.all(), empty_label=None)
 
     class Meta:
         model = MrMapGroup
         fields = [
             "name",
             "description",
-            "role",
-            "parent_group"
+            "parent_group",
+            "organization",
         ]
+        labels = {
+        }
+        help_text = {
+        }
 
     def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(GroupForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
-            self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id=kwargs.get('instance').id)
+            groups = self.requesting_user.get_groups()
+            instance = kwargs.get('instance')
+            exclusions = [instance]
+            for group in groups:
+                group_ = group
+                while group_.parent_group is not None:
+                    if group_.parent_group == instance:
+                        exclusions.append(group)
+                    group_ = group_.parent_group
 
-        if self.is_edit:
-            self.action_url = reverse('structure:edit-group', args=[self.instance.id])
-        else:
-            self.action_url = reverse('structure:new-group')
+            self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id__in=[o.id for o in exclusions])
 
     def clean(self):
         cleaned_data = super(GroupForm, self).clean()
@@ -60,13 +73,51 @@ class GroupForm(ModelForm):
         if self.instance.created_by_id is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
 
+        parent_group = None if 'parent_group' not in cleaned_data else cleaned_data['parent_group']
+
+        if parent_group is not None:
+            if self.instance == parent_group:
+                self.add_error('parent_group', "Circular configuration of parent groups detected.")
+            else:
+                while parent_group.parent_group is not None:
+                    if self.instance == parent_group.parent_group:
+                        self.add_error('parent_group', "Circular configuration of parent groups detected.")
+                        break
+                    else:
+                        parent_group = parent_group.parent_group
+
         return cleaned_data
 
+    def process_new_group(self):
+        # save changes of group
+        group = self.save(commit=False)
+        group.created_by = self.requesting_user
+        if group.role is None:
+            group.role = Role.objects.get_or_create(name=DEFAULT_ROLE_NAME)[0]
+        group.save()
+        group.user_set.add(self.requesting_user)
+        messages.success(self.request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))
 
-class PublisherForOrganizationForm(forms.Form):
+    def process_edit_group(self):
+        # save changes of group
+        self.instance.save()
+        messages.success(self.request, message=GROUP_SUCCESSFULLY_EDITED.format(self.instance.name))
+
+
+class PublisherForOrganizationForm(MrMapForm):
     action_url = ''
-    organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
-    group = forms.ModelChoiceField(queryset=None)
+    organization_name = forms.CharField(
+        max_length=500,
+        label_suffix=" ",
+        label=_("Organization"),
+        disabled=True,
+        help_text=_("The organization you are requesting"),
+    )
+    group = forms.ModelChoiceField(
+        queryset=MrMapGroup.objects.none(),
+        label=_("Group"),
+        help_text=_("Select your group for which you want to request publisher rights"),
+    )
     request_msg = forms.CharField(
         widget=forms.Textarea(),
         required=True,
@@ -74,16 +125,12 @@ class PublisherForOrganizationForm(forms.Form):
         label_suffix=" ",
     )
 
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
+    def __init__(self, organization, *args, **kwargs):
+        self.organization = organization
         super(PublisherForOrganizationForm, self).__init__(*args, **kwargs)
 
-        if self.requesting_user is not None:
-            self.fields['group'].queryset = self.requesting_user.get_groups()
-
-        if self.organization is not None:
-            self.fields["organization_name"].initial = self.organization.organization_name
+        self.fields['group'].queryset = self.requesting_user.get_groups()
+        self.fields["organization_name"].initial = self.organization.organization_name
 
     def clean(self):
         cleaned_data = super(PublisherForOrganizationForm, self).clean()
@@ -102,38 +149,89 @@ class PublisherForOrganizationForm(forms.Form):
 
         return cleaned_data
 
+    def process_new_publisher_request(self):
+        publish_request_obj = PendingRequest()
+        publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
+        publish_request_obj.organization = self.organization
+        publish_request_obj.message = self.cleaned_data["request_msg"]
+        publish_request_obj.group = self.cleaned_data["group"]
+        publish_request_obj.activation_until = timezone.now() + timezone.timedelta(
+            hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
+        publish_request_obj.save()
+        # create pending publish request for organization!
+        messages.success(self.request, message=PUBLISH_REQUEST_SENT)
 
-class OrganizationForm(ModelForm):
-    # this action_url must fill after this object is created,
-    # cause the action_url containing the id of the group, which is not present on building time;
-    # maybe we could fill it by the constructor
-    action_url = ''
 
+class OrganizationForm(MrMapModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
+        label=_('Description'),
+        required=False, )
+    person_name = forms.CharField(
+        label=_("Contact person"),
+        required=True, )
+    create_group = forms.BooleanField(
+        widget=forms.CheckboxInput(),
+        label=_("Create group"),
+        help_text=_("If set, a group will be automatically created for this organization. Groups are needed for e.g. registration of services."),
         required=False,
     )
-    person_name = forms.CharField(label=_("Contact person"), required=True)
 
-    field_order = ["organization_name", "description", "parent"]
+    field_order = [
+        "organization_name",
+        "description",
+        "parent",
+        "person_name",
+        "email",
+        "phone",
+        "facsimile",
+        "country",
+        "state_or_province",
+        "city",
+        "postal_code",
+        "address",
+    ]
 
     class Meta:
         model = Organization
         fields = '__all__'
         exclude = ["created_by", "address_type", "is_auto_generated"]
+        labels = {
+            "organization_name": _("Organization name"),
+            "description": _("Description"),
+            "parent": _("Parent"),
+            "facsimile": _("Facsimile"),
+            "phone": _("Phone"),
+            "email": _("E-Mail"),
+            "city": _("City"),
+            "postal_code": _("Postal code"),
+            "address": _("Address"),
+            "state_or_province": _("State or province"),
+            "country": _("Country"),
+        }
 
     def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(OrganizationForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
-            self.fields['parent'].queryset = Organization.objects.all().exclude(id=kwargs.get('instance').id)
+            org_ids_of_groups = []
+            for group in self.requesting_user.get_groups():
+                org_ids_of_groups.append(group.id)
 
-        if self.is_edit:
-            self.action_url = reverse('structure:edit-organization', args=[self.instance.id])
-        else:
-            self.action_url = reverse('structure:new-organization')
+            all_orgs_of_requesting_user = Organization.objects.filter(created_by=self.requesting_user) | \
+                                          Organization.objects.filter(id=self.requesting_user.organization.id) | \
+                                          Organization.objects.filter(id__in=org_ids_of_groups)
+
+            instance = kwargs.get('instance')
+            exclusions = [instance]
+            for org in all_orgs_of_requesting_user:
+                org_ = org
+                while org_.parent is not None:
+                    if org_.parent == instance:
+                        exclusions.append(org)
+                    org_ = org_.parent
+
+            self.fields['parent'].queryset = all_orgs_of_requesting_user.exclude(id__in=[o.id for o in exclusions])
 
     def clean(self):
         cleaned_data = super(OrganizationForm, self).clean()
@@ -141,34 +239,75 @@ class OrganizationForm(ModelForm):
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
 
+        parent = None if 'parent' not in cleaned_data else cleaned_data['parent']
+
+        if parent is not None:
+            if self.instance == parent:
+                self.add_error('parent_group', "Circular configuration of parent organization detected.")
+            else:
+                while parent.parent is not None:
+                    if self.instance == parent.parent:
+                        self.add_error('parent', "Circular configuration of parent organization detected.")
+                        break
+                    else:
+                        parent = parent.parent
+
         return cleaned_data
 
+    def process_edit_org(self):
+        # save changes of organization
+        self.save()
+        messages.success(self.request, message=ORGANIZATION_SUCCESSFULLY_EDITED.format(self.instance.organization_name))
 
-class RemoveGroupForm(forms.Form):
-    action_url = ''
-    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this group?'))
+    @transaction.atomic
+    def process_new_org(self):
+        # save changes of group
+        org = self.save(commit=False)
+        org.created_by = self.requesting_user
+        org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
+        org.save()
+        messages.success(self.request, message=_('Organization {} successfully created.'.format(org.organization_name)))
 
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.instance = None if 'instance' not in kwargs else kwargs.pop('instance')
+        create_group = self.cleaned_data.get('create_group', False)
+        if create_group:
+            org_group = MrMapGroup.objects.create(
+                name=_("{} group").format(org.organization_name),
+                organization=org,
+                created_by=self.requesting_user,
+            )
+            org_group.user_set.add(self.requesting_user)
+            org_group.save()
+            messages.success(self.request, message=_('Group {} successfully created.'.format(org_group.name)))
+
+
+class RemoveGroupForm(MrMapConfirmForm):
+
+    def __init__(self, instance=None, *args, **kwargs):
+        self.instance = instance
         super(RemoveGroupForm, self).__init__(*args, **kwargs)
 
     def clean(self):
         cleaned_data = super(RemoveGroupForm, self).clean()
-
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
-
         return cleaned_data
 
+    def process_remove_group(self):
+        group_name = self.instance.name
+        # clean subgroups from parent
+        sub_groups = MrMapGroup.objects.filter(
+            parent_group=self.instance
+        )
+        for sub in sub_groups:
+            sub.parent = None
+            sub.save()
+        # remove group and all of the related content
+        self.instance.delete()
+        messages.success(self.request, message=GROUP_SUCCESSFULLY_DELETED.format(group_name))
 
-class RemoveOrganizationForm(forms.Form):
-    action_url = ''
-    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this organization?'))
-
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.instance = None if 'instance' not in kwargs else kwargs.pop('instance')
+class RemoveOrganizationForm(MrMapConfirmForm):
+    def __init__(self, instance=None, *args, **kwargs):
+        self.instance = instance
         super(RemoveOrganizationForm, self).__init__(*args, **kwargs)
 
     def clean(self):
@@ -181,6 +320,11 @@ class RemoveOrganizationForm(forms.Form):
             self.add_error('is_confirmed', _('You have to confirm the checkbox.'))
 
         return cleaned_data
+
+    def process_remove_org(self):
+        org_name = self.instance.organization_name
+        self.instance.delete()
+        messages.success(self.request, message=_('Organization {} successfully deleted.'.format(org_name)))
 
 
 class RegistrationForm(forms.Form):
@@ -229,11 +373,19 @@ class RegistrationForm(forms.Form):
 
     def clean(self):
         cleaned_data = super(RegistrationForm, self).clean()
+
+        # Username taken check
+        u_name = cleaned_data.get("username", None)
+        u_exists = MrMapUser.objects.filter(username=u_name).exists()
+        if u_exists:
+            self.add_error("username", forms.ValidationError(_("Username is already taken. Try another.")))
+
+        # Password check
         password = cleaned_data.get("password")
         password_check = cleaned_data.get("password_check")
 
         if password != password_check:
-            self.add_error("password_check", forms.ValidationError(_("Password and confirmed password does not match")))
+            self.add_error("password_check", forms.ValidationError(_("Passwords do not match.")))
 
         return cleaned_data
 
@@ -267,9 +419,19 @@ class RemovePublisher(forms.Form):
         super(RemovePublisher, self).__init__(*args, **kwargs)
 
     def clean(self):
-        cleaned_data = super(RemovePublisher, self).clean()
+        """
 
-        if self.group not in self.user.get_groups() and self.user.organization != self.organization:
-            self.add_error(None, PUBLISH_PERMISSION_REMOVING_DENIED)
+        Checks whether only member of the organization or member of the publishing group are valid users!
 
-        return cleaned_data
+        Returns:
+
+        """
+        user_groups = self.user.get_groups()
+        org = self.organization
+        publishers = org.can_publish_for.all()
+        user_is_publisher = (publishers & user_groups).exists()
+        user_is_org_member = self.user.organization == org
+        if not user_is_publisher and not user_is_org_member:
+            raise ValidationError
+
+

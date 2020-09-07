@@ -2,9 +2,9 @@
 
 # Django-related settings
 # the base directory (full path)
-chdir           = /opt/MapSkinner
+chdir           = /opt/MrMap
 # Django's wsgi file
-wsgi-file       = MapSkinner/wsgi.py
+wsgi-file       = MrMap/wsgi.py
 # run as webserver user
 uid=www-data
 gid=www-data

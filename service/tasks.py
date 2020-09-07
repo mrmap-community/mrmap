@@ -5,23 +5,30 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 12.08.19
 
 """
+import base64
 import json
 import time
+import traceback
 
+import requests
 from celery import shared_task
+from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
+from django.db import transaction
 
 from lxml.etree import XMLSyntaxError, XPathEvalError
 from requests.exceptions import InvalidURL
 
-from MapSkinner import utils
-from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from MapSkinner.utils import print_debug_mode
-from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+from MrMap import utils
+from MrMap.cacher import PageCacher
+from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+from MrMap.settings import EXEC_TIME_PRINT
+from api.settings import API_CACHE_KEY_PREFIX
+from csw.settings import CSW_CACHE_PREFIX
+from service.settings import DEFAULT_SRS
+from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog
-from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
-
+from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
+from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
 
@@ -40,11 +47,12 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_activate_service")
-def async_activate_service(service_id: int, user_id: int, is_active: bool):
+@transaction.atomic
+def async_activate_service(metadata_id, user_id: int, is_active: bool):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
-        service_id (int): The service parameter
+        metadata_id : The service parameter
         user_id (int): The user id of the performing user
 
     Returns:
@@ -53,55 +61,55 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
     user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
-    service = Service.objects.get(id=service_id)
-    new_status = is_active
-    service.metadata.is_active = new_status
-    service.metadata.save(update_last_modified=False)
-    service.is_active = new_status
-    service.save(update_last_modified=False)
+    service = Service.objects.get(metadata__id=metadata_id)
 
-    service.metadata.set_documents_active_status(new_status)
+    elements = service.subelements + [service]
+    for element in elements:
+        element.is_active = is_active
+        element.save(update_last_modified=False)
 
-    # get root_layer of service and start changing of all statuses
-    # also check all related metadata and activate them too
-    if service.servicetype.name == OGCServiceEnum.WMS.value:
-        service.activate_service(new_status)
-        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-        root_layer.activate_layer_recursive(new_status)
+        md = element.metadata
+        md.is_active = is_active
+        md.set_documents_active_status(is_active)
+        md.save(update_last_modified=False)
 
-    # activate features/related dataset metadata
-    elif service.servicetype.name == OGCServiceEnum.WFS.value:
-        featuretypes = service.featuretypes.all()
+        # activate related metadata (if exists)
+        md_relations = md.related_metadata.all()
+        for relation in md_relations:
+            related_md = relation.metadata_to
 
-        for featuretype in featuretypes:
-            ft_metadata = featuretype.metadata
-            ft_metadata.set_documents_active_status(new_status)
-            ft_metadata.is_active = new_status
-
-            # activate related metadata (if it exists)
-            md_relations = MetadataRelation.objects.filter(
-                metadata_from=ft_metadata
+            # Check for dependencies before toggling active status
+            # We are only interested in dependencies from activated metadatas
+            relations_from_others = MetadataRelation.objects.filter(
+                metadata_to=related_md,
             )
-            for relation in md_relations:
-                related_md = relation.metadata_to
-                related_md.set_documents_active_status(new_status)
-                related_md.is_active = new_status
+            if relations_from_others.count() > 1 and is_active is False:
+                # If there are more than our relation and we want to deactivate, we do NOT proceed
+                continue
+            else:
+                # If there are no other dependencies OR we just want to activate the resource, we are good to go
+                related_md.set_documents_active_status(is_active)
+                related_md.is_active = is_active
                 related_md.save()
-            ft_metadata.save()
 
     # Formating using an empty string here is correct, since these are the messages we show in
     # the group activity list. We reuse a message template, which uses a '{}' placeholder.
     # Since we do not show the title in here, we remove the placeholder with an empty string.
     if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED.format("")
+        msg = SERVICE_ACTIVATED
     else:
-        msg = SERVICE_DEACTIVATED.format("")
+        msg = SERVICE_DEACTIVATED
+
+    # clear page cacher for API and csw
+    page_cacher = PageCacher()
+    page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+    page_cacher.remove_pages(CSW_CACHE_PREFIX)
 
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
 
 @shared_task(name="async_secure_service_task")
-def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
+def async_secure_service_task(metadata_id: int, group_id: int, operations: list, bounding_geometry: str):
     """ Async call for securing a service
 
     Since this is something that can happen in the background, we should push it to the background!
@@ -115,35 +123,73 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
          nothing
     """
     md = Metadata.objects.get(id=metadata_id)
-    if secured_operation_id is not None:
-        secured_operation = SecuredOperation.objects.get(
-            id=secured_operation_id
-        )
-    else:
-        secured_operation = None
+
+    # First get the MrMapGroup object
     if group_id is None:
         group = None
     else:
         group = MrMapGroup.objects.get(
             id=group_id
         )
-    if operation_id is not None:
-        operation = RequestOperation.objects.get(id=operation_id)
-    else:
-        operation = None
 
-    md_type = md.metadata_type.type
+    try:
+        features = json.loads(bounding_geometry)
+        geoms = []
+        for feature in features["features"]:
+            feature_geom = feature["geometry"]
+            feature_coords = feature_geom["coordinates"]
+            for coord in feature_coords:
+                geom = GEOSGeometry(Polygon(coord), srid=DEFAULT_SRS)
+                geoms.append(geom)
+        # Create GeosGeometry from GeoJson
+        bounding_geometry = GeometryCollection(
+            geoms
+        )
+    except Exception as e:
+        bounding_geometry = None
 
-    # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
-    if md_type == MetadataEnum.SERVICE.value:
-        md.service.perform_single_element_securing(md.service, is_secured, group, operation, group_polygons, secured_operation)
+    # Create list of parent metadata and all subelement metadatas
+    metadatas = md.get_subelements_metadatas()
+    metadatas = [md] + metadatas
 
-    # secure subelements afterwards
-    if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-        md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
+    with transaction.atomic():
+        # Iterate over all metadatas to set the restricted geometry
+        for md in metadatas:
+            # Create a list of objects, which shall be deleted if not found anymore in the new form data
+            to_be_deleted = md.secured_operations.filter(
+                allowed_group=group
+            )
+            to_be_deleted = {op.operation: op for op in to_be_deleted}
+            # Then iterate over all operations, which shall be secured and create/update the bounding geometry
+            for operation in operations:
+                try:
+                    # Since we are currently iterating through this operation, which shall be secured, we can delete
+                    # the entry from the list of entries which would be deleted in the end!
+                    del to_be_deleted[operation]
+                except KeyError:
+                    pass
+                secured_operation = md.secured_operations.filter(
+                    operation=operation,
+                    allowed_group=group,
+                )
+                if secured_operation.exists():
+                    # update
+                    secured_operation = secured_operation.first()
+                    secured_operation.bounding_geometry = bounding_geometry
+                    secured_operation.save()
+                else:
+                    # New!
+                    sec_op = SecuredOperation.objects.create(
+                        secured_metadata=md,
+                        operation=operation,
+                        allowed_group=group,
+                        bounding_geometry=bounding_geometry
+                    )
+                    md.secured_operations.add(sec_op)
 
-    elif md_type == MetadataEnum.FEATURETYPE.value:
-        md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
+            # Delete the operations which are not present anymore in the form data!
+            for key, entry in to_be_deleted.items():
+                entry.delete()
 
 
 @shared_task(name="async_remove_service_task")
@@ -162,7 +208,8 @@ def async_remove_service_task(service_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int, external_auth: dict):
+def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
+                      external_auth: dict):
     """ Async call of new service creation
 
     Since redis is used as broker, the objects can not be passed directly into the function. They have to be resolved using
@@ -204,7 +251,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 
     try:
         t_start = time.time()
-        service = service_helper.get_service_model_instance(
+        service = service_helper.create_service(
             url_dict.get("service"),
             url_dict.get("version"),
             url_dict.get("base_uri"),
@@ -215,13 +262,9 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             external_auth=external_auth
         )
 
-        ## update progress
+        # update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)
-
-        # get return values
-        raw_service = service["raw_data"]
-        service = service["service"]
 
         # get db object
         if curr_task_id is not None:
@@ -233,22 +276,23 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             })
             pending_task.save()
 
-        xml = raw_service.service_capabilities_xml
-
-        # persist everything
-        service_helper.persist_service_model_instance(service, external_auth)
-
         # update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, 95)
 
-        service.persist_capabilities_doc(xml)
-
-        # after service AND documents have been persisted, we can now set the service being secured
+        # after service AND documents have been persisted, we can now set the service being secured if needed
         if external_auth is not None:
             service.metadata.set_proxy(True)
 
-        print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+        # after metadata has been persisted, we can auto-generate all metadata public_id's
+        sub_metadatas = service.metadata.get_subelements_metadatas()
+        dataset_metadatas = list(filter(None, [md.get_related_dataset_metadata() for md in sub_metadatas]))
+        metadatas = [service.metadata] + sub_metadatas + dataset_metadatas
+        for md in metadatas:
+            if md.public_id is None:
+                md.public_id = md.generate_public_id()
+                md.save()
+        service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
         if curr_task_id is not None:
@@ -260,8 +304,27 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             pending_task.delete()
 
     except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
+        url = url_dict['base_uri'] + f"SERVICE={url_dict['service'].value}&VERSION={url_dict['version'].value}&request={url_dict['request']}"
+        error_msg = f"Error while trying to register new resource for url: {url}\n"
+
+        response = requests.get(url)
+        if response.status_code == 200:
+            cap_doc = "-----------------------------------------------------------\n"\
+                      f"We could receive the following capabilities document:\n{response.text}"
+            error_msg += cap_doc
+
+        service_logger.error(msg=error_msg)
+        service_logger.exception(e, stack_info=True, exc_info=True)
+
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
+
+            register_group = MrMapGroup.objects.get(id=register_group_id)
+            error_report = ErrorReport(message=error_msg,
+                                       traceback=traceback.format_exc(),
+                                       created_by=register_group)
+            error_report.save()
+
             descr = json.loads(pending_task.description)
             pending_task.description = json.dumps({
                 "service": descr.get("service", None),
@@ -269,6 +332,22 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
                     "current": "0",
                 },
                 "exception": e.__str__(),
+                "phase": "ERROR: Something went wrong! Click on generate error report to inform your serveradmin about this error.",
             })
+            pending_task.error_report = error_report
             pending_task.save()
+
         raise e
+
+
+@shared_task(name="async_log_response")
+def async_log_response(proxy_log_id: int, response: str, request_param: str, format_param: str):
+    response = base64.b64decode(response.encode("UTF-8"))
+    proxy_log = ProxyLog.objects.get(
+        id=proxy_log_id
+    )
+    proxy_log.log_response(
+        response,
+        request_param,
+        format_param
+    )

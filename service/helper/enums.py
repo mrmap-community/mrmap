@@ -1,7 +1,7 @@
-from enum import Enum
+from MrMap.enums import EnumChoice
 
 
-class ConnectionEnum(Enum):
+class ConnectionEnum(EnumChoice):
     """ Defines all possible connection types
 
     """
@@ -10,7 +10,15 @@ class ConnectionEnum(Enum):
     URLLIB = "urllib"
 
 
-class OGCServiceVersionEnum(Enum):
+class HttpMethodEnum(EnumChoice):
+    """ Defines all important http method types
+
+    """
+    GET = "Get"
+    POST = "Post"
+
+
+class OGCServiceVersionEnum(EnumChoice):
     """ Defines all supported versions
 
     """
@@ -24,7 +32,7 @@ class OGCServiceVersionEnum(Enum):
     V_2_0_2 = "2.0.2"
 
 
-class OGCServiceEnum(Enum):
+class OGCServiceEnum(EnumChoice):
     """ Defines all supported service types
 
     """
@@ -33,9 +41,10 @@ class OGCServiceEnum(Enum):
     WFS = "wfs"
     WMC = "wmc"
     DATASET = "dataset"
+    CSW = "csw"
 
 
-class OGCOperationEnum(Enum):
+class OGCOperationEnum(EnumChoice):
     """ Defines all known operation names
 
     """
@@ -61,13 +70,85 @@ class OGCOperationEnum(Enum):
     GET_PROPERTY_VALUE = "GetPropertyValue"
     DESCRIBE_STORED_QUERIES = "DescribeStoredQueries"
 
+    # CSW
+    GET_RECORDS = "GetRecords"
+    DESCRIBE_RECORD = "DescribeRecord"
+    GET_RECORD_BY_ID = "GetRecordById"
 
-class MetadataEnum(Enum):
+
+class MetadataEnum(EnumChoice):
     """ Defines all metadata types
 
     """
-
     DATASET = "dataset"
     SERVICE = "service"
     LAYER = "layer"
-    FEATURETYPE = "featuretype"
+    TILE = "tile"
+    SERIES = "series"
+    FEATURETYPE = "featureType"
+    CATALOGUE = "catalogue"
+
+    # Enums derived from MD_ScopeCode (ISO19115)
+    ATTRIBUTE = "attribute"
+    ATTRIBUTETYPE = "attributeType"
+    COLLECTION_HARDWARE = "collectionHardware"
+    COLLECTION_SESSION = "collectionSession"
+    NON_GEOGRAPHIC_DATASET = "nonGeographicDataset"
+    DIMENSION_GROUP = "dimensionGroup"
+    FEATURE = "feature"
+    PROPERTYTYPE = "propertyType"
+    FIELDSESSION = "fieldSession"
+    SOFTWARE = "software"
+    MODEL = "model"
+
+
+class DocumentEnum(EnumChoice):
+    """ Defines all document types
+
+    """
+    CAPABILITY = "Capability"
+    METADATA = "Metadata"
+
+
+class ResourceOriginEnum(EnumChoice):
+    """ Defines origins from where a resource could be coming from
+
+    """
+    CAPABILITIES = "Capabilities"
+    UPLOAD = "Upload"
+    EDITOR = "Editor"
+    CATALOGUE = "Catalogue"
+
+
+class CategoryOriginEnum(EnumChoice):
+    """ Defines sources for categories
+
+    """
+    ISO = "iso"
+    INSPIRE = "inspire"
+
+    @classmethod
+    def all_values_as_list(cls):
+        return [enum.value for enum in cls]
+
+    @classmethod
+    def all_names_as_list(cls):
+        return [enum.name for enum in cls]
+
+
+class MetadataRelationEnum(EnumChoice):
+    """ Defines types of metadata relations for MetadataRelation model
+
+    """
+    VISUALIZES = "visualizes"
+    DESCRIBED_BY = "describedBy"
+    HARVESTED_THROUGH = "harvestedThrough"
+    HARVESTED_PARENT = "harvestedParent"
+
+
+class PendingTaskEnum(EnumChoice):
+    """ Defines all pending task types
+
+    """
+    HARVEST = "harvest"
+    REGISTER = "register"

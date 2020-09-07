@@ -2,8 +2,8 @@
 {% load i18n static %}
 {% block table %}
     <tr>
-        <th scope="row">{% trans 'Uuid' %}</th>
-        <td>{{ service.uuid }}</td>
+        <th scope="row">{% trans 'Easy ID' %}</th>
+        <td>{{ service.metadata.public_id }}</td>
     </tr>
     <tr>
         <th scope="row">{% trans 'Identifier' %}</th>
@@ -12,7 +12,7 @@
     <tr>
         <th scope="row">{% trans 'Parent service' %}</th>
         <td>
-            <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'service:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
+            <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'resource:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
                 {{ service.parent_service.metadata.title }}
             </a>
         </td>
@@ -97,8 +97,8 @@
         <th scope="row">{% trans 'Bounding box' %}</th>
         <td>
             {% if service.bbox_lat_lon.area > 0.0 %}
-            <div id="{{ service.id }}_map" class="map-view" style="height: 50vh; min-height: 200px;"></div>
-                {% with id_map=service.id bbox=service.bbox_lat_lon  %}
+            <div id="{{ service.id.hex }}_map" class="map-view" style="height: 50vh; min-height: 200px;"></div>
+                {% with id_map=service.id.hex bbox=service.bbox_lat_lon  %}
                     {% include 'leaflet/leaflet-client.html' %}
                     <script type="text/javascript">
                           initializeLeafletClient();
@@ -121,7 +121,7 @@
     </tr>
     <tr>
         <th scope="row">{% trans 'Mime types:' %}</th>
-        <td>
+        <td class="col-sm-10">
             {% with service.id as id_accordion %}
                 {% for key, values in mime_types.items %}
                 {% with key as id_accordion_combined %}

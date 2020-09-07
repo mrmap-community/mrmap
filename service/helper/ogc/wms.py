@@ -10,30 +10,28 @@ from abc import abstractmethod
 
 import time
 
-from copy import copy
 from threading import Thread
 
 from celery import Task
-from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE, \
-    SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
-from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner import utils
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap.messages import SERVICE_NO_ROOT_LAYER
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, PROGRESS_STATUS_AFTER_PARSING, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, service_logger
+from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
+    XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
+from MrMap import utils
+from MrMap.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
+    MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.iso_metadata import ISOMetadata
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
-from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
-from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
+from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
+    MetadataRelation, Style, ExternalAuthentication, ServiceUrl, RequestOperation
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
 
@@ -65,6 +63,7 @@ class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
 
     # define layers as array of OGCWebMapServiceLayer objects
+    # Using None here to avoid mutable appending of infinite layers (python specific)
     # Using None here to avoid mutable appending of infinite layers (python specific)
     # For further details read: http://effbot.org/zone/default-values.htm
     layers = None
@@ -110,24 +109,52 @@ class OGCWebMapService(OGCWebService):
         if service_metadata_uri is not None:
             self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
 
-        print_debug_mode(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
+        service_logger.debug(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         # check possible operations on this service
         start_time = time.time()
-        self.get_service_operations(xml_obj)
-        print_debug_mode(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        self.get_service_operations_and_formats(xml_obj)
+        service_logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
         start_time = time.time()
         self.get_service_dataset_metadata(xml_obj=xml_obj)
-        print_debug_mode(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+        service_logger.debug(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
         self.get_version_specific_metadata(xml_obj=xml_obj)
 
         if not metadata_only:
             start_time = time.time()
-            self._get_layers(xml_obj=xml_obj, async_task=async_task)
-            print_debug_mode(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+            self._parse_layers(xml_obj=xml_obj, async_task=async_task)
+            service_logger.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+
+    def get_service_operations_and_formats(self, xml_obj):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Creates MimeType records
+
+        Args:
+            xml_obj: The xml document object
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            xml_obj
+        )
+        operations = cap_request.getchildren()
+        for operation in operations:
+            RequestOperation.objects.get_or_create(
+                operation_name=operation.tag,
+            )
+            # Parse formats
+            formats = xml_helper.try_get_element_from_xml(
+                "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
+                operation
+            )
+            formats = [f.text for f in formats]
+            self.operation_format_map[operation.tag] = formats
 
     ### DATASET METADATA ###
     def parse_dataset_md(self, layer, layer_obj):
@@ -355,26 +382,26 @@ class OGCWebMapService(OGCWebService):
 
     ### DIMENSIONS ###
     def parse_dimension(self, layer, layer_obj):
-        dims_list = []
+        dim_list = []
         try:
-            dim = xml_helper.try_get_single_element_from_xml(
+            dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
                 xml_elem=layer
             )
-            ext = xml_helper.try_get_single_element_from_xml(
-                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent"),
-                xml_elem=layer
-            )
-            dim_dict = {
-                "name": dim.get("name"),
-                "units": dim.get("units"),
-                "default": ext.get("default"),
-                "extent": ext.text,
-            }
-            dims_list.append(dim_dict)
+            for dim in dims:
+                ext = xml_helper.try_get_single_element_from_xml(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent")+ '[@name="' + dim.get('name') + '"]',
+                    xml_elem=layer
+                )
+                dim_dict = {
+                    "type": dim.get("name"),
+                    "units": dim.get("units"),
+                    "extent": ext.text,
+                }
+                dim_list.append(dim_dict)
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dims_list
+        layer_obj.dimension_list = dim_list
 
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
@@ -444,7 +471,6 @@ class OGCWebMapService(OGCWebService):
             self.parse_opaque,
             self.parse_cascaded,
             self.parse_request_uris,
-            self.parse_formats,
             self.parse_dimension,
             self.parse_style,
             self.parse_identifier,
@@ -467,11 +493,13 @@ class OGCWebMapService(OGCWebService):
         Returns:
             nothing
         """
-        if step_size is not None and async_task is not None:
-            task_helper.update_progress_by_step(async_task, step_size)
-
         # iterate over all top level layer and find their children
         layer_obj = self._start_single_layer_parsing(layer)
+
+        if step_size is not None and async_task is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+            task_helper.update_service_description(async_task, None, "Parsing {}".format(layer_obj.title))
+
         layer_obj.parent = parent
         layer_obj.position = position
         if self.layers is None:
@@ -482,12 +510,12 @@ class OGCWebMapService(OGCWebService):
             xml_elem=layer
         )
         if parent is not None:
-            parent.child_layer.append(layer_obj)
+            parent.child_layers.append(layer_obj)
         position += 1
 
-        self._get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
+        self._parse_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
-    def _get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
+    def _parse_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -515,7 +543,7 @@ class OGCWebMapService(OGCWebService):
                 self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
 
-    def _get_layers(self, xml_obj, async_task: Task = None):
+    def _parse_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
@@ -543,9 +571,9 @@ class OGCWebMapService(OGCWebService):
             # No division by zero!
             len_layers = 1
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
-        print_debug_mode("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
+        service_logger.debug("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
-        self._get_layers_recursive(layers, step_size=step_size, async_task=async_task)
+        self._parse_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
@@ -575,7 +603,7 @@ class OGCWebMapService(OGCWebService):
         )
 
         if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
             service_xml,
@@ -683,221 +711,58 @@ class OGCWebMapService(OGCWebService):
         # parse request uris from capabilities document
         self.parse_request_uris(xml_obj, self)
 
-
-    def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: MrMapGroup, publisher: Organization,
-                                             published_for: Organization, root_md: Metadata, user: MrMapUser, contact, parent=None):
-        """ Transforms a OGCWebMapLayer object to Layer model (models.py)
-
-        Args:
-            layer_obj (OGCWebMapServiceLayer): The OGCWebMapLayer object which holds all data
-            layers (list): A list of layers
-            service_type (ServiceType): The type of the service this function has to deal with
-            wms (Service): The root or parent service which holds all these layers
-            creator (MrMapGroup): The group that started the registration process
-            publisher (Organization): The organization that publishes the service
-            published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
-            root_md (Metadata): The metadata of the root service (parameter 'wms')
-            user (MrMapUser): The performing user
-            contact (Contact): The contact object (Organization)
-            parent: The parent layer object to this layer
-        Returns:
-            nothing
-        """
-        metadata = Metadata()
-        md_type = MetadataType(type=MetadataEnum.LAYER.value)
-        metadata.metadata_type = md_type
-        metadata.title = layer_obj.title
-        metadata.uuid = uuid.uuid4()
-        metadata.abstract = layer_obj.abstract
-        metadata.online_resource = root_md.online_resource
-        metadata.capabilities_original_uri = root_md.capabilities_original_uri
-        metadata.capabilities_uri = root_md.capabilities_original_uri
-        metadata.identifier = layer_obj.identifier
-        metadata.contact = contact
-        metadata.access_constraints = root_md.access_constraints
-        metadata.is_active = False
-        metadata.created_by = creator
-
-        # handle keywords of this layer
-        for kw in layer_obj.capability_keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords_list.append(keyword)
-
-        # handle reference systems
-        for sys in layer_obj.capability_projection_system:
-            parts = self.epsg_api.get_subelements(sys)
-            # check if this srs is allowed for us. If not, skip it!
-            if parts.get("code") not in ALLOWED_SRS:
-                continue
-            ref_sys = ReferenceSystem(code=parts.get("code"), prefix=parts.get("prefix"))
-            metadata.reference_system_list.append(ref_sys)
-
-        layer = Layer()
-        layer.uuid = uuid.uuid4()
-        layer.metadata = metadata
-        layer.identifier = layer_obj.identifier
-        layer.servicetype = service_type
-        layer.position = layer_obj.position
-        layer.parent_layer = parent
-
-        if layer.parent_layer is not None:
-            layer.parent_layer.children_list.append(layer)
-
-        layer.is_queryable = layer_obj.is_queryable
-        layer.is_cascaded = layer_obj.is_cascaded
-        layer.registered_by = creator
-        layer.is_opaque = layer_obj.is_opaque
-        layer.scale_min = layer_obj.capability_scale_hint.get("min")
-        layer.scale_max = layer_obj.capability_scale_hint.get("max")
-
-        if layer_obj.style is not None:
-            layer.tmp_style = layer_obj.style
-
-        # create bounding box polygon
-        bounding_points = (
-            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
-            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
-            (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
-            (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
-            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
-        )
-        layer.bbox_lat_lon = Polygon(bounding_points)
-        metadata.bounding_geometry = layer.bbox_lat_lon
-        layer.created_by = creator
-        layer.published_for = published_for
-        layer.published_by = publisher
-        layer.parent_service = wms
-
-        layer.get_styles_uri_GET = layer_obj.get_styles_uri_GET
-        layer.get_styles_uri_POST = layer_obj.get_styles_uri_POST
-        layer.get_legend_graphic_uri_GET = layer_obj.get_legend_graphic_uri_GET
-        layer.get_legend_graphic_uri_POST = layer_obj.get_legend_graphic_uri_POST
-        layer.get_feature_info_uri_GET = layer_obj.get_feature_info_uri_GET
-        layer.get_feature_info_uri_POST = layer_obj.get_feature_info_uri_POST
-        layer.get_map_uri_GET = layer_obj.get_map_uri_GET
-        layer.get_map_uri_POST = layer_obj.get_map_uri_POST
-        layer.describe_layer_uri_GET = layer_obj.describe_layer_uri_GET
-        layer.describe_layer_uri_POST = layer_obj.describe_layer_uri_POST
-        layer.get_capabilities_uri_GET = layer_obj.get_capabilities_uri_GET
-        layer.get_capabilities_uri_POST = layer_obj.get_capabilities_uri_POST
-
-        layer.iso_metadata = layer_obj.iso_metadata
-
-        if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
-            # ToDo: Rework dimension persisting! Currently simply ignore it...
-            pass
-            # for dimension in layer_obj.dimension:
-            #     dim = Dimension()
-            #     # dim.layer = layer
-            #     dim.name = layer_obj.dimension.get("name")
-            #     dim.units = layer_obj.dimension.get("units")
-            #     dim.default = layer_obj.dimension.get("default")
-            #     dim.extent = layer_obj.dimension.get("extent")
-            #     # ToDo: Refine for inherited and nearest_value and so on
-            #     layer.dimension = dim
-            #     #dim.save()
-
-        if wms.root_layer is None:
-            # no root layer set yet
-            wms.root_layer = layer
-
-        # iterate over all available mime types and actions
-        for action, format_list in layer_obj.format_list.items():
-            for _format in format_list:
-                service_to_format = MimeType(
-                    operation=action,
-                    mime_type=_format,
-                    created_by=creator
-                )
-                layer.formats_list.append(service_to_format)
-        if len(layer_obj.child_layer) > 0:
-            parent_layer = copy(layer)
-            self.__create_layer_model_instance(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
-                     publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
-
-
-    def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: MrMapGroup, publisher: Organization,
-                                      published_for: Organization, root_md: Metadata, user: MrMapUser, contact, parent=None):
-        """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
-
-        Args:
-            layers (list): A list of layers
-            service_type (ServiceType): The type of the service this function has to deal with
-            wms (Service): The root or parent service which holds all these layers
-            creator (MrMapGroup): The group that started the registration process
-            publisher (Organization): The organization that publishes the service
-            published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
-            root_md (Metadata): The metadata of the root service (parameter 'wms')
-            user (MrMapUser): The performing user
-            contact (Contact): The contact object (Organization)
-            parent: The parent layer object to this layer
-        Returns:
-            nothing
-        """
-        # iterate over all layers
-        # There were attempts to implement a multithreaded approach in here but due to the problem of n-depth of layer hierarchy
-        # there was no working solution so far which worked.
-
-        for layer_obj in layers:
-            self.__create_single_layer_model_instance(
-                layer_obj,
-                layers,
-                service_type,
-                wms,
-                creator,
-                publisher,
-                published_for,
-                root_md,
-                user,
-                contact,
-                parent,
-            )
-
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
+    @transaction.atomic
+    def create_service_model_instance(self, user: MrMapUser, register_group: MrMapGroup, register_for_organization: Organization, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
         """ Persists the web map service and all of its related content and data
 
         Args:
             user (MrMapUser): The action performing user
+            register_group (MrMapGroup): The group for which the service shall be registered
+            register_for_organization (Organization): The organization for which the service shall be registered
+            external_auth (ExternalAuthentication): An external authentication object holding information
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
         orga_published_for = register_for_organization
-        orga_publisher = user.organization
         group = register_group
 
-        # fill objects
-        service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
-            version=self.service_version.value
-        )[0]
+        # Contact
+        contact = self._create_organization_contact_record()
 
-        # metadata
-        metadata = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
-        metadata.metadata_type = md_type
-        if self.service_file_iso_identifier is None:
-            # there was no file identifier found -> we create a new
-            self.service_file_iso_identifier = uuid.uuid4()
-        metadata.uuid = self.service_file_iso_identifier
-        metadata.title = self.service_identification_title
-        metadata.abstract = self.service_identification_abstract
-        metadata.online_resource = self.service_provider_onlineresource_linkage
-        metadata.capabilities_original_uri = self.service_connect_url
-        metadata.capabilities_uri = self.service_connect_url
-        metadata.access_constraints = self.service_identification_accessconstraints
-        metadata.fees = self.service_identification_fees
-        metadata.bounding_geometry = self.service_bounding_box
-        metadata.identifier = self.service_file_identifier
+        # Metadata
+        metadata = self._create_metadata_record(contact, group)
 
-        # keywords
-        for kw in self.service_identification_keywords:
-            if kw is None:
-                continue
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords_list.append(keyword)
+        # Process external authentication
+        self._process_external_authentication(metadata, external_auth)
 
-        # contact
+        # Service
+        service = self._create_service_record(group, orga_published_for, metadata, is_update_candidate_for)
+
+        # Additionals (keywords, mimetypes, ...)
+        self._create_additional_records(service, metadata, group)
+
+        # Begin creation of Layer records. Calling the found root layer will
+        # iterate through all parent-child related layer objects
+        try:
+            root_layer = self.layers[0]
+            root_layer.create_layer_record(
+                parent_service=service,
+                group=group,
+                user=user,
+                parent_layer=None,
+                epsg_api=self.epsg_api
+            )
+        except KeyError:
+            raise IndexError(SERVICE_NO_ROOT_LAYER)
+        return service
+
+    def _create_organization_contact_record(self):
+        """ Creates a Organization record from the OGCWebMapService
+
+        Returns:
+             contact (Organization): The persisted organization contact record
+        """
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
             person_name=self.service_provider_responsibleparty_individualname,
@@ -910,160 +775,180 @@ class OGCWebMapService(OGCWebService):
             state_or_province=self.service_provider_address_state_or_province,
             country=self.service_provider_address_country,
         )[0]
-        metadata.contact = contact
+        return contact
 
-        # other
+    def _create_metadata_record(self, contact: Organization, group: MrMapGroup):
+        """ Creates a Metadata record from the OGCWebMapService
+
+        Args:
+            contact (Organization): The contact organization for this metadata record
+            group (MrMapGroup): The owner/creator group
+        Returns:
+             metadata (Metadata): The persisted metadata record
+        """
+        metadata = Metadata()
+        md_type = MetadataEnum.SERVICE.value
+        metadata.metadata_type = md_type
+        if self.service_file_iso_identifier is None:
+            # We didn't found any file identifier in the document -> we create one
+            self.service_file_iso_identifier = uuid.uuid4()
+        metadata.title = self.service_identification_title
+        metadata.abstract = self.service_identification_abstract
+        metadata.online_resource = self.service_provider_onlineresource_linkage
+        metadata.capabilities_original_uri = self.service_connect_url
+        metadata.access_constraints = self.service_identification_accessconstraints
+        metadata.fees = self.service_identification_fees
+        if self.service_bounding_box is not None:
+            metadata.bounding_geometry = self.service_bounding_box
+        metadata.identifier = self.service_file_identifier
         metadata.is_active = False
         metadata.created_by = group
+        metadata.contact = contact
 
+        # Save metadata instance to be able to add M2M entities
+        metadata.save()
+
+        return metadata
+
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, metadata: Metadata, is_update_candidate_for: Service):
+        """ Creates a Service object from the OGCWebFeatureService object
+
+        Args:
+            group (MrMapGroup): The owner/creator group
+            orga_published_for (Organization): The organization for which the service is published
+            orga_publisher (Organization): THe organization that publishes
+            metadata (Metadata): The describing metadata
+        Returns:
+             service (Service): The persisted service object
+        """
+
+        ## Create ServiceType record if it doesn't exist yet
+        service_type = ServiceType.objects.get_or_create(
+            name=self.service_type.value,
+            version=self.service_version.value
+        )[0]
         service = Service()
         service.availability = 0.0
         service.is_available = False
-        service.servicetype = service_type
+        service.service_type = service_type
         service.published_for = orga_published_for
-        service.published_by = orga_publisher
         service.created_by = group
-        service.get_capabilities_uri_GET = self.get_capabilities_uri_GET
-        service.get_capabilities_uri_POST = self.get_capabilities_uri_POST
-        service.get_feature_info_uri_GET = self.get_feature_info_uri_GET
-        service.get_feature_info_uri_POST = self.get_feature_info_uri_POST
-        service.describe_layer_uri_GET = self.describe_layer_uri_GET
-        service.describe_layer_uri_POST = self.describe_layer_uri_POST
-        service.get_styles_uri_GET = self.get_styles_uri_GET
-        service.get_styles_uri_POST = self.get_styles_uri_POST
-        service.get_legend_graphic_uri_GET = self.get_legend_graphic_uri_GET
-        service.get_legend_graphic_uri_POST = self.get_legend_graphic_uri_POST
-        service.get_map_uri_GET = self.get_map_uri_GET
-        service.get_map_uri_POST = self.get_map_uri_POST
+        operation_urls = [
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                url=self.get_feature_info_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                url=self.get_feature_info_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+                url=self.describe_layer_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+                url=self.describe_layer_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_STYLES.value,
+                url=self.get_styles_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_STYLES.value,
+                url=self.get_styles_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                url=self.get_legend_graphic_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                url=self.get_legend_graphic_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_MAP.value,
+                url=self.get_map_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_MAP.value,
+                url=self.get_map_uri_POST,
+                method="Post"
+            )[0],
+
+        ]
+
+        service.operation_urls.add(*operation_urls)
         service.metadata = metadata
         service.is_root = True
-        if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
+        service.is_update_candidate_for=is_update_candidate_for
 
-        root_layer = self.layers[0]
-
-        self.__create_layer_model_instance(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=copy(metadata),
-                         publisher=orga_publisher, published_for=orga_published_for, contact=contact, user=user)
-        return service
-
-    @transaction.atomic
-    def persist_service_model(self, service, external_auth: ExternalAuthentication):
-        """ Persist the service model object
-
-        Returns:
-             Nothing
-        """
-        # save metadata
-        md = service.metadata
-        md.save()
-
-        if external_auth is not None:
-            external_auth.metadata = md
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
-            external_auth.encrypt(key)
-            external_auth.save()
-
-        # save linked service metadata
-        if service.linked_service_metadata is not None:
-            md_relation = MetadataRelation()
-            md_relation.metadata_from = md
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name='capabilities'
-            )[0]
-            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
-            md_relation.save()
-
-        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
-        # save again, due to added related metadata
-        md.save()
-
-        # metadata keywords
-        for kw in md.keywords_list:
-            md.keywords.add(kw)
-        service.metadata = md
-
-        # save parent service
         service.save()
 
-        # save all containing layers
-        if service.root_layer is not None:
-            self.__persist_child_layers([service.root_layer], service)
+        # Persist capabilities document
+        service.persist_original_capabilities_doc(self.service_capabilities_xml)
 
+        return service
 
-    @transaction.atomic
-    def __persist_child_layers(self, layers, parent_service, parent_layer=None):
-        """ Persist all layer children
-
-        Everything that has just been constructed will get a database record
+    def _create_additional_records(self, service: Service, metadata: Metadata, group: MrMapGroup):
+        """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
 
         Args:
-            parent_layer:
+            service (Service): The service record
+            metadata (Metadata): THe metadata record
         Returns:
-             Nothing
+
         """
-        for layer in layers:
-            md = layer.metadata
-            md_type = md.metadata_type
-            md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
-            md.metadata_type = md_type
-            md.save()
+        # Keywords
+        for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            metadata.keywords.add(keyword)
 
-            md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
-                OGCOperationEnum.GET_CAPABILITIES.value)
-            md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-            md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
-            md.save()
-            for iso_md in layer.iso_metadata:
-                iso_md = iso_md.to_db_model()
-                metadata_relation = MetadataRelation()
-                metadata_relation.metadata_from = md
-                metadata_relation.metadata_to = iso_md
-                metadata_relation.origin = MetadataOrigin.objects.get_or_create(
-                    name=iso_md.origin
+        # MimeTypes / Formats
+        for operation, formats in self.operation_format_map.items():
+            for format in formats:
+                mime_type = MimeType.objects.get_or_create(
+                    operation=operation,
+                    mime_type=format,
+                    created_by=group
                 )[0]
-                metadata_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
-                metadata_relation.save()
+                metadata.formats.add(mime_type)
 
-            layer.metadata = md
-
-            # handle keywords of this layer
-            for kw in layer.metadata.keywords_list:
-                layer.metadata.keywords.add(kw)
-
-            # handle reference systems
-            for sys in layer.metadata.reference_system_list:
-                sys = ReferenceSystem.objects.get_or_create(code=sys.code, prefix=sys.prefix)[0]
-                layer.metadata.reference_system.add(sys)
-
-            if layer.dimension is not None:
-                dim = layer.dimension
-                dim.save()
-                layer.dimension = dim
-
-            layer.parent_layer = parent_layer
-            layer.parent_service = parent_service
-            layer.save()
-
-            if layer.tmp_style is not None:
-                layer.tmp_style.layer = layer
-                layer.tmp_style.save()
-
-            # iterate over all available mime types and actions
-            for _format in layer.formats_list:
-                _format = MimeType.objects.get_or_create(
-                    operation=_format.operation,
-                    mime_type=_format.mime_type,
-                )[0]
-                layer.formats.add(_format)
-
-            layer_children_list = layer.children_list
-            if len(layer_children_list) > 0:
-                self.__persist_child_layers(layer.children_list, parent_service, layer)
+        # Check for linked service metadata that might be found during parsing
+        if self.linked_service_metadata is not None:
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
+            md_relation = MetadataRelation()
+            md_relation.metadata_to = service.linked_service_metadata
+            md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
+            md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
+            md_relation.save()
+            metadata.related_metadata.add(md_relation)
 
 
 class OGCWebMapServiceLayer(OGCLayer):
@@ -1081,7 +966,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         self.service_version = OGCServiceVersionEnum.V_1_0_0
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.xml"
 
-    def __parse_formats(self, layer, layer_obj):
+    def parse_formats(self, layer, layer_obj):
         actions = ["Map", "Capabilities", "FeatureInfo"]
         results = {}
         for action in actions:
@@ -1138,6 +1023,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.0/capabilities_1_1_0.xml"
 
     def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
         pass
 
 
@@ -1152,6 +1038,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml"
 
     def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
         pass
 
 
@@ -1226,7 +1113,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         Returns:
              nothing
         """
-        dims_list = []
+        dim_list = []
         try:
             dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
@@ -1234,16 +1121,15 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
             )
             for dim in dims:
                 dim_dict = {
-                    "name": dim.get("name"),
+                    "type": dim.get("name"),
                     "units": dim.get("units"),
-                    "default": dim.get("default"),
                     "extent": dim.text,
-                    "nearestValue": dim.get("nearestValue"),
                 }
-                dims_list.append(dim_dict)
+                dim_list.append(dim_dict)
+
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dims_list
+        layer_obj.dimension_list = dim_list
 
     def get_version_specific_service_metadata(self, xml_obj):
         """ The version specific implementation of service metadata parsing
@@ -1277,4 +1163,4 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         )
         self.max_height = max_height
 
-        self._get_layers(xml_obj=xml_obj)
+        self._parse_layers(xml_obj=xml_obj)

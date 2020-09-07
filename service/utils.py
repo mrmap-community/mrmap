@@ -7,12 +7,8 @@ Created on: 21.01.20
 """
 
 from django.http import HttpRequest
-from django_tables2 import RequestConfig
-
-from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation, Service
-from structure.models import MrMapUser
+from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
@@ -44,7 +40,9 @@ def collect_featuretype_data(md: Metadata):
     if md.featuretype.parent_service:
         params['parent_service'] = md.featuretype.parent_service
         params['fees'] = md.featuretype.parent_service.metadata.fees
+        params['licence'] = md.featuretype.parent_service.metadata.licence
 
+    params['bounding_box'] = md.bounding_geometry
     params['name_of_the_resource'] = md.identifier
     params['featuretype'] = md.featuretype
     params['abstract'] = md.featuretype.parent_service.metadata.abstract
@@ -67,15 +65,17 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
     params['layer'] = md.service.layer
     params['name_of_the_resource'] = md.service.layer.identifier
     params['is_queryable'] = md.service.layer.is_queryable
+    params['bounding_box'] = md.bounding_geometry
 
     if md.service.parent_service:
         params['parent_service'] = md.service.parent_service
         params['fees'] = md.service.parent_service.metadata.fees
+        params['licence'] = md.service.parent_service.metadata.licence
 
     try:
         # is it a root layer?
         params['parent_layer'] = Layer.objects.get(
-            child_layer=md.service.layer
+            child_layers=md.service.layer
         )
     except Layer.DoesNotExist:
         # yes, it's a root layer, no parent available; skip
@@ -103,18 +103,16 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
 
-        child_layer_table = ChildLayerTable(children,
+        child_layer_table = ChildLayerTable(queryset=children,
                                             order_by='title',
-                                            user=None,)
-
-        child_layer_table.configure_pagination(request, 'cl-t')
+                                            request=request,)
 
         params['children'] = child_layer_table
 
     return params
 
 
-def collect_wms_root_data(md: Metadata):
+def collect_wms_root_data(md: Metadata, request: HttpRequest):
     params = {}
 
     # if there is a published_for organization it will be presented
@@ -127,6 +125,7 @@ def collect_wms_root_data(md: Metadata):
         parent_layer=None,
     )
 
+    params['bounding_box'] = md.bounding_geometry
     params['layer'] = layer
     params['name_of_the_resource'] = layer.identifier
     params['is_queryable'] = layer.is_queryable
@@ -139,13 +138,14 @@ def collect_wms_root_data(md: Metadata):
                   'title': layer.metadata.title,
                   'sublayers_count': child_child_layers.count()}]
 
-    sub_layer_table = ChildLayerTable(sub_layer,
+    sub_layer_table = ChildLayerTable(queryset=sub_layer,
                                       orderable=False,
                                       show_header=False,
-                                      user=None,)
+                                      request=request,)
 
     params['children'] = sub_layer_table
     params['fees'] = md.fees
+    params['licence'] = md.licence
 
     return params
 
@@ -158,6 +158,7 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
         params['contact'] = collect_contact_data(md.service.published_for)
 
     params['fees'] = md.service.metadata.fees
+    params['licence'] = md.service.metadata.licence
 
     featuretypes = FeatureType.objects.filter(
         parent_service=md.service
@@ -176,14 +177,12 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              })
 
-    featuretype_table = FeatureTypeTable(featuretypes,
+    featuretype_table = FeatureTypeTable(queryset=featuretypes,
                                          order_by='title',
-                                         user=None,)
-    featuretype_table.configure_pagination(request, 'ft-t')
-    featuretype_table.filter = featuretypes_filtered
-
+                                         request=request,)
 
     params['featuretypes'] = featuretype_table
+    params['bounding_box'] = md.bounding_geometry
 
     return params
 
@@ -192,9 +191,8 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
     params = {}
 
     # get all related Metadata objects
-    metadata_relations = MetadataRelation.objects.filter(
-        metadata_from=md,
-        metadata_to__metadata_type__type=MetadataEnum.DATASET.value
+    metadata_relations = md.related_metadata.filter(
+        metadata_to__metadata_type=MetadataEnum.DATASET.value
     )
 
     # if no related metadata found, skip
@@ -212,12 +210,11 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
 
         # build django tables2 table
         related_metadata_table = CoupledMetadataTable(
-            metadatas_dict_array,
+            queryset=metadatas_dict_array,
             order_by='title',
             show_header=show_header,
-            user=None,)
-
-        related_metadata_table.configure_pagination(request, 'rm-t')
+            request=request,
+            param_lead='rm-t')
 
         params['related_metadata'] = related_metadata_table
 

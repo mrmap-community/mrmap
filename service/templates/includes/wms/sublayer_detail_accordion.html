@@ -4,8 +4,8 @@
 {% block accordion-button-title %}
 <i class="fa" aria-hidden="true"></i>
 {{ layer.metadata.title }}
-{% if layer.child_layer.all|length > 0 %}
-    <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}">{{ layer.child_layer.all|length }}</span>
+{% if layer.child_layers.all|length > 0 %}
+    <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}">{{ layer.child_layers.all|length }}</span>
 {% endif %}
 {% endblock %}
 
@@ -19,11 +19,11 @@
 
         accordionButton.click(function() {
           if ( accordionButton.hasClass('collapsed') ) {
-            $.get( '{% url 'service:detail' layer.metadata.id %}?no-base', function( data ) {
+            $.get( '{% url 'resource:detail' layer.metadata.id %}?no-base', function( data ) {
                 $( "#id_content_service_{{layer.metadata.id}}" ).html( data );
 
                 // Check for dataset metadata of subelement
-                var url = "{% url 'service:check-for-dataset-metadata' layer.metadata.id %}?serviceType=wms";
+                var url = "{% url 'resource:check-for-dataset-metadata' layer.metadata.id %}?serviceType=wms";
                 var datasetButton = $("#dataset-metadata-button-{{ layer.metadata.id }}");
                 $.get(url, function(data){
                     var hasDatasetDoc = data["has_dataset_doc"];
@@ -31,6 +31,9 @@
                         datasetButton.removeClass("invisible");
                     }
                 });
+                $(function () {
+                  $('[data-toggle="tooltip"]').tooltip()
+                })
             });
           }
         });

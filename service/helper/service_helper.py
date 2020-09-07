@@ -9,15 +9,20 @@ import json
 import urllib
 
 from celery import Task
+from django.db import transaction
+from django.http import HttpResponse, HttpRequest
 
-from MapSkinner.messages import SERVICE_REMOVED
+from MrMap.messages import SERVICE_REMOVED, SERVICE_DISABLED, PARAMETER_ERROR
+from MrMap.utils import resolve_boolean_attribute_val
 from service import tasks
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum, PendingTaskEnum
 from service.helper.epsg_api import EpsgApi
+from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, ExternalAuthentication, Metadata, Layer, FeatureType
+from service.models import Service, ExternalAuthentication, Metadata, Document
 from service.helper.crypto_handler import CryptoHandler
 from structure.models import PendingTask, MrMapGroup, MrMapUser
 from users.helper import user_helper
@@ -156,7 +161,7 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None):
+def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -172,51 +177,38 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
     Returns:
 
     """
-
-    ret_dict = {}
+    service = None
     if service_type is OGCServiceEnum.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
-        wms = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri, external_auth=external_auth)
-        # let it load it's capabilities
-        wms.get_capabilities()
-        wms.create_from_capabilities(async_task=async_task)
-        service = wms.create_service_model_instance(user, register_group, register_for_organization)
-        ret_dict["raw_data"] = wms
-    else:
+        service = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri, external_auth=external_auth)
+
+    elif service_type is OGCServiceEnum.WFS:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
-        wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri, external_auth=external_auth)
-        # let it load it's capabilities
-        wfs.get_capabilities()
+        service = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri, external_auth=external_auth)
 
-        # since we iterate through featuretypes, we can use async task here
-        wfs.create_from_capabilities(async_task=async_task, external_auth=external_auth)
-        service = wfs.create_service_model_instance(user, register_group, register_for_organization)
-        ret_dict["raw_data"] = wfs
-    ret_dict["service"] = service
-    return ret_dict
+    elif service_type is OGCServiceEnum.CSW:
+        # create CSW object
+        # We need no factory pattern in here since we do not support different CSW versions
+        service = OGCCatalogueService(service_connect_url=base_uri, service_version=version, external_auth=external_auth, service_type=service_type)
 
-
-def persist_service_model_instance(service: Service, external_auth: ExternalAuthentication):
-    """ Persists the service model instance
-
-    Args:
-        external_auth: The external authentication instance
-        service: The service model instance
-    Returns:
-         Nothing
-    """
-    if service.servicetype.name == OGCServiceEnum.WMS.value:
-        # create WMS object
-        wms_factory = OGCWebMapServiceFactory()
-        wms = wms_factory.get_ogc_wms(version=resolve_version_enum(service.servicetype.version))
-        wms.persist_service_model(service, external_auth)
     else:
-        # create WFS object
-        wfs_factory = OGCWebFeatureServiceFactory()
-        wfs = wfs_factory.get_ogc_wfs(version=resolve_version_enum(service.servicetype.version))
-        wfs.persist_service_model(service, external_auth)
+        # For future implementation
+        pass
+
+    service.get_capabilities()
+    service.create_from_capabilities(async_task=async_task, external_auth=external_auth)
+    with transaction.atomic():
+        service = service.create_service_model_instance(
+            user,
+            register_group,
+            register_for_organization,
+            external_auth,
+            is_update_candidate_for
+        )
+
+    return service
 
 
 def capabilities_are_different(cap_url_1, cap_url_2):
@@ -292,11 +284,13 @@ def create_new_service(form, user: MrMapUser):
         "service": form.cleaned_data['uri'],
         "phase": "Parsing",
     })
+    pending_task_db.type = PendingTaskEnum.REGISTER.value
 
     pending_task_db.save()
     return pending_task_db
 
 
+@transaction.atomic
 def remove_service(metadata: Metadata, user: MrMapUser):
     """ Removes a service, referenced by its metadata object
 
@@ -317,12 +311,7 @@ def remove_service(metadata: Metadata, user: MrMapUser):
     metadata.is_deleted = True
     metadata.save()
 
-    service_type = metadata.get_service_type()
-    if service_type == OGCServiceEnum.WMS.value:
-        sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-    elif service_type == OGCServiceEnum.WFS.value:
-        sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
+    sub_elements = metadata.service.subelements
     for sub_element in sub_elements:
         sub_metadata = sub_element.metadata
         sub_metadata.is_deleted = True
@@ -330,3 +319,92 @@ def remove_service(metadata: Metadata, user: MrMapUser):
 
     # call removing as async task
     tasks.async_remove_service_task.delay(metadata.service.id)
+
+
+def get_resource_capabilities(request: HttpRequest, md: Metadata):
+    """ Logic for retrieving a capabilities document.
+
+    If no capabilities document can be provided by the given parameter, a fallback document will be returned.
+
+    Args:
+        request:
+        md:
+    Returns:
+
+    """
+    from service.tasks import async_increase_hits
+    stored_version = md.get_service_version().value
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(md.id)
+
+    if not md.is_active:
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    # check that we have the requested version in our database
+    version_param = None
+    version_tag = None
+
+    request_param = None
+    request_tag = None
+
+    use_fallback = None
+
+    for k, v in request.GET.dict().items():
+        if k.upper() == "VERSION":
+            version_param = v
+            version_tag = k
+        elif k.upper() == "REQUEST":
+            request_param = v
+            request_tag = k
+        elif k.upper() == "FALLBACK":
+            use_fallback = resolve_boolean_attribute_val(v)
+
+    # No version parameter has been provided by the request - we simply use the one we have.
+    if version_param is None or len(version_param) == 0:
+        version_param = stored_version
+
+    if version_param not in [data.value for data in OGCServiceVersionEnum]:
+        # version number not valid
+        return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
+
+    elif request_param is not None and request_param != OGCOperationEnum.GET_CAPABILITIES.value:
+        # request not valid
+        return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
+
+    else:
+        pass
+
+    if md.is_catalogue_metadata:
+        doc = md.get_remote_original_capabilities_document(version_param)
+
+    elif stored_version == version_param or use_fallback is True or not md.is_root():
+        # This is the case if
+        # 1) a version is requested, which we have in our database
+        # 2) the fallback parameter is set explicitly
+        # 3) a subelement is requested, which normally do not have capability documents
+
+        # We can check the cache for this document or we need to generate it!
+        doc = md.get_current_capability_xml(version_param)
+    else:
+        # we have to fetch the remote document
+        # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
+        xml = md.get_remote_original_capabilities_document(version_param)
+        tmp = xml_helper.parse_xml(xml)
+
+        if tmp is None:
+            raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
+        # we fake the persisted service version, so the document setters will change the correct elements in the xml
+        # md.service.service_type.version = version_param
+        doc = Document(
+            content=xml,
+            metadata=md,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=True
+        )
+        doc.set_capabilities_secured(auto_save=False)
+
+        if md.use_proxy_uri:
+            doc.set_proxy(True, auto_save=False, force_version=version_param)
+        doc = doc.content
+
+    return doc

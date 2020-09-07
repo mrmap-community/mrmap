@@ -9,25 +9,31 @@ import json
 
 from celery import Task
 from celery.result import AsyncResult
+from django.core.exceptions import ObjectDoesNotExist
 
 from structure.models import PendingTask
 
 
-def update_service_description(task: Task, service: str):
+def update_service_description(task: Task, service: str, phase_descr: str):
     """ Set a new value to the 'service' element of the pending task description
 
     Args:
         task (Task): The asynchronous celery task object
-        step (float): The relative step
+        service (str): The new description 'service' value
+        phase_descr (str): The new description 'phase' value
     Returns:
         nothing
     """
     id = task.request.id
-    pend_task = PendingTask.objects.get(task_id=id)
-    descr_dict = json.loads(pend_task.description)
-    descr_dict["service"] = service
-    pend_task.description = json.dumps(descr_dict)
-    pend_task.save()
+    try:
+        pend_task = PendingTask.objects.get(task_id=id)
+        descr_dict = json.loads(pend_task.description)
+        descr_dict["service"] = service if service is not None else descr_dict["service"]
+        descr_dict["phase"] = phase_descr if phase_descr is not None else descr_dict["phase"]
+        pend_task.description = json.dumps(descr_dict)
+        pend_task.save()
+    except ObjectDoesNotExist:
+        pass
 
 
 def update_progress_by_step(task: Task, step: float):
@@ -48,8 +54,6 @@ def update_progress_by_step(task: Task, step: float):
         update_progress(task, curr)
     except ValueError:
         pass
-        #print(task.request)
-        #exit(-1)
 
 
 def update_progress(task: Task, new_status: int):
@@ -58,13 +62,25 @@ def update_progress(task: Task, new_status: int):
     Args:
         task (Task):
         new_status (int): The progress bar
-    :return:
+    Returns:
+
     """
     if new_status < 0 or new_status > 100:
         raise ValueError("new_status must be in range [0, 100]")
-    task.update_state(state='PROGRESS',
-                      meta={
-                          'current': new_status,
-                          'total': 100,
-                      }
-                      )
+
+    try:
+        pending_task = PendingTask.objects.get(
+            task_id=task.request.id
+        )
+        pending_task.progress = new_status
+        pending_task.save()
+    except ObjectDoesNotExist:
+        pass
+
+    task.update_state(
+        state='PROGRESS',
+        meta={
+            'current': new_status,
+            'total': 100,
+        }
+    )

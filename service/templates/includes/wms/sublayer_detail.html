@@ -2,10 +2,13 @@
 {% load i18n %}
 
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">
+<h4 class="mb-1 mr-3" style="display: inline;">
     {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
     <strong>{{ service.metadata.title }}</strong>
 </h4>
+<span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Open in new tab' %}">
+    <h6 style="display: inline;"><a href="{% url 'resource:detail' service_md.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
+</span>
 {% endblock %}
 {% block card-header-title-right %}
 {% endblock %}
@@ -14,38 +17,46 @@
 {% block card-body %}
     <div class="row">
         <div class="col-sm mb-2 text-center">
-            {% if 'can_edit_metadata_service' in user_permissions %}
+            {% if 'can_edit_metadata' in user_permissions %}
                 <div class="dropdown">
                   <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{service.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
                   </button>
                   <div class="dropdown-menu" aria-labelledby="id_edit_service_{{service.id}}_dropdown">
-                    <a class="dropdown-item" href="{% url 'editor:edit' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:edit' service.metadata.id %}?current-view={{current_view}}&current-view-arg={{service_md.id}}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
                     <a class="dropdown-item" href="{% url 'editor:edit_access' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
                   </div>
                 </div>
             {% endif %}
         </div><!--</col>-->
+        {% if has_dataset_metadata %}
         <div class="col-sm mb-2 text-center">
-            <a id="dataset-metadata-button-{{ service.metadata.id }}" target="_blank" class="btn {{THEME.CARD.BTN_INFO_COLOR}} invisible" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">
-                {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
-            </a>
+            <div class="dropdown">
+                <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_dataset_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
+                </button>
+                <div class="dropdown-menu" aria-labelledby="id_dataset_metadata_dropdown">
+                    <a class="dropdown-item" target="_blank" href="{{ has_dataset_metadata.metadata.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ has_dataset_metadata.metadata.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{% url 'editor:dataset-metadata-wizard-instance' has_dataset_metadata.metadata.id %}?current-view={{current_view}}&current-view-arg={{service_md.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
+                </div>
+            </div>
         </div><!--</col>-->
-
+        {% endif %}
         <div class="col-sm mb-2 text-center">
             <div class="dropdown">
                 <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %}
                 </button>
                 <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
-                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' service_md.id %}">{% trans 'HTML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% trans 'XML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ service_md.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ service_md.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
                 </div>
             </div>
         </div>
         <div class="col-sm mb-2 text-center">
-            {% if 'can_edit_metadata_service' in user_permissions %}
-                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+            {% if 'can_edit_metadata' in user_permissions %}
+                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}?current-view={{current_view}}&current-view-arg={{service_md.id}}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
             {% endif %}
         </div><!--</col>-->
     </div><!--</row>-->
@@ -54,14 +65,14 @@
         <div class="col">
             {% include 'includes/wms/child_layer_detail_table.html' %}
             {% if layers|length > 0 %}
-                {% if service.servicetype.name == 'wms' %}
+                {% if service.is_wms %}
                     {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
                     {% with service_md.id as id_accordion %}
                         {% with "accordion_sub_element" as id_accordion_combined %}
                             {% include 'includes/wms/show_sublayer_accordion.html' %}
                         {% endwith %}
                     {% endwith %}
-                {% elif service.servicetype.name == 'wfs' %}
+                {% elif service.is_wfs %}
                     {% with service.featuretypes.all as featuretypes %}
                         {% include 'includes/wfs/show_featuretypes_accordion.html' %}
                     {% endwith %}

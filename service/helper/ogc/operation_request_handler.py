@@ -17,18 +17,19 @@ from threading import Thread
 from PIL import Image, ImageFont, ImageDraw
 from cryptography.fernet import InvalidToken
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import connection
 from lxml import etree
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
 from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName, _Element
 
-from MapSkinner import utils
-from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
+from MrMap import utils
+from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
+from MrMap.utils import execute_threads
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
@@ -323,30 +324,23 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
-        if md.get_service_type().lower() == OGCServiceEnum.WMS.value:
+        if md.is_service_type(OGCServiceEnum.WMS):
             self._resolve_layer_param_to_leaf_layers(md)
 
         if self.layers_param is not None and self.type_name_param is None:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
 
-            allowed_layers = Metadata.objects.filter(
+            layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
-                secured_operations__allowed_group__in=self.user_groups,
-                secured_operations__operation__operation_name__iexact=self.request_param,
             )
-            allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
-
-            restricted_layers = []
-            allowed_layers = []
-            for l_i in layer_identifiers:
-                if l_i in allowed_layers_identifier_list:
-                    allowed_layers.append(l_i)
-                else:
-                    restricted_layers.append(l_i)
-            self.new_params_dict["LAYERS"] = ",".join(allowed_layers)
-
+            allowed_layers = layers.filter(
+                secured_operations__allowed_group__in=self.user_groups,
+                secured_operations__operation__iexact=self.request_param,
+            )
+            restricted_layers = layers.difference(allowed_layers)
+            self.new_params_dict["LAYERS"] = ",".join(allowed_layers.values_list("identifier", flat=True))
             # create text for image of restricted layers
             if RENDER_TEXT_ON_IMG:
                 height = int(self.height_param)
@@ -354,7 +348,7 @@ class OGCOperationRequestHandler:
                 draw = ImageDraw.Draw(text_img)
                 font_size = int(height * FONT_IMG_RATIO)
 
-                num_res_layers = len(restricted_layers)
+                num_res_layers = restricted_layers.count()
                 if font_size * num_res_layers > height:
                     # if area of text would be larger than requested height, we simply create a new font_size, that fits!
                     # increase the num_res_layers by 1 to create some space at the bottom for a better feeling
@@ -370,7 +364,7 @@ class OGCOperationRequestHandler:
 
                 for restricted_layer in restricted_layers:
                     # render text listed one under another
-                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
+                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer.identifier), (0, 0, 0), font=font)
                     y += font_size
                 self.access_denied_img = text_img
 
@@ -471,31 +465,33 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.get_service_type() == OGCServiceEnum.WFS.value and not metadata.is_root():
+        if metadata.is_service_type(OGCServiceEnum.WFS) and not metadata.is_root():
             feature_type = FeatureType.objects.get(
                 metadata=metadata
             )
             service = feature_type.parent_service
             metadata = service.metadata
+            operation_urls = service.operation_urls.all()
             secured_operation_uris = {
                 "GETFEATURE": {
-                    "get": service.get_feature_info_uri_GET,
-                    "post": service.get_feature_info_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": service.transaction_uri_GET,
-                    "post": service.transaction_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(), "url", None),
                 },
             }
         else:
+            operation_urls = metadata.service.operation_urls.all()
             secured_operation_uris = {
                 "GETMAP": {
-                    "get": metadata.service.get_map_uri_GET,
-                    "post": metadata.service.get_map_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
                 },
                 "GETFEATUREINFO": {
-                    "get": metadata.service.get_feature_info_uri_GET,
-                    "post": metadata.service.get_feature_info_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(), "url", None),
                 },
             }
 
@@ -1226,7 +1222,7 @@ class OGCOperationRequestHandler:
         height = int(self.height_param)
         try:
             for op in sec_ops:
-                if op.bounding_geometry.empty:
+                if op.bounding_geometry is None or op.bounding_geometry.empty:
                     return None
                 request_dict = {
                     "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
@@ -1239,7 +1235,7 @@ class OGCOperationRequestHandler:
                     "bbox": self.axis_corrected_bbox_param,
                     "width": width,
                     "height": height,
-                    "keys": op.id,
+                    "keys": "'{}'".format(op.id),
                     "table": MAPSERVER_SECURITY_MASK_TABLE,
                     "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
                     "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
@@ -1337,7 +1333,6 @@ class OGCOperationRequestHandler:
                 bg.paste(img, mask=img.split()[3])
                 bg.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
-
         return img
 
     def _filter_transaction_geometries(self, sec_ops: QueryDict):
@@ -1389,8 +1384,20 @@ class OGCOperationRequestHandler:
             parent_service__metadata=metadata,
             identifier__in=layer_identifiers
         )
-        for layer in layer_objs:
-            leaf_layers += layer.get_leaf_layers()
+
+        # Case 1: Only root layer is requested -> fast solution
+        if layer_objs.count() == 1 and layer_objs[0].parent_layer is None:
+            # Yes, only the root layer has been requested
+            # Order the sublayers by creation timestamp so the order of the layers in the request is correct (Top-Down)
+            layers = Layer.objects.filter(
+                parent_service__metadata=metadata,
+                child_layers=None
+            ).order_by("created")
+            leaf_layers += layers.values_list("identifier", flat=True)
+        else:
+            # Multiple layers have been requested -> slower solution
+            for layer in layer_objs:
+                leaf_layers += layer.get_leaf_layers_identifier()
 
         if len(leaf_layers) > 0:
             self.layers_param = ",".join(leaf_layers)
@@ -1416,6 +1423,8 @@ class OGCOperationRequestHandler:
         # First get all polygons from the GeometryCollection and transform them according to the requested srs code
         for sec_op in sec_ops:
             bounding_geom_collection = sec_op.bounding_geometry
+            if bounding_geom_collection is None:
+                continue
             for bounding_geom in bounding_geom_collection.coords:
                 coords = bounding_geom[0]
                 geom = GEOSGeometry(Polygon(coords), bounding_geom_collection.srid)
@@ -1447,8 +1456,10 @@ class OGCOperationRequestHandler:
                 xml_helper.add_subelement(request_filter_elem, add_elem)
             _filter = xml_helper.xml_to_string(request_filter_elem)
 
-            self.filter_param = _filter
-            self.new_params_dict["FILTER"] = self.filter_param
+        if len(_filter) == 0:
+            _filter = None
+        self.filter_param = _filter
+        self.new_params_dict["FILTER"] = self.filter_param
 
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata, proxy_log: ProxyLog):
         """ Calls the operation of a service if it is secured.
@@ -1465,13 +1476,11 @@ class OGCOperationRequestHandler:
             "response_type": ""
         }
 
-        check_sec_ops = False
-        if self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS:
-            check_sec_ops = True
+        check_sec_ops = self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS
 
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(
-            operation__operation_name__iexact=self.request_param,
+            operation__iexact=self.request_param,
             allowed_group__in=self.user_groups,
         )
 
@@ -1494,10 +1503,10 @@ class OGCOperationRequestHandler:
             thread_list = []
             results = Queue()
             thread_list.append(
-                Thread(target=lambda r: r.put(self.get_operation_response()), args=(results,))
+                Thread(target=lambda r: r.put(self.get_operation_response(), connection.close()), args=(results,))
             )
             thread_list.append(
-                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s)), args=(results, metadata, sec_ops))
+                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s), connection.close()), args=(results, metadata, sec_ops))
             )
             execute_threads(thread_list)
 

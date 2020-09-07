@@ -6,10 +6,9 @@ Created on: 28.05.19
 
 """
 
-import datetime
 import os
 from random import random
-
+from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -17,39 +16,28 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MapSkinner.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
-    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
-from MapSkinner.responses import DefaultContext
-from MapSkinner.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from MapSkinner.utils import print_debug_mode
+from MrMap.messages import USERNAME_OR_PW_INVALID, \
+    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, \
+    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER
+from MrMap.responses import DefaultContext
+from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization, MrMapGroup
 from structure.settings import PUBLIC_GROUP_NAME
-from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
+from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
 from django.urls import reverse
 
-
-def _prepare_account_view_params(user: MrMapUser):
-    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
-    edit_account_form.action_url = reverse('account-edit', )
-
-    password_change_form = PasswordChangeForm()
-    password_change_form.action_url = reverse('password-change', )
-
-    params = {
-        "user": user,
-        "edit_account_form": edit_account_form,
-        "password_change_form": password_change_form,
-    }
-    return params
+from users.models import Subscription
+from users.settings import users_logger
+from users.tables import SubscriptionTable
 
 
 def login_view(request: HttpRequest):
@@ -100,14 +88,16 @@ def login_view(request: HttpRequest):
         "login_form": LoginForm(),
         "login_article_title": _("Sign in for Mr. Map"),
         "login_article": _(
-            "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ")
+            "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
+        "username_label": form['username'].label,
+        "password_label": form['password'].label
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
 
 
 @login_required
-def home_view(request: HttpRequest):
+def home_view(request: HttpRequest,  update_params=None, status_code=None):
     """ Renders the dashboard / home view of the user
 
     Args:
@@ -120,54 +110,98 @@ def home_view(request: HttpRequest):
     template = "views/dashboard.html"
     user_groups = user.get_groups()
     user_services_wms = Metadata.objects.filter(
-        service__servicetype__name="wms",
+        service__service_type__name="wms",
         service__is_root=True,
         created_by__in=user_groups,
         service__is_deleted=False,
     ).count()
     user_services_wfs = Metadata.objects.filter(
-        service__servicetype__name="wfs",
+        service__service_type__name="wfs",
         service__is_root=True,
         created_by__in=user_groups,
         service__is_deleted=False,
     ).count()
 
-    activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
+    datasets_count = user.get_datasets_as_qs(count=True)
+
+    activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
         "-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,
         "wfs_count": user_services_wfs,
-        "all_count": user_services_wms + user_services_wfs,
+        "datasets_count": datasets_count,
+        "all_count": user_services_wms + user_services_wfs + datasets_count,
         "requests": pending_requests,
         "group_activities": group_activities,
         "groups": user_groups,
-        "organizations": Organization.objects.filter(is_auto_generated=False)
+        "organizations": Organization.objects.filter(is_auto_generated=False),
+        "current_view": "home",
     }
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request, template, context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
-def account(request: HttpRequest, params=None):
+def account(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of the user's account information
 
     Args:
-        params:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The user
+        update_params:
+        status_code (MrMapUser): The user
     Returns:
          A rendered view
     """
     template = "views/account.html"
     user = user_helper.get_user(request)
-    render_params = _prepare_account_view_params(user)
-    if params:
-        render_params.update(params)
+    subscriptions_count = Subscription.objects.filter(user=user).count()
+    params = {
+        "subscriptions_count": subscriptions_count,
+        "current_view": 'account',
+    }
 
-    context = DefaultContext(request, render_params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+
+
+@login_required
+def subscriptions(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders an overview of the user's account information
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code (MrMapUser): The user
+    Returns:
+         A rendered view
+    """
+    template = "views/subscriptions.html"
+    user = user_helper.get_user(request)
+
+    subscription_table = SubscriptionTable(request=request,
+                                           current_view='subscription-index')
+
+    params = {
+        "subscriptions": subscription_table,
+        "current_view": 'subscription-index',
+    }
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
 
 
 @login_required
@@ -179,25 +213,15 @@ def password_change(request: HttpRequest):
     Returns:
         A view
     """
+    form = PasswordChangeForm(data=request.POST or None,
+                              request=request,
+                              reverse_lookup='password-change',
+                              # ToDo: after refactoring of all forms is done, show_modal can be removed
+                              show_modal=True,
+                              form_title=_(f"Change password"),
+                              )
 
-    if request.method == 'POST':
-        user = user_helper.get_user(request)
-        form = PasswordChangeForm(request.POST or None, user=user)
-        if form.is_valid():
-            password = form.cleaned_data["new_password"]
-            user.set_password(password)
-            user.save()
-            login(request, user)
-            messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
-        else:
-            return account(
-                request=request,
-                params={'password_change_form': form,
-                        'show_password_change_form': True,
-                        }
-            )
-
-    return redirect(reverse("home"))
+    return form.process_request(valid_func=form.process_change_password)
 
 
 @login_required
@@ -206,21 +230,19 @@ def account_edit(request: HttpRequest):
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The user
     Returns:
         A view
     """
     user = user_helper.get_user(request)
-    form = UserForm(request.POST or None, instance=user)
-    if request.method == 'POST' and form.is_valid():
-        # save changes
-        user = form.save()
-        user.save()
-        messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
-        return redirect("account")
-
-    return account(request=request, params={"edit_account_form": form,
-                                            "show_edit_account_form": True})
+    form = UserForm(data=request.POST or None,
+                    request=request,
+                    reverse_lookup='account-edit',
+                    # ToDo: after refactoring of all forms is done, show_modal can be removed
+                    show_modal=True,
+                    form_title=_(f"<strong>Edit your account information's</strong>"),
+                    instance=user,
+                    initial={'theme': user.theme},)
+    return form.process_request(form.process_account_change)
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -296,7 +318,7 @@ def password_reset(request: HttpRequest):
         gen_pw = sec_handler.sha256(
             user.salt + str(timezone.now()) + str(random() * 10000)
         )[:7].upper()
-        print_debug_mode(gen_pw)
+        users_logger.debug(gen_pw)
         user.set_password(gen_pw)
         user.save()
         messages.add_message(request, messages.INFO, PASSWORD_SENT)
@@ -346,7 +368,9 @@ def register(request: HttpRequest):
         user.save()
 
         # Add user to Public group
-        public_group = MrMapGroup.objects.get(name=PUBLIC_GROUP_NAME)
+        public_group = MrMapGroup.objects.get(
+            is_public_group=True
+        )
         public_group.user_set.add(user)
 
         # create user_activation object to improve checking against activation link
@@ -357,3 +381,113 @@ def register(request: HttpRequest):
 
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+@login_required
+def subscription_index_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders an overview of all subscriptions of the performing user
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A rendered view
+    """
+    template = "views/subscriptions.html"
+    user = user_helper.get_user(request)
+
+    subscription_table = SubscriptionTable(request=request,
+                                           current_view='subscription-index')
+
+    params = {
+        "subscriptions": subscription_table,
+        "current_view": 'subscription-index',
+    }
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+
+
+@login_required
+def subscription_new_view(request: HttpRequest, ):
+    """ Renders a view for editing a subscription
+
+    Args:
+        request (HttpRequest): The incoming request
+        current_view (str): The current view where the request comes from
+    Returns:
+         A rendered view
+    """
+    form = SubscriptionForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='subscription-new',
+        form_title=_('New Subscription'),
+        # ToDo: show_modal will be default True in future
+        show_modal=True,
+        has_autocomplete_fields=True,
+     )
+    return form.process_request(valid_func=form.process_new_subscription)
+
+
+@login_required
+def subscription_edit_view(request: HttpRequest, subscription_id: str, ):
+    """ Renders a view for editing a subscription
+
+    Args:
+        request (HttpRequest): The incoming request
+        subscription_id (str): The uuid of the subscription as string
+        current_view: The current view where the request comes from
+    Returns:
+         A rendered view
+    """
+    user = user_helper.get_user(request)
+    try:
+        subscription = Subscription.objects.get(
+            id=subscription_id,
+            user=user,
+        )
+    except ObjectDoesNotExist:
+        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+        return redirect('users:home')
+
+    form = SubscriptionForm(data=request.POST or None,
+                            instance=subscription,
+                            is_edit=True,
+                            request=request,
+                            reverse_lookup='subscription-edit',
+                            reverse_args=[subscription_id, ],
+                            form_title=_('New Subscription'),
+                            # ToDo: show_modal will be default True in future
+                            show_modal=True,
+                            )
+    return form.process_request(valid_func=form.process_edit_subscription)
+
+
+@login_required
+def subscription_remove(request: HttpRequest, subscription_id: str, ):
+    """ Removes a subscription
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (str): The uuid of the subscription as string
+    Returns:
+         A rendered view
+    """
+    user = user_helper.get_user(request)
+    subscription = get_object_or_404(klass=Subscription,
+                                     id=subscription_id,
+                                     user=user)
+
+    form = SubscriptionRemoveForm(data=request.POST or None,
+                                  request=request,
+                                  reverse_lookup='subscription-remove',
+                                  reverse_args=[subscription_id, ],
+                                  form_title=_(f'Remove Subscription for service <strong>{subscription.metadata}</strong>'),
+                                  # ToDo: show_modal will be default True in future
+                                  show_modal=True,
+                                  instance=subscription,)
+    return form.process_request(valid_func=form.process_remove_subscription)
+

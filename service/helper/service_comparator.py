@@ -34,7 +34,7 @@ class ServiceComparator:
             service_a (Service): The first service to be compared
             service_b (Service): The second service to be compared
         """
-        if service_a.servicetype.name != service_b.servicetype.name:
+        if service_a.service_type.name != service_b.service_type.name:
             raise Exception("INVALID SERVICE ARGUMENTS. Service types not matching")
         self.service_a = service_a
         self.service_b = service_b
@@ -54,16 +54,16 @@ class ServiceComparator:
              diff (dict): The differences collected
         """
         diff = {}
-        if self.service_a.servicetype.name == OGCServiceEnum.WMS.value:
+        if self.service_a.is_service_type(OGCServiceEnum.WMS):
             # Check layer metadata against each other
             # Always iterate over service_1 and check against service_2
-            layers = self.service_a.get_all_layers()
+            layers = [self.service_a.root_layer] + self.service_a.root_layer.get_children(all=True)
             diff["layers"] = self.compare_layers(layers)
 
-        elif self.service_a.servicetype.name == OGCServiceEnum.WFS.value:
+        elif self.service_a.is_service_type(OGCServiceEnum.WFS):
             # Check feature services against each other
             # always iterate over service_1 and check against service_2
-            diff["feature_types"] = self.compare_feature_types(self.service_a.feature_type_list)
+            diff["feature_types"] = self.compare_feature_types(FeatureType.objects.filter(parent_service=self.service_a))
 
         return diff
 

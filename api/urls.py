@@ -17,6 +17,8 @@ from api.views import *
 router = routers.DefaultRouter()
 # catalogue api
 router.register('catalogue', CatalogueViewSet, basename="catalogue")
+router.register('suggestion', SuggestionViewSet, basename="suggestion")
+router.register('category', CategoryViewSet, basename="category")
 # modular parts of api
 router.register('organization', OrganizationViewSet, basename="organization")
 router.register('pending-task', PendingTaskViewSet, basename="pending-task")
@@ -24,6 +26,7 @@ router.register('metadata', MetadataViewSet, basename="metadata")
 router.register('service', ServiceViewSet, basename="service")
 router.register('layer', LayerViewSet, basename="layer")
 router.register('group', GroupViewSet, basename="group")
+router.register('monitoring', MonitoringViewSet, basename="monitoring")
 
 app_name = "api"
 urlpatterns = [

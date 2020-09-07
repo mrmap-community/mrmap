@@ -331,23 +331,16 @@ class OGCOperationRequestHandler:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
 
-            allowed_layers = Metadata.objects.filter(
+            layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
+            )
+            allowed_layers = layers.filter(
                 secured_operations__allowed_group__in=self.user_groups,
                 secured_operations__operation__iexact=self.request_param,
             )
-            allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
-
-            restricted_layers = []
-            allowed_layers = []
-            for l_i in layer_identifiers:
-                if l_i in allowed_layers_identifier_list:
-                    allowed_layers.append(l_i)
-                else:
-                    restricted_layers.append(l_i)
-            self.new_params_dict["LAYERS"] = ",".join(allowed_layers)
-
+            restricted_layers = layers.difference(allowed_layers)
+            self.new_params_dict["LAYERS"] = ",".join(allowed_layers.values_list("identifier", flat=True))
             # create text for image of restricted layers
             if RENDER_TEXT_ON_IMG:
                 height = int(self.height_param)
@@ -355,7 +348,7 @@ class OGCOperationRequestHandler:
                 draw = ImageDraw.Draw(text_img)
                 font_size = int(height * FONT_IMG_RATIO)
 
-                num_res_layers = len(restricted_layers)
+                num_res_layers = restricted_layers.count()
                 if font_size * num_res_layers > height:
                     # if area of text would be larger than requested height, we simply create a new font_size, that fits!
                     # increase the num_res_layers by 1 to create some space at the bottom for a better feeling
@@ -371,7 +364,7 @@ class OGCOperationRequestHandler:
 
                 for restricted_layer in restricted_layers:
                     # render text listed one under another
-                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
+                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer.identifier), (0, 0, 0), font=font)
                     y += font_size
                 self.access_denied_img = text_img
 
@@ -1483,9 +1476,7 @@ class OGCOperationRequestHandler:
             "response_type": ""
         }
 
-        check_sec_ops = False
-        if self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS:
-            check_sec_ops = True
+        check_sec_ops = self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS
 
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(

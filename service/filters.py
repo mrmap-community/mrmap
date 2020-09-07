@@ -35,6 +35,13 @@ class FeatureTypeFilter(django_filters.FilterSet):
 class MetadataWmsFilter(django_filters.FilterSet):
     wms_search = django_filters.CharFilter(method='filter_search_over_all',
                                            label=_('Search'))
+    show_layers = django_filters.BooleanFilter(
+        widget=forms.CheckboxInput(),
+        label=_("Show layers"),
+        method='filter_layers',
+        required=False,
+        initial=False,
+    )
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
@@ -45,6 +52,13 @@ class MetadataWmsFilter(django_filters.FilterSet):
                queryset.filter(service__published_for__organization_name__icontains=value) | \
                queryset.filter(created__icontains=value)
 
+    @staticmethod
+    def filter_layers(queryset, name, value):
+        queryset = queryset.filter(
+            service__is_root=not value
+        )
+        return queryset
+
     class Meta:
         model = Metadata
         fields = []
@@ -52,7 +66,7 @@ class MetadataWmsFilter(django_filters.FilterSet):
 
 class MetadataWfsFilter(django_filters.FilterSet):
     wfs_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label='Search')
+                                           label=_('Search'))
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
@@ -70,7 +84,7 @@ class MetadataWfsFilter(django_filters.FilterSet):
 
 class MetadataCswFilter(django_filters.FilterSet):
     wfs_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label='Search')
+                                           label=_('Search'))
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected

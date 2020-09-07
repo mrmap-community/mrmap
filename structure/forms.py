@@ -129,7 +129,8 @@ class PublisherForOrganizationForm(MrMapForm):
         self.organization = organization
         super(PublisherForOrganizationForm, self).__init__(*args, **kwargs)
 
-        self.fields['group'].queryset = self.requesting_user.get_groups()
+        groups = self.requesting_user.get_groups()
+        self.fields['group'].queryset = groups.filter(is_permission_group=False)
         self.fields["organization_name"].initial = self.organization.organization_name
 
     def clean(self):

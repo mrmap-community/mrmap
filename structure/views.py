@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
 from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, PUBLISH_PERMISSION_REMOVED, \
@@ -553,6 +553,13 @@ def remove_group(request: HttpRequest, object_id: int):
         A rendered view
     """
     group = get_object_or_404(MrMapGroup, id=object_id)
+
+    if group.is_permission_group or group.is_public_group:
+        messages.error(
+            request,
+            _("Group {} is an important main group and therefore can not be removed.").format(_(group.name)),
+        )
+        return redirect("structure:index")
 
     form = RemoveGroupForm(data=request.POST or None,
                            request=request,

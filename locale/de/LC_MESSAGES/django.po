@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-04 12:16+0200\n"
+"POT-Creation-Date: 2020-09-07 11:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2533,16 +2533,16 @@ msgstr "Klicken Sie hier, um zur Registerkarte Schnittstellen zu wechseln"
 msgid "Next"
 msgstr "Weiter"
 
-#: service/views.py:463
+#: service/views.py:462
 msgid "Do you really want to remove this service?"
 msgstr "Wollen Sie diesen Dienst wirklich löschen?"
 
-#: service/views.py:464
+#: service/views.py:463
 #, python-brace-format
 msgid "Remove service <strong>{metadata}</strong>"
 msgstr "Lösche Dienst <strong>{metadata}</strong>"
 
-#: service/views.py:493
+#: service/views.py:492
 msgid ""
 "Deactivate resource \n"
 "<strong>{}</strong>"
@@ -2550,7 +2550,7 @@ msgstr ""
 "Deaktiviere Ressource \n"
 "<strong>{}</strong>"
 
-#: service/views.py:493
+#: service/views.py:492
 msgid ""
 "Activate resource \n"
 "<strong>{}</strong>"
@@ -2558,19 +2558,19 @@ msgstr ""
 "Aktiviere Ressource \n"
 " <strong>{}</strong>"
 
-#: service/views.py:494
+#: service/views.py:493
 msgid "Do you really want to deactivate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich deaktivieren?"
 
-#: service/views.py:494
+#: service/views.py:493
 msgid "Do you really want to activate this resource?"
 msgstr "Wollen Sie diese Ressource wirklich aktivieren?"
 
-#: service/views.py:573
+#: service/views.py:572
 msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
-#: service/views.py:903
+#: service/views.py:902
 #, python-brace-format
 msgid ""
 "Update service: <strong>{current_service.metadata.title} [{current_service."
@@ -2579,31 +2579,31 @@ msgstr ""
 "Aktualisiere Dienst: <strong>{current_service.metadata.title} "
 "[{current_service.metadata.id}]</strong>"
 
-#: service/views.py:946
+#: service/views.py:945
 msgid "No updatecandidate was found."
 msgstr "Kein Updatekandidat gefunden"
 
-#: service/views.py:948
+#: service/views.py:947
 msgid "Update candidates will be deleted after 7 days."
 msgstr "Updatekandidaten werden nach 7 Tagen gelöscht."
 
-#: service/views.py:1020
+#: service/views.py:1019
 msgid "Pending update successfully dismissed."
 msgstr "Ausstehendes Update abgebrochen."
 
-#: service/views.py:1022
+#: service/views.py:1021
 msgid "You are not the owner of this pending update. Rejected!"
 msgstr "Sie sind nicht der Eigentümer dieses Updates!"
 
-#: service/views.py:1209
+#: service/views.py:1208
 msgid "Shows informations about the featuretype."
 msgstr "Zeigt Informationen über den Featuretype."
 
-#: service/views.py:1216
+#: service/views.py:1215
 msgid "Shows informations about the service."
 msgstr "Zeigt Informationen über den Dienst."
 
-#: service/views.py:1221
+#: service/views.py:1220
 msgid "Shows informations about the sublayer."
 msgstr "Zeigt Informationen über die Unterebene."
 
@@ -3003,16 +3003,21 @@ msgstr ""
 msgid "Add new group"
 msgstr "Neue Gruppe hinzufügen"
 
-#: structure/views.py:563
+#: structure/views.py:560
+msgid "Group {} is an important main group and therefore can not be removed."
+msgstr ""
+"Gruppe {} ist eine wichtige Hauptgruppe und kann daher nicht gelöscht werden."
+
+#: structure/views.py:570
 msgid "Do you really want to remove this group?"
 msgstr "Wollen Sie diese Gruppe wirklich löschen?"
 
-#: structure/views.py:564
+#: structure/views.py:571
 #, python-brace-format
 msgid "Remove group <strong>{group}</strong>"
 msgstr "Lösche Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:590
+#: structure/views.py:597
 #, python-brace-format
 msgid "Edit group <strong>{group}</strong>"
 msgstr "Bearbeite Gruppe <strong>{group}</strong>"

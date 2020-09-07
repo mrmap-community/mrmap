@@ -8,7 +8,6 @@ from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 
 
@@ -183,14 +182,15 @@ class GroupTable(MrMapTable):
             tooltip_placement='left',
             permission=PermissionEnum.CAN_EDIT_GROUP,
         ))
-        btns += format_html(self.get_btn(
-            href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-            tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
-            tooltip_placement='left',
-            permission=PermissionEnum.CAN_DELETE_GROUP,
-        ))
+        if not record.is_permission_group:
+            btns += format_html(self.get_btn(
+                href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
+                btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+                tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
+                tooltip_placement='left',
+                permission=PermissionEnum.CAN_DELETE_GROUP,
+            ))
         return format_html(btns)
 
 

@@ -1,7 +1,6 @@
 import base64
 import io
 from io import BytesIO
-from time import time
 
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
@@ -19,11 +18,10 @@ from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from service.helper import xml_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
@@ -37,16 +35,15 @@ from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
     DatasetTable, CswTable
-from service.tasks import async_increase_hits, async_log_response
+from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
-from structure.models import MrMapUser, Permission, PendingTask
+from structure.models import MrMapUser, PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 from django.urls import reverse
-from django import forms
 
 from users.models import Subscription
 
@@ -1338,7 +1335,6 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
             )
 
         len_response = len(response)
-
         if len_response <= 5000000:
             return HttpResponse(response, content_type=content_type)
         else:

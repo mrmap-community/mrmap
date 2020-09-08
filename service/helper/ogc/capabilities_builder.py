@@ -749,8 +749,9 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             }
         )
 
-        elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt=layer.identifier)
+        if layer.identifier is not None:
+            elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
+            xml_helper.write_text_to_element(elem, txt=layer.identifier)
 
         elem = xml_helper.create_subelement(layer_elem, "{}Title".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=md.title)
@@ -920,10 +921,13 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         if self.original_doc is None:
             return
 
-        original_layer_elem = xml_helper.try_get_single_element_from_xml(
-            "//Layer/Name[text()='{}']/parent::Layer".format(layer.identifier),
-            self.original_doc
-        )
+        try:
+            original_layer_elem = xml_helper.find_element_where_text(self.original_doc, layer.identifier)[0]
+        except IndexError:
+            original_layer_elem = None
+
+        if original_layer_elem is None:
+            return
 
         original_dimension_elems = xml_helper.try_get_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),

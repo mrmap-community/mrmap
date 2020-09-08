@@ -179,10 +179,6 @@ class OGCWebMapService(OGCWebService):
         layer_obj.identifier = xml_helper.try_get_text_from_xml_element(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Name"),
             xml_elem=layer)
-        if layer_obj.identifier is None:
-            u = str(uuid.uuid4())
-            sec_handler = CryptoHandler()
-            layer_obj.identifier = sec_handler.sha256(u)
 
     ### KEYWORDS ###
     def parse_keywords(self, layer, layer_obj):

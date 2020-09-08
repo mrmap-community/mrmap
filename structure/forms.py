@@ -1,6 +1,6 @@
 from captcha.fields import CaptchaField
 from django import forms
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -10,11 +10,11 @@ from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
     ORGANIZATION_SUCCESSFULLY_EDITED, PUBLISH_REQUEST_SENT, GROUP_SUCCESSFULLY_CREATED, GROUP_SUCCESSFULLY_DELETED, \
-    GROUP_SUCCESSFULLY_EDITED
+    GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_EXISTS, GROUP_INVITATION_CREATED
 from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role, MrMapUser, PublishRequest
-from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
+from structure.models import MrMapGroup, Organization, Role, MrMapUser, PublishRequest, GroupInvitationRequest
+from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, GROUP_INVITATION_REQUEST_ACTIVATION_TIME_WINDOW
 from django.contrib import messages
 
 from users.helper import user_helper
@@ -438,3 +438,70 @@ class RemovePublisher(forms.Form):
             raise ValidationError
 
 
+class GroupInvitationForm(MrMapForm):
+    invited_user = forms.ModelChoiceField(
+        label=_("User"),
+        queryset=MrMapGroup.objects.none(),
+        to_field_name='id',
+        disabled=True,
+    )
+    to_group = forms.ModelChoiceField(
+        label=_("Invite to group"),
+        widget=forms.Select(),
+        queryset=MrMapGroup.objects.none(),
+        to_field_name='id',
+        initial=1,
+    )
+    msg = forms.CharField(
+        label=_('Message'),
+        required=False,
+        widget=forms.Textarea()
+    )
+
+    def __init__(self, *args, **kwargs):
+        invited_user = None if 'invited_user' not in kwargs else kwargs.pop('invited_user')
+        super().__init__(*args, **kwargs)
+        requesting_user = user_helper.get_user(self.request)
+        user_groups = requesting_user.get_groups().exclude(
+            is_public_group=True
+        )
+        self.fields["invited_user"].queryset = MrMapUser.objects.filter(id=invited_user.id)
+        self.fields["invited_user"].initial = invited_user
+        self.fields["to_group"].queryset = user_groups
+        self.fields["to_group"].initial = user_groups.first()
+
+    def process_invitation_group(self):
+        """ Processes the invitation
+
+        Returns:
+
+        """
+        invited_user = self.cleaned_data.get("invited_user", None)
+        to_group = self.cleaned_data.get("to_group", None)
+        msg = self.cleaned_data.get("msg", None)
+        perf_user = user_helper.get_user(self.request)
+
+        try:
+            group_invitation_obj = GroupInvitationRequest.objects.get(
+                invited_user=invited_user,
+                to_group=to_group,
+                created_by=perf_user,
+            )
+            messages.info(
+                request=self.request,
+                message=GROUP_INVITATION_EXISTS.format(invited_user, group_invitation_obj.activation_until)
+            )
+        except ObjectDoesNotExist:
+            group_invitation_obj = GroupInvitationRequest.objects.create(
+                invited_user=invited_user,
+                to_group=to_group,
+                created_by=perf_user,
+                message=msg,
+                activation_until=timezone.now() + timezone.timedelta(
+                    hours=GROUP_INVITATION_REQUEST_ACTIVATION_TIME_WINDOW
+                )
+            )
+            messages.success(
+                request=self.request,
+                message=GROUP_INVITATION_CREATED.format(invited_user, to_group)
+            )

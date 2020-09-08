@@ -12,14 +12,18 @@ from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
-    RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
+    RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher, GroupInvitationForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
+
+from users.filters import MrMapUserFilter
 from users.helper import user_helper
 from users.helper.user_helper import create_group_activity
 from django.utils import timezone
+
+from users.tables import MrMapUserTable
 
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, current_view: str):
@@ -52,6 +56,33 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str
     return {"organizations": all_orgs_table, }
 
 
+def _prepare_users_table(request: HttpRequest, user: MrMapUser, current_view: str):
+    """ Prepares user table.
+
+    By default the user table is empty to prevent the reveal of all registered users. Users can only be shown if
+    the Search field is used.
+
+    Args:
+        request (HttpRequest):
+        user (MrMapUser):
+        current_view (str):
+    Returns:
+         dict
+    """
+    all_users = MrMapUser.objects.none()
+
+    all_users_table = MrMapUserTable(
+        request=request,
+        queryset=all_users,
+        order_by_field='us',
+        filter_set_class=MrMapUserFilter,
+        current_view=current_view,
+        param_lead='users-t',
+    )
+
+    return {"users": all_users_table, }
+
+
 @login_required
 def index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all groups and organizations
@@ -68,6 +99,7 @@ def index(request: HttpRequest, update_params=None, status_code=None):
     }
     params.update(_prepare_group_table(request=request, user=user, current_view='structure:index'))
     params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:index'))
+    params.update(_prepare_users_table(request=request, user=user, current_view='structure:index'))
 
     if update_params:
         params.update(update_params)
@@ -625,3 +657,35 @@ def handler500(request: HttpRequest, exception=None):
     response = render(request=request, template_name="500.html", context=context.get_context())
     response.status_code = 500
     return response
+
+
+def users_index(request: HttpRequest):
+    pass
+
+
+@login_required
+@check_permission(
+    PermissionEnum.CAN_ADD_USER_TO_GROUP
+)
+def user_group_invitation(request: HttpRequest, object_id: int):
+    """ Renders and process a form for user-group invitation
+
+    Args:
+        request (HttpRequest): The incoming request
+        object_id (HttpRequest): The user id for the invited user
+    Returns:
+         A rendered view
+    """
+    invited_user = get_object_or_404(MrMapUser, id=object_id)
+    form = GroupInvitationForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:invite-user-to-group',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("Invite <strong>{}</strong> to a group.".format(invited_user)),
+        invited_user=invited_user,
+    )
+    return form.process_request(valid_func=form.process_invitation_group)
+

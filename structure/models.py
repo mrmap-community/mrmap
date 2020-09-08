@@ -369,5 +369,5 @@ class GroupInvitationRequest(BaseInternalRequest):
     to_group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE)
 
     def __str__(self):
-        return "{} > {}".format(self.invited_user.name, self.to_group)
+        return "{} > {}".format(self.invited_user.username, self.to_group)
 

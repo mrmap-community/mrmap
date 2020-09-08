@@ -25,5 +25,8 @@ urlpatterns = [
     path('organizations/<org_id>/remove-publisher/<group_id>/', remove_publisher, name='remove-publisher'),
     path('organizations/new/register-form/', new_org, name='new-organization'),
 
+    path('users/', users_index, name='users-index'),
+    path('users/<object_id>/group-invitation/', user_group_invitation, name='invite-user-to-group'),
+
 ]
 

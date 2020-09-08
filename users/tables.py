@@ -6,7 +6,8 @@ from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 from MrMap.utils import get_ok_nok_icon, get_theme
 from monitoring.models import Monitoring
-from structure.models import Permission
+from structure.models import MrMapUser
+
 from structure.permissionEnums import PermissionEnum
 from users.models import Subscription
 
@@ -126,9 +127,51 @@ class SubscriptionTable(MrMapTable):
             permission=None,
         ))
 
-
         return format_html(btns)
 
     def order_health(self, queryset, is_descending):
         # TODO:
         return queryset, True
+
+
+class MrMapUserTable(MrMapTable):
+    caption = _("Shows registered users.")
+
+    username = MrMapColumn(
+        accessor='username',
+        verbose_name=_('Username'),
+        tooltip=_('User`s name'),
+        empty_values=[],
+    )
+
+    organization = MrMapColumn(
+        accessor='organization__organization_name',
+        verbose_name=_('Organization'),
+        tooltip=_('User`s organization'),
+        empty_values=[],
+    )
+
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions to perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(query_class=MrMapUser, *args, **kwargs)
+
+    def render_actions(self, record):
+        btns = ''
+        if record != self.user:
+            btns += format_html(self.get_btn(
+                href=reverse('structure:invite-user-to-group', args=(record.id, ))+f"?current-view={self.current_view}",
+                btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
+                btn_value=get_theme(self.user)["ICONS"]['HEARTBEAT'],
+                permission=PermissionEnum.CAN_ADD_USER_TO_GROUP,
+                tooltip=format_html(_("Add user to group"), ),
+                tooltip_placement='left',
+            ))
+
+        return format_html(btns)

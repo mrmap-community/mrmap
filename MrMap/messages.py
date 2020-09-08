@@ -130,3 +130,6 @@ SUBSCRIPTION_EDITING_UNSUCCESSFULL = _("Subscription could not be edited.")
 SUBSCRIPTION_REMOVED_TEMPLATE = _("Subscription for '{}' was removed.")
 SUBSCRIPTION_CREATED_TEMPLATE = _("Subscription for '{}' created.")
 SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE = _("'{}' already subscribed.")
+
+GROUP_INVITATION_CREATED = _("{} has been invited to {}!")
+GROUP_INVITATION_EXISTS = _("An invitation already exists. {} can respond until {}!")

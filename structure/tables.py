@@ -226,10 +226,10 @@ class OrganizationTable(MrMapTable):
         tooltip = _('Click to open the detail view of <strong>{}</strong>.').format(value)
         if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
-            tooltip = _('This is your organization.') + f' {tooltip}'
+            tooltip = _('This is your organization.') + ' {}'.format(tooltip)
         return self.get_link(tooltip=tooltip,
                              href=url,
-                             value=f"{icon} {value}",
+                             value=format_html("{} {}".format(icon, value)),
                              permission=None,
                              open_in_new_tab=True, )
 

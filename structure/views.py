@@ -11,10 +11,9 @@ from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, PUB
 from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
-from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
     RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
-from structure.models import MrMapGroup, Organization, PendingRequest, PendingTask, ErrorReport
+from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
@@ -157,7 +156,7 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
     template = "views/organizations_detail_no_base.html" if 'no-base' in request.GET else "views/organizations_detail.html"
 
     # list publishers and requests
-    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=object_id)
+    pub_requests = PublishRequest.objects.filter(organization=object_id)
     pub_requests_table = PublisherRequestTable(
         data=pub_requests,
         request=request,
@@ -386,7 +385,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
     """
     user = user_helper.get_user(request)
     # activate or remove publish request/ publisher
-    pub_request = get_object_or_404(PendingRequest, type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
+    pub_request = get_object_or_404(PublishRequest, id=request_id)
     form = AcceptDenyPublishRequestForm(request.POST, pub_request=pub_request)
     if request.method == "POST":
         if form.is_valid():

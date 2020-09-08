@@ -29,8 +29,8 @@ from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization, MrMapGroup
-from structure.settings import PUBLIC_GROUP_NAME
+from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, MrMapGroup, \
+    PublishRequest
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
 from django.urls import reverse
@@ -127,7 +127,7 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
     activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
         "-created_on")
-    pending_requests = PendingRequest.objects.filter(organization=user.organization)
+    pending_requests = PublishRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,
         "wfs_count": user_services_wfs,

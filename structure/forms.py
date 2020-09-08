@@ -13,9 +13,11 @@ from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_SUCCESSFULLY_EDITED
 from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role, PendingRequest, MrMapUser
-from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING, PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
+from structure.models import MrMapGroup, Organization, Role, MrMapUser, PublishRequest
+from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
 from django.contrib import messages
+
+from users.helper import user_helper
 
 
 class LoginForm(forms.Form):
@@ -138,7 +140,7 @@ class PublisherForOrganizationForm(MrMapForm):
         group = MrMapGroup.objects.get(id=cleaned_data["group"].id)
 
         # check if user is already a publisher using this group or a request already has been created
-        pub_request = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=self.organization, group=group)
+        pub_request = PublishRequest.objects.filter(organization=self.organization, group=group)
         if self.organization in group.publish_for_organizations.all() or pub_request.count() > 0 or self.organization == group.organization:
             if pub_request.count() > 0:
                 self.add_error(None, PUBLISH_REQUEST_ABORTED_IS_PENDING)
@@ -150,13 +152,14 @@ class PublisherForOrganizationForm(MrMapForm):
         return cleaned_data
 
     def process_new_publisher_request(self):
-        publish_request_obj = PendingRequest()
-        publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
+        user = user_helper.get_user(self.request)
+        publish_request_obj = PublishRequest()
         publish_request_obj.organization = self.organization
         publish_request_obj.message = self.cleaned_data["request_msg"]
         publish_request_obj.group = self.cleaned_data["group"]
         publish_request_obj.activation_until = timezone.now() + timezone.timedelta(
             hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
+        publish_request_obj.created_by = user
         publish_request_obj.save()
         # create pending publish request for organization!
         messages.success(self.request, message=PUBLISH_REQUEST_SENT)

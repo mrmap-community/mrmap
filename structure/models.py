@@ -346,13 +346,27 @@ class GroupActivity(models.Model):
         return self.description
 
 
-class PendingRequest(models.Model):
-    type = models.CharField(max_length=255)  # defines what type of request this is
-    group = models.ForeignKey(MrMapGroup, related_name="pending_publish_requests", on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.CASCADE)
+class BaseInternalRequest(models.Model):
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        abstract = True
+
+
+class PublishRequest(BaseInternalRequest):
+    group = models.ForeignKey(MrMapGroup, related_name="publish_requests", on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, related_name="publish_requests", on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.group.name + " > " + self.organization.organization_name
+        return "{} > {}".format(self.group.name, self.organization.organization_name)
+
+
+class GroupInvitationRequest(BaseInternalRequest):
+    invited_user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations")
+    to_group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return "{} > {}".format(self.invited_user.name, self.to_group)

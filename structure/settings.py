@@ -17,8 +17,6 @@ USER_ACTIVATION_TIME_WINDOW = 24
 # days * hours/day
 PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW = 7 * 24
 
-PENDING_REQUEST_TYPE_PUBLISHING = "publishing"
-
 SUPERUSER_ROLE_NAME = _("Administrator")
 SUPERUSER_GROUP_NAME = _("Administrator")
 SUPERUSER_GROUP_DESCRIPTION = _("Permission group. Holds user which are allowed to perform any action.")

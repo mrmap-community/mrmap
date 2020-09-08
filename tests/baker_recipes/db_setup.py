@@ -324,16 +324,15 @@ def create_public_organization(user: MrMapUser):
     )
 
 
-def create_pending_request(group: MrMapGroup = None, orga: Organization = None, type_str: str = None,
+def create_publish_request(group: MrMapGroup = None, orga: Organization = None,
                            how_much_requests: int = 1):
-    if group is not None and type_str is not None and orga is not None:
-        return baker.make_recipe('tests.baker_recipes.structure_app.pending_request',
+    if group is not None and orga is not None:
+        return baker.make_recipe('tests.baker_recipes.structure_app.publish_request',
                                  group=group,
-                                 type=type_str,
                                  organization=orga,
                                  _quantity=how_much_requests)
     else:
-        return baker.make_recipe('tests.baker_recipes.structure_app.pending_request',
+        return baker.make_recipe('tests.baker_recipes.structure_app.publish_request',
                                  _quantity=how_much_requests)
 
 

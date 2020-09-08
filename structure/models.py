@@ -370,3 +370,4 @@ class GroupInvitationRequest(BaseInternalRequest):
 
     def __str__(self):
         return "{} > {}".format(self.invited_user.name, self.to_group)
+

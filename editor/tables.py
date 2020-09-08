@@ -59,7 +59,7 @@ class EditorAcessTable(MrMapTable):
             tooltip = _('This is the anonymous public user group.') + " {}".format(tooltip)
         return self.get_link(tooltip=tooltip,
                              href=url,
-                             value="{} {}".format(icon, record.name),
+                             value=format_html("{} {}".format(icon, record.name)),
                              permission=None,
                              open_in_new_tab=True, )
 

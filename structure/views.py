@@ -550,6 +550,13 @@ def remove_group(request: HttpRequest, object_id: int):
     """
     group = get_object_or_404(MrMapGroup, id=object_id)
 
+    if group.is_permission_group or group.is_public_group:
+        messages.error(
+            request,
+            _("Group {} is an important main group and therefore can not be removed.").format(_(group.name)),
+        )
+        return redirect("structure:index")
+
     form = RemoveGroupForm(data=request.POST or None,
                            request=request,
                            reverse_lookup='structure:delete-group',

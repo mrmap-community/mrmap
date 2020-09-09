@@ -262,6 +262,8 @@ class MrMapUser(AbstractUser):
                 "name__icontains": "test",
             }
 
+        Args:
+            filter_by (dict): Accepts a dict for pre-filtering before returning a queryset
         Returns:
              queryset
         """

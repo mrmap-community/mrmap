@@ -206,12 +206,12 @@ class GroupTable(MrMapTable):
             tooltip_placement='left',
             permission=PermissionEnum.CAN_EDIT_GROUP,
         ))
-        if not record.is_public_group:
+        if not record.is_permission_group:
             btns += format_html(self.get_btn(
                 href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
                 btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
                 btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-                tooltip=format_html(_("Remove <strong>{}</strong> group").format(record.name), ),
+                tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
                 tooltip_placement='left',
                 permission=PermissionEnum.CAN_DELETE_GROUP,
             ))
@@ -250,10 +250,10 @@ class OrganizationTable(MrMapTable):
         tooltip = _('Click to open the detail view of <strong>{}</strong>.').format(value)
         if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
-            tooltip = _('This is your organization.') + f' {tooltip}'
+            tooltip = _('This is your organization.') + ' {}'.format(tooltip)
         return self.get_link(tooltip=tooltip,
                              href=url,
-                             value=f"{icon} {value}",
+                             value=format_html("{} {}".format(icon, value)),
                              permission=None,
                              open_in_new_tab=False, )
 

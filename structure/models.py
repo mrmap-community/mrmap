@@ -1,3 +1,4 @@
+import uuid
 from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -347,6 +348,7 @@ class GroupActivity(models.Model):
 
 
 class BaseInternalRequest(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)

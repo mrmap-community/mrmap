@@ -14,7 +14,7 @@ from structure.models import MrMapUser
 
 class MrMapUserFilter(django_filters.FilterSet):
     us = django_filters.CharFilter(
-        help_text=_("Search for a user or organization name. Input <strong>must</strong> contain at least {} characters.").format(3),
+        help_text=_("Search for a user or organization name. Input <strong>must</strong> contain at least 3 characters."),
         method='filter_search_over_all',
         label=_('Search')
     )

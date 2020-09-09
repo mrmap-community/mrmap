@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-09 12:52+0200\n"
+"POT-Creation-Date: 2020-09-09 15:23+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -584,8 +584,8 @@ msgstr "Die URI ist ungültig, da kein 'service' Parameter enthalten ist."
 msgid "Wizard"
 msgstr ""
 
-#: api/templates/includes/api_links.html:5 templates/includes/navbar.html:47
-#: templates/includes/navbar.html:48
+#: api/templates/includes/api_links.html:5 templates/includes/navbar.html:50
+#: templates/includes/navbar.html:51
 msgid "API"
 msgstr "API"
 
@@ -1892,7 +1892,7 @@ msgid "Country"
 msgstr "Land"
 
 #: service/templates/includes/index/csw.html:8
-#: templates/includes/navbar.html:42
+#: templates/includes/navbar.html:45
 msgid "CSW"
 msgstr "CSW"
 
@@ -1905,7 +1905,7 @@ msgid "Add New Dataset"
 msgstr "Neuer Datensatz"
 
 #: service/templates/includes/index/logs.html:8
-#: templates/includes/navbar.html:52 templates/includes/navbar.html:53
+#: templates/includes/navbar.html:55 templates/includes/navbar.html:56
 msgid "Logs"
 msgstr "Protokolle"
 
@@ -1922,7 +1922,7 @@ msgid "CSV"
 msgstr "CSV"
 
 #: service/templates/includes/index/wfs.html:10
-#: templates/includes/navbar.html:41
+#: templates/includes/navbar.html:44
 #: users/templates/cards/my_services/wfs.html:9
 msgid "WFS"
 msgstr "WFS"
@@ -1933,7 +1933,7 @@ msgid "New resource"
 msgstr "Neue Ressource"
 
 #: service/templates/includes/index/wms.html:8
-#: templates/includes/navbar.html:40
+#: templates/includes/navbar.html:43
 #: users/templates/cards/my_services/wms.html:9
 msgid "WMS"
 msgstr "WMS"
@@ -2751,7 +2751,7 @@ msgstr "Nutzername ist bereits vergeben. Versuchen Sie etwas anderes."
 msgid "Passwords do not match."
 msgstr "Passwörter stimmen nicht überein."
 
-#: structure/forms.py:447 structure/forms.py:620 structure/forms.py:632
+#: structure/forms.py:447 structure/forms.py:611 structure/forms.py:623
 msgid "Publisher changed"
 msgstr "Veröffentlicher geändert"
 
@@ -2763,35 +2763,35 @@ msgstr "Gruppe '{}' darf nicht mehr für '{}' veröffentlichen."
 msgid "Invite to group"
 msgstr "In Gruppe einladen"
 
-#: structure/forms.py:524 structure/forms.py:577
+#: structure/forms.py:524 structure/forms.py:578
 msgid "Sender's message"
 msgstr "Nachricht des Absenders"
 
-#: structure/forms.py:534 structure/forms.py:587
+#: structure/forms.py:535 structure/forms.py:589
 msgid "Accept request"
 msgstr "Anfrage akzeptieren"
 
-#: structure/forms.py:536 structure/forms.py:589
+#: structure/forms.py:537 structure/forms.py:591
 msgid "Accept"
 msgstr "Akzeptieren"
 
-#: structure/forms.py:537 structure/forms.py:590
+#: structure/forms.py:538 structure/forms.py:592
 msgid "Decline"
 msgstr "Ablehnen"
 
-#: structure/forms.py:565
+#: structure/forms.py:566
 msgid "You are now member of {}"
 msgstr "Sie sind jetzt Mitglied in {}"
 
-#: structure/forms.py:570
+#: structure/forms.py:571
 msgid "You declined the invitation to {}"
 msgstr "Sie haben die Einladung zu {} abgelehnt"
 
-#: structure/forms.py:621
+#: structure/forms.py:612
 msgid "Group '{}' has been accepted as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' akzeptiert"
 
-#: structure/forms.py:633
+#: structure/forms.py:624
 msgid "Group '{}' has been rejected as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' abgelehnt"
 
@@ -3018,92 +3018,93 @@ msgid "Your organization:"
 msgstr "Ihre Organisation:"
 
 #: structure/templates/includes/index/users.html:9
+#: templates/includes/navbar.html:32
 msgid "User search"
 msgstr "Nutzersuche"
 
-#: structure/views.py:206
+#: structure/views.py:207
 msgid "Shows informations about the organization."
 msgstr "Zeigt Informationen über die Organisation."
 
-#: structure/views.py:264
+#: structure/views.py:265
 msgid "Shows informations about the group."
 msgstr "Zeigt Informationen über die Gruppe."
 
-#: structure/views.py:343
+#: structure/views.py:344
 #, python-brace-format
 msgid "Edit organization <strong>{org}</strong>"
 msgstr "Bearbeite Organisation <strong>{org}</strong>"
 
-#: structure/views.py:370
+#: structure/views.py:371
 msgid "Do you really want to remove this organization?"
 msgstr "Wollen Sie diese Organisation wirklich löschen?"
 
-#: structure/views.py:371
+#: structure/views.py:372
 #, python-brace-format
 msgid "Remove organization <strong>{org}</strong>"
 msgstr "Lösche Organisation <strong>{org}</strong>"
 
-#: structure/views.py:393
+#: structure/views.py:394
 msgid "Add new organization"
 msgstr "Neue Organisation hinzufügen"
 
-#: structure/views.py:422
+#: structure/views.py:423
 msgid "Do you really want to remove this publisher?"
 msgstr "Wollen Sie diesen Veröffentlicher wirklich löschen?"
 
-#: structure/views.py:423
+#: structure/views.py:424
 msgid "Remove publisher <strong>{}</strong>"
 msgstr "Entferne Veröffentlicher <strong>{}</strong>"
 
-#: structure/views.py:453
+#: structure/views.py:454
 #, python-brace-format
 msgid "Request to become publisher for organization <strong>{org}</strong>"
 msgstr ""
 "Anfrage um für Organisation <strong>{org}</strong> veröffentlichen zu dürfen"
 
-#: structure/views.py:475
+#: structure/views.py:476
 msgid "Add new group"
 msgstr "Neue Gruppe hinzufügen"
 
-#: structure/views.py:525
+#: structure/views.py:526
 msgid "The group creator can not be removed!"
 msgstr "Der Gruppenersteller kann nicht entfernt werden!"
 
-#: structure/views.py:531
+#: structure/views.py:532
 msgid "{} removed from {}"
 msgstr "{} von {} entfernt"
 
-#: structure/views.py:558
+#: structure/views.py:559
 msgid "Do you really want to remove this group?"
 msgstr "Wollen Sie diese Gruppe wirklich löschen?"
 
-#: structure/views.py:559
+#: structure/views.py:560
 #, python-brace-format
 msgid "Remove group <strong>{group}</strong>"
 msgstr "Lösche Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:585
+#: structure/views.py:586
 #, python-brace-format
 msgid "Edit group <strong>{group}</strong>"
 msgstr "Bearbeite Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:608
+#: structure/views.py:609
 msgid "Do you really want to leave this group?"
 msgstr "Wollen Sie diese Gruppe wirklich verlassen?"
 
-#: structure/views.py:609
+#: structure/views.py:610
 msgid "Leave group <strong>{}</strong>"
 msgstr "Verlasse Gruppe <strong>{}</strong>"
 
-#: structure/views.py:676
+#: structure/views.py:701
 msgid "Invite <strong>{}</strong> to a group."
 msgstr "Lade <strong>{}</strong> zu einer Gruppe ein."
 
-#: structure/views.py:700
+#: structure/views.py:725
 msgid "{} invites you to group {}."
 msgstr "{} lädt Sie in Gruppe {} ein."
 
-#: structure/views.py:727
+#: structure/views.py:765
 msgid "{} wants to publish for {}."
 msgstr "{} will für {} veröffentlichen."
 
@@ -3182,20 +3183,20 @@ msgstr "Dashboard"
 msgid "Structure"
 msgstr "Struktur"
 
-#: templates/includes/navbar.html:37 users/templates/cards/my_services.html:6
+#: templates/includes/navbar.html:40 users/templates/cards/my_services.html:6
 msgid "Resources"
 msgstr "Ressourcen"
 
-#: templates/includes/navbar.html:43
+#: templates/includes/navbar.html:46
 #: users/templates/cards/my_services/datasets.html:9
 msgid "Datasets"
 msgstr "Datensätze"
 
-#: templates/includes/navbar.html:58
+#: templates/includes/navbar.html:61
 msgid "Account"
 msgstr "Account"
 
-#: templates/includes/navbar.html:61
+#: templates/includes/navbar.html:64
 msgid "Logout"
 msgstr "Ausloggen"
 
@@ -3292,10 +3293,10 @@ msgstr "Exportiere als GeoJSON"
 #: users/filters.py:17
 msgid ""
 "Search for a user or organization name. Input <strong>must</strong> contain "
-"at least {} characters."
+"at least 3 characters."
 msgstr ""
 "Suche nach einem Nutzer oder zugehörigem Organisationsnamen. Eingabe "
-"<strong>muss</strong> mindestens {} Zeichen beinhalten."
+"<strong>muss</strong> mindestens 3 Zeichen beinhalten."
 
 #: users/forms.py:45
 msgid "Old password"

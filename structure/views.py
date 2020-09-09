@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
 from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, PUBLISH_PERMISSION_REMOVED, \
@@ -13,7 +13,7 @@ from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
     RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher, GroupInvitationForm, \
-    GroupInvitationConfirmForm
+    GroupInvitationConfirmForm, LeaveGroupForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
@@ -57,7 +57,7 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str
     return {"organizations": all_orgs_table, }
 
 
-def _prepare_users_table(request: HttpRequest, user: MrMapUser, current_view: str):
+def _prepare_users_table(request: HttpRequest, current_view: str, group: MrMapGroup = None):
     """ Prepares user table.
 
     By default the user table is empty to prevent the reveal of all registered users. Users can only be shown if
@@ -70,7 +70,7 @@ def _prepare_users_table(request: HttpRequest, user: MrMapUser, current_view: st
     Returns:
          dict
     """
-    all_users = MrMapUser.objects.none()
+    all_users = MrMapUser.objects.none() if group is None else group.user_set.all()
 
     all_users_table = MrMapUserTable(
         request=request,
@@ -100,7 +100,7 @@ def index(request: HttpRequest, update_params=None, status_code=None):
     }
     params.update(_prepare_group_table(request=request, user=user, current_view='structure:index'))
     params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:index'))
-    params.update(_prepare_users_table(request=request, user=user, current_view='structure:index'))
+    params.update(_prepare_users_table(request=request, group=None, current_view='structure:index'))
 
     if update_params:
         params.update(update_params)
@@ -241,7 +241,6 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
     user = user_helper.get_user(request)
 
     group = get_object_or_404(MrMapGroup, id=object_id)
-    members = group.user_set.all()
     template = "views/groups_detail_no_base.html" if 'no-base' in request.GET else "views/groups_detail.html"
 
     publisher_for = group.publish_for_organizations.all()
@@ -268,12 +267,14 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
         "subgroups": subgroups,
         "inherited_permission": inherited_permission,
         "group_permissions": user.get_permissions(group),
-        "members": members,
         "show_registering_for": True,
         "all_publisher_table": all_publisher_table,
         "caption": _("Shows informations about the group."),
         "current_view": "structure:detail-group",
     }
+    params.update(
+        _prepare_users_table(request=request, group=group, current_view='structure:detail-group')
+    )
 
     if update_params:
         params.update(update_params)
@@ -622,6 +623,30 @@ def edit_group(request: HttpRequest, object_id: int):
                      form_title=_(f"Edit group <strong>{group}</strong>"),
                      instance=group,)
     return form.process_request(valid_func=form.process_edit_group)
+
+
+def leave_group(request: HttpRequest, object_id: str):
+    """ Removes a user from a group
+
+    Args:
+        request: The incoming request
+        object_id: The id of the group
+    Returns:
+         A redirect
+    """
+    group = get_object_or_404(MrMapGroup, id=object_id)
+    form = LeaveGroupForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:leave-group',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        is_confirmed_label=_("Do you really want to leave this group?"),
+        form_title=_("Leave group <strong>{}</strong>").format(group),
+        instance=group,
+    )
+    return form.process_request(valid_func=form.process_leave_group)
 
 
 def handler404(request: HttpRequest, exception=None):

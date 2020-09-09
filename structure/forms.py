@@ -310,6 +310,24 @@ class RemoveGroupForm(MrMapConfirmForm):
         self.instance.delete()
         messages.success(self.request, message=GROUP_SUCCESSFULLY_DELETED.format(group_name))
 
+
+class LeaveGroupForm(MrMapConfirmForm):
+    def __init__(self, instance=None, *args, **kwargs):
+        self.instance = instance
+        super().__init__(*args, **kwargs)
+
+    def process_leave_group(self):
+        if self.instance.is_public_group:
+            messages.error(self.request, _("You can't leave this group."))
+        else:
+            user = user_helper.get_user(self.request)
+            self.instance.user_set.remove(user)
+            messages.success(
+                self.request,
+                _("You left group {}").format(self.instance.name)
+            )
+
+
 class RemoveOrganizationForm(MrMapConfirmForm):
     def __init__(self, instance=None, *args, **kwargs):
         self.instance = instance

@@ -167,8 +167,8 @@ class MrMapUserTable(MrMapTable):
         if record != self.user:
             btns += format_html(self.get_btn(
                 href=reverse('structure:invite-user-to-group', args=(record.id, ))+f"?current-view={self.current_view}",
-                btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
-                btn_value=get_theme(self.user)["ICONS"]['HEARTBEAT'],
+                btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+                btn_value=get_theme(self.user)["ICONS"]['GROUP'],
                 permission=PermissionEnum.CAN_ADD_USER_TO_GROUP,
                 tooltip=format_html(_("Add user to group"), ),
                 tooltip_placement='left',

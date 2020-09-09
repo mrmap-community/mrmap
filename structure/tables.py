@@ -8,7 +8,6 @@ from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 
 
@@ -159,7 +158,7 @@ class GroupTable(MrMapTable):
                              href=url,
                              value=format_html(f"{icon} {value}"),
                              permission=None,
-                             open_in_new_tab=True, )
+                             open_in_new_tab=False, )
 
     @staticmethod
     def render_groups_description(value, record):
@@ -171,26 +170,36 @@ class GroupTable(MrMapTable):
                              href=reverse('structure:detail-organization', args=(record.organization.id,)),
                              value=value,
                              permission=None,
-                             open_in_new_tab=True, )
+                             open_in_new_tab=False, )
 
     def render_groups_actions(self, record):
         btns = ''
+        if not record.is_public_group:
+            btns += format_html(self.get_btn(
+                href=reverse('structure:leave-group', args=(record.id,)) + f"?current-view={self.current_view}",
+                btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+                btn_value=get_theme(self.user)["ICONS"]['SIGNOUT'],
+                tooltip=format_html(_("Leave <strong>{}</strong>").format(record.name), ),
+                tooltip_placement='left',
+                permission=PermissionEnum.CAN_DELETE_GROUP,
+            ))
         btns += format_html(self.get_btn(
             href=reverse('structure:edit-group', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
-            tooltip=format_html(_(f"Edit <strong>{record.name} [{record.id}]</strong> group"), ),
+            tooltip=format_html(_("Edit <strong>{}</strong>").format(record.name), ),
             tooltip_placement='left',
             permission=PermissionEnum.CAN_EDIT_GROUP,
         ))
-        btns += format_html(self.get_btn(
-            href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-            tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
-            tooltip_placement='left',
-            permission=PermissionEnum.CAN_DELETE_GROUP,
-        ))
+        if not record.is_public_group:
+            btns += format_html(self.get_btn(
+                href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
+                btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+                tooltip=format_html(_("Remove <strong>{}</strong> group").format(record.name), ),
+                tooltip_placement='left',
+                permission=PermissionEnum.CAN_DELETE_GROUP,
+            ))
         return format_html(btns)
 
 

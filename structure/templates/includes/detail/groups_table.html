@@ -1,6 +1,7 @@
 {% extends 'sceletons/table.html' %}
 {% load i18n %}
 {% block table %}
+{% load render_table from django_tables2 %}
 <tr>
     <th scope="row">{% trans 'Organization' %}</th>
     <td>{{ group.organization }}</td>
@@ -12,9 +13,7 @@
 <tr>
     <th scope="row">{% trans 'Members' %}</th>
     <td>
-        {% for member in members %}
-            {{ member.username }}<br>
-        {% endfor %}
+        {% render_table users %}
     </td>
 </tr>
 <tr>

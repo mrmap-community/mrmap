@@ -11,6 +11,7 @@ urlpatterns = [
     path('groups/', groups_index, name='groups-index'),
     path('groups/detail/<object_id>', detail_group, name='detail-group'),
     path('groups/edit/<object_id>', edit_group, name='edit-group'),
+    path('groups/leave/<object_id>', leave_group, name='leave-group'),
     path('groups/delete/<object_id>', remove_group, name='delete-group'),
     path('groups/new/register-form/', new_group, name='new-group'),
     path('groups/publisher/<group_id>', list_publisher_group, name='publisher-group'),

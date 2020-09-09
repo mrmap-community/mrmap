@@ -343,6 +343,19 @@ def create_pending_task(group: MrMapGroup, how_much_pending_tasks: int = 1):
                              _quantity=how_much_pending_tasks)
 
 
+def create_group_invitation_request(
+        to_group: MrMapGroup = None, invited_user: MrMapUser = None, created_by: MrMapUser = None,
+        how_much_requests: int = 1, message: str="Test"
+):
+    return baker.make_recipe(
+        "tests.baker_recipes.structure_app.group_invitation_request",
+        to_group=to_group,
+        invited_user=invited_user,
+        message=message,
+        created_by=created_by,
+    )
+
+
 def create_keywords(num: int = 1):
     return baker.make_recipe(
         "tests.baker_recipes.service_app.keyword",

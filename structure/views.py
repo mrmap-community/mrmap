@@ -79,6 +79,7 @@ def _prepare_users_table(request: HttpRequest, current_view: str, group: MrMapGr
         filter_set_class=MrMapUserFilter,
         current_view=current_view,
         param_lead='users-t',
+        group=group,
     )
 
     return {"users": all_users_table, }
@@ -573,6 +574,38 @@ def list_publisher_group(request: HttpRequest, group_id: int):
 
 @login_required
 @check_permission(
+    PermissionEnum.CAN_REMOVE_USER_FROM_GROUP
+)
+@check_ownership(MrMapGroup, 'object_id')
+def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
+    """ Removes a user from a group
+
+    Args:
+        request: The incoming request
+        object_id: The group id
+        user_id: The user id
+    Returns:
+         A redirect
+    """
+    group = get_object_or_404(MrMapGroup, id=object_id)
+    user = get_object_or_404(MrMapUser, id=user_id)
+
+    if group.created_by == user:
+        messages.error(
+            request,
+            _("The group creator can not be removed!")
+        )
+    else:
+        group.user_set.remove(user)
+        messages.success(
+            request,
+            _("{} removed from {}").format(user.username, group.name)
+        )
+    return redirect("structure:detail-group", object_id)
+
+
+@login_required
+@check_permission(
     PermissionEnum.CAN_DELETE_GROUP
 )
 @check_ownership(MrMapGroup, 'object_id')
@@ -717,6 +750,14 @@ def user_group_invitation(request: HttpRequest, object_id: str):
 
 
 def toggle_group_invitation(request: HttpRequest, object_id: str):
+    """ Renders and processes a form to accepting/declining an invitation
+
+    Args:
+        request (HttpRequest): The incoming request
+        object_id (HttpRequest): The user id for the invited user
+    Returns:
+         A rendered view
+    """
     invitation = get_object_or_404(GroupInvitationRequest, id=object_id)
     form = GroupInvitationConfirmForm(
         data=request.POST or None,
@@ -725,7 +766,10 @@ def toggle_group_invitation(request: HttpRequest, object_id: str):
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_("Manage request."),
+        form_title=_("{} invites you to group {}.").format(
+            invitation.created_by,
+            invitation.to_group
+        ),
         invitation=invitation,
     )
     return form.process_request(valid_func=form.process_invitation_group)

@@ -528,6 +528,11 @@ class GroupInvitationForm(MrMapForm):
 
 
 class GroupInvitationConfirmForm(MrMapForm):
+    msg = forms.CharField(
+        label=_("Sender's message"),
+        widget=forms.Textarea(),
+        disabled=True,
+    )
     accept = forms.ChoiceField(
         widget=forms.RadioSelect(
             attrs={
@@ -544,10 +549,47 @@ class GroupInvitationConfirmForm(MrMapForm):
     def __init__(self, *args, **kwargs):
         self.invitation_request = None if "invitation" not in kwargs else kwargs.pop("invitation")
         super().__init__(*args, **kwargs)
+        self.fields["msg"].initial = self.invitation_request.message
 
-        self.fields["accept"].help_text = _("{} invites you to group {}.").format(
-            self.invitation_request.created_by,
-            self.invitation_request.to_group
+    def process_invitation_group(self):
+        accepted = utils.resolve_boolean_attribute_val(self.cleaned_data.get("accept", False))
+        group = self.invitation_request.to_group
+        user = self.invitation_request.invited_user
+        if accepted:
+            group.user_set.add(user)
+            messages.success(
+                self.request,
+                _("You are now member of {}").format(group.name),
+            )
+        else:
+            messages.info(
+                self.request,
+                _("You declined the invitation to {}").format(group.name),
+            )
+        self.invitation_request.delete()
+
+
+class PublishRequestConfirmForm(MrMapForm):
+    accept = forms.ChoiceField(
+        widget=forms.RadioSelect(
+            attrs={
+                "style": "display:inline"
+            }
+        ),
+        label=_("Accept request"),
+        choices=(
+            (True, _("Accept")),
+            (False, _("Decline")),
+        )
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.publish_request = None if "request" not in kwargs else kwargs.pop("request")
+        super().__init__(*args, **kwargs)
+
+        self.fields["accept"].help_text = _("{} wants to publish for {}.").format(
+            self.publish_request.group,
+            self.publish_request.organization
         )
 
     def process_invitation_group(self):

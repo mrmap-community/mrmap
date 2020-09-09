@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-09 11:01+0200\n"
+"POT-Creation-Date: 2020-09-09 11:24+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3005,88 +3005,96 @@ msgid "Your organization:"
 msgstr "Ihre Organisation:"
 
 #: structure/templates/includes/index/users.html:9
-msgid "Users"
-msgstr "Nutzer"
+msgid "User search"
+msgstr "Nutzersuche"
 
-#: structure/views.py:214
+#: structure/views.py:215
 msgid "Shows informations about the organization."
 msgstr "Zeigt Informationen über die Organisation."
 
-#: structure/views.py:272
+#: structure/views.py:273
 msgid "Shows informations about the group."
 msgstr "Zeigt Informationen über die Gruppe."
 
-#: structure/views.py:351
+#: structure/views.py:352
 #, python-brace-format
 msgid "Edit organization <strong>{org}</strong>"
 msgstr "Bearbeite Organisation <strong>{org}</strong>"
 
-#: structure/views.py:378
+#: structure/views.py:379
 msgid "Do you really want to remove this organization?"
 msgstr "Wollen Sie diese Organisation wirklich löschen?"
 
-#: structure/views.py:379
+#: structure/views.py:380
 #, python-brace-format
 msgid "Remove organization <strong>{org}</strong>"
 msgstr "Lösche Organisation <strong>{org}</strong>"
 
-#: structure/views.py:401
+#: structure/views.py:402
 msgid "Add new organization"
 msgstr "Neue Organisation hinzufügen"
 
-#: structure/views.py:432 structure/views.py:441 structure/views.py:484
+#: structure/views.py:433 structure/views.py:442 structure/views.py:485
 msgid "Publisher changed"
 msgstr "Veröffentlicher geändert"
 
-#: structure/views.py:433
+#: structure/views.py:434
 msgid "Group '{}' has been accepted as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' akzeptiert"
 
-#: structure/views.py:442
+#: structure/views.py:443
 msgid "Group '{}' has been rejected as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' abgelehnt"
 
-#: structure/views.py:485
+#: structure/views.py:486
 msgid "Group '{}' has been removed as publisher for '{}'."
 msgstr "Gruppe '{}' darf nicht mehr für '{}' veröffentlichen."
 
-#: structure/views.py:523
+#: structure/views.py:524
 #, python-brace-format
 msgid "Request to become publisher for organization <strong>{org}</strong>"
 msgstr ""
 "Anfrage um für Organisation <strong>{org}</strong> veröffentlichen zu dürfen"
 
-#: structure/views.py:545
+#: structure/views.py:546
 msgid "Add new group"
 msgstr "Neue Gruppe hinzufügen"
 
 #: structure/views.py:596
+msgid "The group creator can not be removed!"
+msgstr "Der Gruppenersteller kann nicht entfernt werden!"
+
+#: structure/views.py:602
+msgid "{} removed from {}"
+msgstr "{} von {} entfernt"
+
+#: structure/views.py:629
 msgid "Do you really want to remove this group?"
 msgstr "Wollen Sie diese Gruppe wirklich löschen?"
 
-#: structure/views.py:597
+#: structure/views.py:630
 #, python-brace-format
 msgid "Remove group <strong>{group}</strong>"
 msgstr "Lösche Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:623
+#: structure/views.py:656
 #, python-brace-format
 msgid "Edit group <strong>{group}</strong>"
 msgstr "Bearbeite Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:645
+#: structure/views.py:678
 msgid "Do you really want to leave this group?"
 msgstr "Wollen Sie diese Gruppe wirklich verlassen?"
 
-#: structure/views.py:646
+#: structure/views.py:679
 msgid "Leave group <strong>{}</strong>"
 msgstr "Verlasse Gruppe <strong>{}</strong>"
 
-#: structure/views.py:713
+#: structure/views.py:746
 msgid "Invite <strong>{}</strong> to a group."
 msgstr "Lade <strong>{}</strong> zu einer Gruppe ein."
 
-#: structure/views.py:728
+#: structure/views.py:761
 msgid "Manage request."
 msgstr "Anfrage verwalten."
 
@@ -3424,9 +3432,13 @@ msgstr "Nutzername"
 msgid "User`s organization"
 msgstr "Nutzer Organisation"
 
-#: users/tables.py:173
+#: users/tables.py:176
 msgid "Add user to group"
 msgstr "Nutzer zu Gruppe hinzufügen"
+
+#: users/tables.py:187
+msgid "Remove user from group"
+msgstr "Entferne Nutzer von Gruppe"
 
 #: users/templates/cards/groups_and_organizations.html:6
 msgid "Groups and organizations"
@@ -5315,3 +5327,6 @@ msgstr ""
 #, python-format
 msgid "Unable to connect to qpid with SASL mechanism %s"
 msgstr ""
+
+#~ msgid "Users"
+#~ msgstr "Nutzer"

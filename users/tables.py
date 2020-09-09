@@ -160,17 +160,31 @@ class MrMapUserTable(MrMapTable):
     )
 
     def __init__(self, *args, **kwargs):
+        self.group = None if "group" not in kwargs else kwargs.pop("group")
         super().__init__(query_class=MrMapUser, *args, **kwargs)
+        self.is_group_detail_view = self.group is not None
 
     def render_actions(self, record):
         btns = ''
-        if record != self.user:
+
+        if not self.is_group_detail_view and record != self.user:
             btns += format_html(self.get_btn(
                 href=reverse('structure:invite-user-to-group', args=(record.id, ))+f"?current-view={self.current_view}",
                 btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
                 btn_value=get_theme(self.user)["ICONS"]['GROUP'],
                 permission=PermissionEnum.CAN_ADD_USER_TO_GROUP,
                 tooltip=format_html(_("Add user to group"), ),
+                tooltip_placement='left',
+            ))
+
+        if self.is_group_detail_view and record != self.user and self.group.created_by != record:
+            # The user can't remove himself or the group creator!
+            btns += format_html(self.get_btn(
+                href=reverse('structure:remove-user-from-group', args=(self.group.id, record.id, ))+f"?current-view={self.current_view}",
+                btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                btn_value=get_theme(self.user)["ICONS"]['SIGNOUT'],
+                permission=PermissionEnum.CAN_ADD_USER_TO_GROUP,
+                tooltip=format_html(_("Remove user from group"), ),
                 tooltip_placement='left',
             ))
 

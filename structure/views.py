@@ -649,15 +649,39 @@ def handler500(request: HttpRequest, exception=None):
     return response
 
 
-def users_index(request: HttpRequest):
-    pass
+def users_index(request: HttpRequest, update_params=None, status_code=None):
+    """ Renders an overview of all organizations
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code:
+    Returns:
+         A view
+    """
+    template = "views/users_index.html"
+    user = user_helper.get_user(request)
+
+    params = {
+        "current_view": "structure:users-index",
+    }
+    params.update(_prepare_users_table(request=request, group=None, current_view='structure:users-index'))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
 @check_permission(
     PermissionEnum.CAN_ADD_USER_TO_GROUP
 )
-def user_group_invitation(request: HttpRequest, object_id: str):
+def user_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
     """ Renders and process a form for user-group invitation
 
     Args:
@@ -681,7 +705,7 @@ def user_group_invitation(request: HttpRequest, object_id: str):
 
 
 @login_required
-def toggle_group_invitation(request: HttpRequest, object_id: str):
+def toggle_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
     """ Renders and processes a form to accepting/declining an invitation
 
     Args:
@@ -711,7 +735,7 @@ def toggle_group_invitation(request: HttpRequest, object_id: str):
 @check_permission(
     PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS
 )
-def toggle_publish_request(request: HttpRequest, object_id: str):
+def toggle_publish_request(request: HttpRequest, object_id: str, update_params=None, status_code=None):
     """ Renders and processes a form to accepting/declining an invitation
 
     Args:

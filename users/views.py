@@ -30,7 +30,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, MrMapGroup, \
-    PublishRequest
+    PublishRequest, GroupInvitationRequest
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
 from django.urls import reverse
@@ -127,13 +127,19 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
     activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
         "-created_on")
+
     pending_requests = PublishRequest.objects.filter(organization=user.organization)
+    group_invitation_requests = GroupInvitationRequest.objects.filter(
+        invited_user=user
+    )
     params = {
         "wms_count": user_services_wms,
         "wfs_count": user_services_wfs,
         "datasets_count": datasets_count,
         "all_count": user_services_wms + user_services_wfs + datasets_count,
-        "requests": pending_requests,
+        "publishing_requests": pending_requests,
+        "group_invitation_requests": group_invitation_requests,
+        "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),
         "group_activities": group_activities,
         "groups": user_groups,
         "organizations": Organization.objects.filter(is_auto_generated=False),

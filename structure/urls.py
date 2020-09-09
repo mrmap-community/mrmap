@@ -28,5 +28,7 @@ urlpatterns = [
     path('users/', users_index, name='users-index'),
     path('users/<object_id>/group-invitation/', user_group_invitation, name='invite-user-to-group'),
 
+    path('group-invitation/<object_id>/', toggle_group_invitation, name='toggle-user-to-group'),
+
 ]
 

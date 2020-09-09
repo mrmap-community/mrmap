@@ -12,8 +12,9 @@ from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
-    RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher, GroupInvitationForm
-from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest
+    RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher, GroupInvitationForm, \
+    GroupInvitationConfirmForm
+from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
@@ -667,7 +668,7 @@ def users_index(request: HttpRequest):
 @check_permission(
     PermissionEnum.CAN_ADD_USER_TO_GROUP
 )
-def user_group_invitation(request: HttpRequest, object_id: int):
+def user_group_invitation(request: HttpRequest, object_id: str):
     """ Renders and process a form for user-group invitation
 
     Args:
@@ -689,3 +690,17 @@ def user_group_invitation(request: HttpRequest, object_id: int):
     )
     return form.process_request(valid_func=form.process_invitation_group)
 
+
+def toggle_group_invitation(request: HttpRequest, object_id: str):
+    invitation = get_object_or_404(GroupInvitationRequest, id=object_id)
+    form = GroupInvitationConfirmForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:toggle-user-to-group',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("Manage request."),
+        invitation=invitation,
+    )
+    return form.process_request(valid_func=form.process_invitation_group)

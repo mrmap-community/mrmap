@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+
+from MrMap import utils
 from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
 from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
 from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
@@ -505,3 +507,46 @@ class GroupInvitationForm(MrMapForm):
                 request=self.request,
                 message=GROUP_INVITATION_CREATED.format(invited_user, to_group)
             )
+
+
+class GroupInvitationConfirmForm(MrMapForm):
+    accept = forms.ChoiceField(
+        widget=forms.RadioSelect(
+            attrs={
+                "style": "display:inline"
+            }
+        ),
+        label=_("Accept request"),
+        choices=(
+            (True, _("Accept")),
+            (False, _("Decline")),
+        )
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.invitation_request = None if "invitation" not in kwargs else kwargs.pop("invitation")
+        super().__init__(*args, **kwargs)
+
+        self.fields["accept"].help_text = _("{} invites you to group {}.").format(
+            self.invitation_request.created_by,
+            self.invitation_request.to_group
+        )
+
+    def process_invitation_group(self):
+        accepted = utils.resolve_boolean_attribute_val(self.cleaned_data.get("accept", False))
+        group = self.invitation_request.to_group
+        user = self.invitation_request.invited_user
+        if accepted:
+            group.user_set.add(user)
+            messages.success(
+                self.request,
+                _("You are now member of {}").format(group.name),
+            )
+        else:
+            messages.info(
+                self.request,
+                _("You declined the invitation to {}").format(group.name),
+            )
+        self.invitation_request.delete()
+
+

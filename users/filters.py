@@ -10,12 +10,11 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import MrMapUser
-from users.helper import user_helper
 
 
 class MrMapUserFilter(django_filters.FilterSet):
     us = django_filters.CharFilter(
-        help_text=_("Search for a user or organization name. Input <strong>must</strong> contain at least three characters."),
+        help_text=_("Search for a user or organization name. Input <strong>must</strong> contain at least {} characters.").format(3),
         method='filter_search_over_all',
         label=_('Search')
     )

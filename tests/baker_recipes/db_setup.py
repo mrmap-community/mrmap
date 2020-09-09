@@ -325,11 +325,12 @@ def create_public_organization(user: MrMapUser):
 
 
 def create_publish_request(group: MrMapGroup = None, orga: Organization = None,
-                           how_much_requests: int = 1):
+                           how_much_requests: int = 1, message: str = "Test"):
     if group is not None and orga is not None:
         return baker.make_recipe('tests.baker_recipes.structure_app.publish_request',
                                  group=group,
                                  organization=orga,
+                                 message=message,
                                  _quantity=how_much_requests)
     else:
         return baker.make_recipe('tests.baker_recipes.structure_app.publish_request',

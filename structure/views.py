@@ -1,12 +1,13 @@
 import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.messages import SERVICE_REGISTRATION_ABORTED
+from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER
 from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
@@ -707,6 +708,9 @@ def toggle_group_invitation(request: HttpRequest, object_id: str):
 
 
 @login_required
+@check_permission(
+    PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS
+)
 def toggle_publish_request(request: HttpRequest, object_id: str):
     """ Renders and processes a form to accepting/declining an invitation
 
@@ -716,7 +720,17 @@ def toggle_publish_request(request: HttpRequest, object_id: str):
     Returns:
          A rendered view
     """
-    pub_request = get_object_or_404(PublishRequest, id=object_id)
+    try:
+        pub_request = PublishRequest.objects.get(id=object_id)
+        now = timezone.now()
+        if pub_request.activation_until <= now:
+            messages.error(request, REQUEST_ACTIVATION_TIMEOVER)
+            pub_request.delete()
+            return redirect("home")
+    except ObjectDoesNotExist:
+        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+        return redirect("home")
+
     form = PublishRequestConfirmForm(
         data=request.POST or None,
         request=request,

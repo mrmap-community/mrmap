@@ -524,6 +524,7 @@ class GroupInvitationConfirmForm(MrMapForm):
         label=_("Sender's message"),
         widget=forms.Textarea(),
         disabled=True,
+        required=False,
     )
     accept = forms.ChoiceField(
         widget=forms.RadioSelect(
@@ -577,6 +578,7 @@ class PublishRequestConfirmForm(MrMapForm):
         label=_("Sender's message"),
         widget=forms.Textarea(),
         disabled=True,
+        required=False,
     )
     accept = forms.ChoiceField(
         widget=forms.RadioSelect(
@@ -595,17 +597,6 @@ class PublishRequestConfirmForm(MrMapForm):
         self.publish_request = None if "publish_request" not in kwargs else kwargs.pop("publish_request")
         super().__init__(*args, **kwargs)
         self.fields["msg"].initial = self.publish_request.message
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        now = timezone.now()
-
-        if self.publish_request.activation_until <= now:
-            self.add_error(None, REQUEST_ACTIVATION_TIMEOVER)
-            self.publish_request.delete()
-
-        return cleaned_data
 
     def process_publish_request(self):
         accepted = utils.resolve_boolean_attribute_val(self.cleaned_data.get("accept", False))

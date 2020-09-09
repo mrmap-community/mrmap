@@ -3,7 +3,8 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 
-from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
+from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER, NO_PERMISSION, PUBLISH_PERMISSION_REMOVED, \
+    PUBLISH_REQUEST_ACCEPTED
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME
 from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PendingTask, MrMapGroup, Role, Permission, PublishRequest
@@ -148,8 +149,6 @@ class StructureDetailOrganizationViewTestCase(TestCase):
         self.assertIsInstance(response.context['organization'], Organization)
 
         self.assertIsInstance(response.context['all_publisher_table'], PublisherTable)
-        self.assertIsInstance(response.context['pub_requests_table'], PublisherRequestTable)
-        self.assertEqual(len(response.context['pub_requests_table'].rows), 10)
 
 
 class StructureEditOrganizationViewTestCase(TestCase):
@@ -591,6 +590,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
         self.pending_request = create_publish_request(
             group=self.groups[0],
             orga=self.user.organization,
+            message="Test",
             how_much_requests=10
         )
 
@@ -606,49 +606,49 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
 
     def test_permission_accept_publish_request(self):
         response = self.client.get(
-            reverse('structure:accept-publish-request',
-                    args=(PublishRequest.objects.first().id,)),
-            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+            reverse('structure:toggle-publish-request',
+                    args=(PublishRequest.objects.first().id,))
         )
-
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
-        self.assertIn('You do not have permissions for this!', messages)
+        self.assertIn(NO_PERMISSION, messages)
 
     def test_valid_accept_publish_request(self):
         perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value)[0]
-        self.user.get_groups()[0].role.permissions.add(perm)
+        group = self.user.get_groups()[0]
+        group.role.permissions.add(perm)
 
-        post_params = {'is_accepted': True, }
+        post_params = {'accept': 'True', }
+        pub_request = PublishRequest.objects.first()
 
         response = self.client.post(
-            reverse('structure:accept-publish-request',
-                    args=(PublishRequest.objects.first().id,)),
-            post_params=post_params,
-            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+            reverse('structure:toggle-publish-request',
+                    args=(pub_request.id,)),
+            data=post_params,
         )
 
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn(PUBLISH_REQUEST_ACCEPTED.format(group.name), messages)
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.user.organization.id,)))
+        # Assert a redirect back to the dashboard, where the request can be handled
+        self.assertEqual(response.url, reverse('home'))
 
     def test_invalid_accept_publish_request(self):
         perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value)[0]
         self.user.get_groups()[0].role.permissions.add(perm)
 
-        post_params = {'is_accepted': True, }
+        post_params = {'accept': "True", }
 
-        pending_task = PublishRequest.objects.first()
-        pending_task.activation_until = timezone.now() - timezone.timedelta(days=1)
-        pending_task.save()
+        public_request = PublishRequest.objects.first()
+        public_request.activation_until = timezone.now() - timezone.timedelta(days=1)
+        public_request.save()
 
         response = self.client.post(
-            reverse('structure:accept-publish-request',
-                    args=(pending_task.id,)),
-            post_params=post_params,
-            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+            reverse('structure:toggle-publish-request',
+                    args=(public_request.id,)),
+            data=post_params,
         )
 
-        self.assertEqual(response.status_code, 422)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn(REQUEST_ACTIVATION_TIMEOVER, messages)
 
@@ -689,19 +689,20 @@ class StructureRemovePublishRequestViewTestCase(TestCase):
 
     def test_valid_remove_publish_request(self):
         perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_REMOVE_PUBLISHER.value)[0]
-        self.user.get_groups()[0].role.permissions.add(perm)
+        group = self.user.get_groups()[0]
+        group.role.permissions.add(perm)
 
-        post_params = {'is_accepted': True, }
+        post_params = {'is_confirmed': 'on', }
 
         response = self.client.post(
             reverse('structure:remove-publisher',
-                    args=(self.user.organization.id, self.user.get_groups()[0].id,)),
-            post_params=post_params,
-            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+                    args=(self.user.organization.id, group.id,)),
+            data=post_params,
         )
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.user.organization.id,)))
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn(PUBLISH_PERMISSION_REMOVED.format(group.name, self.user.organization.organization_name), messages)
 
 
 class StructurePublishRequestViewTestCase(TestCase):

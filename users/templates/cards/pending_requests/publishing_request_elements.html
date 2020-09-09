@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block card-body %}
-<a href="{% url 'structure:detail-organization' user.organization.id %}" title="{% trans 'A group wants to publish for your organization.' %}">
+<a href="{% url 'structure:toggle-publish-request' request.id %}" title="{% trans 'A group wants to publish for your organization.' %}">
     <h5 class="mb-1 mr-3">
         <strong>{% trans 'Publishing by' %} {{ request.group }}</strong>
     </h5>

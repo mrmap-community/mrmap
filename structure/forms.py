@@ -12,7 +12,8 @@ from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
     ORGANIZATION_SUCCESSFULLY_EDITED, PUBLISH_REQUEST_SENT, GROUP_SUCCESSFULLY_CREATED, GROUP_SUCCESSFULLY_DELETED, \
-    GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_EXISTS, GROUP_INVITATION_CREATED
+    GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_EXISTS, GROUP_INVITATION_CREATED, PUBLISH_REQUEST_ACCEPTED, \
+    PUBLISH_REQUEST_DENIED, PUBLISH_PERMISSION_REMOVED
 from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization, Role, MrMapUser, PublishRequest, GroupInvitationRequest
@@ -20,6 +21,7 @@ from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, GROUP_INV
 from django.contrib import messages
 
 from users.helper import user_helper
+from users.helper.user_helper import create_group_activity
 
 
 class LoginForm(forms.Form):
@@ -413,33 +415,13 @@ class RegistrationForm(forms.Form):
         return cleaned_data
 
 
-class AcceptDenyPublishRequestForm(forms.Form):
-    is_accepted = forms.BooleanField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        self.pub_request = None if 'pub_request' not in kwargs else kwargs.pop('pub_request')
-        super(AcceptDenyPublishRequestForm, self).__init__(*args, **kwargs)
-
-    def clean(self):
-        cleaned_data = super(AcceptDenyPublishRequestForm, self).clean()
-
-        now = timezone.now()
-
-        if self.pub_request.activation_until <= now:
-            self.add_error(None, REQUEST_ACTIVATION_TIMEOVER)
-            self.pub_request.delete()
-
-        return cleaned_data
-
-
-class RemovePublisher(forms.Form):
-    is_accepted = forms.BooleanField(required=False)
+class RemovePublisherForm(MrMapConfirmForm):
 
     def __init__(self, *args, **kwargs):
         self.user = None if 'user' not in kwargs else kwargs.pop('user')
         self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
         self.group = None if 'group' not in kwargs else kwargs.pop('group')
-        super(RemovePublisher, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean(self):
         """
@@ -456,6 +438,16 @@ class RemovePublisher(forms.Form):
         user_is_org_member = self.user.organization == org
         if not user_is_publisher and not user_is_org_member:
             raise ValidationError
+
+    def process_remove_publisher(self):
+        self.group.publish_for_organizations.remove(self.organization)
+        create_group_activity(
+            group=self.group,
+            user=self.user,
+            msg=_("Publisher changed"),
+            metadata_title=_("Group '{}' has been removed as publisher for '{}'.").format(self.group, self.organization),
+        )
+        messages.success(self.request, message=PUBLISH_PERMISSION_REMOVED.format(self.group.name, self.organization.organization_name))
 
 
 class GroupInvitationForm(MrMapForm):
@@ -551,6 +543,17 @@ class GroupInvitationConfirmForm(MrMapForm):
         super().__init__(*args, **kwargs)
         self.fields["msg"].initial = self.invitation_request.message
 
+    def clean(self):
+        cleaned_data = super().clean()
+
+        now = timezone.now()
+
+        if self.invitation_request.activation_until <= now:
+            self.add_error(None, REQUEST_ACTIVATION_TIMEOVER)
+            self.invitation_request.delete()
+
+        return cleaned_data
+
     def process_invitation_group(self):
         accepted = utils.resolve_boolean_attribute_val(self.cleaned_data.get("accept", False))
         group = self.invitation_request.to_group
@@ -570,6 +573,11 @@ class GroupInvitationConfirmForm(MrMapForm):
 
 
 class PublishRequestConfirmForm(MrMapForm):
+    msg = forms.CharField(
+        label=_("Sender's message"),
+        widget=forms.Textarea(),
+        disabled=True,
+    )
     accept = forms.ChoiceField(
         widget=forms.RadioSelect(
             attrs={
@@ -584,29 +592,50 @@ class PublishRequestConfirmForm(MrMapForm):
     )
 
     def __init__(self, *args, **kwargs):
-        self.publish_request = None if "request" not in kwargs else kwargs.pop("request")
+        self.publish_request = None if "publish_request" not in kwargs else kwargs.pop("publish_request")
         super().__init__(*args, **kwargs)
+        self.fields["msg"].initial = self.publish_request.message
 
-        self.fields["accept"].help_text = _("{} wants to publish for {}.").format(
-            self.publish_request.group,
-            self.publish_request.organization
-        )
+    def clean(self):
+        cleaned_data = super().clean()
 
-    def process_invitation_group(self):
+        now = timezone.now()
+
+        if self.publish_request.activation_until <= now:
+            self.add_error(None, REQUEST_ACTIVATION_TIMEOVER)
+            self.publish_request.delete()
+
+        return cleaned_data
+
+    def process_publish_request(self):
         accepted = utils.resolve_boolean_attribute_val(self.cleaned_data.get("accept", False))
-        group = self.invitation_request.to_group
-        user = self.invitation_request.invited_user
+
+        group = self.publish_request.group
         if accepted:
-            group.user_set.add(user)
-            messages.success(
-                self.request,
-                _("You are now member of {}").format(group.name),
+            # add organization to group_publisher
+            group.publish_for_organizations.add(self.publish_request.organization)
+            create_group_activity(
+                group=group,
+                user=self.requesting_user,
+                msg=_("Publisher changed"),
+                metadata_title=_("Group '{}' has been accepted as publisher for '{}'".format(
+                    group,
+                    self.publish_request.organization)
+                ),
             )
+            messages.success(self.request, PUBLISH_REQUEST_ACCEPTED.format(group.name))
         else:
-            messages.info(
-                self.request,
-                _("You declined the invitation to {}").format(group.name),
+
+            create_group_activity(
+                group=self.pub_request.group,
+                user=self.requesting_user,
+                msg=_("Publisher changed"),
+                metadata_title=_("Group '{}' has been rejected as publisher for '{}'".format(
+                    group,
+                    self.publish_request.organization)
+                ),
             )
-        self.invitation_request.delete()
+            messages.info(self.request, PUBLISH_REQUEST_DENIED.format(group.name))
+        self.publish_request.delete()
 
 

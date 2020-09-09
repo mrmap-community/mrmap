@@ -2,9 +2,5 @@
 {% load django_tables2 %}
 
 {% if user in members %}
-    {% if pub_requests|length > 0 %}
-        <h3>{% trans 'Publisher Requests' %}</h3>
-        {% render_table pub_requests_table %}
-    {% endif %}
     {% render_table all_publisher_table %}
 {% endif %}

@@ -3,12 +3,7 @@
 
 {% block accordion-button-title %}
     <i class="fa" aria-hidden="true"></i>
-    {% trans 'Publishers and requests' %}
-    {% if pub_requests|length > 0 %}
-    <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">
-                {{ pub_requests|length }} {% trans 'new' %}
-            </span>
-    {% endif %}
+    {% trans 'Publishers' %}
 {% endblock %}
 
 {% block accordion-body %}

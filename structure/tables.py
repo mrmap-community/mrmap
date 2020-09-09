@@ -16,16 +16,19 @@ class PublisherTable(MrMapTable):
         row_attrs = {
             "class": "text-center"
         }
-    publisher_group = tables.Column(accessor='name', verbose_name=_('Group'))
-    publisher_org = tables.Column(accessor='organization', verbose_name=_('Group organization'))
-    publisher_action = tables.TemplateColumn(
-        template_name="includes/detail/publisher_requests_accept_reject.html",
-        verbose_name=_('Action'),
+    publisher_group = MrMapColumn(accessor='name', verbose_name=_('Group'))
+    publisher_org = MrMapColumn(accessor='organization', verbose_name=_('Group organization'))
+    publisher_action = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
         orderable=False,
-        extra_context={
-            "remove_publisher": True,
-        }
+        attrs={"td": {"style": "white-space:nowrap;"}}
     )
+
+    def __init__(self, *args, **kwargs):
+        self.organization = None if "organization" not in kwargs else kwargs.pop("organization")
+        super().__init__(*args, **kwargs)
 
     def render_publisher_group(self, value, record):
         """ Renders publisher_group as link to detail view of group
@@ -50,6 +53,18 @@ class PublisherTable(MrMapTable):
         """
         url = reverse('structure:detail-organization', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_publisher_action(self, record):
+        btns = ''
+        btns += format_html(self.get_btn(
+            href=reverse('structure:remove-publisher', args=(self.organization.id, record.id,)) + f"?current-view={self.current_view}&current-view-arg={self.organization.id}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+            tooltip=format_html(_("Remove <strong>{}</strong> as publisher").format(record.name), ),
+            tooltip_placement='left',
+            permission=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS,
+        ))
+        return format_html(btns)
 
 
 class PublishesForTable(MrMapTable):
@@ -240,7 +255,7 @@ class OrganizationTable(MrMapTable):
                              href=url,
                              value=f"{icon} {value}",
                              permission=None,
-                             open_in_new_tab=True, )
+                             open_in_new_tab=False, )
 
     @staticmethod
     def render_orgs_is_auto_generated(value):

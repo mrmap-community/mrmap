@@ -1,26 +1,29 @@
 import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, PUBLISH_PERMISSION_REMOVED, \
-    SERVICE_REGISTRATION_ABORTED
+from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER
 from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
-from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
-    RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
-from structure.models import MrMapGroup, Organization, PendingRequest, PendingTask, ErrorReport
+    RemoveOrganizationForm, RemovePublisherForm, GroupInvitationForm, \
+    GroupInvitationConfirmForm, LeaveGroupForm, PublishRequestConfirmForm
+from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
-from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
+from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable
 from django.urls import reverse
+
+from users.filters import MrMapUserFilter
 from users.helper import user_helper
-from users.helper.user_helper import create_group_activity
 from django.utils import timezone
+
+from users.tables import MrMapUserTable
 
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, current_view: str):
@@ -53,6 +56,34 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str
     return {"organizations": all_orgs_table, }
 
 
+def _prepare_users_table(request: HttpRequest, current_view: str, group: MrMapGroup = None):
+    """ Prepares user table.
+
+    By default the user table is empty to prevent the reveal of all registered users. Users can only be shown if
+    the Search field is used.
+
+    Args:
+        request (HttpRequest):
+        user (MrMapUser):
+        current_view (str):
+    Returns:
+         dict
+    """
+    all_users = MrMapUser.objects.none() if group is None else group.user_set.all()
+
+    all_users_table = MrMapUserTable(
+        request=request,
+        queryset=all_users,
+        order_by_field='us',
+        filter_set_class=MrMapUserFilter,
+        current_view=current_view,
+        param_lead='users-t',
+        group=group,
+    )
+
+    return {"users": all_users_table, }
+
+
 @login_required
 def index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all groups and organizations
@@ -69,6 +100,7 @@ def index(request: HttpRequest, update_params=None, status_code=None):
     }
     params.update(_prepare_group_table(request=request, user=user, current_view='structure:index'))
     params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:index'))
+    params.update(_prepare_users_table(request=request, group=None, current_view='structure:index'))
 
     if update_params:
         params.update(update_params)
@@ -156,17 +188,12 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
     sub_orgs = Organization.objects.filter(parent=org)
     template = "views/organizations_detail_no_base.html" if 'no-base' in request.GET else "views/organizations_detail.html"
 
-    # list publishers and requests
-    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=object_id)
-    pub_requests_table = PublisherRequestTable(
-        data=pub_requests,
-        request=request,
-    )
-
     all_publishing_groups = MrMapGroup.objects.filter(publish_for_organizations__id=object_id)
     publisher_table = PublisherTable(
         data=all_publishing_groups,
         request=request,
+        organization=org,
+        current_view="structure:detail-organization",
     )
 
     suborganizations = Organization.objects.filter(parent=org)
@@ -176,8 +203,6 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
         "suborganizations": suborganizations,
         "members": members,
         "sub_organizations": sub_orgs,  # ToDo: nicht in template
-        "pub_requests": pub_requests,
-        "pub_requests_table": pub_requests_table,
         "all_publisher_table": publisher_table,
         'caption': _("Shows informations about the organization."),
         "current_view": "structure:detail-organization",
@@ -209,7 +234,6 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
     user = user_helper.get_user(request)
 
     group = get_object_or_404(MrMapGroup, id=object_id)
-    members = group.user_set.all()
     template = "views/groups_detail_no_base.html" if 'no-base' in request.GET else "views/groups_detail.html"
 
     publisher_for = group.publish_for_organizations.all()
@@ -236,12 +260,14 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
         "subgroups": subgroups,
         "inherited_permission": inherited_permission,
         "group_permissions": user.get_permissions(group),
-        "members": members,
         "show_registering_for": True,
         "all_publisher_table": all_publisher_table,
         "caption": _("Shows informations about the group."),
         "current_view": "structure:detail-group",
     }
+    params.update(
+        _prepare_users_table(request=request, group=group, current_view='structure:detail-group')
+    )
 
     if update_params:
         params.update(update_params)
@@ -371,61 +397,6 @@ def new_org(request: HttpRequest):
 
 @login_required
 @check_permission(
-    PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS
-)
-def accept_publish_request(request: HttpRequest, request_id: int):
-    """ Activate or decline the publishing request.
-
-    If the request is too old, the publishing will not be accepted.
-
-    Args:
-        request (HttpRequest): The incoming request
-        request_id (int): The group id
-    Returns:
-         A View
-    """
-    user = user_helper.get_user(request)
-    # activate or remove publish request/ publisher
-    pub_request = get_object_or_404(PendingRequest, type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
-    form = AcceptDenyPublishRequestForm(request.POST, pub_request=pub_request)
-    if request.method == "POST":
-        if form.is_valid():
-            if form.cleaned_data['is_accepted']:
-                # add organization to group_publisher
-                pub_request.group.publish_for_organizations.add(pub_request.organization)
-                create_group_activity(
-                    group=pub_request.group,
-                    user=user,
-                    msg=_("Publisher changed"),
-                    metadata_title=_("Group '{}' has been accepted as publisher for '{}'".format(pub_request.group,
-                                                                                                 pub_request.organization)),
-                )
-                messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
-            else:
-                create_group_activity(
-                    group=pub_request.group,
-                    user=user,
-                    msg=_("Publisher changed"),
-                    metadata_title=_("Group '{}' has been rejected as publisher for '{}'".format(pub_request.group,
-                                                                                                 pub_request.organization)),
-                )
-                messages.info(request, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
-            pub_request.delete()
-            return HttpResponseRedirect(reverse("structure:detail-organization",
-                                                args=(pub_request.organization.id,)),
-                                        status=303)
-        else:
-            for error in form.non_field_errors():
-                messages.error(request, error)
-            return detail_organizations(request=request, object_id=pub_request.organization.id, status_code=422)
-    else:
-        return HttpResponseRedirect(reverse("structure:detail-organization",
-                                            args=(pub_request.organization.id,)),
-                                    status=303)
-
-
-@login_required
-@check_permission(
     PermissionEnum.CAN_REMOVE_PUBLISHER
 )
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
@@ -441,28 +412,21 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     user = user_helper.get_user(request)
     org = get_object_or_404(Organization, id=org_id)
     group = get_object_or_404(MrMapGroup, id=group_id, publish_for_organizations=org)
-    if request.method == "POST":
-        form = RemovePublisher(request.POST, user=user, organization=org, group=group)
-        if form.is_valid():
-            group.publish_for_organizations.remove(org)
-            create_group_activity(
-                group=group,
-                user=user,
-                msg=_("Publisher changed"),
-                metadata_title=_("Group '{}' has been removed as publisher for '{}'.").format(group, org),
-            )
-            messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
-            return HttpResponseRedirect(reverse("structure:detail-organization",
-                                                args=(org.id,)),
-                                        status=303)
-        else:
-            for error in form.non_field_errors():
-                messages.error(request, error)
-            return detail_organizations(request=request, org_id=org.id, status_code=422)
-    else:
-        return HttpResponseRedirect(reverse("structure:detail-organization",
-                                            args=(org.id,)),
-                                    status=303)
+
+    form = RemovePublisherForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:remove-publisher',
+        reverse_args=[org_id, group_id],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        is_confirmed_label=_("Do you really want to remove this publisher?"),
+        form_title=_("Remove publisher <strong>{}</strong>").format(group.name),
+        organization=org,
+        user=user,
+        group=group,
+    )
+    return form.process_request(valid_func=form.process_remove_publisher)
 
 
 @login_required
@@ -540,6 +504,38 @@ def list_publisher_group(request: HttpRequest, group_id: int):
 
 @login_required
 @check_permission(
+    PermissionEnum.CAN_REMOVE_USER_FROM_GROUP
+)
+@check_ownership(MrMapGroup, 'object_id')
+def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
+    """ Removes a user from a group
+
+    Args:
+        request: The incoming request
+        object_id: The group id
+        user_id: The user id
+    Returns:
+         A redirect
+    """
+    group = get_object_or_404(MrMapGroup, id=object_id)
+    user = get_object_or_404(MrMapUser, id=user_id)
+
+    if group.created_by == user:
+        messages.error(
+            request,
+            _("The group creator can not be removed!")
+        )
+    else:
+        group.user_set.remove(user)
+        messages.success(
+            request,
+            _("{} removed from {}").format(user.username, group.name)
+        )
+    return redirect("structure:detail-group", object_id)
+
+
+@login_required
+@check_permission(
     PermissionEnum.CAN_DELETE_GROUP
 )
 @check_ownership(MrMapGroup, 'object_id')
@@ -599,6 +595,31 @@ def edit_group(request: HttpRequest, object_id: int):
     return form.process_request(valid_func=form.process_edit_group)
 
 
+@login_required
+def leave_group(request: HttpRequest, object_id: str):
+    """ Removes a user from a group
+
+    Args:
+        request: The incoming request
+        object_id: The id of the group
+    Returns:
+         A redirect
+    """
+    group = get_object_or_404(MrMapGroup, id=object_id)
+    form = LeaveGroupForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:leave-group',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        is_confirmed_label=_("Do you really want to leave this group?"),
+        form_title=_("Leave group <strong>{}</strong>").format(group),
+        instance=group,
+    )
+    return form.process_request(valid_func=form.process_leave_group)
+
+
 def handler404(request: HttpRequest, exception=None):
     """ Handles a general 404 (Page not found) error and renders a custom response page
 
@@ -633,3 +654,125 @@ def handler500(request: HttpRequest, exception=None):
     response = render(request=request, template_name="500.html", context=context.get_context())
     response.status_code = 500
     return response
+
+
+def users_index(request: HttpRequest, update_params=None, status_code=None):
+    """ Renders an overview of all organizations
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code:
+    Returns:
+         A view
+    """
+    template = "views/users_index.html"
+    user = user_helper.get_user(request)
+
+    params = {
+        "current_view": "structure:users-index",
+    }
+    params.update(_prepare_users_table(request=request, group=None, current_view='structure:users-index'))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
+
+
+@login_required
+@check_permission(
+    PermissionEnum.CAN_ADD_USER_TO_GROUP
+)
+def user_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
+    """ Renders and process a form for user-group invitation
+
+    Args:
+        request (HttpRequest): The incoming request
+        object_id (HttpRequest): The user id for the invited user
+    Returns:
+         A rendered view
+    """
+    invited_user = get_object_or_404(MrMapUser, id=object_id)
+    form = GroupInvitationForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:invite-user-to-group',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("Invite <strong>{}</strong> to a group.".format(invited_user)),
+        invited_user=invited_user,
+    )
+    return form.process_request(valid_func=form.process_invitation_group)
+
+
+@login_required
+def toggle_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
+    """ Renders and processes a form to accepting/declining an invitation
+
+    Args:
+        request (HttpRequest): The incoming request
+        object_id (HttpRequest): The user id for the invited user
+    Returns:
+         A rendered view
+    """
+    invitation = get_object_or_404(GroupInvitationRequest, id=object_id)
+    form = GroupInvitationConfirmForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:toggle-user-to-group',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("{} invites you to group {}.").format(
+            invitation.created_by,
+            invitation.to_group
+        ),
+        invitation=invitation,
+    )
+    return form.process_request(valid_func=form.process_invitation_group)
+
+
+@login_required
+@check_permission(
+    PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS
+)
+def toggle_publish_request(request: HttpRequest, object_id: str, update_params=None, status_code=None):
+    """ Renders and processes a form to accepting/declining an invitation
+
+    Args:
+        request (HttpRequest): The incoming request
+        object_id (HttpRequest): The user id for the invited user
+    Returns:
+         A rendered view
+    """
+    try:
+        pub_request = PublishRequest.objects.get(id=object_id)
+        now = timezone.now()
+        if pub_request.activation_until <= now:
+            messages.error(request, REQUEST_ACTIVATION_TIMEOVER)
+            pub_request.delete()
+            return redirect("home")
+    except ObjectDoesNotExist:
+        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+        return redirect("home")
+
+    form = PublishRequestConfirmForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:toggle-publish-request',
+        reverse_args=[object_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("{} wants to publish for {}.").format(
+            pub_request.group,
+            pub_request.organization
+        ),
+        publish_request=pub_request,
+    )
+    return form.process_request(valid_func=form.process_publish_request)

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-07 11:59+0200\n"
+"POT-Creation-Date: 2020-09-04 12:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,15 +19,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/forms.py:21 MrMap/forms.py:98 MrMap/forms.py:131
+#: MrMap/forms.py:22 MrMap/forms.py:99 MrMap/forms.py:132
 msgid "Form"
 msgstr ""
 
-#: MrMap/forms.py:162
+#: MrMap/forms.py:163
 msgid "form update"
 msgstr "Formular aktualisieren"
 
-#: MrMap/forms.py:214
+#: MrMap/forms.py:215
 msgid "Check this field"
 msgstr "Feld prüfen"
 
@@ -328,7 +328,7 @@ msgstr "Gruppe '{}' erfolgreich gelöscht."
 msgid "Group '{}' successfully edited."
 msgstr "Gruppe '{}' erfolgreich bearbeitet."
 
-#: MrMap/messages.py:88 structure/forms.py:281
+#: MrMap/messages.py:88 structure/forms.py:280
 msgid "Group {} successfully created."
 msgstr "Gruppe '{}' erfolgreich erstellt."
 
@@ -516,6 +516,14 @@ msgstr "'{}' abonniert."
 msgid "'{}' already subscribed."
 msgstr "'{}' bereits abonniert."
 
+#: MrMap/messages.py:134
+msgid "{} has been invited to {}!"
+msgstr ""
+
+#: MrMap/messages.py:135
+msgid "An invitation already exists. {} can respond until {}!"
+msgstr ""
+
 #: MrMap/sub_settings/django_settings.py:173 service/settings.py:29
 msgid "English"
 msgstr "Englisch"
@@ -576,8 +584,8 @@ msgstr "Die URI ist ungültig, da kein 'service' Parameter enthalten ist."
 msgid "Wizard"
 msgstr ""
 
-#: api/templates/includes/api_links.html:5 templates/includes/navbar.html:47
-#: templates/includes/navbar.html:48
+#: api/templates/includes/api_links.html:5 templates/includes/navbar.html:50
+#: templates/includes/navbar.html:51
 msgid "API"
 msgstr "API"
 
@@ -656,7 +664,7 @@ msgstr "Harveste <strong>{metadata}</strong>"
 
 #: editor/filters.py:11 service/filters.py:37 service/filters.py:69
 #: service/filters.py:87 service/filters.py:200 structure/filters.py:11
-#: structure/filters.py:27
+#: structure/filters.py:27 users/filters.py:19
 msgid "Search"
 msgstr "Suche"
 
@@ -792,7 +800,7 @@ msgstr "Infos zur Historie"
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:23
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:54
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:46
-#: structure/forms.py:112 structure/tables.py:60 structure/tables.py:137
+#: structure/forms.py:112 structure/tables.py:61 structure/tables.py:138
 #: structure/templates/includes/detail/groups_table.html:5
 msgid "Organization"
 msgstr "Organisation"
@@ -887,23 +895,23 @@ msgstr "Zugriff räumlich beschränkt oder nicht"
 
 #: editor/tables.py:39 service/tables.py:247 service/tables.py:408
 #: service/tables.py:497 service/tables.py:572 service/tables.py:771
-#: structure/tables.py:140 structure/tables.py:215 users/tables.py:48
+#: structure/tables.py:141 structure/tables.py:215 users/tables.py:48
 msgid "Actions"
 msgstr "Aktionen"
 
-#: editor/tables.py:42 structure/tables.py:141 structure/tables.py:216
+#: editor/tables.py:42 structure/tables.py:142 structure/tables.py:216
 msgid "Actions you can perform"
 msgstr "Ausführbare Aktionen"
 
-#: editor/tables.py:56 structure/tables.py:153
+#: editor/tables.py:56 structure/tables.py:154
 msgid "Click to open the detail view of <strong>{}</strong>"
 msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
-#: editor/tables.py:59 structure/tables.py:156
+#: editor/tables.py:59 structure/tables.py:157
 msgid "This is the anonymous public user group."
 msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
 
-#: editor/tables.py:69 service/tables.py:342 structure/tables.py:226
+#: editor/tables.py:69 service/tables.py:342 structure/tables.py:250
 msgid "Click to open the detail view of <strong>{}</strong>."
 msgstr "Öffnet Detailansicht für <strong>{}</strong>."
 
@@ -1238,6 +1246,7 @@ msgid "Filter by the ID of the metadata (#123 in service title)."
 msgstr "Filter nach der ID des Metadatensatzes (#123 im Diensttitel)."
 
 #: service/filters.py:129 service/tables.py:704 service/tables.py:733
+#: structure/forms.py:455
 msgid "User"
 msgstr "Nutzer"
 
@@ -1314,11 +1323,11 @@ msgstr "Keine"
 msgid "Service needs authentication"
 msgstr "Dienst benötigt Authentifizierung"
 
-#: service/forms.py:68 structure/forms.py:22 structure/forms.py:336
+#: service/forms.py:68 structure/forms.py:22 structure/forms.py:335
 msgid "Username"
 msgstr "Nutzername"
 
-#: service/forms.py:69 structure/forms.py:23 structure/forms.py:343
+#: service/forms.py:69 structure/forms.py:23 structure/forms.py:342
 msgid "Password"
 msgstr "Passwort"
 
@@ -1373,7 +1382,7 @@ msgstr "Aktivieren"
 msgid "Update"
 msgstr "Aktualisieren"
 
-#: service/tables.py:46 users/tables.py:109
+#: service/tables.py:46 users/tables.py:110
 msgid "Run health check"
 msgstr ""
 
@@ -1485,7 +1494,7 @@ msgstr ""
 msgid "Status"
 msgstr "Status"
 
-#: service/tables.py:211 service/tables.py:378 users/tables.py:42
+#: service/tables.py:211 service/tables.py:378 users/tables.py:43
 msgid "Health"
 msgstr ""
 
@@ -1831,19 +1840,19 @@ msgid "Responsible Person"
 msgstr "Ansprechpartner"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:69
-#: structure/forms.py:205 structure/forms.py:364
+#: structure/forms.py:204 structure/forms.py:363
 #: structure/templates/includes/detail/organizations_table.html:13
 msgid "Phone"
 msgstr "Telefon"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:73
-#: structure/forms.py:204 structure/forms.py:365
+#: structure/forms.py:203 structure/forms.py:364
 #: structure/templates/includes/detail/organizations_table.html:17
 msgid "Facsimile"
 msgstr "Fax"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:77
-#: structure/forms.py:206
+#: structure/forms.py:205
 #: structure/templates/includes/detail/organizations_table.html:9
 #: users/forms.py:29
 msgid "E-Mail"
@@ -1852,13 +1861,13 @@ msgstr "E-Mail"
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:81
 #: service/templates/metadata/tabs/content/contact_tab.html:26
 #: service/templates/metadata/tabs/content/dataset/contact_tab.html:21
-#: structure/forms.py:209 structure/forms.py:361
+#: structure/forms.py:208 structure/forms.py:360
 #: structure/templates/includes/detail/organizations_table.html:21
 msgid "Address"
 msgstr "Adresse"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:85
-#: structure/forms.py:207 structure/forms.py:363
+#: structure/forms.py:206 structure/forms.py:362
 #: structure/templates/includes/detail/organizations_table.html:29
 msgid "City"
 msgstr "Stadt"
@@ -1868,19 +1877,19 @@ msgid "Post code"
 msgstr "Postleitzahl"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:93
-#: structure/forms.py:210
+#: structure/forms.py:209
 #: structure/templates/includes/detail/organizations_table.html:33
 msgid "State or province"
 msgstr "Bundesland"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:97
-#: structure/forms.py:211
+#: structure/forms.py:210
 #: structure/templates/includes/detail/organizations_table.html:37
 msgid "Country"
 msgstr "Land"
 
 #: service/templates/includes/index/csw.html:8
-#: templates/includes/navbar.html:42
+#: templates/includes/navbar.html:45
 msgid "CSW"
 msgstr "CSW"
 
@@ -1893,7 +1902,7 @@ msgid "Add New Dataset"
 msgstr "Neuer Datensatz"
 
 #: service/templates/includes/index/logs.html:8
-#: templates/includes/navbar.html:52 templates/includes/navbar.html:53
+#: templates/includes/navbar.html:55 templates/includes/navbar.html:56
 msgid "Logs"
 msgstr "Protokolle"
 
@@ -1910,7 +1919,7 @@ msgid "CSV"
 msgstr "CSV"
 
 #: service/templates/includes/index/wfs.html:10
-#: templates/includes/navbar.html:41
+#: templates/includes/navbar.html:44
 #: users/templates/cards/my_services/wfs.html:9
 msgid "WFS"
 msgstr "WFS"
@@ -1921,7 +1930,7 @@ msgid "New resource"
 msgstr "Neue Ressource"
 
 #: service/templates/includes/index/wms.html:8
-#: templates/includes/navbar.html:40
+#: templates/includes/navbar.html:43
 #: users/templates/cards/my_services/wms.html:9
 msgid "WMS"
 msgstr "WMS"
@@ -2020,7 +2029,7 @@ msgstr "Weiter"
 #: templates/sceletons/modal-wizard-form.html:71
 #: templates/skeletons/modal_form.html:28
 msgid "Dismiss"
-msgstr "Verwerfen"
+msgstr "Abbrechen"
 
 #: service/templates/includes/update/service_update_confirmation.html:179
 msgid ""
@@ -2044,7 +2053,7 @@ msgstr ""
 "Diese Elemente existieren nach wie vor im Dienst und werden aktualisiert."
 
 #: service/templates/includes/wfs/element_accordion.html:10
-#: structure/tables.py:129 structure/tables.py:200
+#: structure/tables.py:130 structure/tables.py:200
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:375
 msgid "Name"
 msgstr "Name"
@@ -2179,7 +2188,7 @@ msgid "Responsible organization for service for "
 msgstr "Verantwortlich für Dienst von"
 
 #: service/templates/metadata/tabs/content/contact_tab.html:53
-#: structure/forms.py:172
+#: structure/forms.py:171
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
@@ -2616,101 +2625,109 @@ msgstr "URL"
 msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
-#: structure/forms.py:29 structure/forms.py:169 structure/forms.py:202
-#: structure/tables.py:133 structure/tables.py:204
+#: structure/forms.py:29 structure/forms.py:168 structure/forms.py:201
+#: structure/tables.py:134 structure/tables.py:204
 #: structure/templates/includes/detail/groups_table.html:9
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
 msgid "Description"
 msgstr "Beschreibung"
 
-#: structure/forms.py:33
+#: structure/forms.py:39
 msgid "Parent group"
 msgstr "Untergruppe von"
 
-#: structure/forms.py:114
+#: structure/forms.py:120
 msgid "The organization you are requesting"
 msgstr "Die angefragte Organisation"
 
-#: structure/forms.py:118 structure/tables.py:19 structure/tables.py:89
+#: structure/forms.py:118 structure/tables.py:20 structure/tables.py:90
 msgid "Group"
 msgstr "Gruppen"
 
-#: structure/forms.py:119
+#: structure/forms.py:125
 msgid "Select your group for which you want to request publisher rights"
 msgstr ""
 "Wählen Sie eine Ihrer Gruppen, für welche Sie Veröffentlichungsrechte "
 "anfordern wollen"
 
-#: structure/forms.py:124 structure/tables.py:91
+#: structure/forms.py:124 structure/tables.py:92
 msgid "Message"
 msgstr "Nachricht"
 
-#: structure/forms.py:176
+#: structure/forms.py:175
 msgid "Create group"
 msgstr "Erstelle mit Gruppe"
 
-#: structure/forms.py:177
+#: structure/forms.py:176
 msgid ""
 "If set, a group will be automatically created for this organization. Groups "
 "are needed for e.g. registration of services."
 msgstr ""
 
-#: structure/forms.py:201
+#: structure/forms.py:200
 msgid "Organization name"
 msgstr "Organisationsname"
 
-#: structure/forms.py:203 structure/tables.py:212
+#: structure/forms.py:202 structure/tables.py:212
 #: structure/templates/includes/detail/groups_table.html:21
 #: structure/templates/includes/detail/organizations_table.html:41
 msgid "Parent"
 msgstr "Gehört zu"
 
-#: structure/forms.py:208 structure/forms.py:362
+#: structure/forms.py:207 structure/forms.py:361
 #: structure/templates/includes/detail/organizations_table.html:25
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: structure/forms.py:270
+#: structure/forms.py:269
 msgid "Organization {} successfully created."
 msgstr "Organisation {} erstellt."
 
-#: structure/forms.py:275
+#: structure/forms.py:274
 msgid "{} group"
 msgstr "{} Gruppe"
 
-#: structure/forms.py:321
+#: structure/forms.py:323
+msgid "You can't leave this group."
+msgstr "Sie können diese Gruppe nicht verlassen"
+
+#: structure/forms.py:329
+msgid "You left group {}"
+msgstr "Sie haben Gruppe {} verlassen"
+
+#: structure/forms.py:345
 msgid "You have to confirm the checkbox."
 msgstr "Sie müssen die Checkbox anwählen."
 
-#: structure/forms.py:328
+#: structure/forms.py:327
 msgid "Organization {} successfully deleted."
 msgstr "Organisation {} gelöscht."
 
-#: structure/forms.py:352
+#: structure/forms.py:351
 msgid "Password again"
 msgstr "Passwort wiederholen"
 
-#: structure/forms.py:358
+#: structure/forms.py:357
 msgid "First name"
 msgstr "Vorname"
 
-#: structure/forms.py:359
+#: structure/forms.py:358
 msgid "Last name"
 msgstr "Nachname"
 
-#: structure/forms.py:360
+#: structure/forms.py:359
 msgid "E-mail address"
 msgstr "E-Mail Adresse"
 
-#: structure/forms.py:366
+#: structure/forms.py:365
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: structure/forms.py:367
+#: structure/forms.py:366
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: structure/forms.py:370
+#: structure/forms.py:369
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -2719,36 +2736,80 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: structure/forms.py:373
+#: structure/forms.py:372
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/forms.py:382
+#: structure/forms.py:381
 msgid "Username is already taken. Try another."
 msgstr "Nutzername ist bereits vergeben. Versuchen Sie etwas anderes."
 
-#: structure/forms.py:389
+#: structure/forms.py:388
 msgid "Passwords do not match."
 msgstr "Passwörter stimmen nicht überein."
 
-#: structure/settings.py:22 structure/settings.py:23
+#: structure/forms.py:447 structure/forms.py:611 structure/forms.py:623
+msgid "Publisher changed"
+msgstr "Veröffentlicher geändert"
+
+#: structure/forms.py:448
+msgid "Group '{}' has been removed as publisher for '{}'."
+msgstr "Gruppe '{}' darf nicht mehr für '{}' veröffentlichen."
+
+#: structure/forms.py:461
+msgid "Invite to group"
+msgstr "In Gruppe einladen"
+
+#: structure/forms.py:524 structure/forms.py:578
+msgid "Sender's message"
+msgstr "Nachricht des Absenders"
+
+#: structure/forms.py:535 structure/forms.py:589
+msgid "Accept request"
+msgstr "Anfrage akzeptieren"
+
+#: structure/forms.py:537 structure/forms.py:591
+msgid "Accept"
+msgstr "Akzeptieren"
+
+#: structure/forms.py:538 structure/forms.py:592
+msgid "Decline"
+msgstr "Ablehnen"
+
+#: structure/forms.py:566
+msgid "You are now member of {}"
+msgstr "Sie sind jetzt Mitglied in {}"
+
+#: structure/forms.py:571
+msgid "You declined the invitation to {}"
+msgstr "Sie haben die Einladung zu {} abgelehnt"
+
+#: structure/forms.py:612
+msgid "Group '{}' has been accepted as publisher for '{}'"
+msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' akzeptiert"
+
+#: structure/forms.py:624
+msgid "Group '{}' has been rejected as publisher for '{}'"
+msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' abgelehnt"
+
+#: structure/settings.py:21 structure/settings.py:22
 msgid "Administrator"
 msgstr "Administrator"
 
-#: structure/settings.py:24
+#: structure/settings.py:23
 msgid "Permission group. Holds user which are allowed to perform any action."
 msgstr ""
 "Berechtigungsgruppe. Gruppiert Nutzer die alle Funktionen nutzen können."
 
-#: structure/settings.py:25
+#: structure/settings.py:24
 msgid "public_role"
 msgstr "public_role"
 
-#: structure/settings.py:26
+#: structure/settings.py:25
 msgid "Public"
 msgstr "Öffentlich"
 
-#: structure/settings.py:27
+#: structure/settings.py:26
 msgid ""
 "The public group. Used to create access for secured resources to external "
 "users. Every user is member of this group by default."
@@ -2756,61 +2817,67 @@ msgstr ""
 "Die öffentliche Gruppe. Ermöglicht Zugang zu abgesicherten Diensten für "
 "externe Nutzer. Jeder interne Nutzer ist standardmäßig Teil dieser Gruppe."
 
-#: structure/tables.py:20 structure/tables.py:90
+#: structure/tables.py:21 structure/tables.py:91
 msgid "Group organization"
 msgstr "Gruppen Organisation"
 
-#: structure/tables.py:23 structure/tables.py:63 structure/tables.py:95
+#: structure/tables.py:63
+msgid "Remove <strong>{}</strong> as publisher"
+msgstr "Lösche <strong>{}</strong> als Veröffentlicher"
+
+#: structure/tables.py:78 structure/tables.py:110
 msgid "Action"
 msgstr "Aktionen"
 
-#: structure/tables.py:92
+#: structure/tables.py:93
 msgid "Activation until"
 msgstr "Aktivierung bis"
 
-#: structure/tables.py:130
+#: structure/tables.py:131
 msgid "The name of the group"
 msgstr "Name der Gruppe"
 
-#: structure/tables.py:134
+#: structure/tables.py:135
 msgid "The description of the group"
 msgstr "Die Gruppenbeschreibung"
 
-#: structure/tables.py:138
+#: structure/tables.py:139
 msgid "The organization wich is the home organization of the group"
 msgstr "Die Organisation dieser Gruppe"
 
-#: structure/tables.py:147
+#: structure/tables.py:148
 msgid "Shows all groups which are configured in your Mr. Map environment."
 msgstr "Zeigt alle Gruppen, zu denen Sie gehören."
 
-#: structure/tables.py:169
+#: structure/tables.py:170
 msgid "Click to open the detail view of the organization"
 msgstr "Klicken für die Detailansicht der Organisation"
 
-#: structure/tables.py:181
-#, python-brace-format
-msgid "Edit <strong>{record.name} [{record.id}]</strong> group"
-msgstr "Bearbeite Gruppe <strong>{record.name} [{record.id}]</strong>"
+#: structure/tables.py:197
+msgid "Leave <strong>{}</strong>"
+msgstr "Verlasse <strong>{}</strong>"
 
-#: structure/tables.py:190
-#, python-brace-format
-msgid "Remove <strong>{record.name} [{record.id}]</strong> group"
-msgstr "Lösche Gruppe <strong>{record.name} [{record.id}]</strong>"
+#: structure/tables.py:205
+msgid "Edit <strong>{}</strong>"
+msgstr "Bearbeite <strong>{}</strong>"
 
-#: structure/tables.py:201
+#: structure/tables.py:214
+msgid "Remove <strong>{}</strong> group"
+msgstr "Lösche <strong>{}</strong> Gruppe"
+
+#: structure/tables.py:225
 msgid "Name of the given organizations"
 msgstr "Name der Organisation"
 
-#: structure/tables.py:205
+#: structure/tables.py:229
 msgid "Description of the given organizations"
 msgstr "Beschreibungen der Organisationen"
 
-#: structure/tables.py:208
+#: structure/tables.py:232
 msgid "Real organization"
 msgstr "Echte Organisation"
 
-#: structure/tables.py:209
+#: structure/tables.py:233
 msgid ""
 "If an organization comes from the capabilities, it will be marked as "
 "autogenerated"
@@ -2818,20 +2885,20 @@ msgstr ""
 "Wenn eine Organisation automatisch aus den Capabilities generiert wird, wird "
 "diese als autogeneriert markiert"
 
-#: structure/tables.py:213
+#: structure/tables.py:237
 msgid "Parent organizations of the given organization"
 msgstr "Überorganisation dieser Organisation"
 
-#: structure/tables.py:221
+#: structure/tables.py:245
 msgid ""
 "Shows all organizations which are configured in your Mr. Map environment."
 msgstr "Zeigt alle verfügbaren Organisationen."
 
-#: structure/tables.py:229
+#: structure/tables.py:253
 msgid "This is your organization."
 msgstr "Das ist Ihre Organisation."
 
-#: structure/tables.py:256
+#: structure/tables.py:280
 #, python-brace-format
 msgid ""
 "Edit <strong>{record.organization_name} [{record.id}]</strong> organization"
@@ -2839,7 +2906,7 @@ msgstr ""
 "Bearbeite Organisation <strong>{record.organization_name} [{record.id}]</"
 "strong>"
 
-#: structure/tables.py:265
+#: structure/tables.py:289
 #, python-brace-format
 msgid ""
 "Become publisher for organization <strong>{record.organization_name} "
@@ -2848,7 +2915,7 @@ msgstr ""
 "Veröffentlicher für Organisation <strong>{record.organization_name} [{record."
 "id}]</strong> werden"
 
-#: structure/tables.py:273
+#: structure/tables.py:297
 #, python-brace-format
 msgid ""
 "Remove <strong>{record.organization_name} [{record.id}]</strong> organization"
@@ -2856,10 +2923,14 @@ msgstr ""
 "Lösche Organisation <strong>{record.organization_name} [{record.id}]</strong>"
 
 #: structure/templates/includes/detail/groups.html:21
+msgid "Leave group"
+msgstr "Verlasse Gruppe"
+
+#: structure/templates/includes/detail/groups.html:29
 msgid "Edit group"
 msgstr "Bearbeite Gruppe"
 
-#: structure/templates/includes/detail/groups.html:29
+#: structure/templates/includes/detail/groups.html:37
 msgid "Delete group"
 msgstr "Lösche Gruppe"
 
@@ -2867,25 +2938,21 @@ msgstr "Lösche Gruppe"
 msgid "Publishes for"
 msgstr "Veröffentlicht für"
 
-#: structure/templates/includes/detail/groups_table.html:13
+#: structure/templates/includes/detail/groups_table.html:14
 msgid "Members"
 msgstr "Mitglieder"
 
-#: structure/templates/includes/detail/groups_table.html:25
+#: structure/templates/includes/detail/groups_table.html:24
 msgid "Permissions"
 msgstr "Berechtigungen"
 
-#: structure/templates/includes/detail/groups_table.html:32
+#: structure/templates/includes/detail/groups_table.html:31
 msgid "No group permissions"
 msgstr "Keine Gruppenberechtigung"
 
-#: structure/templates/includes/detail/groups_table.html:38
+#: structure/templates/includes/detail/groups_table.html:37
 msgid "Inherited Permissions"
 msgstr "Geerbte Berechtigungen"
-
-#: structure/templates/includes/detail/index_publish_requests.html:6
-msgid "Publisher Requests"
-msgstr "Veröffentlichungsanfragen"
 
 #: structure/templates/includes/detail/organizations.html:19
 msgid "Edit organization"
@@ -2900,12 +2967,8 @@ msgid "Delete organization"
 msgstr "Organisation entfernen"
 
 #: structure/templates/includes/detail/organizations_publishes_for_accordion.html:6
-msgid "Publishers and requests"
-msgstr "Veröffentlicher und Anfragen"
-
-#: structure/templates/includes/detail/organizations_publishes_for_accordion.html:9
-msgid "new"
-msgstr "neu"
+msgid "Publishers"
+msgstr "Veröffentlicher"
 
 #: structure/templates/includes/detail/organizations_table.html:5
 msgid "Person"
@@ -2951,76 +3014,96 @@ msgstr "Neue Organisation"
 msgid "Your organization:"
 msgstr "Ihre Organisation:"
 
-#: structure/views.py:182
+#: structure/templates/includes/index/users.html:9
+#: templates/includes/navbar.html:32
+msgid "User search"
+msgstr "Nutzersuche"
+
+#: structure/views.py:207
 msgid "Shows informations about the organization."
 msgstr "Zeigt Informationen über die Organisation."
 
-#: structure/views.py:242
+#: structure/views.py:265
 msgid "Shows informations about the group."
 msgstr "Zeigt Informationen über die Gruppe."
 
-#: structure/views.py:318
+#: structure/views.py:344
 #, python-brace-format
 msgid "Edit organization <strong>{org}</strong>"
 msgstr "Bearbeite Organisation <strong>{org}</strong>"
 
-#: structure/views.py:345
+#: structure/views.py:371
 msgid "Do you really want to remove this organization?"
 msgstr "Wollen Sie diese Organisation wirklich löschen?"
 
-#: structure/views.py:346
+#: structure/views.py:372
 #, python-brace-format
 msgid "Remove organization <strong>{org}</strong>"
 msgstr "Lösche Organisation <strong>{org}</strong>"
 
-#: structure/views.py:368
+#: structure/views.py:394
 msgid "Add new organization"
 msgstr "Neue Organisation hinzufügen"
 
-#: structure/views.py:399 structure/views.py:408 structure/views.py:451
-msgid "Publisher changed"
-msgstr "Veröffentlicher geändert"
+#: structure/views.py:423
+msgid "Do you really want to remove this publisher?"
+msgstr "Wollen Sie diesen Veröffentlicher wirklich löschen?"
 
-#: structure/views.py:400
-msgid "Group '{}' has been accepted as publisher for '{}'"
-msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' akzeptiert"
+#: structure/views.py:424
+msgid "Remove publisher <strong>{}</strong>"
+msgstr "Entferne Veröffentlicher <strong>{}</strong>"
 
-#: structure/views.py:409
-msgid "Group '{}' has been rejected as publisher for '{}'"
-msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' abgelehnt"
-
-#: structure/views.py:452
-msgid "Group '{}' has been removed as publisher for '{}'."
-msgstr "Gruppe '{}' darf nicht mehr für '{}' veröffentlichen."
-
-#: structure/views.py:490
+#: structure/views.py:454
 #, python-brace-format
 msgid "Request to become publisher for organization <strong>{org}</strong>"
 msgstr ""
 "Anfrage um für Organisation <strong>{org}</strong> veröffentlichen zu dürfen"
 
-#: structure/views.py:512
+#: structure/views.py:476
 msgid "Add new group"
 msgstr "Neue Gruppe hinzufügen"
 
-#: structure/views.py:560
-msgid "Group {} is an important main group and therefore can not be removed."
-msgstr ""
-"Gruppe {} ist eine wichtige Hauptgruppe und kann daher nicht gelöscht werden."
+#: structure/views.py:526
+msgid "The group creator can not be removed!"
+msgstr "Der Gruppenersteller kann nicht entfernt werden!"
 
-#: structure/views.py:570
+#: structure/views.py:532
+msgid "{} removed from {}"
+msgstr "{} von {} entfernt"
+
+#: structure/views.py:559
 msgid "Do you really want to remove this group?"
 msgstr "Wollen Sie diese Gruppe wirklich löschen?"
 
-#: structure/views.py:571
+#: structure/views.py:564
 #, python-brace-format
 msgid "Remove group <strong>{group}</strong>"
 msgstr "Lösche Gruppe <strong>{group}</strong>"
 
-#: structure/views.py:597
+#: structure/views.py:590
 #, python-brace-format
 msgid "Edit group <strong>{group}</strong>"
 msgstr "Bearbeite Gruppe <strong>{group}</strong>"
+
+#: structure/views.py:609
+msgid "Do you really want to leave this group?"
+msgstr "Wollen Sie diese Gruppe wirklich verlassen?"
+
+#: structure/views.py:610
+msgid "Leave group <strong>{}</strong>"
+msgstr "Verlasse Gruppe <strong>{}</strong>"
+
+#: structure/views.py:701
+msgid "Invite <strong>{}</strong> to a group."
+msgstr "Lade <strong>{}</strong> zu einer Gruppe ein."
+
+#: structure/views.py:725
+msgid "{} invites you to group {}."
+msgstr "{} lädt Sie in Gruppe {} ein."
+
+#: structure/views.py:765
+msgid "{} wants to publish for {}."
+msgstr "{} will für {} veröffentlichen."
 
 #: templates/404.html:17
 msgid "Mr. Map can`t find the page you are looking for"
@@ -3081,7 +3164,7 @@ msgstr "Anmelden"
 
 #: templates/includes/navbar-sign-out.html:22
 #: users/templates/includes/login.html:56
-#: users/templates/includes/register.html:25 users/views.py:346
+#: users/templates/includes/register.html:25 users/views.py:352
 msgid "Sign up"
 msgstr "Registrieren"
 
@@ -3097,20 +3180,20 @@ msgstr "Dashboard"
 msgid "Structure"
 msgstr "Struktur"
 
-#: templates/includes/navbar.html:37 users/templates/cards/my_services.html:6
+#: templates/includes/navbar.html:40 users/templates/cards/my_services.html:6
 msgid "Resources"
 msgstr "Ressourcen"
 
-#: templates/includes/navbar.html:43
+#: templates/includes/navbar.html:46
 #: users/templates/cards/my_services/datasets.html:9
 msgid "Datasets"
 msgstr "Datensätze"
 
-#: templates/includes/navbar.html:58
+#: templates/includes/navbar.html:61
 msgid "Account"
 msgstr "Account"
 
-#: templates/includes/navbar.html:61
+#: templates/includes/navbar.html:64
 msgid "Logout"
 msgstr "Ausloggen"
 
@@ -3208,6 +3291,14 @@ msgstr "Geometrie laden"
 msgid "Export as GeoJSON"
 msgstr "Exportiere als GeoJSON"
 
+#: users/filters.py:17
+msgid ""
+"Search for a user or organization name. Input <strong>must</strong> contain "
+"at least 3 characters."
+msgstr ""
+"Suche nach einem Nutzer oder zugehörigem Organisationsnamen. Eingabe "
+"<strong>muss</strong> mindestens 3 Zeichen beinhalten."
+
 #: users/forms.py:45
 msgid "Old password"
 msgstr "Altes Passwort"
@@ -3260,51 +3351,51 @@ msgstr "Bei Metadatenänderungen informieren"
 msgid "Do you realy want to remove this subscription?"
 msgstr "Wollen Sie dieses Abonnemment wirklich löschen?"
 
-#: users/tables.py:15
+#: users/tables.py:16
 msgid "Shows your subscripted services."
 msgstr "Zeigt Ihre abonnierten Dienste."
 
-#: users/tables.py:19
+#: users/tables.py:20
 msgid "Services"
 msgstr "Dienste"
 
-#: users/tables.py:20
+#: users/tables.py:21
 msgid "Subscribed services"
 msgstr "Abonnierte Dienste"
 
-#: users/tables.py:24
+#: users/tables.py:25
 msgid "Update notification"
 msgstr "Updatebenachrichtigung"
 
-#: users/tables.py:25
+#: users/tables.py:26
 msgid "Notify on any service update"
 msgstr "Benachrichtigung bei jeglichem Dienstupdate"
 
-#: users/tables.py:30
+#: users/tables.py:31
 msgid "Change notification"
 msgstr "Benachrichtigungen ändern"
 
-#: users/tables.py:31
+#: users/tables.py:32
 msgid "Notify on changed service metadata"
 msgstr "Benachrichtige bei geänderten Dienstmetadaten"
 
-#: users/tables.py:36
+#: users/tables.py:37
 msgid "Access notification"
 msgstr "Zugangsbenachrichtigung"
 
-#: users/tables.py:37
+#: users/tables.py:38
 msgid "Notify on changed service access"
 msgstr "Benachrichtige bei geändertem Dienstzugang"
 
-#: users/tables.py:43
+#: users/tables.py:44
 msgid "Health state of the ressource"
 msgstr "Gesundheitszustand der Ressource"
 
-#: users/tables.py:49
+#: users/tables.py:50 users/tables.py:156
 msgid "Actions to perform"
 msgstr "Aktionen"
 
-#: users/tables.py:63
+#: users/tables.py:64
 #, python-brace-format
 msgid ""
 "Go to the detail view of service <strong>{record.metadata.title} [{record."
@@ -3313,16 +3404,16 @@ msgstr ""
 "Detailansicht für Dienst <strong>{record.metadata.title} [{record.metadata."
 "id}]</strong>"
 
-#: users/tables.py:94
+#: users/tables.py:95
 #, python-brace-format
 msgid "Last check runs on {last_monitoring_object.timestamp}"
 msgstr ""
 
-#: users/tables.py:98
+#: users/tables.py:99
 msgid "Last check state is unknown"
 msgstr ""
 
-#: users/tables.py:116
+#: users/tables.py:117
 #, python-brace-format
 msgid ""
 "Edit subscription for <strong>{record.metadata.title} [{record.metadata."
@@ -3331,7 +3422,7 @@ msgstr ""
 "Bearbeite Abonnements für <strong>{record.metadata.title} [{record.metadata."
 "id}]</strong>"
 
-#: users/tables.py:124
+#: users/tables.py:125
 #, python-brace-format
 msgid ""
 "Remove subscription for <strong>{record.metadata.title} [{record.metadata."
@@ -3339,6 +3430,26 @@ msgid ""
 msgstr ""
 "Lösche Abonnement für <strong>{record.metadata.title} [{record.metadata."
 "id}]</strong>"
+
+#: users/tables.py:138
+msgid "Shows registered users."
+msgstr "Zeigt registrierte Nutzer."
+
+#: users/tables.py:143
+msgid "User`s name"
+msgstr "Nutzername"
+
+#: users/tables.py:150
+msgid "User`s organization"
+msgstr "Nutzer Organisation"
+
+#: users/tables.py:176
+msgid "Add user to group"
+msgstr "Nutzer zu Gruppe hinzufügen"
+
+#: users/tables.py:187
+msgid "Remove user from group"
+msgstr "Entferne Nutzer von Gruppe"
 
 #: users/templates/cards/groups_and_organizations.html:6
 msgid "Groups and organizations"
@@ -3400,15 +3511,32 @@ msgstr "Ausstehende Anfragen"
 msgid "No requests"
 msgstr "Keine Anfragen"
 
-#: users/templates/cards/pending_requests/pending_request_elements.html:9
-msgid "Created on "
-msgstr "Erstellt am "
+#: users/templates/cards/pending_requests/group_invitation_request_elements.html:5
+msgid "invited you to a group."
+msgstr "hat Sie zu einer Gruppe eingeladen."
+
+#: users/templates/cards/pending_requests/group_invitation_request_elements.html:7
+msgid "Invitation to"
+msgstr "Einladung für"
+
+#: users/templates/cards/pending_requests/group_invitation_request_elements.html:9
+#: users/templates/cards/pending_requests/publishing_request_elements.html:9
+msgid "Valid until "
+msgstr "Gültig bis "
+
+#: users/templates/cards/pending_requests/publishing_request_elements.html:5
+msgid "A group wants to publish for your organization."
+msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
+
+#: users/templates/cards/pending_requests/publishing_request_elements.html:7
+msgid "Publishing by"
+msgstr "Veröffentlichungen durch"
 
 #: users/templates/includes/account_change.html:5
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: users/templates/includes/account_change.html:13 users/views.py:221
+#: users/templates/includes/account_change.html:13 users/views.py:227
 msgid "Change password"
 msgstr "Passwort ändern"
 
@@ -3485,8 +3613,8 @@ msgstr "Passwort senden"
 msgid "Subscriptions"
 msgstr "Abonnements"
 
-#: users/templates/includes/subscriptions.html:12 users/views.py:427
-#: users/views.py:462
+#: users/templates/includes/subscriptions.html:12 users/views.py:433
+#: users/views.py:468
 msgid "New Subscription"
 msgstr "Neues Abonnement"
 
@@ -3512,7 +3640,7 @@ msgstr ""
 msgid "Sign in for Mr. Map"
 msgstr "Melden Sie sich für Mr. Map an"
 
-#: users/views.py:91 users/views.py:345
+#: users/views.py:91 users/views.py:351
 msgid ""
 "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
 "eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
@@ -3525,11 +3653,11 @@ msgid ""
 "amet. "
 msgstr ""
 
-#: users/views.py:242
+#: users/views.py:248
 msgid "<strong>Edit your account information's</strong>"
 msgstr "<strong>Account Informationen bearbeiten</strong>"
 
-#: users/views.py:488
+#: users/views.py:494
 #, python-brace-format
 msgid ""
 "Remove Subscription for service <strong>{subscription.metadata}</strong>"
@@ -5211,60 +5339,17 @@ msgstr ""
 msgid "Unable to connect to qpid with SASL mechanism %s"
 msgstr ""
 
-#~ msgid ""
-#~ "Click to open the detail view of <strong>{record.service.parent_service."
-#~ "metadata.title}</strong>."
-#~ msgstr ""
-#~ "Öffnet die Detailansicht von <strong>{record.service.parent_service."
-#~ "metadata.title}</strong>."
+#~ msgid "Publisher Requests"
+#~ msgstr "Veröffentlichungsanfragen"
 
-#~ msgid "0 minutes"
-#~ msgstr "0 Minuten"
+#~ msgid "Publishers and requests"
+#~ msgstr "Veröffentlicher und Anfragen"
 
-#~ msgid ""
-#~ "Click to open the detail view of <strong>{record.organization."
-#~ "organization_name}</strong>."
-#~ msgstr ""
-#~ "Öffnet die Detailansicht von <strong>{record.organization."
-#~ "organization_name}</strong>."
+#~ msgid "new"
+#~ msgstr "neu"
 
-#~ msgid "Click to open the detail view of <strong>{record.name}</strong>"
-#~ msgstr "Öffnet die Detailansicht von <strong>{record.name}</strong>"
+#~ msgid "Manage request."
+#~ msgstr "Anfrage verwalten."
 
-#~ msgid "Role"
-#~ msgstr "Rolle"
-
-#~ msgid "Click to open the detail view of <strong>{value}</strong>"
-#~ msgstr "Klicken für die Detailansicht von <strong>{value}</strong>"
-
-#~ msgid "Active"
-#~ msgstr "Aktiv"
-
-#~ msgid "Secured access"
-#~ msgstr "Abgesicherter Zugriff"
-
-#~ msgid "Secured externally"
-#~ msgstr "Extern abgesichert"
-
-#~ msgid "Cancel task"
-#~ msgstr "Prozess abbrechen"
-
-#~ msgid "Log ID"
-#~ msgstr "Protokoll ID"
-
-#~ msgid "The id of the ProxyLog"
-#~ msgstr "Die ID des ProxyLogs"
-
-#~ msgid ""
-#~ "{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</"
-#~ "strong>"
-#~ msgstr ""
-#~ "{'Deaktiviere' if md.is_active else 'Aktiviere'} Dienst <strong>{md}</"
-#~ "strong>"
-
-#~ msgid ""
-#~ "Do you really want to {'deactivate' if md.is_active else 'activate'} this "
-#~ "service?"
-#~ msgstr ""
-#~ "Wollen Sie den Dienst wirklich {'deaktivieren' if md.is_active else "
-#~ "'aktivieren'}?"
+#~ msgid "Users"
+#~ msgstr "Nutzer"

@@ -324,16 +324,16 @@ def create_public_organization(user: MrMapUser):
     )
 
 
-def create_pending_request(group: MrMapGroup = None, orga: Organization = None, type_str: str = None,
-                           how_much_requests: int = 1):
-    if group is not None and type_str is not None and orga is not None:
-        return baker.make_recipe('tests.baker_recipes.structure_app.pending_request',
+def create_publish_request(group: MrMapGroup = None, orga: Organization = None,
+                           how_much_requests: int = 1, message: str = "Test"):
+    if group is not None and orga is not None:
+        return baker.make_recipe('tests.baker_recipes.structure_app.publish_request',
                                  group=group,
-                                 type=type_str,
                                  organization=orga,
+                                 message=message,
                                  _quantity=how_much_requests)
     else:
-        return baker.make_recipe('tests.baker_recipes.structure_app.pending_request',
+        return baker.make_recipe('tests.baker_recipes.structure_app.publish_request',
                                  _quantity=how_much_requests)
 
 
@@ -341,6 +341,19 @@ def create_pending_task(group: MrMapGroup, how_much_pending_tasks: int = 1):
     return baker.make_recipe('tests.baker_recipes.structure_app.pending_task',
                              created_by=group,
                              _quantity=how_much_pending_tasks)
+
+
+def create_group_invitation_request(
+        to_group: MrMapGroup = None, invited_user: MrMapUser = None, created_by: MrMapUser = None,
+        how_much_requests: int = 1, message: str="Test"
+):
+    return baker.make_recipe(
+        "tests.baker_recipes.structure_app.group_invitation_request",
+        to_group=to_group,
+        invited_user=invited_user,
+        message=message,
+        created_by=created_by,
+    )
 
 
 def create_keywords(num: int = 1):

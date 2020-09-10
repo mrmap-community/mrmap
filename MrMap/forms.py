@@ -1,3 +1,4 @@
+import uuid
 from django.forms import ModelForm
 from django import forms
 from django.http import HttpRequest, HttpResponseRedirect
@@ -32,7 +33,7 @@ class MrMapModalForm:
                  *args,
                  **kwargs, ):
 
-        self.form_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+        self.form_id = uuid.uuid4()
         self.request = request
         self.requesting_user = user_helper.get_user(request)
         self.form_title = format_html(form_title)
@@ -43,7 +44,7 @@ class MrMapModalForm:
         self.default_context = default_context or DefaultContext(request, {}, self.requesting_user).context
         self.show_modal = show_modal
         self.fade_modal = fade_modal
-        self.current_view = self.request.GET.get(CURRENT_VIEW_QUERY_PARAM, None)
+        self.current_view = self.request.GET.get(CURRENT_VIEW_QUERY_PARAM, "home")
         current_view_arg = self.request.GET.get('current-view-arg', None)
         self.current_view_arg = current_view_arg
         if current_view_arg is not None and current_view_arg.isnumeric():

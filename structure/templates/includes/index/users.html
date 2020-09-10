@@ -1,0 +1,16 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+{% load django_tables2 %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
+{% load query_parameters %}
+
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {% trans 'User search' %}</h4>
+{% endblock %}
+
+{% block card-body %}
+
+{% render_table users %}
+
+{% endblock %}

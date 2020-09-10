@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block body %}
+    <div class="container-fluid px-5">
+        {% include 'sceletons/breadcrumb.html'%}
+        {% include 'includes/index/users.html' %}
+    </div>
+{% endblock %}

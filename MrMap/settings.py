@@ -15,6 +15,11 @@ from MrMap.sub_settings.db_settings import *
 from MrMap.sub_settings.logging_settings import *
 from api.settings import REST_FRAMEWORK
 
+ALLOWED_HOSTS = [
+    HOST_NAME,
+    "127.0.0.1",
+]
+
 # GIT repo links
 GIT_REPO_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/src/branch/pre_master"
 GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/graph"

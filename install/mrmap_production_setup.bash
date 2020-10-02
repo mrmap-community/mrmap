@@ -3,6 +3,7 @@
 mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw
 hostname=127.0.0.1
+proxy="" # format: proxy = "192.168.56.1:8080"
 
 # install required packages
 apt-get update
@@ -46,6 +47,7 @@ python /opt/MrMap/manage.py collectstatic
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MrMap/MrMap/sub_settings/django_settings.py
 sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MrMap/MrMap/sub_settings/dev_settings.py
 sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MrMap/MrMap/sub_settings/dev_settings.py
+sed -i s/"HTTP_PROXY = \"\""/"HTTP_PROXY = \"http:\/\/$proxy\""/g /opt/MrMap/MrMap/settings.py
 # generate new secret key
 skey=`python /opt/MrMap/manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
 sed -i '/^SECRET_KEY/d' /opt/MrMap/MrMap/sub_settings/django_settings.py

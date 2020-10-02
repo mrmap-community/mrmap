@@ -32,7 +32,7 @@ sed -i s/"host    all             all             127.0.0.1\/32            md5"/
 
 git clone https://git.osgeo.org/gitea/GDI-RP/MrMap /opt/MrMap
 python -m pip install uwsgi flower
-python -m pip install -r /opt/MrMap/requirements.txt
+python -m pip install -r /opt/MrMap/requirements.txt --use-feature=2020-resolver
 python /opt/MrMap/manage.py makemigrations service
 python /opt/MrMap/manage.py makemigrations structure
 python /opt/MrMap/manage.py makemigrations users
@@ -42,13 +42,13 @@ python /opt/MrMap/manage.py migrate
 python /opt/MrMap/manage.py collectstatic
 
 # changes to settings.py, set Django debug to false, set hostname, enable ssl
-sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MrMap/MrMap/settings.py
-sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MrMap/MrMap/settings.py
-sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MrMap/MrMap/settings.py
+sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MrMap/MrMap/sub_settings/django_settings.py
+sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MrMap/MrMap/sub_settings/dev_settings.py
+sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MrMap/MrMap/sub_settings/dev_settings.py
 # generate new secret key
 skey=`python /opt/MrMap/manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
-sed -i '/^SECRET_KEY/d' /opt/MrMap/MrMap/settings.py
-sed -i "/# SECURITY WARNING: keep the secret key used in production secret\!/a SECRET_KEY = '$skey'" /opt/MrMap/MrMap/settings.py
+sed -i '/^SECRET_KEY/d' /opt/MrMap/MrMap/sub_settings/django_settings.py
+sed -i "/# SECURITY WARNING: keep the secret key used in production secret\!/a SECRET_KEY = '$skey'" /opt/MrMap/MrMap/sub_settings/django_settings.py
 # remove postgres trust, replace with mr map database user
 sed -i s/"host    all             all             127.0.0.1\/32            trust"/"host    MrMap             $mrmap_db_user             127.0.0.1\/32            md5"/g /etc/postgresql/11/main/pg_hba.conf
 
@@ -56,10 +56,10 @@ sed -i s/"host    all             all             127.0.0.1\/32            trust
 
 
 # change settings.py to dedicated user
-sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /opt/MrMap/MrMap/settings.py
+sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /opt/MrMap/MrMap/sub_settings/db_settings.py
 
-if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MrMap/MrMap/settings.py ;then
-	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MrMap/MrMap/settings.py
+if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MrMap/MrMap/sub_settings/db_settings.py ;then
+	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MrMap/MrMap/sub_settings/db_settings.py
 fi
 
 # db setup done

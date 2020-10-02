@@ -167,6 +167,12 @@ You can do this later with bash /opt/MrMap/install/modsecurity_and_stronger_DH.b
         * ) echo "Please answer yes or no.";;
     esac
 done
+echo "Executing initial setup"
+python /opt/MrMap/manage.py setup
+chown -R www-data /opt/MrMap/logs
+
+/etc/init.d/nginx restart
+systemctl restart uwsgi
 
 echo '
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
@@ -215,7 +221,3 @@ MMMMMNhhddmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 
 '
 echo "Congratulations, MrMap is installed on your system!"
-echo "Please execute \"python /opt/MrMap/manage.py setup\" to create a user, afterwards access with browser and have fun :)"
-
-/etc/init.d/nginx restart
-systemctl restart uwsgi

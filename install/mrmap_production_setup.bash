@@ -31,6 +31,7 @@ sed -i s/"host    all             all             127.0.0.1\/32            md5"/
 # MrMap setup, has to be done as postgres because of postgis extension
 
 git clone https://git.osgeo.org/gitea/GDI-RP/MrMap /opt/MrMap
+python -m pip install --upgrade pip
 python -m pip install uwsgi flower
 python -m pip install -r /opt/MrMap/requirements.txt --use-feature=2020-resolver
 python /opt/MrMap/manage.py makemigrations service

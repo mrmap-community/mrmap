@@ -46,9 +46,17 @@ class Command(BaseCommand):
              response (str): The response body content
         """
         uri_lang = category_url.format(language)
+        if (CommonConnector().url_is_reachable("https://www.google.de/",10)[0] is not True):
+            self.stdout.write(
+                self.style.NOTICE("Internet connection test failed! Proxies have to be specified in MrMap/settings.py."))
+            self.stdout.write(
+                self.style.NOTICE("Setup will be canceled! Please make sure to have a working internet connection!"))
+            exit()
+
         connector = CommonConnector(uri_lang)
         connector.load()
         return connector.content
+
 
     def update_categories(self, raw_categories: str, lang_key, origin):
         """ Updates the languages for the previously created categories.

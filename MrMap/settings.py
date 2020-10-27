@@ -18,6 +18,7 @@ from api.settings import REST_FRAMEWORK
 ALLOWED_HOSTS = [
     HOST_NAME,
     "127.0.0.1",
+    "localhost",
 ]
 
 # GIT repo links

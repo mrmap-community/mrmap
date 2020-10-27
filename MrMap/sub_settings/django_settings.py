@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
+    'quality',
 ]
 if DEBUG:
     INSTALLED_APPS.append(

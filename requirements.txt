@@ -2,7 +2,7 @@
 Django==3.1.2
 django-extensions==3.0.9
 django-simple-captcha==0.5.12
-django-celery-beat==2.0.0
+django-celery-beat==2.1.0
 django_redis==4.12.1
 djangorestframework==3.12.1
 django-filter==2.4.0
@@ -35,6 +35,7 @@ coverage==5.3
 model-bakery==1.2.0
 python-dateutil==2.8.1
 xmltodict==0.12.0
+Werkzeug==1.0.1
 
 # For git revision rendering
 dealer==2.1.0

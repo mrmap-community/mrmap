@@ -66,7 +66,7 @@ These instructions will get you a copy of the project up and running on your loc
        
 1. start up celery process (celery will do async jobs for us)
 
-        (venv) $ celery -A MrMap worker -l info
+        (venv) $ celery -A MrMap worker -l INFO
         
 1. start up mr. map
 
@@ -75,7 +75,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 1. start up celery beat process
 
-        (venv) $ celery -A MrMap beat -l info
+        (venv) $ celery -A MrMap beat -l INFO
    
 
 1. you should see the login page after opening http://127.0.0.1:8000:

@@ -50,6 +50,7 @@ class Rule(models.Model):
     field_name = models.TextField(choices=RuleFieldNameEnum.as_choices(drop_empty_choice=True))
     property = models.TextField(choices=RulePropertyEnum.as_choices(drop_empty_choice=True))
     operator = models.TextField(choices=RuleOperatorEnum.as_choices(drop_empty_choice=True))
+    threshold = models.TextField()
     # TODO ask if there shouldn't be any value field to compare to
 
     def __str__(self):
@@ -72,7 +73,7 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
     Model holding the configs for an internal conformity check.
     """
     mandatory_rule_sets = models.ManyToManyField(RuleSet, related_name="mandatory_rule_sets")
-    optional_rule_sets = models.ManyToManyField(RuleSet, related_name="optional_rule_sets", blank=True, null=True)
+    optional_rule_sets = models.ManyToManyField(RuleSet, related_name="optional_rule_sets", blank=True)
 
     @staticmethod
     def is_internal() -> bool:
@@ -91,7 +92,7 @@ class ConformityCheckRun(models.Model):
     # TODO check if this actually works, i.e. can we properly retrieve the internal/external config?
     conformity_check_configuration = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     # TODO Proposal as BKG connects Metadata record in configuration
-    external_url = models.URLField(max_length=1000)
+    # external_url = models.URLField(max_length=1000)
     # TODO check if this should actually be set to auto_now_add
     time_start = models.DateTimeField(auto_now_add=True)
     time_stop = models.DateTimeField(blank=True, null=True)

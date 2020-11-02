@@ -12,7 +12,7 @@ from quality.models import ConformityCheckConfigurationExternal, ConformityCheck
 
 
 class ConformityCheckConfigurationExternalAdmin(admin.ModelAdmin):
-    list_display = ('id', 'external_url')
+    list_display = ('id',)
 
 
 class ConformityCheckConfigurationInternalAdmin(admin.ModelAdmin):
@@ -26,11 +26,12 @@ class RuleAdmin(admin.ModelAdmin):
 
 class RuleSetAdmin(admin.ModelAdmin):
     list_display = ('id', 'name')
+    filter_horizontal = ['rules']
 
 
 # TODO remove this. This is just for testing purposes
 class ConformityCheckRunAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'passed')
+    list_display = ('id', 'metadata', 'time_start', 'time_stop', 'passed')
     # metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     # conformity_check_configuration = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     # time_start = models.DateTimeField(blank=True, null=True)

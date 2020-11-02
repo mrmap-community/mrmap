@@ -16,10 +16,21 @@ class ConformityCheckConfiguration(models.Model):
     Base model for ConformityCheckConfiguration classes.
     """
     name = models.CharField(max_length=1000)
-    metadata_types = models.TextField()
+    metadata_types = models.JSONField()
 
     def __str__(self):
         return self.name
+
+    def is_allowed_type(self, metadata: Metadata):
+        """ Checks if type of metadata is allowed for this config.
+
+            Args:
+                metadata (Metadata): The metadata object to check
+            Returns:
+                True, if metadata type is allowed for this config,
+                False otherwise.
+        """
+        return metadata.metadata_type in self.metadata_types
 
 
 class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
@@ -32,14 +43,6 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     # external_url = models.URLField(max_length=1000)
     parameter_map = models.JSONField()
     response_map = models.JSONField()
-
-    @staticmethod
-    def is_external() -> bool:
-        return True
-
-    @staticmethod
-    def is_internal() -> bool:
-        return False
 
 
 class Rule(models.Model):
@@ -55,6 +58,20 @@ class Rule(models.Model):
 
     def __str__(self):
         return self.name
+
+    def as_dict(self):
+        """Returns the model's field values as simple dictionary.
+
+        This method should only be used for read-operations. E.g. to display
+        the model contents as text or json.
+        """
+        return {
+            "name": self.name,
+            "field_name": self.field_name,
+            "property": self.property,
+            "operator": self.operator,
+            "threshold": self.threshold
+        }
 
 
 class RuleSet(models.Model):
@@ -74,14 +91,6 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
     """
     mandatory_rule_sets = models.ManyToManyField(RuleSet, related_name="mandatory_rule_sets")
     optional_rule_sets = models.ManyToManyField(RuleSet, related_name="optional_rule_sets", blank=True)
-
-    @staticmethod
-    def is_internal() -> bool:
-        return True
-
-    @staticmethod
-    def is_external() -> bool:
-        return False
 
 
 class ConformityCheckRun(models.Model):

@@ -10,7 +10,8 @@ from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
-from quality.models import ConformityCheckRun, ConformityCheckConfigurationInternal
+from quality.models import ConformityCheckRun, \
+    ConformityCheckConfigurationInternal, ConformityCheckConfiguration
 from quality.quality import Quality
 from quality.settings import quality_logger
 from service.models import Metadata
@@ -48,3 +49,12 @@ def check_internal(request, metadata_id, config_id):
         quality_logger.error(f"No configuration found for id {config_id}")
         # TODO remove this
         return HttpResponse("Failed")
+
+
+def new_check(request, metadata_id, config_id):
+    metadata = Metadata.objects.get(pk=metadata_id)
+    config = ConformityCheckConfiguration.objects.get(id=config_id)
+    quality = Quality()
+    quality.run_check(metadata, config)
+    return HttpResponse("success")
+

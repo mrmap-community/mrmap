@@ -10,5 +10,5 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('<int:run_id>', views.check, name='check'),
+    path('<int:config_id>/<str:metadata_id>', views.check, name='check'),
 ]

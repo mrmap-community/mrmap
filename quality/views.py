@@ -5,22 +5,24 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from django.db.models import Model
 from django.http import HttpResponse
-from django.shortcuts import render
 
-# Create your views here.
-from quality.models import ConformityCheckRun
+from quality.models import ConformityCheckRun, ConformityCheckConfiguration
 from quality.quality import Quality
 from quality.settings import quality_logger
+from service.models import Metadata
 
 
-def check(request, run_id):
+# Create your views here.
+
+
+def check(request, config_id, metadata_id):
     try:
-        check_run = ConformityCheckRun.objects.get(id=run_id)
+        config = ConformityCheckConfiguration.objects.get(pk=config_id)
+        metadata = Metadata.objects.get(pk=metadata_id)
         quality = Quality()
-        quality.run_check(check_run)
-        return HttpResponse("Hello world")
+        success = quality.run_check(metadata, config)
+        return HttpResponse(f"Success: {success}")
     except ConformityCheckRun.DoesNotExist:
-        quality_logger.error(f"No model found for id {run_id}")
-        return HttpResponse("Failed")
+        quality_logger.error("No config or metadata found")
+        return HttpResponse("No config or metadata found")

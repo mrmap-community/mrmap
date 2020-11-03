@@ -12,7 +12,7 @@ from quality.models import ConformityCheckConfigurationExternal, ConformityCheck
 
 
 class ConformityCheckConfigurationExternalAdmin(admin.ModelAdmin):
-    list_display = ('id', 'external_url')
+    list_display = ('id',)
 
 
 class ConformityCheckConfigurationInternalAdmin(admin.ModelAdmin):

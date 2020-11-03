@@ -49,12 +49,8 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     """
     Model holding the configs for an external conformity check.
     """
-    # TODO BKG already includes the metadata record in the configuration
-    #          so the url triggering the test is not generic but specific for
-    #          exactly one test case
-    # external_url = models.URLField(max_length=1000)
+    external_url = models.URLField(max_length=1000, null=True)
     parameter_map = models.JSONField()
-    response_map = models.JSONField()
     polling_interval_seconds = models.IntegerField(default=5, blank=True, null=False)
 
 
@@ -69,7 +65,7 @@ class Rule(models.Model):
         choices=RulePropertyEnum.as_choices(drop_empty_choice=True))
     operator = models.TextField(
         choices=RuleOperatorEnum.as_choices(drop_empty_choice=True))
-    threshold = models.TextField()
+    threshold = models.TextField(null=True)
 
     # TODO ask if there shouldn't be any value field to compare to
 

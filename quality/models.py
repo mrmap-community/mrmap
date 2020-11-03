@@ -113,6 +113,22 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
                                                 blank=True)
 
 
+class ConformityCheckRunManager(models.Manager):
+    """ Custom manager to extend ConformityCheckRun methods """
+
+    def has_running_check(self, metadata: Metadata):
+        """ Checks if the given metadata object has a non-finished
+        ConformityCheckRun.
+
+            Returns:
+                True, if a non-finished ConformityCheckRun was found,
+                false otherwise.
+        """
+        running_checks = super().get_queryset().filter(
+            metadata=metadata, passed__isnull=True).count()
+        return running_checks != 0
+
+
 class ConformityCheckRun(models.Model):
     """
     Model holding the relation of a metadata record to the results of a check.
@@ -131,3 +147,5 @@ class ConformityCheckRun(models.Model):
     passed = models.BooleanField(blank=True, null=True)
     additional_info = models.TextField(blank=True, null=True)
     result = models.TextField(blank=True, null=True)
+
+    objects = ConformityCheckConfigurationManager()

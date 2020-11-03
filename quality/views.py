@@ -11,9 +11,9 @@ from django.http import HttpResponse
 # Create your views here.
 from quality.models import ConformityCheckConfigurationInternal
 from quality.models import ConformityCheckRun, ConformityCheckConfiguration
-from quality.quality import Quality
 from quality.settings import quality_logger
 from service.models import Metadata
+import quality.quality as quality
 
 
 # Create your views here.
@@ -23,7 +23,6 @@ def check(request, config_id, metadata_id):
     try:
         config = ConformityCheckConfiguration.objects.get(pk=config_id)
         metadata = Metadata.objects.get(pk=metadata_id)
-        quality = Quality()
         success = quality.run_check(metadata, config)
         return HttpResponse(f"Success: {success}")
     except ConformityCheckRun.DoesNotExist:
@@ -35,15 +34,7 @@ def check_internal(request, metadata_id, config_id):
     try:
         metadata = Metadata.objects.get(pk=metadata_id)
         config = ConformityCheckConfigurationInternal.objects.get(pk=config_id)
-
-        quality = Quality(metadata, config)
-
-        # TODO use this method on production
-        # if quality.has_running_check():
-        #     raise Exception(f"Metadata validation for {metadata_id} already
-        #     running. Skipping.")
-
-        quality.run_check()
+        quality.run_check(metadata, config)
         return HttpResponse("Hello world")
     except Metadata.DoesNotExist:
         quality_logger.error(f"No metadata found for id {metadata_id}")
@@ -58,7 +49,6 @@ def check_internal(request, metadata_id, config_id):
 def new_check(request, metadata_id, config_id):
     metadata = Metadata.objects.get(pk=metadata_id)
     config = ConformityCheckConfiguration.objects.get(id=config_id)
-    quality = Quality()
     quality.run_check(metadata, config)
     return HttpResponse("success")
 

@@ -7,7 +7,7 @@ from service.helper.common_connector import CommonConnector
 from service.models import Metadata
 
 
-class EtfQuality:
+class QualityEtf:
 
     def __init__(self, metadata: Metadata,
                  base_config: ConformityCheckConfiguration):

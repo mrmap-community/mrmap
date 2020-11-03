@@ -11,12 +11,22 @@ from quality.enums import RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum
 from service.models import Metadata
 
 
+class ConformityCheckConfigurationManager(models.Manager):
+    """ Custom manager to extend ConformityCheckConfiguration methods """
+
+    def get_for_metadata_type(self, metadata_type: str):
+        """ Gets all configs that are allowed for the given metadata_type """
+        return super().get_queryset().filter(
+            metadata_types__contains=metadata_type)
+
+
 class ConformityCheckConfiguration(models.Model):
     """
     Base model for ConformityCheckConfiguration classes.
     """
     name = models.CharField(max_length=1000)
     metadata_types = models.JSONField()
+    objects = ConformityCheckConfigurationManager()
 
     def __str__(self):
         return self.name
@@ -50,10 +60,14 @@ class Rule(models.Model):
     Model holding the definition of a single rule.
     """
     name = models.CharField(max_length=1000)
-    field_name = models.TextField(choices=RuleFieldNameEnum.as_choices(drop_empty_choice=True))
-    property = models.TextField(choices=RulePropertyEnum.as_choices(drop_empty_choice=True))
-    operator = models.TextField(choices=RuleOperatorEnum.as_choices(drop_empty_choice=True))
+    field_name = models.TextField(
+        choices=RuleFieldNameEnum.as_choices(drop_empty_choice=True))
+    property = models.TextField(
+        choices=RulePropertyEnum.as_choices(drop_empty_choice=True))
+    operator = models.TextField(
+        choices=RuleOperatorEnum.as_choices(drop_empty_choice=True))
     threshold = models.TextField()
+
     # TODO ask if there shouldn't be any value field to compare to
 
     def __str__(self):
@@ -89,8 +103,11 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
     """
     Model holding the configs for an internal conformity check.
     """
-    mandatory_rule_sets = models.ManyToManyField(RuleSet, related_name="mandatory_rule_sets")
-    optional_rule_sets = models.ManyToManyField(RuleSet, related_name="optional_rule_sets", blank=True)
+    mandatory_rule_sets = models.ManyToManyField(RuleSet,
+                                                 related_name="mandatory_rule_sets")
+    optional_rule_sets = models.ManyToManyField(RuleSet,
+                                                related_name="optional_rule_sets",
+                                                blank=True)
 
 
 class ConformityCheckRun(models.Model):
@@ -98,8 +115,10 @@ class ConformityCheckRun(models.Model):
     Model holding the relation of a metadata record to the results of a check.
     """
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    # TODO check if this actually works, i.e. can we properly retrieve the internal/external config?
-    conformity_check_configuration = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
+    # TODO check if this actually works, i.e. can we properly retrieve the
+    #  internal/external config?
+    conformity_check_configuration = models.ForeignKey(
+        ConformityCheckConfiguration, on_delete=models.CASCADE)
     # TODO Proposal as BKG connects Metadata record in configuration
     # external_url = models.URLField(max_length=1000)
     # TODO check if this should actually be set to auto_now_add

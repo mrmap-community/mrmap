@@ -6,7 +6,7 @@ Created on: 27.10.20
 
 """
 from django.db.models import Model
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
@@ -57,4 +57,9 @@ def new_check(request, metadata_id, config_id):
     quality = Quality()
     quality.run_check(metadata, config)
     return HttpResponse("success")
+
+
+def get_configs_for(request, metadata_type: str):
+    configs = ConformityCheckConfiguration.objects.get_for_metadata_type(metadata_type)
+    return HttpResponse(configs)
 

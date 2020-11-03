@@ -12,4 +12,6 @@ from . import views
 urlpatterns = [
     # path('/<int:run_id>', views.check, name='check'),
     path('internal/<str:metadata_id>/<int:config_id>', views.new_check, name='check_internal'),
+    path('configs/<str:metadata_type>', views.get_configs_for,
+         name='get_configs'),
 ]

@@ -7,7 +7,7 @@ Created on: 27.10.20
 """
 from django.db import models
 
-from quality.enums import RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum
+from quality.enums import RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum, ConformityTypeEnum
 from service.models import Metadata
 
 
@@ -26,6 +26,8 @@ class ConformityCheckConfiguration(models.Model):
     """
     name = models.CharField(max_length=1000)
     metadata_types = models.JSONField()
+    conformity_type = models.TextField(choices=ConformityTypeEnum.as_choices(drop_empty_choice=True))
+
     objects = ConformityCheckConfigurationManager()
 
     def __str__(self):
@@ -53,6 +55,7 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     # external_url = models.URLField(max_length=1000)
     parameter_map = models.JSONField()
     response_map = models.JSONField()
+    polling_interval_seconds = models.IntegerField(default=5, blank=True, null=False)
 
 
 class Rule(models.Model):
@@ -120,7 +123,7 @@ class ConformityCheckRun(models.Model):
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
     # TODO Proposal as BKG connects Metadata record in configuration
-    # external_url = models.URLField(max_length=1000)
+    run_url = models.URLField(blank=True, null=True, max_length=1000)
     # TODO check if this should actually be set to auto_now_add
     time_start = models.DateTimeField(auto_now_add=True)
     time_stop = models.DateTimeField(blank=True, null=True)

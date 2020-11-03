@@ -38,3 +38,11 @@ class RuleOperatorEnum(EnumChoice):
     LTE = "<="
     EQ = "=="
     NEQ = "!="
+
+
+class ConformityTypeEnum(EnumChoice):
+    """ Defines all possible conformity types
+
+    """
+    INTERNAL = "internal"
+    ETF = "etf"

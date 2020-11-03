@@ -5,27 +5,30 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from django.db.models import Model
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render, get_object_or_404
+
+from django.http import HttpResponse
 
 # Create your views here.
-from quality.models import ConformityCheckRun, \
-    ConformityCheckConfigurationInternal, ConformityCheckConfiguration
+from quality.models import ConformityCheckConfigurationInternal
+from quality.models import ConformityCheckRun, ConformityCheckConfiguration
 from quality.quality import Quality
 from quality.settings import quality_logger
 from service.models import Metadata
 
 
-def check(request, run_id):
+# Create your views here.
+
+
+def check(request, config_id, metadata_id):
     try:
-        check_run = ConformityCheckRun.objects.get(id=run_id)
+        config = ConformityCheckConfiguration.objects.get(pk=config_id)
+        metadata = Metadata.objects.get(pk=metadata_id)
         quality = Quality()
-        quality.run_check(check_run)
-        return HttpResponse("Hello world")
+        success = quality.run_check(metadata, config)
+        return HttpResponse(f"Success: {success}")
     except ConformityCheckRun.DoesNotExist:
-        quality_logger.error(f"No model found for id {run_id}")
-        return HttpResponse("Failed")
+        quality_logger.error("No config or metadata found")
+        return HttpResponse("No config or metadata found")
 
 
 def check_internal(request, metadata_id, config_id):
@@ -37,7 +40,8 @@ def check_internal(request, metadata_id, config_id):
 
         # TODO use this method on production
         # if quality.has_running_check():
-        #     raise Exception(f"Metadata validation for {metadata_id} already running. Skipping.")
+        #     raise Exception(f"Metadata validation for {metadata_id} already
+        #     running. Skipping.")
 
         quality.run_check()
         return HttpResponse("Hello world")
@@ -60,6 +64,6 @@ def new_check(request, metadata_id, config_id):
 
 
 def get_configs_for(request, metadata_type: str):
-    configs = ConformityCheckConfiguration.objects.get_for_metadata_type(metadata_type)
+    configs = ConformityCheckConfiguration.objects.get_for_metadata_type(
+        metadata_type)
     return HttpResponse(configs)
-

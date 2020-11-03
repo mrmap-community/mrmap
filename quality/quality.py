@@ -6,9 +6,10 @@ Created on: 27.10.20
 
 """
 
-from quality.models import ConformityCheckRun, \
-    ConformityCheckConfiguration
-from quality.plugins.internal import QualityInternal
+from quality.enums import ConformityTypeEnum
+from quality.models import ConformityCheckRun, ConformityCheckConfiguration
+from quality.plugins.etf import EtfQuality
+from quality.plugins.internal import InternalQuality
 from service.models import Metadata
 
 
@@ -20,9 +21,19 @@ class Quality:
         if metadata is None:
             raise Exception("Metadata not defined.")
         if config is None:
-            raise Exception("Config not defined.")
+            raise Exception(
+                "Could not check conformity. ConformityCheckConfiguration is "
+                "None.")
 
-        checker = QualityInternal(metadata, config)
+        checker = None
+        if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
+            checker = InternalQuality(metadata, config)
+        elif config.conformity_type == ConformityTypeEnum.ETF.value:
+            checker = EtfQuality(metadata, config)
+        else:
+            raise Exception(
+                f"Could not check conformity. Invalid conformity type: "
+                f"{config.conformity_type}.")
         checker.run()
 
     @staticmethod

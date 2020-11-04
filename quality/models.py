@@ -7,7 +7,9 @@ Created on: 27.10.20
 """
 from django.db import models
 
-from quality.enums import RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum, ConformityTypeEnum
+from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
+    RuleOperatorEnum, \
+    ConformityTypeEnum
 from service.models import Metadata
 
 
@@ -26,7 +28,8 @@ class ConformityCheckConfiguration(models.Model):
     """
     name = models.CharField(max_length=1000)
     metadata_types = models.JSONField()
-    conformity_type = models.TextField(choices=ConformityTypeEnum.as_choices(drop_empty_choice=True))
+    conformity_type = models.TextField(
+        choices=ConformityTypeEnum.as_choices(drop_empty_choice=True))
 
     objects = ConformityCheckConfigurationManager()
 
@@ -55,7 +58,8 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     # external_url = models.URLField(max_length=1000)
     parameter_map = models.JSONField()
     response_map = models.JSONField()
-    polling_interval_seconds = models.IntegerField(default=5, blank=True, null=False)
+    polling_interval_seconds = models.IntegerField(default=5, blank=True,
+                                                   null=False)
 
 
 class Rule(models.Model):
@@ -128,6 +132,11 @@ class ConformityCheckRunManager(models.Manager):
             metadata=metadata, passed__isnull=True).count()
         return running_checks != 0
 
+    def get_latest_check(self, metadata: Metadata):
+        check = super().get_queryset().filter(metadata=metadata).latest(
+            'time_start')
+        return check
+
 
 class ConformityCheckRun(models.Model):
     """
@@ -148,4 +157,7 @@ class ConformityCheckRun(models.Model):
     additional_info = models.TextField(blank=True, null=True)
     result = models.TextField(blank=True, null=True)
 
-    objects = ConformityCheckConfigurationManager()
+    objects = ConformityCheckRunManager()
+
+    def is_running(self):
+        return self.time_stop is not None

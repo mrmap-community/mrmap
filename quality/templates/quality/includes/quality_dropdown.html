@@ -1,0 +1,20 @@
+{% load i18n static %}
+{% load fontawesome_5 %}
+
+<div class="dropdown">
+    <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle {% if quality.disabled %}disabled{% endif %}" type="button" id="id_quality_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        {% if quality.is_running %}
+            {% include 'includes/loading_spinner.html' with no_text=True %}
+        {% else %}
+            {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+        {% endif %}
+        {% if not quality.no_text %}
+            {% trans 'Validation' %}
+        {% endif %}
+    </button>
+    <div class="dropdown-menu" aria-labelledby="id_quality_dropdown">
+        {% for config in quality.configs %}
+        <button class="dropdown-item" type="button" onclick="triggerValidation('{{quality.metadata_id}}', '{{config.id}}')">{{ config }}</button>
+        {% endfor %}
+    </div>
+</div>

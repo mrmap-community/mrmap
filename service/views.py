@@ -22,6 +22,8 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
+from quality.models import ConformityCheckConfiguration, ConformityCheckRun
+from quality.view_models import get_quality_dropdown_model
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
@@ -1247,6 +1249,7 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
         "leaflet_add_bbox": True,
         "current_view": "resource:detail",
         "current_view_arg": object_id,
+        "quality": get_quality_dropdown_model(service_md),
     })
 
     if update_params:

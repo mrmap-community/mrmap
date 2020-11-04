@@ -22,6 +22,7 @@ def run_check(metadata: Metadata,
             "Could not check conformity. ConformityCheckConfiguration is "
             "None.")
 
+    # TODO check if a task for metadata is already running
     checker = None
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         checker = QualityInternal(metadata, config)

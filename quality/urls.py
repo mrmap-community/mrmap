@@ -10,6 +10,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('<str:metadata_id>', views.validate, name='check'),
     path('<int:config_id>/<str:metadata_id>', views.check, name='check'),
     path('internal/<str:metadata_id>/<int:config_id>', views.new_check,
          name='check_internal'),

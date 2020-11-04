@@ -20,8 +20,8 @@ def map_parameter(obj, target_value):
 def map_string(obj, target_value: str):
     if target_value.startswith('__'):
         property_name = target_value[2:]
-        if hasattr(obj, property_name):
-            return obj.__getattribute__(property_name)
+        val = find(obj, property_name)
+        return val
     return target_value
 
 

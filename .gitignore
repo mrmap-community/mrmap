@@ -54,7 +54,6 @@ nosecover.xml
 # Django stuff:
 *.log
 local_settings.py
-migrations/
 
 # Flask stuff:
 instance/

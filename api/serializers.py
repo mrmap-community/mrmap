@@ -306,7 +306,7 @@ class MonitoringSerializer(serializers.ModelSerializer):
     class Meta:
         model = Monitoring
         fields = [
-            'id', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri',
+            'uuid', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri',
             'monitoring_run'
         ]
 

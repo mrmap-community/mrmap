@@ -143,7 +143,6 @@ class ConformityCheckRun(models.Model):
     #  internal/external config?
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
-    # TODO Proposal as BKG connects Metadata record in configuration
     run_url = models.URLField(blank=True, null=True, max_length=1000)
     # TODO check if this should actually be set to auto_now_add
     time_start = models.DateTimeField(auto_now_add=True)
@@ -156,4 +155,4 @@ class ConformityCheckRun(models.Model):
     objects = ConformityCheckRunManager()
 
     def is_running(self):
-        return self.time_stop is not None
+        return self.time_start is not None and self.passed is None

@@ -1,48 +1,22 @@
+from time import sleep
+
 from celery import shared_task
+from celery.utils.log import get_task_logger
 from django.utils.translation import gettext_lazy as _
 
 from quality.enums import ConformityTypeEnum
-from quality.models import ConformityCheckConfiguration
+from quality.models import ConformityCheckConfiguration, ConformityCheckRun
 from quality.plugins.etf import QualityEtf
 from quality.plugins.internal import QualityInternal
-from service.helper.enums import PendingTaskEnum
 from service.models import Metadata
 from structure.models import MrMapUser, MrMapGroup, PendingTask
 from users.helper.user_helper import create_group_activity
 
+logger = get_task_logger(__name__)
+
 
 @shared_task(name='run_quality_check')
-def run_quality_check(config_id: int, metadata_id: int, user_id, group_id):
-    curr_task_id = run_quality_check.request.id
-
-    try:
-        user = MrMapUser.objects.get(pk=user_id)
-        group = MrMapGroup.objects.get(pk=group_id)
-    except (MrMapUser.DoesNotExist, MrMapGroup.DoesNotExist):
-        create_group_activity(
-            group=group,
-            user=user,
-            msg=_(f'Validation Failed'),
-            metadata_title=_('Could not start the validation for metadataXY.')
-        )
-        raise Exception("User or group does not exist.")
-
-    pending_task_db = None
-    if curr_task_id is not None:
-        # create db object, so we know which pending task is still ongoing
-        pending_task_db = PendingTask()
-        # pending_task_db.created_by = MrMapGroup.objects.get(
-        #     id=form.cleaned_data['registering_with_group'].id)
-        pending_task_db.created_by = group
-        pending_task_db.task_id = curr_task_id
-        pending_task_db.description = '{"service": "Hello world"}'
-        # pending_task_db.description = json.dumps({
-        #     "service": form.cleaned_data['uri'],
-        #     "phase": "Parsing",
-        # })
-        pending_task_db.type = PendingTaskEnum.VALIDATE.value
-        pending_task_db.save()
-
+def run_quality_check(config_id: int, metadata_id: int):
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
     metadata = Metadata.objects.get(pk=metadata_id)
     if metadata is None:
@@ -51,7 +25,7 @@ def run_quality_check(config_id: int, metadata_id: int, user_id, group_id):
         raise Exception(
             "Could not check conformity. ConformityCheckConfiguration is "
             "None.")
-    checker = None
+
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         checker = QualityInternal(metadata, config)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
@@ -60,13 +34,102 @@ def run_quality_check(config_id: int, metadata_id: int, user_id, group_id):
         raise Exception(
             f"Could not check conformity. Invalid conformity type: "
             f"{config.conformity_type}.")
-    checker.run()
 
+    run = checker.run()
+    return run.pk
+
+
+@shared_task(name="complete_validation_task")
+def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
+    """ Handles the completed validation process.
+
+        Handler for completing the validation process. This method
+        takes care of deleting the PeriodicTask and adding a
+        new GroupActivity.
+
+        Note: This method should be used to handle the completed validation
+              process (passed, failed). Use complete_validation_error for
+              handling any kind of unexpected exceptions during the validation.
+
+        Args:
+            run_id (int): The id of the ConformityCheckRun.
+        Keyword arguments:
+            user_id (int): The id of the user that triggered the run.
+            group_id (int): the id of the group that the validated metadata
+            object belongs to.
+        Returns:
+            nothing
+    """
+    parent_task_id = complete_validation.request.parent_id
+
+    run = ConformityCheckRun.objects.get(pk=run_id)
+    if parent_task_id is not None:
+        PendingTask.objects.get(task_id=parent_task_id).delete()
+
+    # task is still running
+    if run.passed is None:
+        return
+
+    group = MrMapGroup.objects.get(pk=group_id)
+    user = MrMapUser.objects.get(pk=user_id)
+
+    title = _(f'Validation {"succeeded" if run.passed else "failed"}')
+    content = _(
+        f'for <a href="resource/detail/{run.metadata.id}">'
+        f'{run.metadata.title}</a> '
+        f'with <i>{run.conformity_check_configuration}</i>.')
     create_group_activity(
         group=group,
         user=user,
-        msg=_(f"<i>Validation Complete YES!</i>"),
-        metadata_title=_("metadata title")
+        msg=title,
+        metadata_title=content
     )
-    if pending_task_db is not None:
-        pending_task_db.delete()
+
+
+@shared_task(name="complete_validation_error_task")
+def complete_validation_error(*args, user_id: int = None, group_id: int = None,
+                              config_id: int = None, metadata_id: str = None):
+    """ Handles the aborted validation process.
+
+        Handler for completing the aborted validation process. This method
+        takes care of deleting the PeriodicTask and adding a
+        new GroupActivity.
+
+        Note: This method should be used to handle the aborted validation
+              process (e.g. unhandled Exceptions). Use complete_validation for
+              handling the completed validation process.
+
+        Args:
+            *args: positional arguments
+        Keyword arguments:
+            user_id (int): The id of the user that triggered the run.
+            group_id (int): the id of the group that the validated metadata
+            object belongs to.
+            config_id (int): The id of the ConformityCheckConfiguration.
+            metadata_id (uuid): The id of the validated metadata object.
+        Returns:
+            nothing
+    """
+    # TODO should we make a cleanup for ConformityCheckRun in case it did not
+    #  complete?
+    parent_task_id = complete_validation_error.request.parent_id
+
+    if parent_task_id is not None:
+        PendingTask.objects.get(task_id=parent_task_id).delete()
+
+    config = ConformityCheckConfiguration.objects.get(pk=config_id)
+    metadata = Metadata.objects.get(pk=metadata_id)
+    group = MrMapGroup.objects.get(pk=group_id)
+    user = MrMapUser.objects.get(pk=user_id)
+
+    title = _(f'Validation aborted')
+    content = _(
+        f'for <a href="resource/detail/{metadata.id}">'
+        f'{metadata.title}</a> '
+        f'with <i>{config}</i>.')
+    create_group_activity(
+        group=group,
+        user=user,
+        msg=title,
+        metadata_title=content
+    )

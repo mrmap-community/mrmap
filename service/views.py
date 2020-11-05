@@ -716,6 +716,9 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         'capabilities_uri': md.capabilities_uri,
         'contact': collect_contact_data(md.contact),
         "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
+        "quality": get_quality_dropdown_model(md),
+        "current_view": 'resource:get-metadata-html',
+        "current_view_arg": md.id,
     }
 
     params.update(collect_metadata_related_objects(md, request, ))

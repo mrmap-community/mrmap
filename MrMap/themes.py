@@ -33,6 +33,7 @@ FONT_AWESOME_ICONS = {
     'METADATA': format_html(ICON_PATTERN, 'fas', 'fa-file-alt', ),
     'VALIDATION': format_html(ICON_PATTERN, 'fas', 'fa-check-circle', ),
     'VALIDATION_ERROR': format_html(ICON_PATTERN, 'fas', 'fa-times-circle', ),
+    'VALIDATION_UNKNOWN': format_html(ICON_PATTERN, 'fas', 'fa-question-circle', ),
     'ACCESS': format_html(ICON_PATTERN, 'fas', 'fa-key', ),
     'SORT_ALPHA_UP': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-up', ),
     'SORT_ALPHA_DOWN': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-down', ),

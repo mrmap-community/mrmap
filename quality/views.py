@@ -5,40 +5,74 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
+import json
 
-from django.http import HttpResponse
-# Create your views here.
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from rest_framework import status
-from rest_framework.response import Response
 
 import quality.quality as quality
-from quality import tasks
+from MrMap.decorator import check_permission
 from quality.models import ConformityCheckConfigurationInternal
 from quality.models import ConformityCheckRun, ConformityCheckConfiguration
 from quality.settings import quality_logger
-from quality.tasks import run_quality_check
+from quality.tasks import run_quality_check, complete_validation, \
+    complete_validation_error
+from service.helper.enums import PendingTaskEnum
 from service.models import Metadata
-# Create your views here.
+from structure.models import PendingTask
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
+CURRENT_VIEW_QUERY_Param = 'current-view'
+CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
 
+
+@login_required
+@check_permission(
+    PermissionEnum.CAN_RUN_VALIDATION
+)
 def validate(request, metadata_id: str):
     config_id = request.GET.get('config_id', None)
+    current_view = request.GET.get(CURRENT_VIEW_QUERY_Param, None)
+    current_view_arg = request.GET.get(CURRENT_VIEW_ARG_QUERY_Param, None)
+
     if config_id is None:
-        return Response('Parameter config_id is missing',
-                        status=status.HTTP_400_BAD_REQUEST)
+        return HttpResponse('Parameter config_id is missing',
+                            status=status.HTTP_400_BAD_REQUEST)
     metadata = get_object_or_404(Metadata, pk=metadata_id)
-    config = get_object_or_404(ConformityCheckConfiguration, pk=config_id)
-    # tasks.run_check.delay(metadata, config)
 
     user = user_helper.get_user(request)
     group = metadata.created_by
 
-    pending_task = tasks.my_task.delay(user.id, group.id)
-    # pending_task = tasks.my_task(user, group)
+    success_callback = complete_validation.s(group_id=group.id, user_id=user.id)
+    error_callback = complete_validation_error.s(group_id=group.id,
+                                                 user_id=user.id,
+                                                 config_id=config_id,
+                                                 metadata_id=metadata.id)
 
-    # return pending_task_db
+    pending_task = run_quality_check.s(config_id, metadata_id).set(
+        link=success_callback, link_error=error_callback).delay()
+
+    pending_task_db = PendingTask()
+    pending_task_db.created_by = group
+    pending_task_db.task_id = pending_task.id
+    pending_task_db.description = json.dumps({
+        "status": f'Validating {metadata.title}',
+        "service": metadata.title,
+        "phase": "Validating",
+    })
+    pending_task_db.type = PendingTaskEnum.VALIDATE.value
+    pending_task_db.save()
+
+    if current_view is not None:
+        if current_view_arg is not None:
+            return HttpResponseRedirect(
+                reverse(current_view, args=(current_view_arg,)), status=303)
+        else:
+            return HttpResponseRedirect(reverse(current_view), status=303)
 
     return HttpResponse(status=status.HTTP_200_OK)
 

@@ -38,3 +38,4 @@ class PermissionEnum(EnumChoice):
     CAN_ACCESS_LOGS = "can_access_logs"
     CAN_DOWNLOAD_LOGS = "can_download_logs"
     CAN_RUN_MONITORING = "can_run_monitoring"
+    CAN_RUN_VALIDATION = "can_run_validation"

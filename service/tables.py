@@ -15,6 +15,11 @@ from django.utils.translation import gettext_lazy as _
 from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
+
+from quality.models import ConformityCheckRun
+from quality.settings import DEFAULT_UNKNOWN_MESSAGE as QUALITY_UNKNOWN_MESSAGE, DEFAULT_SUCCESS_MESSAGE as QUALITY_SUCCESS_MESSAGE, DEFAULT_FAIL_MESSAGE as QUALITY_FAIL_MESSAGE
+
+from quality.view_models import get_quality_dropdown_model
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
 from service.models import MetadataRelation, Metadata
 from structure.permissionEnums import PermissionEnum
@@ -45,6 +50,19 @@ def _get_action_btns_for_service_table(table, record):
         permission=PermissionEnum.CAN_RUN_MONITORING,
         tooltip=format_html(_("Run health check"), ),
         tooltip_placement='left', )
+
+    quality_vm = get_quality_dropdown_model(record)
+    btns += table.get_dropdown_btn(
+        btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['VALIDATION'],
+        btn_disabled=quality_vm["disabled"],
+        btn_loading=quality_vm["running"],
+        btn_options=[{"label": c.name, "href": reverse('quality:check', args=(
+            record.id,)) + f'?config_id={c.id}&current-view={table.current_view}'}
+                     for c in quality_vm["configs"]],
+        permission=PermissionEnum.CAN_RUN_VALIDATION,
+        tooltip=format_html(_("Run validation"), ),
+        tooltip_placement='left',)
 
     btns += table.get_btn(
         href=reverse('editor:edit', args=(record.id,)) + f"?current-view={table.current_view}",
@@ -98,6 +116,7 @@ TOOLTIP_CREATED_ON = _('The registration date.')
 TOOLTIP_ACTIONS = _('Performable Actions')
 TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
+TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 
 class ResourceTable(MrMapTable):
@@ -118,6 +137,27 @@ class ResourceTable(MrMapTable):
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
                                    tooltip=_('This resource has external authentication.'))
 
+        return format_html(icons)
+
+    def get_validation_icons(self, passed):
+        icons = ''
+        theme_icons = get_theme(self.user)["ICONS"]
+        if passed is None:
+            icon_color = 'text-secondary'
+            tooltip = QUALITY_UNKNOWN_MESSAGE
+            theme_icon = theme_icons["VALIDATION_UNKNOWN"]
+        elif passed:
+            icon_color = 'text-success'
+            tooltip = QUALITY_SUCCESS_MESSAGE
+            theme_icon = theme_icons["VALIDATION"]
+        else:
+            icon_color = 'text-danger'
+            tooltip = QUALITY_FAIL_MESSAGE
+            theme_icon = theme_icons["VALIDATION_ERROR"]
+
+        icons += self.get_icon(icon_color=icon_color,
+                               icon=theme_icon,
+                               tooltip=tooltip)
         return format_html(icons)
 
     def get_health_icons(self, record):
@@ -213,6 +253,11 @@ class WmsServiceTable(ResourceTable):
         attrs=attrs,
         tooltip=TOOLTIP_HEALTH,
     )
+    wms_validation = MrMapColumn(
+        verbose_name=_('Validity'),
+        empty_values=[False, ],
+        tooltip=TOOLTIP_VALIDATION
+    )
     wms_version = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Version'),
@@ -262,6 +307,15 @@ class WmsServiceTable(ResourceTable):
 
     def render_wms_health(self, record):
         return self.get_health_icons(record=record)
+
+    def render_wms_validation(self, record):
+        passed = None
+        try:
+            check_run = ConformityCheckRun.objects.get_latest_check(record)
+            passed = check_run.passed
+        except ConformityCheckRun.DoesNotExist:
+            pass
+        return self.get_validation_icons(passed=passed)
 
     def render_wms_data_provider(self, value, record):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
@@ -379,6 +433,11 @@ class WfsServiceTable(ResourceTable):
         empty_values=[False, ],
         tooltip=TOOLTIP_HEALTH,
     )
+    wfs_validation = MrMapColumn(
+        verbose_name=_('Validity'),
+        empty_values=[False, ],
+        tooltip=TOOLTIP_VALIDATION
+    )
     wfs_version = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Version'),
@@ -428,6 +487,15 @@ class WfsServiceTable(ResourceTable):
 
     def render_wfs_health(self, record):
         return self.get_health_icons(record=record)
+
+    def render_wfs_validation(self, record):
+        passed = None
+        try:
+            check_run = ConformityCheckRun.objects.get_latest_check(record)
+            passed = check_run.passed
+        except ConformityCheckRun.DoesNotExist:
+            pass
+        return self.get_validation_icons(passed=passed)
 
     def render_wfs_data_provider(self, value, record):
         return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
@@ -767,6 +835,11 @@ class DatasetTable(MrMapTable):
         verbose_name=_('Origins'),
         empty_values=[],
         tooltip=_('How the resource got into the system.'))
+    dataset_validation = MrMapColumn(
+        verbose_name=_('Validity'),
+        empty_values=[False, ],
+        tooltip=TOOLTIP_VALIDATION
+    )
     dataset_actions = MrMapColumn(
         verbose_name=_('Actions'),
         empty_values=[],
@@ -808,6 +881,15 @@ class DatasetTable(MrMapTable):
 
         return format_html(', '.join(origin_list))
 
+    def render_dataset_validation(self, record):
+        passed = None
+        try:
+            check_run = ConformityCheckRun.objects.get_latest_check(record)
+            passed = check_run.passed
+        except ConformityCheckRun.DoesNotExist:
+            pass
+        return self.get_validation_icons(passed=passed)
+
     def render_dataset_actions(self, record):
         is_mr_map_origin = not MetadataRelation.objects.filter(
             metadata_to=record
@@ -816,6 +898,22 @@ class DatasetTable(MrMapTable):
         ).exists()
 
         btns = ''
+
+        quality_vm = get_quality_dropdown_model(record)
+        btns += self.get_dropdown_btn(
+            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['VALIDATION'],
+            btn_disabled=quality_vm["disabled"],
+            btn_loading=quality_vm["running"],
+            btn_options=[
+                {"label": c.name, "href": reverse('quality:check', args=(
+                    record.id,)) + f'?config_id={c.id}&current-view='
+                                   f'{self.current_view}'}
+                for c in quality_vm["configs"]],
+            permission=PermissionEnum.CAN_RUN_VALIDATION,
+            tooltip=format_html(_("Run validation"), ),
+            tooltip_placement='left', )
+
         btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",
                              permission=PermissionEnum.CAN_EDIT_METADATA,
                              tooltip=format_html(_(f"Edit <strong>{record.title} [{record.id}]</strong> dataset")),
@@ -840,3 +938,24 @@ class DatasetTable(MrMapTable):
                              ) if is_mr_map_origin else ''
 
         return format_html(btns)
+
+    def get_validation_icons(self, passed):
+        icons = ''
+        theme_icons = get_theme(self.user)["ICONS"]
+        if passed is None:
+            icon_color = 'text-secondary'
+            tooltip = QUALITY_UNKNOWN_MESSAGE
+            theme_icon = theme_icons["VALIDATION_UNKNOWN"]
+        elif passed:
+            icon_color = 'text-success'
+            tooltip = QUALITY_SUCCESS_MESSAGE
+            theme_icon = theme_icons["VALIDATION"]
+        else:
+            icon_color = 'text-danger'
+            tooltip = QUALITY_FAIL_MESSAGE
+            theme_icon = theme_icons["VALIDATION_ERROR"]
+
+        icons += self.get_icon(icon_color=icon_color,
+                               icon=theme_icon,
+                               tooltip=tooltip)
+        return format_html(icons)

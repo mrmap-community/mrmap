@@ -3,7 +3,7 @@
 
 <div class="dropdown">
     <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle {% if quality.disabled %}disabled{% endif %}" type="button" id="id_quality_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        {% if quality.is_running %}
+        {% if quality.running %}
             {% include 'includes/loading_spinner.html' with no_text=True %}
         {% else %}
             {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
@@ -14,7 +14,7 @@
     </button>
     <div class="dropdown-menu" aria-labelledby="id_quality_dropdown">
         {% for config in quality.configs %}
-        <button class="dropdown-item" type="button" onclick="triggerValidation('{{quality.metadata_id}}', '{{config.id}}')">{{ config }}</button>
+        <a class="dropdown-item" href="{% url 'quality:check' quality.metadata_id %}?config_id={{config.id}}&current-view={{current_view}}&current-view-arg={{current_view_arg}}">{{ config }}</a>
         {% endfor %}
     </div>
 </div>

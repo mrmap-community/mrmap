@@ -22,7 +22,7 @@ class QualityEtf:
         self.etf_base_url = self.config.external_url
         quality_logger.info(f"Using ETF base url {self.etf_base_url}")
 
-    def run(self):
+    def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.
 
         Runs the configured ETF suites of an external check
@@ -41,6 +41,7 @@ class QualityEtf:
         self.evaluate_test_run_report()
         # TODO delete test run
         # TODO delete test object
+        return self.check_run
 
     def start_remote_test_run(self, test_object_id):
         """ Starts a new ETF test run for the associated metadata object.

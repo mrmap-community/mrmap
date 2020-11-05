@@ -7,6 +7,7 @@ Created on: 02.11.20
 """
 import json
 from datetime import datetime
+from time import sleep
 
 from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \
@@ -23,7 +24,7 @@ class QualityInternal:
         self.config = ConformityCheckConfigurationInternal.objects.get(
             pk=base_config.pk)
 
-    def run(self):
+    def run(self) -> ConformityCheckRun:
         """ Runs the internal check for a given metadata object.
 
         Runs the mandatory and optional RuleSets of an internal check
@@ -43,6 +44,7 @@ class QualityInternal:
             "rule_sets": []
         }
         for rule_set in config.mandatory_rule_sets.all():
+            self.update_pending_task()
             mandatory_result = self.check_ruleset(rule_set)
             mandatory_result["name"] = str(rule_set)
             mandatory_result["id"] = rule_set.id
@@ -66,6 +68,7 @@ class QualityInternal:
         run.time_stop = time_stop
         run.result = json.dumps(results)
         run.save()
+        return run
 
     def check_ruleset(self, ruleset: RuleSet):
         """ Evaluates all rules of a ruleset for the given metadata object.
@@ -83,6 +86,7 @@ class QualityInternal:
             "rules": []
         }
 
+        sleep(5)
         for rule in ruleset.rules.all():
             rule_result = self.check_rule(rule)
 
@@ -124,3 +128,8 @@ class QualityInternal:
             "success": eval(condition, {'__builtins__': None}),
             "condition": condition
         }
+
+    def update_pending_task(self):
+        # TODO check how to retrieve the pending task to update
+        pass
+        # task_id = run_quality_check.request.id

@@ -76,6 +76,7 @@ DEFAULT_GROUPS = [
             PermissionEnum.CAN_REMOVE_PUBLISHER,
             PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER,
             PermissionEnum.CAN_RUN_MONITORING,
+            PermissionEnum.CAN_RUN_VALIDATION,
         ]
     },
 ]

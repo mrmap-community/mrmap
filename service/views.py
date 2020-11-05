@@ -508,7 +508,11 @@ def get_service_metadata(request: HttpRequest, metadata_id):
 
     metadata = get_object_or_404(Metadata, id=metadata_id)
 
-    if not metadata.is_active:
+    user = user_helper.get_user(request)
+    # TODO CAN_RUN_VALIDATION
+    user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_MONITORING)
+
+    if not user_can_run_validation and not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 
     doc = metadata.get_service_metadata_xml()
@@ -1284,7 +1288,10 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         metadata = Metadata.objects.get(id=metadata_id)
         operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
-        if not metadata.is_active:
+        user = user_helper.get_user(request)
+        # TODO CAN_RUN_VALIDATION
+        user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_MONITORING)
+        if not user_can_run_validation and not metadata.is_active:
             return HttpResponse(status=423, content=SERVICE_DISABLED)
 
         elif operation_handler.request_param is None:

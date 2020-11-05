@@ -962,7 +962,7 @@ class Metadata(Resource):
                 metadata=self,
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
-            )[0]
+            )
             cap_doc.is_active = self.is_active
             cap_doc.content = cap_xml
 

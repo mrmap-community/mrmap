@@ -8,7 +8,7 @@ from service.models import Metadata
 
 
 @shared_task(name='run_quality_check')
-def run_quality_check(config_id: int, metadata_id: int):
+def run_quality_check(config_id: int, metadata_id: int, cookies: [str]):
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
     metadata = Metadata.objects.get(pk=metadata_id)
     if metadata is None:
@@ -21,7 +21,7 @@ def run_quality_check(config_id: int, metadata_id: int):
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         checker = QualityInternal(metadata, config)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
-        checker = QualityEtf(metadata, config)
+        checker = QualityEtf(metadata, config, cookies)
     else:
         raise Exception(
             f"Could not check conformity. Invalid conformity type: "

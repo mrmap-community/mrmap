@@ -337,6 +337,7 @@ def get_resource_capabilities(request: HttpRequest, md: Metadata):
     # move increasing hits to background process to speed up response time!
     async_increase_hits.delay(md.id)
 
+    # CAN_RUN_VALIDATION
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 

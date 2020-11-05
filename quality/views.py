@@ -18,14 +18,15 @@ import quality.quality as quality
 
 
 # Create your views here.
+from users.helper import user_helper
 
 
 def check(request, config_id, metadata_id):
     num_running = ConformityCheckRun.objects.filter(metadata=metadata_id, time_stop__exact=None).count()
-    if num_running > 0:
-        return HttpResponse(f"Check for metadata {metadata_id} still running")
-#    run_quality_check(config_id, metadata_id)
-    run_quality_check.delay(config_id, metadata_id)
+#    if num_running > 0:
+#        return HttpResponse(f"Check for metadata {metadata_id} still running")
+    run_quality_check(config_id, metadata_id, request.COOKIES)
+#    run_quality_check.delay(config_id, metadata_id, request.COOKIES)
     return HttpResponse(f"Started quality check for config {config_id} and metadata {metadata_id}")
 
 

@@ -12,7 +12,6 @@ from . import views
 app_name = 'quality'
 urlpatterns = [
     path('<str:metadata_id>', views.validate, name='check'),
-    path('<int:config_id>/<str:metadata_id>', views.check, name='check2'),
     path('internal/<str:metadata_id>/<int:config_id>', views.new_check,
          name='check_internal'),
     path('configs/<str:metadata_type>', views.get_configs_for,

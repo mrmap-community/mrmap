@@ -77,18 +77,6 @@ def validate(request, metadata_id: str):
     return HttpResponse(status=status.HTTP_200_OK)
 
 
-def check(request, config_id, metadata_id):
-    num_running = ConformityCheckRun.objects.filter(metadata=metadata_id,
-                                                    time_stop__exact=None).count()
-    if num_running > 0:
-        return HttpResponse(f"Check for metadata {metadata_id} still running")
-    #    run_quality_check(config_id, metadata_id)
-    run_quality_check.delay(config_id, metadata_id)
-    return HttpResponse(
-        f"Started quality check for config {config_id} and metadata "
-        f"{metadata_id}")
-
-
 def check_internal(request, metadata_id, config_id):
     try:
         metadata = Metadata.objects.get(pk=metadata_id)

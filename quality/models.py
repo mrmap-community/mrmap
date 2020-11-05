@@ -53,6 +53,7 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     Model holding the configs for an external conformity check.
     """
     external_url = models.URLField(max_length=1000, null=True)
+    validation_target = models.TextField(max_length=1000, null=True)
     parameter_map = models.JSONField()
     polling_interval_seconds = models.IntegerField(default=5, blank=True,
                                                    null=False)

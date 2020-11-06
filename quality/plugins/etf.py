@@ -14,13 +14,15 @@ from service.models import Metadata
 class QualityEtf:
 
     def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration):
+                 base_config: ConformityCheckConfiguration,
+                 cookies: [str]):
         self.metadata = metadata
         self.config = ConformityCheckConfigurationExternal.objects.get(
             pk=base_config.pk)
         self.check_run = None
         self.etf_base_url = self.config.external_url
-        quality_logger.info(f"Using ETF base url {self.etf_base_url}")
+        self.cookies = cookies
+        quality_logger.info(f"Using ETF base url {self.etf_base_url} with cookies {self.cookies}")
 
     def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.
@@ -49,7 +51,7 @@ class QualityEtf:
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
         quality_logger.info(f"Retrieving document for validation from {doc_url}")
-        r = requests.get(doc_url)
+        r = requests.get(doc_url, cookies=self.cookies)
         if r.status_code != requests.codes.ok:
             raise Exception(
                 f"Unexpected HTTP response code {r.status_code} when retrieving document from: {doc_url}")

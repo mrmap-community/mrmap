@@ -1295,8 +1295,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
         user = user_helper.get_user(request)
-        # TODO CAN_RUN_VALIDATION
-        user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_MONITORING)
+        user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_VALIDATION)
         if not user_can_run_validation and not metadata.is_active:
             return HttpResponse(status=423, content=SERVICE_DISABLED)
 

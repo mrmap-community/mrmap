@@ -53,7 +53,7 @@ def validate(request, metadata_id: str):
                                                  config_id=config_id,
                                                  metadata_id=metadata.id)
 
-    pending_task = run_quality_check.s(config_id, metadata_id).set(
+    pending_task = run_quality_check.s(config_id, metadata_id, request.COOKIES).set(
         link=success_callback, link_error=error_callback).delay()
 
     pending_task_db = PendingTask()

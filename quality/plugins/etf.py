@@ -14,12 +14,10 @@ from service.models import Metadata
 class QualityEtf:
 
     def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration,
-                 cookies: [str]):
+                 base_config: ConformityCheckConfiguration):
         self.metadata = metadata
         self.config = ConformityCheckConfigurationExternal.objects.get(
             pk=base_config.pk)
-        self.cookies = cookies
         self.check_run = None
         self.etf_base_url = self.config.external_url
         quality_logger.info(f"Using ETF base url {self.etf_base_url}")
@@ -51,6 +49,7 @@ class QualityEtf:
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
         quality_logger.info(f"Retrieving document for validation from {doc_url}")
+        r = requests.get(doc_url)
         if r.status_code != requests.codes.ok:
             raise Exception(
                 f"Unexpected HTTP response code {r.status_code} when retrieving document from: {doc_url}")
@@ -92,7 +91,7 @@ class QualityEtf:
         connector.additional_headers["Content-Type"] = "application/json"
         connector.post(etf_config)
         if connector.status_code != 201:
-            error_msg = f"Unexpected HTTP response code {r.status_code} from ETF endpoint."
+            error_msg = f"Unexpected HTTP response code {connector.status_code} from ETF endpoint."
             try:
                 error = json.loads(connector.content)['error']
                 error_msg = f"{error_msg} {error}"

@@ -511,9 +511,7 @@ def get_service_metadata(request: HttpRequest, metadata_id):
     metadata = get_object_or_404(Metadata, id=metadata_id)
 
     user = user_helper.get_user(request)
-    # TODO CAN_RUN_VALIDATION
-    user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_MONITORING)
-
+    user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_VALIDATION)
     if not user_can_run_validation and not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 

@@ -25,6 +25,7 @@ from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication, Metadata, Document
 from service.helper.crypto_handler import CryptoHandler
 from structure.models import PendingTask, MrMapGroup, MrMapUser
+from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
 
@@ -337,8 +338,9 @@ def get_resource_capabilities(request: HttpRequest, md: Metadata):
     # move increasing hits to background process to speed up response time!
     async_increase_hits.delay(md.id)
 
-    # CAN_RUN_VALIDATION
-    if not md.is_active:
+    user = user_helper.get_user(request)
+    user_can_run_validation = user.has_perm(PermissionEnum.CAN_RUN_VALIDATION)
+    if not user_can_run_validation and not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 
     # check that we have the requested version in our database

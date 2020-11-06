@@ -22,7 +22,7 @@ class QualityEtf:
         self.check_run = None
         self.etf_base_url = self.config.external_url
         self.cookies = cookies
-        quality_logger.info(f"Using ETF base url {self.etf_base_url} with cookies {self.cookies}")
+        quality_logger.info(f"Using ETF base url {self.etf_base_url}")
 
     def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.
@@ -51,7 +51,7 @@ class QualityEtf:
         """
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
-        quality_logger.info(f"Retrieving document for validation from {doc_url}")
+        quality_logger.info(f"Retrieving document for validation from {doc_url} with cookies {self.cookies}")
         r = requests.get(doc_url, cookies=self.cookies)
         if r.status_code != requests.codes.ok:
             raise Exception(

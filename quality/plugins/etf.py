@@ -70,6 +70,7 @@ class QualityEtf:
         files = {'file': (f'{self.metadata.pk}.xml', document, 'application/xml')}
         data = {'action': 'upload'}
         url = f"{self.etf_base_url}v2/TestObjects"
+        quality_logger.info(f"Uploading document as test object to {url}")
         r = requests.post(url=url, data=data, files=files)
         if r.status_code != requests.codes.ok:
             error_msg = f"Unexpected HTTP response code {r.status_code} from ETF endpoint."

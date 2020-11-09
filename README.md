@@ -48,9 +48,6 @@ These instructions will get you a copy of the project up and running on your loc
         
 1. run django migrations:
 
-        (venv) $ python manage.py makemigrations service
-        (venv) $ python manage.py makemigrations structure
-        (venv) $ python manage.py makemigrations monitoring
         (venv) $ python manage.py migrate
 
 1. (Optional) Configure proxy:

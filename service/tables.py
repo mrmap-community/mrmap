@@ -256,6 +256,7 @@ class WmsServiceTable(ResourceTable):
     wms_validation = MrMapColumn(
         verbose_name=_('Validity'),
         empty_values=[False, ],
+        orderable=False,
         tooltip=TOOLTIP_VALIDATION
     )
     wms_version = MrMapColumn(
@@ -436,6 +437,7 @@ class WfsServiceTable(ResourceTable):
     wfs_validation = MrMapColumn(
         verbose_name=_('Validity'),
         empty_values=[False, ],
+        orderable=False,
         tooltip=TOOLTIP_VALIDATION
     )
     wfs_version = MrMapColumn(

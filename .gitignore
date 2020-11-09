@@ -111,3 +111,9 @@ postgis/postgresql_data/PyXB-1.2.6/
 PyXB-1.2.6/
 logs/
 celerybeat.pid
+
+docker/etf-inspire/
+docker/etf/
+docker/geoserver/
+docker/inspire-validator/
+docker/postgis/postgresql_data/

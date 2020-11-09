@@ -14,14 +14,12 @@ from service.models import Metadata
 class QualityEtf:
 
     def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration,
-                 cookies: [str]):
+                 base_config: ConformityCheckConfiguration):
         self.metadata = metadata
         self.config = ConformityCheckConfigurationExternal.objects.get(
             pk=base_config.pk)
         self.check_run = None
         self.etf_base_url = self.config.external_url
-        self.cookies = cookies
         quality_logger.info(f"Using ETF base url {self.etf_base_url}")
 
     def run(self) -> ConformityCheckRun:
@@ -51,12 +49,13 @@ class QualityEtf:
         """
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
-        quality_logger.info(f"Retrieving document for validation from {doc_url} with cookies {self.cookies}")
-        r = requests.get(doc_url, cookies=self.cookies)
-        if r.status_code != requests.codes.ok:
+        quality_logger.info(f"Retrieving document for validation from {doc_url}")
+        connector = CommonConnector(url=doc_url)
+        connector.load()
+        if connector.status_code != requests.codes.ok:
             raise Exception(
-                f"Unexpected HTTP response code {r.status_code} when retrieving document from: {doc_url}")
-        return r.text
+                f"Unexpected HTTP response code {connector.status_code} when retrieving document from: {doc_url}")
+        return connector.content
 
     def upload_test_object(self, document):
         """ Uploads the given XML document as ETF test object.

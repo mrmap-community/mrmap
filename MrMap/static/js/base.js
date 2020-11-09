@@ -307,16 +307,3 @@ $(document).ready(function(){
     })
 
 });
-
-function triggerValidation(metadataId, configId){
-    $.ajax({
-        url: rootUrl + "/quality/" + metadataId + "?config_id=" + configId,
-        headers: {
-            "X-CSRFToken": getCookie("csrftoken")
-        },
-        type: 'get',
-        dataType: 'json'
-    }).catch(function(err){
-//        # TODO
-    });
-}

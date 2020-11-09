@@ -1,4 +1,6 @@
 from quality.models import ConformityCheckConfiguration, ConformityCheckRun
+from quality.settings import DEFAULT_UNKNOWN_MESSAGE, DEFAULT_SUCCESS_MESSAGE, \
+    DEFAULT_FAIL_MESSAGE
 from service.models import Metadata
 
 
@@ -23,4 +25,7 @@ def get_quality_dropdown_model(metadata: Metadata, no_text=False):
         "disabled": disabled,
         "metadata_id": metadata.id,
         "no_text": no_text,
+        "DEFAULT_UNKNOWN_MESSAGE": DEFAULT_UNKNOWN_MESSAGE,
+        "DEFAULT_SUCCESS_MESSAGE": DEFAULT_SUCCESS_MESSAGE,
+        "DEFAULT_FAIL_MESSAGE": DEFAULT_FAIL_MESSAGE,
     }

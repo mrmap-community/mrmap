@@ -14,12 +14,10 @@ from service.models import Metadata
 class QualityEtf:
 
     def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration,
-                 cookies: [str]):
+                 base_config: ConformityCheckConfiguration):
         self.metadata = metadata
         self.config = ConformityCheckConfigurationExternal.objects.get(
             pk=base_config.pk)
-        self.cookies = cookies
         self.check_run = None
         self.etf_base_url = self.config.external_url
         quality_logger.info(f"Using ETF base url {self.etf_base_url}")

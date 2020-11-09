@@ -1,7 +1,9 @@
 from time import sleep
 
-from celery import shared_task
+from celery import shared_task, states
+from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from quality.enums import ConformityTypeEnum
@@ -9,14 +11,15 @@ from quality.models import ConformityCheckConfiguration, ConformityCheckRun
 from quality.plugins.etf import QualityEtf
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
+from structure.AbortedException import AbortedException
 from structure.models import MrMapUser, MrMapGroup, PendingTask
 from users.helper.user_helper import create_group_activity
 
 logger = get_task_logger(__name__)
 
 
-@shared_task(name='run_quality_check')
-def run_quality_check(config_id: int, metadata_id: int, cookies: [str]):
+@shared_task(name='run_quality_check', base=AbortableTask)
+def run_quality_check(config_id: int, metadata_id: int):
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
     metadata = Metadata.objects.get(pk=metadata_id)
     if metadata is None:
@@ -29,13 +32,24 @@ def run_quality_check(config_id: int, metadata_id: int, cookies: [str]):
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         checker = QualityInternal(metadata, config)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
-        checker = QualityEtf(metadata, config, cookies)
+        checker = QualityEtf(metadata, config)
     else:
         raise Exception(
             f"Could not check conformity. Invalid conformity type: "
             f"{config.conformity_type}.")
 
+    # check if this method was called as async task
+    aborted_method = getattr(run_quality_check, 'is_aborted', None)
+    if callable(aborted_method) and run_quality_check.is_aborted():
+        raise AbortedException()
+
     run = checker.run()
+
+    # check if this method was called as async task
+    aborted_method = getattr(run_quality_check, 'is_aborted', None)
+    if callable(aborted_method) and run_quality_check.is_aborted():
+        raise AbortedException()
+
     return run.pk
 
 
@@ -64,7 +78,14 @@ def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
 
     run = ConformityCheckRun.objects.get(pk=run_id)
     if parent_task_id is not None:
-        PendingTask.objects.get(task_id=parent_task_id).delete()
+        try:
+            pt = PendingTask.objects.get(task_id=parent_task_id)
+            pt.progress = 100
+            pt.save()
+            sleep(2)
+            pt.delete()
+        except PendingTask.DoesNotExist:
+            pass
 
     # task is still running
     if run.passed is None:
@@ -74,8 +95,9 @@ def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
     user = MrMapUser.objects.get(pk=user_id)
 
     title = _(f'Validation {"succeeded" if run.passed else "failed"}')
+    href = reverse('resource:detail', args=(run.metadata.pk,))
     content = _(
-        f'for <a href="resource/detail/{run.metadata.id}">'
+        f'for <a href="{href}">'
         f'{run.metadata.title}</a> '
         f'with <i>{run.conformity_check_configuration}</i>.')
     create_group_activity(
@@ -87,7 +109,7 @@ def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
 
 
 @shared_task(name="complete_validation_error_task")
-def complete_validation_error(*args, user_id: int = None, group_id: int = None,
+def complete_validation_error(request, exc, traceback, user_id: int = None, group_id: int = None,
                               config_id: int = None, metadata_id: str = None):
     """ Handles the aborted validation process.
 
@@ -110,17 +132,27 @@ def complete_validation_error(*args, user_id: int = None, group_id: int = None,
         Returns:
             nothing
     """
-    # TODO should we make a cleanup for ConformityCheckRun in case it did not
-    #  complete?
     parent_task_id = complete_validation_error.request.parent_id
 
     if parent_task_id is not None:
-        PendingTask.objects.get(task_id=parent_task_id).delete()
+        try:
+            pt = PendingTask.objects.get(task_id=parent_task_id)
+            pt.delete()
+        except PendingTask.DoesNotExist:
+            pass
 
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
     metadata = Metadata.objects.get(pk=metadata_id)
     group = MrMapGroup.objects.get(pk=group_id)
     user = MrMapUser.objects.get(pk=user_id)
+
+    # delete run, if it was manually aborted
+    if isinstance(exc, AbortedException):
+        try:
+            run = ConformityCheckRun.objects.get_latest_check(metadata)
+            run.delete()
+        except ConformityCheckRun.DoesNotExist:
+            pass
 
     title = _(f'Validation aborted')
     content = _(

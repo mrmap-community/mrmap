@@ -1,4 +1,6 @@
 import json
+
+from celery.contrib.abortable import AbortableAsyncResult
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,7 +9,9 @@ from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER
+from MrMap.messages import SERVICE_REGISTRATION_ABORTED, \
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
+    SERVICE_PENDING_TASK_ABORTED
 from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
@@ -288,11 +292,18 @@ def remove_task(request: HttpRequest, task_id: int):
     Returns:
         A redirect
     """
+    try:
+        pt = AbortableAsyncResult(task_id)
+        pt.abort()
+    except Exception:
+        pass
+
     task = get_object_or_404(PendingTask, id=task_id)
     descr = json.loads(task.description)
-    messages.info(request, message=SERVICE_REGISTRATION_ABORTED.format(descr.get("service", None)))
+    messages.info(request, message=SERVICE_PENDING_TASK_ABORTED.format(task.type.title(), descr.get("service", None)))
 
     task.delete()
+
     return HttpResponseRedirect(reverse("resource:index"), status=303)
 
 

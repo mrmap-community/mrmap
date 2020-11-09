@@ -861,8 +861,15 @@ def datasets_index(request: HttpRequest, update_params=None, status_code: int = 
 
     template = "views/datasets_index.html"
 
+    # get pending tasks
+    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
+    pt_table = PendingTasksTable(data=pt,
+                                 orderable=False,
+                                 request=request,)
+
     params = {
         "current_view": 'resource:datasets-index',
+        "pt_table": pt_table,
     }
     params.update(
         _prepare_dataset_table(
@@ -1160,7 +1167,7 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
         "current_view": "resource:wfs-index"
     }
 
-    params.update(_prepare_wfs_table(request=request, current_view='resource:wfs-indext', user_groups=user_groups))
+    params.update(_prepare_wfs_table(request=request, current_view='resource:wfs-index', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)

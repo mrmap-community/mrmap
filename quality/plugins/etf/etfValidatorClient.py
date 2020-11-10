@@ -45,29 +45,25 @@ class EtfValidatorClient:
             str: id of the ETF test run
         """
         quality_logger.info(f'Performing ETF invocation with config {test_config}')
-        connector = CommonConnector(url=f'{self.url}v2/TestRuns')
-        connector.additional_headers['Content-Type'] = 'application/json'
-        connector.post(json.dumps(test_config))
-        if connector.status_code != 201:
-            error_msg = f'Unexpected HTTP response code {connector.status_code} from ETF endpoint.'
+        r = requests.post(url=f'{self.url}v2/TestRuns', json=test_config)
+        if r.status_code != 201:
+            error_msg = f'Unexpected HTTP response code {r.status_code} from ETF endpoint.'
             try:
-                error = json.loads(connector.content)['error']
+                error = r.json()['error']
                 error_msg = f'{error_msg} {error}'
             finally:
                 raise Exception(error_msg)
-        response = json.loads(connector.content)
-        test_run_id = response['EtfItemCollection']['testRuns']['TestRun']['id']
+        test_run_id = r.json()['EtfItemCollection']['testRuns']['TestRun']['id']
         test_run_url = f'{self.url}v2/TestRuns/{test_run_id}'
         quality_logger.info(f'Started new test run on ETF test suite: {test_run_url}')
         return test_run_url
 
     def check_test_run_finished(self, test_run_url: str):
         """ Checks if the given ETF test run is finished. """
-        connector = CommonConnector(url=f'{test_run_url}/progress')
-        connector.load()
-        if connector.status_code != 200:
-            raise Exception(f'Unexpected HTTP response code {connector.status_code} from ETF endpoint')
-        response_obj = json.loads(connector.content)
+        r = requests.get(url=f'{test_run_url}/progress')
+        if r.status_code != requests.codes.ok:
+            raise Exception(f'Unexpected HTTP response code {r.status_code} from ETF endpoint')
+        response_obj = r.json()
         val = response_obj['val']
         max_val = response_obj['max']
         quality_logger.info(f'ETF test run status: {val}/{max_val}')
@@ -75,12 +71,11 @@ class EtfValidatorClient:
 
     def fetch_test_report(self, test_run_url: str):
         """ Retrieves the test report for the given finished ETF test run. """
-        connector = CommonConnector(url=test_run_url)
-        connector.load()
-        response = json.loads(connector.content)
-        if connector.status_code != 200:
+        r = requests.get(url=test_run_url)
+        response = r.json()
+        if r.status_code != requests.codes.ok:
             raise Exception(
-                f'Unexpected HTTP response code {connector.status_code} from ETF endpoint')
+                f'Unexpected HTTP response code {r.status_code} from ETF endpoint')
         return response
 
     def is_test_report_passed (self, test_report: dict):

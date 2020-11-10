@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 
 from quality.enums import ConformityTypeEnum
 from quality.models import ConformityCheckConfiguration, ConformityCheckRun, ConformityCheckConfigurationExternal
-from quality.plugins.etf.etf import QualityEtf
+from quality.plugins.etf.etf import QualityEtf, ValidationDocumentProvider
 from quality.plugins.etf.etfValidatorClient import EtfValidatorClient
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
@@ -33,8 +33,10 @@ def run_quality_check(config_id: int, metadata_id: int):
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         checker = QualityInternal(metadata, config)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
-        configExt = ConformityCheckConfigurationExternal.objects.get(pk=config.pk)
-        checker = QualityEtf(metadata, configExt, EtfValidatorClient(configExt.external_url))
+        config_ext = ConformityCheckConfigurationExternal.objects.get(pk=config.pk)
+        document_provider = ValidationDocumentProvider(metadata, config_ext)
+        client = EtfValidatorClient(config_ext.external_url)
+        checker = QualityEtf(metadata, config_ext, document_provider, client)
     else:
         raise Exception(
             f"Could not check conformity. Invalid conformity type: "

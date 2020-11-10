@@ -48,6 +48,7 @@ MIGRATABLE_APPS = [
     'service',
     'users',
     'monitoring',
+    'quality'
 ]
 
 # Defines which User model implementation is used for authentication process

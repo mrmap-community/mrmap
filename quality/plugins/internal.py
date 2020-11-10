@@ -7,7 +7,6 @@ Created on: 02.11.20
 """
 import json
 from datetime import datetime
-from time import sleep
 
 from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \
@@ -86,7 +85,6 @@ class QualityInternal:
             "rules": []
         }
 
-        sleep(5)
         for rule in ruleset.rules.all():
             rule_result = self.check_rule(rule)
 

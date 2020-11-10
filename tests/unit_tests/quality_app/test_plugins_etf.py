@@ -5,8 +5,7 @@ import requests
 from django.test import TestCase
 
 from quality.models import ConformityCheckConfigurationExternal
-from quality.plugins.etf.etf import QualityEtf
-from quality.plugins.etf.etfValidatorClient import EtfValidatorClient
+from quality.plugins.etf import QualityEtf, EtfClient
 from service.models import Metadata
 
 
@@ -89,13 +88,13 @@ class PluginEtfTests(TestCase):
         self.assertIsNotNone(run.time_stop)
 
 
-class EtfValidatorClientTests(TestCase):
+class EtfClientTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.etf_client = EtfValidatorClient("http://localhost:8092/validator/")
+        cls.etf_client = EtfClient("http://localhost:8092/validator/")
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.post')
+    @patch('quality.plugins.etf.requests.post')
     def test_upload_test_object_ok(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
@@ -106,7 +105,7 @@ class EtfValidatorClientTests(TestCase):
         test_object_id = self.etf_client.upload_test_object("<upload_document/>")
         self.assertEquals(test_object_id, 1)
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.post')
+    @patch('quality.plugins.etf.requests.post')
     def test_upload_test_object_fail(self, mock_post):
         mock_post.return_value.status_code = 400
         mock_post.return_value.json.return_value = {
@@ -116,7 +115,7 @@ class EtfValidatorClientTests(TestCase):
         with self.assertRaisesMessage(Exception, expected_message=expected_message):
             self.etf_client.upload_test_object("<upload_document/>")
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.post')
+    @patch('quality.plugins.etf.requests.post')
     def test_start_test_run_ok(self, mock_post):
         mock_post.return_value.status_code = 201
         mock_post.return_value.json.return_value = {
@@ -132,7 +131,7 @@ class EtfValidatorClientTests(TestCase):
         test_run_url = self.etf_client.start_test_run(1, test_config)
         self.assertEquals(test_run_url, 'http://localhost:8092/validator/v2/TestRuns/1')
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.post')
+    @patch('quality.plugins.etf.requests.post')
     def test_start_test_run_fail(self, mock_post):
         mock_post.return_value.status_code = 400
         mock_post.return_value.json.return_value = {
@@ -143,7 +142,7 @@ class EtfValidatorClientTests(TestCase):
             test_config = {}
             self.etf_client.start_test_run(1, test_config)
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.get')
+    @patch('quality.plugins.etf.requests.get')
     def test_check_test_run_finished_ok_finished(self, mock_get):
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
@@ -152,7 +151,7 @@ class EtfValidatorClientTests(TestCase):
         }
         self.assertTrue(self.etf_client.check_test_run_finished('http://localhost:8092/validator/v2/TestRuns/1'))
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.get')
+    @patch('quality.plugins.etf.requests.get')
     def test_check_test_run_finished_ok_not_finished(self, mock_get):
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
@@ -161,14 +160,14 @@ class EtfValidatorClientTests(TestCase):
         }
         self.assertFalse(self.etf_client.check_test_run_finished('http://localhost:8092/validator/v2/TestRuns/1'))
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.get')
+    @patch('quality.plugins.etf.requests.get')
     def test_check_test_run_finished_fail(self, mock_get):
         mock_get.return_value.status_code = 500
         expected_message = 'Unexpected HTTP response code 500 from ETF endpoint'
         with self.assertRaisesMessage(Exception, expected_message=expected_message):
             self.etf_client.check_test_run_finished('http://localhost:8092/validator/v2/TestRuns/1')
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.get')
+    @patch('quality.plugins.etf.requests.get')
     def test_fetch_test_reports_ok(self, mock_get):
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
@@ -182,7 +181,7 @@ class EtfValidatorClientTests(TestCase):
         }
         self.assertTrue(self.etf_client.fetch_test_report('http://localhost:8092/validator/v2/TestRuns/1'))
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.get')
+    @patch('quality.plugins.etf.requests.get')
     def test_fetch_test_reports_fail(self, mock_get):
         mock_get.return_value.status_code = 500
         expected_message = 'Unexpected HTTP response code 500 from ETF endpoint'
@@ -213,22 +212,22 @@ class EtfValidatorClientTests(TestCase):
         }
         self.assertFalse(self.etf_client.is_test_report_passed(test_report))
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.delete')
+    @patch('quality.plugins.etf.requests.delete')
     def test_delete_test_object_ok(self, mock_delete):
         mock_delete.return_value.status_code = requests.codes.no_content
         self.etf_client.delete_test_object("1")
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.delete')
+    @patch('quality.plugins.etf.requests.delete')
     def test_delete_test_object_fail(self, mock_delete):
         mock_delete.return_value.status_code = 400
         self.etf_client.delete_test_object("1")
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.delete')
+    @patch('quality.plugins.etf.requests.delete')
     def test_delete_test_run_ok(self, mock_delete):
         mock_delete.return_value.status_code = requests.codes.no_content
         self.etf_client.delete_test_run('http://localhost:8092/validator/v2/TestRuns/1')
 
-    @patch('quality.plugins.etf.etfValidatorClient.requests.delete')
+    @patch('quality.plugins.etf.requests.delete')
     def test_delete_test_run_fail(self, mock_delete):
         mock_delete.return_value.status_code = 400
         self.etf_client.delete_test_run('http://localhost:8092/validator/v2/TestRuns/1')

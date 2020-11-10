@@ -7,6 +7,7 @@ from service.models import Metadata
 def get_quality_dropdown_model(metadata: Metadata, no_text=False):
     is_running = False
     valid = None
+    active = metadata.is_active
     try:
         last_check = ConformityCheckRun.objects.get_latest_check(metadata)
         is_running = last_check.is_running()
@@ -16,7 +17,7 @@ def get_quality_dropdown_model(metadata: Metadata, no_text=False):
 
     configs = ConformityCheckConfiguration.objects.get_for_metadata_type(
         metadata.metadata_type)
-    disabled = is_running or len(configs) == 0
+    disabled = is_running or len(configs) == 0 or not active
 
     return {
         "running": is_running,

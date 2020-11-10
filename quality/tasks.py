@@ -1,6 +1,6 @@
 from time import sleep
 
-from celery import shared_task, states
+from celery import shared_task
 from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
 from django.urls import reverse
@@ -76,7 +76,6 @@ def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
     """
     parent_task_id = complete_validation.request.parent_id
 
-    run = ConformityCheckRun.objects.get(pk=run_id)
     if parent_task_id is not None:
         try:
             pt = PendingTask.objects.get(task_id=parent_task_id)
@@ -87,29 +86,35 @@ def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
         except PendingTask.DoesNotExist:
             pass
 
-    # task is still running
-    if run.passed is None:
-        return
+    try:
+        run = ConformityCheckRun.objects.get(pk=run_id)
+        # task is still running
+        if run.passed is None:
+            return
 
-    group = MrMapGroup.objects.get(pk=group_id)
-    user = MrMapUser.objects.get(pk=user_id)
+        group = MrMapGroup.objects.get(pk=group_id)
+        user = MrMapUser.objects.get(pk=user_id)
 
-    title = _(f'Validation {"succeeded" if run.passed else "failed"}')
-    href = reverse('resource:detail', args=(run.metadata.pk,))
-    content = _(
-        f'for <a href="{href}">'
-        f'{run.metadata.title}</a> '
-        f'with <i>{run.conformity_check_configuration}</i>.')
-    create_group_activity(
-        group=group,
-        user=user,
-        msg=title,
-        metadata_title=content
-    )
+        title = _(f'Validation {"succeeded" if run.passed else "failed"}')
+        href = reverse('resource:detail', args=(run.metadata.pk,))
+        content = _(
+            f'for <a href="{href}">'
+            f'{run.metadata.title}</a> '
+            f'with <i>{run.conformity_check_configuration}</i>.')
+        create_group_activity(
+            group=group,
+            user=user,
+            msg=title,
+            metadata_title=content
+        )
+    except (ConformityCheckRun.DoesNotExist, MrMapGroup.DoesNotExist,
+            MrMapUser.DoesNotExist) as e:
+        logger.error("Could not complete validation. ", e)
 
 
 @shared_task(name="complete_validation_error_task")
-def complete_validation_error(request, exc, traceback, user_id: int = None, group_id: int = None,
+def complete_validation_error(request, exc, traceback, user_id: int = None,
+                              group_id: int = None,
                               config_id: int = None, metadata_id: str = None):
     """ Handles the aborted validation process.
 
@@ -139,29 +144,35 @@ def complete_validation_error(request, exc, traceback, user_id: int = None, grou
             pt = PendingTask.objects.get(task_id=parent_task_id)
             pt.delete()
         except PendingTask.DoesNotExist:
-            pass
+            logger.info(
+                f'Could not delete PendingTask. Object with task_id '
+                f'{parent_task_id} does not exist.')
 
-    config = ConformityCheckConfiguration.objects.get(pk=config_id)
-    metadata = Metadata.objects.get(pk=metadata_id)
-    group = MrMapGroup.objects.get(pk=group_id)
-    user = MrMapUser.objects.get(pk=user_id)
+    try:
+        config = ConformityCheckConfiguration.objects.get(pk=config_id)
+        metadata = Metadata.objects.get(pk=metadata_id)
+        group = MrMapGroup.objects.get(pk=group_id)
+        user = MrMapUser.objects.get(pk=user_id)
 
-    # delete run, if it was manually aborted
-    if isinstance(exc, AbortedException):
-        try:
-            run = ConformityCheckRun.objects.get_latest_check(metadata)
-            run.delete()
-        except ConformityCheckRun.DoesNotExist:
-            pass
+        # delete run, if it was manually aborted
+        if isinstance(exc, AbortedException):
+            try:
+                run = ConformityCheckRun.objects.get_latest_check(metadata)
+                run.delete()
+            except ConformityCheckRun.DoesNotExist:
+                pass
 
-    title = _(f'Validation aborted')
-    content = _(
-        f'for <a href="resource/detail/{metadata.id}">'
-        f'{metadata.title}</a> '
-        f'with <i>{config}</i>.')
-    create_group_activity(
-        group=group,
-        user=user,
-        msg=title,
-        metadata_title=content
-    )
+        title = _(f'Validation aborted')
+        content = _(
+            f'for <a href="resource/detail/{metadata.id}">'
+            f'{metadata.title}</a> '
+            f'with <i>{config}</i>.')
+        create_group_activity(
+            group=group,
+            user=user,
+            msg=title,
+            metadata_title=content
+        )
+    except (ConformityCheckRun.DoesNotExist, Metadata.DoesNotExist,
+            MrMapUser.DoesNotExist) as e:
+        logger.error("Could not complete error task. ", e)

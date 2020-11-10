@@ -41,6 +41,10 @@ def validate(request, metadata_id: str):
                             status=status.HTTP_400_BAD_REQUEST)
     metadata = get_object_or_404(Metadata, pk=metadata_id)
 
+    if not metadata.is_active:
+        return HttpResponse('Resource to be validated is not active',
+                            status=status.HTTP_400_BAD_REQUEST)
+
     user = user_helper.get_user(request)
     group = metadata.created_by
 

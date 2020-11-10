@@ -33,11 +33,12 @@ class QualityEtf:
         quality_logger.info(f"Created new check run id {self.check_run.pk}")
         document = self.fetch_validation_document()
         test_object_id = self.upload_test_object(document)
-        self.start_remote_test_run(test_object_id)
-        self.wait_for_test_run_end()
-        self.evaluate_test_run_report()
-        # TODO delete test run
-        # TODO delete test object
+        try:
+            self.start_remote_test_run(test_object_id)
+            self.wait_for_test_run_end()
+            self.evaluate_test_run_report()
+        finally:
+            self.cleanup_etf_resources(test_object_id)
         return self.check_run
 
     def fetch_validation_document(self):
@@ -49,10 +50,12 @@ class QualityEtf:
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
         quality_logger.info(f"Retrieving document for validation from {doc_url}")
-        if r.status_code != requests.codes.ok:
+        connector = CommonConnector(url=doc_url)
+        connector.load()
+        if connector.status_code != requests.codes.ok:
             raise Exception(
-                f"Unexpected HTTP response code {r.status_code} when retrieving document from: {doc_url}")
-        return r.text
+                f"Unexpected HTTP response code {connector.status_code} when retrieving document from: {doc_url}")
+        return connector.content
 
     def upload_test_object(self, document):
         """ Uploads the given XML document as ETF test object.
@@ -66,6 +69,7 @@ class QualityEtf:
         files = {'file': (f'{self.metadata.pk}.xml', document, 'application/xml')}
         data = {'action': 'upload'}
         url = f"{self.etf_base_url}v2/TestObjects"
+        quality_logger.info(f"Uploading document as test object to {url}")
         r = requests.post(url=url, data=data, files=files)
         if r.status_code != requests.codes.ok:
             error_msg = f"Unexpected HTTP response code {r.status_code} from ETF endpoint."
@@ -90,7 +94,7 @@ class QualityEtf:
         connector.additional_headers["Content-Type"] = "application/json"
         connector.post(etf_config)
         if connector.status_code != 201:
-            error_msg = f"Unexpected HTTP response code {r.status_code} from ETF endpoint."
+            error_msg = f"Unexpected HTTP response code {connector.status_code} from ETF endpoint."
             try:
                 error = json.loads(connector.content)['error']
                 error_msg = f"{error_msg} {error}"
@@ -146,5 +150,16 @@ class QualityEtf:
             self.check_run.passed = False
         self.check_run.save()
 
-    def cleanup_etf_resources(self):
-        pass
+    def cleanup_etf_resources(self, test_object_id):
+        url = f"{self.etf_base_url}v2/TestObjects/{test_object_id}"
+        quality_logger.info(f"Deleting ETF test object {url}")
+        r = requests.delete(url=url)
+        if r.status_code != requests.codes.no_content:
+            quality_logger.info(f"Unexpected HTTP response code {r.status_code} from ETF endpoint: {url}")
+        if self.check_run.run_url:
+            quality_logger.info(f"Deleting ETF test run {self.check_run.run_url}")
+            r = requests.delete(url=self.check_run.run_url)
+            if r.status_code != requests.codes.no_content:
+                quality_logger.info(
+                    f"Unexpected HTTP response code {r.status_code} from ETF endpoint: {self.check_run.run_url}")
+            pass

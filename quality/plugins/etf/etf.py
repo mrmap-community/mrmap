@@ -15,12 +15,12 @@ from service.models import Metadata
 class QualityEtf:
 
     def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration):
+                 config: ConformityCheckConfigurationExternal,
+                 client: EtfValidatorClient):
         self.metadata = metadata
-        self.config = ConformityCheckConfigurationExternal.objects.get(
-            pk=base_config.pk)
+        self.config = config
         self.check_run = None
-        self.client = EtfValidatorClient(self.config.external_url)
+        self.client = client
 
     def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.

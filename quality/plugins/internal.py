@@ -12,7 +12,10 @@ from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \
     ConformityCheckConfiguration, ConformityCheckConfigurationInternal, \
     ConformityCheckRun
+from quality.settings import quality_logger
 from service.models import Metadata
+from structure.celery_helper import get_task_id, runs_as_async_task
+from structure.models import PendingTask
 
 
 class QualityInternal:
@@ -23,6 +26,11 @@ class QualityInternal:
         self.config = ConformityCheckConfigurationInternal.objects.get(
             pk=base_config.pk)
 
+        count = self.config.mandatory_rule_sets.all().count() + \
+                self.config.optional_rule_sets.all().count()
+
+        self.step_size = 80 / count
+
     def run(self) -> ConformityCheckRun:
         """ Runs the internal check for a given metadata object.
 
@@ -30,7 +38,7 @@ class QualityInternal:
         and updates the associated ConformityCheckRun accordingly.
 
         Returns:
-            nothing
+            The ConformityCheckRun instance
 
         """
         run = ConformityCheckRun.objects.create(
@@ -42,8 +50,8 @@ class QualityInternal:
             "success": True,
             "rule_sets": []
         }
+
         for rule_set in config.mandatory_rule_sets.all():
-            self.update_pending_task()
             mandatory_result = self.check_ruleset(rule_set)
             mandatory_result["name"] = str(rule_set)
             mandatory_result["id"] = rule_set.id
@@ -52,12 +60,18 @@ class QualityInternal:
                 results["success"] = False
             results["rule_sets"].append(mandatory_result)
 
+            if runs_as_async_task():
+                self.update_progress()
+
         for rule_set in config.optional_rule_sets.all():
             optional_result = self.check_ruleset(rule_set)
             optional_result["name"] = str(rule_set)
             optional_result["id"] = rule_set.id
             optional_result["mandatory"] = False
             results["rule_sets"].append(optional_result)
+
+            if runs_as_async_task():
+                self.update_progress()
 
         time_stop = datetime.now()
         results["time_start"] = str(run.time_start)
@@ -127,7 +141,18 @@ class QualityInternal:
             "condition": condition
         }
 
-    def update_pending_task(self):
-        # TODO check how to retrieve the pending task to update
-        pass
-        # task_id = run_quality_check.request.id
+    def update_progress(self):
+        """Update the progress of the pending task."""
+        task_id = get_task_id()
+        try:
+            pending_task = PendingTask.objects.get(task_id=task_id)
+            progress = pending_task.progress + self.step_size
+            # we should only set the progress to max 90
+            # as the calling method might also update the progress
+            pending_task.progress = progress if progress <= 90 else 90
+            pending_task.save()
+        except PendingTask.DoesNotExist:
+            quality_logger.error(
+                f'Could not update pending task. Task with id {task_id} does '
+                f'not '
+                f'exist.')

@@ -7,7 +7,7 @@ Created on: 27.10.20
 """
 
 from quality.enums import ConformityTypeEnum
-from quality.models import ConformityCheckRun, ConformityCheckConfiguration
+from quality.models import ConformityCheckConfiguration
 from quality.plugins.etf import QualityEtf
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
@@ -22,8 +22,6 @@ def run_check(metadata: Metadata,
             "Could not check conformity. ConformityCheckConfiguration is "
             "None.")
 
-    # TODO check if a task for metadata is already running
-    checker = None
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
         checker = QualityInternal(metadata, config)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:

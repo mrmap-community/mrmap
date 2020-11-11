@@ -300,7 +300,7 @@ def remove_task(request: HttpRequest, task_id: int):
 
     task = get_object_or_404(PendingTask, id=task_id)
     descr = json.loads(task.description)
-    messages.info(request, message=SERVICE_PENDING_TASK_ABORTED.format(task.type.title(), descr.get("service", None)))
+    messages.info(request, message=SERVICE_PENDING_TASK_ABORTED.format(str(task.type).title(), descr.get("service", None)))
 
     task.delete()
 

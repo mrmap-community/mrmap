@@ -839,6 +839,7 @@ class DatasetTable(MrMapTable):
         tooltip=_('How the resource got into the system.'))
     dataset_validation = MrMapColumn(
         verbose_name=_('Validity'),
+        orderable=False,
         empty_values=[False, ],
         tooltip=TOOLTIP_VALIDATION
     )

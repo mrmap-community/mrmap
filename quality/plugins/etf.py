@@ -4,7 +4,8 @@ import requests
 from django_celery_beat.utils import now
 
 from quality.helper.mappingHelper import map_parameters
-from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
+from quality.models import ConformityCheckConfigurationExternal, \
+    ConformityCheckRun
 from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata
@@ -31,7 +32,8 @@ class EtfClient:
         quality_logger.info(f'Uploading document as test object to {url}')
         r = requests.post(url=url, data=data, files=files)
         if r.status_code != requests.codes.ok:
-            error_msg = f'Unexpected HTTP response code {r.status_code} from ETF endpoint.'
+            error_msg = f'Unexpected HTTP response code {r.status_code} from ' \
+                        f'ETF endpoint.'
             try:
                 error = r.json()['error']
                 error_msg = f'{error_msg} {error}'
@@ -48,10 +50,12 @@ class EtfClient:
         Returns:
             str: id of the ETF test run
         """
-        quality_logger.info(f'Performing ETF invocation with config {test_config}')
+        quality_logger.info(
+            f'Performing ETF invocation with config {test_config}')
         r = requests.post(url=f'{self.url}v2/TestRuns', json=test_config)
         if r.status_code != 201:
-            error_msg = f'Unexpected HTTP response code {r.status_code} from ETF endpoint.'
+            error_msg = f'Unexpected HTTP response code {r.status_code} from ' \
+                        f'ETF endpoint.'
             try:
                 error = r.json()['error']
                 error_msg = f'{error_msg} {error}'
@@ -59,14 +63,17 @@ class EtfClient:
                 raise Exception(error_msg)
         test_run_id = r.json()['EtfItemCollection']['testRuns']['TestRun']['id']
         test_run_url = f'{self.url}v2/TestRuns/{test_run_id}'
-        quality_logger.info(f'Started new test run on ETF test suite: {test_run_url}')
+        quality_logger.info(
+            f'Started new test run on ETF test suite: {test_run_url}')
         return test_run_url
 
     def check_test_run_finished(self, test_run_url: str):
         """ Checks if the given ETF test run is finished. """
         r = requests.get(url=f'{test_run_url}/progress')
         if r.status_code != requests.codes.ok:
-            raise Exception(f'Unexpected HTTP response code {r.status_code} from ETF endpoint')
+            raise Exception(
+                f'Unexpected HTTP response code {r.status_code} from ETF '
+                f'endpoint')
         response_obj = r.json()
         val = response_obj['val']
         max_val = response_obj['max']
@@ -79,11 +86,13 @@ class EtfClient:
         response = r.json()
         if r.status_code != requests.codes.ok:
             raise Exception(
-                f'Unexpected HTTP response code {r.status_code} from ETF endpoint')
+                f'Unexpected HTTP response code {r.status_code} from ETF '
+                f'endpoint')
         return response
 
     def is_test_report_passed(self, test_report: dict):
-        overall_status = test_report['EtfItemCollection']['testRuns']['TestRun']['status']
+        overall_status = \
+        test_report['EtfItemCollection']['testRuns']['TestRun']['status']
         return overall_status == 'PASSED'
 
     def delete_test_object(self, test_object_id: str):
@@ -91,18 +100,23 @@ class EtfClient:
         quality_logger.info(f'Deleting ETF test object {url}')
         r = requests.delete(url=url)
         if r.status_code != requests.codes.no_content:
-            quality_logger.info(f'Unexpected HTTP response code {r.status_code} from ETF endpoint: {url}')
+            quality_logger.info(
+                f'Unexpected HTTP response code {r.status_code} from ETF '
+                f'endpoint: {url}')
 
     def delete_test_run(self, test_run_url: str):
         quality_logger.info(f'Deleting ETF test run {test_run_url}')
         r = requests.delete(url=test_run_url)
         if r.status_code != requests.codes.no_content:
-            quality_logger.info(f'Unexpected HTTP response code {r.status_code} from ETF endpoint: {test_run_url}')
+            quality_logger.info(
+                f'Unexpected HTTP response code {r.status_code} from ETF '
+                f'endpoint: {test_run_url}')
 
 
 class ValidationDocumentProvider:
 
-    def __init__(self, metadata: Metadata, config: ConformityCheckConfigurationExternal):
+    def __init__(self, metadata: Metadata,
+                 config: ConformityCheckConfigurationExternal):
         self.metadata = metadata
         self.config = config
 
@@ -114,12 +128,14 @@ class ValidationDocumentProvider:
         """
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
-        quality_logger.info(f"Retrieving document for validation from {doc_url}")
+        quality_logger.info(
+            f"Retrieving document for validation from {doc_url}")
         connector = CommonConnector(url=doc_url)
         connector.load()
         if connector.status_code != requests.codes.ok:
             raise Exception(
-                f"Unexpected HTTP response code {connector.status_code} when retrieving document from: {doc_url}")
+                f"Unexpected HTTP response code {connector.status_code} when "
+                f"retrieving document from: {doc_url}")
         return connector.content
 
 
@@ -138,7 +154,8 @@ class QualityEtf:
     def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.
 
-        Runs the configured ETF suites and updates the associated ConformityCheckRun accordingly.
+        Runs the configured ETF suites and updates the associated
+        ConformityCheckRun accordingly.
         """
         self.check_run = ConformityCheckRun.objects.create(
             metadata=self.metadata, conformity_check_configuration=self.config)
@@ -147,9 +164,11 @@ class QualityEtf:
         test_object_id = self.client.upload_test_object(document)
         try:
             test_config = self.create_etf_test_run_config(test_object_id)
-            self.check_run.run_url = self.client.start_test_run(test_object_id, test_config)
+            self.check_run.run_url = self.client.start_test_run(test_object_id,
+                                                                test_config)
             self.check_run.save()
-            while not self.client.check_test_run_finished(self.check_run.run_url):
+            while not self.client.check_test_run_finished(
+                    self.check_run.run_url):
                 time.sleep(self.config.polling_interval_seconds)
             test_report = self.client.fetch_test_report(self.check_run.run_url)
             self.evaluate_test_report(test_report)

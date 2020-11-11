@@ -49,8 +49,8 @@ class Command(BaseCommand):
         name = input("Enter a username: ")
 
         if MrMapUser.objects.filter(username=name).exists():
-            self.stdout.write(self.style.NOTICE("User with that name already exists!"))
-            return
+            self.stdout.write(self.style.NOTICE("User with that name already exists! Please choose another one!"))
+            exit()
 
         # check password
         password = getpass("Enter a password: ")
@@ -77,22 +77,27 @@ class Command(BaseCommand):
 
         # handle public group
         group = self._create_public_group(superuser)
-        group.created_by = superuser
+        #group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
         # handle root group
         group = self._create_superuser_group(superuser)
-        group.created_by = superuser
+        #group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
         # handle default groups
         for setting in DEFAULT_GROUPS:
             try:
-                group = self._create_group_from_default_setting(setting, superuser)
-                msg = "Group '{}' created!".format(group.name)
-                self.stdout.write(self.style.SUCCESS(msg))
+                if self._create_group_from_default_setting(setting, superuser)[1] is True:
+                    group = self._create_group_from_default_setting(setting, superuser)[0]
+                    msg = "Group '{}' created!".format(group.name)
+                    self.stdout.write(self.style.SUCCESS(msg))
+                else:
+                    group = self._create_group_from_default_setting(setting, superuser)[0]
+                    msg = "Group '{}' was already in Database!".format(group.name)
+                    self.stdout.write(self.style.SUCCESS(msg))
             except AttributeError as e:
                 msg = "Group creation error for '{}':{}".format(setting["name"], e)
                 self.stdout.write(self.style.ERROR(msg))
@@ -137,17 +142,28 @@ class Command(BaseCommand):
             p = Permission.objects.get(name=perm.value)
             role.permissions.add(p)
 
-        group = MrMapGroup.objects.get_or_create(
+        try:
+            group = MrMapGroup.objects.get(
+            name=group_name,
+            parent_group=parent_group,
+            role=role,
+            is_permission_group=True,
+            )
+            created=False
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
             name=group_name,
             parent_group=parent_group,
             role=role,
             created_by=user,
             is_permission_group=True,
-        )[0]
+            )
+            group.save()
+            created=True
 
         group.description = group_desc
         group.save()
-        return group
+        return group, created
 
     @staticmethod
     def _create_themes():
@@ -168,13 +184,23 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(
+        try:
+            group = MrMapGroup.objects.get(
+            name=PUBLIC_GROUP_NAME,
+            description=PUBLIC_GROUP_DESCRIPTION,
+            is_public_group=True,
+            is_permission_group=True,
+            )
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
             name=PUBLIC_GROUP_NAME,
             description=PUBLIC_GROUP_DESCRIPTION,
             created_by=user,
             is_public_group=True,
             is_permission_group=True,
-        )[0]
+            )
+            group.save()
+
         if group.role is None:
             role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
             group.role = role
@@ -199,13 +225,23 @@ class Command(BaseCommand):
             role.permissions.add(p)
         role.save()
 
-        group = MrMapGroup.objects.get_or_create(
+        try:
+            group = MrMapGroup.objects.get(
+            name=SUPERUSER_GROUP_NAME,
+            description=SUPERUSER_GROUP_DESCRIPTION,
+            is_permission_group=True,
+            role=role,
+            )
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
             name=SUPERUSER_GROUP_NAME,
             description=SUPERUSER_GROUP_DESCRIPTION,
             created_by=user,
             is_permission_group=True,
             role=role,
-        )[0]
+            )
+            group.save()
+
         return group
 
     @staticmethod
@@ -233,11 +269,21 @@ class Command(BaseCommand):
 
     @staticmethod
     def _create_default_group(org: Organization, user: MrMapUser):
-        group = MrMapGroup.objects.get_or_create(
+
+        try:
+            group = MrMapGroup.objects.get(
+            name="Testgroup",
+            organization=org,
+            )
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
             name="Testgroup",
             organization=org,
             created_by=user,
-        )[0]
+            )
+            group.save()
+
+
         group.user_set.add(user)
         return group
 

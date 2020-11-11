@@ -69,7 +69,7 @@ class CommonConnector:
             self.is_local_request = True
         self._url = url
 
-    def url_is_reachable(self, url: str = None) -> (bool, int):
+    def url_is_reachable(self, url: str = None, timeout: int = None) -> (bool, int, int):
         """ Performs a HEAD request on the given url to check whether it's reachable or not.
 
         Returns a tuple of
@@ -78,13 +78,14 @@ class CommonConnector:
 
         Args:
             url (str): An url to be used instead of the member attribute
+            timeout (int): timeout in seconds, else requests will wait until the remote side closes the connection
         Returns:
 
         """
         if url is None:
             url = self._url
         try:
-            response = requests.head(url=url, proxies=PROXIES)
+            response = requests.head(url=url, proxies=PROXIES, timeout=timeout)
         except requests.exceptions.ConnectionError as e:
             return False, -1
         return True, response.status_code

@@ -54,9 +54,9 @@ def validate(request, metadata_id: str):
                                                  config_id=config_id,
                                                  metadata_id=metadata.id)
 
-    # pending_task = run_quality_check.s(config_id, metadata_id).set(
-    #     link=success_callback, link_error=error_callback).delay()
-    pending_task = run_quality_check.apply_async(args=(config_id, metadata_id), link=success_callback, link_error=error_callback)
+    pending_task = run_quality_check.apply_async(args=(config_id, metadata_id),
+                                                 link=success_callback,
+                                                 link_error=error_callback)
 
     pending_task_db = PendingTask()
     pending_task_db.created_by = group
@@ -96,4 +96,3 @@ def get_latest(request, metadata_id: str):
         }
 
     return JsonResponse(latest)
-

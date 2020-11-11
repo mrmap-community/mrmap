@@ -292,13 +292,14 @@ def remove_task(request: HttpRequest, task_id: int):
     Returns:
         A redirect
     """
+    task = get_object_or_404(PendingTask, id=task_id)
+
     try:
-        pt = AbortableAsyncResult(task_id)
+        pt = AbortableAsyncResult(task.task_id)
         pt.abort()
     except Exception:
         pass
 
-    task = get_object_or_404(PendingTask, id=task_id)
     descr = json.loads(task.description)
     messages.info(request, message=SERVICE_PENDING_TASK_ABORTED.format(str(task.type).title(), descr.get("service", None)))
 

@@ -135,8 +135,6 @@ class QualityInternal:
             elements = manager.all()
             real_value = elements.count()
 
-        # TODO Do we really want to cast threshold to String?
-        #      Do we have to cast to different types?
         condition = str(real_value) + operator + str(threshold)
 
         return {

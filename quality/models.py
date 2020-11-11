@@ -72,8 +72,6 @@ class Rule(models.Model):
         choices=RuleOperatorEnum.as_choices(drop_empty_choice=True))
     threshold = models.TextField(null=True)
 
-    # TODO ask if there shouldn't be any value field to compare to
-
     def __str__(self):
         return self.name
 
@@ -140,12 +138,9 @@ class ConformityCheckRun(models.Model):
     Model holding the relation of a metadata record to the results of a check.
     """
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    # TODO check if this actually works, i.e. can we properly retrieve the
-    #  internal/external config?
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
     run_url = models.URLField(blank=True, null=True, max_length=1000)
-    # TODO check if this should actually be set to auto_now_add
     time_start = models.DateTimeField(auto_now_add=True)
     time_stop = models.DateTimeField(blank=True, null=True)
     errors = models.TextField(blank=True, null=True)

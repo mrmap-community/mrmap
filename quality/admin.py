@@ -22,7 +22,8 @@ class ConformityCheckConfigurationInternalAdmin(admin.ModelAdmin):
 
 
 class RuleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'field_name', 'property', 'operator')
+    list_display = (
+        'id', 'name', 'field_name', 'property', 'operator', 'threshold')
 
 
 class RuleSetAdmin(admin.ModelAdmin):
@@ -30,7 +31,6 @@ class RuleSetAdmin(admin.ModelAdmin):
     filter_horizontal = ['rules']
 
 
-# TODO remove this. This is just for testing purposes
 class ConformityCheckRunAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata', 'time_start', 'time_stop', 'passed')
 

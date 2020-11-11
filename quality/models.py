@@ -57,6 +57,8 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     parameter_map = models.JSONField()
     polling_interval_seconds = models.IntegerField(default=5, blank=True,
                                                    null=False)
+    polling_interval_seconds_max = models.IntegerField(default=5 * 60,
+                                                       blank=True, null=False)
 
 
 class Rule(models.Model):
@@ -140,7 +142,6 @@ class ConformityCheckRun(models.Model):
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
-    run_url = models.URLField(blank=True, null=True, max_length=1000)
     time_start = models.DateTimeField(auto_now_add=True)
     time_stop = models.DateTimeField(blank=True, null=True)
     passed = models.BooleanField(blank=True, null=True)

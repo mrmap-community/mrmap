@@ -16,6 +16,8 @@ from quality.models import ConformityCheckConfigurationExternal, \
 from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata
+from structure.celery_helper import get_task_id
+from structure.models import PendingTask
 
 
 class EtfClient:
@@ -23,6 +25,8 @@ class EtfClient:
     def __init__(self, url: str):
         self.url = url
         quality_logger.info(f"Using ETF url {self.url}")
+        self.progress_val = 0
+        self.progress_max_val = 1
 
     def upload_test_object(self, document: str):
         """ Uploads the given XML document as ETF test object.
@@ -85,6 +89,11 @@ class EtfClient:
         val = response_obj['val']
         max_val = response_obj['max']
         quality_logger.info(f'ETF test run status: {val}/{max_val}')
+        try:
+            self.progress_val = int(val)
+            self.progress_max_val = int(max_val)
+        except ValueError:
+            pass
         return val == max_val
 
     def fetch_test_report(self, test_run_url: str):
@@ -99,7 +108,7 @@ class EtfClient:
 
     def is_test_report_passed(self, test_report: dict):
         overall_status = \
-        test_report['EtfItemCollection']['testRuns']['TestRun']['status']
+            test_report['EtfItemCollection']['testRuns']['TestRun']['status']
         return overall_status == 'PASSED'
 
     def delete_test_object(self, test_object_id: str):
@@ -157,6 +166,8 @@ class QualityEtf:
         self.document_provider = document_provider
         self.check_run = None
         self.client = client
+        self.polling_interval_seconds = self.config.polling_interval_seconds
+        self.run_url = None
 
     def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.
@@ -171,18 +182,26 @@ class QualityEtf:
         test_object_id = self.client.upload_test_object(document)
         try:
             test_config = self.create_etf_test_run_config(test_object_id)
-            self.check_run.run_url = self.client.start_test_run(test_object_id,
-                                                                test_config)
-            self.check_run.save()
+            self.run_url = self.client.start_test_run(test_object_id,
+                                                      test_config)
             while not self.client.check_test_run_finished(
-                    self.check_run.run_url):
-                time.sleep(self.config.polling_interval_seconds)
-            test_report = self.client.fetch_test_report(self.check_run.run_url)
+                    self.run_url):
+                time.sleep(self.polling_interval_seconds)
+                self.increase_polling_interval()
+                self.update_progress()
+            test_report = self.client.fetch_test_report(self.run_url)
             self.evaluate_test_report(test_report)
         finally:
-            self.client.delete_test_run(self.check_run.run_url)
+            self.client.delete_test_run(self.run_url)
             self.client.delete_test_object(test_object_id)
         return self.check_run
+
+    def increase_polling_interval(self):
+        """Increase the polling interval."""
+        new_interval = self.polling_interval_seconds * 2
+        if new_interval > self.config.polling_interval_seconds_max:
+            new_interval = self.config.polling_interval_seconds_max
+        self.polling_interval_seconds = new_interval
 
     def create_etf_test_run_config(self, test_object_id):
         params = {
@@ -200,3 +219,25 @@ class QualityEtf:
         self.check_run.passed = self.client.is_test_report_passed(test_report)
         self.check_run.time_stop = str(now())
         self.check_run.save()
+
+    def update_progress(self):
+        """Update the progress of the pending task."""
+        task_id = get_task_id()
+        try:
+            max_val = self.client.__getattribute__('progress_max_val')
+            val = self.client.__getattribute__('progress_val')
+            pending_task = PendingTask.objects.get(task_id=task_id)
+            # We reserve the first 10 percent for the calling method
+            progress = 10 + (val / max_val * 100)
+            progress = progress if progress <= 90 else 90
+            # We reserve the last 10 percent for the calling method
+            pending_task.progress = progress
+            pending_task.save()
+        except PendingTask.DoesNotExist:
+            quality_logger.error(
+                f'Could not update pending task. Task with id {task_id} does '
+                f'not '
+                f'exist.')
+        except ZeroDivisionError as e:
+            quality_logger.error(
+                f'Could not update pending task with id {task_id}. ', e)

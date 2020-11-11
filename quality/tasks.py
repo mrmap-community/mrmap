@@ -27,8 +27,8 @@ from users.helper.user_helper import create_group_activity
 logger = get_task_logger(__name__)
 
 
-@shared_task(name='run_quality_check', base=AbortableTask)
-def run_quality_check(config_id: int, metadata_id: int):
+@shared_task(name='run_quality_check', base=AbortableTask, bind=True)
+def run_quality_check(self, config_id: int, metadata_id: int):
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
     metadata = Metadata.objects.get(pk=metadata_id)
     if metadata is None:
@@ -66,8 +66,9 @@ def run_quality_check(config_id: int, metadata_id: int):
     return run.pk
 
 
-@shared_task(name="complete_validation_task")
-def complete_validation(run_id: int, user_id: int = None, group_id: int = None):
+@shared_task(name="complete_validation_task", bind=True)
+def complete_validation(self, run_id: int, user_id: int = None,
+                        group_id: int = None):
     """ Handles the completed validation process.
 
         Handler for completing the validation process. This method

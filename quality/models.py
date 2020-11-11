@@ -143,9 +143,7 @@ class ConformityCheckRun(models.Model):
     run_url = models.URLField(blank=True, null=True, max_length=1000)
     time_start = models.DateTimeField(auto_now_add=True)
     time_stop = models.DateTimeField(blank=True, null=True)
-    errors = models.TextField(blank=True, null=True)
     passed = models.BooleanField(blank=True, null=True)
-    additional_info = models.TextField(blank=True, null=True)
     result = models.TextField(blank=True, null=True)
 
     objects = ConformityCheckRunManager()

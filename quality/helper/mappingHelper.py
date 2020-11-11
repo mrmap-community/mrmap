@@ -1,9 +1,15 @@
-import json
-import urllib.request
+"""
+Author: Markus Schneider
+Organization: terrestris GmbH & Co. KG
+Contact: schneider@terrestris.de
+Created on: 27.10.20
+
+"""
 
 
 def map_parameters(obj, parameter_map: dict):
-    return {key: map_parameter(obj, value) for key, value in parameter_map.items()}
+    return {key: map_parameter(obj, value) for key, value in
+            parameter_map.items()}
 
 
 def map_parameter(obj, target_value):

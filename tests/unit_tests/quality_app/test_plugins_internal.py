@@ -1,10 +1,16 @@
+"""
+Author: Jan Suleiman
+Organization: terrestris GmbH & Co. KG
+Contact: suleiman@terrestris.de
+Created on: 27.10.20
+
+"""
 import json
 
 from django.test import TestCase
 
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum
-from quality.models import ConformityCheckConfigurationInternal, Rule, RuleSet, \
-    ConformityCheckRun
+from quality.models import ConformityCheckConfigurationInternal, Rule, RuleSet
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
 

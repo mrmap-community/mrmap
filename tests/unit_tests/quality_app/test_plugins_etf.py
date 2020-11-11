@@ -1,3 +1,10 @@
+"""
+Author: Markus Schneider
+Organization: terrestris GmbH & Co. KG
+Contact: schneider@terrestris.de
+Created on: 27.10.20
+
+"""
 import json
 from unittest.mock import patch
 

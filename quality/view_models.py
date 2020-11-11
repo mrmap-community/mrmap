@@ -1,3 +1,10 @@
+"""
+Author: Jan Suleiman
+Organization: terrestris GmbH & Co. KG
+Contact: suleiman@terrestris.de
+Created on: 27.10.20
+
+"""
 from quality.models import ConformityCheckConfiguration, ConformityCheckRun
 from quality.settings import DEFAULT_UNKNOWN_MESSAGE, DEFAULT_SUCCESS_MESSAGE, \
     DEFAULT_FAIL_MESSAGE

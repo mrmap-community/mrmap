@@ -1,3 +1,10 @@
+"""
+Author: Jan Suleiman
+Organization: terrestris GmbH & Co. KG
+Contact: suleiman@terrestris.de
+Created on: 27.10.20
+
+"""
 from time import sleep
 
 from celery import shared_task

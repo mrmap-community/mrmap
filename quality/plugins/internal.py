@@ -29,7 +29,10 @@ class QualityInternal:
         count = self.config.mandatory_rule_sets.all().count() + \
                 self.config.optional_rule_sets.all().count()
 
-        self.step_size = 80 / count
+        try:
+            self.step_size = 80 / count
+        except ZeroDivisionError:
+            self.step_size = 80
 
     def run(self) -> ConformityCheckRun:
         """ Runs the internal check for a given metadata object.

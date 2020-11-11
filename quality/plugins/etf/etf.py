@@ -1,11 +1,11 @@
-import json
 import time
 
 import requests
 from django_celery_beat.utils import now
 
 from quality.helper.mappingHelper import map_parameters
-from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun, ConformityCheckConfiguration
+from quality.models import ConformityCheckConfigurationExternal, \
+    ConformityCheckRun
 from quality.plugins.etf.etfValidatorClient import EtfValidatorClient
 from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
@@ -25,7 +25,8 @@ class QualityEtf:
     def run(self) -> ConformityCheckRun:
         """ Runs an ETF check for the associated metadata object.
 
-        Runs the configured ETF suites and updates the associated ConformityCheckRun accordingly.
+        Runs the configured ETF suites and updates the associated
+        ConformityCheckRun accordingly.
         """
         self.check_run = ConformityCheckRun.objects.create(
             metadata=self.metadata, conformity_check_configuration=self.config)
@@ -34,9 +35,11 @@ class QualityEtf:
         test_object_id = self.client.upload_test_object(document)
         try:
             test_config = self.create_etf_test_run_config(test_object_id)
-            self.check_run.run_url = self.client.start_test_run(test_object_id, test_config)
+            self.check_run.run_url = self.client.start_test_run(test_object_id,
+                                                                test_config)
             self.check_run.save()
-            while not self.client.check_test_run_finished(self.check_run.run_url):
+            while not self.client.check_test_run_finished(
+                    self.check_run.run_url):
                 time.sleep(self.config.polling_interval_seconds)
             test_report = self.client.fetch_test_report(self.check_run.run_url)
             self.evaluate_test_report(test_report)
@@ -53,12 +56,14 @@ class QualityEtf:
         """
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
-        quality_logger.info(f"Retrieving document for validation from {doc_url}")
+        quality_logger.info(
+            f"Retrieving document for validation from {doc_url}")
         connector = CommonConnector(url=doc_url)
         connector.load()
         if connector.status_code != requests.codes.ok:
             raise Exception(
-                f"Unexpected HTTP response code {connector.status_code} when retrieving document from: {doc_url}")
+                f"Unexpected HTTP response code {connector.status_code} when "
+                f"retrieving document from: {doc_url}")
         return connector.content
 
     def create_etf_test_run_config(self, test_object_id):

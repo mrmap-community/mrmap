@@ -16,7 +16,7 @@ from quality.models import ConformityCheckConfigurationExternal, \
 from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata
-from structure.celery_helper import get_task_id
+from structure.celery_helper import get_task_id, runs_as_async_task
 from structure.models import PendingTask
 
 
@@ -188,7 +188,8 @@ class QualityEtf:
                     self.run_url):
                 time.sleep(self.polling_interval_seconds)
                 self.increase_polling_interval()
-                self.update_progress()
+                if runs_as_async_task():
+                    self.update_progress()
             test_report = self.client.fetch_test_report(self.run_url)
             self.evaluate_test_report(test_report)
         finally:

@@ -122,34 +122,32 @@ class ResourceTable(MrMapTable):
 
     def get_health_icons(self, record):
         icons = ''
+        btn_color = 'btn-outline-secondary'
         health_state = record.get_health_state()
         if health_state:
             if health_state.health_state_code == HealthStateEnum.OK.value:
                 # state is OK
-                icon_color = 'text-success'
+                btn_color = 'btn-outline-success'
             elif health_state.health_state_code == HealthStateEnum.WARNING.value:
                 # state is WARNING
-                icon_color = 'text-warning'
+                btn_color = 'btn-outline-warning'
             elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
                 # state is CRITICAL
-                icon_color = 'text-danger'
-            elif health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-                # state is unknown
-                icon_color = 'text-secondary'
+                btn_color = 'btn-outline-danger'
             tooltip = health_state.health_message
+
+            icon = self.get_icon(icon=get_theme(self.user)["ICONS"]["HEARTBEAT"], )
         else:
             # state is unknown
-            icon_color = 'text-secondary'
             tooltip = DEFAULT_UNKNOWN_MESSAGE
 
-        icon = self.get_icon(icon_color=icon_color,
-                             icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
+            icon = self.get_icon(icon_color='text-secondary',
+                                 icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
             icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
                                 btn_value=icon,
-                                btn_color='btn-light',
-                                permission=None,
+                                btn_color=btn_color,
                                 tooltip=tooltip,)
 
         icons += icon

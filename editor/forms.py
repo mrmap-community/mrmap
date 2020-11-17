@@ -458,7 +458,8 @@ class RestrictAccessForm(MrMapForm):
         label=_("Restrict access"),
         help_text=_(
             "Activate to restrict access on this service"
-        )
+        ),
+        widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', })
     )
 
     def __init__(self, metadata: Metadata, *args, **kwargs):

@@ -1151,7 +1151,7 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
         "current_view": "resource:wfs-index"
     }
 
-    params.update(_prepare_wfs_table(request=request, current_view='resource:wfs-indext', user_groups=user_groups))
+    params.update(_prepare_wfs_table(request=request, current_view='resource:wfs-index', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)

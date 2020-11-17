@@ -39,19 +39,6 @@
     </script>
 {% endif %}
 
-<script type="application/javascript">
-    $(function() {
-       $("#id_modal_form_{{id_modal}} .auto_submit_item").change(function() {
-         $('#id_is_form_update').val('True');
-         $('#id_modal_form_{{id_modal}}').submit();
-       });
-    });
-
-    $("#id_modal_{{id_modal}}").on('keyup', function(event) {
-       if (event.keyCode === 27 || event.key === "Escape") {
-            $('#id_modal_{{id_modal}}').modal('hide');
-            location.replace("{{ROOT_URL}}{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}");
-       }
-    });
-</script>
-
+{% with current_view=form.current_view current_view_arg=form.current_view_arg%}
+{% include "includes/form-logic.html" %}
+{% endwith %}

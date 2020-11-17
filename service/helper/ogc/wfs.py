@@ -976,7 +976,7 @@ class OGCWebFeatureService(OGCWebService):
                 if iso_uri is None:
                     continue
                 try:
-                    iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                    iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue

@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
+from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
 from service.models import MetadataRelation, Metadata
 from structure.permissionEnums import PermissionEnum
 
@@ -111,6 +111,12 @@ class ResourceTable(MrMapTable):
             icons += self.get_icon(icon_color='text-danger',
                                    icon=get_theme(self.user)["ICONS"]["POWER_OFF"],
                                    tooltip=_('This resource is deactivated.'))
+        if record.use_proxy_uri:
+            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PROXY"],
+                                   tooltip=_('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.'))
+        if record.log_proxy_access:
+            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["LOGGING"],
+                                   tooltip=_('Logging for this resource is active.'))
         if record.is_secured:
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["WFS"],
                                    tooltip=_('This resource is secured.'))
@@ -118,38 +124,37 @@ class ResourceTable(MrMapTable):
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
                                    tooltip=_('This resource has external authentication.'))
 
+
         return format_html(icons)
 
     def get_health_icons(self, record):
         icons = ''
+        btn_color = 'btn-outline-secondary'
         health_state = record.get_health_state()
         if health_state:
             if health_state.health_state_code == HealthStateEnum.OK.value:
                 # state is OK
-                icon_color = 'text-success'
+                btn_color = 'btn-outline-success'
             elif health_state.health_state_code == HealthStateEnum.WARNING.value:
                 # state is WARNING
-                icon_color = 'text-warning'
+                btn_color = 'btn-outline-warning'
             elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
                 # state is CRITICAL
-                icon_color = 'text-danger'
-            elif health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-                # state is unknown
-                icon_color = 'text-secondary'
+                btn_color = 'btn-outline-danger'
             tooltip = health_state.health_message
+
+            icon = self.get_icon(icon=get_theme(self.user)["ICONS"]["HEARTBEAT"], )
         else:
             # state is unknown
-            icon_color = 'text-secondary'
             tooltip = DEFAULT_UNKNOWN_MESSAGE
 
-        icon = self.get_icon(icon_color=icon_color,
-                             icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
+            icon = self.get_icon(icon_color='text-secondary',
+                                 icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
             icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
                                 btn_value=icon,
-                                btn_color='btn-light',
-                                permission=None,
+                                btn_color=btn_color,
                                 tooltip=tooltip,)
 
         icons += icon
@@ -789,9 +794,19 @@ class DatasetTable(MrMapTable):
         )
         link_list = []
         for metadata in related_metadatas:
-            link = self.get_link(tooltip=_(f'Click to open the detail view of related service <strong>{metadata.title} [{metadata.id}]"</strong>'),
+            if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
+                kind_of_resource_icon = "WFS"
+                kind_of_resource = "Featuretype"
+            elif metadata.metadata_type == MetadataEnum.LAYER.value:
+                kind_of_resource_icon = "LAYER"
+                kind_of_resource = "Layer"
+            else:
+                kind_of_resource_icon = "NONE"
+                kind_of_resource = ""
+            kind_of_resource_icon = self.get_icon(icon=get_theme(self.user)["ICONS"][kind_of_resource_icon],)
+            link = self.get_link(tooltip=_(f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),
                                  href=reverse('resource:detail', args=(metadata.id,)),
-                                 value=f"{metadata.title} [{metadata.id}]",
+                                 value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
                                  permission=None,)
             link_list.append(link, )
         return format_html(', '.join(link_list))

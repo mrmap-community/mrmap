@@ -1,0 +1,61 @@
+<script type="application/javascript">
+
+    // adds auto submitting functionality to submit if a auto submit tagged item becomes changes
+    $(function() {
+       $('#id_modal_form_{{id_modal}} .auto_submit_item').change(function() {
+         $('#id_modal_form_{{id_modal}} .is_form_update').val('True');
+         var input = $("<input>")
+               .attr("type", "hidden")
+               .attr("name", "wizard_goto_step").val("{{ wizard.steps.current }}");
+         $('#id_modal_form_{{id_modal}}').append(input);
+         $('#id_modal_form_{{id_modal}}').submit();
+       });
+    });
+
+    // adds key event for escape button to improve user experience
+    $("#id_modal_{{id_modal}}").on('keyup', function(event) {
+       if (event.keyCode === 27 || event.key === "Escape") {
+            $('#id_modal_{{id_modal}}').modal('hide');
+            {% if current_view_arg %}
+                location.replace("{{ROOT_URL}}{% url current_view current_view_arg %}");
+            {% else %}
+                location.replace("{{ROOT_URL}}{% url current_view %}");
+            {% endif %}
+       }
+    });
+
+    // disable submit buttons to prevent multi submitting by user
+    var buttonClicked = "";
+    $("#id_modal_{{id_modal}} form button, input").click(function(e){
+        buttonClicked = $(this);
+    });
+
+    $("#id_modal_{{id_modal}} form").submit(function(event) {
+        event.preventDefault();
+
+        // show spinner to signal the user that something is going on
+        if ( buttonClicked.is( ":button" ) ) {
+            buttonClicked.html(`{% include "includes/loading_spinner.html" %}`);
+            // cause we deactivate submitting default behavior, we have to add the wizard_goto_step field again
+            // otherwise the wizard don't know which step we want goto
+            var input = $("<input>")
+               .attr("type", "hidden")
+               .attr("name", buttonClicked.attr('name')).val(buttonClicked.val());
+            $('#id_modal_form_{{id_modal}}').append(input);
+        }
+
+        if ( buttonClicked.is( ":input" ) ) {
+            var label = $("label[for='" + buttonClicked.attr('id') + "']");
+            label.html(`{% include "includes/loading_spinner.html" %}`);
+        }
+
+
+
+        buttonClicked="";
+        this.submit();
+
+        // disable all submitting buttons to prevent multi submits
+        $("#id_modal_{{id_modal}} form button, input.auto_submit_item").prop('disabled', true);
+    });
+
+</script>

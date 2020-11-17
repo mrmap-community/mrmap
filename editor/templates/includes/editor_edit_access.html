@@ -37,14 +37,10 @@
 <h5>
     {% trans 'General settings' %}
 </h5>
-    <form action="{{ restrict_access_form.action_url }}" method="post">
+    <form id="id_restrict_access_form" action="{{ restrict_access_form.action_url }}" method="post">
         {% csrf_token %}
 
         {% bootstrap_form restrict_access_form  %}
-
-        <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
-            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
-        </button>
     </form>
     <hr>
 
@@ -56,18 +52,48 @@
 </div>
 
 <script type="application/javascript">
+    // disable submit buttons to prevent multi submitting by user
+    var buttonClicked = "";
+    $("#id_modal_{{id_modal}} form button, input").click(function(e){
+        buttonClicked = $(this);
+    });
+
+    var use_proxy_checked = $('#id_use_proxy').prop('checked')
+    var log_proxy_checked = $('#id_log_proxy').prop('checked')
+    var restrict_access_checked = $('#id_restrict_access').prop('checked')
+
     $(':checkbox').change(function() {
-        if ( $('#id_log_proxy').prop('checked') == true || $('#id_restrict_access').prop('checked') == true ) {
+        if ( use_proxy_checked && $('#id_use_proxy').prop('checked') == false ) {
+            // disable all checkboxes, cause all depends on proxy usage
+            $('#id_log_proxy').prop('checked', false);
+            $('#id_restrict_access').prop('checked', false);
+        } else if ( $('#id_log_proxy').prop('checked') == true ) {
+            $('#id_use_proxy').prop('checked', true);
+            $('#id_log_proxy').prop('checked', true);
+        } else if ( $('#id_restrict_access').prop('checked') == true ) {
             $('#id_use_proxy').prop('checked', true);
         }
 
-        if ( $('#id_restrict_access').prop('checked') == true ) {
-            $('#id_div_restrict_access_table').css('pointer-events', '');
-            $('#id_div_restrict_access_table').css('opacity', '');
-        } else {
+        if ( $('#id_restrict_access').prop('checked') == false ) {
             $('#id_div_restrict_access_table').css('pointer-events', 'none');
             $('#id_div_restrict_access_table').css('opacity', '0.4');
         }
+
+        // show spinner to signal the user that something is going on
+        if ( buttonClicked.is( ":button" ) ) {
+            buttonClicked.html(`{% include "includes/loading_spinner.html" %}`);
+        }
+
+        if ( buttonClicked.is( ":input" ) ) {
+            var label = $("label[for='" + buttonClicked.attr('id') + "']");
+            label.html(`{% include "includes/loading_spinner.html" %}`);
+        }
+
+        buttonClicked="";
+
+        $("#id_restrict_access_form").submit();
+
+
     });
 </script>
 

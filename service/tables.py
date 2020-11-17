@@ -111,12 +111,19 @@ class ResourceTable(MrMapTable):
             icons += self.get_icon(icon_color='text-danger',
                                    icon=get_theme(self.user)["ICONS"]["POWER_OFF"],
                                    tooltip=_('This resource is deactivated.'))
+        if record.use_proxy_uri:
+            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PROXY"],
+                                   tooltip=_('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.'))
+        if record.log_proxy_access:
+            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["LOGGING"],
+                                   tooltip=_('Logging for this resource is active.'))
         if record.is_secured:
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["WFS"],
                                    tooltip=_('This resource is secured.'))
         if hasattr(record, 'external_authentication'):
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
                                    tooltip=_('This resource has external authentication.'))
+
 
         return format_html(icons)
 

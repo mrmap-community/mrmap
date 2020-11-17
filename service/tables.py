@@ -796,13 +796,10 @@ class DatasetTable(MrMapTable):
         for metadata in related_metadatas:
             if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
                 kind_of_resource_icon = "WFS"
-                kind_of_resource = "Web Feature Service"
+                kind_of_resource = "Featuretype"
             elif metadata.metadata_type == MetadataEnum.LAYER.value:
                 kind_of_resource_icon = "LAYER"
                 kind_of_resource = "Layer"
-            elif metadata.metadata_type == MetadataEnum.WMS.value:
-                kind_of_resource_icon = "WMS"
-                kind_of_resource = "Web Map Service"
             else:
                 kind_of_resource_icon = "NONE"
                 kind_of_resource = ""

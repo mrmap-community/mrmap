@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from service.helper.enums import ResourceOriginEnum, PendingTaskEnum
+from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
 from service.models import MetadataRelation, Metadata
 from structure.permissionEnums import PermissionEnum
 
@@ -787,9 +787,22 @@ class DatasetTable(MrMapTable):
         )
         link_list = []
         for metadata in related_metadatas:
-            link = self.get_link(tooltip=_(f'Click to open the detail view of related service <strong>{metadata.title} [{metadata.id}]"</strong>'),
+            if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
+                kind_of_resource_icon = "WFS"
+                kind_of_resource = "Web Feature Service"
+            elif metadata.metadata_type == MetadataEnum.LAYER.value:
+                kind_of_resource_icon = "LAYER"
+                kind_of_resource = "Layer"
+            elif metadata.metadata_type == MetadataEnum.WMS.value:
+                kind_of_resource_icon = "WMS"
+                kind_of_resource = "Web Map Service"
+            else:
+                kind_of_resource_icon = "NONE"
+                kind_of_resource = ""
+            kind_of_resource_icon = self.get_icon(icon=get_theme(self.user)["ICONS"][kind_of_resource_icon],)
+            link = self.get_link(tooltip=_(f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),
                                  href=reverse('resource:detail', args=(metadata.id,)),
-                                 value=f"{metadata.title} [{metadata.id}]",
+                                 value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
                                  permission=None,)
             link_list.append(link, )
         return format_html(', '.join(link_list))

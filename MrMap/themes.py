@@ -73,6 +73,7 @@ FONT_AWESOME_ICONS = {
     'WARNING': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-triangle'),
     'CRITICAL': format_html(ICON_PATTERN, 'fas', 'fa-bolt'),
     'LIST': format_html(ICON_PATTERN, 'fas', 'fa-th-list'),
+    'NONE': '',
 }
 
 # dark theme settings

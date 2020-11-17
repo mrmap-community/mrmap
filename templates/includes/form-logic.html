@@ -36,12 +36,20 @@
         // show spinner to signal the user that something is going on
         if ( buttonClicked.is( ":button" ) ) {
             buttonClicked.html(`{% include "includes/loading_spinner.html" %}`);
+            // cause we deactivate submitting default behavior, we have to add the wizard_goto_step field again
+            // otherwise the wizard don't know which step we want goto
+            var input = $("<input>")
+               .attr("type", "hidden")
+               .attr("name", buttonClicked.attr('name')).val(buttonClicked.val());
+            $('#id_modal_form_{{id_modal}}').append(input);
         }
 
         if ( buttonClicked.is( ":input" ) ) {
             var label = $("label[for='" + buttonClicked.attr('id') + "']");
             label.html(`{% include "includes/loading_spinner.html" %}`);
         }
+
+
 
         buttonClicked="";
         this.submit();

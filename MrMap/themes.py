@@ -8,6 +8,7 @@ FONT_AWESOME_ICONS = {
     'WFS': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon', ),
     'CSW': format_html(ICON_PATTERN, 'fas', 'fa-book', ),
     'LAYER': format_html(ICON_PATTERN, 'fas', 'fa-layer-group', ),
+    'FEATURETYPE': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon'),
     'DATASET': format_html(ICON_PATTERN, 'fas', 'fa-clipboard-list', ),
     'PENDINGTASKS': format_html(ICON_PATTERN, 'fas', 'fa-tasks', ),
     'USER': format_html(ICON_PATTERN, 'fas', 'fa-user', ),

@@ -32,8 +32,6 @@
 
     $("#id_modal_{{id_modal}} form").submit(function(event) {
         event.preventDefault();
-        // disable all submitting buttons to prevent multi submits
-        $("#id_modal_{{id_modal}} form button").prop('disabled', true);
 
         // show spinner to signal the user that something is going on
         if ( buttonClicked.is( ":button" ) ) {
@@ -47,6 +45,9 @@
 
         buttonClicked="";
         this.submit();
+        
+        // disable all submitting buttons to prevent multi submits
+        $("#id_modal_{{id_modal}} form button, input.auto_submit_item").prop('disabled', true);
     });
 
 </script>

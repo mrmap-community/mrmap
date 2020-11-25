@@ -196,10 +196,15 @@ def validate_get_capablities_uri(value):
         _get_request_uri_has_no_version_parameter,
     ]
 
+    skip_check_uri_provides_ogc_capabilities = False
     for func in validate_funcs:
+        if skip_check_uri_provides_ogc_capabilities and func == check_uri_provides_ogc_capabilities:
+            continue
         val = func(value)
         if isinstance(val, ValidationError):
             validation_errors.append(val)
+            if func == check_uri_is_reachable:
+                skip_check_uri_provides_ogc_capabilities = True
 
     if len(validation_errors) > 0:
         raise ValidationError(validation_errors)

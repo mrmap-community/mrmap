@@ -102,7 +102,7 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
-    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: PermissionEnum, tooltip: str = '', tooltip_placement: str = 'left',):
+    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: PermissionEnum = None, tooltip: str = '', tooltip_placement: str = 'left',):
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {

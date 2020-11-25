@@ -168,7 +168,7 @@ class OGCWebMapService(OGCWebService):
             for iso_xml in iso_metadata_xml_elements:
                 iso_uri = xml_helper.get_href_attribute(xml_elem=iso_xml)
                 try:
-                    iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                    iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue

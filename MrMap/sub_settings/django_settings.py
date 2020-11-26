@@ -93,6 +93,8 @@ if DEBUG:
 
 TEMPLATE_LOADERS = (
     'django.template.loaders.structure.mr_map_filters.py',
+    'django.template.loaders.structure.template_filters.py',
+
 )
 
 MIDDLEWARE = [

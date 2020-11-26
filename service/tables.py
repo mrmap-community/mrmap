@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 import json
 
+from MrMap.bootstrap4 import *
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme
@@ -18,7 +19,6 @@ from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CR
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
 from service.models import MetadataRelation, Metadata
 from structure.permissionEnums import PermissionEnum
-
 
 def _get_action_btns_for_service_table(table, record):
     btns = ''
@@ -100,6 +100,16 @@ TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, 
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 
 
+class MetadataWmsTable(tables.Table):
+    class Meta:
+        model = Metadata
+        fields = ('title', 'layers')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'wms-table'
+
+
+
+
 class ResourceTable(MrMapTable):
     def get_status_icons(self, record):
         icons = ''
@@ -123,7 +133,6 @@ class ResourceTable(MrMapTable):
         if hasattr(record, 'external_authentication'):
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
                                    tooltip=_('This resource has external authentication.'))
-
 
         return format_html(icons)
 

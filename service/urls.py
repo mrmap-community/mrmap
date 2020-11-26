@@ -5,6 +5,11 @@ from service.views import *
 app_name = 'resource'
 urlpatterns = [
     path('', index, name='index'),
+    path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),
+    path('wfs/', wfs_index, name='wfs-index'),
+    path('csw/', csw_index, name='csw-index'),
+    path('datasets/', datasets_index, name='datasets-index'),
+
 
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/<metadata_id>/subscribe', metadata_subscription_new, name='subscription-new'),
@@ -32,10 +37,7 @@ urlpatterns = [
     path('csw-table/', csw_table, name="csw-table"),
     path('dataset-table/', datasets_table, name="dataset-table"),
 
-    path('wms/', wms_index, name='wms-index'),
-    path('wfs/', wfs_index, name='wfs-index'),
-    path('csw/', csw_index, name='csw-index'),
-    path('datasets/', datasets_index, name='datasets-index'),
+    
 
     path('detail/<object_id>', detail, name='detail'),
 

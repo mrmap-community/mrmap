@@ -11,8 +11,12 @@ from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryD
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from django_filters.views import FilterView
+from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
+
+from MrMap.bootstrap4 import Bootstrap4Helper
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
@@ -22,7 +26,9 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
+from MrMap.utils import get_theme
+from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
+    MetadataWmsFilterNew
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -34,7 +40,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    DatasetTable, CswTable
+    DatasetTable, CswTable, MetadataWmsTable
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -46,6 +52,43 @@ from users.helper import user_helper
 from django.urls import reverse
 
 from users.models import Subscription
+
+
+class WmsIndexView(SingleTableMixin, FilterView):
+    model = Metadata
+    table_class = MetadataWmsTable
+    filterset_class = MetadataWmsFilterNew
+    template_name = 'generic_list_with_base.html'
+    bs4_helper = None
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(WmsIndexView, self).get_table(**kwargs)
+        table.title = format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["WMS"], ) + 'WMS')
+        current_view = self.request.GET.get('current-view', self.request.resolver_match.view_name)
+        # todo: tans 'New resource'
+        add_action = self.bs4_helper.get_btn(href=reverse('resource:add') + f'?current-view={current_view}',
+                                             permission=PermissionEnum.CAN_REGISTER_RESOURCE,
+                                             btn_value=format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["ADD"]) + 'New resource'),
+                                             btn_color='btn-success',
+                                             )
+        table.actions = [add_action, ]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+        # push DefaultContext to the template rendering engine
+        self.extra_context = DefaultContext(request=self.request, context=kwargs.get('update_params', {})).get_context()
+
+        with_base = self.request.GET.get('with-base', 'True')
+        if with_base == 'True':
+            self.template_name = 'generic_list_with_base.html'
+        else:
+            self.template_name = 'generic_list_without_base.html'
+
+        self.bs4_helper = Bootstrap4Helper(user=self.request.user)
+        return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
+
 
 
 def _is_updatecandidate(metadata: Metadata):
@@ -218,6 +261,8 @@ def add(request: HttpRequest):
         title=_(format_html('<b>Add New Resource</b>')),
         id_wizard='add_new_resource_wizard',
     )(request=request)
+
+
 
 
 @login_required

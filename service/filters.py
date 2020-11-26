@@ -12,6 +12,12 @@ from django.utils.translation import gettext_lazy as _
 from structure.models import MrMapGroup, MrMapUser
 
 
+class MetadataWmsFilterNew(django_filters.FilterSet):
+    class Meta:
+        model = Metadata
+        fields = ['title', ]
+        prefix = 'wms-filter'
+
 class ChildLayerFilter(django_filters.FilterSet):
     child_layer_title = django_filters.CharFilter(field_name='metadata',
                                                   lookup_expr='title__icontains',

@@ -18,6 +18,7 @@ from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
 from service.models import MetadataRelation, Metadata
+from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 
 def _get_action_btns_for_service_table(table, record):
@@ -98,6 +99,13 @@ TOOLTIP_CREATED_ON = _('The registration date.')
 TOOLTIP_ACTIONS = _('Performable Actions')
 TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
+
+
+class PendingTaskTableNew(tables.Table):
+    class Meta:
+        model = PendingTask
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'pending-task-table'
 
 
 class MetadataWmsTable(tables.Table):

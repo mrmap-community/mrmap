@@ -68,6 +68,8 @@ class MrMapWizard(SessionWizardView, ABC):
         rendered_wizard = render_to_string(request=self.request,
                                            template_name=self.template_name,
                                            context=context)
+        # pretend the next view function that this request was a get
+        self.request.method = 'GET'
 
         if self.current_view_arg:
             view_function = resolve(reverse(f"{self.current_view}", args=[self.current_view_arg, ]))

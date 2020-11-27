@@ -1,0 +1,12 @@
+<div id="id_pending_tasks_div"></div>
+<script type="application/javascript">
+    $.ajax({
+        method: "GET",
+        url: "{% url 'resource:pending-tasks' %}",
+        success: function( data ){
+            $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
+            $( "#id_pending_tasks_div" ).html( data );
+            $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
+        },
+    })
+</script>

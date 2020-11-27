@@ -1,12 +1,32 @@
 <div id="id_pending_tasks_div"></div>
 <script type="application/javascript">
-    $.ajax({
-        method: "GET",
-        url: "{% url 'resource:pending-tasks' %}",
-        success: function( data ){
-            $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
-            $( "#id_pending_tasks_div" ).html( data );
-            $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
-        },
-    })
+    var pending_task_count = 0;
+    var timer;
+
+    function get_pending_task_list() {
+        $.ajax({
+            method: "GET",
+            url: "{% url 'resource:pending-tasks' %}",
+            success: function( data ){
+                $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
+                $( "#id_pending_tasks_div" ).html( data );
+                $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
+
+                // -1 for table header row
+                rowCount = $('#id_pending_tasks_div table tr').length -1;
+
+                if ( rowCount < 1 ){
+                    // table is empty - stop interval
+                    clearInterval( timer );
+                    // delete content
+                    $( "#id_pending_tasks_div" ).html( '' );
+                    timer = setInterval(get_pending_task_list, 5000);
+                }
+
+                // todo: refresh resource tables if something become changed
+            },
+        })
+    }
+
+    timer = setInterval(get_pending_task_list, 1000);
 </script>

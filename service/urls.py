@@ -5,7 +5,11 @@ from service.views import *
 app_name = 'resource'
 urlpatterns = [
     path('', index, name='index'),
+
+    path('pending-tasks/', login_required(PendingTaskView.as_view()), name="pending-tasks"),
     path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),
+
+
     path('wfs/', wfs_index, name='wfs-index'),
     path('csw/', csw_index, name='csw-index'),
     path('datasets/', datasets_index, name='datasets-index'),
@@ -30,7 +34,7 @@ urlpatterns = [
     path('activate/<metadata_id>', activate, name='activate'),
     path('add/', add, name='add'),
 
-    path('pending-tasks/', pending_tasks, name="pending-tasks"),
+
     path('wms-table/', wms_table, name="wms-table"),
     path('wfs-table/', wfs_table, name="wfs-table"),
     path('wms-table/', wms_table, name="wms-table"),

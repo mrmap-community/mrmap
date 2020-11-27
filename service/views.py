@@ -9,8 +9,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
+from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import ListView
+from django.views.generic.base import View, TemplateView
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
@@ -40,7 +43,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    DatasetTable, CswTable, MetadataWmsTable
+    DatasetTable, CswTable, MetadataWmsTable, PendingTaskTableNew
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -54,11 +57,39 @@ from django.urls import reverse
 from users.models import Subscription
 
 
+class PendingTaskView(SingleTableMixin, ListView):
+    model = PendingTask
+    table_class = PendingTaskTableNew
+    bs4_helper = None
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(PendingTaskView, self).get_table(**kwargs)
+        #if table.data.data:
+        table.title = format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["PENDINGTASKS"], ) + 'Pending tasks')
+        #else:
+        #    self.template_name = 'empty.html'
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+        # push DefaultContext to the template rendering engine
+        self.extra_context = DefaultContext(request=self.request, context=kwargs.get('update_params', {})).get_context()
+
+        with_base = self.request.GET.get('with-base', 'False')
+        if with_base == 'True':
+            self.template_name = 'generic_list_with_base.html'
+        else:
+            self.template_name = 'generic_list_without_base.html'
+
+        self.bs4_helper = Bootstrap4Helper(user=self.request.user)
+        return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
+
+
 class WmsIndexView(SingleTableMixin, FilterView):
     model = Metadata
     table_class = MetadataWmsTable
     filterset_class = MetadataWmsFilterNew
-    template_name = 'generic_list_with_base.html'
     bs4_helper = None
 
     def get_table(self, **kwargs):
@@ -77,8 +108,12 @@ class WmsIndexView(SingleTableMixin, FilterView):
 
     def dispatch(self, request, *args, **kwargs):
         self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+
+        # we inject the pending task ajax template above the default content
+        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+        extra_context.update(kwargs.get('update_params', {}))
         # push DefaultContext to the template rendering engine
-        self.extra_context = DefaultContext(request=self.request, context=kwargs.get('update_params', {})).get_context()
+        self.extra_context = DefaultContext(request=self.request, context=extra_context).get_context()
 
         with_base = self.request.GET.get('with-base', 'True')
         if with_base == 'True':

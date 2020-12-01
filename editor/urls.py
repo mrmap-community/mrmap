@@ -12,12 +12,11 @@ from editor.views import *
 
 app_name = 'editor'
 urlpatterns = [
-    # ToDo: move the autocomplete paths behind view to secure them
-    path('keyword-autocomplete/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword-autocomplete"),
-    path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
-    path('metadata-autocomplete/', DatasetMetadataAutocomplete.as_view(), name="metadata-autocomplete"),
-    path('service-autocomplete/', ServiceMetadataAutocomplete.as_view(), name="service-autocomplete"),
-    path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
+    path('keyword-autocomplete/', login_required(KeywordAutocomplete.as_view(create_field="keyword")), name="keyword-autocomplete"),
+    path('category-autocomplete/', login_required(CategoryAutocomplete.as_view()), name="category-autocomplete"),
+    path('metadata-autocomplete/', login_required(DatasetMetadataAutocomplete.as_view()), name="metadata-autocomplete"),
+    path('service-autocomplete/', login_required(ServiceMetadataAutocomplete.as_view()), name="service-autocomplete"),
+    path('reference-system-autocomplete/', login_required(ReferenceSystemAutocomplete.as_view()), name="reference-system-autocomplete"),
 
     path('metadata/<metadata_id>', edit, name='edit'),
 

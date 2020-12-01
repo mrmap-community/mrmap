@@ -4,12 +4,12 @@
     var timer;
 
     function get_pending_task_list() {
-        $.ajax({
-            method: "GET",
-            url: "{% url 'resource:pending-tasks' %}",
-            success: function( data ){
+
+        fetch('{% url 'resource:pending-tasks' %}', {redirect: 'manual'})
+        .then(function(response) {
+            return response.text().then(function( text ) {
                 $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
-                $( "#id_pending_tasks_div" ).html( data );
+                $( "#id_pending_tasks_div" ).html( text );
                 $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
 
                 // -1 for table header row
@@ -24,8 +24,8 @@
                 }
 
                 // todo: refresh resource tables if something become changed
-            },
-        })
+            })
+        });
     }
 
     timer = setInterval(get_pending_task_list, 1000);

@@ -82,7 +82,7 @@ class PendingTaskView(SingleTableMixin, ListView):
         else:
             self.template_name = 'generic_list_without_base.html'
 
-        self.bs4_helper = Bootstrap4Helper(user=self.request.user)
+        self.bs4_helper = Bootstrap4Helper(request=self.request)
         return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
 
 
@@ -91,14 +91,28 @@ class WmsIndexView(SingleTableMixin, FilterView):
     table_class = MetadataWmsTable
     filterset_class = MetadataWmsFilterNew
     bs4_helper = None
+    show_layers = False
+
+    def get_filterset_kwargs(self, *args):
+        kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
+        # to simulate that the filter is used we need to set empty dict for data
+        if not kwargs['data']:
+            kwargs.update({'data': {}})
+        return kwargs
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WmsIndexView, self).get_table(**kwargs)
+        # whether whole services or single layers should be displayed, we have to exclude some columns
+        filter_by_show_layers = self.filterset.form_prefix + '-' + 'show_layers'
+        if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
+            table.exclude = ('layers',)
+        else:
+            table.exclude = ('parent_service',)
+
         table.title = format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["WMS"], ) + 'WMS')
-        current_view = self.request.GET.get('current-view', self.request.resolver_match.view_name)
         # todo: tans 'New resource'
-        add_action = self.bs4_helper.get_btn(href=reverse('resource:add') + f'?current-view={current_view}',
+        add_action = self.bs4_helper.get_btn(href=reverse('resource:add'),
                                              permission=PermissionEnum.CAN_REGISTER_RESOURCE,
                                              btn_value=format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["ADD"]) + 'New resource'),
                                              btn_color='btn-success',
@@ -121,8 +135,9 @@ class WmsIndexView(SingleTableMixin, FilterView):
         else:
             self.template_name = 'generic_list_without_base.html'
 
-        self.bs4_helper = Bootstrap4Helper(user=self.request.user)
+        self.bs4_helper = Bootstrap4Helper(request=self.request)
         return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
+
 
 
 

@@ -109,13 +109,83 @@ class PendingTaskTableNew(tables.Table):
 
 
 class MetadataWmsTable(tables.Table):
+    bs4helper = None
+    layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_service__count')
+    parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[], accessor='service__parent_service__metadata')
+    status = tables.Column(verbose_name=_('Status'), empty_values=[],)
+    health = tables.Column(verbose_name=_('Health'), empty_values=[],)
+    actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
+
     class Meta:
         model = Metadata
-        fields = ('title', 'layers')
+        fields = ('title',
+                  'layers',
+                  'parent_service',
+                  'status',
+                  'health',
+                  'service__service_type__version',
+                  'contact',
+                  'service__created_by',
+                  'service__published_for',
+                  'created',
+                  'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'wms-table'
 
+    def init_bs4helper(self):
+        if not self.bs4helper:
+            self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
 
+    def render_title(self, record, value):
+        self.init_bs4helper()
+        return self.bs4helper.get_link(href=record.detail_view_uri, value=value)
+
+    def render_parent_service(self, value):
+        self.init_bs4helper()
+        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+
+    def render_status(self, record):
+        self.init_bs4helper()
+        return format_html(self.bs4helper.render_list_coherent(items=record.get_status_icons()))
+
+    def render_health(self, record):
+        self.init_bs4helper()
+        return format_html(self.bs4helper.render_list_coherent(items=record.get_health_icons()))
+
+    def render_contact(self, value):
+        self.init_bs4helper()
+        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+
+    def render_service__created_by(self, value):
+        self.init_bs4helper()
+        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+
+    def render_service__published_for(self, value):
+        self.init_bs4helper()
+        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+
+    def render_actions(self, record):
+        self.init_bs4helper()
+        actions = record.get_actions(request=self.request)
+        rendered_actions = self.bs4helper.render_list_coherent(items=actions)
+        return format_html(rendered_actions)
+
+    def order_layers(self, queryset, is_descending):
+        queryset = queryset.annotate(
+            count=Count("service__child_service")
+        ).order_by(("-" if is_descending else "") + "count")
+        return queryset, True
+
+    def order_status(self, queryset, is_descending):
+        is_descending_str = "-" if is_descending else ""
+        queryset = queryset.order_by(is_descending_str + "is_active",
+                                     is_descending_str + "is_secured",
+                                     is_descending_str + "external_authentication", )
+        return queryset, True
+
+    def order_health(self, queryset, is_descending):
+        # TODO:
+        return queryset, True
 
 
 class ResourceTable(MrMapTable):

@@ -13,10 +13,29 @@ from structure.models import MrMapGroup, MrMapUser
 
 
 class MetadataWmsFilterNew(django_filters.FilterSet):
+    show_layers = django_filters.BooleanFilter(
+        widget=forms.CheckboxInput(),
+        label=_("Show layers"),
+        method='filter_layers',
+        required=False,
+        initial=False,
+    )
+
     class Meta:
         model = Metadata
-        fields = ['title', ]
-        prefix = 'wms-filter'
+        fields = {
+            'title': ['icontains'], }
+
+    def __init__(self, *args, **kwargs):
+        super(MetadataWmsFilterNew, self).__init__(prefix='wms-filter', *args, **kwargs)
+
+    @staticmethod
+    def filter_layers(queryset, name, value):
+        queryset = queryset.filter(
+            service__is_root=not value
+        )
+        return queryset
+
 
 class ChildLayerFilter(django_filters.FilterSet):
     child_layer_title = django_filters.CharFilter(field_name='metadata',

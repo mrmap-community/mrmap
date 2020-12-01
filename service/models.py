@@ -16,17 +16,24 @@ from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
+from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
+from MrMap.bootstrap4 import Icon, LinkButton, Badge
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
+from MrMap.themes import FONT_AWESOME_ICONS
+from MrMap.utils import get_theme
 from MrMap.validators import not_uuid
+from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
+from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
     ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
@@ -37,12 +44,13 @@ from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATI
     service_logger
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
+from structure.permissionEnums import PermissionEnum
 
 
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, verbose_name=_('Created on'))
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
@@ -542,7 +550,7 @@ class ExternalAuthentication(models.Model):
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
     identifier = models.CharField(max_length=1000, null=True)
-    title = models.CharField(max_length=1000)
+    title = models.CharField(max_length=1000, verbose_name=_('Title'))
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
@@ -550,7 +558,7 @@ class Metadata(Resource):
     service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
     additional_urls = models.ManyToManyField('GenericUrl', blank=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
+    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True, verbose_name=_('Data provider'))
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
@@ -640,6 +648,177 @@ class Metadata(Resource):
             except Exception:
                 formats = MimeType.objects.none()
         return formats
+
+    def get_actions(self, request: HttpRequest):
+        actions = [LinkButton(name='active',
+                              url=self.activate_view_uri,
+                              value=FONT_AWESOME_ICONS["POWER_OFF"],
+                              color=get_theme(request.user)["TABLE"][
+                                    "BTN_WARNING_COLOR" if self.is_active else "BTN_SUCCESS_COLOR"],
+                              tooltip=_("Deactivate") if self.is_active else _("Activate"),
+                              needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE),
+                   LinkButton(name='update',
+                              url=self.update_view_uri,
+                              value=FONT_AWESOME_ICONS["UPDATE"],
+                              color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                              tooltip=_("Update this resource"),
+                              needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
+                   LinkButton(name='run-health-checks',
+                              url=self.run_monitoring_view_uri,
+                              value=FONT_AWESOME_ICONS["HEARTBEAT"],
+                              color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                              tooltip=_("Run health checks for this resource"),
+                              needs_perm=PermissionEnum.CAN_RUN_MONITORING),
+                   LinkButton(name='edit',
+                              url=self.edit_view_uri,
+                              value=FONT_AWESOME_ICONS["EDIT"],
+                              color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
+                              tooltip=_("Edit the metadata of this resource"),
+                              needs_perm=PermissionEnum.CAN_EDIT_METADATA),
+                   LinkButton(name='edit-access',
+                              url=self.edit_access_view_uri,
+                              value=FONT_AWESOME_ICONS["ACCESS"],
+                              color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
+                              tooltip=_("Edit the access for resource"),
+                              needs_perm=PermissionEnum.CAN_EDIT_METADATA),
+                   LinkButton(name='restore',
+                              url=self.restore_view_uri,
+                              value=FONT_AWESOME_ICONS["ACCESS"],
+                              color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                              tooltip=_("Edit the access for resource"),
+                              needs_perm=PermissionEnum.CAN_EDIT_METADATA),
+                   LinkButton(name='remove',
+                              url=self.remove_view_uri,
+                              value=FONT_AWESOME_ICONS["REMOVE"],
+                              color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                              tooltip=_("Remove this resource"),
+                              needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE),]
+        return actions
+
+    def get_status_icons(self):
+        icons = []
+        if self.is_active:
+            icons.append(Icon(name='is-active',
+                              icon=FONT_AWESOME_ICONS["POWER_OFF"],
+                              color='text-success',
+                              tooltip=_('This resource is active')))
+        else:
+            icons.append(Icon(name='is-not-active',
+                              icon=FONT_AWESOME_ICONS["POWER_OFF"],
+                              color='text-danger',
+                              tooltip=_('This resource is deactivated')))
+
+        if self.use_proxy_uri:
+            icons.append(Icon(name='is-not-active',
+                              icon=FONT_AWESOME_ICONS["PROXY"],
+                              tooltip=_('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
+        if self.log_proxy_access:
+            icons.append(Icon(name='logging-is-active',
+                              icon=FONT_AWESOME_ICONS["LOGGING"],
+                              tooltip=_('Logging for this resource is active.')))
+        if self.is_secured:
+            icons.append(Icon(name='access-secured',
+                              icon=FONT_AWESOME_ICONS["WFS"],
+                              tooltip=_('This resource is secured.')))
+        if hasattr(self, 'external_authentication'):
+            icons.append(Icon(name='ext-auth-needed',
+                              icon=FONT_AWESOME_ICONS["PASSWORD"],
+                              tooltip=_('This resource has external authentication.')))
+        return icons
+
+    def get_health_icons(self):
+        icons = []
+        btn_color = 'btn-outline-secondary'
+        health_state = self.get_health_state()
+        if health_state:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                # state is OK
+                btn_color = 'btn-outline-success'
+            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
+                # state is WARNING
+                btn_color = 'btn-outline-warning'
+            elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
+                # state is CRITICAL
+                btn_color = 'btn-outline-danger'
+            tooltip = health_state.health_message
+
+            icon = Icon(name='healt-state',
+                        icon=FONT_AWESOME_ICONS["HEARTBEAT"],
+                        tooltip=tooltip)
+        else:
+            # state is unknown
+            tooltip = DEFAULT_UNKNOWN_MESSAGE
+            icon = Icon(name='healt-state',
+                        icon=FONT_AWESOME_ICONS["HEARTBEAT"],
+                        color='text-secondary',)
+
+        if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
+            icon = LinkButton(name='healt-state',
+                              url=self.health_state_uri,
+                              value=icon.render(),
+                              color=btn_color,
+                              tooltip=tooltip,)
+
+        icons.append(icon)
+        if health_state:
+            for reason in health_state.reasons.all():
+                if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
+                    icons.append(Icon(name='auth-needed',
+                                      icon=FONT_AWESOME_ICONS['PASSWORD'],
+                                      tooltip=_('Some checks can\'t get a result, cause the service needs an authentication for this request.')))
+                    break
+
+            badge_color = 'badge-success'
+            if health_state.reliability_1w < CRITICAL_RELIABILITY:
+                badge_color = 'badge-danger'
+            elif health_state.reliability_1w < WARNING_RELIABILITY:
+                badge_color = 'badge-warning'
+            icons.append(Badge(name='reliability',
+                               badge_color=badge_color,
+                               badge_pill=True,
+                               value=f'{round(health_state.reliability_1w, 2)} %',
+                               tooltip=_('Reliability statistic for one week.')))
+        return icons
+
+    @property
+    def detail_view_uri(self):
+        return reverse('resource:detail', args=[self.pk, ])
+
+    @property
+    def add_view_uri(self):
+        return reverse('resource:add', args=[self.pk, ])
+
+    @property
+    def edit_view_uri(self):
+        return reverse('editor:edit', args=[self.pk, ])
+
+    @property
+    def edit_access_view_uri(self):
+        return reverse('editor:edit_access', args=(self.pk,))
+
+    @property
+    def remove_view_uri(self):
+        return reverse('resource:remove', args=[self.pk, ])
+
+    @property
+    def restore_view_uri(self):
+        return reverse('editor:restore', args=[self.pk, ])
+
+    @property
+    def activate_view_uri(self):
+        return reverse('resource:activate', args=[self.pk, ])
+
+    @property
+    def update_view_uri(self):
+        return reverse('resource:run-update', args=[self.pk, ])
+
+    @property
+    def health_state_uri(self):
+        return reverse('monitoring:health-state', args=[self.pk])
+
+    @property
+    def run_monitoring_view_uri(self):
+        return reverse('monitoring:run-monitoring', args=[self.pk])
 
     @property
     def capabilities_uri(self):
@@ -2605,7 +2784,7 @@ class ServiceUrl(GenericUrl):
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
+    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True, verbose_name=_('Published for'))
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)

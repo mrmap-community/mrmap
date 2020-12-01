@@ -2,6 +2,7 @@ import uuid
 from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
@@ -139,6 +140,22 @@ class Organization(Contact):
             return ""
         return self.organization_name
 
+    @property
+    def detail_view_uri(self):
+        return reverse('structure:detail-organization', args=[self.pk, ])
+
+    @property
+    def add_view_uri(self):
+        return reverse('structure:new-organization', args=[self.pk, ])
+
+    @property
+    def edit_view_uri(self):
+        return reverse('structure:edit-organization', args=[self.pk, ])
+
+    @property
+    def remove_view_uri(self):
+        return reverse('structure:delete-organization', args=[self.pk, ])
+
 
 class MrMapGroup(Group):
     description = models.TextField(blank=True)
@@ -162,6 +179,26 @@ class MrMapGroup(Group):
             default_role = Role.objects.get(name=DEFAULT_ROLE_NAME)
             self.role = default_role
         super().save(force_insert, force_update, using, update_fields)
+
+    @property
+    def detail_view_uri(self):
+        return reverse('structure:detail-group', args=[self.pk, ])
+
+    @property
+    def add_view_uri(self):
+        return reverse('structure:new-group', args=[self.pk, ])
+
+    @property
+    def edit_view_uri(self):
+        return reverse('structure:edit-group', args=[self.pk, ])
+
+    @property
+    def remove_view_uri(self):
+        return reverse('structure:delete-group', args=[self.pk, ])
+
+    @property
+    def leave_view_uri(self):
+        return reverse('structure:leave-group', args=[self.pk, ])
 
 
 class Theme(models.Model):

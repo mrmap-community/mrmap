@@ -2,8 +2,14 @@ import uuid
 from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+import json
+
+from MrMap.bootstrap4 import LinkButton, Icon
+from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
@@ -36,7 +42,7 @@ class ErrorReport(models.Model):
 class PendingTask(models.Model):
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
-    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
     remaining_time = models.DurationField(blank=True, null=True)
     is_finished = models.BooleanField(default=False)
     created_by = models.ForeignKey('MrMapGroup', null=True, blank=True, on_delete=models.DO_NOTHING)
@@ -45,6 +51,51 @@ class PendingTask(models.Model):
 
     def __str__(self):
         return self.task_id
+
+    @property
+    def service_uri(self):
+        return str(json.loads(self.description).get('service', "resource_name_missing")) if 'service' in json.loads(self.description) else _('unknown')
+
+    @property
+    def phase(self):
+        return str(json.loads(self.description).get('phase', "phase_information_missing")) if 'phase' in json.loads(self.description) else _('unknown')
+
+    @property
+    def action_buttons(self):
+        actions = [LinkButton(name='remove',
+                              url=self.remove_view_uri,
+                              value=FONT_AWESOME_ICONS["WINDOW_CLOSE"],
+                              color="btn-danger",
+                              tooltip=_("Cancle this task"), )]
+        if self.error_report:
+            actions.insert(0, LinkButton(name='error-report',
+                                         url=self.error_report_uri,
+                                         value=FONT_AWESOME_ICONS["CSW"],
+                                         color="btn-warning",
+                                         tooltip=_("Download the error report as text file."), ))
+        return actions
+
+    @property
+    def status_icons(self):
+        json_description = json.loads(self.description)
+        if 'ERROR' in json_description.get('phase', ""):
+            return [Icon(name='error',
+                         icon=FONT_AWESOME_ICONS['ERROR'],
+                         color='text-danger',
+                         tooltip='This task stopped with error.', )]
+        else:
+            return [Icon(name='running',
+                         icon=FONT_AWESOME_ICONS['PLAY'],
+                         color='text-success',
+                         tooltip='This task is still running.', )]
+
+    @property
+    def remove_view_uri(self):
+        return reverse('structure:remove-task', args=(self.pk,))
+
+    @property
+    def error_report_uri(self):
+        return reverse('structure:generate-error-report', args=(self.error_report.primary_key,))
 
 
 class Permission(models.Model):

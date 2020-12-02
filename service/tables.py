@@ -21,10 +21,11 @@ from service.models import MetadataRelation, Metadata
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 
+
 def _get_action_btns_for_service_table(table, record):
     btns = ''
     btns += table.get_btn(
-        href=reverse('resource:activate', args=(record.id, ))+f"?current-view={table.current_view}",
+        href=reverse('resource:activate', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]["POWER_OFF"],
         permission=PermissionEnum.CAN_EDIT_METADATA,
@@ -32,7 +33,7 @@ def _get_action_btns_for_service_table(table, record):
         tooltip_placement='left', )
 
     btns += table.get_btn(
-        href=reverse('resource:new-pending-update', args=(record.id, ))+f"?current-view={table.current_view}",
+        href=reverse('resource:new-pending-update', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
         permission=PermissionEnum.CAN_UPDATE_RESOURCE,
@@ -40,7 +41,7 @@ def _get_action_btns_for_service_table(table, record):
         tooltip_placement='left', )
 
     btns += table.get_btn(
-        href=reverse('monitoring:run-monitoring', args=(record.id, ))+f"?current-view={table.current_view}",
+        href=reverse('monitoring:run-monitoring', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['HEARTBEAT'],
         permission=PermissionEnum.CAN_RUN_MONITORING,
@@ -64,7 +65,7 @@ def _get_action_btns_for_service_table(table, record):
         tooltip_placement='left', )
 
     btns += table.get_btn(
-        href=reverse('editor:restore', args=(record.id, ))+f"?current-view={table.current_view}",
+        href=reverse('editor:restore', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UNDO'],
         permission=PermissionEnum.CAN_EDIT_METADATA,
@@ -97,24 +98,57 @@ TOOLTIP_REGISTERED_BY_GROUP = _('The group which registered the resource.')
 TOOLTIP_REGISTERED_FOR = _('The organization for which the resource is registered.')
 TOOLTIP_CREATED_ON = _('The registration date.')
 TOOLTIP_ACTIONS = _('Performable Actions')
-TOOLTIP_STATUS = _('Shows the status of the resource. You can see active state, secured access state and secured externally state.')
+TOOLTIP_STATUS = _(
+    'Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 
 
 class PendingTaskTableNew(tables.Table):
+    bs4helper = None
+    status = tables.Column(verbose_name=_('Status'),
+                           accessor='status_icons',
+                           attrs={"th": {"class": "col-sm-1"}})
+    service = tables.Column(verbose_name=_('Service'),
+                            accessor='service_uri',
+                            attrs={"th": {"class": "col-sm-3"}})
+    phase = tables.Column(verbose_name=_('Phase'),
+                          attrs={"th": {"class": "col-sm-4"}})
+    progress = tables.Column(verbose_name=_('Progress'),
+                             attrs={"th": {"class": "col-sm-3"}})
+    actions = tables.Column(verbose_name=_('Actions'),
+                            accessor='action_buttons',
+                            attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
+
     class Meta:
         model = PendingTask
+        fields = ('status', 'service', 'phase', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
+        orderable = False
+
+    def before_render(self, request):
+        self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
+
+    def render_status(self, value):
+        return self.bs4helper.render_list_coherent(value)
+
+    def render_actions(self, value):
+        return self.bs4helper.render_list_coherent(value)
+
+    @staticmethod
+    def render_progress(value):
+        return ProgressBar(progress=round(value, 2)).render()
 
 
 class MetadataWmsTable(tables.Table):
     bs4helper = None
     layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_service__count')
-    parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[], accessor='service__parent_service__metadata')
-    status = tables.Column(verbose_name=_('Status'), empty_values=[],)
-    health = tables.Column(verbose_name=_('Health'), empty_values=[],)
-    actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
+    parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[],
+                                   accessor='service__parent_service__metadata')
+    status = tables.Column(verbose_name=_('Status'), empty_values=[], )
+    health = tables.Column(verbose_name=_('Health'), empty_values=[], )
+    actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
+                            attrs={"td": {"style": "white-space:nowrap;"}})
 
     class Meta:
         model = Metadata
@@ -132,40 +166,31 @@ class MetadataWmsTable(tables.Table):
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'wms-table'
 
-    def init_bs4helper(self):
-        if not self.bs4helper:
-            self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
+    def before_render(self, request):
+        self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
 
     def render_title(self, record, value):
-        self.init_bs4helper()
         return self.bs4helper.get_link(href=record.detail_view_uri, value=value)
 
     def render_parent_service(self, value):
-        self.init_bs4helper()
         return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
 
     def render_status(self, record):
-        self.init_bs4helper()
         return format_html(self.bs4helper.render_list_coherent(items=record.get_status_icons()))
 
     def render_health(self, record):
-        self.init_bs4helper()
         return format_html(self.bs4helper.render_list_coherent(items=record.get_health_icons()))
 
     def render_contact(self, value):
-        self.init_bs4helper()
         return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
 
     def render_service__created_by(self, value):
-        self.init_bs4helper()
         return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
 
     def render_service__published_for(self, value):
-        self.init_bs4helper()
         return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
 
     def render_actions(self, record):
-        self.init_bs4helper()
         actions = record.get_actions(request=self.request)
         rendered_actions = self.bs4helper.render_list_coherent(items=actions)
         return format_html(rendered_actions)
@@ -201,7 +226,8 @@ class ResourceTable(MrMapTable):
                                    tooltip=_('This resource is deactivated.'))
         if record.use_proxy_uri:
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PROXY"],
-                                   tooltip=_('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.'))
+                                   tooltip=_(
+                                       'Proxy for this resource is active. All traffic for this resource is redirected on MrMap.'))
         if record.log_proxy_access:
             icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["LOGGING"],
                                    tooltip=_('Logging for this resource is active.'))
@@ -236,13 +262,13 @@ class ResourceTable(MrMapTable):
             tooltip = DEFAULT_UNKNOWN_MESSAGE
 
             icon = self.get_icon(icon_color='text-secondary',
-                                 icon=get_theme(self.user)["ICONS"]["HEARTBEAT"],)
+                                 icon=get_theme(self.user)["ICONS"]["HEARTBEAT"], )
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id, )),
+            icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id,)),
                                 btn_value=icon,
                                 btn_color=btn_color,
-                                tooltip=tooltip,)
+                                tooltip=tooltip, )
 
         icons += icon
 
@@ -280,7 +306,6 @@ class ResourceTable(MrMapTable):
 
 
 class WmsServiceTable(ResourceTable):
-
     attrs = {
         "th": {
             "class": "align-middle",
@@ -431,7 +456,8 @@ class WmsLayerTableWms(WmsServiceTable):
 
     def render_wms_parent_service(self, record):
         return self.get_link(
-            tooltip=_('Click to open the detail view of <strong>{}</strong>.'.format(record.service.parent_service.metadata.title)),
+            tooltip=_('Click to open the detail view of <strong>{}</strong>.'.format(
+                record.service.parent_service.metadata.title)),
             href=reverse('resource:detail', args=(record.service.parent_service.metadata.id,)),
             value=record.service.parent_service.metadata.title,
             permission=None
@@ -657,11 +683,16 @@ class CswTable(MrMapTable):
 
 class PendingTasksTable(MrMapTable):
     caption = _("Shows all currently running pending tasks.")
-    pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-1"}})
-    pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-3"}})
-    pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-4"}})
-    pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-3"}})
-    pt_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
+    pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False,
+                              attrs={"th": {"class": "col-sm-1"}})
+    pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False,
+                               attrs={"th": {"class": "col-sm-3"}})
+    pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False,
+                             attrs={"th": {"class": "col-sm-4"}})
+    pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False,
+                                attrs={"th": {"class": "col-sm-3"}})
+    pt_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
+                               attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     def render_pt_actions(self, record):
         btns = ''
@@ -676,7 +707,7 @@ class PendingTasksTable(MrMapTable):
                                  permission=None,
                                  tooltip=_('Download the error report as text file.'),
                                  btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-                                 btn_value=get_theme(self.user)["ICONS"]['CSW'],)
+                                 btn_value=get_theme(self.user)["ICONS"]['CSW'], )
         return format_html(btns)
 
     def render_pt_status(self, record):
@@ -693,12 +724,14 @@ class PendingTasksTable(MrMapTable):
     @staticmethod
     def render_pt_service(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description).get('service', "resource_name_missing")) if 'service' in json.loads(record.description) else _('unknown')
+        return str(json.loads(record.description).get('service', "resource_name_missing")) if 'service' in json.loads(
+            record.description) else _('unknown')
 
     @staticmethod
     def render_pt_phase(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description).get('phase', "phase_information_missing")) if 'phase' in json.loads(record.description) else _('unknown')
+        return str(json.loads(record.description).get('phase', "phase_information_missing")) if 'phase' in json.loads(
+            record.description) else _('unknown')
 
     @staticmethod
     def render_pt_progress(record):
@@ -708,9 +741,9 @@ class PendingTasksTable(MrMapTable):
             return format_html('<div class="progress">' \
                                '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
                                'aria-valuenow="' + progress + '" aria-valuemin="0" aria-valuemax="100" ' \
-                                                                    'style="width: ' + progress + '%">'+ progress + \
-                                                                                                        ' %</div>' \
-                                                                                                        '</div>')
+                                                              'style="width: ' + progress + '%">' + progress + \
+                               ' %</div>' \
+                               '</div>')
         except Exception as e:
             return str(e)
 
@@ -770,8 +803,8 @@ class CoupledMetadataTable(MrMapTable):
 
 
 class UpdateServiceElements(MrMapTable):
-    title = tables.Column(empty_values=[],)
-    identifier = tables.Column(empty_values=[],)
+    title = tables.Column(empty_values=[], )
+    identifier = tables.Column(empty_values=[], )
 
 
 class ProxyLogTable(MrMapTable):
@@ -781,6 +814,7 @@ class ProxyLogTable(MrMapTable):
         row_attrs = {
             "class": "text-center"
         }
+
     metadata_id = MrMapColumn(
         accessor='metadata.id',
         verbose_name=_('Service ID'),
@@ -854,7 +888,7 @@ class DatasetTable(MrMapTable):
     dataset_related_objects = MrMapColumn(
         verbose_name=_('Related objects'),
         empty_values=[],
-        tooltip=_('The related service from which this dataset is referenced'),)
+        tooltip=_('The related service from which this dataset is referenced'), )
     dataset_origins = MrMapColumn(
         verbose_name=_('Origins'),
         empty_values=[],
@@ -871,7 +905,7 @@ class DatasetTable(MrMapTable):
                              href=reverse('resource:get-metadata-html', args=(record.id,)),
                              value=value,
                              permission=None,
-                             open_in_new_tab=True,)
+                             open_in_new_tab=True, )
 
     def render_dataset_related_objects(self, record):
         related_metadatas = Metadata.objects.filter(
@@ -890,11 +924,12 @@ class DatasetTable(MrMapTable):
             else:
                 kind_of_resource_icon = "NONE"
                 kind_of_resource = ""
-            kind_of_resource_icon = self.get_icon(icon=get_theme(self.user)["ICONS"][kind_of_resource_icon],)
-            link = self.get_link(tooltip=_(f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),
+            kind_of_resource_icon = self.get_icon(icon=get_theme(self.user)["ICONS"][kind_of_resource_icon], )
+            link = self.get_link(tooltip=_(
+                f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),
                                  href=reverse('resource:detail', args=(metadata.id,)),
                                  value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
-                                 permission=None,)
+                                 permission=None, )
             link_list.append(link, )
         return format_html(', '.join(link_list))
 
@@ -918,27 +953,30 @@ class DatasetTable(MrMapTable):
         ).exists()
 
         btns = ''
-        btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",
+        btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance',
+                                          args=(record.id,)) + f"?current-view={self.current_view}",
                              permission=PermissionEnum.CAN_EDIT_METADATA,
                              tooltip=format_html(_(f"Edit <strong>{record.title} [{record.id}]</strong> dataset")),
                              tooltip_placement='left',
                              btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-                             btn_value=get_theme(self.user)["ICONS"]['EDIT'],)
+                             btn_value=get_theme(self.user)["ICONS"]['EDIT'], )
 
-        btns += self.get_btn(href=reverse('editor:restore-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
-                             permission=PermissionEnum.CAN_EDIT_METADATA,
-                             tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> dataset")),
-                             tooltip_placement='left',
-                             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-                             btn_value=get_theme(self.user)["ICONS"]['UNDO'],
-                             ) if not is_mr_map_origin else ''
+        btns += self.get_btn(
+            href=reverse('editor:restore-dataset-metadata', args=(record.id,)) + f"?current-view={self.current_view}",
+            permission=PermissionEnum.CAN_EDIT_METADATA,
+            tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> dataset")),
+            tooltip_placement='left',
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['UNDO'],
+            ) if not is_mr_map_origin else ''
 
-        btns += self.get_btn(href=reverse('editor:remove-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
-                             permission=PermissionEnum.CAN_REMOVE_DATASET_METADATA,
-                             tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> dataset"), ),
-                             tooltip_placement='left',
-                             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-                             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-                             ) if is_mr_map_origin else ''
+        btns += self.get_btn(
+            href=reverse('editor:remove-dataset-metadata', args=(record.id,)) + f"?current-view={self.current_view}",
+            permission=PermissionEnum.CAN_REMOVE_DATASET_METADATA,
+            tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> dataset"), ),
+            tooltip_placement='left',
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+            ) if is_mr_map_origin else ''
 
         return format_html(btns)

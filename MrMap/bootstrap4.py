@@ -3,9 +3,25 @@ from django.template.loader import render_to_string
 from django.utils.html import format_html
 
 from MrMap.consts import BTN_SM_CLASS
-from MrMap.utils import get_theme
 from structure.permissionEnums import PermissionEnum
-from django.utils.translation import gettext_lazy as _
+
+
+class ProgressBar:
+    def __init__(self, progress: int = 0, color: str = '', animated: bool = True, striped: bool = True):
+        self.progress = progress
+        self.color = color
+        self.animated = animated
+        self.striped = striped
+
+    def render(self):
+        context = {
+            "progress": self.progress,
+            "color": self.color,
+            "animated": self.animated,
+            "striped": self.striped,
+        }
+        return render_to_string(template_name="skeletons/progressbar.html",
+                                context=context)
 
 
 class Badge:
@@ -95,9 +111,19 @@ class Bootstrap4Helper:
             self.permission_lookup[permission] = has_perm
         return has_perm
 
+    def render_list_coherent(self, items: []):
+        rendered_string = ''
+        for item in items:
+            has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
+            if has_perm:
+                rendered_string += item.render()
+        return format_html(rendered_string)
+
+
     # deprecated
     def get_link(self, href: str, value: str, permission: PermissionEnum = None, tooltip_placement: str = 'left',
                  open_in_new_tab: bool = False, tooltip: str = None, ):
+        from MrMap.utils import get_theme
         has_perm = self.check_render_permission(permission)
         if has_perm:
             context = {
@@ -130,13 +156,7 @@ class Bootstrap4Helper:
         else:
             return ''
 
-    def render_list_coherent(self, items: []):
-        rendered_string = ''
-        for item in items:
-            has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
-            if has_perm:
-                rendered_string += item.render()
-        return rendered_string
+    
 
     # deprecated
     @staticmethod

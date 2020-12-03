@@ -58,6 +58,21 @@ from django.urls import reverse
 from users.models import Subscription
 
 
+def default_dispatch(instance, extra_context=None, with_base: bool = True):
+    # configure table_pagination dynamically to support per_page switching
+    if extra_context is None:
+        extra_context = {}
+    instance.table_pagination = {"per_page": instance.request.GET.get('per_page', 5), }
+    # push DefaultContext to the template rendering engine
+    instance.extra_context = DefaultContext(request=instance.request, context=extra_context).get_context()
+
+    with_base = instance.request.GET.get('with-base', 'True' if with_base else 'False')
+    if with_base == 'True':
+        instance.template_name = 'generic_list_with_base.html'
+    else:
+        instance.template_name = 'generic_list_without_base.html'
+
+
 class PendingTaskView(SingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTableNew
@@ -73,18 +88,7 @@ class PendingTaskView(SingleTableMixin, ListView):
         return table
 
     def dispatch(self, request, *args, **kwargs):
-        # todo: move this to a global place to reduce code basic table/filter view things
-        # configure table_pagination dynamically to support per_page switching
-        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
-        # push DefaultContext to the template rendering engine
-        self.extra_context = DefaultContext(request=self.request, context=kwargs.get('update_params', {})).get_context()
-
-        with_base = self.request.GET.get('with-base', 'False')
-        if with_base == 'True':
-            self.template_name = 'generic_list_with_base.html'
-        else:
-            self.template_name = 'generic_list_without_base.html'
-
+        default_dispatch(instance=self, with_base=False)
         return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
 
 
@@ -121,20 +125,7 @@ class WmsIndexView(SingleTableMixin, FilterView):
         # we inject the pending task ajax template above the default content to support polling the dynamic content
         extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
         extra_context.update(kwargs.get('update_params', {}))
-
-        # todo: move this to a global place to reduce code basic table/filter view things
-        # configure table_pagination dynamically to support per_page switching
-        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
-
-        # push DefaultContext to the template rendering engine
-        self.extra_context = DefaultContext(request=self.request, context=extra_context).get_context()
-
-        with_base = self.request.GET.get('with-base', 'True')
-        if with_base == 'True':
-            self.template_name = 'generic_list_with_base.html'
-        else:
-            self.template_name = 'generic_list_without_base.html'
-
+        default_dispatch(instance=self, extra_context=extra_context)
         return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):

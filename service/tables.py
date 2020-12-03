@@ -173,10 +173,14 @@ class OgcServiceTable(tables.Table):
         self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
 
     def render_title(self, record, value):
-        return self.bs4helper.get_link(href=record.detail_view_uri, value=value)
+        return self.bs4helper.render_item(item=Link(name='detail-resource',
+                                                    url=record.detail_view_uri,
+                                                    value=value))
 
     def render_parent_service(self, value):
-        return self.bs4helper.get_link(href=value.detail_view_uri, value=value) if value else ''
+        return self.bs4helper.render_item(item=Link(name='detail-contact',
+                                                    url=value.detail_view_uri,
+                                                    value=value)) if value else ''
 
     def render_status(self, record):
         return format_html(self.bs4helper.render_list_coherent(items=record.get_status_icons()))
@@ -185,13 +189,19 @@ class OgcServiceTable(tables.Table):
         return format_html(self.bs4helper.render_list_coherent(items=record.get_health_icons()))
 
     def render_contact(self, value):
-        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+        return self.bs4helper.render_item(item=Link(name='detail-contact',
+                                                    url=value.detail_view_uri,
+                                                    value=value))
 
     def render_service__created_by(self, value):
-        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+        return self.bs4helper.render_item(item=Link(name='detail-created-by',
+                                                    url=value.detail_view_uri,
+                                                    value=value))
 
     def render_service__published_for(self, value):
-        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+        return self.bs4helper.render_item(item=Link(name='detail-published-for',
+                                                    url=value.detail_view_uri,
+                                                    value=value))
 
     def render_actions(self, record):
         actions = record.get_actions(request=self.request)

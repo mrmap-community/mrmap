@@ -114,11 +114,9 @@ class WmsIndexView(SingleTableMixin, FilterView):
             table.exclude = ('parent_service', 'featuretypes',)
 
         table.title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() + 'WMS')
-        table.actions = [LinkButton(name='add-resource-button',
-                                    value=format_html(Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Resource')),
-                                    color='btn-success',
-                                    url=reverse('resource:add') + f'?current-view={self.request.resolver_match.view_name}',
-                                    needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE).render()]
+
+        bs4helper = Bootstrap4Helper(request=self.request)
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_action(request=self.request))]
         return table
 
     def dispatch(self, request, *args, **kwargs):

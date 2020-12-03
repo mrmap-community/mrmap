@@ -64,6 +64,28 @@ class Icon:
                                 context=context)
 
 
+class Link:
+    def __init__(self, name: str, url: str, value: str, color: str = '', needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: str = 'left'):
+        self.name = name
+        self.url = url
+        self.value = value
+        self.color = color
+        self.tooltip = tooltip
+        self.tooltip_placement = tooltip_placement
+        self.needs_perm = needs_perm
+
+    def render(self):
+        context = {
+            "color": self.color,
+            "value": self.value,
+            "url": self.url,
+            "tooltip": self.tooltip,
+            "tooltip_placement": self.tooltip_placement,
+        }
+        return render_to_string(template_name="sceletons/open-link.html",
+                                context=context)
+
+
 class LinkButton:
     def __init__(self, name: str, url: str, value: str, color: str, needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: str = 'left', size: str = BTN_SM_CLASS):
         self.name = name
@@ -111,61 +133,15 @@ class Bootstrap4Helper:
             self.permission_lookup[permission] = has_perm
         return has_perm
 
+    def render_item(self, item):
+        rendered_string = ''
+        has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
+        if has_perm:
+            rendered_string = item.render()
+        return rendered_string
+
     def render_list_coherent(self, items: []):
         rendered_string = ''
         for item in items:
-            has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
-            if has_perm:
-                rendered_string += item.render()
+            rendered_string += self.render_item(item=item)
         return format_html(rendered_string)
-
-
-    # deprecated
-    def get_link(self, href: str, value: str, permission: PermissionEnum = None, tooltip_placement: str = 'left',
-                 open_in_new_tab: bool = False, tooltip: str = None, ):
-        from MrMap.utils import get_theme
-        has_perm = self.check_render_permission(permission)
-        if has_perm:
-            context = {
-                "href": href + self.url_querystring if self.add_current_view_params else href,
-                "value": value,
-                "link_color": get_theme(self.request.user)["TABLE"]["LINK_COLOR"],
-                "tooltip": tooltip,
-                "tooltip_placement": tooltip_placement,
-                "new_tab": open_in_new_tab,
-            }
-            return format_html(render_to_string(template_name="sceletons/open-link.html",
-                                                context=context))
-        else:
-            return ''
-
-    # deprecated
-    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: PermissionEnum = None, tooltip: str = '', tooltip_placement: str = 'left',):
-        has_perm = self.check_render_permission(permission)
-        if has_perm:
-            context = {
-                "btn_size": BTN_SM_CLASS,
-                "btn_color": btn_color,
-                "btn_value": btn_value,
-                "btn_url": href + self.url_querystring if self.add_current_view_params else href,
-                "tooltip": tooltip,
-                "tooltip_placement": tooltip_placement,
-            }
-            return render_to_string(template_name="sceletons/open-link-button.html",
-                                    context=context)
-        else:
-            return ''
-
-    
-
-    # deprecated
-    @staticmethod
-    def get_icon(icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'left', ):
-        context = {
-            "icon_color": icon_color,
-            "icon": icon,
-            "tooltip": tooltip,
-            "tooltip_placement": tooltip_placement,
-        }
-        return render_to_string(template_name="sceletons/icon_with_tooltip.html",
-                                context=context)

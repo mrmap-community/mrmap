@@ -21,8 +21,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.text import slugify
-from django.utils.translation import gettext_lazy as _
-
+from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import gettext as _
 from MrMap.bootstrap4 import Icon, LinkButton, Badge
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
@@ -50,7 +50,7 @@ from structure.permissionEnums import PermissionEnum
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
-    created = models.DateTimeField(auto_now_add=True, verbose_name=_('Created on'))
+    created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
@@ -550,7 +550,7 @@ class ExternalAuthentication(models.Model):
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
     identifier = models.CharField(max_length=1000, null=True)
-    title = models.CharField(max_length=1000, verbose_name=_('Title'))
+    title = models.CharField(max_length=1000, verbose_name=_l('Title'))
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
@@ -558,7 +558,7 @@ class Metadata(Resource):
     service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
     additional_urls = models.ManyToManyField('GenericUrl', blank=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True, verbose_name=_('Data provider'))
+    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True, verbose_name=_l('Data provider'))
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
@@ -649,49 +649,58 @@ class Metadata(Resource):
                 formats = MimeType.objects.none()
         return formats
 
+    @classmethod
+    def get_add_action(cls, request: HttpRequest):
+        return LinkButton(name='add-resource-button',
+                           value=format_html(
+                               Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Resource')),
+                           color='btn-success',
+                           url=reverse('resource:add') + f'?current-view={request.resolver_match.view_name}',
+                           needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE)
+
     def get_actions(self, request: HttpRequest):
         actions = [LinkButton(name='active',
                               url=self.activate_view_uri,
                               value=FONT_AWESOME_ICONS["POWER_OFF"],
                               color=get_theme(request.user)["TABLE"][
                                     "BTN_WARNING_COLOR" if self.is_active else "BTN_SUCCESS_COLOR"],
-                              tooltip=_("Deactivate") if self.is_active else _("Activate"),
+                              tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
                               needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE),
                    LinkButton(name='update',
                               url=self.update_view_uri,
                               value=FONT_AWESOME_ICONS["UPDATE"],
                               color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
-                              tooltip=_("Update this resource"),
+                              tooltip=_l("Update this resource"),
                               needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
                    LinkButton(name='run-health-checks',
                               url=self.run_monitoring_view_uri,
                               value=FONT_AWESOME_ICONS["HEARTBEAT"],
                               color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
-                              tooltip=_("Run health checks for this resource"),
+                              tooltip=_l("Run health checks for this resource"),
                               needs_perm=PermissionEnum.CAN_RUN_MONITORING),
                    LinkButton(name='edit',
                               url=self.edit_view_uri,
                               value=FONT_AWESOME_ICONS["EDIT"],
                               color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
-                              tooltip=_("Edit the metadata of this resource"),
+                              tooltip=_l("Edit the metadata of this resource"),
                               needs_perm=PermissionEnum.CAN_EDIT_METADATA),
                    LinkButton(name='edit-access',
                               url=self.edit_access_view_uri,
                               value=FONT_AWESOME_ICONS["ACCESS"],
                               color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
-                              tooltip=_("Edit the access for resource"),
+                              tooltip=_l("Edit the access for resource"),
                               needs_perm=PermissionEnum.CAN_EDIT_METADATA),
                    LinkButton(name='restore',
                               url=self.restore_view_uri,
                               value=FONT_AWESOME_ICONS["ACCESS"],
                               color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
-                              tooltip=_("Edit the access for resource"),
+                              tooltip=_l("Edit the access for resource"),
                               needs_perm=PermissionEnum.CAN_EDIT_METADATA),
                    LinkButton(name='remove',
                               url=self.remove_view_uri,
                               value=FONT_AWESOME_ICONS["REMOVE"],
                               color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
-                              tooltip=_("Remove this resource"),
+                              tooltip=_l("Remove this resource"),
                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE),]
         return actions
 
@@ -701,29 +710,29 @@ class Metadata(Resource):
             icons.append(Icon(name='is-active',
                               icon=FONT_AWESOME_ICONS["POWER_OFF"],
                               color='text-success',
-                              tooltip=_('This resource is active')))
+                              tooltip=_l('This resource is active')))
         else:
             icons.append(Icon(name='is-not-active',
                               icon=FONT_AWESOME_ICONS["POWER_OFF"],
                               color='text-danger',
-                              tooltip=_('This resource is deactivated')))
+                              tooltip=_l('This resource is deactivated')))
 
         if self.use_proxy_uri:
             icons.append(Icon(name='is-not-active',
                               icon=FONT_AWESOME_ICONS["PROXY"],
-                              tooltip=_('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
+                              tooltip=_l('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
         if self.log_proxy_access:
             icons.append(Icon(name='logging-is-active',
                               icon=FONT_AWESOME_ICONS["LOGGING"],
-                              tooltip=_('Logging for this resource is active.')))
+                              tooltip=_l('Logging for this resource is active.')))
         if self.is_secured:
             icons.append(Icon(name='access-secured',
                               icon=FONT_AWESOME_ICONS["WFS"],
-                              tooltip=_('This resource is secured.')))
+                              tooltip=_l('This resource is secured.')))
         if hasattr(self, 'external_authentication'):
             icons.append(Icon(name='ext-auth-needed',
                               icon=FONT_AWESOME_ICONS["PASSWORD"],
-                              tooltip=_('This resource has external authentication.')))
+                              tooltip=_l('This resource has external authentication.')))
         return icons
 
     def get_health_icons(self):
@@ -765,7 +774,7 @@ class Metadata(Resource):
                 if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
                     icons.append(Icon(name='auth-needed',
                                       icon=FONT_AWESOME_ICONS['PASSWORD'],
-                                      tooltip=_('Some checks can\'t get a result, cause the service needs an authentication for this request.')))
+                                      tooltip=_l('Some checks can\'t get a result, cause the service needs an authentication for this request.')))
                     break
 
             badge_color = 'badge-success'
@@ -777,16 +786,12 @@ class Metadata(Resource):
                                badge_color=badge_color,
                                badge_pill=True,
                                value=f'{round(health_state.reliability_1w, 2)} %',
-                               tooltip=_('Reliability statistic for one week.')))
+                               tooltip=_l('Reliability statistic for one week.')))
         return icons
 
     @property
     def detail_view_uri(self):
         return reverse('resource:detail', args=[self.pk, ])
-
-    @property
-    def add_view_uri(self):
-        return reverse('resource:add', args=[self.pk, ])
 
     @property
     def edit_view_uri(self):
@@ -2727,7 +2732,7 @@ class Licence(Resource):
                 )
             ]
             descr_str = "<br>".join(descrs)
-            descr_str = _("Explanations: <br>") + descr_str
+            descr_str = _l("Explanations: <br>") + descr_str
         except ProgrammingError:
             # This will happen on an initial installation. The Licence table won't be created yet, but this function
             # will be called on makemigrations.
@@ -2785,7 +2790,7 @@ class ServiceUrl(GenericUrl):
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True, verbose_name=_('Published for'))
+    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True, verbose_name=_l('Published for'))
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)

@@ -81,7 +81,7 @@ class OGCOperationRequestHandler:
         self.original_params_dict = OrderedDict()  # contains the original, unedited parameters
         self.new_params_dict = OrderedDict()  # contains the parameters, which could be still original or might have changed during method processing
 
-        self.service_type_param = metadata.get_service_type()  # refers to param 'SERVICE', default is set to regular metadata service type (in case no SERVICE param was given)
+        self.service_type_param = metadata.service_type.value  # refers to param 'SERVICE', default is set to regular metadata service type (in case no SERVICE param was given)
         self.request_param = None  # refers to param 'REQUEST'
         self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)

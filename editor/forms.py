@@ -373,7 +373,7 @@ class RestoreMetadataForm(MrMapConfirmForm):
 
     def process_restore_metadata(self):
         ext_auth = self.instance.get_external_authentication_object()
-        service_type = self.instance.get_service_type()
+        service_type = self.instance.service_type.value
         if service_type == OGCServiceEnum.WMS.value:
             children_md = Metadata.objects.filter(service__parent_service__metadata=self.instance, is_custom=True)
         elif service_type == OGCServiceEnum.WFS.value:

@@ -270,7 +270,7 @@ def overwrite_capabilities_document(metadata: Metadata):
     xml_obj_root = xml_helper.parse_xml(cap_doc.content)
 
     # find matching xml element in xml doc
-    _type = metadata.get_service_type()
+    _type = metadata.service_type.value
     _version = metadata.get_service_version()
 
     identifier = metadata.identifier
@@ -330,11 +330,11 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     """
     # remove iso metadata from capabilities document
     rel_md = metadata
-    service_type = metadata.get_service_type()
+    service_type = metadata.service_type
     if not metadata.is_root():
-        if service_type == 'wms':
+        if service_type == OGCServiceEnum.WMS:
             rel_md = metadata.service.parent_service.metadata
-        elif service_type == 'wfs':
+        elif service_type == OGCServiceEnum.WFS:
             rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(
         metadata=rel_md,

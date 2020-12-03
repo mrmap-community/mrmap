@@ -922,7 +922,7 @@ class Metadata(Resource):
         Returns:
              True|False
         """
-        return self.get_service_type() == enum.value
+        return self.service_type == enum
 
     def get_described_element(self):
         """ Simple getter to return the 'real' described element.
@@ -1374,7 +1374,8 @@ class Metadata(Resource):
             # if we have one or less relations to this metadata record, we can remove it anyway
             super().delete(using, keep_parents)
 
-    def get_service_type(self):
+    @property
+    def service_type(self):
         """ Performs a check on which service type is described by the metadata record
 
         Returns:
@@ -1382,11 +1383,11 @@ class Metadata(Resource):
         """
         service_type = None
         if self.is_root():
-            return self.service.service_type.name
+            return self.service.service_type
         elif self.is_metadata_type(MetadataEnum.LAYER):
-            service_type = 'wms'
+            service_type = OGCServiceEnum.WMS
         elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
-            service_type = 'wfs'
+            service_type = OGCServiceEnum.WMS
         return service_type
 
     def get_service_version(self) -> OGCServiceEnum:

@@ -10,16 +10,16 @@ from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView
-from django.views.generic.base import View, TemplateView
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 
-from MrMap.bootstrap4 import Bootstrap4Helper
+from MrMap.bootstrap4 import Bootstrap4Helper, Icon, LinkButton
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
@@ -29,9 +29,10 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
+from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
-    MetadataWmsFilterNew
+    OgcWmsFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -43,7 +44,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    DatasetTable, CswTable, MetadataWmsTable, PendingTaskTableNew
+    DatasetTable, CswTable, OgcServiceTable, PendingTaskTableNew
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -60,18 +61,20 @@ from users.models import Subscription
 class PendingTaskView(SingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTableNew
-    bs4_helper = None
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(PendingTaskView, self).get_table(**kwargs)
-        #if table.data.data:
-        table.title = format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["PENDINGTASKS"], ) + 'Pending tasks')
-        #else:
-        #    self.template_name = 'empty.html'
+        if table.data.data:
+            table.title = format_html(Icon(name='pending-tasks-icon',
+                                           icon=FONT_AWESOME_ICONS['PENDINGTASKS']).render() + _('Pending tasks'))
+        else:
+            self.template_name = 'empty.html'
         return table
 
     def dispatch(self, request, *args, **kwargs):
+        # todo: move this to a global place to reduce code basic table/filter view things
+        # configure table_pagination dynamically to support per_page switching
         self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
         # push DefaultContext to the template rendering engine
         self.extra_context = DefaultContext(request=self.request, context=kwargs.get('update_params', {})).get_context()
@@ -82,50 +85,47 @@ class PendingTaskView(SingleTableMixin, ListView):
         else:
             self.template_name = 'generic_list_without_base.html'
 
-        self.bs4_helper = Bootstrap4Helper(request=self.request)
         return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
 
 
 class WmsIndexView(SingleTableMixin, FilterView):
     model = Metadata
-    table_class = MetadataWmsTable
-    filterset_class = MetadataWmsFilterNew
-    bs4_helper = None
-    show_layers = False
+    table_class = OgcServiceTable
+    filterset_class = OgcWmsFilter
 
     def get_filterset_kwargs(self, *args):
         kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
-        # to simulate that the filter is used we need to set empty dict for data
-        if not kwargs['data']:
-            kwargs.update({'data': {}})
+        if kwargs['data'] is None:
+            kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
         return kwargs
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WmsIndexView, self).get_table(**kwargs)
         # whether whole services or single layers should be displayed, we have to exclude some columns
-        filter_by_show_layers = self.filterset.form_prefix + '-' + 'show_layers'
+        filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers',)
+            table.exclude = ('layers', 'featuretypes',)
         else:
-            table.exclude = ('parent_service',)
+            table.exclude = ('parent_service', 'featuretypes',)
 
-        table.title = format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["WMS"], ) + 'WMS')
-        # todo: tans 'New resource'
-        add_action = self.bs4_helper.get_btn(href=reverse('resource:add'),
-                                             permission=PermissionEnum.CAN_REGISTER_RESOURCE,
-                                             btn_value=format_html(self.bs4_helper.get_icon(icon=get_theme(self.request.user)["ICONS"]["ADD"]) + 'New resource'),
-                                             btn_color='btn-success',
-                                             )
-        table.actions = [add_action, ]
+        table.title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() + 'WMS')
+        table.actions = [LinkButton(name='add-resource-button',
+                                    value=format_html(Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Resource')),
+                                    color='btn-success',
+                                    url=reverse('resource:add') + f'?current-view={self.request.resolver_match.view_name}',
+                                    needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE).render()]
         return table
 
     def dispatch(self, request, *args, **kwargs):
-        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
-
-        # we inject the pending task ajax template above the default content
+        # we inject the pending task ajax template above the default content to support polling the dynamic content
         extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
         extra_context.update(kwargs.get('update_params', {}))
+
+        # todo: move this to a global place to reduce code basic table/filter view things
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+
         # push DefaultContext to the template rendering engine
         self.extra_context = DefaultContext(request=self.request, context=extra_context).get_context()
 
@@ -135,9 +135,24 @@ class WmsIndexView(SingleTableMixin, FilterView):
         else:
             self.template_name = 'generic_list_without_base.html'
 
-        self.bs4_helper = Bootstrap4Helper(request=self.request)
         return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
 
+    def get_queryset(self):
+        return Metadata.objects.filter(
+            service__service_type__name=OGCServiceEnum.WMS.value,
+            created_by__in=self.request.user.get_groups(),
+            is_deleted=False,
+            service__is_update_candidate_for=None,
+        ).prefetch_related(
+            "contact",
+            "service",
+            "service__created_by",
+            "service__published_for",
+            "service__service_type",
+            "external_authentication",
+            "service__parent_service__metadata",
+            "service__parent_service__metadata__external_authentication",
+        ).order_by("title")
 
 
 
@@ -308,7 +323,7 @@ def add(request: HttpRequest):
     return NewResourceWizard.as_view(
         form_list=NEW_RESOURCE_WIZARD_FORMS,
         current_view=request.GET.get('current-view'),
-        title=_(format_html('<b>Add New Resource</b>')),
+        title=_l(format_html('<b>Add New Resource</b>')),
         id_wizard='add_new_resource_wizard',
     )(request=request)
 
@@ -554,8 +569,8 @@ def remove(request: HttpRequest, metadata_id):
                              reverse_args=[metadata_id, ],
                              # ToDo: after refactoring of all forms is done, show_modal can be removed
                              show_modal=True,
-                             is_confirmed_label=_("Do you really want to remove this service?"),
-                             form_title=_(f"Remove service <strong>{metadata}</strong>"),
+                             is_confirmed_label=_l("Do you really want to remove this service?"),
+                             form_title=_l(f"Remove service <strong>{metadata}</strong>"),
                              instance=metadata)
     return form.process_request(valid_func=form.process_remove_service)
 
@@ -584,8 +599,8 @@ def activate(request: HttpRequest, metadata_id):
         reverse_args=[metadata_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _("Activate resource \n<strong>{}</strong>").format(md.title),
-        is_confirmed_label=_("Do you really want to deactivate this resource?") if md.is_active else _("Do you really want to activate this resource?"),
+        form_title=_l("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _l("Activate resource \n<strong>{}</strong>").format(md.title),
+        is_confirmed_label=_l("Do you really want to deactivate this resource?") if md.is_active else _l("Do you really want to activate this resource?"),
         instance=md,
     )
     return form.process_request(valid_func=form.process_activate_service)
@@ -664,7 +679,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id):
         document = document.content
     except ObjectDoesNotExist:
         # ToDo: a datasetmetadata without a document is broken
-        return HttpResponse(content=_("No dataset metadata found"), status=404)
+        return HttpResponse(content=_l("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
 
@@ -994,7 +1009,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
                                   show_modal=True,
                                   current_service=current_service,
                                   requesting_user=user,
-                                  form_title=_(f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
+                                  form_title=_l(f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
     if request.method == 'GET':
         return form.render_view()
 
@@ -1037,9 +1052,9 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
     try:
         new_service = Service.objects.get(is_update_candidate_for=current_service)
     except ObjectDoesNotExist:
-        messages.error(request, _("No updatecandidate was found."))
+        messages.error(request, _l("No updatecandidate was found."))
         # ToDo: make 7 dynamic
-        messages.info(request, _("Update candidates will be deleted after 7 days."))
+        messages.info(request, _l("Update candidates will be deleted after 7 days."))
         return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
 
     if current_service.is_service_type(OGCServiceEnum.WMS):
@@ -1111,9 +1126,9 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     if request.method == 'POST':
         if new_service.created_by_user == user:
             new_service.delete()
-            messages.success(request, _("Pending update successfully dismissed."))
+            messages.success(request, _l("Pending update successfully dismissed."))
         else:
-            messages.error(request, _("You are not the owner of this pending update. Rejected!"))
+            messages.error(request, _l("You are not the owner of this pending update. Rejected!"))
 
         return HttpResponseRedirect(reverse("resource:detail", args=(current_service.metadata.id,)), status=303)
 
@@ -1300,19 +1315,19 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
 
     # catch featuretype
     if service_md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        params.update({'caption': _("Shows informations about the featuretype.")})
+        params.update({'caption': _l("Shows informations about the featuretype.")})
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
         params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
     else:
         if service_md.service.is_root:
-            params.update({'caption': _("Shows informations about the service.")})
+            params.update({'caption': _l("Shows informations about the service.")})
             service = service_md.service
             layers = Layer.objects.filter(parent_service=service_md.service)
             layers_md_list = layers.filter(parent_layer=None)
         else:
-            params.update({'caption': _("Shows informations about the sublayer.")})
+            params.update({'caption': _l("Shows informations about the sublayer.")})
             template = "views/sublayer_detail_no_base.html" if 'no-base' in request.GET else "views/sublayer_detail.html"
             service = Layer.objects.get(
                 metadata=service_md

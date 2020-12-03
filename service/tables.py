@@ -2,7 +2,6 @@ import csv
 
 import django_tables2 as tables
 from django.db.models.functions import Length
-from django.utils.html import format_html
 from django.urls import reverse
 import json
 
@@ -140,9 +139,11 @@ class PendingTaskTableNew(tables.Table):
         return ProgressBar(progress=round(value, 2)).render()
 
 
-class MetadataWmsTable(tables.Table):
+class OgcServiceTable(tables.Table):
     bs4helper = None
+    service_type = tables.Column(visible=False)
     layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_service__count')
+    featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], accessor='service__featuretypes__count')
     parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[],
                                    accessor='service__parent_service__metadata')
     status = tables.Column(verbose_name=_('Status'), empty_values=[], )
@@ -152,8 +153,10 @@ class MetadataWmsTable(tables.Table):
 
     class Meta:
         model = Metadata
-        fields = ('title',
+        fields = ('service_type',
+                  'title',
                   'layers',
+                  'featuretypes',
                   'parent_service',
                   'status',
                   'health',
@@ -173,7 +176,7 @@ class MetadataWmsTable(tables.Table):
         return self.bs4helper.get_link(href=record.detail_view_uri, value=value)
 
     def render_parent_service(self, value):
-        return self.bs4helper.get_link(href=value.detail_view_uri, value=value)
+        return self.bs4helper.get_link(href=value.detail_view_uri, value=value) if value else ''
 
     def render_status(self, record):
         return format_html(self.bs4helper.render_list_coherent(items=record.get_status_icons()))
@@ -198,6 +201,12 @@ class MetadataWmsTable(tables.Table):
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(
             count=Count("service__child_service")
+        ).order_by(("-" if is_descending else "") + "count")
+        return queryset, True
+
+    def order_wfs_featuretypes(self, queryset, is_descending):
+        queryset = queryset.annotate(
+            count=Count("service__featuretypes")
         ).order_by(("-" if is_descending else "") + "count")
         return queryset, True
 

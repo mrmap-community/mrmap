@@ -6,35 +6,31 @@ from django.db.models import Q
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.helper.enums import OGCServiceEnum, MetadataRelationEnum
-from service.models import Metadata, Layer, FeatureType, ProxyLog, ServiceType
+from service.models import Metadata, Layer, FeatureType, ProxyLog
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import MrMapGroup, MrMapUser
 
 
-class MetadataWmsFilterNew(django_filters.FilterSet):
-    show_layers = django_filters.BooleanFilter(
+class OgcWmsFilter(django_filters.FilterSet):
+    service__is_root = django_filters.BooleanFilter(
         widget=forms.CheckboxInput(),
         label=_("Show layers"),
-        method='filter_layers',
-        required=False,
         initial=False,
+        exclude=True,
     )
 
     class Meta:
         model = Metadata
         fields = {
-            'title': ['icontains'], }
+            'title': ['icontains'],
+            'service__is_root': ['exact'], }
 
     def __init__(self, *args, **kwargs):
-        super(MetadataWmsFilterNew, self).__init__(prefix='wms-filter', *args, **kwargs)
+        super(OgcWmsFilter, self).__init__(prefix='wms-filter', *args, **kwargs)
 
-    @staticmethod
-    def filter_layers(queryset, name, value):
-        queryset = queryset.filter(
-            service__is_root=not value
-        )
-        return queryset
+
+
 
 
 class ChildLayerFilter(django_filters.FilterSet):

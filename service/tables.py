@@ -170,7 +170,7 @@ class OgcServiceTable(tables.Table):
         prefix = 'wms-table'
 
     def before_render(self, request):
-        self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
+        self.bs4helper = Bootstrap4Helper(request=request)
 
     def render_title(self, record, value):
         return self.bs4helper.render_item(item=Link(name='detail-resource',

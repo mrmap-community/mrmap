@@ -120,6 +120,9 @@ class Bootstrap4Helper:
         self.url_querystring = ''
         if add_current_view_params:
             current_view = self.request.GET.get('current-view', self.request.resolver_match.view_name)
+            # todo: check if the requested view is a detail view to solve the requested id
+            # todo: maybe we can do that by proofing if isinstance(view, DetailView)...
+            # todo: for that we first have to refactor the detail views
             current_view_arg = self.request.GET.get('current-view-arg', '')
             if current_view_arg:
                 self.url_querystring = f'?current-view={current_view}&current-view-arg={current_view_arg}'
@@ -137,6 +140,8 @@ class Bootstrap4Helper:
         rendered_string = ''
         has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
         if has_perm:
+            if self.add_current_view_params and hasattr(item, 'url'):
+                item.url += self.url_querystring
             rendered_string = item.render()
         return rendered_string
 

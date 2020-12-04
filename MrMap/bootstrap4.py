@@ -65,7 +65,7 @@ class Icon:
 
 
 class Link:
-    def __init__(self, name: str, url: str, value: str, color: str = '', needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: str = 'left'):
+    def __init__(self, name: str, url: str, value: str, color: str = '', needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: str = 'left', open_in_new_tab: bool = False):
         self.name = name
         self.url = url
         self.value = value
@@ -73,6 +73,7 @@ class Link:
         self.tooltip = tooltip
         self.tooltip_placement = tooltip_placement
         self.needs_perm = needs_perm
+        self.open_in_new_tab = open_in_new_tab
 
     def render(self):
         context = {
@@ -81,6 +82,7 @@ class Link:
             "url": self.url,
             "tooltip": self.tooltip,
             "tooltip_placement": self.tooltip_placement,
+            "open_in_new_tab": self.open_in_new_tab
         }
         return render_to_string(template_name="sceletons/open-link.html",
                                 context=context)
@@ -136,17 +138,17 @@ class Bootstrap4Helper:
             self.permission_lookup[permission] = has_perm
         return has_perm
 
-    def render_item(self, item):
+    def render_item(self, item, ignore_current_view_params: bool = False):
         rendered_string = ''
         has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
         if has_perm:
-            if self.add_current_view_params and hasattr(item, 'url'):
+            if self.add_current_view_params and hasattr(item, 'url') and not ignore_current_view_params:
                 item.url += self.url_querystring
             rendered_string = item.render()
         return rendered_string
 
-    def render_list_coherent(self, items: []):
+    def render_list_coherent(self, items: [], ignore_current_view_params: bool = False):
         rendered_string = ''
         for item in items:
-            rendered_string += self.render_item(item=item)
+            rendered_string += self.render_item(item=item, ignore_current_view_params=ignore_current_view_params)
         return format_html(rendered_string)

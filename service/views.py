@@ -32,7 +32,7 @@ from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
-    OgcWmsFilter, OgcWfsFilter
+    OgcWmsFilter, OgcWfsFilter, OgcCswFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -127,9 +127,9 @@ class WmsIndexView(SingleTableMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes',)
+            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records', )
         else:
-            table.exclude = ('parent_service', 'featuretypes',)
+            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
 
         table.title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() + 'WMS')
 
@@ -156,7 +156,7 @@ class WfsIndexView(SingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers',)
+        table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
         table.title = format_html(Icon(name='wfs-icon', icon=FONT_AWESOME_ICONS['WFS']).render() + 'WFS')
 
         bs4helper = Bootstrap4Helper(request=self.request)
@@ -172,6 +172,32 @@ class WfsIndexView(SingleTableMixin, FilterView):
 
     def get_queryset(self):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WFS)
+
+
+class CswIndexView(SingleTableMixin, FilterView):
+    model = Metadata
+    table_class = OgcServiceTable
+    filterset_class = OgcCswFilter
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(CswIndexView, self).get_table(**kwargs)
+        table.exclude = ('parent_service', 'layers', 'featuretypes', 'health', 'service__published_for')
+        table.title = format_html(Icon(name='csw-icon', icon=FONT_AWESOME_ICONS['CSW']).render() + 'CSW')
+
+        bs4helper = Bootstrap4Helper(request=self.request)
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_action(request=self.request))]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # we inject the pending task ajax template above the default content to support polling the dynamic content
+        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+        extra_context.update(kwargs.get('update_params', {}))
+        default_dispatch(instance=self, extra_context=extra_context)
+        return super(CswIndexView, self).dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.CSW)
 
 
 def _is_updatecandidate(metadata: Metadata):

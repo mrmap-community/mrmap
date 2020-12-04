@@ -148,6 +148,8 @@ class OgcServiceTable(tables.Table):
                                    accessor='service__parent_service__metadata')
     status = tables.Column(verbose_name=_('Status'), empty_values=[], )
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
+    last_harvest = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
+    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], )
     actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
                             attrs={"td": {"style": "white-space:nowrap;"}})
 
@@ -161,6 +163,8 @@ class OgcServiceTable(tables.Table):
                   'status',
                   'health',
                   'service__service_type__version',
+                  'last_harvest',
+                  'collected_harvest_records',
                   'contact',
                   'service__created_by',
                   'service__published_for',
@@ -176,6 +180,23 @@ class OgcServiceTable(tables.Table):
         return self.bs4helper.render_item(item=Link(name='detail-resource',
                                                     url=record.detail_view_uri,
                                                     value=value))
+
+    def render_last_haverest(self, value):
+        harvest_result = HarvestResult.objects.filter(
+            service=value
+        ).order_by(
+            "-created"
+        ).first()
+
+        return harvest_result.timestamp_start if harvest_result is not None else None
+
+    def render_collected_haverest_records(self, value):
+        harvest_result = HarvestResult.objects.filter(
+            service=value
+        ).order_by(
+            "-created"
+        ).first()
+        return harvest_result.number_results if harvest_result is not None else None
 
     def render_parent_service(self, value):
         return self.bs4helper.render_item(item=Link(name='detail-contact',
@@ -639,7 +660,7 @@ class CswTable(MrMapTable):
     )
 
     @staticmethod
-    def render_csw_last_haverest(value, record):
+    def render_csw_last_haverest(value):
         harvest_result = HarvestResult.objects.filter(
             service=value
         ).order_by(

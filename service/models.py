@@ -650,58 +650,109 @@ class Metadata(Resource):
         return formats
 
     @classmethod
-    def get_add_action(cls, request: HttpRequest):
+    def get_add_resource_action(cls, request: HttpRequest):
         return LinkButton(name='add-resource-button',
-                           value=format_html(
+                          value=format_html(
                                Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Resource')),
-                           color='btn-success',
-                           url=reverse('resource:add') + f'?current-view={request.resolver_match.view_name}',
-                           needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE)
+                          color='btn-success',
+                          url=reverse('resource:add'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE)
+
+    @classmethod
+    def get_add_dataset_action(cls, request: HttpRequest):
+        return LinkButton(name='add-dataset-button',
+                          value=format_html(
+                              Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Dataset')),
+                          color='btn-success',
+                          url=reverse('editor:dataset-metadata-wizard-new'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE)
 
     def get_actions(self, request: HttpRequest):
-        actions = [LinkButton(name='active',
-                              url=self.activate_view_uri,
-                              value=FONT_AWESOME_ICONS["POWER_OFF"],
-                              color=get_theme(request.user)["TABLE"][
-                                    "BTN_WARNING_COLOR" if self.is_active else "BTN_SUCCESS_COLOR"],
-                              tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
-                              needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE),
-                   LinkButton(name='update',
-                              url=self.update_view_uri,
-                              value=FONT_AWESOME_ICONS["UPDATE"],
-                              color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
-                              tooltip=_l("Update this resource"),
-                              needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
-                   LinkButton(name='run-health-checks',
-                              url=self.run_monitoring_view_uri,
-                              value=FONT_AWESOME_ICONS["HEARTBEAT"],
-                              color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
-                              tooltip=_l("Run health checks for this resource"),
-                              needs_perm=PermissionEnum.CAN_RUN_MONITORING),
-                   LinkButton(name='edit',
-                              url=self.edit_view_uri,
-                              value=FONT_AWESOME_ICONS["EDIT"],
-                              color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
-                              tooltip=_l("Edit the metadata of this resource"),
-                              needs_perm=PermissionEnum.CAN_EDIT_METADATA),
-                   LinkButton(name='edit-access',
-                              url=self.edit_access_view_uri,
-                              value=FONT_AWESOME_ICONS["ACCESS"],
-                              color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
-                              tooltip=_l("Edit the access for resource"),
-                              needs_perm=PermissionEnum.CAN_EDIT_METADATA),
-                   LinkButton(name='restore',
-                              url=self.restore_view_uri,
-                              value=FONT_AWESOME_ICONS["ACCESS"],
-                              color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
-                              tooltip=_l("Edit the access for resource"),
-                              needs_perm=PermissionEnum.CAN_EDIT_METADATA),
-                   LinkButton(name='remove',
-                              url=self.remove_view_uri,
-                              value=FONT_AWESOME_ICONS["REMOVE"],
-                              color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
-                              tooltip=_l("Remove this resource"),
-                              needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE),]
+        actions = []
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            # datasets can be edited,
+            # removed if it is a dataset which is created from the user,
+            # restored if it's customized
+            actions.append(LinkButton(name='edit-dataset',
+                                      url=self.edit_view_uri,
+                                      value=FONT_AWESOME_ICONS["EDIT"],
+                                      color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
+                                      tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA))
+            is_mr_map_origin = not MetadataRelation.objects.filter(
+                metadata_to=self
+            ).exclude(
+                origin=ResourceOriginEnum.EDITOR.value
+            ).exists()
+            if is_mr_map_origin:
+                actions.append(LinkButton(name='edit-dataset',
+                                          url=self.remove_view_uri,
+                                          value=FONT_AWESOME_ICONS["REMOVE"],
+                                          color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                          tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA))
+            if self.is_custom:
+                actions.append(LinkButton(name='edit-dataset',
+                                          url=self.restore_view_uri,
+                                          value=FONT_AWESOME_ICONS["UNDO"],
+                                          color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                          tooltip=_l(f"Restore <strong>{self.title} [{self.id}]</strong> dataset"),
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA))
+
+        else:
+            actions.append(LinkButton(name='active',
+                                      url=self.activate_view_uri,
+                                      value=FONT_AWESOME_ICONS["POWER_OFF"],
+                                      color=get_theme(request.user)["TABLE"][
+                                          "BTN_WARNING_COLOR" if self.is_active else "BTN_SUCCESS_COLOR"],
+                                      tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
+                                      needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE))
+            if self.service_type.name == OGCServiceEnum.CSW.value:
+                actions.append(LinkButton(name='harvest',
+                                          url=self.harvest_view_uri,
+                                          value=FONT_AWESOME_ICONS["HARVEST"],
+                                          color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                                          tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA), )
+            else:
+                actions.extend([LinkButton(name='update',
+                                           url=self.update_view_uri,
+                                           value=FONT_AWESOME_ICONS["UPDATE"],
+                                           color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                                           tooltip=_l("Update this resource"),
+                                           needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
+                                LinkButton(name='run-health-checks',
+                                           url=self.run_monitoring_view_uri,
+                                           value=FONT_AWESOME_ICONS["HEARTBEAT"],
+                                           color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                                           tooltip=_l("Run health checks for this resource"),
+                                           needs_perm=PermissionEnum.CAN_RUN_MONITORING),
+                                LinkButton(name='edit',
+                                           url=self.edit_view_uri,
+                                           value=FONT_AWESOME_ICONS["EDIT"],
+                                           color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
+                                           tooltip=_l("Edit the metadata of this resource"),
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA),
+                                LinkButton(name='edit-access',
+                                           url=self.edit_access_view_uri,
+                                           value=FONT_AWESOME_ICONS["ACCESS"],
+                                           color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
+                                           tooltip=_l("Edit the access for resource"),
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA),
+                                LinkButton(name='restore',
+                                           url=self.restore_view_uri,
+                                           value=FONT_AWESOME_ICONS["ACCESS"],
+                                           color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                           tooltip=_l("Edit the access for resource"),
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA), ]
+                               )
+            actions.append(LinkButton(name='remove',
+                                      url=self.remove_view_uri,
+                                      value=FONT_AWESOME_ICONS["REMOVE"],
+                                      color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                      tooltip=_l("Remove this resource"),
+                                      needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE),)
+
         return actions
 
     def get_status_icons(self):
@@ -794,7 +845,13 @@ class Metadata(Resource):
         return reverse('resource:detail', args=[self.pk, ])
 
     @property
+    def detail_html_view_uri(self):
+        return reverse('resource:get-metadata-html', args=[self.pk, ])
+
+    @property
     def edit_view_uri(self):
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            return reverse('editor:dataset-metadata-wizard-instance', args=[self.pk, ])
         return reverse('editor:edit', args=[self.pk, ])
 
     @property
@@ -803,10 +860,14 @@ class Metadata(Resource):
 
     @property
     def remove_view_uri(self):
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            return reverse('editor:remove-dataset-metadata', args=[self.pk, ])
         return reverse('resource:remove', args=[self.pk, ])
 
     @property
     def restore_view_uri(self):
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            return reverse('editor:restore-dataset-metadata', args=[self.pk, ])
         return reverse('editor:restore', args=[self.pk, ])
 
     @property
@@ -820,6 +881,10 @@ class Metadata(Resource):
     @property
     def health_state_uri(self):
         return reverse('monitoring:health-state', args=[self.pk])
+
+    @property
+    def harvest_view_uri(self):
+        return reverse('csw:harvest-catalogue', args=[self.pk]) if self.service_type == OGCServiceEnum.CSW else ''
 
     @property
     def run_monitoring_view_uri(self):

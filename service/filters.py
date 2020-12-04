@@ -48,6 +48,13 @@ class OgcCswFilter(django_filters.FilterSet):
         super(OgcCswFilter, self).__init__(prefix='csw-filter', *args, **kwargs)
 
 
+class DatasetFilter(django_filters.FilterSet):
+    class Meta:
+        model = Metadata
+        fields = {'title': ['icontains'], }
+
+    def __init__(self, *args, **kwargs):
+        super(DatasetFilter, self).__init__(prefix='dataset-filter', *args, **kwargs)
 
 class ChildLayerFilter(django_filters.FilterSet):
     child_layer_title = django_filters.CharFilter(field_name='metadata',

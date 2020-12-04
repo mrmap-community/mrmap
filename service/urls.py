@@ -10,9 +10,7 @@ urlpatterns = [
     path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),
     path('wfs/', login_required(WfsIndexView.as_view()), name='wfs-index'),
     path('csw/', login_required(CswIndexView.as_view()), name='csw-index'),
-
-
-    path('datasets/', datasets_index, name='datasets-index'),
+    path('datasets/', login_required(DatasetIndexView.as_view()), name='datasets-index'),
 
 
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),

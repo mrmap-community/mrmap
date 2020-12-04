@@ -8,6 +8,7 @@ import json
 from MrMap.bootstrap4 import *
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
+from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
@@ -141,7 +142,6 @@ class PendingTaskTableNew(tables.Table):
 
 class OgcServiceTable(tables.Table):
     bs4helper = None
-    service_type = tables.Column(visible=False)
     layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_service__count')
     featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], accessor='service__featuretypes__count')
     parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[],
@@ -155,8 +155,7 @@ class OgcServiceTable(tables.Table):
 
     class Meta:
         model = Metadata
-        fields = ('service_type',
-                  'title',
+        fields = ('title',
                   'layers',
                   'featuretypes',
                   'parent_service',
@@ -171,6 +170,7 @@ class OgcServiceTable(tables.Table):
                   'created',
                   'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
         prefix = 'wms-table'
 
     def before_render(self, request):
@@ -251,6 +251,78 @@ class OgcServiceTable(tables.Table):
     def order_health(self, queryset, is_descending):
         # TODO:
         return queryset, True
+
+
+class DatasetTable(tables.Table):
+    bs4helper = None
+    related_objects = MrMapColumn(verbose_name=_('Related objects'), empty_values=[])
+    origins = MrMapColumn(verbose_name=_('Origins'), empty_values=[])
+    actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
+                            attrs={"td": {"style": "white-space:nowrap;"}})
+
+    class Meta:
+        model = Metadata
+        fields = (
+                  'title',
+                  'related_objects',
+                  'origins',
+                  'actions')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'wms-table'
+
+    def before_render(self, request):
+        self.bs4helper = Bootstrap4Helper(request=request)
+
+    def render_title(self, value, record):
+        return self.bs4helper.render_item(item=Link(name='detail-resource',
+                                                    url=record.detail_html_view_uri,
+                                                    value=value,
+                                                    open_in_new_tab=True),
+                                          ignore_current_view_params=True)
+
+    def render_related_objects(self, record):
+        related_metadatas = Metadata.objects.filter(
+            related_metadata__metadata_to=record
+        ).prefetch_related(
+            "related_metadata"
+        )
+        link_list = []
+        for metadata in related_metadatas:
+            if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
+                kind_of_resource_icon = "WFS"
+                kind_of_resource = "Featuretype"
+            elif metadata.metadata_type == MetadataEnum.LAYER.value:
+                kind_of_resource_icon = "LAYER"
+                kind_of_resource = "Layer"
+            else:
+                kind_of_resource_icon = "NONE"
+                kind_of_resource = ""
+            kind_of_resource_icon = Icon(name='resource-icon',
+                                         icon=FONT_AWESOME_ICONS[kind_of_resource_icon], ).render()
+
+            link_list.append(Link(name='detail-link',
+                                  url=metadata.detail_view_uri,
+                                  value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
+                                  tooltip=_(f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),), )
+        return self.bs4helper.render_list_coherent(items=link_list, ignore_current_view_params=True)
+
+    def render_origins(self, record):
+        related_metadatas = MetadataRelation.objects.filter(
+            metadata_to=record
+        )
+        origin_list = []
+        rel_mds = list(record.related_metadata.all())
+        relations = list(related_metadatas) + rel_mds
+        for relation in relations:
+            origin_list.append(f"{relation.origin}")
+
+        return format_html(', '.join(origin_list))
+
+    def render_actions(self, record):
+        actions = record.get_actions(request=self.request)
+        rendered_actions = self.bs4helper.render_list_coherent(items=actions)
+        return format_html(rendered_actions)
 
 
 class ResourceTable(MrMapTable):
@@ -917,106 +989,3 @@ class ProxyLogTable(MrMapTable):
         return stream.getvalue()
 
 
-class DatasetTable(MrMapTable):
-    caption = _("Shows all datasets which are configured in your Mr. Map environment. You can Edit them if you want.")
-
-    dataset_title = MrMapColumn(
-        accessor='title',
-        verbose_name=_('Title'),
-        tooltip=TOOLTIP_TITLE,
-    )
-    dataset_related_objects = MrMapColumn(
-        verbose_name=_('Related objects'),
-        empty_values=[],
-        tooltip=_('The related service from which this dataset is referenced'), )
-    dataset_origins = MrMapColumn(
-        verbose_name=_('Origins'),
-        empty_values=[],
-        tooltip=_('How the resource got into the system.'))
-    dataset_actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        empty_values=[],
-        orderable=False,
-        tooltip=TOOLTIP_ACTIONS,
-        attrs={"td": {"style": "white-space:nowrap;"}})
-
-    def render_dataset_title(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the html view of dataset <strong>{value}</strong>'),
-                             href=reverse('resource:get-metadata-html', args=(record.id,)),
-                             value=value,
-                             permission=None,
-                             open_in_new_tab=True, )
-
-    def render_dataset_related_objects(self, record):
-        related_metadatas = Metadata.objects.filter(
-            related_metadata__metadata_to=record
-        ).prefetch_related(
-            "related_metadata"
-        )
-        link_list = []
-        for metadata in related_metadatas:
-            if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
-                kind_of_resource_icon = "WFS"
-                kind_of_resource = "Featuretype"
-            elif metadata.metadata_type == MetadataEnum.LAYER.value:
-                kind_of_resource_icon = "LAYER"
-                kind_of_resource = "Layer"
-            else:
-                kind_of_resource_icon = "NONE"
-                kind_of_resource = ""
-            kind_of_resource_icon = self.get_icon(icon=get_theme(self.user)["ICONS"][kind_of_resource_icon], )
-            link = self.get_link(tooltip=_(
-                f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),
-                                 href=reverse('resource:detail', args=(metadata.id,)),
-                                 value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
-                                 permission=None, )
-            link_list.append(link, )
-        return format_html(', '.join(link_list))
-
-    def render_dataset_origins(self, record):
-        related_metadatas = MetadataRelation.objects.filter(
-            metadata_to=record
-        )
-        origin_list = []
-        rel_mds = list(record.related_metadata.all())
-        relations = list(related_metadatas) + rel_mds
-        for relation in relations:
-            origin_list.append(f"{relation.origin}")
-
-        return format_html(', '.join(origin_list))
-
-    def render_dataset_actions(self, record):
-        is_mr_map_origin = not MetadataRelation.objects.filter(
-            metadata_to=record
-        ).exclude(
-            origin=ResourceOriginEnum.EDITOR.value
-        ).exists()
-
-        btns = ''
-        btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance',
-                                          args=(record.id,)) + f"?current-view={self.current_view}",
-                             permission=PermissionEnum.CAN_EDIT_METADATA,
-                             tooltip=format_html(_(f"Edit <strong>{record.title} [{record.id}]</strong> dataset")),
-                             tooltip_placement='left',
-                             btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-                             btn_value=get_theme(self.user)["ICONS"]['EDIT'], )
-
-        btns += self.get_btn(
-            href=reverse('editor:restore-dataset-metadata', args=(record.id,)) + f"?current-view={self.current_view}",
-            permission=PermissionEnum.CAN_EDIT_METADATA,
-            tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> dataset")),
-            tooltip_placement='left',
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['UNDO'],
-            ) if not is_mr_map_origin else ''
-
-        btns += self.get_btn(
-            href=reverse('editor:remove-dataset-metadata', args=(record.id,)) + f"?current-view={self.current_view}",
-            permission=PermissionEnum.CAN_REMOVE_DATASET_METADATA,
-            tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> dataset"), ),
-            tooltip_placement='left',
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-            ) if is_mr_map_origin else ''
-
-        return format_html(btns)

@@ -32,7 +32,7 @@ from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
-    OgcWmsFilter, OgcWfsFilter, OgcCswFilter
+    OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -134,7 +134,7 @@ class WmsIndexView(SingleTableMixin, FilterView):
         table.title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() + 'WMS')
 
         bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_action(request=self.request))]
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_resource_action(request=self.request))]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -160,7 +160,7 @@ class WfsIndexView(SingleTableMixin, FilterView):
         table.title = format_html(Icon(name='wfs-icon', icon=FONT_AWESOME_ICONS['WFS']).render() + 'WFS')
 
         bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_action(request=self.request))]
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_resource_action(request=self.request))]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -186,7 +186,7 @@ class CswIndexView(SingleTableMixin, FilterView):
         table.title = format_html(Icon(name='csw-icon', icon=FONT_AWESOME_ICONS['CSW']).render() + 'CSW')
 
         bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_action(request=self.request))]
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_resource_action(request=self.request))]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -198,6 +198,28 @@ class CswIndexView(SingleTableMixin, FilterView):
 
     def get_queryset(self):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.CSW)
+
+
+class DatasetIndexView(SingleTableMixin, FilterView):
+    model = Metadata
+    table_class = DatasetTable
+    filterset_class = DatasetFilter
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(DatasetIndexView, self).get_table(**kwargs)
+        table.title = format_html(Icon(name='csw-icon', icon=FONT_AWESOME_ICONS['DATASET']).render() + 'Dataset')
+
+        bs4helper = Bootstrap4Helper(request=self.request)
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_dataset_action(request=self.request))]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self, extra_context=kwargs.get('update_params', {}))
+        return super(DatasetIndexView, self).dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups())
 
 
 def _is_updatecandidate(metadata: Metadata):

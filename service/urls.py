@@ -32,15 +32,6 @@ urlpatterns = [
     path('activate/<metadata_id>', activate, name='activate'),
     path('add/', add, name='add'),
 
-
-    path('wms-table/', wms_table, name="wms-table"),
-    path('wfs-table/', wfs_table, name="wfs-table"),
-    path('wms-table/', wms_table, name="wms-table"),
-    path('csw-table/', csw_table, name="csw-table"),
-    path('dataset-table/', datasets_table, name="dataset-table"),
-
-    
-
     path('detail/<object_id>', detail, name='detail'),
 
     path('logs/', logs_view, name='logs-view'),

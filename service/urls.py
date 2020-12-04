@@ -8,9 +8,8 @@ urlpatterns = [
 
     path('pending-tasks/', login_required(PendingTaskView.as_view()), name="pending-tasks"),
     path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),
+    path('wfs/', login_required(WfsIndexView.as_view()), name='wfs-index'),
 
-
-    path('wfs/', wfs_index, name='wfs-index'),
     path('csw/', csw_index, name='csw-index'),
     path('datasets/', datasets_index, name='datasets-index'),
 

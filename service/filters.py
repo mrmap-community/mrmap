@@ -30,6 +30,13 @@ class OgcWmsFilter(django_filters.FilterSet):
         super(OgcWmsFilter, self).__init__(prefix='wms-filter', *args, **kwargs)
 
 
+class OgcWfsFilter(django_filters.FilterSet):
+    class Meta:
+        model = Metadata
+        fields = {'title': ['icontains'], }
+
+    def __init__(self, *args, **kwargs):
+        super(OgcWfsFilter, self).__init__(prefix='wfs-filter', *args, **kwargs)
 
 
 

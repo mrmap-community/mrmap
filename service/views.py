@@ -32,7 +32,7 @@ from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
-    OgcWmsFilter
+    OgcWmsFilter, OgcWfsFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -71,6 +71,24 @@ def default_dispatch(instance, extra_context=None, with_base: bool = True):
         instance.template_name = 'generic_list_with_base.html'
     else:
         instance.template_name = 'generic_list_without_base.html'
+
+
+def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum):
+    return Metadata.objects.filter(
+        service__service_type__name=service_type.value,
+        created_by__in=instance.request.user.get_groups(),
+        is_deleted=False,
+        service__is_update_candidate_for=None,
+    ).prefetch_related(
+        "contact",
+        "service",
+        "service__created_by",
+        "service__published_for",
+        "service__service_type",
+        "external_authentication",
+        "service__parent_service__metadata",
+        "service__parent_service__metadata__external_authentication",
+    ).order_by("title")
 
 
 class PendingTaskView(SingleTableMixin, ListView):
@@ -127,22 +145,33 @@ class WmsIndexView(SingleTableMixin, FilterView):
         return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return Metadata.objects.filter(
-            service__service_type__name=OGCServiceEnum.WMS.value,
-            created_by__in=self.request.user.get_groups(),
-            is_deleted=False,
-            service__is_update_candidate_for=None,
-        ).prefetch_related(
-            "contact",
-            "service",
-            "service__created_by",
-            "service__published_for",
-            "service__service_type",
-            "external_authentication",
-            "service__parent_service__metadata",
-            "service__parent_service__metadata__external_authentication",
-        ).order_by("title")
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
 
+
+class WfsIndexView(SingleTableMixin, FilterView):
+    model = Metadata
+    table_class = OgcServiceTable
+    filterset_class = OgcWfsFilter
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(WfsIndexView, self).get_table(**kwargs)
+        table.exclude = ('parent_service', 'layers',)
+        table.title = format_html(Icon(name='wfs-icon', icon=FONT_AWESOME_ICONS['WFS']).render() + 'WFS')
+
+        bs4helper = Bootstrap4Helper(request=self.request)
+        table.actions = [bs4helper.render_item(item=Metadata.get_add_action(request=self.request))]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # we inject the pending task ajax template above the default content to support polling the dynamic content
+        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+        extra_context.update(kwargs.get('update_params', {}))
+        default_dispatch(instance=self, extra_context=extra_context)
+        return super(WfsIndexView, self).dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WFS)
 
 
 def _is_updatecandidate(metadata: Metadata):

@@ -65,11 +65,18 @@ class MrMapModalForm:
         view_function = resolve(reverse(viewname=self.current_view, )) if self.current_view_arg is None \
             else resolve(reverse(viewname=self.current_view, args=[self.current_view_arg, ]))
         if self.current_view_arg:
-            return view_function.func(request=self.request,
-                                      status_code=status_code,
-                                      update_params={'current_view': self.current_view,
-                                                     'rendered_modal': self._render_form_as_string()},
-                                      object_id=self.current_view_arg,)
+            if 'pk' in view_function.kwargs:
+                return view_function.func(request=self.request,
+                                          status_code=status_code,
+                                          update_params={'current_view': self.current_view,
+                                                         'rendered_modal': self._render_form_as_string()},
+                                          pk=self.current_view_arg,)
+            else:
+                return view_function.func(request=self.request,
+                                          status_code=status_code,
+                                          update_params={'current_view': self.current_view,
+                                                         'rendered_modal': self._render_form_as_string()},
+                                          slug=self.current_view_arg, )
         else:
             return view_function.func(request=self.request,
                                       status_code=status_code,

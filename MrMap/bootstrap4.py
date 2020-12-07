@@ -1,7 +1,7 @@
+import uuid
 from django.http import HttpRequest
 from django.template.loader import render_to_string
 from django.utils.html import format_html
-
 from MrMap.consts import BTN_SM_CLASS
 from structure.permissionEnums import PermissionEnum
 
@@ -13,7 +13,7 @@ class ProgressBar:
         self.animated = animated
         self.striped = striped
 
-    def render(self):
+    def render(self) -> str:
         context = {
             "progress": self.progress,
             "color": self.color,
@@ -33,7 +33,7 @@ class Badge:
         self.tooltip = tooltip
         self.tooltip_placement = tooltip_placement
 
-    def render(self):
+    def render(self) -> str:
         context = {
             "badge_color": self.badge_color,
             "badge_pill": self.badge_pill,
@@ -53,7 +53,7 @@ class Icon:
         self.tooltip_placement = tooltip_placement
         self.color = color
 
-    def render(self):
+    def render(self) -> str:
         context = {
             "icon_color": self.color,
             "icon": self.icon,
@@ -75,7 +75,7 @@ class Link:
         self.needs_perm = needs_perm
         self.open_in_new_tab = open_in_new_tab
 
-    def render(self):
+    def render(self) -> str:
         context = {
             "color": self.color,
             "value": self.value,
@@ -99,7 +99,7 @@ class LinkButton:
         self.needs_perm = needs_perm
         self.size = size
 
-    def render(self):
+    def render(self) -> str:
         context = {
             "btn_size": self.size,
             "btn_color": self.color,
@@ -108,8 +108,26 @@ class LinkButton:
             "tooltip": self.tooltip,
             "tooltip_placement": self.tooltip_placement,
         }
-        return render_to_string(template_name="sceletons/open-link-button.html",
-                                context=context)
+        return render_to_string(template_name="sceletons/open-link-button.html", context=context)
+
+
+class Accordion:
+    def __init__(self, accordion_title: str, accordion_body: str = None, button_type: str = None, fetch_url: str = None):
+        self.accordion_title = accordion_title
+        self.accordion_body = accordion_body
+        self.button_type = button_type
+        self.fetch_url = fetch_url
+        self.accordion_id = str(uuid.uuid4())
+
+    def render(self) -> str:
+        context = {
+            'accordion_title': self.accordion_title,
+            'accordion_body': self.accordion_body,
+            'button_type': self.button_type,
+            'fetch_url': self.fetch_url,
+            'accordion_id': self.accordion_id,
+        }
+        return render_to_string(template_name='skeletons/accordion_ajax.html' if self.fetch_url else 'skeletons/accordion.html', context=context)
 
 
 class Bootstrap4Helper:
@@ -122,23 +140,25 @@ class Bootstrap4Helper:
         self.url_querystring = ''
         if add_current_view_params:
             current_view = self.request.GET.get('current-view', self.request.resolver_match.view_name)
-            # todo: check if the requested view is a detail view to solve the requested id
-            # todo: maybe we can do that by proofing if isinstance(view, DetailView)...
-            # todo: for that we first have to refactor the detail views
-            current_view_arg = self.request.GET.get('current-view-arg', '')
-            if current_view_arg:
+            if self.request.resolver_match.kwargs:
+                # if kwargs are not empty, this is a detail view
+                if 'pk' in self.request.resolver_match.kwargs:
+                    current_view_arg = self.request.resolver_match.kwargs['pk']
+                else:
+                    current_view_arg = self.request.resolver_match.kwargs['slug']
+                current_view_arg = self.request.GET.get('current-view-arg', current_view_arg)
                 self.url_querystring = f'?current-view={current_view}&current-view-arg={current_view_arg}'
             else:
                 self.url_querystring = f'?current-view={current_view}'
 
-    def check_render_permission(self, permission: PermissionEnum):
+    def check_render_permission(self, permission: PermissionEnum) -> bool:
         has_perm = self.permission_lookup.get(permission, None)
         if has_perm is None:
             has_perm = self.request.user.has_permission(permission)
             self.permission_lookup[permission] = has_perm
         return has_perm
 
-    def render_item(self, item, ignore_current_view_params: bool = False):
+    def render_item(self, item, ignore_current_view_params: bool = False) -> str:
         rendered_string = ''
         has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
         if has_perm:
@@ -147,7 +167,7 @@ class Bootstrap4Helper:
             rendered_string = item.render()
         return rendered_string
 
-    def render_list_coherent(self, items: [], ignore_current_view_params: bool = False):
+    def render_list_coherent(self, items: [], ignore_current_view_params: bool = False) -> str:
         rendered_string = ''
         for item in items:
             rendered_string += self.render_item(item=item, ignore_current_view_params=ignore_current_view_params)

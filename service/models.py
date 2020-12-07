@@ -738,14 +738,15 @@ class Metadata(Resource):
                                            value=FONT_AWESOME_ICONS["ACCESS"],
                                            color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
                                            tooltip=_l("Edit the access for resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA),
-                                LinkButton(name='restore',
-                                           url=self.restore_view_uri,
-                                           value=FONT_AWESOME_ICONS["ACCESS"],
-                                           color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
-                                           tooltip=_l("Edit the access for resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA), ]
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA),]
                                )
+                if self.is_custom:
+                    actions.append(LinkButton(name='restore',
+                                              url=self.restore_view_uri,
+                                              value=FONT_AWESOME_ICONS["UNDO"],
+                                              color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                              tooltip=_l("Restore the metadata for resource"),
+                                              needs_perm=PermissionEnum.CAN_EDIT_METADATA), )
             actions.append(LinkButton(name='remove',
                                       url=self.remove_view_uri,
                                       value=FONT_AWESOME_ICONS["REMOVE"],
@@ -992,7 +993,7 @@ class Metadata(Resource):
         Returns:
              True|False
         """
-        return self.service_type == enum
+        return self.service_type.name == enum.value
 
     def get_described_element(self):
         """ Simple getter to return the 'real' described element.

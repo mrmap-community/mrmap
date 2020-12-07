@@ -4,7 +4,7 @@ from service.views import *
 
 app_name = 'resource'
 urlpatterns = [
-    path('', index, name='index'),
+    path('', login_required(ResourceView.as_view()), name='index'),
 
     path('pending-tasks/', login_required(PendingTaskView.as_view()), name="pending-tasks"),
     path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),

@@ -9,11 +9,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
+from django.template import Template, Context
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView
+from django.views.generic import ListView, TemplateView
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
@@ -222,6 +223,35 @@ class DatasetIndexView(SingleTableMixin, FilterView):
         return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups())
 
 
+class ResourceView(TemplateView):
+    """
+    This is the wrapper view, you include the inline view inside the
+    wrapper view get_context_data.
+    """
+    template_name = "wrapper_template.html"
+
+    def get_context_data(self, **kwargs):
+        context = super(ResourceView, self).get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+
+        self.request.GET._mutable = True
+        self.request.GET.update({'with-base': False})
+        self.request.GET._mutable = False
+
+        rendered_wms_view = WmsIndexView.as_view()(request=self.request)
+        rendered_wfs_view = WfsIndexView.as_view()(request=self.request)
+        rendered_csw_view = CswIndexView.as_view()(request=self.request)
+        rendered_dataset_view = DatasetIndexView.as_view()(request=self.request)
+        rendered_pending_task_ajax = render_to_string(template_name='pending_task_list_ajax.html')
+
+        context['inline_html_items'] = [rendered_pending_task_ajax,
+                                        rendered_wms_view.rendered_content,
+                                        rendered_wfs_view.rendered_content,
+                                        rendered_csw_view.rendered_content,
+                                        rendered_dataset_view.rendered_content,]
+        return context
+
+
 def _is_updatecandidate(metadata: Metadata):
     # get service object
     if metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
@@ -238,139 +268,6 @@ def _is_updatecandidate(metadata: Metadata):
         if service.parent_service.is_update_candidate_for is not None:
             return True
     return False
-
-
-def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
-    """ Collects all wms service data and prepares parameter for rendering
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         params (dict): The rendering parameter
-    """
-    # whether whole services or single layers should be displayed
-    if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
-        show_service = False
-    else:
-        show_service = True
-
-    queryset = Metadata.objects.filter(
-        service__service_type__name=OGCServiceEnum.WMS.value,
-        created_by__in=user_groups,
-        is_deleted=False,
-        service__is_update_candidate_for=None
-    ).prefetch_related(
-        "contact",
-        "service",
-        "service__created_by",
-        "service__published_for",
-        "service__service_type",
-        "external_authentication",
-        "service__parent_service__metadata",
-        "service__parent_service__metadata__external_authentication",
-    ).order_by("title")
-
-    if show_service:
-        wms_table = WmsTableWms(request=request,
-                                queryset=queryset,
-                                filter_set_class=MetadataWmsFilter,
-                                order_by_field='swms',  # swms = sort wms
-                                current_view=current_view,
-                                param_lead='wms-t', )
-    else:
-        wms_table = WmsLayerTableWms(request=request,
-                                     queryset=queryset,
-                                     filter_set_class=MetadataWmsFilter,
-                                     order_by_field='swms',  # swms = sort wms
-                                     current_view=current_view,
-                                     param_lead='wms-t', )
-
-    return {
-        "wms_table": wms_table,
-    }
-
-
-def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
-    """ Collects all wfs service data and prepares parameter for rendering
-
-    Args:
-        request (HttpRequest): The incoming request
-        user (MrMapUser): The performing user
-    Returns:
-         params (dict): The rendering parameter
-    """
-    queryset = Metadata.objects.filter(
-        service__service_type__name=OGCServiceEnum.WFS.value,
-        created_by__in=user_groups,
-        is_deleted=False,
-        service__is_update_candidate_for=None
-    ).prefetch_related(
-        "contact",
-        "service",
-        "service__created_by",
-        "service__published_for",
-        "service__service_type",
-        "external_authentication",
-        "service__parent_service__metadata",
-        "service__parent_service__metadata__external_authentication",
-    ).order_by("title")
-
-    wfs_table = WfsServiceTable(request=request,
-                                queryset=queryset,
-                                filter_set_class=MetadataWfsFilter,
-                                order_by_field='swfs',  # swms = sort wms
-                                current_view=current_view,
-                                param_lead='wfs-t',)
-
-    return {
-        "wfs_table": wfs_table,
-    }
-
-
-def _prepare_csw_table(request: HttpRequest, current_view: str, user_groups):
-    """ Collects all wfs service data and prepares parameter for rendering
-
-    Args:
-        request (HttpRequest): The incoming request
-        user (MrMapUser): The performing user
-    Returns:
-         params (dict): The rendering parameter
-    """
-    queryset = Metadata.objects.filter(
-        metadata_type=MetadataEnum.CATALOGUE.value,
-        created_by__in=user_groups,
-        is_deleted=False,
-        service__is_update_candidate_for=None
-    ).prefetch_related(
-        "contact",
-        "service",
-        "service__created_by",
-        "service__published_for",
-        "service__service_type",
-        "external_authentication",
-    ).order_by("title")
-
-    table = CswTable(request=request,
-                     queryset=queryset,
-                     filter_set_class=MetadataCswFilter,
-                     order_by_field='scsw',  # scsw = sort csw
-                     current_view=current_view,
-                     param_lead='csw-t',)
-
-    return {
-        "csw_table": table,
-    }
-
-
-def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str, user_groups):
-    dataset_table = DatasetTable(request=request,
-                                 filter_set_class=MetadataDatasetFilter,
-                                 queryset=user.get_datasets_as_qs(user_groups=user_groups),
-                                 current_view=current_view,
-                                 param_lead='dataset-t',)
-    return {
-            "dataset_table": dataset_table,
-    }
 
 
 @login_required
@@ -392,52 +289,6 @@ def add(request: HttpRequest):
         title=_l(format_html('<b>Add New Resource</b>')),
         id_wizard='add_new_resource_wizard',
     )(request=request)
-
-
-
-
-@login_required
-def index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of all wms and wfs
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params: (Optional) the update_params dict
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "views/index.html"
-
-    # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
-    pt_table = PendingTasksTable(data=pt,
-                                 orderable=False,
-                                 request=request,)
-
-    params = {
-        "pt_table": pt_table,
-        "current_view": "resource:index",
-    }
-
-    params.update(_prepare_wms_table(request=request, current_view='resource:index', user_groups=user_groups))
-    params.update(_prepare_wfs_table(request=request, current_view='resource:index', user_groups=user_groups))
-    params.update(_prepare_csw_table(request=request, current_view='resource:index', user_groups=user_groups))
-    params.update(_prepare_dataset_table(request=request, current_view='resource:index', user=user, user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
 
 @login_required
 @check_permission(

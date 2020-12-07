@@ -35,5 +35,3 @@ services:
       context: ./inspire-validator
     ports:
       - 8092:8080
-    volumes:
-      - ./etf-inspire/:/etf

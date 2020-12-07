@@ -69,9 +69,9 @@ def default_dispatch(instance, extra_context=None, with_base: bool = True):
 
     with_base = instance.request.GET.get('with-base', 'True' if with_base else 'False')
     if with_base == 'True':
-        instance.template_name = 'generic_list_with_base.html'
+        instance.template_name = 'generic_views/generic_list_with_base.html'
     else:
-        instance.template_name = 'generic_list_without_base.html'
+        instance.template_name = 'generic_views/generic_list_without_base.html'
 
 
 def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum):
@@ -103,7 +103,7 @@ class PendingTaskView(SingleTableMixin, ListView):
             table.title = format_html(Icon(name='pending-tasks-icon',
                                            icon=FONT_AWESOME_ICONS['PENDINGTASKS']).render() + _('Pending tasks'))
         else:
-            self.template_name = 'empty.html'
+            self.template_name = 'generic_views/empty.html'
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -228,7 +228,7 @@ class ResourceView(TemplateView):
     This is the wrapper view, you include the inline view inside the
     wrapper view get_context_data.
     """
-    template_name = "wrapper_template.html"
+    template_name = "generic_views/wrapper_template.html"
 
     def get_context_data(self, **kwargs):
         context = super(ResourceView, self).get_context_data(**kwargs)

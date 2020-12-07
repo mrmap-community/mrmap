@@ -14,13 +14,13 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, TemplateView
+from django.views.generic import ListView, TemplateView, DetailView
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 
-from MrMap.bootstrap4 import Bootstrap4Helper, Icon, LinkButton
+from MrMap.bootstrap4 import Bootstrap4Helper, Icon, LinkButton, Accordion, Badge
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
@@ -29,7 +29,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
-from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
+from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION, ROOT_URL
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
@@ -54,24 +54,26 @@ from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
 from structure.models import MrMapUser, PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
-from django.urls import reverse
+from django.urls import reverse, resolve
 
 from users.models import Subscription
 
 
-def default_dispatch(instance, extra_context=None, with_base: bool = True):
-    # configure table_pagination dynamically to support per_page switching
+def default_dispatch(instance, extra_context=None, with_base: bool = True, is_list_view: bool = True):
+    if is_list_view:
+        # configure table_pagination dynamically to support per_page switching
+        instance.table_pagination = {"per_page": instance.request.GET.get('per_page', 5), }
+
     if extra_context is None:
         extra_context = {}
-    instance.table_pagination = {"per_page": instance.request.GET.get('per_page', 5), }
     # push DefaultContext to the template rendering engine
     instance.extra_context = DefaultContext(request=instance.request, context=extra_context).get_context()
 
     with_base = instance.request.GET.get('with-base', 'True' if with_base else 'False')
     if with_base == 'True':
-        instance.template_name = 'generic_views/generic_list_with_base.html'
+        instance.template_name = 'generic_views/generic_list_with_base.html' if is_list_view else 'generic_views/generic_detail_with_base.html'
     else:
-        instance.template_name = 'generic_views/generic_list_without_base.html'
+        instance.template_name = 'generic_views/generic_list_without_base.html' if is_list_view else 'generic_views/generic_detail_without_base.html'
 
 
 def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum):
@@ -322,23 +324,23 @@ def remove(request: HttpRequest, metadata_id):
 @check_permission(
     PermissionEnum.CAN_ACTIVATE_RESOURCE
 )
-@check_ownership(Metadata, 'metadata_id')
-def activate(request: HttpRequest, metadata_id):
+@check_ownership(Metadata, 'pk')
+def activate(request: HttpRequest, pk):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        metadata_id:
+        pk:
         request:
     Returns:
          redirects to service:index
     """
-    md = get_object_or_404(Metadata, id=metadata_id)
+    md = get_object_or_404(Metadata, id=pk)
 
     form = ActivateServiceForm(
         data=request.POST or None,
         request=request,
         reverse_lookup='resource:activate',
-        reverse_args=[metadata_id, ],
+        reverse_args=[pk, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
         form_title=_l("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _l("Activate resource \n<strong>{}</strong>").format(md.title),
@@ -874,6 +876,54 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
         )
     except ObjectDoesNotExist:
         return None
+
+
+class ResourceDetail(DetailView):
+    model = Metadata
+    context_object_name = 'metadata'
+    template_name = 'generic_views/generic_detail_with_base.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self, extra_context=kwargs.get('update_params', {}), is_list_view=False)
+        return super(ResourceDetail, self).dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        bs4helper = Bootstrap4Helper(request=self.request)
+        actions = context['object'].get_actions(request=self.request)
+        context['object'].actions = bs4helper.render_list_coherent(actions)
+
+        card_body = ''
+        if context['object'].is_root:
+            accordion_body = render_to_string(template_name='root_service_detail_table.html', context=context)
+            card_body += Accordion(accordion_title='Show details', accordion_body=accordion_body).render()
+            if context['object'].is_service_type(enum=OGCServiceEnum.WMS):
+                context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() +
+                                                      context['object'].title)
+
+                all_layers = Layer.objects.filter(parent_service=self.object.service)
+                root_layer = all_layers.filter(parent_layer=None)
+
+                show_sublayers_count_badge = Badge(name='sublayers-badge',
+                                                   value=root_layer.count(),
+                                                   badge_color=get_theme(self.request.user)['ACCORDION']['PILL_BADGE_LIGHT_COLOR']).render()
+
+                root_layer_accordion = Accordion(accordion_title=root_layer.first(),
+                                                 fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[root_layer.first().metadata.id]) + '?with-base=False').render()
+
+                show_sublayers_accordion = Accordion(accordion_title=format_html('Sublayers ' + show_sublayers_count_badge),
+                                                     accordion_body=root_layer_accordion).render()
+
+                card_body += show_sublayers_accordion
+
+            if context['object'].is_service_type(enum=OGCServiceEnum.WFS):
+                context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WFS']).render() +
+                                                      context['object'].title)
+
+        context.update({'card_body': card_body})
+        context = DefaultContext(request=self.request, context=context).get_context()
+        return context
+
 
 # Todo: index view
 @login_required

@@ -1,0 +1,11 @@
+{% extends 'skeletons/card.html'%}
+{% load i18n %}
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">{{object.title}}</h4>
+{% endblock %}
+{% block card-header-title-right %}
+{{ object.actions }}
+{% endblock %}
+{% block card-body %}
+{{ card_body|safe }}
+{% endblock %}

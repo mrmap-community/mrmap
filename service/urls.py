@@ -15,7 +15,7 @@ urlpatterns = [
     path('logs/', logs_view, name='logs-view'),
 
     # detail view
-    path('detail/<object_id>', detail, name='detail'),
+    path('detail/<pk>', ResourceDetail.as_view(), name='detail'),
 
     # html metadata detail view
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),
@@ -26,7 +26,7 @@ urlpatterns = [
     #  for add / remove and so on we already have class based views which are wrapped by a function
     path('add/', add, name='add'),
     path('remove/<metadata_id>', remove, name='remove'),
-    path('activate/<metadata_id>', activate, name='activate'),
+    path('activate/<pk>', activate, name='activate'),
     path('new-update/<metadata_id>', new_pending_update_service, name='new-pending-update'),
     path('pending-update/<metadata_id>', pending_update_service, name='pending-update'),
     path('dismiss-pending-update/<metadata_id>', dismiss_pending_update_service, name='dismiss-pending-update'),

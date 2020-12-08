@@ -1,4 +1,6 @@
 import uuid
+
+from django.contrib.gis.geos import Polygon
 from django.http import HttpRequest
 from django.template.loader import render_to_string
 from django.utils.html import format_html
@@ -128,6 +130,25 @@ class Accordion:
             'accordion_id': self.accordion_id,
         }
         return render_to_string(template_name='skeletons/accordion_ajax.html' if self.fetch_url else 'skeletons/accordion.html', context=context)
+
+
+class LeafletClient:
+    def __init__(self, polygon: Polygon, add_polygon_as_layer: bool = True, height: str = '50vh', min_height: str = '200px'):
+        self.polygon = polygon
+        self.add_polygon_as_layer = add_polygon_as_layer
+        self.height = height
+        self.min_height = min_height
+        self.map_id = str(uuid.uuid4()).replace("-", "_")
+
+    def render(self) -> str:
+        context = {
+            'polygon': self.polygon,
+            'add_polygon_as_layer': self.add_polygon_as_layer,
+            'height': self.height,
+            'min_height': self.min_height,
+            'map_id': self.map_id,
+        }
+        return render_to_string(template_name='skeletons/leaflet_client.html', context=context)
 
 
 class Bootstrap4Helper:

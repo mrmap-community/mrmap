@@ -325,539 +325,112 @@ class DatasetTable(tables.Table):
         return format_html(rendered_actions)
 
 
-class ResourceTable(MrMapTable):
-    def get_status_icons(self, record):
-        icons = ''
-        if record.is_active:
-            icons += self.get_icon(icon_color='text-success',
-                                   icon=get_theme(self.user)["ICONS"]["POWER_OFF"],
-                                   tooltip=_('This resource is active.'))
-        else:
-            icons += self.get_icon(icon_color='text-danger',
-                                   icon=get_theme(self.user)["ICONS"]["POWER_OFF"],
-                                   tooltip=_('This resource is deactivated.'))
-        if record.use_proxy_uri:
-            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PROXY"],
-                                   tooltip=_(
-                                       'Proxy for this resource is active. All traffic for this resource is redirected on MrMap.'))
-        if record.log_proxy_access:
-            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["LOGGING"],
-                                   tooltip=_('Logging for this resource is active.'))
-        if record.is_secured:
-            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["WFS"],
-                                   tooltip=_('This resource is secured.'))
-        if hasattr(record, 'external_authentication'):
-            icons += self.get_icon(icon=get_theme(self.user)["ICONS"]["PASSWORD"],
-                                   tooltip=_('This resource has external authentication.'))
-
-        return format_html(icons)
-
-    def get_health_icons(self, record):
-        icons = ''
-        btn_color = 'btn-outline-secondary'
-        health_state = record.get_health_state()
-        if health_state:
-            if health_state.health_state_code == HealthStateEnum.OK.value:
-                # state is OK
-                btn_color = 'btn-outline-success'
-            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
-                # state is WARNING
-                btn_color = 'btn-outline-warning'
-            elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
-                # state is CRITICAL
-                btn_color = 'btn-outline-danger'
-            tooltip = health_state.health_message
-
-            icon = self.get_icon(icon=get_theme(self.user)["ICONS"]["HEARTBEAT"], )
-        else:
-            # state is unknown
-            tooltip = DEFAULT_UNKNOWN_MESSAGE
-
-            icon = self.get_icon(icon_color='text-secondary',
-                                 icon=get_theme(self.user)["ICONS"]["HEARTBEAT"], )
-
-        if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = self.get_btn(href=reverse('monitoring:health-state', args=(record.id,)),
-                                btn_value=icon,
-                                btn_color=btn_color,
-                                tooltip=tooltip, )
-
-        icons += icon
-
-        if health_state:
-            for reason in health_state.reasons.all():
-                if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
-                    icons += self.get_icon(icon_color='text-info',
-                                           icon=get_theme(self.user)["ICONS"]["PASSWORD"],
-                                           tooltip=_(
-                                               'Some checks can\'t get a result, cause the service needs an authentication for this request.'))
-                    break
-
-            badge_color = 'badge-success'
-            if health_state.reliability_1w < CRITICAL_RELIABILITY:
-                badge_color = 'badge-danger'
-            elif health_state.reliability_1w < WARNING_RELIABILITY:
-                badge_color = 'badge-warning'
-            icons += '<br>' + self.get_badge(badge_color=badge_color,
-                                             badge_pill=True,
-                                             value=f'{round(health_state.reliability_1w, 2)} %',
-                                             tooltip=_('Reliability statistic for one week.'))
-
-        return format_html(icons)
-
-    def order_status(self, queryset, is_descending):
-        is_descending_str = "-" if is_descending else ""
-        queryset = queryset.order_by(is_descending_str + "is_active",
-                                     is_descending_str + "is_secured",
-                                     is_descending_str + "external_authentication", )
-        return queryset, True
-
-    def order_health(self, queryset, is_descending):
-        # TODO:
-        return queryset, True
-
-
-class WmsServiceTable(ResourceTable):
-    attrs = {
-        "th": {
-            "class": "align-middle",
-        }
-    }
-    wms_title = MrMapColumn(
-        accessor='title',
-        verbose_name=_('Title'),
-        empty_values=[],
-        attrs=attrs,
-        tooltip=TOOLTIP_TITLE,
-    )
-    wms_status = MrMapColumn(
-        verbose_name=_('Status'),
-        empty_values=[False, ],
-        attrs=attrs,
-        tooltip=TOOLTIP_STATUS,
-    )
-    wms_health = MrMapColumn(
-        verbose_name=_('Health'),
-        empty_values=[False, ],
-        attrs=attrs,
-        tooltip=TOOLTIP_HEALTH,
-    )
-    wms_version = MrMapColumn(
-        accessor='service.service_type.version',
-        verbose_name=_('Version'),
-        attrs=attrs,
-        tooltip=TOOLTIP_VERSION,
-    )
-    wms_data_provider = MrMapColumn(
-        accessor='contact.organization_name',
-        verbose_name=_('Data provider'),
-        attrs=attrs,
-        tooltip=TOOLTIP_DATA_PROVIDER,
-    )
-    wms_registered_by_group = MrMapColumn(
-        accessor='service.created_by',
-        verbose_name=_('Registered by group'),
-        attrs=attrs,
-        tooltip=TOOLTIP_REGISTERED_BY_GROUP,
-    )
-    wms_registered_for = MrMapColumn(
-        accessor='service.published_for',
-        verbose_name=_('Registered for'),
-        attrs=attrs,
-        tooltip=TOOLTIP_REGISTERED_FOR,
-    )
-    wms_created_on = MrMapColumn(
-        accessor='created',
-        verbose_name=_('Created on'),
-        attrs=attrs,
-        tooltip=TOOLTIP_CREATED_ON,
-    )
-    wms_actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        empty_values=[],
-        orderable=False,
-        tooltip=TOOLTIP_ACTIONS,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
-    def render_wms_title(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('resource:detail', args=(record.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_wms_status(self, record):
-        return self.get_status_icons(record=record)
-
-    def render_wms_health(self, record):
-        return self.get_health_icons(record=record)
-
-    def render_wms_data_provider(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('structure:detail-organization', args=(record.contact.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_wms_registered_by_group(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_wms_registered_for(self, value, record):
-        if record.service.published_for is not None:
-            return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                                 href=reverse('structure:detail-organization', args=(record.service.published_for.id,)),
-                                 value=value,
-                                 permission=None)
-        else:
-            return value
-
-    def render_wms_actions(self, record):
-        return _get_action_btns_for_service_table(self, record)
-
-    def order_wms_status(self, queryset, is_descending):
-        return self.order_status(queryset=queryset, is_descending=is_descending)
-
-    def order_wms_health(self, queryset, is_descending):
-        return self.order_health(queryset=queryset, is_descending=is_descending)
-
-
-class WmsTableWms(WmsServiceTable):
-    caption = _("Shows all registered WMS.")
-
-    attrs = {
-        "th": {
-            "class": "align-middle",
-        }
-    }
-    wms_layers = tables.Column(verbose_name=_('Layers'), empty_values=[], attrs=attrs)
+class RootServiceDetailTable(tables.Table):
 
     class Meta:
-        sequence = ("wms_title", "wms_layers", "...")
-        row_attrs = {
-            "class": "text-center"
-        }
+        model = Metadata
+        fields = ('public_id',
+                  'service__service_type__name',
+                  'service__service_type__version',
+                  'last_modified',
+                  'hits',
+                  'abstract',
+                  'online_resource',
+                  'keywords__all',
+                  'is_secured',
+                  'contact__person_name',
+                  'contact__organization_name',
+                  'contact__phone',
+                  'contact__facsimile',
+                  'contact__email',
+                  'contact__address',
+                  'contact__city',
+                  'contact__postal_code',
+                  'contact__state_or_province',
+                  'contact__country',
+                  )
+        template_name = "skeletons/django_tables2_vertical_table.html"
+        # todo: set this prefix dynamic
+        prefix = 'root-service-detail-table'
+        orderable = False
 
-    @staticmethod
-    def render_wms_layers(record):
-        count = record.service.child_service.count()
-        return str(count)
+    def render_online_resource(self, value):
+        return Link(name='', url=value, value=value).render()
 
-    @staticmethod
-    def order_wms_layers(queryset, is_descending):
-        queryset = queryset.annotate(
-            count=Count("service__child_service")
-        ).order_by(("-" if is_descending else "") + "count")
-        return queryset, True
-
-
-class WmsLayerTableWms(WmsServiceTable):
-    wms_parent_service = MrMapColumn(
-        verbose_name=_('Parent service'),
-        empty_values=[],
-        tooltip=_('The root service of this layer'), )
-
-    caption = _("Shows all registered WMS sublayers.")
-
-    class Meta:
-        sequence = ("wms_title", "wms_parent_service", "...")
-        row_attrs = {
-            "class": "text-center"
-        }
-
-    def render_wms_parent_service(self, record):
-        return self.get_link(
-            tooltip=_('Click to open the detail view of <strong>{}</strong>.'.format(
-                record.service.parent_service.metadata.title)),
-            href=reverse('resource:detail', args=(record.service.parent_service.metadata.id,)),
-            value=record.service.parent_service.metadata.title,
-            permission=None
-        )
-
-    @staticmethod
-    def order_wms_parent_service(queryset, is_descending):
-        queryset = queryset.annotate(
-            title_length=Length("service__parent_service__metadata__title")
-        ).order_by(("-" if is_descending else "") + "title_length")
-        return queryset, True
+    def render_keywords__all(self, value):
+        badges = ''
+        for kw in value:
+            badges += Badge(name='kw-badge', value=kw, badge_color='btn-info', badge_pill=True).render()
+        return format_html(badges) if value else _('No keywords provided')
 
 
-class WfsServiceTable(ResourceTable):
-    caption = _("Shows all registered WFS.")
+class LayerDetailTable(tables.Table):
+    bs4helper = None
+    scale_min_max = tables.Column(verbose_name=_('Scale range'), empty_values=[])
+    mime_types = tables.Column(verbose_name=_('Mime types'), empty_values=[], attrs={'td': {'class': 'col-sm-10'}})
 
     class Meta:
-        row_attrs = {
-            "class": "text-center"
-        }
+        model = Metadata
+        fields = ('public_id',
+                  'service__layer__identifier',
+                  'service__parent_service__metadata__title',
+                  'title',
+                  'abstract',
+                  'keywords__all',
+                  'service__layer__is_available',
+                  'service__layer__is_queryable',
+                  'service__layer__is_opaque',
+                  'service__layer__is_cascaded',
+                  'is_secured',
+                  'hits',
+                  'scale_min_max',
+                  'service__layer__bbox_lat_lon',
+                  'reference_system__all',
+                  'mime_types',
+                  )
+        template_name = "skeletons/django_tables2_vertical_table.html"
+        # todo: set this prefix dynamic
+        prefix = 'layer-detail-table'
+        orderable = False
 
-    wfs_title = MrMapColumn(
-        accessor='title',
-        verbose_name=_('Title'),
-        tooltip=TOOLTIP_TITLE,
-    )
-    wfs_featuretypes = MrMapColumn(
-        verbose_name=_('Featuretypes'),
-        empty_values=[], )
-    wfs_status = MrMapColumn(
-        verbose_name=_('Status'),
-        empty_values=[False, ],
-        tooltip=TOOLTIP_STATUS,
-    )
-    wfs_health = MrMapColumn(
-        verbose_name=_('Health'),
-        empty_values=[False, ],
-        tooltip=TOOLTIP_HEALTH,
-    )
-    wfs_version = MrMapColumn(
-        accessor='service.service_type.version',
-        verbose_name=_('Version'),
-        tooltip=TOOLTIP_VERSION,
-    )
-    wfs_data_provider = MrMapColumn(
-        accessor='contact.organization_name',
-        verbose_name=_('Data provider'),
-        tooltip=TOOLTIP_DATA_PROVIDER,
-    )
-    wfs_registered_by_group = MrMapColumn(
-        accessor='service.created_by',
-        verbose_name=_('Registered by group'),
-        tooltip=TOOLTIP_REGISTERED_BY_GROUP,
-    )
-    wfs_registered_for = MrMapColumn(
-        accessor='service.published_for',
-        verbose_name=_('Registered for'),
-        tooltip=TOOLTIP_REGISTERED_FOR,
-    )
-    wfs_created_on = MrMapColumn(
-        accessor='created',
-        verbose_name=_('Created on'),
-        tooltip=TOOLTIP_CREATED_ON,
-    )
-    wfs_actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        empty_values=[],
-        orderable=False,
-        tooltip=TOOLTIP_ACTIONS,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
+    def render_keywords__all(self, value):
+        badges = ''
+        for kw in value:
+            badges += Badge(name='kw-badge', value=kw, badge_color='btn-info', badge_pill=True).render()
+        return format_html(badges) if value else _('No keywords provided')
 
-    def render_wfs_title(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('resource:detail', args=(record.id,)),
-                             value=value,
-                             permission=None)
+    def render_scale_min_max(self, record):
+        return f'[{record.service.layer.scale_min}, {record.service.layer.scale_max}]'
 
-    @staticmethod
-    def render_wfs_featuretypes(record):
-        count = record.service.featuretypes.count()
-        return str(count)
-
-    def render_wfs_status(self, record):
-        return self.get_status_icons(record=record)
-
-    def render_wfs_health(self, record):
-        return self.get_health_icons(record=record)
-
-    def render_wfs_data_provider(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('structure:detail-organization', args=(record.contact.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_wfs_registered_by_group(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_wfs_registered_for(self, value, record):
-        if record.service.published_for is not None:
-            return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                                 href=reverse('structure:detail-organization', args=(record.service.published_for.id,)),
-                                 value=value,
-                                 permission=None)
+    def render_service__layer__bbox_lat_lon(self, value):
+        if value.area > 0.0:
+            return LeafletClient(polygon=value).render()
         else:
-            return value
+            return _('No spatial data provided!')
 
-    def render_wfs_actions(self, record):
-        return _get_action_btns_for_service_table(self, record)
+    def render_reference_system__all(self, value):
+        badges = ''
+        for kw in value:
+            badges += Badge(name='kw-badge', value=f'{kw.prefix}:{kw.code}', badge_color='btn-info', badge_pill=True).render()
+        return format_html(badges) if value else _('No additional reference systems provided')
 
-    @staticmethod
-    def order_wfs_featuretypes(queryset, is_descending):
-        queryset = queryset.annotate(
-            count=Count("service__featuretypes")
-        ).order_by(("-" if is_descending else "") + "count")
-        return queryset, True
-
-    def order_wfs_status(self, queryset, is_descending):
-        return self.order_status(queryset=queryset, is_descending=is_descending)
-
-    def order_wfs_health(self, queryset, is_descending):
-        return self.order_health(queryset=queryset, is_descending=is_descending)
-
-
-class CswTable(MrMapTable):
-    csw_title = MrMapColumn(
-        accessor='title',
-        verbose_name=_('Title'),
-        tooltip=TOOLTIP_TITLE,
-    )
-    csw_version = MrMapColumn(
-        accessor='service.service_type.version',
-        verbose_name=_('Version'),
-        tooltip=TOOLTIP_VERSION,
-    )
-    csw_last_haverest = MrMapColumn(
-        accessor='service',
-        verbose_name=_('Last harvest'),
-        tooltip=_('Timestamp of the last harvest'),
-    )
-    csw_collected_haverest_records = MrMapColumn(
-        accessor='service',
-        verbose_name=_('Collected harvest records'),
-        tooltip=_('Count of all haverest records'),
-    )
-    csw_registered_by_group = MrMapColumn(
-        accessor='service.created_by',
-        verbose_name=_('Registered by group'),
-        tooltip=TOOLTIP_REGISTERED_BY_GROUP,
-    )
-    csw_actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        empty_values=[],
-        orderable=False,
-        tooltip=TOOLTIP_ACTIONS,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
-    @staticmethod
-    def render_csw_last_haverest(value):
-        harvest_result = HarvestResult.objects.filter(
-            service=value
-        ).order_by(
-            "-created"
-        ).first()
-
-        return harvest_result.timestamp_start if harvest_result is not None else None
-
-    @staticmethod
-    def render_csw_collected_haverest_records(value, record):
-        harvest_result = HarvestResult.objects.filter(
-            service=value
-        ).order_by(
-            "-created"
-        ).first()
-        return harvest_result.number_results if harvest_result is not None else None
-
-    def render_csw_title(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('resource:detail', args=(record.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_csw_registered_by_group(self, value, record):
-        return self.get_link(tooltip=_(f'Click to open the detail view of <strong>{value}</strong>.'),
-                             href=reverse('structure:detail-group', args=(record.service.created_by.id,)),
-                             value=value,
-                             permission=None)
-
-    def render_csw_actions(self, record):
-        btns = ''
-        btns += self.get_btn(
-            href=reverse('resource:activate', args=(record.id,)) + f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]["POWER_OFF"],
-            permission=PermissionEnum.CAN_EDIT_METADATA,
-            tooltip=format_html(_(
-                f"{'Deactivate' if record.is_active else 'Activate'} resource <strong>{record.title} [{record.id}]</strong>"), ),
-            tooltip_placement='left', )
-
-        btns += self.get_btn(
-            href=reverse('csw:harvest-catalogue', args=(record.id,)) + f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]["HARVEST"],
-            permission=PermissionEnum.CAN_EDIT_METADATA,
-            tooltip=format_html(_(
-                f"Havest resource <strong>{record.title} [{record.id}]</strong>"), ),
-            tooltip_placement='left', )
-
-        btns += self.get_btn(
-            href=reverse('resource:remove', args=(record.id,)) + f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-            permission=PermissionEnum.CAN_REMOVE_RESOURCE,
-            tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong>"), ),
-            tooltip_placement='left',
-        )
-        return format_html(btns)
-
-
-class PendingTasksTable(MrMapTable):
-    caption = _("Shows all currently running pending tasks.")
-    pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False,
-                              attrs={"th": {"class": "col-sm-1"}})
-    pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False,
-                               attrs={"th": {"class": "col-sm-3"}})
-    pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False,
-                             attrs={"th": {"class": "col-sm-4"}})
-    pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False,
-                                attrs={"th": {"class": "col-sm-3"}})
-    pt_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
-                               attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
-
-    def render_pt_actions(self, record):
-        btns = ''
-        if record.type != PendingTaskEnum.REGISTER.value or record.error_report:
-            btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
-                                 permission=None,
-                                 tooltip=_('Delete this running task.'),
-                                 btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-                                 btn_value=get_theme(self.user)["ICONS"]['WINDOW_CLOSE'], )
-        if record.error_report:
-            btns += self.get_btn(href=reverse('structure:generate-error-report', args=(record.error_report.id,)),
-                                 permission=None,
-                                 tooltip=_('Download the error report as text file.'),
-                                 btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-                                 btn_value=get_theme(self.user)["ICONS"]['CSW'], )
-        return format_html(btns)
-
-    def render_pt_status(self, record):
-        json_description = json.loads(record.description)
-        if 'ERROR' in json_description.get('phase', ""):
-            return self.get_icon(icon=get_theme(self.user)["ICONS"]['ERROR'],
-                                 icon_color='text-danger',
-                                 tooltip='This task stopped with error.')
-        else:
-            return self.get_icon(icon=get_theme(self.user)["ICONS"]['PLAY'],
-                                 icon_color='text-success',
-                                 tooltip='This task is still running.')
-
-    @staticmethod
-    def render_pt_service(record):
-        # TODO: remove this sticky json
-        return str(json.loads(record.description).get('service', "resource_name_missing")) if 'service' in json.loads(
-            record.description) else _('unknown')
-
-    @staticmethod
-    def render_pt_phase(record):
-        # TODO: remove this sticky json
-        return str(json.loads(record.description).get('phase', "phase_information_missing")) if 'phase' in json.loads(
-            record.description) else _('unknown')
-
-    @staticmethod
-    def render_pt_progress(record):
-        progress = record.progress or 0
-        progress = str(int(progress))
-        try:
-            return format_html('<div class="progress">' \
-                               '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
-                               'aria-valuenow="' + progress + '" aria-valuemin="0" aria-valuemax="100" ' \
-                                                              'style="width: ' + progress + '%">' + progress + \
-                               ' %</div>' \
-                               '</div>')
-        except Exception as e:
-            return str(e)
+    def render_mime_types(self, record):
+        mime_types = {}
+        formats = record.get_formats()
+        for mime in formats:
+            op = mime_types.get(mime.operation)
+            if op is None:
+                op = []
+            op.append(mime.mime_type)
+            mi = {mime.operation: op}
+            mime_types.update(mi)
+        mime_type_accordions = ''
+        for key, values in mime_types.items():
+            badges = ''
+            for value in values:
+                badges += Badge(name='mime-badge', value=value, badge_color='btn-info').render()
+            mime_type_accordions += Accordion(accordion_title=key, accordion_body=badges).render()
+        return format_html(mime_type_accordions)
 
 
 class ChildLayerTable(MrMapTable):

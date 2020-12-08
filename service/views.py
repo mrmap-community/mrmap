@@ -44,8 +44,8 @@ from service.helper.ogc.operation_request_handler import OGCOperationRequestHand
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    DatasetTable, CswTable, OgcServiceTable, PendingTaskTableNew
+from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTableNew, LayerDetailTable, \
+    RootServiceDetailTable
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -234,6 +234,7 @@ class ResourceView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super(ResourceView, self).get_context_data(**kwargs)
+        context.update(kwargs.get('update_params', {}))
         context = DefaultContext(request=self.request, context=context).get_context()
 
         self.request.GET._mutable = True
@@ -894,40 +895,61 @@ class ResourceDetail(DetailView):
         context['object'].actions = bs4helper.render_list_coherent(actions)
 
         card_body = ''
-        if self.object.is_metadata_type(MetadataEnum.SERVICE) and self.object.is_service_type(enum=OGCServiceEnum.WMS):
-            accordion_body = render_to_string(template_name='root_service_detail_table.html', context=context)
+        sub_elements = None
+        if self.object.is_metadata_type(MetadataEnum.SERVICE):
+            root_service_detail_table = RootServiceDetailTable(data=[self.object, ], request=self.request)
+            accordion_body = render_to_string(template_name='skeletons/django_tables2_render_table.html',
+                                              context={'table': root_service_detail_table})
             card_body += Accordion(accordion_title='Show details', accordion_body=accordion_body).render()
 
-            context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() +
-                                                  context['object'].title)
+            if self.object.is_service_type(enum=OGCServiceEnum.WMS):
+                context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() +
+                                                      context['object'].title)
+                sub_elements = Layer.objects.filter(parent_service=self.object.service,
+                                                    parent_layer=None)
+                show_sub_elements_accordion_title = _('Show sublayers')
+            elif self.object.is_service_type(enum=OGCServiceEnum.WFS):
+                context['object'].title = format_html(Icon(name='wfs-icon', icon=FONT_AWESOME_ICONS['WFS']).render() +
+                                                      context['object'].title)
+                sub_elements = self.object.service.featuretypes.all()
+                show_sub_elements_accordion_title = _('Show featuretypes')
 
-            sub_layers = Layer.objects.filter(parent_service=self.object.service,
-                                              parent_layer=None)
+        elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
+            accordion_body = render_to_string(template_name='includes/wfs/featuretype_detail_table.html', context=context)
+            card_body += Accordion(accordion_title='Show details', accordion_body=accordion_body).render()
+            context['object'].title = format_html(Icon(name='featuretype-icon', icon=FONT_AWESOME_ICONS['FEATURETYPE']).render() +
+                                                  context['object'].title)
+            sub_elements = self.object.featuretype.elements.all()
+            show_sub_elements_accordion_title = _('Show elements')
+
         elif self.object.is_metadata_type(MetadataEnum.LAYER):
+            layer_detail_table = LayerDetailTable(data=[self.object, ], request=self.request)
+            accordion_body = render_to_string(template_name='skeletons/django_tables2_render_table.html', context={'table': layer_detail_table})
+            card_body += Accordion(accordion_title='Show details', accordion_body=accordion_body).render()
             context['object'].title = format_html(Icon(name='layer-icon', icon=FONT_AWESOME_ICONS['LAYER']).render() +
                                                   context['object'].title)
-            sub_layers = Layer.objects.filter(parent_layer=self.object.service)
+            sub_elements = Layer.objects.filter(parent_layer=self.object.service)
+            show_sub_elements_accordion_title = _('Show sublayers')
 
-        if sub_layers:
-            sublayers_badge = Badge(name='sublayers-badge',
-                                    value=sub_layers.count(),
-                                    badge_color=get_theme(self.request.user)['ACCORDION'][
-                                        'PILL_BADGE_LIGHT_COLOR']).render()
+        if sub_elements:
+            sub_elements_badge = Badge(name='sublayers-badge',
+                                       value=sub_elements.count(),
+                                       badge_color=get_theme(self.request.user)['ACCORDION']['PILL_BADGE_LIGHT_COLOR']).render()
 
-            sub_layers_accordions = ''
-            for sub_layer in sub_layers:
-                sub_layers_accordions += Accordion(accordion_title=sub_layer,
-                                                   fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[
-                                                       sub_layer.metadata.id]) + '?with-base=False').render()
+            sub_element_accordions = ''
+            if self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
+                pass
+            else:
+                for sub_element in sub_elements:
+                    sub_element_accordions += Accordion(accordion_title=sub_element.metadata.title,
+                                                        fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[
+                                                           sub_element.metadata.id]) + '?with-base=False').render()
 
-            show_sublayers_accordion = Accordion(accordion_title=format_html('Sublayers ' + sublayers_badge),
-                                                 accordion_body=sub_layers_accordions).render()
+            # rename title to match sublayer or featuretypes
+            show_sub_elements_accordion = Accordion(accordion_title=format_html(show_sub_elements_accordion_title + sub_elements_badge),
+                                                    accordion_body=sub_element_accordions).render()
 
-            card_body += show_sublayers_accordion
-
-        #if self.object.is_service_type(enum=OGCServiceEnum.WFS):
-        #    context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WFS']).render() +
-        #                                              context['object'].title)
+            card_body += show_sub_elements_accordion
 
         context.update({'card_body': card_body})
         context = DefaultContext(request=self.request, context=context).get_context()

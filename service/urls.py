@@ -15,7 +15,7 @@ urlpatterns = [
     path('logs/', logs_view, name='logs-view'),
 
     # detail view
-    path('detail/<pk>', ResourceDetail.as_view(), name='detail'),
+    path('detail/<pk>', login_required(ResourceDetail.as_view()), name='detail'),
 
     # html metadata detail view
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),

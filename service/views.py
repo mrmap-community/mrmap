@@ -894,31 +894,40 @@ class ResourceDetail(DetailView):
         context['object'].actions = bs4helper.render_list_coherent(actions)
 
         card_body = ''
-        if context['object'].is_root:
+        if self.object.is_metadata_type(MetadataEnum.SERVICE) and self.object.is_service_type(enum=OGCServiceEnum.WMS):
             accordion_body = render_to_string(template_name='root_service_detail_table.html', context=context)
             card_body += Accordion(accordion_title='Show details', accordion_body=accordion_body).render()
-            if context['object'].is_service_type(enum=OGCServiceEnum.WMS):
-                context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() +
-                                                      context['object'].title)
 
-                all_layers = Layer.objects.filter(parent_service=self.object.service)
-                root_layer = all_layers.filter(parent_layer=None)
+            context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() +
+                                                  context['object'].title)
 
-                show_sublayers_count_badge = Badge(name='sublayers-badge',
-                                                   value=root_layer.count(),
-                                                   badge_color=get_theme(self.request.user)['ACCORDION']['PILL_BADGE_LIGHT_COLOR']).render()
+            sub_layers = Layer.objects.filter(parent_service=self.object.service,
+                                              parent_layer=None)
+        elif self.object.is_metadata_type(MetadataEnum.LAYER):
+            context['object'].title = format_html(Icon(name='layer-icon', icon=FONT_AWESOME_ICONS['LAYER']).render() +
+                                                  context['object'].title)
+            sub_layers = Layer.objects.filter(parent_layer=self.object.service)
 
-                root_layer_accordion = Accordion(accordion_title=root_layer.first(),
-                                                 fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[root_layer.first().metadata.id]) + '?with-base=False').render()
+        if sub_layers:
+            sublayers_badge = Badge(name='sublayers-badge',
+                                    value=sub_layers.count(),
+                                    badge_color=get_theme(self.request.user)['ACCORDION'][
+                                        'PILL_BADGE_LIGHT_COLOR']).render()
 
-                show_sublayers_accordion = Accordion(accordion_title=format_html('Sublayers ' + show_sublayers_count_badge),
-                                                     accordion_body=root_layer_accordion).render()
+            sub_layers_accordions = ''
+            for sub_layer in sub_layers:
+                sub_layers_accordions += Accordion(accordion_title=sub_layer,
+                                                   fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[
+                                                       sub_layer.metadata.id]) + '?with-base=False').render()
 
-                card_body += show_sublayers_accordion
+            show_sublayers_accordion = Accordion(accordion_title=format_html('Sublayers ' + sublayers_badge),
+                                                 accordion_body=sub_layers_accordions).render()
 
-            if context['object'].is_service_type(enum=OGCServiceEnum.WFS):
-                context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WFS']).render() +
-                                                      context['object'].title)
+            card_body += show_sublayers_accordion
+
+        #if self.object.is_service_type(enum=OGCServiceEnum.WFS):
+        #    context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WFS']).render() +
+        #                                              context['object'].title)
 
         context.update({'card_body': card_body})
         context = DefaultContext(request=self.request, context=context).get_context()

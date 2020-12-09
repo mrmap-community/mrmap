@@ -1,4 +1,5 @@
 import uuid
+from enum import Enum
 
 from django.contrib.gis.geos import Polygon
 from django.http import HttpRequest
@@ -6,6 +7,11 @@ from django.template.loader import render_to_string
 from django.utils.html import format_html
 from MrMap.consts import BTN_SM_CLASS
 from structure.permissionEnums import PermissionEnum
+
+
+class ModalSizeEnum(Enum):
+    LARGE = "modal-lg"
+    SMALL = "modal-sm"
 
 
 class ProgressBar:
@@ -16,14 +22,8 @@ class ProgressBar:
         self.striped = striped
 
     def render(self) -> str:
-        context = {
-            "progress": self.progress,
-            "color": self.color,
-            "animated": self.animated,
-            "striped": self.striped,
-        }
         return render_to_string(template_name="skeletons/progressbar.html",
-                                context=context)
+                                context=self.__dict__)
 
 
 class Badge:
@@ -50,20 +50,14 @@ class Badge:
 class Icon:
     def __init__(self, name: str, icon: str, tooltip: str = None, tooltip_placement: str = 'left', color: str = ''):
         self.name = name
-        self.icon = icon
+        self.value = icon
         self.tooltip = tooltip
         self.tooltip_placement = tooltip_placement
         self.color = color
 
     def render(self) -> str:
-        context = {
-            "icon_color": self.color,
-            "icon": self.icon,
-            "tooltip": self.tooltip,
-            "tooltip_placement": self.tooltip_placement,
-        }
-        return render_to_string(template_name="sceletons/icon_with_tooltip.html",
-                                context=context)
+        return render_to_string(template_name="skeletons/icon.html",
+                                context=self.__dict__)
 
 
 class Link:
@@ -78,16 +72,8 @@ class Link:
         self.open_in_new_tab = open_in_new_tab
 
     def render(self) -> str:
-        context = {
-            "color": self.color,
-            "value": self.value,
-            "url": self.url,
-            "tooltip": self.tooltip,
-            "tooltip_placement": self.tooltip_placement,
-            "open_in_new_tab": self.open_in_new_tab
-        }
         return render_to_string(template_name="sceletons/open-link.html",
-                                context=context)
+                                context=self.__dict__)
 
 
 class LinkButton:
@@ -102,20 +88,31 @@ class LinkButton:
         self.size = size
 
     def render(self) -> str:
-        context = {
-            "btn_size": self.size,
-            "btn_color": self.color,
-            "btn_value": self.value,
-            "btn_url": self.url,
-            "tooltip": self.tooltip,
-            "tooltip_placement": self.tooltip_placement,
-        }
-        return render_to_string(template_name="sceletons/open-link-button.html", context=context)
+        return render_to_string(template_name="skeletons/open_link_button.html", context=self.__dict__)
+
+
+class Modal:
+    def __init__(self, title: str, modal_body: str, btn_value: str, btn_tooltip: str = None, modal_footer: str = None, fade: bool = True,
+                 size: ModalSizeEnum = None, fetch_url: str = None):
+        self.title = title
+        self.modal_body = modal_body
+        self.modal_footer = modal_footer
+        self.fade = fade
+        self.size = size
+        self.modal_id = str(uuid.uuid4())
+        self.fetch_url = fetch_url
+        self.button = Button(value=btn_value, data_toggle='modal', data_target=f'#id_modal_{self.modal_id}',
+                             tooltip=btn_tooltip).render()
+
+    def render(self) -> str:
+        return render_to_string(template_name="skeletons/modal_ajax.html" if self.fetch_url else "skeletons/modal.html",
+                                context=self.__dict__)
 
 
 class Accordion:
-    def __init__(self, accordion_title: str, accordion_title_right: str = '', accordion_body: str = None, button_type: str = None, fetch_url: str = None):
+    def __init__(self, accordion_title: str, accordion_title_center: str = '', accordion_title_right: str = '', accordion_body: str = None, button_type: str = None, fetch_url: str = None):
         self.accordion_title = accordion_title
+        self.accordion_title_center = accordion_title_center
         self.accordion_title_right = accordion_title_right
         self.accordion_body = accordion_body
         self.button_type = button_type
@@ -123,15 +120,33 @@ class Accordion:
         self.accordion_id = str(uuid.uuid4())
 
     def render(self) -> str:
-        context = {
-            'accordion_title': self.accordion_title,
-            'accordion_title_right': self.accordion_title_right,
-            'accordion_body': self.accordion_body,
-            'button_type': self.button_type,
-            'fetch_url': self.fetch_url,
-            'accordion_id': self.accordion_id,
-        }
-        return render_to_string(template_name='skeletons/accordion_ajax.html' if self.fetch_url else 'skeletons/accordion.html', context=context)
+        return render_to_string(template_name='skeletons/accordion_ajax.html' if self.fetch_url else 'skeletons/accordion.html', context=self.__dict__)
+
+
+class Button:
+    def __init__(self, value: str, color: str = 'btn-info', data_toggle: str = None, data_target: str = None,
+                 aria_expanded: str = None, aria_controls: str = None, tooltip: str = None):
+        self.value = value
+        self.color = color
+        self.data_toggle = data_toggle
+        self.data_target = data_target
+        self.aria_expanded = aria_expanded
+        self.aria_controls = aria_controls
+        self.tooltip = tooltip
+
+    def render(self) -> str:
+        return render_to_string(template_name='skeletons/button.html', context=self.__dict__)
+
+
+class Collapsible:
+    def __init__(self, card_body: str, btn_value: str, collapsible_id: str = None):
+        self.card_body = card_body
+        self.collapsible_id = collapsible_id if collapsible_id else str(uuid.uuid4())
+        self.button = Button(value=btn_value, data_toggle='collapse', data_target=f'#{self.collapsible_id}',
+                             aria_expanded='false', aria_controls=self.collapsible_id).render()
+
+    def render(self) -> str:
+        return render_to_string(template_name='skeletons/collapsible.html', context=self.__dict__)
 
 
 class LeafletClient:
@@ -143,14 +158,7 @@ class LeafletClient:
         self.map_id = str(uuid.uuid4()).replace("-", "_")
 
     def render(self) -> str:
-        context = {
-            'polygon': self.polygon,
-            'add_polygon_as_layer': self.add_polygon_as_layer,
-            'height': self.height,
-            'min_height': self.min_height,
-            'map_id': self.map_id,
-        }
-        return render_to_string(template_name='skeletons/leaflet_client.html', context=context)
+        return render_to_string(template_name='skeletons/leaflet_client.html', context=self.__dict__)
 
 
 class Bootstrap4Helper:

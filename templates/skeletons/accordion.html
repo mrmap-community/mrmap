@@ -1,14 +1,34 @@
 <div class="accordion" id="id_accordion_{{accordion_id}}">
     <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-1">
         <div class="card-header">
-          <h2 class="mb-0">
-            <button id="id_accordion_btn_{{accordion_id}}" class="btn {% if button_type %}{{button_type}} {{THEME.CARD.LINK_COLOR}} {% else %} {{THEME.ACCORDION.BTN_PRIMARY_COLOR}} {% endif %} collapsed accordion" type="button" data-toggle="collapse" data-target="#id_collapse_{{accordion_id}}" aria-expanded="false" aria-controls="id_collapse_{{accordion_id}}">
-                <i class="fa" aria-hidden="true"></i>
-                {% block accordion-button-title %}
-                    {{ accordion_title|safe }}
-                {% endblock %}
-            </button>
-          </h2>
+            <div class="row">
+                <div class="col-sm">
+                    <div class="float-left">
+                        <h2 class="mb-0">
+                            <button id="id_accordion_btn_{{accordion_id}}" class="btn {% if button_type %}{{button_type}} {{THEME.CARD.LINK_COLOR}} {% else %} {{THEME.ACCORDION.BTN_PRIMARY_COLOR}} {% endif %} collapsed accordion" type="button" data-toggle="collapse" data-target="#id_collapse_{{accordion_id}}" aria-expanded="false" aria-controls="id_collapse_{{accordion_id}}">
+                                <i class="fa" aria-hidden="true"></i>
+                                {% block accordion-button-title %}
+                                    {{ accordion_title|safe }}
+                                {% endblock %}
+                            </button>
+                        </h2>
+                    </div>
+                </div>
+                <div class="col-sm">
+                    <div class="mx-auto text-center">
+                    {% block accordion-title-center %}
+                        {{ accordion_title_center|safe }}
+                    {% endblock %}
+                    </div>
+                </div>
+                <div class="col-sm">
+                    <div class="float-right">
+                        {% block accordion-title-right %}
+                            {{ accordion_title_right|safe }}
+                        {% endblock %}
+                    </div>
+                </div>
+            </div>
         </div><!--</card-header-->
         <div id="id_collapse_{{accordion_id}}" class="collapse" aria-labelledby="id_heading_{{accordion_id}}" data-parent="#id_accordion_{{accordion_id}}">
               <div id="id_accordion_body_{{accordion_id}}" class="card-body">

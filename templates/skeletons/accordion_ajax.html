@@ -1,22 +1,21 @@
 {% extends 'skeletons/accordion.html' %}
 {% block ajax_script %}
 <script type="application/javascript">
-var accordionButton = $('#id_accordion_btn_{{accordion_id}}');
-accordionButton.click(function() {
-  if ( accordionButton.hasClass('collapsed') ) {
-    $( '#id_accordion_body_{{accordion_id}} [data-toggle="tooltip"]' ).tooltip("hide");
-    $( '#id_accordion_body_{{accordion_id}}' ).html( `{% include 'skeletons/ajax_loading_spinner.html' %}` );
-    $.ajax({
-      url: "{{ fetch_url }}",
-      success: function( data ) {
-        $( '#id_accordion_body_{{accordion_id}}' ).html( data );
-        $( '#id_accordion_body_{{accordion_id}} [data-toggle="tooltip"]' ).tooltip();
-      },
-      error: function() {
-        $( '#id_accordion_body_{{accordion_id}}' ).html( `{% include 'skeletons/ajax_error.html' %}` );
-      },
-    });
-  }
-});
+$("#id_collapse_{{accordion_id}}").on('show.bs.collapse', function(e) {
+    if ($(this).is(e.target)) {
+        $( '#id_accordion_body_{{accordion_id}} [data-toggle="tooltip"]' ).tooltip("hide");
+        $( '#id_accordion_body_{{accordion_id}}' ).html( `{% include 'skeletons/ajax_loading_spinner.html' %}` );
+        $.ajax({
+          url: "{{ fetch_url }}",
+          success: function( data ) {
+            $( '#id_accordion_body_{{accordion_id}}' ).html( data );
+            $( '#id_accordion_body_{{accordion_id}} [data-toggle="tooltip"]' ).tooltip();
+          },
+          error: function() {
+            $( '#id_accordion_body_{{accordion_id}}' ).html( `{% include 'skeletons/ajax_error.html' %}` );
+          },
+        });
+    }
+  })
 </script>
 {% endblock %}

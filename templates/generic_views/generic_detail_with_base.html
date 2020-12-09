@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
+{% load static %}
+{% block head %}
+{% if tree_style %}
+<link rel="stylesheet" type="text/css" href="{% static '/css/tree-style.css' %}" media="all"/>
+{% endif %}
+{% endblock %}
 {% block body %}
 {{ above_content }}
-{% include 'generic_views/generic_detail_without_base.html' %}
+<div class="container-fluid px-5">
+{% include 'generic_views/generic_detail.html' %}
+</div>
 {{ below_content }}
 {% endblock %}

@@ -715,19 +715,7 @@ class Metadata(Resource):
                                           tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA), )
             else:
-                actions.extend([LinkButton(name='update',
-                                           url=self.update_view_uri,
-                                           value=FONT_AWESOME_ICONS["UPDATE"],
-                                           color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
-                                           tooltip=_l("Update this resource"),
-                                           needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
-                                LinkButton(name='run-health-checks',
-                                           url=self.run_monitoring_view_uri,
-                                           value=FONT_AWESOME_ICONS["HEARTBEAT"],
-                                           color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
-                                           tooltip=_l("Run health checks for this resource"),
-                                           needs_perm=PermissionEnum.CAN_RUN_MONITORING),
-                                LinkButton(name='edit',
+                actions.extend([LinkButton(name='edit',
                                            url=self.edit_view_uri,
                                            value=FONT_AWESOME_ICONS["EDIT"],
                                            color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
@@ -738,8 +726,30 @@ class Metadata(Resource):
                                            value=FONT_AWESOME_ICONS["ACCESS"],
                                            color=get_theme(request.user)["TABLE"]["BTN_WARNING_COLOR"],
                                            tooltip=_l("Edit the access for resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA),]
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA), ]
                                )
+
+                if self.is_metadata_type(MetadataEnum.SERVICE):
+                    actions.extend([LinkButton(name='update',
+                                               url=self.update_view_uri,
+                                               value=FONT_AWESOME_ICONS["UPDATE"],
+                                               color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                                               tooltip=_l("Update this resource"),
+                                               needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
+                                    LinkButton(name='run-health-checks',
+                                               url=self.run_monitoring_view_uri,
+                                               value=FONT_AWESOME_ICONS["HEARTBEAT"],
+                                               color=get_theme(request.user)["TABLE"]["BTN_INFO_COLOR"],
+                                               tooltip=_l("Run health checks for this resource"),
+                                               needs_perm=PermissionEnum.CAN_RUN_MONITORING),
+                                    LinkButton(name='remove',
+                                               url=self.remove_view_uri,
+                                               value=FONT_AWESOME_ICONS["REMOVE"],
+                                               color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
+                                               tooltip=_l("Remove this resource"),
+                                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE), ])
+
+
                 if self.is_custom:
                     actions.append(LinkButton(name='restore',
                                               url=self.restore_view_uri,
@@ -747,12 +757,6 @@ class Metadata(Resource):
                                               color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
                                               tooltip=_l("Restore the metadata for resource"),
                                               needs_perm=PermissionEnum.CAN_EDIT_METADATA), )
-            actions.append(LinkButton(name='remove',
-                                      url=self.remove_view_uri,
-                                      value=FONT_AWESOME_ICONS["REMOVE"],
-                                      color=get_theme(request.user)["TABLE"]["BTN_DANGER_COLOR"],
-                                      tooltip=_l("Remove this resource"),
-                                      needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE),)
 
         return actions
 

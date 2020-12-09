@@ -890,6 +890,7 @@ class ResourceDetail(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context.update({'tree_style': True})
         bs4helper = Bootstrap4Helper(request=self.request)
         actions = context['object'].get_actions(request=self.request)
         context['object'].actions = bs4helper.render_list_coherent(actions)
@@ -939,9 +940,10 @@ class ResourceDetail(DetailView):
             sub_element_accordions = ''
             if self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
                 pass
-            else:
+            elif self.object.is_service_type(enum=OGCServiceEnum.WMS) or self.object.is_metadata_type(MetadataEnum.LAYER):
                 for sub_element in sub_elements:
-                    sub_element_accordions += Accordion(accordion_title=sub_element.metadata.title,
+                    sub_element_accordions += Accordion(accordion_title=format_html(Icon(name='layer-icon', icon=FONT_AWESOME_ICONS['LAYER']).render() + sub_element.metadata.title),
+                                                        accordion_title_right=bs4helper.render_list_coherent(items=sub_element.metadata.get_actions(request=self.request)),
                                                         fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[
                                                            sub_element.metadata.id]) + '?with-base=False').render()
 

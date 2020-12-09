@@ -114,8 +114,9 @@ class LinkButton:
 
 
 class Accordion:
-    def __init__(self, accordion_title: str, accordion_body: str = None, button_type: str = None, fetch_url: str = None):
+    def __init__(self, accordion_title: str, accordion_title_right: str = '', accordion_body: str = None, button_type: str = None, fetch_url: str = None):
         self.accordion_title = accordion_title
+        self.accordion_title_right = accordion_title_right
         self.accordion_body = accordion_body
         self.button_type = button_type
         self.fetch_url = fetch_url
@@ -124,6 +125,7 @@ class Accordion:
     def render(self) -> str:
         context = {
             'accordion_title': self.accordion_title,
+            'accordion_title_right': self.accordion_title_right,
             'accordion_body': self.accordion_body,
             'button_type': self.button_type,
             'fetch_url': self.fetch_url,

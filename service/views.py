@@ -927,8 +927,10 @@ class ResourceTreeView(DetailView):
                                  btn_tooltip=_l('Open details'),
                                  size=ModalSizeEnum.LARGE,)
 
-            capabilities_original = Link(url=self.object.capabilities_original_uri, value=_('Original'))
-            capabilities_current = Link(url=self.object.capabilities_uri, value=_('Current'))
+            capabilities_original = Link(url=self.object.capabilities_original_uri, value=_('Original'),
+                                         open_in_new_tab=True)
+            capabilities_current = Link(url=self.object.capabilities_uri, value=_('Current'),
+                                        open_in_new_tab=True)
             capabilities_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(' Capabilities'),
                                              items=[capabilities_original, capabilities_current],
                                              color=ButtonColorEnum.SECONDARY,
@@ -972,10 +974,12 @@ class ResourceTreeView(DetailView):
 
                     metadata_xml = Link(url=sub_element.metadata.service_metadata_uri,
                                         value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(
-                                            ' XML'))
+                                            ' XML'),
+                                        open_in_new_tab=True)
                     metadata_html = Link(url=sub_element.metadata.html_metadata_uri,
                                          value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']).render() + _(
-                                             ' HTML'))
+                                             ' HTML'),
+                                         open_in_new_tab=True)
                     metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']).render() + _(' Metadata'),
                                                  items=[metadata_xml, metadata_html],
                                                  color=ButtonColorEnum.SECONDARY,
@@ -997,9 +1001,11 @@ class ResourceTreeView(DetailView):
                             link_to_dataset = Link(url=related_dataset.detail_view_uri, value=related_dataset.title).render()
 
                             metadata_xml = Link(url=related_dataset.service_metadata_uri,
-                                                value=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'))
+                                                value=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'),
+                                                open_in_new_tab=True)
                             metadata_html = Link(url=related_dataset.html_metadata_uri,
-                                                 value=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'))
+                                                 value=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'),
+                                                 open_in_new_tab=True)
 
                             dataset_metadata_dropdown = Dropdown(value=FONT_AWESOME_ICONS['METADATA'] + _(' Metadata'),
                                                                  items=[metadata_xml, metadata_html],
@@ -1031,9 +1037,11 @@ class ResourceTreeView(DetailView):
             card_body += sub_element_accordions
 
         metadata_xml = Link(url=self.object.service_metadata_uri,
-                            value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(' XML'))
+                            value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(' XML'),
+                            open_in_new_tab=True)
         metadata_html = Link(url=self.object.html_metadata_uri,
-                             value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']).render() + _(' HTML'))
+                             value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']).render() + _(' HTML'),
+                             open_in_new_tab=True)
         metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']).render() + _(' Metadata'),
                                      color=ButtonColorEnum.SECONDARY,
                                      items=[metadata_xml, metadata_html],

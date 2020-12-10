@@ -76,16 +76,16 @@ def add_new_dataset_wizard(request: HttpRequest, ):
 
 @login_required
 @check_permission(PermissionEnum.CAN_EDIT_METADATA)
-@check_ownership(Metadata, 'metadata_id')
-def edit_dataset_wizard(request, metadata_id):
+@check_ownership(Metadata, 'pk')
+def edit_dataset_wizard(request, pk):
     metadata = get_object_or_404(Metadata,
                                  ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                                 id=metadata_id)
+                                 id=pk)
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,
                                  current_view=request.GET.get('current-view'),
                                  current_view_arg=request.GET.get('current-view-arg', None),
-                                 instance_id=metadata_id,
+                                 instance_id=pk,
                                  title=_(format_html(f'<b>Edit</b> <i>{metadata.title}</i> <b>Dataset</b>')),
                                  id_wizard=f'edit_{metadata.id}_dataset_wizard',
                                  )(request=request)

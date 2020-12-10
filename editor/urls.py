@@ -21,7 +21,7 @@ urlpatterns = [
     path('metadata/<metadata_id>', edit, name='edit'),
 
     path('dataset/wizard', add_new_dataset_wizard, name="dataset-metadata-wizard-new"),
-    path('dataset/wizard/<metadata_id>', edit_dataset_wizard, name="dataset-metadata-wizard-instance"),
+    path('dataset/wizard/<pk>', edit_dataset_wizard, name="dataset-metadata-wizard-instance"),
 
     path('dataset/remove/<metadata_id>', remove_dataset, name='remove-dataset-metadata'),
     path('access/<object_id>', edit_access, name='edit_access'),

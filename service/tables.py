@@ -177,8 +177,7 @@ class OgcServiceTable(tables.Table):
         self.bs4helper = Bootstrap4Helper(request=request)
 
     def render_title(self, record, value):
-        return self.bs4helper.render_item(item=Link(name='detail-resource',
-                                                    url=record.detail_view_uri,
+        return self.bs4helper.render_item(item=Link(url=record.detail_view_uri,
                                                     value=value))
 
     def render_last_haverest(self, value):
@@ -199,8 +198,7 @@ class OgcServiceTable(tables.Table):
         return harvest_result.number_results if harvest_result is not None else None
 
     def render_parent_service(self, value):
-        return self.bs4helper.render_item(item=Link(name='detail-contact',
-                                                    url=value.detail_view_uri,
+        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
                                                     value=value)) if value else ''
 
     def render_status(self, record):
@@ -210,18 +208,15 @@ class OgcServiceTable(tables.Table):
         return format_html(self.bs4helper.render_list_coherent(items=record.get_health_icons()))
 
     def render_contact(self, value):
-        return self.bs4helper.render_item(item=Link(name='detail-contact',
-                                                    url=value.detail_view_uri,
+        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
                                                     value=value))
 
     def render_service__created_by(self, value):
-        return self.bs4helper.render_item(item=Link(name='detail-created-by',
-                                                    url=value.detail_view_uri,
+        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
                                                     value=value))
 
     def render_service__published_for(self, value):
-        return self.bs4helper.render_item(item=Link(name='detail-published-for',
-                                                    url=value.detail_view_uri,
+        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
                                                     value=value))
 
     def render_actions(self, record):
@@ -275,8 +270,7 @@ class DatasetTable(tables.Table):
         self.bs4helper = Bootstrap4Helper(request=request)
 
     def render_title(self, value, record):
-        return self.bs4helper.render_item(item=Link(name='detail-resource',
-                                                    url=record.detail_html_view_uri,
+        return self.bs4helper.render_item(item=Link(url=record.detail_html_view_uri,
                                                     value=value,
                                                     open_in_new_tab=True),
                                           ignore_current_view_params=True)
@@ -301,8 +295,7 @@ class DatasetTable(tables.Table):
             kind_of_resource_icon = Icon(name='resource-icon',
                                          icon=FONT_AWESOME_ICONS[kind_of_resource_icon], ).render()
 
-            link_list.append(Link(name='detail-link',
-                                  url=metadata.detail_view_uri,
+            link_list.append(Link(url=metadata.detail_view_uri,
                                   value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
                                   tooltip=_(f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),), )
         return self.bs4helper.render_list_coherent(items=link_list, ignore_current_view_params=True)
@@ -355,12 +348,12 @@ class RootServiceDetailTable(tables.Table):
         orderable = False
 
     def render_online_resource(self, value):
-        return Link(name='', url=value, value=value).render()
+        return Link(url=value, value=value).render()
 
     def render_keywords__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(name='kw-badge', value=kw, badge_color='btn-info', badge_pill=True).render()
+            badges += Badge(value=kw, badge_pill=True).render()
         return format_html(badges) if value else _('No keywords provided')
 
 
@@ -396,7 +389,7 @@ class LayerDetailTable(tables.Table):
     def render_keywords__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(name='kw-badge', value=kw, badge_color='btn-info', badge_pill=True).render()
+            badges += Badge(value=kw, badge_pill=True).render()
         return format_html(badges) if value else _('No keywords provided')
 
     def render_scale_min_max(self, record):
@@ -411,7 +404,7 @@ class LayerDetailTable(tables.Table):
     def render_reference_system__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(name='kw-badge', value=f'{kw.prefix}:{kw.code}', badge_color='btn-info', badge_pill=True).render()
+            badges += Badge(value=f'{kw.prefix}:{kw.code}', badge_pill=True).render()
         return format_html(badges) if value else _('No additional reference systems provided')
 
     def render_mime_types(self, record):
@@ -428,9 +421,13 @@ class LayerDetailTable(tables.Table):
         for key, values in mime_types.items():
             badges = ''
             for value in values:
-                badges += Badge(name='mime-badge', value=value, badge_color='btn-info').render()
+                badges += Badge(value=value).render()
             mime_type_accordions += Accordion(accordion_title=key, accordion_body=badges).render()
         return format_html(mime_type_accordions)
+
+
+class FeaturetypeDetailTable(tables.Table):
+    pass
 
 
 class ChildLayerTable(MrMapTable):

@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 import json
 
-from MrMap.bootstrap4 import LinkButton, Icon
+from MrMap.bootstrap4 import LinkButton, Icon, ButtonColorEnum
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
@@ -62,16 +62,14 @@ class PendingTask(models.Model):
 
     @property
     def action_buttons(self):
-        actions = [LinkButton(name='remove',
-                              url=self.remove_view_uri,
+        actions = [LinkButton(url=self.remove_view_uri,
                               value=FONT_AWESOME_ICONS["WINDOW_CLOSE"],
-                              color="btn-danger",
+                              color=ButtonColorEnum.DANGER,
                               tooltip=_("Cancle this task"), )]
         if self.error_report:
-            actions.insert(0, LinkButton(name='error-report',
-                                         url=self.error_report_uri,
+            actions.insert(0, LinkButton(url=self.error_report_uri,
                                          value=FONT_AWESOME_ICONS["CSW"],
-                                         color="btn-warning",
+                                         color=ButtonColorEnum.WARNING,
                                          tooltip=_("Download the error report as text file."), ))
         return actions
 

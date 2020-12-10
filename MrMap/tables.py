@@ -136,7 +136,7 @@ class MrMapTable(tables.Table):
             "tooltip": tooltip,
             "tooltip_placement": tooltip_placement,
         }
-        return render_to_string(template_name="sceletons/icon_with_tooltip.html",
+        return render_to_string(template_name="sceletons/icon.html",
                                 context=context)
 
     def prepare_table_pagination_settings(self, request: HttpRequest, param_lead: str):

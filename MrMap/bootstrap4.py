@@ -14,8 +14,63 @@ class ModalSizeEnum(Enum):
     SMALL = "modal-sm"
 
 
+class ButtonColorEnum(Enum):
+    PRIMARY = "btn-primary"
+    SECONDARY = "btn-secondary"
+    INFO = "btn-info"
+    SUCCESS = "btn-success"
+    WARNING = "btn-warning"
+    DANGER = "btn-danger"
+    PRIMARY_OUTLINE = "btn-outline-primary"
+    SECONDARY_OUTLINE = "btn-outline-secondary"
+    INFO_OUTLINE = "btn-outline-info"
+    SUCCESS_OUTLINE = "btn-outline-success"
+    WARNING_OUTLINE = "btn-outline-warning"
+    DANGER_OUTLINE = "btn-outline-danger"
+
+
+class ButtonSizeEnum(Enum):
+    SMALL = "btn-sm"
+    LARGE = "btn-lg"
+
+
+class LinkColorEnum(Enum):
+    PRIMARY = "text-primary"
+    SECONDARY = "text-secondary"
+    INFO = "text-info"
+    SUCCESS = "text-success"
+    WARNING = "text-warning"
+    DANGER = "text-danger"
+
+
+class TooltipPlacementEnum(Enum):
+    LEFT = "left"
+    TOP = "top"
+    RIGHT = "right"
+    BOTTOM = "bottom"
+
+
+class ProgressColorEnum(Enum):
+    PRIMARY = ""
+    SUCCESS = "bg-success"
+    INFO = "bg-info"
+    WARNING = "bg-warning"
+    DANGER = "bg-danger"
+
+
+class BadgeColorEnum(Enum):
+    PRIMARY = "badge-primary"
+    SECONDARY = "badge-secondary"
+    SUCCESS = "badge-success"
+    DANGER = "badge-danger"
+    WARNING = "badge-warning"
+    INFO = "badge-info"
+    LIGHT = "badge-light"
+    DARK = "badge-dark"
+
+
 class ProgressBar:
-    def __init__(self, progress: int = 0, color: str = '', animated: bool = True, striped: bool = True):
+    def __init__(self, progress: int = 0, color: ProgressColorEnum = ProgressColorEnum.PRIMARY, animated: bool = True, striped: bool = True):
         self.progress = progress
         self.color = color
         self.animated = animated
@@ -27,8 +82,7 @@ class ProgressBar:
 
 
 class Badge:
-    def __init__(self, name: str, value: str, badge_color: str, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
-        self.name = name
+    def __init__(self, value: str, badge_color: BadgeColorEnum = BadgeColorEnum.INFO, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
         self.value = value
         self.badge_color = badge_color
         self.badge_pill = badge_pill
@@ -36,17 +90,11 @@ class Badge:
         self.tooltip_placement = tooltip_placement
 
     def render(self) -> str:
-        context = {
-            "badge_color": self.badge_color,
-            "badge_pill": self.badge_pill,
-            "value": self.value,
-            "tooltip": self.tooltip,
-            "tooltip_placement": self.tooltip_placement,
-            }
-        return render_to_string(template_name="sceletons/badge_with_tooltip.html",
-                                context=context)
+        return render_to_string(template_name="skeletons/badge.html",
+                                context=self.__dict__)
 
 
+# todo: deprecated --> refactor icons as enums
 class Icon:
     def __init__(self, name: str, icon: str, tooltip: str = None, tooltip_placement: str = 'left', color: str = ''):
         self.name = name
@@ -61,39 +109,43 @@ class Icon:
 
 
 class Link:
-    def __init__(self, name: str, url: str, value: str, color: str = '', needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: str = 'left', open_in_new_tab: bool = False):
-        self.name = name
+    def __init__(self, url: str, value: str, color: LinkColorEnum = None, needs_perm: PermissionEnum = None,
+                 tooltip: str = None, tooltip_placement: TooltipPlacementEnum = None, open_in_new_tab: bool = False,
+                 dropdown_item: bool = False):
         self.url = url
         self.value = value
         self.color = color
         self.tooltip = tooltip
-        self.tooltip_placement = tooltip_placement
+        self.tooltip_placement = tooltip_placement.value if tooltip_placement and tooltip else None
         self.needs_perm = needs_perm
         self.open_in_new_tab = open_in_new_tab
+        self.dropdown_item = 'dropdown-item' if dropdown_item else ''
 
     def render(self) -> str:
-        return render_to_string(template_name="sceletons/open-link.html",
+        return render_to_string(template_name="skeletons/link.html",
                                 context=self.__dict__)
 
 
 class LinkButton:
-    def __init__(self, name: str, url: str, value: str, color: str, needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: str = 'left', size: str = BTN_SM_CLASS):
-        self.name = name
+    def __init__(self, url: str, value: str, color: ButtonColorEnum = ButtonColorEnum.INFO,
+                 needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: TooltipPlacementEnum = None,
+                 size: ButtonSizeEnum = None):
         self.url = url
         self.value = value
-        self.color = color
+        self.color = 'btn ' + color.value if color else None
         self.tooltip = tooltip
-        self.tooltip_placement = tooltip_placement
+        self.tooltip_placement = tooltip_placement.value if tooltip_placement and tooltip else None
         self.needs_perm = needs_perm
-        self.size = size
+        self.size = size.value if size else None
 
     def render(self) -> str:
-        return render_to_string(template_name="skeletons/open_link_button.html", context=self.__dict__)
+        return render_to_string(template_name="skeletons/link.html", context=self.__dict__)
 
 
 class Modal:
-    def __init__(self, title: str, modal_body: str, btn_value: str, btn_tooltip: str = None, modal_footer: str = None, fade: bool = True,
-                 size: ModalSizeEnum = None, fetch_url: str = None):
+    def __init__(self, title: str, modal_body: str, btn_value: str, btn_tooltip: str = None,
+                 btn_color: ButtonColorEnum = ButtonColorEnum.INFO, modal_footer: str = None,
+                 fade: bool = True, size: ModalSizeEnum = None, fetch_url: str = None):
         self.title = title
         self.modal_body = modal_body
         self.modal_footer = modal_footer
@@ -101,7 +153,7 @@ class Modal:
         self.size = size
         self.modal_id = str(uuid.uuid4())
         self.fetch_url = fetch_url
-        self.button = Button(value=btn_value, data_toggle='modal', data_target=f'#id_modal_{self.modal_id}',
+        self.button = Button(value=btn_value, color=btn_color, data_toggle='modal', data_target=f'#id_modal_{self.modal_id}',
                              tooltip=btn_tooltip).render()
 
     def render(self) -> str:
@@ -110,7 +162,8 @@ class Modal:
 
 
 class Accordion:
-    def __init__(self, accordion_title: str, accordion_title_center: str = '', accordion_title_right: str = '', accordion_body: str = None, button_type: str = None, fetch_url: str = None):
+    def __init__(self, accordion_title: str, accordion_title_center: str = '', accordion_title_right: str = '',
+                 accordion_body: str = None, button_type: str = None, fetch_url: str = None):
         self.accordion_title = accordion_title
         self.accordion_title_center = accordion_title_center
         self.accordion_title_right = accordion_title_right
@@ -124,7 +177,7 @@ class Accordion:
 
 
 class Button:
-    def __init__(self, value: str, color: str = 'btn-info', data_toggle: str = None, data_target: str = None,
+    def __init__(self, value: str, color: ButtonColorEnum = ButtonColorEnum.INFO, data_toggle: str = None, data_target: str = None,
                  aria_expanded: str = None, aria_controls: str = None, tooltip: str = None):
         self.value = value
         self.color = color
@@ -136,6 +189,34 @@ class Button:
 
     def render(self) -> str:
         return render_to_string(template_name='skeletons/button.html', context=self.__dict__)
+
+
+class ButtonGroup:
+    # todo: also Buttons are allowed
+    def __init__(self, aria_label: str, buttons: [LinkButton]):
+        self.aria_label = aria_label
+        self.buttons = [button.render() for button in buttons]
+
+    def render(self) -> str:
+        return render_to_string(template_name='skeletons/button_group.html', context=self.__dict__)
+
+
+class Dropdown:
+    def __init__(self, value: str, items: [Link], color: ButtonColorEnum = ButtonColorEnum.INFO, tooltip: str = None,
+                 tooltip_placement: TooltipPlacementEnum = None, header: str = None):
+        self.value = value
+        self.color = color
+        self.items = []
+        for item in items:
+            item.dropdown_item = 'dropdown-item'
+            self.items.append(item.render())
+        self.tooltip = tooltip
+        self.tooltip_placement = tooltip_placement.value if tooltip_placement and tooltip else None
+        self.header = header
+        self.dropdown_id = 'id_' + str(uuid.uuid4())
+
+    def render(self) -> str:
+        return render_to_string(template_name='skeletons/dropdown.html', context=self.__dict__)
 
 
 class Collapsible:
@@ -159,6 +240,24 @@ class LeafletClient:
 
     def render(self) -> str:
         return render_to_string(template_name='skeletons/leaflet_client.html', context=self.__dict__)
+
+
+class ListGroupItem:
+    def __init__(self, left: str = '', center: str = None, right: str = ''):
+        self.left = left
+        self.center = center
+        self.right = right
+
+    def render(self) -> str:
+        return render_to_string(template_name='skeletons/list_group_item.html', context=self.__dict__)
+
+
+class ListGroup:
+    def __init__(self, items: [ListGroupItem]):
+        self.items = [item.render() for item in items]
+
+    def render(self) -> str:
+        return render_to_string(template_name='skeletons/list_group.html', context=self.__dict__)
 
 
 class Bootstrap4Helper:

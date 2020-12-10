@@ -20,7 +20,8 @@ from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 
-from MrMap.bootstrap4 import Bootstrap4Helper, Icon, LinkButton, Accordion, Badge, Collapsible, Modal, ModalSizeEnum
+from MrMap.bootstrap4 import Bootstrap4Helper, Icon, LinkButton, Accordion, Badge, Collapsible, Modal, ModalSizeEnum, \
+    Dropdown, Link, TooltipPlacementEnum, ListGroup, ButtonGroup, ListGroupItem, ButtonColorEnum
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
@@ -890,12 +891,15 @@ class ResourceDetailTable(DetailView):
             details = render_to_string(template_name='skeletons/django_tables2_render_table.html',
                                        context={'table': details})
             context.update({'card_body': details})
+        # todo: table for featuretype
         return context
 
 
 class ResourceTreeView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_with_base.html'
+    # todo: filter all update candidates here
+    queryset = Metadata.objects.filter(service__is_update_candidate_for=None)
 
     def dispatch(self, request, *args, **kwargs):
         default_dispatch(instance=self, extra_context=kwargs.get('update_params', {}), is_list_view=False)
@@ -910,6 +914,7 @@ class ResourceTreeView(DetailView):
 
         card_body = ''
         root_details = None
+        capabilities_dropdown = None
         sub_elements = None
         if self.object.is_metadata_type(MetadataEnum.SERVICE):
             root_service_detail_table = RootServiceDetailTable(data=[self.object, ], request=self.request)
@@ -917,9 +922,18 @@ class ResourceTreeView(DetailView):
                                                          context={'table': root_service_detail_table})
             root_details = Modal(title=f'Details of {self.object.title}',
                                  modal_body=root_service_detail_table,
-                                 btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ).render(),
+                                 btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ).render() + _(' Details'),
+                                 btn_color=ButtonColorEnum.SECONDARY,
                                  btn_tooltip=_l('Open details'),
                                  size=ModalSizeEnum.LARGE,)
+
+            capabilities_original = Link(url=self.object.capabilities_original_uri, value=_('Original'))
+            capabilities_current = Link(url=self.object.capabilities_uri, value=_('Current'))
+            capabilities_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(' Capabilities'),
+                                             items=[capabilities_original, capabilities_current],
+                                             color=ButtonColorEnum.SECONDARY,
+                                             tooltip=_l('Show capabilities'),
+                                             header=_l('See current or original:'))
 
             if self.object.is_service_type(enum=OGCServiceEnum.WMS):
                 context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']).render() +
@@ -948,33 +962,91 @@ class ResourceTreeView(DetailView):
                 pass
             elif self.object.is_service_type(enum=OGCServiceEnum.WMS) or self.object.is_metadata_type(MetadataEnum.LAYER):
                 for sub_element in sub_elements:
-                    sub_element.details = Modal(title=f'Details of {sub_element.metadata.title}',
-                                                modal_body='',
-                                                btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ).render(),
-                                                btn_tooltip=_l('Open details'),
-                                                fetch_url=reverse('resource:detail-table', args=[sub_element.metadata.pk]),
-                                                size=ModalSizeEnum.LARGE)
+                    details = Modal(title=f'Details of {sub_element.metadata.title}',
+                                    modal_body='',
+                                    btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ).render() + _(' Details'),
+                                    btn_color=ButtonColorEnum.SECONDARY,
+                                    btn_tooltip=_l('Open details'),
+                                    fetch_url=reverse('resource:detail-table', args=[sub_element.metadata.pk]),
+                                    size=ModalSizeEnum.LARGE)
+
+                    metadata_xml = Link(url=sub_element.metadata.service_metadata_uri,
+                                        value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(
+                                            ' XML'))
+                    metadata_html = Link(url=sub_element.metadata.html_metadata_uri,
+                                         value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']).render() + _(
+                                             ' HTML'))
+                    metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']).render() + _(' Metadata'),
+                                                 items=[metadata_xml, metadata_html],
+                                                 color=ButtonColorEnum.SECONDARY,
+                                                 tooltip=_l('Show metadata'),
+                                                 header=_l('Show metadata as:'))
 
                     sub_sub_elements = Layer.objects.filter(parent_layer=sub_element).count()
-                    sub_elements_badge = Badge(name='sublayers-badge',
-                                               value=sub_sub_elements,
-                                               badge_color=get_theme(self.request.user)['ACCORDION'][
-                                                   'PILL_BADGE_LIGHT_COLOR']).render()
+                    sub_elements_badge = Badge(value=sub_sub_elements,).render()
 
                     accordion_title = Icon(name='layer-icon', icon=FONT_AWESOME_ICONS['LAYER']).render() + \
                                                                    sub_element.metadata.title + \
                                                                    sub_elements_badge
+
+                    related_datasets = sub_element.metadata.get_related_dataset_metadata()
+
+                    if related_datasets:
+                        item_list = []
+                        for related_dataset in related_datasets:
+                            link_to_dataset = Link(url=related_dataset.detail_view_uri, value=related_dataset.title).render()
+
+                            metadata_xml = Link(url=related_dataset.service_metadata_uri,
+                                                value=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'))
+                            metadata_html = Link(url=related_dataset.html_metadata_uri,
+                                                 value=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'))
+
+                            dataset_metadata_dropdown = Dropdown(value=FONT_AWESOME_ICONS['METADATA'] + _(' Metadata'),
+                                                                 items=[metadata_xml, metadata_html],
+                                                                 color=ButtonColorEnum.SECONDARY,
+                                                                 header=_l('Show metadata as:')).render()
+
+                            right = ''
+                            for action in related_dataset.get_actions(request=self.request):
+                                right += action.render()
+
+                            item_list.append(ListGroupItem(left=link_to_dataset, center=dataset_metadata_dropdown, right=right))
+
+                        dataset_list = ListGroup(items=item_list).render()
+                        dataset_modal = Modal(title=_l('Related datasets of ') + sub_element.metadata.title, modal_body=dataset_list,
+                                              btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']).render() + _(' Datasets'),
+                                              btn_color=ButtonColorEnum.SECONDARY,
+                                              size=ModalSizeEnum.LARGE)
+
+                    accordion_title_center = details.button + details.render()
+                    accordion_title_center += metadata_dropdown.render()
+                    accordion_title_center += dataset_modal.button + dataset_modal.render() if related_datasets else ''
+
                     sub_element_accordions += Accordion(accordion_title=accordion_title,
-                                                        accordion_title_center=sub_element.details.button+sub_element.details.render() if sub_element.details else '',
+                                                        accordion_title_center=accordion_title_center,
                                                         accordion_title_right=bs4helper.render_list_coherent(items=sub_element.metadata.get_actions(request=self.request)),
                                                         fetch_url=ROOT_URL + reverse(viewname='resource:detail', args=[
                                                            sub_element.metadata.id]) + '?with-base=False').render()
 
             card_body += sub_element_accordions
 
+        metadata_xml = Link(url=self.object.service_metadata_uri,
+                            value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']).render() + _(' XML'))
+        metadata_html = Link(url=self.object.html_metadata_uri,
+                             value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']).render() + _(' HTML'))
+        metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']).render() + _(' Metadata'),
+                                     color=ButtonColorEnum.SECONDARY,
+                                     items=[metadata_xml, metadata_html],
+                                     tooltip=_l('Show metadata'),
+                                     header=_l('Show metadata as:'))
+
+        card_header_title_center = root_details.button+root_details.render() if root_details else ''
+        card_header_title_center += capabilities_dropdown.render() if capabilities_dropdown else ''
+        card_header_title_center += metadata_dropdown.render()
+
         context.update({
             'card_header_title_left': context['object'].title,
-            'card_header_title_center': root_details.button+root_details.render() if root_details else '',
+            'card_header_title_center': card_header_title_center,
             'card_header_title_right': bs4helper.render_list_coherent(items=actions),
             'card_body': card_body
         })

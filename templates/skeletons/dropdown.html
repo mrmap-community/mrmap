@@ -1,0 +1,36 @@
+{% if tooltip %}
+<span class='d-inline-block' tabindex='0' data-html='true' data-toggle='tooltip' data-placement='{% if tooltip_placement %}{{tooltip_placement}}{% else %}top{% endif %}' data-html='true' title='{{tooltip}}'>
+    <div class="dropdown">
+      <button class="btn {{ color.value }} dropdown-toggle" type="button" id="{{ dropdown_id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        {{ value|safe }}
+      </button>
+      <div class="dropdown-menu" aria-labelledby="{{ dropdown_id }}">
+        {% if header %}
+          <h6 class="dropdown-header">{{ header }}</h6>
+        {% endif %}
+        {% for item in items %}
+          {{ item }}
+        {% endfor %}
+      </div>
+    </div>
+</span>
+{% else %}
+<div class="dropdown">
+  <button class="btn {{ color.value }} dropdown-toggle" type="button" id="{{ dropdown_id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    {{ value|safe }}
+  </button>
+  <div class="dropdown-menu" aria-labelledby="{{ dropdown_id }}">
+    {% if header %}
+      <h6 class="dropdown-header">{{ header }}</h6>
+    {% endif %}
+    {% for item in items %}
+      {{ item }}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+<script type="application/javascript">
+$('.dropdown').on('shown.bs.dropdown', function (e) {
+    $(".tooltip").tooltip("hide");
+});
+</script>

@@ -9,6 +9,9 @@ from MrMap.consts import BTN_SM_CLASS
 from structure.permissionEnums import PermissionEnum
 
 
+PATH_TO_TEMPLATES = "skeletons"
+
+
 class ModalSizeEnum(Enum):
     LARGE = "modal-lg"
     SMALL = "modal-sm"
@@ -69,19 +72,26 @@ class BadgeColorEnum(Enum):
     DARK = "badge-dark"
 
 
-class ProgressBar:
+class BootstrapComponent:
+    template_name = None
+
+    def render(self) -> str:
+        return render_to_string(template_name=self.template_name, context=self.__dict__)
+
+
+class ProgressBar(BootstrapComponent):
+    template_name = "skeletons/progressbar.html"
+
     def __init__(self, progress: int = 0, color: ProgressColorEnum = ProgressColorEnum.PRIMARY, animated: bool = True, striped: bool = True):
         self.progress = progress
         self.color = color
         self.animated = animated
         self.striped = striped
 
-    def render(self) -> str:
-        return render_to_string(template_name="skeletons/progressbar.html",
-                                context=self.__dict__)
 
+class Badge(BootstrapComponent):
+    template_name = "skeletons/badge.html"
 
-class Badge:
     def __init__(self, value: str, badge_color: BadgeColorEnum = BadgeColorEnum.INFO, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
         self.value = value
         self.badge_color = badge_color
@@ -89,13 +99,11 @@ class Badge:
         self.tooltip = tooltip
         self.tooltip_placement = tooltip_placement
 
-    def render(self) -> str:
-        return render_to_string(template_name="skeletons/badge.html",
-                                context=self.__dict__)
-
 
 # todo: deprecated --> refactor icons as enums
-class Icon:
+class Icon(BootstrapComponent):
+    template_name = "skeletons/icon.html"
+
     def __init__(self, name: str, icon: str, tooltip: str = None, tooltip_placement: str = 'left', color: str = ''):
         self.name = name
         self.value = icon
@@ -103,12 +111,10 @@ class Icon:
         self.tooltip_placement = tooltip_placement
         self.color = color
 
-    def render(self) -> str:
-        return render_to_string(template_name="skeletons/icon.html",
-                                context=self.__dict__)
 
+class Link(BootstrapComponent):
+    template_name = "skeletons/link.html"
 
-class Link:
     def __init__(self, url: str, value: str, color: LinkColorEnum = None, needs_perm: PermissionEnum = None,
                  tooltip: str = None, tooltip_placement: TooltipPlacementEnum = None, open_in_new_tab: bool = False,
                  dropdown_item: bool = False):
@@ -121,12 +127,10 @@ class Link:
         self.open_in_new_tab = open_in_new_tab
         self.dropdown_item = 'dropdown-item' if dropdown_item else ''
 
-    def render(self) -> str:
-        return render_to_string(template_name="skeletons/link.html",
-                                context=self.__dict__)
 
+class LinkButton(BootstrapComponent):
+    template_name = "skeletons/link.html"
 
-class LinkButton:
     def __init__(self, url: str, value: str, color: ButtonColorEnum = ButtonColorEnum.INFO,
                  needs_perm: PermissionEnum = None, tooltip: str = None, tooltip_placement: TooltipPlacementEnum = None,
                  size: ButtonSizeEnum = None):
@@ -138,11 +142,10 @@ class LinkButton:
         self.needs_perm = needs_perm
         self.size = size.value if size else None
 
-    def render(self) -> str:
-        return render_to_string(template_name="skeletons/link.html", context=self.__dict__)
 
+class Modal(BootstrapComponent):
+    template_name = "skeletons/modal.html"
 
-class Modal:
     def __init__(self, title: str, modal_body: str, btn_value: str, btn_tooltip: str = None,
                  btn_color: ButtonColorEnum = ButtonColorEnum.INFO, modal_footer: str = None,
                  fade: bool = True, size: ModalSizeEnum = None, fetch_url: str = None):
@@ -153,15 +156,14 @@ class Modal:
         self.size = size
         self.modal_id = str(uuid.uuid4())
         self.fetch_url = fetch_url
+        self.template_name = "skeletons/modal_ajax.html" if self.fetch_url else "skeletons/modal.html"
         self.button = Button(value=btn_value, color=btn_color, data_toggle='modal', data_target=f'#id_modal_{self.modal_id}',
                              tooltip=btn_tooltip).render()
 
-    def render(self) -> str:
-        return render_to_string(template_name="skeletons/modal_ajax.html" if self.fetch_url else "skeletons/modal.html",
-                                context=self.__dict__)
 
+class Accordion(BootstrapComponent):
+    template_name = 'skeletons/accordion_ajax.html'
 
-class Accordion:
     def __init__(self, accordion_title: str, accordion_title_center: str = '', accordion_title_right: str = '',
                  accordion_body: str = None, button_type: str = None, fetch_url: str = None):
         self.accordion_title = accordion_title
@@ -170,13 +172,13 @@ class Accordion:
         self.accordion_body = accordion_body
         self.button_type = button_type
         self.fetch_url = fetch_url
+        self.template_name = 'skeletons/accordion_ajax.html' if self.fetch_url else 'skeletons/accordion.html'
         self.accordion_id = str(uuid.uuid4())
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/accordion_ajax.html' if self.fetch_url else 'skeletons/accordion.html', context=self.__dict__)
 
+class Button(BootstrapComponent):
+    template_name = 'skeletons/button.html'
 
-class Button:
     def __init__(self, value: str, color: ButtonColorEnum = ButtonColorEnum.INFO, data_toggle: str = None, data_target: str = None,
                  aria_expanded: str = None, aria_controls: str = None, tooltip: str = None):
         self.value = value
@@ -187,21 +189,19 @@ class Button:
         self.aria_controls = aria_controls
         self.tooltip = tooltip
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/button.html', context=self.__dict__)
 
+class ButtonGroup(BootstrapComponent):
+    template_name = 'skeletons/button_group.html'
 
-class ButtonGroup:
     # todo: also Buttons are allowed
     def __init__(self, aria_label: str, buttons: [LinkButton]):
         self.aria_label = aria_label
         self.buttons = [button.render() for button in buttons]
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/button_group.html', context=self.__dict__)
 
+class Dropdown(BootstrapComponent):
+    template_name = 'skeletons/dropdown.html'
 
-class Dropdown:
     def __init__(self, value: str, items: [Link], color: ButtonColorEnum = ButtonColorEnum.INFO, tooltip: str = None,
                  tooltip_placement: TooltipPlacementEnum = None, header: str = None):
         self.value = value
@@ -215,22 +215,20 @@ class Dropdown:
         self.header = header
         self.dropdown_id = 'id_' + str(uuid.uuid4())
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/dropdown.html', context=self.__dict__)
 
+class Collapsible(BootstrapComponent):
+    template_name = 'skeletons/collapsible.html'
 
-class Collapsible:
     def __init__(self, card_body: str, btn_value: str, collapsible_id: str = None):
         self.card_body = card_body
         self.collapsible_id = collapsible_id if collapsible_id else str(uuid.uuid4())
         self.button = Button(value=btn_value, data_toggle='collapse', data_target=f'#{self.collapsible_id}',
                              aria_expanded='false', aria_controls=self.collapsible_id).render()
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/collapsible.html', context=self.__dict__)
 
+class LeafletClient(BootstrapComponent):
+    template_name = 'skeletons/leaflet_client.html'
 
-class LeafletClient:
     def __init__(self, polygon: Polygon, add_polygon_as_layer: bool = True, height: str = '50vh', min_height: str = '200px'):
         self.polygon = polygon
         self.add_polygon_as_layer = add_polygon_as_layer
@@ -238,26 +236,21 @@ class LeafletClient:
         self.min_height = min_height
         self.map_id = str(uuid.uuid4()).replace("-", "_")
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/leaflet_client.html', context=self.__dict__)
 
+class ListGroupItem(BootstrapComponent):
+    template_name = 'skeletons/list_group_item.html'
 
-class ListGroupItem:
     def __init__(self, left: str = '', center: str = None, right: str = ''):
         self.left = left
         self.center = center
         self.right = right
 
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/list_group_item.html', context=self.__dict__)
 
+class ListGroup(BootstrapComponent):
+    template_name = 'skeletons/list_group.html'
 
-class ListGroup:
     def __init__(self, items: [ListGroupItem]):
         self.items = [item.render() for item in items]
-
-    def render(self) -> str:
-        return render_to_string(template_name='skeletons/list_group.html', context=self.__dict__)
 
 
 class Bootstrap4Helper:
@@ -288,7 +281,7 @@ class Bootstrap4Helper:
             self.permission_lookup[permission] = has_perm
         return has_perm
 
-    def render_item(self, item, ignore_current_view_params: bool = False) -> str:
+    def render_item(self, item: BootstrapComponent, ignore_current_view_params: bool = False) -> str:
         rendered_string = ''
         has_perm = self.check_render_permission(item.needs_perm) if hasattr(item, 'needs_perm') else True
         if has_perm:
@@ -297,7 +290,7 @@ class Bootstrap4Helper:
             rendered_string = item.render()
         return rendered_string
 
-    def render_list_coherent(self, items: [], ignore_current_view_params: bool = False) -> str:
+    def render_list_coherent(self, items: [BootstrapComponent], ignore_current_view_params: bool = False) -> str:
         rendered_string = ''
         for item in items:
             rendered_string += self.render_item(item=item, ignore_current_view_params=ignore_current_view_params)

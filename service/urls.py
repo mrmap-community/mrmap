@@ -16,7 +16,8 @@ urlpatterns = [
 
     # detail view
     path('<pk>', login_required(ResourceTreeView.as_view()), name='detail'),
-    path('table/<pk>', login_required(ResourceDetailTable.as_view()), name='detail-table'),
+    path('<pk>/table', login_required(ResourceDetailTableView.as_view()), name='detail-table'),
+    path('<pk>/related-datasets', login_required(ResourceRelatedDatasetView.as_view()), name='detail-related-datasets'),
 
     # html metadata detail view
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),

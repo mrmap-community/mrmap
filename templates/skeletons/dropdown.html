@@ -9,7 +9,7 @@
           <h6 class="dropdown-header">{{ header }}</h6>
         {% endif %}
         {% for item in items %}
-          {{ item }}
+          {{ item|safe }}
         {% endfor %}
       </div>
     </div>
@@ -24,7 +24,7 @@
       <h6 class="dropdown-header">{{ header }}</h6>
     {% endif %}
     {% for item in items %}
-      {{ item }}
+      {{ item|safe }}
     {% endfor %}
   </div>
 </div>

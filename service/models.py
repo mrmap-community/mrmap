@@ -832,6 +832,14 @@ class Metadata(Resource):
         return reverse('resource:detail', args=[self.pk, ])
 
     @property
+    def detail_table_view_uri(self):
+        return reverse('resource:detail-table', args=[self.pk, ])
+
+    @property
+    def detail_related_datasets_view_uri(self):
+        return reverse('resource:detail-related-datasets', args=[self.pk, ])
+
+    @property
     def detail_html_view_uri(self):
         return reverse('resource:get-metadata-html', args=[self.pk, ])
 
@@ -1240,7 +1248,7 @@ class Metadata(Resource):
             pass
         return ext_auth
 
-    def get_related_dataset_metadata(self) -> Iterator['Metadata']:
+    def get_related_dataset_metadata(self, count: bool = False) -> Iterator['Metadata']:
         """ Returns a related dataset metadata record.
 
         If none exists, None is returned
@@ -1248,6 +1256,9 @@ class Metadata(Resource):
         Returns:
              dataset_md (Metadata)
         """
+        if count:
+            return self.related_metadata.filter(metadata_to__metadata_type=OGCServiceEnum.DATASET.value).count()
+
         dataset_relations = self.related_metadata.filter(metadata_to__metadata_type=OGCServiceEnum.DATASET.value)\
                                                  .prefetch_related('metadata_to')
         datasets = [dataset_relation.metadata_to for dataset_relation in dataset_relations]

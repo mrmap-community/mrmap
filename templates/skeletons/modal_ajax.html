@@ -1,22 +1,22 @@
 {% extends 'skeletons/modal.html' %}
 {% block ajax_script %}
 <script type="application/javascript">
-$('#id_modal_{{modal_id}}').on('shown.bs.modal', function (e) {
-    $( 'id_modal_body_{{modal_id}} [data-toggle="tooltip"]' ).tooltip("hide");
-    $( '#id_modal_body_{{modal_id}}' ).html( `{% include 'skeletons/ajax_loading_spinner.html' %}` );
+$('#{{modal_id}}').on('shown.bs.modal', function (e) {
+    $( '{{modal_id}}_body [data-toggle="tooltip"]' ).tooltip("hide");
+    $( '#{{modal_id}}_body' ).html( `{% include 'skeletons/ajax_loading_spinner.html' %}` );
     $.ajax({
       url: "{{ fetch_url }}",
       success: function( data ) {
-        $( '#id_modal_body_{{modal_id}}' ).html( data );
-        $( '#id_modal_body_{{modal_id}} [data-toggle="tooltip"]' ).tooltip();
+        $( '#{{modal_id}}_body' ).html( data );
+        $( '#{{modal_id}}_body [data-toggle="tooltip"]' ).tooltip();
       },
       error: function() {
-        $( '#id_modal_body_{{modal_id}}' ).html( `{% include 'skeletons/ajax_error.html' %}` );
+        $( '#{{modal_id}}_body' ).html( `{% include 'skeletons/ajax_error.html' %}` );
       },
     });
 })
-$('#id_modal_{{modal_id}}').on('hidden.bs.modal', function (e) {
-  $( '#id_modal_body_{{modal_id}}' ).html( '' );
+$('#{{modal_id}}_body').on('hidden.bs.modal', function (e) {
+  $( '#{{modal_id}}_body' ).html( '' );
 })
 </script>
 {% endblock %}

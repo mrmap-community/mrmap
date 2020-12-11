@@ -1,4 +1,4 @@
-<div id="id_modal_{{modal_id}}" class="modal {% if fade %} fade {% endif %} " tabindex="-1" role="document">
+<div id="{{modal_id}}" class="modal {% if fade %} fade {% endif %} " tabindex="-1" role="document">
   <div class="modal-dialog {% if size %} {{size.value}} {% endif%}">
     <div class="modal-content">
       <div class="modal-header">
@@ -7,7 +7,7 @@
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
-      <div id="id_modal_body_{{modal_id}}" class="modal-body">
+      <div id="{{modal_id}}_body" class="modal-body">
         {{modal_body|safe}}
       </div>
       {% if modal_footer %}

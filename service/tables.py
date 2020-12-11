@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
+from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
@@ -318,7 +318,12 @@ class DatasetTable(tables.Table):
         return format_html(rendered_actions)
 
 
-class RootServiceDetailTable(tables.Table):
+class ResourceDetailTable(tables.Table):
+    bs4helper = None
+    parent_service = tables.Column(verbose_name=_('Parent service'))
+    bbox_lat_lon = tables.Column(verbose_name=_('Bbox lat lon'))
+    scale_min_max = tables.Column(verbose_name=_('Scale range'), empty_values=[])
+    mime_types = tables.Column(verbose_name=_('Mime types'), empty_values=[], attrs={'td': {'class': 'col-sm-10'}})
 
     class Meta:
         model = Metadata
@@ -326,11 +331,8 @@ class RootServiceDetailTable(tables.Table):
                   'service__service_type__name',
                   'service__service_type__version',
                   'last_modified',
-                  'hits',
-                  'abstract',
-                  'online_resource',
-                  'keywords__all',
-                  'is_secured',
+                  'service__layer__identifier',
+                  'parent_service',
                   'contact__person_name',
                   'contact__organization_name',
                   'contact__phone',
@@ -341,43 +343,21 @@ class RootServiceDetailTable(tables.Table):
                   'contact__postal_code',
                   'contact__state_or_province',
                   'contact__country',
-                  )
-        template_name = "skeletons/django_tables2_vertical_table.html"
-        # todo: set this prefix dynamic
-        prefix = 'root-service-detail-table'
-        orderable = False
-
-    def render_online_resource(self, value):
-        return Link(url=value, value=value).render()
-
-    def render_keywords__all(self, value):
-        badges = ''
-        for kw in value:
-            badges += Badge(value=kw, badge_pill=True).render()
-        return format_html(badges) if value else _('No keywords provided')
-
-
-class LayerDetailTable(tables.Table):
-    bs4helper = None
-    scale_min_max = tables.Column(verbose_name=_('Scale range'), empty_values=[])
-    mime_types = tables.Column(verbose_name=_('Mime types'), empty_values=[], attrs={'td': {'class': 'col-sm-10'}})
-
-    class Meta:
-        model = Metadata
-        fields = ('public_id',
-                  'service__layer__identifier',
-                  'service__parent_service__metadata__title',
                   'title',
                   'abstract',
+                  'online_resource',
                   'keywords__all',
+                  'access_constraints',
                   'service__layer__is_available',
                   'service__layer__is_queryable',
                   'service__layer__is_opaque',
                   'service__layer__is_cascaded',
+                  'featuretype__is_searchable',
                   'is_secured',
                   'hits',
                   'scale_min_max',
-                  'service__layer__bbox_lat_lon',
+                  'bbox_lat_lon',
+                  'featuretype__default_srs',
                   'reference_system__all',
                   'mime_types',
                   )
@@ -386,25 +366,84 @@ class LayerDetailTable(tables.Table):
         prefix = 'layer-detail-table'
         orderable = False
 
+    def __init__(self, *args, **kwargs):
+        super(ResourceDetailTable, self).__init__(*args, **kwargs)
+        self.exclude = []
+        if self.data[0].is_metadata_type(MetadataEnum.SERVICE):
+            self.exclude.extend(['parent_service',
+                                 'service__layer__identifier',
+                                 'service__layer__is_available',
+                                 'service__layer__is_queryable',
+                                 'service__layer__is_opaque',
+                                 'service__layer__is_cascaded',
+                                 'scale_min_max',
+                                 'bbox_lat_lon',
+                                 'featuretype__default_srs', ])
+            if self.data[0].is_service_type(OGCServiceEnum.WFS):
+                self.exclude.extend(['featuretype__is_searchable', ])
+        else:
+            self.exclude.extend([
+                'access_constraints',
+                'service__service_type__name',
+                'service__service_type__version',
+                'last_modified',
+                'online_resource',
+                'contact__person_name',
+                'contact__organization_name',
+                'contact__phone',
+                'contact__facsimile',
+                'contact__email',
+                'contact__address',
+                'contact__city',
+                'contact__postal_code',
+                'contact__state_or_province',
+                'contact__country',
+            ])
+
+            if self.data[0].is_metadata_type(MetadataEnum.FEATURETYPE):
+                self.exclude.extend(['service__layer__identifier',
+                                     'service__layer__is_available',
+                                     'service__layer__is_queryable',
+                                     'service__layer__is_opaque',
+                                     'service__layer__is_cascaded',
+                                     'scale_min_max', ])
+
+                self.columns['parent_service'].column.accessor = 'featuretype__parent_service__metadata'
+                self.columns['bbox_lat_lon'].column.accessor = 'featuretype__bbox_lat_lon'
+            else:
+                self.exclude.extend(['featuretype__default_srs', ])
+                self.columns['parent_service'].column.accessor = 'service__parent_service__metadata'
+                self.columns['bbox_lat_lon'].column.accessor = 'service__layer__bbox_lat_lon'
+
+    def render_parent_service(self, value):
+        return Link(url=value.detail_view_uri, value=value).render(safe=True)
+
+    def render_online_resource(self, value):
+        return Link(url=value, value=value).render(safe=True)
+
     def render_keywords__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(value=kw, badge_pill=True).render()
+            badges += Badge(value=kw, badge_pill=True)
         return format_html(badges) if value else _('No keywords provided')
 
     def render_scale_min_max(self, record):
         return f'[{record.service.layer.scale_min}, {record.service.layer.scale_max}]'
 
-    def render_service__layer__bbox_lat_lon(self, value):
+    def render_bbox_lat_lon(self, value):
         if value.area > 0.0:
-            return LeafletClient(polygon=value).render()
+            return LeafletClient(polygon=value).render(safe=True)
         else:
             return _('No spatial data provided!')
+
+    def render_featuretype__default_srs(self, value):
+        badge = Badge(value=f'{value.prefix}:{value.code}', badge_pill=True).render(safe=True)
+        return badge if value else _('No default reference system provided')
 
     def render_reference_system__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(value=f'{kw.prefix}:{kw.code}', badge_pill=True).render()
+            badges += Badge(value=f'{kw.prefix}:{kw.code}', badge_pill=True)
         return format_html(badges) if value else _('No additional reference systems provided')
 
     def render_mime_types(self, record):
@@ -421,13 +460,9 @@ class LayerDetailTable(tables.Table):
         for key, values in mime_types.items():
             badges = ''
             for value in values:
-                badges += Badge(value=value).render()
-            mime_type_accordions += Accordion(accordion_title=key, accordion_body=badges).render()
+                badges += Badge(value=value)
+            mime_type_accordions += Accordion(accordion_title=key, accordion_body=badges)
         return format_html(mime_type_accordions)
-
-
-class FeaturetypeDetailTable(tables.Table):
-    pass
 
 
 class ChildLayerTable(MrMapTable):

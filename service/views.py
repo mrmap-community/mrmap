@@ -44,9 +44,10 @@ from service.helper.ogc.operation_request_handler import OGCOperationRequestHand
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable
+from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
+    FeatureTypeElementTable
 from service.tasks import async_log_response
-from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
+from service.models import Metadata, Layer, Service, Document, Style, ProxyLog, FeatureTypeElement
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
@@ -994,53 +995,58 @@ class ResourceTreeView(DetailView):
 
         if sub_elements:
             sub_element_accordions = ''
-            for sub_element in sub_elements:
-                details = Modal(title=f'Details of {sub_element.metadata.title}',
-                                modal_body='',
-                                btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ) + _(' Details'),
-                                btn_color=ButtonColorEnum.SECONDARY,
-                                btn_tooltip=_l('Open details'),
-                                fetch_url=sub_element.metadata.detail_table_view_uri,
-                                size=ModalSizeEnum.LARGE)
+            if isinstance(sub_elements.first(), FeatureTypeElement):
+                elements_table = FeatureTypeElementTable(data=sub_elements, orderable=False)
+                sub_element_accordions += render_to_string(template_name='skeletons/django_tables2_bootstrap4_custom.html',
+                                                           context={'table': elements_table})
+            else:
+                for sub_element in sub_elements:
+                    details = Modal(title=f'Details of {sub_element.metadata.title}',
+                                    modal_body='',
+                                    btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ) + _(' Details'),
+                                    btn_color=ButtonColorEnum.SECONDARY,
+                                    btn_tooltip=_l('Open details'),
+                                    fetch_url=sub_element.metadata.detail_table_view_uri,
+                                    size=ModalSizeEnum.LARGE)
 
-                metadata_xml = Link(url=sub_element.metadata.service_metadata_uri,
-                                    value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']) + _(
-                                        ' XML'),
-                                    open_in_new_tab=True)
-                metadata_html = Link(url=sub_element.metadata.html_metadata_uri,
-                                     value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']) + _(
-                                         ' HTML'),
-                                     open_in_new_tab=True)
-                metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Metadata'),
-                                             items=[metadata_xml, metadata_html],
-                                             color=ButtonColorEnum.SECONDARY,
-                                             tooltip=_l('Show metadata'),
-                                             header=_l('Show metadata as:'))
+                    metadata_xml = Link(url=sub_element.metadata.service_metadata_uri,
+                                        value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']) + _(
+                                            ' XML'),
+                                        open_in_new_tab=True)
+                    metadata_html = Link(url=sub_element.metadata.html_metadata_uri,
+                                         value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']) + _(
+                                             ' HTML'),
+                                         open_in_new_tab=True)
+                    metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Metadata'),
+                                                 items=[metadata_xml, metadata_html],
+                                                 color=ButtonColorEnum.SECONDARY,
+                                                 tooltip=_l('Show metadata'),
+                                                 header=_l('Show metadata as:'))
 
-                sub_element_icon = ''
-                if sub_element.metadata.is_metadata_type(MetadataEnum.LAYER):
-                    sub_element_icon = FONT_AWESOME_ICONS['LAYER'] + ' '
-                    sub_sub_elements_count = Layer.objects.filter(parent_layer=sub_element).count()
-                elif sub_element.metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
-                    sub_element_icon = FONT_AWESOME_ICONS['FEATURETYPE'] + ' '
-                    sub_sub_elements_count = sub_element.elements.count()
+                    sub_element_icon = ''
+                    if sub_element.metadata.is_metadata_type(MetadataEnum.LAYER):
+                        sub_element_icon = FONT_AWESOME_ICONS['LAYER'] + ' '
+                        sub_sub_elements_count = Layer.objects.filter(parent_layer=sub_element).count()
+                    elif sub_element.metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
+                        sub_element_icon = FONT_AWESOME_ICONS['FEATURETYPE'] + ' '
+                        sub_sub_elements_count = sub_element.elements.count()
 
-                accordion_title = sub_element_icon + sub_element.metadata.title + Badge(value=sub_sub_elements_count)
-                accordion_title_center = f'{details}{details.button}{metadata_dropdown}'
+                    accordion_title = sub_element_icon + sub_element.metadata.title + Badge(value=sub_sub_elements_count)
+                    accordion_title_center = f'{details}{details.button}{metadata_dropdown}'
 
-                related_datasets = sub_element.metadata.get_related_dataset_metadata(count=True)
-                if related_datasets > 0:
-                    dataset_modal = Modal(title=_l('Related datasets of ') + sub_element.metadata.title, modal_body='',
-                                          fetch_url=sub_element.metadata.detail_related_datasets_view_uri,
-                                          btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Datasets') + Badge(value=related_datasets),
-                                          btn_color=ButtonColorEnum.SECONDARY,
-                                          size=ModalSizeEnum.LARGE)
-                    accordion_title_center += dataset_modal.button + dataset_modal
+                    related_datasets = sub_element.metadata.get_related_dataset_metadata(count=True)
+                    if related_datasets > 0:
+                        dataset_modal = Modal(title=_l('Related datasets of ') + sub_element.metadata.title, modal_body='',
+                                              fetch_url=sub_element.metadata.detail_related_datasets_view_uri,
+                                              btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Datasets') + Badge(value=related_datasets),
+                                              btn_color=ButtonColorEnum.SECONDARY,
+                                              size=ModalSizeEnum.LARGE)
+                        accordion_title_center += dataset_modal.button + dataset_modal
 
-                sub_element_accordions += Accordion(accordion_title=accordion_title,
-                                                    accordion_title_center=accordion_title_center,
-                                                    accordion_title_right=bs4helper.render_list_coherent(items=sub_element.metadata.get_actions(request=self.request)),
-                                                    fetch_url=sub_element.metadata.detail_view_uri + '?with-base=False')
+                    sub_element_accordions += Accordion(accordion_title=accordion_title,
+                                                        accordion_title_center=accordion_title_center,
+                                                        accordion_title_right=bs4helper.render_list_coherent(items=sub_element.metadata.get_actions(request=self.request)),
+                                                        fetch_url=sub_element.metadata.detail_view_uri + '?with-base=False')
 
             card_body += sub_element_accordions
 

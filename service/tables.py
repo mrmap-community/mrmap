@@ -17,7 +17,7 @@ from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum, OGCServiceEnum
-from service.models import MetadataRelation, Metadata
+from service.models import MetadataRelation, Metadata, FeatureTypeElement
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 
@@ -312,6 +312,12 @@ class DatasetTable(tables.Table):
         actions = record.get_actions(request=self.request)
         rendered_actions = self.bs4helper.render_list_coherent(items=actions)
         return format_html(rendered_actions)
+
+
+class FeatureTypeElementTable(tables.Table):
+    class Meta:
+        model = FeatureTypeElement
+        fields = ('name', 'type', )
 
 
 class ResourceDetailTable(tables.Table):

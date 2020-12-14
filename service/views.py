@@ -44,7 +44,7 @@ from service.helper.ogc.operation_request_handler import OGCOperationRequestHand
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTableNew, ResourceDetailTable
+from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -95,7 +95,7 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum):
 
 class PendingTaskView(SingleTableMixin, ListView):
     model = PendingTask
-    table_class = PendingTaskTableNew
+    table_class = PendingTaskTable
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering

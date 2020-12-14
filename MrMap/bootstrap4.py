@@ -322,7 +322,7 @@ class Bootstrap4Helper:
             if self.add_current_view_params and hasattr(item, 'url') and not ignore_current_view_params:
                 item.url += self.url_querystring
             rendered_string = item.render()
-        return rendered_string
+        return format_html(rendered_string)
 
     def render_list_coherent(self, items: [BootstrapComponent], ignore_current_view_params: bool = False) -> str:
         rendered_string = ''

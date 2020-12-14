@@ -103,7 +103,7 @@ TOOLTIP_STATUS = _(
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 
 
-class PendingTaskTableNew(tables.Table):
+class PendingTaskTable(tables.Table):
     bs4helper = None
     status = tables.Column(verbose_name=_('Status'),
                            accessor='status_icons',
@@ -137,7 +137,7 @@ class PendingTaskTableNew(tables.Table):
 
     @staticmethod
     def render_progress(value):
-        return ProgressBar(progress=round(value, 2)).render()
+        return ProgressBar(progress=round(value, 2)).render(safe=True)
 
 
 class OgcServiceTable(tables.Table):
@@ -177,8 +177,7 @@ class OgcServiceTable(tables.Table):
         self.bs4helper = Bootstrap4Helper(request=request)
 
     def render_title(self, record, value):
-        return self.bs4helper.render_item(item=Link(url=record.detail_view_uri,
-                                                    value=value))
+        return Link(url=record.detail_view_uri, value=value).render(safe=True)
 
     def render_last_haverest(self, value):
         harvest_result = HarvestResult.objects.filter(
@@ -208,16 +207,13 @@ class OgcServiceTable(tables.Table):
         return format_html(self.bs4helper.render_list_coherent(items=record.get_health_icons()))
 
     def render_contact(self, value):
-        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
-                                                    value=value))
+        return Link(url=value.detail_view_uri, value=value).render(safe=True)
 
     def render_service__created_by(self, value):
-        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
-                                                    value=value))
+        return Link(url=value.detail_view_uri, value=value).render(safe=True)
 
     def render_service__published_for(self, value):
-        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
-                                                    value=value))
+        return Link(url=value.detail_view_uri, value=value).render(safe=True)
 
     def render_actions(self, record):
         actions = record.get_actions(request=self.request)

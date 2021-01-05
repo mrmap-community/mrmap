@@ -1473,11 +1473,11 @@ class Metadata(Resource):
         """
         service_type = None
         if self.is_root():
-            return self.service.service_type
+            return OGCServiceEnum(self.service.service_type.name)
         elif self.is_metadata_type(MetadataEnum.LAYER):
             service_type = OGCServiceEnum.WMS
         elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
-            service_type = OGCServiceEnum.WMS
+            service_type = OGCServiceEnum.WFS
         return service_type
 
     def get_service_version(self) -> OGCServiceEnum:
@@ -2621,9 +2621,8 @@ class Document(Resource):
 
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
         service_version = force_version or self.metadata.get_service_version()
-        service_type = self.metadata.get_service_type()
 
-        is_wfs = service_type == OGCServiceEnum.WFS.value
+        is_wfs = self.metadata.is_service_type(OGCServiceEnum.WFS)
         is_wfs_1_0_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_0_0.value
         is_wfs_1_1_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_1_0.value
 

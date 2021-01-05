@@ -15,6 +15,7 @@ urlpatterns = [
     path('logs/', logs_view, name='logs-view'),
 
     # detail view
+    # todo: implement detail view for csw
     path('<pk>', login_required(ResourceTreeView.as_view()), name='detail'),
     path('<pk>/table', login_required(ResourceDetailTableView.as_view()), name='detail-table'),
     path('<pk>/related-datasets', login_required(ResourceRelatedDatasetView.as_view()), name='detail-related-datasets'),

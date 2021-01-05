@@ -1206,6 +1206,45 @@ def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     response = con.content
     return HttpResponse(response, content_type="")
 
+# Todo
+class LogsIndexView(SingleTableMixin, FilterView):
+    model = Metadata
+    table_class = OgcServiceTable
+    filterset_class = OgcWmsFilter
+
+    def get_filterset_kwargs(self, *args):
+        kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
+        if kwargs['data'] is None:
+            kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
+        return kwargs
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(WmsIndexView, self).get_table(**kwargs)
+        # whether whole services or single layers should be displayed, we have to exclude some columns
+        filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
+        if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
+            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records', )
+        else:
+            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + _(' WMS')
+
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # we inject the pending task ajax template above the default content to support polling the dynamic content
+        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+        extra_context.update(kwargs.get('update_params', {}))
+        default_dispatch(instance=self, extra_context=extra_context)
+        return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
+
 
 @login_required
 @check_permission(

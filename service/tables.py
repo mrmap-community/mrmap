@@ -1,91 +1,21 @@
 import csv
 
 import django_tables2 as tables
-from django.db.models.functions import Length
 from django.urls import reverse
-import json
+from django.utils.html import format_html
+from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
+from django_bootstrap_swt.utils import RenderHelper
 
-from MrMap.bootstrap4 import *
 from MrMap.columns import MrMapColumn
+from MrMap.icons import IconEnum
 from MrMap.tables import MrMapTable
-from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.utils import get_theme
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
-from monitoring.enums import HealthStateEnum
-from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum, OGCServiceEnum
+from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement
 from structure.models import PendingTask
-from structure.permissionEnums import PermissionEnum
-
-
-def _get_action_btns_for_service_table(table, record):
-    btns = ''
-    btns += table.get_btn(
-        href=reverse('resource:activate', args=(record.id,)) + f"?current-view={table.current_view}",
-        btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]["POWER_OFF"],
-        permission=PermissionEnum.CAN_EDIT_METADATA,
-        tooltip=format_html(_("Deactivate") if record.is_active else _("Activate")),
-        tooltip_placement='left', )
-
-    btns += table.get_btn(
-        href=reverse('resource:new-pending-update', args=(record.id,)) + f"?current-view={table.current_view}",
-        btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
-        permission=PermissionEnum.CAN_UPDATE_RESOURCE,
-        tooltip=format_html(_("Update"), ),
-        tooltip_placement='left', )
-
-    btns += table.get_btn(
-        href=reverse('monitoring:run-monitoring', args=(record.id,)) + f"?current-view={table.current_view}",
-        btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['HEARTBEAT'],
-        permission=PermissionEnum.CAN_RUN_MONITORING,
-        tooltip=format_html(_("Run health check"), ),
-        tooltip_placement='left', )
-
-    btns += table.get_btn(
-        href=reverse('editor:edit', args=(record.id,)) + f"?current-view={table.current_view}",
-        btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['EDIT'],
-        permission=PermissionEnum.CAN_EDIT_METADATA,
-        tooltip=format_html(_("Edit metadata"), ),
-        tooltip_placement='left', )
-
-    btns += table.get_btn(
-        href=reverse('editor:edit_access', args=(record.id,)),
-        btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['ACCESS'],
-        permission=PermissionEnum.CAN_EDIT_METADATA,
-        tooltip=format_html(_("Edit access"), ),
-        tooltip_placement='left', )
-
-    btns += table.get_btn(
-        href=reverse('editor:restore', args=(record.id,)) + f"?current-view={table.current_view}",
-        btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['UNDO'],
-        permission=PermissionEnum.CAN_EDIT_METADATA,
-        tooltip=format_html(_("Restore metadata"), ),
-        tooltip_placement='left',
-    )
-
-    btns += table.get_btn(
-        href=reverse('resource:remove', args=(record.id,)) + f"?current-view={table.current_view}",
-        btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['REMOVE'],
-        permission=PermissionEnum.CAN_REMOVE_RESOURCE,
-        tooltip=format_html(_("Remove"), ),
-        tooltip_placement='left',
-    )
-
-    if len(btns) == 0:
-        # User has no permission for anything!
-        btns = _("No permissions!")
-    return format_html(btns)
 
 
 TOOLTIP_TITLE = _('The resource title')
@@ -127,13 +57,16 @@ class PendingTaskTable(tables.Table):
         orderable = False
 
     def before_render(self, request):
-        self.bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=False)
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
     def render_status(self, value):
-        return self.bs4helper.render_list_coherent(value)
+        return format_html(self.render_helper.render_list_coherent(value))
 
     def render_actions(self, value):
-        return self.bs4helper.render_list_coherent(value)
+        self.render_helper.update_attrs = {"class": ["btn-sm"]}
+        renderd_actions = self.render_helper.render_list_coherent(items=value)
+        self.render_helper.update_attrs = None
+        return format_html(renderd_actions)
 
     @staticmethod
     def render_progress(value):
@@ -174,10 +107,10 @@ class OgcServiceTable(tables.Table):
         prefix = 'wms-table'
 
     def before_render(self, request):
-        self.bs4helper = Bootstrap4Helper(request=request)
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
     def render_title(self, record, value):
-        return Link(url=record.detail_view_uri, value=value).render(safe=True)
+        return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
     def render_last_haverest(self, value):
         harvest_result = HarvestResult.objects.filter(
@@ -197,28 +130,28 @@ class OgcServiceTable(tables.Table):
         return harvest_result.number_results if harvest_result is not None else None
 
     def render_parent_service(self, value):
-        return self.bs4helper.render_item(item=Link(url=value.detail_view_uri,
-                                                    value=value)) if value else ''
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_status(self, record):
-        return format_html(self.bs4helper.render_list_coherent(items=record.get_status_icons()))
+        return format_html(self.render_helper.render_list_coherent(items=record.get_status_icons(), safe=True))
 
     def render_health(self, record):
-        return format_html(self.bs4helper.render_list_coherent(items=record.get_health_icons()))
+        return format_html(self.render_helper.render_list_coherent(items=record.get_health_icons(), safe=True))
 
     def render_contact(self, value):
-        return Link(url=value.detail_view_uri, value=value).render(safe=True)
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_service__created_by(self, value):
-        return Link(url=value.detail_view_uri, value=value).render(safe=True)
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_service__published_for(self, value):
-        return Link(url=value.detail_view_uri, value=value).render(safe=True)
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_actions(self, record):
-        actions = record.get_actions(request=self.request)
-        rendered_actions = self.bs4helper.render_list_coherent(items=actions)
-        return format_html(rendered_actions)
+        self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
+        self.render_helper.update_attrs = None
+        return format_html(renderd_actions)
 
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(
@@ -263,13 +196,10 @@ class DatasetTable(tables.Table):
         prefix = 'wms-table'
 
     def before_render(self, request):
-        self.bs4helper = Bootstrap4Helper(request=request)
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
     def render_title(self, value, record):
-        return self.bs4helper.render_item(item=Link(url=record.detail_html_view_uri,
-                                                    value=value,
-                                                    open_in_new_tab=True),
-                                          ignore_current_view_params=True)
+        return Link(url=record.detail_html_view_uri, content=value, open_in_new_tab=True).render(safe=True)
 
     def render_related_objects(self, record):
         related_metadatas = Metadata.objects.filter(
@@ -280,21 +210,20 @@ class DatasetTable(tables.Table):
         link_list = []
         for metadata in related_metadatas:
             if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
-                kind_of_resource_icon = "WFS"
+                kind_of_resource_icon = IconEnum.FEATURETYPE.value
                 kind_of_resource = "Featuretype"
             elif metadata.metadata_type == MetadataEnum.LAYER.value:
-                kind_of_resource_icon = "LAYER"
+                kind_of_resource_icon = IconEnum.LAYER.value
                 kind_of_resource = "Layer"
             else:
-                kind_of_resource_icon = "NONE"
+                kind_of_resource_icon = ""
                 kind_of_resource = ""
-            kind_of_resource_icon = Icon(name='resource-icon',
-                                         icon=FONT_AWESOME_ICONS[kind_of_resource_icon], ).render()
+            kind_of_resource_icon = Tag(tag='i', attrs={"class": [kind_of_resource_icon]}, ).render()
 
             link_list.append(Link(url=metadata.detail_view_uri,
-                                  value=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
+                                  content=format_html(kind_of_resource_icon + f" {metadata.title} [{metadata.id}]"),
                                   tooltip=_(f'Click to open the detail view of related {kind_of_resource} <strong>{metadata.title} [{metadata.id}]"</strong>'),), )
-        return self.bs4helper.render_list_coherent(items=link_list, ignore_current_view_params=True)
+        return format_html(self.render_helper.render_list_coherent(items=link_list))
 
     def render_origins(self, record):
         related_metadatas = MetadataRelation.objects.filter(
@@ -309,9 +238,10 @@ class DatasetTable(tables.Table):
         return format_html(', '.join(origin_list))
 
     def render_actions(self, record):
-        actions = record.get_actions(request=self.request)
-        rendered_actions = self.bs4helper.render_list_coherent(items=actions)
-        return format_html(rendered_actions)
+        self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
+        self.render_helper.update_attrs = None
+        return format_html(renderd_actions)
 
 
 class FeatureTypeElementTable(tables.Table):
@@ -418,15 +348,15 @@ class ResourceDetailTable(tables.Table):
                 self.columns['bbox_lat_lon'].column.accessor = 'service__layer__bbox_lat_lon'
 
     def render_parent_service(self, value):
-        return Link(url=value.detail_view_uri, value=value).render(safe=True)
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_online_resource(self, value):
-        return Link(url=value, value=value).render(safe=True)
+        return Link(url=value, content=value).render(safe=True)
 
     def render_keywords__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(value=kw, badge_pill=True)
+            badges += Badge(content=kw, badge_pill=True)
         return format_html(badges) if value else _('No keywords provided')
 
     def render_scale_min_max(self, record):
@@ -434,18 +364,18 @@ class ResourceDetailTable(tables.Table):
 
     def render_bbox_lat_lon(self, value):
         if value.area > 0.0:
-            return LeafletClient(polygon=value).render(safe=True)
+            return None # LeafletClient(polygon=value).render(safe=True)
         else:
             return _('No spatial data provided!')
 
     def render_featuretype__default_srs(self, value):
-        badge = Badge(value=f'{value.prefix}:{value.code}', badge_pill=True).render(safe=True)
+        badge = Badge(content=f'{value.prefix}:{value.code}', badge_pill=True).render(safe=True)
         return badge if value else _('No default reference system provided')
 
     def render_reference_system__all(self, value):
         badges = ''
         for kw in value:
-            badges += Badge(value=f'{kw.prefix}:{kw.code}', badge_pill=True)
+            badges += Badge(content=f'{kw.prefix}:{kw.code}', badge_pill=True)
         return format_html(badges) if value else _('No additional reference systems provided')
 
     def render_mime_types(self, record):
@@ -462,8 +392,8 @@ class ResourceDetailTable(tables.Table):
         for key, values in mime_types.items():
             badges = ''
             for value in values:
-                badges += Badge(value=value)
-            mime_type_accordions += Accordion(accordion_title=key, accordion_body=badges)
+                badges += Badge(content=value)
+            mime_type_accordions += Accordion(btn_value=key, content=badges)
         return format_html(mime_type_accordions)
 
 

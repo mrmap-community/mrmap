@@ -24,8 +24,11 @@ from django.utils.html import format_html
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from MrMap.bootstrap4 import Icon, LinkButton, Badge, ButtonColorEnum, BadgeColorEnum
+from django_bootstrap_swt.components import LinkButton, Badge, Tag
+from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum
+
 from MrMap.cacher import DocumentCacher
+from MrMap.icons import IconEnum
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
@@ -651,30 +654,30 @@ class Metadata(Resource):
         return formats
 
     @classmethod
-    def get_add_resource_action(cls, request: HttpRequest):
-        return LinkButton(value=Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Resource'),
+    def get_add_resource_action(cls):
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource'),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('resource:add'),
-                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE)
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     @classmethod
-    def get_add_dataset_action(cls, request: HttpRequest):
-        return LinkButton(value=Icon(name='add-icon', icon=FONT_AWESOME_ICONS['ADD']).render() + _('New Dataset'),
+    def get_add_dataset_action(cls):
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset'),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('editor:dataset-metadata-wizard-new'),
-                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE)
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
-    def get_actions(self, request: HttpRequest):
+    def get_actions(self):
         actions = []
         if self.metadata_type == MetadataEnum.DATASET.value:
             # datasets can be edited,
             # removed if it is a dataset which is created from the user,
             # restored if it's customized
             actions.append(LinkButton(url=self.edit_view_uri,
-                                      value=FONT_AWESOME_ICONS["EDIT"],
+                                      content=FONT_AWESOME_ICONS["EDIT"],
                                       color=ButtonColorEnum.WARNING,
                                       tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
-                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA))
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             is_mr_map_origin = not MetadataRelation.objects.filter(
                 metadata_to=self
             ).exclude(
@@ -682,97 +685,88 @@ class Metadata(Resource):
             ).exists()
             if is_mr_map_origin:
                 actions.append(LinkButton(url=self.remove_view_uri,
-                                          value=FONT_AWESOME_ICONS["REMOVE"],
+                                          content=FONT_AWESOME_ICONS["REMOVE"],
                                           color=ButtonColorEnum.WARNING,
                                           tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
-                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA))
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             if self.is_custom:
                 actions.append(LinkButton(url=self.restore_view_uri,
-                                          value=FONT_AWESOME_ICONS["UNDO"],
+                                          content=FONT_AWESOME_ICONS["UNDO"],
                                           color=ButtonColorEnum.DANGER,
                                           tooltip=_l(f"Restore <strong>{self.title} [{self.id}]</strong> dataset"),
-                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA))
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
             actions.append(LinkButton(url=self.activate_view_uri,
-                                      value=FONT_AWESOME_ICONS["POWER_OFF"],
+                                      content=FONT_AWESOME_ICONS["POWER_OFF"],
                                       color=ButtonColorEnum.WARNING if self.is_active else ButtonColorEnum.SUCCESS,
                                       tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
-                                      needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE))
+                                      needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
             if self.service_type.name == OGCServiceEnum.CSW.value:
                 actions.append(LinkButton(url=self.harvest_view_uri,
-                                          value=FONT_AWESOME_ICONS["HARVEST"],
+                                          content=FONT_AWESOME_ICONS["HARVEST"],
                                           color=ButtonColorEnum.INFO,
                                           tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
-                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA), )
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
             else:
                 actions.extend([LinkButton(url=self.edit_view_uri,
-                                           value=FONT_AWESOME_ICONS["EDIT"],
+                                           content=FONT_AWESOME_ICONS["EDIT"],
                                            color=ButtonColorEnum.WARNING,
                                            tooltip=_l("Edit the metadata of this resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA),
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
                                 LinkButton(url=self.edit_access_view_uri,
-                                           value=FONT_AWESOME_ICONS["ACCESS"],
+                                           content=FONT_AWESOME_ICONS["ACCESS"],
                                            color=ButtonColorEnum.WARNING,
                                            tooltip=_l("Edit the access for resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA), ]
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ]
                                )
 
                 if self.is_metadata_type(MetadataEnum.SERVICE):
                     actions.extend([LinkButton(url=self.update_view_uri,
-                                               value=FONT_AWESOME_ICONS["UPDATE"],
+                                               content=FONT_AWESOME_ICONS["UPDATE"],
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Update this resource"),
-                                               needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE),
+                                               needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE.value),
                                     LinkButton(url=self.run_monitoring_view_uri,
-                                               value=FONT_AWESOME_ICONS["HEARTBEAT"],
+                                               content=FONT_AWESOME_ICONS["HEARTBEAT"],
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Run health checks for this resource"),
-                                               needs_perm=PermissionEnum.CAN_RUN_MONITORING),
+                                               needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
                                     LinkButton(url=self.remove_view_uri,
-                                               value=FONT_AWESOME_ICONS["REMOVE"],
+                                               content=FONT_AWESOME_ICONS["REMOVE"],
                                                color=ButtonColorEnum.DANGER,
                                                tooltip=_l("Remove this resource"),
-                                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE), ])
+                                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), ])
 
                 if self.is_custom:
                     actions.append(LinkButton(url=self.restore_view_uri,
-                                              value=FONT_AWESOME_ICONS["UNDO"],
+                                              content=FONT_AWESOME_ICONS["UNDO"],
                                               color=ButtonColorEnum.DANGER,
                                               tooltip=_l("Restore the metadata for resource"),
-                                              needs_perm=PermissionEnum.CAN_EDIT_METADATA), )
+                                              needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
 
         return actions
 
     def get_status_icons(self):
         icons = []
         if self.is_active:
-            icons.append(Icon(name='is-active',
-                              icon=FONT_AWESOME_ICONS["POWER_OFF"],
-                              color='text-success',
-                              tooltip=_l('This resource is active')))
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.POWER_OFF.value, TextColorEnum.SUCCESS.value]},
+                             tooltip=_l('This resource is active')))
         else:
-            icons.append(Icon(name='is-not-active',
-                              icon=FONT_AWESOME_ICONS["POWER_OFF"],
-                              color='text-danger',
-                              tooltip=_l('This resource is deactivated')))
-
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.POWER_OFF.value, TextColorEnum.DANGER.value]},
+                             tooltip=_l('This resource is deactivated')))
         if self.use_proxy_uri:
-            icons.append(Icon(name='is-not-active',
-                              icon=FONT_AWESOME_ICONS["PROXY"],
-                              tooltip=_l('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.PROXY.value]},
+                             tooltip=_l('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
         if self.log_proxy_access:
-            icons.append(Icon(name='logging-is-active',
-                              icon=FONT_AWESOME_ICONS["LOGGING"],
-                              tooltip=_l('Logging for this resource is active.')))
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.LOGGING.value]},
+                             tooltip=_l('This resource will be logged')))
         if self.is_secured:
-            icons.append(Icon(name='access-secured',
-                              icon=FONT_AWESOME_ICONS["WFS"],
-                              tooltip=_l('This resource is secured.')))
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.WFS.value]},
+                             tooltip=_l('This resource is secured')))
         if hasattr(self, 'external_authentication'):
-            icons.append(Icon(name='ext-auth-needed',
-                              icon=FONT_AWESOME_ICONS["PASSWORD"],
-                              tooltip=_l('This resource has external authentication.')))
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.PASSWORD.value]},
+                             tooltip=_l('This resource has external authentication.')))
         return icons
 
     def get_health_icons(self):
@@ -791,19 +785,16 @@ class Metadata(Resource):
                 btn_color = ButtonColorEnum.DANGER_OUTLINE
             tooltip = health_state.health_message
 
-            icon = Icon(name='healt-state',
-                        icon=FONT_AWESOME_ICONS["HEARTBEAT"],
-                        tooltip=tooltip)
+            icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, btn_color.value]},
+                       tooltip=tooltip)
         else:
             # state is unknown
             tooltip = DEFAULT_UNKNOWN_MESSAGE
-            icon = Icon(name='healt-state',
-                        icon=FONT_AWESOME_ICONS["HEARTBEAT"],
-                        color='text-secondary',)
+            icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
             icon = LinkButton(url=self.health_state_uri,
-                              value=icon.render(),
+                              content=icon.render(),
                               color=btn_color,
                               tooltip=tooltip,)
 
@@ -811,9 +802,9 @@ class Metadata(Resource):
         if health_state:
             for reason in health_state.reasons.all():
                 if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
-                    icons.append(Icon(name='auth-needed',
-                                      icon=FONT_AWESOME_ICONS['PASSWORD'],
-                                      tooltip=_l('Some checks can\'t get a result, cause the service needs an authentication for this request.')))
+                    icons.append(Tag(tag='i',
+                                     attrs={"class": [IconEnum.PASSWORD.value]},
+                                     tooltip=_l('Some checks can\'t get a result, cause the service needs an authentication for this request.')))
                     break
 
             badge_color = BadgeColorEnum.SUCCESS
@@ -823,7 +814,7 @@ class Metadata(Resource):
                 badge_color = BadgeColorEnum.WARNING
             icons.append(Badge(badge_color=badge_color,
                                badge_pill=True,
-                               value=f'{round(health_state.reliability_1w, 2)} %',
+                               content=f'{round(health_state.reliability_1w, 2)} %',
                                tooltip=_l('Reliability statistic for one week.')))
         return icons
 

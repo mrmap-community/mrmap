@@ -2,11 +2,11 @@
 {% load render_table from django_tables2 %}
 {% load i18n %}
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">{{table.title}}</h4>
+<h4 class="mb-1 mr-3">{{table.title|safe}}</h4>
 {% endblock %}
 {% block card-header-title-right %}
 {% for action in table.actions %}
-    {{action}}
+    {{action|safe}}
 {% endfor %}
 {% endblock %}
 {% block card-body %}

@@ -1,4 +1,4 @@
-<div id="{{modal_id}}" class="modal {% if fade %} fade {% endif %} " tabindex="-1" role="document">
+<div id="{{modal_id}}" class="modal {% if fade %} fade {% endif %} " tabindex="-1" role="document" {% if fetch_url %}data-url="{{fetch_url}}"{% endif %}>
   <div class="modal-dialog {% if size %} {{size.value}} {% endif%}">
     <div class="modal-content">
       <div class="modal-header">
@@ -18,5 +18,3 @@
     </div>
   </div>
 </div>
-{% block ajax_script %}
-{% endblock %}

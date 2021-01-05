@@ -2,13 +2,15 @@ import uuid
 from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 import json
 
-from MrMap.bootstrap4 import LinkButton, Icon, ButtonColorEnum
+from django_bootstrap_swt.components import LinkButton, Tag
+from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum
+
+from MrMap.icons import IconEnum
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
@@ -63,12 +65,12 @@ class PendingTask(models.Model):
     @property
     def action_buttons(self):
         actions = [LinkButton(url=self.remove_view_uri,
-                              value=FONT_AWESOME_ICONS["WINDOW_CLOSE"],
+                              content=FONT_AWESOME_ICONS["WINDOW_CLOSE"],
                               color=ButtonColorEnum.DANGER,
                               tooltip=_("Cancle this task"), )]
         if self.error_report:
             actions.insert(0, LinkButton(url=self.error_report_uri,
-                                         value=FONT_AWESOME_ICONS["CSW"],
+                                         content=FONT_AWESOME_ICONS["CSW"],
                                          color=ButtonColorEnum.WARNING,
                                          tooltip=_("Download the error report as text file."), ))
         return actions
@@ -77,15 +79,12 @@ class PendingTask(models.Model):
     def status_icons(self):
         json_description = json.loads(self.description)
         if 'ERROR' in json_description.get('phase', ""):
-            return [Icon(name='error',
-                         icon=FONT_AWESOME_ICONS['ERROR'],
-                         color='text-danger',
-                         tooltip='This task stopped with error.', )]
+            status = [Tag(tag='i', attrs={"class": [IconEnum.ERROR.value, TextColorEnum.DANGER.value]},
+                          tooltip='This task stopped with error.', )]
         else:
-            return [Icon(name='running',
-                         icon=FONT_AWESOME_ICONS['PLAY'],
-                         color='text-success',
-                         tooltip='This task is still running.', )]
+            status = [Tag(tag='i', attrs={"class": [IconEnum.PLAY.value, TextColorEnum.SUCCESS.value]},
+                          tooltip='This task is still running.', )]
+        return status
 
     @property
     def remove_view_uri(self):

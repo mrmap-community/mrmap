@@ -8,10 +8,26 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.responses import DefaultContext
 from users.helper import user_helper
-import random
-import string
 
 CURRENT_VIEW_QUERY_PARAM = 'current-view'
+CURRENT_VIEW_ARG_QUERY_PARAM = 'current-view-arg'
+
+
+def get_current_view_args(request: HttpRequest):
+    current_view = request.GET.get(CURRENT_VIEW_QUERY_PARAM, request.resolver_match.view_name)
+    if request.resolver_match.kwargs:
+        # if kwargs are not empty, this is a detail view
+        if 'pk' in request.resolver_match.kwargs:
+            current_view_arg = request.resolver_match.kwargs['pk']
+        else:
+            current_view_arg = request.resolver_match.kwargs['slug']
+        current_view_arg = request.GET.get('current-view-arg', current_view_arg)
+        url_qs_dict = {CURRENT_VIEW_QUERY_PARAM: current_view,
+                       CURRENT_VIEW_ARG_QUERY_PARAM: current_view_arg}
+    else:
+        url_qs_dict = {CURRENT_VIEW_QUERY_PARAM: current_view}
+
+    return url_qs_dict
 
 
 class MrMapModalForm:

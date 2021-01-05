@@ -14,26 +14,27 @@ from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, TemplateView, DetailView
+from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
+    Badge, Accordion, Card, CardHeader
+from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
+from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
-
-from MrMap.bootstrap4 import Bootstrap4Helper, Icon, Accordion, Modal, ModalSizeEnum, \
-    Dropdown, Link, TooltipPlacementEnum, ListGroup, ButtonGroup, ListGroupItem, ButtonColorEnum, Badge
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
+from MrMap.forms import get_current_view_args
+from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
-from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION, ROOT_URL
+from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.utils import get_theme
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter, \
-    OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter
+from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -51,10 +52,10 @@ from service.models import Metadata, Layer, Service, Document, Style, ProxyLog, 
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
-from structure.models import MrMapUser, PendingTask
+from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
-from django.urls import reverse, resolve
+from django.urls import reverse
 
 from users.models import Subscription
 
@@ -102,8 +103,7 @@ class PendingTaskView(SingleTableMixin, ListView):
         # set some custom attributes for template rendering
         table = super(PendingTaskView, self).get_table(**kwargs)
         if table.data.data:
-            table.title = format_html(Icon(name='pending-tasks-icon',
-                                           icon=FONT_AWESOME_ICONS['PENDINGTASKS']) + _('Pending tasks'))
+            table.title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Pending tasks')
         else:
             self.template_name = 'generic_views/empty.html'
         return table
@@ -134,10 +134,11 @@ class WmsIndexView(SingleTableMixin, FilterView):
         else:
             table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
 
-        table.title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']) + 'WMS')
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + _(' WMS')
 
-        bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_resource_action(request=self.request))]
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -160,10 +161,11 @@ class WfsIndexView(SingleTableMixin, FilterView):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
         table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
-        table.title = format_html(Icon(name='wfs-icon', icon=FONT_AWESOME_ICONS['WFS']) + 'WFS')
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.WFS.value]}) + _(' WFS')
 
-        bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_resource_action(request=self.request))]
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -186,10 +188,11 @@ class CswIndexView(SingleTableMixin, FilterView):
         # set some custom attributes for template rendering
         table = super(CswIndexView, self).get_table(**kwargs)
         table.exclude = ('parent_service', 'layers', 'featuretypes', 'health', 'service__published_for')
-        table.title = format_html(Icon(name='csw-icon', icon=FONT_AWESOME_ICONS['CSW']) + 'CSW')
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.CSW.value]}) + _(' CSW')
 
-        bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_resource_action(request=self.request))]
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -211,10 +214,11 @@ class DatasetIndexView(SingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(DatasetIndexView, self).get_table(**kwargs)
-        table.title = format_html(Icon(name='csw-icon', icon=FONT_AWESOME_ICONS['DATASET']) + 'Dataset')
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.DATASET.value]}) + _(' Dataset')
 
-        bs4helper = Bootstrap4Helper(request=self.request)
-        table.actions = [bs4helper.render_item(item=Metadata.get_add_dataset_action(request=self.request))]
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -282,7 +286,6 @@ def add(request: HttpRequest):
 
         Args:
             request (HttpRequest): The incoming request
-            user (User): The performing user
         Returns:
              params (dict): The rendering parameter
     """
@@ -906,24 +909,29 @@ class ResourceRelatedDatasetView(DetailView):
         if related_datasets:
             item_list = []
             for related_dataset in related_datasets:
-                link_to_dataset = Link(url=related_dataset.detail_view_uri, value=related_dataset.title)
+                link_to_dataset = Link(url=related_dataset.detail_view_uri, content=related_dataset.title)
 
                 metadata_xml = Link(url=related_dataset.service_metadata_uri,
-                                    value=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'),
+                                    content=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'),
                                     open_in_new_tab=True)
                 metadata_html = Link(url=related_dataset.html_metadata_uri,
-                                     value=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'),
+                                     content=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'),
                                      open_in_new_tab=True)
 
-                dataset_metadata_dropdown = Dropdown(value=FONT_AWESOME_ICONS['METADATA'] + _(' Metadata'),
+                dataset_metadata_dropdown = Dropdown(btn_value=FONT_AWESOME_ICONS['METADATA'] + _(' Metadata'),
                                                      items=[metadata_xml, metadata_html],
                                                      color=ButtonColorEnum.SECONDARY,
                                                      header=_l('Show metadata as:'))
 
-                bs4helper = Bootstrap4Helper(request=self.request, add_current_view_params=True)
-                right = bs4helper.render_list_coherent(items=related_dataset.get_actions(request=self.request))
+                render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                             update_url_qs=get_current_view_args(request=self.request),
+                                             update_attrs={"class": ["btn-sm", "mr-1"]})
+                right = render_helper.render_list_coherent(items=related_dataset.get_actions())
 
-                item_list.append(ListGroupItem(left=link_to_dataset, center=dataset_metadata_dropdown, right=right))
+                item_content = DefaultHeaderRow(content_left=link_to_dataset.render(),
+                                                content_center=dataset_metadata_dropdown.render(),
+                                                content_right=right)
+                item_list.append(ListGroupItem(content=item_content.render()))
 
             dataset_list = ListGroup(items=item_list)
 
@@ -945,9 +953,11 @@ class ResourceTreeView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update({'tree_style': True})
-        bs4helper = Bootstrap4Helper(request=self.request)
-        actions = self.object.get_actions(request=self.request)
-        context['object'].actions = bs4helper.render_list_coherent(actions)
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request),
+                                     update_attrs={"class": ["btn-sm", "mr-1"]})
+        actions = self.object.get_actions()
+        context['object'].actions = render_helper.render_list_coherent(items=actions)
 
         card_body = ''
         root_details = None
@@ -955,42 +965,39 @@ class ResourceTreeView(DetailView):
         sub_elements = None
         if self.object.is_metadata_type(MetadataEnum.SERVICE):
             root_details = Modal(title=f'Details of {self.object.title}',
-                                 modal_body='',
+                                 body='',
                                  fetch_url=reverse('resource:detail-table', args=[self.object.pk]),
-                                 btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ) + _(' Details'),
-                                 btn_color=ButtonColorEnum.SECONDARY,
+                                 btn_content=Tag(tag='i', attrs={"class": [IconEnum.INFO.value]}) + _(' Details'),
+                                 btn_attrs={"class": [ButtonColorEnum.SECONDARY.value, "mr-1"]},
                                  btn_tooltip=_l('Open details'),
                                  size=ModalSizeEnum.LARGE,)
 
-            capabilities_original = Link(url=self.object.capabilities_original_uri, value=_('Original'),
+            capabilities_original = Link(url=self.object.capabilities_original_uri, content=_('Original'),
                                          open_in_new_tab=True)
-            capabilities_current = Link(url=self.object.capabilities_uri, value=_('Current'),
+            capabilities_current = Link(url=self.object.capabilities_uri, content=_('Current'),
                                         open_in_new_tab=True)
-            capabilities_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']) + _(' Capabilities'),
+            capabilities_dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.CAPABILITIES.value]}) + _(' Capabilities'),
                                              items=[capabilities_original, capabilities_current],
                                              color=ButtonColorEnum.SECONDARY,
                                              tooltip=_l('Show capabilities'),
-                                             header=_l('See current or original:'))
+                                             header=_l('See current or original:'),
+                                             btn_attrs={"class": ['mr-1']})
 
             if self.object.is_service_type(enum=OGCServiceEnum.WMS):
-                context['object'].title = format_html(Icon(name='wms-icon', icon=FONT_AWESOME_ICONS['WMS']) +
-                                                      context['object'].title)
+                context['object'].title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + f" {context['object'].title}"
                 sub_elements = Layer.objects.filter(parent_service=self.object.service,
                                                     parent_layer=None).prefetch_related('metadata')
 
             elif self.object.is_service_type(enum=OGCServiceEnum.WFS):
-                context['object'].title = format_html(Icon(name='wfs-icon', icon=FONT_AWESOME_ICONS['WFS']) +
-                                                      context['object'].title)
+                context['object'].title = Tag(tag='i', attrs={"class": [IconEnum.WFS.value]}) + f" {context['object'].title}"
                 sub_elements = self.object.service.featuretypes.all().prefetch_related('elements')
 
         elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
-            context['object'].title = format_html(Icon(name='featuretype-icon', icon=FONT_AWESOME_ICONS['FEATURETYPE']) +
-                                                  context['object'].title)
+            context['object'].title = Tag(tag='i', attrs={"class": [IconEnum.FEATURETYPE.value]}) + f" {context['object'].title}"
             sub_elements = self.object.featuretype.elements.all()
 
         elif self.object.is_metadata_type(MetadataEnum.LAYER):
-            context['object'].title = format_html(Icon(name='layer-icon', icon=FONT_AWESOME_ICONS['LAYER']) +
-                                                  context['object'].title)
+            context['object'].title = Tag(tag='i', attrs={"class": [IconEnum.LAYER.value]}) + f" {context['object'].title}"
             sub_elements = Layer.objects.filter(parent_layer=self.object.service).prefetch_related('metadata')
 
         if sub_elements:
@@ -1002,26 +1009,25 @@ class ResourceTreeView(DetailView):
             else:
                 for sub_element in sub_elements:
                     details = Modal(title=f'Details of {sub_element.metadata.title}',
-                                    modal_body='',
-                                    btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['INFO'], ) + _(' Details'),
-                                    btn_color=ButtonColorEnum.SECONDARY,
+                                    body='',
+                                    btn_content=Tag(tag='i', attrs={"class": [IconEnum.INFO.value]}) + _(' Details'),
+                                    btn_attrs={"class": [ButtonColorEnum.SECONDARY.value, "mr-1"]},
                                     btn_tooltip=_l('Open details'),
                                     fetch_url=sub_element.metadata.detail_table_view_uri,
                                     size=ModalSizeEnum.LARGE)
 
                     metadata_xml = Link(url=sub_element.metadata.service_metadata_uri,
-                                        value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']) + _(
-                                            ' XML'),
+                                        content=Tag(tag='i', attrs={"class": [IconEnum.CAPABILITIES.value]}) + _(' XML'),
                                         open_in_new_tab=True)
                     metadata_html = Link(url=sub_element.metadata.html_metadata_uri,
-                                         value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']) + _(
-                                             ' HTML'),
+                                         content=Tag(tag='i', attrs={"class": [IconEnum.NEWSPAPER.value]}) + _(' HTML'),
                                          open_in_new_tab=True)
-                    metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Metadata'),
+                    metadata_dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.METADATA.value]}) + _(' Metadata'),
                                                  items=[metadata_xml, metadata_html],
                                                  color=ButtonColorEnum.SECONDARY,
                                                  tooltip=_l('Show metadata'),
-                                                 header=_l('Show metadata as:'))
+                                                 header=_l('Show metadata as:'),
+                                                 btn_attrs={"class": ["mr-1"]})
 
                     sub_element_icon = ''
                     if sub_element.metadata.is_metadata_type(MetadataEnum.LAYER):
@@ -1031,32 +1037,42 @@ class ResourceTreeView(DetailView):
                         sub_element_icon = FONT_AWESOME_ICONS['FEATURETYPE'] + ' '
                         sub_sub_elements_count = sub_element.elements.count()
 
-                    accordion_title = sub_element_icon + sub_element.metadata.title + Badge(value=sub_sub_elements_count)
+                    accordion_title = sub_element_icon + sub_element.metadata.title + ' ' + Badge(content=sub_sub_elements_count)
                     accordion_title_center = f'{details}{details.button}{metadata_dropdown}'
 
                     related_datasets = sub_element.metadata.get_related_dataset_metadata(count=True)
                     if related_datasets > 0:
-                        dataset_modal = Modal(title=_l('Related datasets of ') + sub_element.metadata.title, modal_body='',
+                        dataset_modal = Modal(title=_l('Related datasets of ') + sub_element.metadata.title, body='',
                                               fetch_url=sub_element.metadata.detail_related_datasets_view_uri,
-                                              btn_value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Datasets') + Badge(value=related_datasets),
-                                              btn_color=ButtonColorEnum.SECONDARY,
+                                              btn_content=Tag(tag='i', attrs={"class": [IconEnum.METADATA.value]}) + _(' Datasets ') + Badge(content=related_datasets),
+                                              btn_attrs={"class": [ButtonColorEnum.SECONDARY.value]},
                                               size=ModalSizeEnum.LARGE)
                         accordion_title_center += dataset_modal.button + dataset_modal
 
-                    sub_element_accordions += Accordion(accordion_title=accordion_title,
-                                                        accordion_title_center=accordion_title_center,
-                                                        accordion_title_right=bs4helper.render_list_coherent(items=sub_element.metadata.get_actions(request=self.request)),
-                                                        fetch_url=sub_element.metadata.detail_view_uri + '?with-base=False')
+                    if sub_sub_elements_count > 0:
+                        sub_element_accordions += Accordion(btn_value=accordion_title,
+                                                            header_center_content=accordion_title_center,
+                                                            header_right_content=render_helper.render_list_coherent(items=sub_element.metadata.get_actions()),
+                                                            fetch_url=sub_element.metadata.detail_view_uri + '?with-base=False',
+                                                            card_attrs={"style": ["overflow: inherit;"],
+                                                                        "class": ["mb-1"]})
+                    else:
+                        content = DefaultHeaderRow(content_left=accordion_title,
+                                                   content_center=accordion_title_center,
+                                                   content_right=render_helper.render_list_coherent(items=sub_element.metadata.get_actions()))
+                        card_header = CardHeader(content=content.render())
+                        card_header.update_attributes(update_attrs={"class": ["mb-1"]})
+                        sub_element_accordions += card_header
 
             card_body += sub_element_accordions
 
         metadata_xml = Link(url=self.object.service_metadata_uri,
-                            value=Icon(name='', icon=FONT_AWESOME_ICONS['CAPABILITIES']) + _(' XML'),
+                            content=Tag(tag='i', attrs={"class": [IconEnum.CAPABILITIES.value]}) + _(' XML'),
                             open_in_new_tab=True)
         metadata_html = Link(url=self.object.html_metadata_uri,
-                             value=Icon(name='', icon=FONT_AWESOME_ICONS['NEWSPAPER']) + _(' HTML'),
+                             content=Tag(tag='i', attrs={"class": [IconEnum.NEWSPAPER.value]}) + _(' HTML'),
                              open_in_new_tab=True)
-        metadata_dropdown = Dropdown(value=Icon(name='', icon=FONT_AWESOME_ICONS['METADATA']) + _(' Metadata'),
+        metadata_dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.METADATA.value]}) + _(' Metadata'),
                                      color=ButtonColorEnum.SECONDARY,
                                      items=[metadata_xml, metadata_html],
                                      tooltip=_l('Show metadata'),
@@ -1069,7 +1085,7 @@ class ResourceTreeView(DetailView):
         context.update({
             'card_header_title_left': context['object'].title,
             'card_header_title_center': card_header_title_center,
-            'card_header_title_right': bs4helper.render_list_coherent(items=actions),
+            'card_header_title_right': render_helper.render_list_coherent(items=actions),
             'card_body': card_body
         })
         context = DefaultContext(request=self.request, context=context).get_context()

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
+    'django_bootstrap_swt'
 ]
 if DEBUG:
     INSTALLED_APPS.append(
@@ -94,7 +95,7 @@ if DEBUG:
 TEMPLATE_LOADERS = (
     'django.template.loaders.structure.mr_map_filters.py',
     'django.template.loaders.structure.template_filters.py',
-
+    'django.template.loaders.app_directories.Loader'
 )
 
 MIDDLEWARE = [

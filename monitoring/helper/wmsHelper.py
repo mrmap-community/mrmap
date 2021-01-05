@@ -101,7 +101,7 @@ class WmsHelper:
             return
 
         version = self.service.service_type.version
-        service_type = self.service.service_type.name
+        service_type = self.service.service_type.name.value
 
         queries = [
             ('REQUEST', request_type),

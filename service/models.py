@@ -702,7 +702,7 @@ class Metadata(Resource):
                                       color=ButtonColorEnum.WARNING if self.is_active else ButtonColorEnum.SUCCESS,
                                       tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
                                       needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
-            if self.service_type.name == OGCServiceEnum.CSW.value:
+            if self.is_service_type(OGCServiceEnum.CSW):
                 actions.append(LinkButton(url=self.harvest_view_uri,
                                           content=FONT_AWESOME_ICONS["HARVEST"],
                                           color=ButtonColorEnum.INFO,
@@ -978,7 +978,7 @@ class Metadata(Resource):
         Returns:
              True|False
         """
-        return self.service_type.name == enum.value
+        return self.service_type == enum
 
     def get_described_element(self):
         """ Simple getter to return the 'real' described element.
@@ -1469,7 +1469,7 @@ class Metadata(Resource):
         """ Performs a check on which service type is described by the metadata record
 
         Returns:
-             service_type (str): The service type as string ('wms' or 'wfs')
+             service_type (OGCServiceEnum): The service type as OGCServiceEnum
         """
         service_type = None
         if self.is_root():
@@ -1512,11 +1512,11 @@ class Metadata(Resource):
 
         """
         if self.metadata_type == MetadataEnum.SERVICE.value:
-            if self.service.service_type.name == OGCServiceEnum.WMS.value:
+            if self.service.service_type.name.value == OGCServiceEnum.WMS.value:
                 children = Layer.objects.filter(
                     parent_service__metadata=self
                 )
-            elif self.service.service_type.name == OGCServiceEnum.WFS.value:
+            elif self.service.service_type.name.value == OGCServiceEnum.WFS.value:
                 children = FeatureType.objects.filter(
                     parent_service__metadata=self
                 )
@@ -2850,7 +2850,7 @@ class Category(Resource):
 
 
 class ServiceType(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, choices=OGCServiceEnum.as_choices())
     version = models.CharField(max_length=100, choices=OGCServiceVersionEnum.as_choices())
     specification = models.URLField(blank=False, null=True)
 

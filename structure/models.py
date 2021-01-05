@@ -20,6 +20,7 @@ from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
 class ErrorReport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     message = models.TextField()
     traceback = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -69,10 +70,10 @@ class PendingTask(models.Model):
                               color=ButtonColorEnum.DANGER,
                               tooltip=_("Cancle this task"), )]
         if self.error_report:
-            actions.insert(0, LinkButton(url=self.error_report_uri,
-                                         content=FONT_AWESOME_ICONS["CSW"],
-                                         color=ButtonColorEnum.WARNING,
-                                         tooltip=_("Download the error report as text file."), ))
+            actions.append(LinkButton(url=self.error_report_uri,
+                                      content=FONT_AWESOME_ICONS["CSW"],
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_("Download the error report as text file."), ))
         return actions
 
     @property
@@ -92,7 +93,7 @@ class PendingTask(models.Model):
 
     @property
     def error_report_uri(self):
-        return reverse('structure:generate-error-report', args=(self.error_report.primary_key,))
+        return reverse('structure:generate-error-report', args=(self.error_report.pk,))
 
 
 class Permission(models.Model):

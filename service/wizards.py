@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 
-from MrMap.decorators import ownership_required, permission_required
+from MrMap.decorators import permission_required
 from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
 from django.contrib import messages

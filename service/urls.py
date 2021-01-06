@@ -5,19 +5,19 @@ from service.views import *
 app_name = 'resource'
 urlpatterns = [
     # index views
-    path('', login_required(ResourceIndexView.as_view()), name='index'),
-    path('pending-tasks/', login_required(PendingTaskView.as_view()), name="pending-tasks"),
-    path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),
-    path('wfs/', login_required(WfsIndexView.as_view()), name='wfs-index'),
-    path('csw/', login_required(CswIndexView.as_view()), name='csw-index'),
-    path('datasets/', login_required(DatasetIndexView.as_view()), name='datasets-index'),
-    path('logs/', login_required(LogsIndexView.as_view()), name='logs-view'),
+    path('', ResourceIndexView.as_view(), name='index'),
+    path('pending-tasks/', PendingTaskView.as_view(), name="pending-tasks"),
+    path('wms/', WmsIndexView.as_view(), name='wms-index'),
+    path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
+    path('csw/', CswIndexView.as_view(), name='csw-index'),
+    path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
+    path('logs/', LogsIndexView.as_view(), name='logs-view'),
 
     # detail view
     # todo: implement detail view for csw
-    path('<pk>', login_required(ResourceTreeView.as_view()), name='detail'),
-    path('<pk>/table', login_required(ResourceDetailTableView.as_view()), name='detail-table'),
-    path('<pk>/related-datasets', login_required(ResourceRelatedDatasetView.as_view()), name='detail-related-datasets'),
+    path('<pk>', ResourceTreeView.as_view(), name='detail'),
+    path('<pk>/table', ResourceDetailTableView.as_view(), name='detail-table'),
+    path('<pk>/related-datasets', ResourceRelatedDatasetView.as_view(), name='detail-related-datasets'),
 
     # html metadata detail view
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),

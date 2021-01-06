@@ -10,6 +10,7 @@ from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
@@ -95,6 +96,7 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum):
     ).order_by("title")
 
 
+@method_decorator(login_required, name='dispatch')
 class PendingTaskView(SingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTable
@@ -113,6 +115,7 @@ class PendingTaskView(SingleTableMixin, ListView):
         return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
 
 
+@method_decorator(login_required, name='dispatch')
 class WmsIndexView(SingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
@@ -152,6 +155,7 @@ class WmsIndexView(SingleTableMixin, FilterView):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
 
 
+@method_decorator(login_required, name='dispatch')
 class WfsIndexView(SingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
@@ -179,6 +183,7 @@ class WfsIndexView(SingleTableMixin, FilterView):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WFS)
 
 
+@method_decorator(login_required, name='dispatch')
 class CswIndexView(SingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
@@ -206,6 +211,7 @@ class CswIndexView(SingleTableMixin, FilterView):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.CSW)
 
 
+@method_decorator(login_required, name='dispatch')
 class DatasetIndexView(SingleTableMixin, FilterView):
     model = Metadata
     table_class = DatasetTable
@@ -229,6 +235,7 @@ class DatasetIndexView(SingleTableMixin, FilterView):
         return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups())
 
 
+@method_decorator(login_required, name='dispatch')
 class ResourceIndexView(TemplateView):
     """
     This is the wrapper view, you include the inline view inside the
@@ -882,6 +889,7 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
         return None
 
 
+@method_decorator(login_required, name='dispatch')
 class ResourceDetailTableView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
@@ -896,6 +904,7 @@ class ResourceDetailTableView(DetailView):
         return context
 
 
+@method_decorator(login_required, name='dispatch')
 class ResourceRelatedDatasetView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
@@ -939,6 +948,8 @@ class ResourceRelatedDatasetView(DetailView):
         return context
 
 
+@method_decorator(login_required, name='dispatch')
+# ToDo: @method_decorator(check_ownership(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceTreeView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_with_base.html'
@@ -1207,6 +1218,7 @@ def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     return HttpResponse(response, content_type="")
 
 
+@method_decorator(login_required, name='dispatch')
 class LogsIndexView(ExportMixin, SingleTableMixin, FilterView):
     model = ProxyLog
     table_class = ProxyLogTable

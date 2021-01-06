@@ -1,10 +1,12 @@
 import csv
 
 import django_tables2 as tables
+from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
 from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
 from django_bootstrap_swt.utils import RenderHelper
+from django_tables2.export import TableExport
 
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum
@@ -14,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
 from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import MetadataRelation, Metadata, FeatureTypeElement
+from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
 from structure.models import PendingTask
 
 
@@ -456,49 +458,16 @@ class UpdateServiceElements(MrMapTable):
     identifier = tables.Column(empty_values=[], )
 
 
-class ProxyLogTable(MrMapTable):
+class ProxyLogTable(tables.Table):
     caption = _("Shows all logs for a service.")
+    user = tables.Column(default='Public group')
 
     class Meta:
-        row_attrs = {
-            "class": "text-center"
-        }
-
-    metadata_id = MrMapColumn(
-        accessor='metadata.id',
-        verbose_name=_('Service ID'),
-        tooltip=_("The title of the related service")
-    )
-    metadata_title = MrMapColumn(
-        accessor='metadata.title',
-        verbose_name=_('Service Title'),
-        tooltip=_("The title of the related service")
-    )
-    user_name = MrMapColumn(
-        accessor='user',
-        verbose_name=_('User'),
-        tooltip=_("Name of the user which produced this log entry")
-    )
-    timestamp = MrMapColumn(
-        accessor='timestamp',
-        verbose_name=_('Timestamp'),
-        tooltip=_("Timestamp when the entry was produced")
-    )
-    operation = MrMapColumn(
-        accessor='operation',
-        tooltip=_("Operation param of the request"),
-        verbose_name=_('Operation'),
-    )
-    megapixel = MrMapColumn(
-        accessor='response_wms_megapixel',
-        tooltip=_("Delivered megapixel of map material"),
-        verbose_name=_('Response megapixel'),
-    )
-    features = MrMapColumn(
-        accessor='response_wfs_num_features',
-        tooltip=_("Delivered number of features"),
-        verbose_name=_('Response features'),
-    )
+        model = ProxyLog
+        fields = ('metadata__id', 'metadata__title', 'timestamp', 'operation', 'response_wms_megapixel', 'response_wfs_num_features')
+        sequence = ('metadata__id', 'metadata__title', 'user', '...')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'proxy-log-table'
 
     def fill_csv_response(self, stream):
         csv_writer = csv.writer(stream)

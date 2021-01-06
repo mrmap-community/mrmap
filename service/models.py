@@ -24,7 +24,7 @@ from django.utils.html import format_html
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django_bootstrap_swt.components import LinkButton, Badge, Tag
+from django_bootstrap_swt.components import LinkButton, Badge, Tag, Dropdown, Link
 from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum
 
 from MrMap.cacher import DocumentCacher

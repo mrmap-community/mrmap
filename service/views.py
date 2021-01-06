@@ -15,11 +15,12 @@ from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, TemplateView, DetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
-    Badge, Accordion, Card, CardHeader
+    Badge, Accordion, CardHeader
 from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
+from django_tables2.export import ExportMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
@@ -34,19 +35,18 @@ from MrMap.messages import SERVICE_UPDATED, \
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter
+from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
-from service.helper.logger_helper import prepare_proxy_log_filter
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
-    FeatureTypeElementTable
+    FeatureTypeElementTable, ProxyLogTable
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog, FeatureTypeElement
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -229,7 +229,7 @@ class DatasetIndexView(SingleTableMixin, FilterView):
         return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups())
 
 
-class ResourceView(TemplateView):
+class ResourceIndexView(TemplateView):
     """
     This is the wrapper view, you include the inline view inside the
     wrapper view get_context_data.
@@ -237,7 +237,7 @@ class ResourceView(TemplateView):
     template_name = "generic_views/wrapper_template.html"
 
     def get_context_data(self, **kwargs):
-        context = super(ResourceView, self).get_context_data(**kwargs)
+        context = super(ResourceIndexView, self).get_context_data(**kwargs)
         context.update(kwargs.get('update_params', {}))
         context = DefaultContext(request=self.request, context=context).get_context()
 
@@ -1206,113 +1206,44 @@ def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     response = con.content
     return HttpResponse(response, content_type="")
 
-# Todo
-class LogsIndexView(SingleTableMixin, FilterView):
-    model = Metadata
-    table_class = OgcServiceTable
-    filterset_class = OgcWmsFilter
 
-    def get_filterset_kwargs(self, *args):
-        kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
-        if kwargs['data'] is None:
-            kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
-        return kwargs
+class LogsIndexView(ExportMixin, SingleTableMixin, FilterView):
+    model = ProxyLog
+    table_class = ProxyLogTable
+    filterset_class = ProxyLogTableFilter
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
-        table = super(WmsIndexView, self).get_table(**kwargs)
-        # whether whole services or single layers should be displayed, we have to exclude some columns
-        filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
-        if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records', )
-        else:
-            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
-
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + _(' WMS')
+        table = super(LogsIndexView, self).get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.LOGS.value]}) + _(' Logs')
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
-        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
+
+        # append export links
+        query_trailer_sign = "?"
+        if self.request.GET:
+            query_trailer_sign = "&"
+        csv_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=csv", content=".csv")
+        json_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=json", content=".json")
+
+        dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.DOWNLOAD.value]}) + _(" Export as"),
+                            items=[csv_download_link, json_download_link],
+                            needs_perm=PermissionEnum.CAN_ACCESS_LOGS.value)
+        table.actions = [render_helper.render_item(item=dropdown)]
         return table
 
     def dispatch(self, request, *args, **kwargs):
-        # we inject the pending task ajax template above the default content to support polling the dynamic content
-        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
-        extra_context.update(kwargs.get('update_params', {}))
-        default_dispatch(instance=self, extra_context=extra_context)
-        return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
+        default_dispatch(instance=self)
+        self.export_name = f'MrMap_logs_{timezone.now().strftime("%Y-%m-%dT%H_%M_%S")}'
+        return super(LogsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
+        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups())
 
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_ACCESS_LOGS
-)
-def logs_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a view for the ProxyLog entries
-
-    Possible parameters for log filtering are:
-        * ds (date-start): Date-time string
-        * de (date-end): Date-time string
-        * u (user): Id of a user
-        * g (group): Id of a group
-        * t (type): 'wms'|'wfs'
-
-    Args:
-        request (HttpRequest):
-    Returns:
-
-    """
-    template = "views/log_index.html"
-    user = user_helper.get_user(request)
-
-    params = {
-        "log_table": prepare_proxy_log_filter(
-            request=request,
-            user=user,
-            current_view='resource:logs-view'
-        ),
-        "current_view": 'resource:logs-view',
-    }
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
-
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_DOWNLOAD_LOGS
-)
-def logs_download(request: HttpRequest):
-    """ Provides the filtered ProxyLog table as csv download.
-
-    CSV is the only provided file type.
-
-    Args:
-        request (HttpRequest):
-    Returns:
-
-    """
-    user = user_helper.get_user(request)
-    CSV = "text/csv"
-    # ToDo: current_view parameter should be dynamic
-    proxy_log_table = prepare_proxy_log_filter(request=request, user=user, current_view='resource:logs-view')
-
-    # Create empty response object and fill it with dynamic csv content
-    stream = io.StringIO()
-    timestamp_now = timezone.now()
-    data = proxy_log_table.fill_csv_response(stream)
-
-    data_size = len(data)
-    # Stream files larger than 100 MB
-    if data_size > 100 * 1024 * 1024:
-        response = StreamingHttpResponse(data, content_type=CSV)
-    else:
-        response = HttpResponse(data, content_type=CSV)
-
-    response['Content-Disposition'] = f'attachment; filename="MrMap_logs_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.csv"'
-    return response
+        return ProxyLog.objects.filter(
+            metadata__in=group_metadatas
+        ).prefetch_related(
+            "metadata",
+            "user"
+        )

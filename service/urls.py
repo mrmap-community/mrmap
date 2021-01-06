@@ -5,14 +5,13 @@ from service.views import *
 app_name = 'resource'
 urlpatterns = [
     # index views
-    path('', login_required(ResourceView.as_view()), name='index'),
+    path('', login_required(ResourceIndexView.as_view()), name='index'),
     path('pending-tasks/', login_required(PendingTaskView.as_view()), name="pending-tasks"),
     path('wms/', login_required(WmsIndexView.as_view()), name='wms-index'),
     path('wfs/', login_required(WfsIndexView.as_view()), name='wfs-index'),
     path('csw/', login_required(CswIndexView.as_view()), name='csw-index'),
     path('datasets/', login_required(DatasetIndexView.as_view()), name='datasets-index'),
-    # todo: refactor this view as a class based generic view
-    path('logs/', logs_view, name='logs-view'),
+    path('logs/', login_required(LogsIndexView.as_view()), name='logs-view'),
 
     # detail view
     # todo: implement detail view for csw
@@ -35,7 +34,7 @@ urlpatterns = [
     path('dismiss-pending-update/<metadata_id>', dismiss_pending_update_service, name='dismiss-pending-update'),
     path('run-update/<metadata_id>', run_update_service, name='run-update'),
 
-    path('logs/download/', logs_download, name='logs-download'),
+    #path('logs/download/', logs_download, name='logs-download'),
 
     # serivce urls
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),

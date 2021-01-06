@@ -20,3 +20,5 @@ class IconEnum(Enum):
     METADATA = "fas fa-file-alt"
     ERROR = "fas fa-exclamation-circle"
     PLAY = "fas fa-play"
+    LOGS = "fas fa-stethoscope"
+    DOWNLOAD = "fas fa-download"

@@ -6,7 +6,7 @@ from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
-from MrMap.decorator import check_permission, check_ownership
+from MrMap.decorators import ownership_required
 from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER
 from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
@@ -219,7 +219,7 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
 
 
 @login_required
-@check_ownership(MrMapGroup, 'object_id')
+@ownership_required(MrMapGroup, 'object_id')
 def detail_group(request: HttpRequest, object_id: int, update_params=None, status_code=None):
     """ Renders an overview of a group's details.
 
@@ -321,8 +321,8 @@ def generate_error_report(request: HttpRequest, report_id: int):
 
 
 @login_required
-@check_permission(PermissionEnum.CAN_EDIT_ORGANIZATION)
-@check_ownership(Organization, 'object_id')
+#@check_permission(PermissionEnum.CAN_EDIT_ORGANIZATION)
+@ownership_required(Organization, 'object_id')
 def edit_org(request: HttpRequest, object_id: int):
     """ The edit view for changing organization values
 
@@ -347,10 +347,8 @@ def edit_org(request: HttpRequest, object_id: int):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_DELETE_ORGANIZATION
-)
-@check_ownership(Organization, 'object_id')
+#@check_permission(PermissionEnum.CAN_DELETE_ORGANIZATION)
+@ownership_required(Organization, 'object_id')
 def remove_org(request: HttpRequest, object_id: int):
     """ Renders the remove form for an organization
 
@@ -375,9 +373,7 @@ def remove_org(request: HttpRequest, object_id: int):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_CREATE_ORGANIZATION
-)
+#@check_permission(PermissionEnum.CAN_CREATE_ORGANIZATION)
 def new_org(request: HttpRequest):
     """ Renders the new organization form and saves the input
     Args:
@@ -396,9 +392,7 @@ def new_org(request: HttpRequest):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_REMOVE_PUBLISHER
-)
+#@check_permission(PermissionEnum.CAN_REMOVE_PUBLISHER)
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     """ Removes a publisher for an organization
 
@@ -430,9 +424,7 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER
-)
+#@check_permission(PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER)
 def publish_request(request: HttpRequest, org_id: int):
     """ Performs creation of a publishing request between a user/group and an organization
 
@@ -457,9 +449,7 @@ def publish_request(request: HttpRequest, org_id: int):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_CREATE_GROUP
-)
+#@check_permission(PermissionEnum.CAN_CREATE_GROUP)
 def new_group(request: HttpRequest):
     """ Renders the new group form and saves the input
 
@@ -479,7 +469,7 @@ def new_group(request: HttpRequest):
 
 
 @login_required
-@check_ownership(MrMapGroup, 'group_id')
+@ownership_required(MrMapGroup, 'group_id')
 def list_publisher_group(request: HttpRequest, group_id: int):
     """ List all organizations a group can publish for
 
@@ -503,10 +493,8 @@ def list_publisher_group(request: HttpRequest, group_id: int):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_REMOVE_USER_FROM_GROUP
-)
-@check_ownership(MrMapGroup, 'object_id')
+#@check_permission(PermissionEnum.CAN_REMOVE_USER_FROM_GROUP)
+@ownership_required(MrMapGroup, 'object_id')
 def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
     """ Removes a user from a group
 
@@ -535,10 +523,8 @@ def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_DELETE_GROUP
-)
-@check_ownership(MrMapGroup, 'object_id')
+#@check_permission(PermissionEnum.CAN_DELETE_GROUP)
+@ownership_required(MrMapGroup, 'object_id')
 def remove_group(request: HttpRequest, object_id: int):
     """ Renders the remove form for a group
 
@@ -570,10 +556,8 @@ def remove_group(request: HttpRequest, object_id: int):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_EDIT_GROUP
-)
-@check_ownership(MrMapGroup, 'object_id')
+#@check_permission(PermissionEnum.CAN_EDIT_GROUP)
+@ownership_required(MrMapGroup, 'object_id')
 def edit_group(request: HttpRequest, object_id: int):
     """ The edit view for changing group values
 
@@ -685,9 +669,7 @@ def users_index(request: HttpRequest, update_params=None, status_code=None):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_ADD_USER_TO_GROUP
-)
+#@check_permission(PermissionEnum.CAN_ADD_USER_TO_GROUP)
 def user_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
     """ Renders and process a form for user-group invitation
 
@@ -739,9 +721,7 @@ def toggle_group_invitation(request: HttpRequest, object_id: str, update_params=
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS
-)
+#@check_permission(PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS)
 def toggle_publish_request(request: HttpRequest, object_id: str, update_params=None, status_code=None):
     """ Renders and processes a form to accepting/declining an invitation
 

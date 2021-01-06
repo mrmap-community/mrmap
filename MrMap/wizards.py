@@ -1,5 +1,4 @@
-import random
-import string
+import uuid
 from abc import ABC
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
@@ -7,6 +6,10 @@ from formtools.wizard.views import SessionWizardView
 from MrMap.utils import get_theme
 from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _
+
+
+CURRENT_VIEW_QUERYPARAM = 'current-view'
+CURRENT_VIEW_ARG_QUERYPARAM = 'current-view-arg'
 
 
 class MrMapWizard(SessionWizardView, ABC):
@@ -18,34 +21,45 @@ class MrMapWizard(SessionWizardView, ABC):
     title = None
     id_wizard = None
     required_forms = None
+    url_querystring = ""
 
     def __init__(self,
                  action_url: str,
-                 current_view: str,
-                 current_view_arg: int,
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
                  required_forms: list = None,
                  title: str = _('Wizard'),
-                 id_wizard: str = ''.join(random.choice(string.ascii_lowercase) for i in range(10)),
                  *args,
                  **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
         self.action_url = action_url
-        self.current_view = current_view
-        self.current_view_arg = current_view_arg
         self.instance_id = instance_id
         self.ignore_uncomitted_forms = ignore_uncomitted_forms
         self.required_forms = required_forms
         self.title = title
-        self.id_wizard = id_wizard
+        self.id_wizard = "id_" + str(uuid.uuid4())
+
+    def dispatch(self, request, *args, **kwargs):
+        self.current_view = request.GET.get(CURRENT_VIEW_QUERYPARAM, request.resolver_match.view_name)
+        if self.request.resolver_match.kwargs:
+            # if kwargs are not empty, this is a detail view
+            if 'pk' in self.request.resolver_match.kwargs:
+                self.current_view_arg = self.request.resolver_match.kwargs['pk']
+            else:
+                self.current_view_arg = self.request.resolver_match.kwargs['slug']
+            self.current_view_arg = self.request.GET.get(CURRENT_VIEW_ARG_QUERYPARAM, self.current_view_arg)
+            self.url_querystring = f'?{CURRENT_VIEW_QUERYPARAM}={self.current_view}&{CURRENT_VIEW_ARG_QUERYPARAM}={self.current_view_arg}'
+        else:
+            self.url_querystring = f'?{CURRENT_VIEW_QUERYPARAM}={self.current_view}'
+        return super(MrMapWizard, self).dispatch(request, *args, **kwargs)
 
     def get_context_data(self, form, **kwargs):
         context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
+
         context.update({'id_modal': self.id_wizard,
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
-                        'action_url': self.action_url,
+                        'action_url': self.action_url + self.url_querystring,
                         'show_modal': True,
                         'fade_modal': True,
                         'current_view': self.current_view,

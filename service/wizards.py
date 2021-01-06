@@ -1,12 +1,17 @@
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html
 
+from MrMap.decorators import ownership_required, permission_required
 from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
+from structure.permissionEnums import PermissionEnum
 
 FIRST_STEP_ID = _("URL")
 SECOND_STEP_ID = _("Overview")
@@ -17,11 +22,13 @@ NEW_RESOURCE_WIZARD_FORMS = [
 ]
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_REGISTER_RESOURCE.value), name='dispatch')
 class NewResourceWizard(MrMapWizard):
-    def __init__(self, current_view, *args, **kwargs):
-        super(MrMapWizard, self).__init__(
-            action_url=reverse('resource:add', ) + f"?current-view={current_view}",
-            current_view=current_view,
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            action_url=reverse('resource:add', ),
+            title=_(format_html('<b>Add New Resource</b>')),
             *args,
             **kwargs)
 

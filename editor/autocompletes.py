@@ -50,7 +50,7 @@ class KeywordAutocomplete(autocomplete.Select2QuerySetView):
         user = get_user(request)
 
         perm = PermissionEnum.CAN_EDIT_METADATA
-        is_editor = user.has_permission(perm)
+        is_editor = user.has_perm(perm)
         return user is not None and is_editor
 
 

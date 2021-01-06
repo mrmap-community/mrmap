@@ -26,7 +26,7 @@ from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
+from MrMap.decorators import log_proxy, ownership_required, resolve_metadata_public_id
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
@@ -283,31 +283,9 @@ def _is_updatecandidate(metadata: Metadata):
             return True
     return False
 
-
 @login_required
-@check_permission(
-    PermissionEnum.CAN_REGISTER_RESOURCE
-)
-def add(request: HttpRequest):
-    """ Renders wizard page configuration for service registration
-
-        Args:
-            request (HttpRequest): The incoming request
-        Returns:
-             params (dict): The rendering parameter
-    """
-    return NewResourceWizard.as_view(
-        form_list=NEW_RESOURCE_WIZARD_FORMS,
-        current_view=request.GET.get('current-view'),
-        title=_l(format_html('<b>Add New Resource</b>')),
-        id_wizard='add_new_resource_wizard',
-    )(request=request)
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_REMOVE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+#@check_permission(PermissionEnum.CAN_REMOVE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 def remove(request: HttpRequest, metadata_id):
     """ Renders the remove form for a service
 
@@ -332,10 +310,8 @@ def remove(request: HttpRequest, metadata_id):
 
 @login_required
 @resolve_metadata_public_id
-@check_permission(
-    PermissionEnum.CAN_ACTIVATE_RESOURCE
-)
-@check_ownership(Metadata, 'pk')
+#@check_permission(PermissionEnum.CAN_ACTIVATE_RESOURCE)
+@ownership_required(Metadata, 'pk')
 def activate(request: HttpRequest, pk):
     """ (De-)Activates a service and all of its layers
 
@@ -620,10 +596,8 @@ def get_metadata_html(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def new_pending_update_service(request: HttpRequest, metadata_id):
     """ Compare old service with new service and collect differences
@@ -675,10 +649,8 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
 # Todo: wizard/form view?
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
@@ -749,10 +721,8 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
@@ -772,10 +742,8 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
@@ -890,6 +858,7 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
 
 
 @method_decorator(login_required, name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceDetailTableView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'

@@ -9,88 +9,74 @@ import json
 import uuid
 
 from django.contrib import messages
+from django.contrib.auth.decorators import user_passes_test
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import redirect, get_object_or_404
-from django.urls import reverse
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 
 from MrMap.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
     REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
 from MrMap.utils import get_dict_value_insensitive
 from service.models import Metadata, ProxyLog
 from service.settings import NONE_UUID
-from structure.models import Permission, MrMapGroup, Organization
-from structure.permissionEnums import PermissionEnum
+from structure.models import MrMapGroup, Organization
 from users.helper import user_helper
 
 
-def check_permission(permission_needed: PermissionEnum):
-    """ Checks whether the user has the required permission for the requested action
-
-    Args:
-        permission_needed (Permission): The permission object that defines which permissions are needed
-    Returns:
-         The function
+def permission_required(perm, login_url=None):
     """
-    def method_wrap(function):
-        def wrap(request, *args, **kwargs):
-            user = user_helper.get_user(request)
-            has_perm = user.has_permission(permission_needed)
+    Decorator for views that checks whether a user has a particular permission
+    enabled, redirecting to the log-in page if necessary.
+    If the raise_exception parameter is given the PermissionDenied exception
+    is raised.
+    """
+    def check_perms(request, user):
+        if isinstance(perm, str):
+            perms = (perm,)
+        else:
+            perms = perm
+        # First check if the user has the permission (even anon users)
+        if user.has_perms(perms):
+            return True
+        else:
+            messages.add_message(request, messages.ERROR, NO_PERMISSION)
+        # As the last resort, show the login form
+        return False
+    return user_passes_test(check_perms, login_url=login_url)
 
-            if not has_perm:
-                messages.add_message(request, messages.ERROR, NO_PERMISSION)
-                return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
 
-            return function(request=request, *args, **kwargs)
-
-        wrap.__doc__ = function.__doc__
-        wrap.__name__ = function.__name__
-        return wrap
-    return method_wrap
-
-
-def check_ownership(klass, id_name: str):
+def ownership_required(klass, id_name: str, login_url=None):
     """ Checks whether the user is owner of the resource by groupmemberships
 
     Args:
         klass: the class object which will be requested
         id_name: name of the id used in the kwargs
+        login_url: the url we redirect to if the check fails
     Returns:
         The function
     """
+    def check_ownership(request, user, **kwargs):
+        resource = get_object_or_404(klass, id=kwargs.get(id_name), )
+        user_groups = user.get_groups()
 
-    def method_wrap(function):
-        def wrap(request, *args, **kwargs):
-            resource = get_object_or_404(klass, id=kwargs.get(id_name),)
-
-            user = user_helper.get_user(request=request)
-            user_groups = user.get_groups()
-
-            if isinstance(resource, MrMapGroup):
-                if resource in user_groups:
-                    return function(request=request, *args, **kwargs)
-                else:
-                    messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP)
-
-            elif isinstance(resource, Organization):
-                if user.organization == resource or user == resource.created_by:
-                    return function(request=request, *args, **kwargs)
-                else:
-                    messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION)
-
+        if isinstance(resource, MrMapGroup):
+            if resource in user_groups:
+                return True
             else:
-                if resource.created_by in user_groups:
-                    return function(request=request, *args, **kwargs)
-                else:
-                    messages.add_message(request, messages.ERROR, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP)
-            return HttpResponseRedirect(
-                request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'),
-                status=303)
+                messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP)
+        elif isinstance(resource, Organization):
+            if user.organization == resource or user == resource.created_by:
+                return True
+            else:
+                messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION)
+        else:
+            if resource.created_by in user_groups:
+                return True
+            else:
+                messages.add_message(request, messages.ERROR, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP)
+        return False
 
-        wrap.__doc__ = function.__doc__
-        wrap.__name__ = function.__name__
-        return wrap
-    return method_wrap
+    return user_passes_test(check_ownership, login_url=login_url)
 
 
 def log_proxy(function):

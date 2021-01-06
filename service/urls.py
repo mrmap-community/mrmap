@@ -24,9 +24,9 @@ urlpatterns = [
     path('preview/<metadata_id>', get_service_preview, name='get-service-metadata-preview'),
 
     # actions
+    path('add/', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     # todo: refactor the functions to class based views
-    #  for add / remove and so on we already have class based views which are wrapped by a function
-    path('add/', add, name='add'),
+    #  for remove and so on we already have class based views which are wrapped by a function
     path('remove/<metadata_id>', remove, name='remove'),
     path('activate/<pk>', activate, name='activate'),
     path('new-update/<metadata_id>', new_pending_update_service, name='new-pending-update'),
@@ -34,7 +34,6 @@ urlpatterns = [
     path('dismiss-pending-update/<metadata_id>', dismiss_pending_update_service, name='dismiss-pending-update'),
     path('run-update/<metadata_id>', run_update_service, name='run-update'),
 
-    #path('logs/download/', logs_download, name='logs-download'),
 
     # serivce urls
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),

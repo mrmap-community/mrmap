@@ -5,7 +5,7 @@ from django.http import HttpRequest, HttpResponseRedirect, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
-from MrMap.decorator import check_permission
+from MrMap.decorators import permission_required
 from MrMap.responses import DefaultContext
 from monitoring.filters import HealthReasonFilter
 from monitoring.models import MonitoringRun
@@ -22,7 +22,7 @@ from users.helper import user_helper
 
 
 @login_required
-@check_permission(PermissionEnum.CAN_RUN_MONITORING)
+@permission_required(PermissionEnum.CAN_RUN_MONITORING)
 def call_run_monitoring(request: HttpRequest, metadata_id):
     metadata = get_object_or_404(Metadata,
                                  ~Q(metadata_type=MetadataEnum.CATALOGUE.value),

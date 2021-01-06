@@ -82,7 +82,7 @@ class MrMapTable(tables.Table):
     def check_render_permission(self, permission: PermissionEnum):
         has_perm = self.permission_lookup.get(permission, None)
         if has_perm is None:
-            has_perm = self.user.has_permission(permission)
+            has_perm = self.user.has_perm(permission)
             self.permission_lookup[permission] = has_perm
         return has_perm
 

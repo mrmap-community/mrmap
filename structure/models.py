@@ -382,19 +382,20 @@ class MrMapUser(AbstractUser):
 
         return all_perm
 
-    def has_permission(self, permission_needed: PermissionEnum):
-        """ Checks if needed permissions are provided by the users permission
-
-        Args:
-            permission_needed: The permission that is needed
-        Returns:
-             True if all permissions are satisfied. False otherwise
-        """
-        if permission_needed is None:
+    def has_perm(self, perm, obj=None) -> bool:
+        # Active superusers have all permissions.
+        if self.is_active and self.is_superuser:
             return True
 
         has_perm = self.get_groups().filter(
-            role__permissions__name=permission_needed.value
+            role__permissions__name=perm
+        )
+        has_perm = has_perm.exists()
+        return has_perm
+
+    def has_perms(self, perm_list, obj=None) -> bool:
+        has_perm = self.get_groups().filter(
+            role__permissions__name__in=perm_list
         )
         has_perm = has_perm.exists()
         return has_perm

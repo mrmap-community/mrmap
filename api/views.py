@@ -18,7 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MrMap import utils
-from MrMap.decorator import check_permission, resolve_metadata_public_id
+from MrMap.decorators import ownership_required, resolve_metadata_public_id, permission_required
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
@@ -77,7 +77,7 @@ def menu_view(request: HttpRequest):
     return render(request, template, default_context.get_context())
 
 
-@check_permission(
+@permission_required(
     PermissionEnum.CAN_GENERATE_API_TOKEN
 )
 def generate_token(request: HttpRequest):

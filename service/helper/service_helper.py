@@ -289,7 +289,7 @@ def create_new_service(form, user: MrMapUser):
     pending_task_db.save()
     return pending_task_db
 
-
+# todo: move this function to model Metadata as delete_async() function
 @transaction.atomic
 def remove_service(metadata: Metadata, user: MrMapUser):
     """ Removes a service, referenced by its metadata object

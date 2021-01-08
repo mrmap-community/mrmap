@@ -90,6 +90,7 @@ ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to its
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization '{}' successfully edited.")
 
+SERVICE_SUCCESSFULLY_DELETED = _("Service '{}' successfully deleted.")
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")

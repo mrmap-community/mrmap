@@ -24,7 +24,7 @@ from django.utils.html import format_html
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django_bootstrap_swt.components import LinkButton, Badge, Tag, Dropdown, Link
+from django_bootstrap_swt.components import LinkButton, Badge, Tag, Dropdown, Link, Modal
 from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum
 
 from MrMap.cacher import DocumentCacher
@@ -732,11 +732,11 @@ class Metadata(Resource):
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Run health checks for this resource"),
                                                needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
-                                    LinkButton(url=self.remove_view_uri,
-                                               content=FONT_AWESOME_ICONS["REMOVE"],
-                                               color=ButtonColorEnum.DANGER,
-                                               tooltip=_l("Remove this resource"),
-                                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), ])
+                                    Modal(fetch_url=self.remove_view_uri,
+                                          btn_content=FONT_AWESOME_ICONS["REMOVE"],
+                                          btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
+                                          btn_tooltip=_l("Remove this resource"),
+                                          needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), ])
 
                 if self.is_custom:
                     actions.append(LinkButton(url=self.restore_view_uri,

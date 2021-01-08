@@ -6,12 +6,12 @@ app_name = 'resource'
 urlpatterns = [
     # index views
     path('', ResourceIndexView.as_view(), name='index'),
-    path('pending-tasks/', PendingTaskView.as_view(), name="pending-tasks"),
-    path('wms/', WmsIndexView.as_view(), name='wms-index'),
-    path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
-    path('csw/', CswIndexView.as_view(), name='csw-index'),
-    path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
-    path('logs/', LogsIndexView.as_view(), name='logs-view'),
+    path('pending-tasks', PendingTaskView.as_view(), name="pending-tasks"),
+    path('wms', WmsIndexView.as_view(), name='wms-index'),
+    path('wfs', WfsIndexView.as_view(), name='wfs-index'),
+    path('csw', CswIndexView.as_view(), name='csw-index'),
+    path('datasets', DatasetIndexView.as_view(), name='datasets-index'),
+    path('logs', LogsIndexView.as_view(), name='logs-view'),
 
     # detail view
     # todo: implement detail view for csw
@@ -24,10 +24,12 @@ urlpatterns = [
     path('preview/<metadata_id>', get_service_preview, name='get-service-metadata-preview'),
 
     # actions
-    path('add/', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
+    path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     # todo: refactor the functions to class based views
     #  for remove and so on we already have class based views which are wrapped by a function
-    path('remove/<metadata_id>', remove, name='remove'),
+    path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
+
+    #path('<metadata_id>/remove', remove, name='remove'),
     path('activate/<pk>', activate, name='activate'),
     path('new-update/<metadata_id>', new_pending_update_service, name='new-pending-update'),
     path('pending-update/<metadata_id>', pending_update_service, name='pending-update'),

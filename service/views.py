@@ -14,7 +14,8 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, TemplateView, DetailView
+from django.views.generic import ListView, TemplateView, DetailView, DeleteView, FormView, UpdateView
+from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
     Badge, Accordion, CardHeader
 from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
@@ -26,13 +27,13 @@ from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorators import log_proxy, ownership_required, resolve_metadata_public_id
+from MrMap.decorators import log_proxy, ownership_required, resolve_metadata_public_id, permission_required
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
+    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
@@ -56,7 +57,7 @@ from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 
 from users.models import Subscription
 
@@ -283,29 +284,27 @@ def _is_updatecandidate(metadata: Metadata):
             return True
     return False
 
-@login_required
-#@check_permission(PermissionEnum.CAN_REMOVE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
-def remove(request: HttpRequest, metadata_id):
-    """ Renders the remove form for a service
 
-    Args:
-        request(HttpRequest): The used request
-        metadata_id:
-    Returns:
-        Redirect to service:index
-    """
-    metadata = get_object_or_404(Metadata, id=metadata_id)
-    form = RemoveServiceForm(data=request.POST or None,
-                             request=request,
-                             reverse_lookup='resource:remove',
-                             reverse_args=[metadata_id, ],
-                             # ToDo: after refactoring of all forms is done, show_modal can be removed
-                             show_modal=True,
-                             is_confirmed_label=_l("Do you really want to remove this service?"),
-                             form_title=_l(f"Remove service <strong>{metadata}</strong>"),
-                             instance=metadata)
-    return form.process_request(valid_func=form.process_remove_service)
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value))
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class ResourceDelete(DeleteView):
+    model = Metadata
+    success_url = reverse_lazy('resource:index')
+    template_name = 'generic_views/generic_delete_confirm.html'
+
+    def delete(self, request, *args, **kwargs):
+        """
+            Creates an async task job which will do the deletion on the fetched object and then redirect to the
+            success URL.
+        """
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        service_helper.remove_service(self.object, self.request.user)
+        messages.success(request, SERVICE_SUCCESSFULLY_DELETED.format(self.object.title))
+        return HttpResponseRedirect(success_url)
+
+
 
 
 @login_required

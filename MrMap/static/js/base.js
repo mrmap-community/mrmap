@@ -308,3 +308,53 @@ $(document).ready(function(){
 
 });
 
+
+function asyncForm( event ) {
+  // Store reference to form and modal to make later code easier to read
+  const form = event.target;
+  const modal = form.querySelector("div").closest(".modal")
+  const modalContent = form.querySelector("div").closest(".modal-content")
+
+
+  // get status message references
+  const submitBtnTxt = form.querySelector('#id_submit_btn_txt');
+  const submitBtnSpinner = form.querySelector('#id_submit_btn_spinner');
+
+  // Post data using the Fetch API
+  fetch(form.action, {
+      method: form.method,
+      body: new FormData(form)
+    }).then(res => {
+        if(res.ok) {
+            // all done. Close modal.
+            $('#' + modal.id).modal('hide');
+            return res.json();
+        } else {
+            if ( res.status >= 400 && res.status <= 500) {
+                return res.json();
+            } else {
+                $('#' + modal.id).modal('hide');
+                throw Error(`Request rejected with status ${res.status}`);
+            }
+        }
+    }).then(json => {
+        if (json.hasOwnProperty('data')){
+            modalContent.innerHTML = json.data;
+        } else if (json.hasOwnProperty('task')){
+            document.querySelector("#body-content").insertAdjacentHTML('beforebegin', json.task.alert);
+        }
+
+    }).catch(err => {
+        console.log(err);
+    });
+
+  // Show busy state
+  submitBtnTxt.classList.add("d-none");
+  submitBtnSpinner.classList.remove("d-none");
+
+  // Disable all form elements to prevent further input
+  Array.from(form.elements).forEach(field => field.disabled = true);
+
+  // Prevent the default form submit
+  event.preventDefault();
+}

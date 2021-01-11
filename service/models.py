@@ -634,6 +634,9 @@ class Metadata(Resource):
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
 
+    def get_absolute_url(self):
+        return reverse('resource:detail', kwargs={'pk': self.pk})
+
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
 
@@ -697,11 +700,11 @@ class Metadata(Resource):
                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
-            actions.append(LinkButton(url=self.activate_view_uri,
-                                      content=FONT_AWESOME_ICONS["POWER_OFF"],
-                                      color=ButtonColorEnum.WARNING if self.is_active else ButtonColorEnum.SUCCESS,
-                                      tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
-                                      needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
+            actions.append(Modal(fetch_url=self.activate_view_uri,
+                                 btn_content=FONT_AWESOME_ICONS["POWER_OFF"],
+                                 btn_attrs={"class": [ButtonColorEnum.WARNING.value if self.is_active else ButtonColorEnum.SUCCESS.value]},
+                                 tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
+                                 needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
             if self.is_service_type(OGCServiceEnum.CSW):
                 actions.append(LinkButton(url=self.harvest_view_uri,
                                           content=FONT_AWESOME_ICONS["HARVEST"],

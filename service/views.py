@@ -7,7 +7,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
+from django.forms.utils import ErrorList
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect, \
+    HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
@@ -17,8 +19,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, TemplateView, DetailView, DeleteView, FormView, UpdateView
 from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
-    Badge, Accordion, CardHeader
-from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
+    Badge, Accordion, CardHeader, Alert
+from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum, AlertEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
@@ -33,10 +35,12 @@ from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED
+    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, \
+    SERVICE_ACTIVATED_TEMPLATE, SERVICE_DEACTIVATED_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
+from service import tasks
 from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
@@ -257,9 +261,9 @@ class ResourceIndexView(TemplateView):
         rendered_wfs_view = WfsIndexView.as_view()(request=self.request)
         rendered_csw_view = CswIndexView.as_view()(request=self.request)
         rendered_dataset_view = DatasetIndexView.as_view()(request=self.request)
-        rendered_pending_task_ajax = render_to_string(template_name='pending_task_list_ajax.html')
+        #rendered_pending_task_ajax = render_to_string(template_name='pending_task_list_ajax.html')
 
-        context['inline_html_items'] = [rendered_pending_task_ajax,
+        context['inline_html_items'] = [#rendered_pending_task_ajax,
                                         rendered_wms_view.rendered_content,
                                         rendered_wfs_view.rendered_content,
                                         rendered_csw_view.rendered_content,
@@ -286,7 +290,7 @@ def _is_updatecandidate(metadata: Metadata):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value))
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceDelete(DeleteView):
     model = Metadata
@@ -304,6 +308,56 @@ class ResourceDelete(DeleteView):
         messages.success(request, SERVICE_SUCCESSFULLY_DELETED.format(self.object.title))
         return HttpResponseRedirect(success_url)
 
+
+class ResourceActivateDeactivate(UpdateView):
+    model = Metadata
+    fields = ['is_active']
+    template_name = 'generic_views/generic_update.html'
+
+    def get_object(self, queryset=None):
+        instance = super().get_object(queryset=queryset)
+        instance.is_active = False if instance.is_active else True
+        return instance
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"action": _l("Deactivate") if self.object.is_active else _l("Activate"),
+                        "action_url": self.object.activate_view_uri})
+        return context
+
+    def form_invalid(self, form):
+        content = render_to_string(template_name=self.template_name,
+                                   context=self.get_context_data(form=form),
+                                   request=self.request)
+        response = {
+            "data": content
+        }
+        return JsonResponse(status=400, data=response)
+
+    def form_valid(self, form):
+        self.object.save()
+
+        # run activation async!
+        task = tasks.async_activate_service.delay(self.object.id, self.request.user.id, self.object.is_active)
+
+        if self.object.is_active:
+            activate_deactivate = _("activating")
+        else:
+            activate_deactivate = _("deactivating")
+
+        alert_msg = _(f"Task for {activate_deactivate} {self.object.title} scheduled")
+
+        content = {
+            "task": {
+                "id": task.task_id,
+                "alert": Alert(msg=alert_msg, alert_type=AlertEnum.SUCCESS).render()
+            },
+        }
+
+        # cause this is a async task which can take longer we response with 'accept' status
+        response = JsonResponse(status=202, data=content)
+
+        return response
 
 
 

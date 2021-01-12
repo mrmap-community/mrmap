@@ -40,6 +40,7 @@ from MrMap.messages import SERVICE_UPDATED, \
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
+from MrMap.views import AsyncUpdateView
 from service import tasks
 from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
@@ -309,56 +310,35 @@ class ResourceDelete(DeleteView):
         return HttpResponseRedirect(success_url)
 
 
-class ResourceActivateDeactivate(UpdateView):
+class ResourceActivateDeactivate(AsyncUpdateView):
     model = Metadata
     fields = ['is_active']
-    template_name = 'generic_views/generic_update.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.async_task_func = tasks.async_activate_service
+        self.async_task_params.update({'user_id': request.user.id})
+        return super().dispatch(request=request, *args, **kwargs)
 
     def get_object(self, queryset=None):
         instance = super().get_object(queryset=queryset)
+        self.action_url = instance.activate_view_uri
+        # toggle is_active to initial the is_active field with the negated value
         instance.is_active = False if instance.is_active else True
         return instance
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({"action": _l("Deactivate") if self.object.is_active else _l("Activate"),
-                        "action_url": self.object.activate_view_uri})
-        return context
-
-    def form_invalid(self, form):
-        content = render_to_string(template_name=self.template_name,
-                                   context=self.get_context_data(form=form),
-                                   request=self.request)
-        response = {
-            "data": content
-        }
-        return JsonResponse(status=400, data=response)
-
     def form_valid(self, form):
-        self.object.save()
-
-        # run activation async!
-        task = tasks.async_activate_service.delay(self.object.id, self.request.user.id, self.object.is_active)
-
-        if self.object.is_active:
+        is_active = form.cleaned_data.get('is_active')
+        if is_active:
+            self.action = _l("Activate")
             activate_deactivate = _("activating")
+            self.async_task_params.update({'is_active': True})
         else:
+            self.action = _l("Deactivate")
             activate_deactivate = _("deactivating")
+            self.async_task_params.update({'is_active': False})
 
-        alert_msg = _(f"Task for {activate_deactivate} {self.object.title} scheduled")
-
-        content = {
-            "task": {
-                "id": task.task_id,
-                "alert": Alert(msg=alert_msg, alert_type=AlertEnum.SUCCESS).render()
-            },
-        }
-
-        # cause this is a async task which can take longer we response with 'accept' status
-        response = JsonResponse(status=202, data=content)
-
-        return response
-
+        self.alert_msg = _(f"Task for {activate_deactivate} {self.object.title} scheduled")
+        return super().form_valid(form=form)
 
 
 @login_required

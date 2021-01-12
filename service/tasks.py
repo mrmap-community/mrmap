@@ -48,20 +48,24 @@ def async_increase_hits(metadata_id: int):
 
 @shared_task(name="async_activate_service")
 @transaction.atomic
-def async_activate_service(metadata_id, user_id: int, is_active: bool):
+# do not add other kwargs, cause generic AsyncUpdateView class uses always this params
+def async_activate_service(object_id: int, additional_params: dict):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
-        metadata_id : The service parameter
-        user_id (int): The user id of the performing user
-
+        object_id : The id of the object for that actions will run
+        additional_params (int): The generic dict with additional params
     Returns:
         nothing
     """
+    # user_id: int, is_active: bool
+    user_id = additional_params.get('user_id')
+    is_active = additional_params.get('is_active')
+
     user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
-    service = Service.objects.get(metadata__id=metadata_id)
+    service = Service.objects.get(metadata__id=object_id)
 
     elements = service.subelements + [service]
     for element in elements:

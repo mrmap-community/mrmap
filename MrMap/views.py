@@ -19,15 +19,6 @@ class AsyncUpdateView(UpdateView):
                         "action_url": self.action_url})
         return context
 
-    def form_invalid(self, form):
-        content = render_to_string(template_name=self.template_name,
-                                   context=self.get_context_data(form=form),
-                                   request=self.request)
-        response = {
-            "data": content
-        }
-        return JsonResponse(status=400, data=response)
-
     def form_valid(self, form):
         self.object.save()
 
@@ -37,8 +28,8 @@ class AsyncUpdateView(UpdateView):
         content = {
             "task": {
                 "id": task.task_id,
-                "alert": Alert(msg=self.alert_msg, alert_type=AlertEnum.SUCCESS).render()
             },
+            "alert": Alert(msg=self.alert_msg, alert_type=AlertEnum.SUCCESS).render()
         }
 
         # cause this is a async task which can take longer we response with 'accept' status

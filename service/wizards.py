@@ -1,8 +1,10 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
+from django_bootstrap_swt.components import Alert
+from django_bootstrap_swt.enums import AlertEnum
 
 from MrMap.decorators import permission_required
 from MrMap.validators import check_uri_is_reachable
@@ -85,9 +87,19 @@ class NewResourceWizard(MrMapWizard):
                 try:
                     # Run creation async!
                     # Function returns the pending task object
-                    service_helper.create_new_service(form, form.requesting_user)
-                except Exception as e:
-                    messages.error(self.request, message=e)
-                    return HttpResponseRedirect(reverse(self.current_view, ), status=303)
+                    task = service_helper.create_new_service(form, form.requesting_user)
+                    content = {
+                        "task": {
+                            "id": task.task_id,
+                        },
+                        "alert": Alert(msg="Registering new resource scheduled", alert_type=AlertEnum.SUCCESS).render()
+                    }
 
-        return HttpResponseRedirect(reverse(self.current_view, ), status=303)
+                    # cause this is a async task which can take longer we response with 'accept' status
+                    return JsonResponse(status=202, data=content)
+
+                except Exception as e:
+                    content = {
+                        "alert": Alert(msg=str(e), alert_type=AlertEnum.DANGER).render()
+                    }
+                    return JsonResponse(status=500, data=content)

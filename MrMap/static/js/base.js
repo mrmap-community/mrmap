@@ -317,40 +317,48 @@ function asyncForm( event ) {
 
 
   // get status message references
-  const submitBtnTxt = form.querySelector('#id_submit_btn_txt');
-  const submitBtnSpinner = form.querySelector('#id_submit_btn_spinner');
+  const submitBtnTxt = form.querySelectorAll('.submit_btn_txt');
+  const submitBtnSpinner = form.querySelectorAll('.submit_btn_spinner');
 
   // Post data using the Fetch API
   fetch(form.action, {
       method: form.method,
       body: new FormData(form)
-    }).then(res => {
-        if(res.ok) {
-            // all done. Close modal.
-            $('#' + modal.id).modal('hide');
-            return res.json();
+    }).then(response => {
+        if(response.ok) {
+            return response;
         } else {
-            if ( res.status >= 400 && res.status <= 500) {
-                return res.json();
-            } else {
+            throw Error(`Request rejected with status ${response.status}`);
+        }
+    }).then(response => {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return response.json().then(data => {
+              // process your JSON data further
+              if ( data.hasOwnProperty('task') ){
                 $('#' + modal.id).modal('hide');
-                throw Error(`Request rejected with status ${res.status}`);
-            }
+                // todo: this should be fetch by a websocket
+                document.querySelector("#body-content").insertAdjacentHTML('beforebegin', data.alert);
+              }
+            });
+        } else {
+            return response.text().then(text => {
+                // There is still a html content to render
+                modalContent.innerHTML = text;
+            });
         }
-    }).then(json => {
-        if (json.hasOwnProperty('data')){
-            modalContent.innerHTML = json.data;
-        } else if (json.hasOwnProperty('task')){
-            document.querySelector("#body-content").insertAdjacentHTML('beforebegin', json.task.alert);
-        }
-
     }).catch(err => {
+        $('#' + modal.id).modal('hide');
         console.log(err);
     });
 
   // Show busy state
-  submitBtnTxt.classList.add("d-none");
-  submitBtnSpinner.classList.remove("d-none");
+  submitBtnTxt.forEach(function(item) {
+    item.classList.add("d-none");
+  });
+  submitBtnSpinner.forEach(function(item) {
+    item.classList.remove("d-none");
+  });
 
   // Disable all form elements to prevent further input
   Array.from(form.elements).forEach(field => field.disabled = true);

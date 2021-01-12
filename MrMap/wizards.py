@@ -1,5 +1,7 @@
 import uuid
 from abc import ABC
+
+from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from formtools.wizard.views import SessionWizardView
@@ -13,10 +15,8 @@ CURRENT_VIEW_ARG_QUERYPARAM = 'current-view-arg'
 
 
 class MrMapWizard(SessionWizardView, ABC):
-    template_name = "sceletons/modal-wizard-form.html"
+    template_name = "generic_views/generic_wizard_form.html"
     ignore_uncomitted_forms = False
-    current_view = None
-    current_view_arg = None
     instance_id = None
     title = None
     id_wizard = None
@@ -39,20 +39,6 @@ class MrMapWizard(SessionWizardView, ABC):
         self.title = title
         self.id_wizard = "id_" + str(uuid.uuid4())
 
-    def dispatch(self, request, *args, **kwargs):
-        self.current_view = request.GET.get(CURRENT_VIEW_QUERYPARAM, request.resolver_match.view_name)
-        if self.request.resolver_match.kwargs:
-            # if kwargs are not empty, this is a detail view
-            if 'pk' in self.request.resolver_match.kwargs:
-                self.current_view_arg = self.request.resolver_match.kwargs['pk']
-            else:
-                self.current_view_arg = self.request.resolver_match.kwargs['slug']
-            self.current_view_arg = self.request.GET.get(CURRENT_VIEW_ARG_QUERYPARAM, self.current_view_arg)
-            self.url_querystring = f'?{CURRENT_VIEW_QUERYPARAM}={self.current_view}&{CURRENT_VIEW_ARG_QUERYPARAM}={self.current_view_arg}'
-        else:
-            self.url_querystring = f'?{CURRENT_VIEW_QUERYPARAM}={self.current_view}'
-        return super(MrMapWizard, self).dispatch(request, *args, **kwargs)
-
     def get_context_data(self, form, **kwargs):
         context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
 
@@ -60,10 +46,6 @@ class MrMapWizard(SessionWizardView, ABC):
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': self.action_url + self.url_querystring,
-                        'show_modal': True,
-                        'fade_modal': True,
-                        'current_view': self.current_view,
-                        'current_view_arg': self.current_view_arg,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
@@ -72,27 +54,6 @@ class MrMapWizard(SessionWizardView, ABC):
             context.update({'fade_modal': False, })
 
         return context
-
-    def render(self, form=None, **kwargs):
-        # todo: refactor this by using the default rendering (match ajax modal)
-        # we implement custom rendering, for that we need the current we to render the modal as string and
-        # pass it to the view where the wizard should be rendered
-        form = form or self.get_form()
-        context = self.get_context_data(form=form, **kwargs)
-
-        rendered_wizard = render_to_string(request=self.request,
-                                           template_name=self.template_name,
-                                           context=context)
-        # pretend the next view function that this request was a get
-        self.request.method = 'GET'
-
-        if self.current_view_arg:
-            view_function = resolve(reverse(f"{self.current_view}", args=[self.current_view_arg, ]))
-            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard}, object_id=self.current_view_arg)
-
-        else:
-            view_function = resolve(reverse(f"{self.current_view}", ))
-            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard})
 
     def render_goto_step(self, goto_step, **kwargs):
         # 1. save current form, we doesn't matter for validation for now.
@@ -105,6 +66,7 @@ class MrMapWizard(SessionWizardView, ABC):
         if self.storage.current_step == goto_step and \
                 f"{current_form.prefix}-is_form_update" in self.request.POST and \
                 self.request.POST[f"{current_form.prefix}-is_form_update"] == 'True':
+            # it's update of dropdown items or something else
             return self.render(current_form)
         return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
 

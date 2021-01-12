@@ -25,7 +25,7 @@ from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django_bootstrap_swt.components import LinkButton, Badge, Tag, Dropdown, Link, Modal
-from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum
+from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum
 
 from MrMap.cacher import DocumentCacher
 from MrMap.icons import IconEnum
@@ -675,10 +675,11 @@ class Metadata(Resource):
 
     @classmethod
     def get_add_resource_action(cls):
-        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource'),
-                          color=ButtonColorEnum.SUCCESS,
-                          url=reverse('resource:add'),
-                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+        return Modal(btn_content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource'),
+                     btn_attrs={"class": [ButtonColorEnum.SUCCESS.value]},
+                     fetch_url=reverse('resource:add'),
+                     size=ModalSizeEnum.LARGE,
+                     needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     @classmethod
     def get_add_dataset_action(cls):

@@ -1,0 +1,105 @@
+{% load bootstrap4 %}
+{% load i18n %}
+<div class="modal-header">
+    <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
+        {{ modal_title }}
+    </h5>
+</div>
+<form action="{{action_url}}" method="post" onsubmit="asyncForm(event);" id="id_modal_form_{{id_modal}}">
+    {% csrf_token %}
+    <div class="modal-body"><!-- <modal-body> -->
+        {% if wizard.messages %}
+        {% for key, value in wizard.messages %}
+        <div class="alert alert-{{key}} alert-dismissible fade show" role="alert">
+          {{value}}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        <ul class="nav nav-tabs">
+            {% for step in wizard.steps.all %}
+              <li class="nav-item">
+                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to step '%} <b>{{step}}</b>">
+                    <button name="wizard_goto_step" type="submit" class="btn btn-link nav-link {% if step == wizard.steps.current %} active {% endif %}" value="{{ step }}">
+                        <span class="submit_btn_txt">{{ step|title }}</span>
+                        <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                    </button>
+                </span>
+              </li>
+            {% endfor %}
+        </ul>
+        {{ wizard.management_form }}
+        {% if wizard.form.forms %}
+            {{ wizard.form.management_form }}
+            {% for form in wizard.form.forms %}
+                {% bootstrap_form form %}
+                {% if form.has_autocomplete_fields %}
+                    {% include 'sceletons/autocomplete_form_media.html' %}
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            {% bootstrap_form wizard.form %}
+            {% if wizard.form.has_autocomplete_fields %}
+                {% include 'sceletons/autocomplete_form_media.html' %}
+            {% endif %}
+        {% endif %}
+    </div><!-- </modal-body> -->
+    <div class="modal-footer"><!-- <modal-footer> -->
+        <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm">
+                todo dismiss btn
+            </div>
+            <div class="col-sm">
+                <div class="mx-auto text-center">
+                    <p>{% trans 'Step' %} {{ wizard.steps.step1 }}/{{ wizard.steps.count }}</p>
+                </div>
+            </div>
+            <div class="col-sm">
+                <div class="float-right">
+                    {% if wizard.steps.prev %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_first" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.FIRST}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                        {% if wizard.steps.prev != wizard.steps.first %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go one step backward'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_prev" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.prev }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.BACK}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                        {% endif %}
+                    {% endif %}
+                    {% if wizard.ignore_uncomitted_forms or wizard.steps.last == wizard.steps.current %}
+                        <button id="id_{{id_modal}}_btn_save" name="wizard_save" value="True" type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+                            <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</span>
+                            <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                        </button>
+                    {% endif %}
+                    {% if wizard.steps.next %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the next step'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_next" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.NEXT}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                    {% endif %}
+                    {% if wizard.steps.current != wizard.steps.last and wizard.ignore_uncomitted_forms%}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the last step'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_last" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.last }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.LAST}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+</form>

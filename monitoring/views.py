@@ -22,7 +22,7 @@ from users.helper import user_helper
 
 
 @login_required
-@permission_required(PermissionEnum.CAN_RUN_MONITORING)
+@permission_required(PermissionEnum.CAN_RUN_MONITORING.value)
 def call_run_monitoring(request: HttpRequest, metadata_id):
     metadata = get_object_or_404(Metadata,
                                  ~Q(metadata_type=MetadataEnum.CATALOGUE.value),

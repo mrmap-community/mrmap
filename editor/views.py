@@ -62,9 +62,7 @@ def remove_dataset(request: HttpRequest, metadata_id):
 
 
 @login_required
-@permission_required(
-    PermissionEnum.CAN_ADD_DATASET_METADATA
-)
+@permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA)
 def add_new_dataset_wizard(request: HttpRequest, ):
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,
@@ -75,7 +73,7 @@ def add_new_dataset_wizard(request: HttpRequest, ):
 
 
 @login_required
-@permission_required(PermissionEnum.CAN_EDIT_METADATA)
+@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
 @ownership_required(Metadata, 'pk')
 def edit_dataset_wizard(request, pk):
     metadata = get_object_or_404(Metadata,
@@ -92,9 +90,7 @@ def edit_dataset_wizard(request, pk):
 
 
 @login_required
-@permission_required(
-    PermissionEnum.CAN_EDIT_METADATA
-)
+@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
 @ownership_required(Metadata, 'metadata_id')
 def edit(request: HttpRequest, metadata_id):
     """ The edit view for metadata
@@ -127,9 +123,7 @@ def edit(request: HttpRequest, metadata_id):
 
 
 @login_required
-@permission_required(
-    PermissionEnum.CAN_EDIT_METADATA
-)
+@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
 @ownership_required(Metadata, 'object_id')
 def edit_access(request: HttpRequest, object_id, update_params: dict = None, status_code: int = 200,):
     """ The edit view for the operations access
@@ -236,9 +230,7 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
 
 
 @login_required
-@permission_required(
-    PermissionEnum.CAN_EDIT_METADATA
-)
+@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
 @ownership_required(Metadata, 'metadata_id')
 def restore(request: HttpRequest, metadata_id):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
@@ -266,9 +258,7 @@ def restore(request: HttpRequest, metadata_id):
 
 
 @login_required
-@permission_required(
-    PermissionEnum.CAN_EDIT_METADATA
-)
+@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
 @ownership_required(Metadata, 'metadata_id')
 def restore_dataset_metadata(request: HttpRequest, metadata_id):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata

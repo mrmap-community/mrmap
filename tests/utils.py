@@ -31,7 +31,7 @@ def generate_random_string(len: int):
     return ''.join(random.choices(string.ascii_uppercase, k=len))
 
 
-def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter: str):
+def check_table_sorting(table, url_path_name: str, sorting_parameter: str):
     """ Checks the sorting of a MrMapTable object.
 
     This function returns two elements, so call it like

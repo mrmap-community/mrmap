@@ -5,8 +5,8 @@ from django_tables2 import RequestConfig
 
 from MrMap.consts import SERVICE_INDEX_LOG
 from service.models import Metadata, ProxyLog
-from service.tables import WmsLayerTableWms, WfsServiceTable, WmsTableWms, PendingTasksTable, ChildLayerTable, \
-    FeatureTypeTable, CoupledMetadataTable, ProxyLogTable
+from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable, ProxyLogTable, OgcServiceTable, \
+    PendingTaskTable
 from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs, create_testuser
 from tests.utils import check_table_sorting
 
@@ -27,9 +27,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsTableWms(queryset=md_list,
-                                order_by_field='swms',  # swms = sort wms
-                                request=self.request, )
+        wms_table = OgcServiceTable(data=md_list,
+                                    order_by_field='swms',  # swms = sort wms
+                                    request=self.request, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("resource:wms-index") + '?{}={}'.format("swms", column))
@@ -50,9 +50,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsLayerTableWms(queryset=md_list,
-                                     order_by_field='swms',  # swms = sort wms
-                                     request=self.request, )
+        wms_table = OgcServiceTable(data=md_list,
+                                    order_by_field='swms',  # swms = sort wms
+                                    request=self.request, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("resource:wms-index") + '?{}={}'.format("swms", column))
@@ -73,7 +73,7 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wfs_table = WfsServiceTable(queryset=md_list,
+        wfs_table = OgcServiceTable(data=md_list,
                                     order_by_field='swfs',  # swms = sort wms
                                     request=self.request, )
 
@@ -96,9 +96,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = PendingTasksTable(queryset=md_list,
-                                  order_by_field='sort',  # swms = sort wms
-                                  request=self.request, )
+        table = PendingTaskTable(data=md_list,
+                                 order_by_field='sort',  # swms = sort wms
+                                 request=self.request, )
 
         for column in table.columns.columns:
             request = self.factory.get(reverse("resource:pending-tasks") + '?{}={}'.format("sort", column))

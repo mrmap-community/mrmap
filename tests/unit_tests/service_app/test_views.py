@@ -10,7 +10,7 @@ from service.helper.enums import OGCServiceEnum
 from service.helper.service_comparator import ServiceComparator
 from service.models import FeatureType, Metadata
 from service.settings import NONE_UUID
-from service.tables import WfsServiceTable, PendingTasksTable, WmsTableWms
+from service.tables import PendingTaskTable, OgcServiceTable
 from service.tasks import async_activate_service
 from structure.models import GroupActivity
 from tests.baker_recipes.db_setup import *
@@ -36,18 +36,18 @@ class ServiceIndexViewTestCase(TestCase):
             reverse('resource:index', ),
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/index.html")
-        self.assertIsInstance(response.context["wms_table"], WmsTableWms)
+        self.assertTemplateUsed(response=response, template_name="generic_views/generic_list.html")
+        self.assertIsInstance(response.context["wms_table"], OgcServiceTable)
         self.assertEqual(len(response.context["wms_table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
         self.assertEqual(len(response.context["wms_table"].page.object_list), 5)
 
-        self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
+        self.assertIsInstance(response.context["wfs_table"], OgcServiceTable)
         self.assertEqual(len(response.context["wfs_table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
         self.assertEqual(len(response.context["wfs_table"].page.object_list), 5)
 
-        self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
+        self.assertIsInstance(response.context["pt_table"], PendingTaskTable)
 
 
 class ServiceWmsIndexViewTestCase(TestCase):
@@ -63,13 +63,13 @@ class ServiceWmsIndexViewTestCase(TestCase):
             reverse('resource:wms-index', ),
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/wms_index.html")
-        self.assertIsInstance(response.context["wms_table"], WmsTableWms)
-        self.assertEqual(len(response.context["wms_table"].rows), 10)
+        self.assertTemplateUsed(response=response, template_name="generic_views/generic_list.html")
+        self.assertIsInstance(response.context["table"], OgcServiceTable)
+        self.assertEqual(len(response.context["table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["wms_table"].page.object_list), 5)
+        self.assertEqual(len(response.context["table"].page.object_list), 5)
 
-        self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
+        self.assertIsInstance(response.context["pt_table"], PendingTaskTable)
 
 
 class ServiceWfsIndexViewTestCase(TestCase):
@@ -86,15 +86,15 @@ class ServiceWfsIndexViewTestCase(TestCase):
             reverse('resource:wfs-index', ),
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/wfs_index.html")
-        self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
-        self.assertEqual(len(response.context["wfs_table"].rows), 10)
+        self.assertTemplateUsed(response=response, template_name="generic_views/generic_list.html")
+        self.assertIsInstance(response.context["table"], OgcServiceTable)
+        self.assertEqual(len(response.context["table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["wfs_table"].page.object_list), 5)
-        self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
+        self.assertEqual(len(response.context["table"].page.object_list), 5)
+        self.assertIsInstance(response.context["pt_table"], PendingTaskTable)
+
 
 # ToDo: test service add view
-
 class ServiceRemoveViewTestCase(TestCase):
 
     def setUp(self):
@@ -111,7 +111,7 @@ class ServiceRemoveViewTestCase(TestCase):
         }
         metadata = self.wms_service_metadatas[0]
         response = self.client.post(reverse('resource:remove', args=[metadata.id])+"?current-view=resource:index", data=post_data)
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, 302)
 
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
@@ -129,7 +129,7 @@ class ServiceRemoveViewTestCase(TestCase):
         }
         metadata = self.wfs_service_metadatas[0]
         response = self.client.post(reverse('resource:remove', args=[self.wfs_service_metadatas[0].id])+"?current-view=resource:index", data=post_data)
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, 302)
 
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
@@ -140,11 +140,6 @@ class ServiceRemoveViewTestCase(TestCase):
             self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
         self.assertEqual(GroupActivity.objects.all().count(), 1)
-
-    def test_remove_service_invalid_form(self):
-
-        response = self.client.post(reverse('resource:remove', args=[self.wms_service_metadatas[0].id])+"?current-view=resource:index",)
-        self.assertEqual(response.status_code, 422)
 
     def test_permission_denied_remove(self):
         # remove permission to remove services
@@ -177,16 +172,9 @@ class ServiceActivateViewTestCase(TestCase):
 
     def test_activate_service(self):
         md = self.wms_service_metadatas[0]
-        response = self.client.post(reverse('resource:activate', args=[md.id])+"?current-view=resource:index",
+        response = self.client.post(reverse('resource:activate', args=[md.id]),
                                     data={'is_confirmed': 'True'})
-        self.assertEqual(response.status_code, 303)
-        messages = [m.message for m in get_messages(response.wsgi_request)]
-
-        activated_status = md.is_active
-        if activated_status:
-            self.assertIn(SERVICE_DEACTIVATED_TEMPLATE.format(self.wms_service_metadatas[0].title), messages)
-        else:
-            self.assertIn(SERVICE_ACTIVATED_TEMPLATE.format(self.wms_service_metadatas[0].title), messages)
+        self.assertEqual(response.status_code, 202)
 
     def test_permission_denied_activate_service(self):
         # remove permission to remove services
@@ -219,7 +207,7 @@ class ServiceDetailViewTestCase(TestCase):
     def test_get_detail_wms(self):
         response = self.client.get(reverse('resource:detail', args=[self.wms_service_metadatas[0].id]), )
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, template_name="views/detail.html")
+        self.assertTemplateUsed(response, template_name="generic_views/generic_detail.html")
 
     def test_get_detail_wms_sublayer(self):
         service = self.wms_service_metadatas[0].service
@@ -228,21 +216,21 @@ class ServiceDetailViewTestCase(TestCase):
         )
         response = self.client.get(reverse('resource:detail', args=[sublayer_services[0].metadata.id]), )
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, template_name="views/sublayer_detail.html")
+        self.assertTemplateUsed(response, template_name="generic_views/generic_detail.html")
 
     def test_get_detail_wms_sublayer_without_base_extending(self):
         service = self.wms_service_metadatas[0].service
         sublayer_services = Service.objects.filter(
             parent_service=service
         )
-        response = self.client.get(reverse('resource:detail', args=[sublayer_services[0].metadata.id]) + '?no-base', )
+        response = self.client.get(reverse('resource:detail', args=[sublayer_services[0].metadata.id]) + '?with-base=False', )
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, template_name="views/sublayer_detail_no_base.html")
+        self.assertTemplateUsed(response, template_name="generic_views/generic_detail_without_base.html")
 
     def test_get_detail_wfs(self):
-        response = self.client.post(reverse('resource:detail', args=[self.wfs_service_metadatas[0].id]), )
+        response = self.client.get(reverse('resource:detail', args=[self.wfs_service_metadatas[0].id]), )
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, template_name="views/detail.html")
+        self.assertTemplateUsed(response, template_name="generic_views/generic_detail_with_base.html")
 
     def test_get_detail_wfs_featuretype(self):
         service = self.wfs_service_metadatas[0].service
@@ -251,19 +239,19 @@ class ServiceDetailViewTestCase(TestCase):
         )
         response = self.client.get(reverse('resource:detail', args=[featuretypes[0].metadata.id]), )
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, template_name="views/featuretype_detail.html")
+        self.assertTemplateUsed(response, template_name="generic_views/generic_detail.html")
 
     def test_get_detail_wfs_featuretype_without_base_extending(self):
         service = self.wfs_service_metadatas[0].service
         featuretypes = FeatureType.objects.filter(
             parent_service=service
         )
-        response = self.client.get(reverse('resource:detail', args=[featuretypes[0].metadata.id]) + '?no-base', )
+        response = self.client.get(reverse('resource:detail', args=[featuretypes[0].metadata.id]) + '?with-base=False', )
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, template_name="views/featuretype_detail_no_base.html")
+        self.assertTemplateUsed(response, template_name="generic_views/generic_detail_without_base.html")
 
     def test_get_detail_404(self):
-        response = self.client.post(reverse('resource:detail', args=[uuid.uuid4()]), )
+        response = self.client.get(reverse('resource:detail', args=[uuid.uuid4()]), )
         self.assertEqual(response.status_code, 404)
 
     def test_get_detail_context(self):
@@ -283,8 +271,8 @@ class ServicePendingTaskViewTestCase(TestCase):
             reverse('resource:pending-tasks', ),
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="includes/pending_tasks.html")
-        self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
+        self.assertTemplateUsed(response=response, template_name="generic_views/generic_list.html")
+        self.assertIsInstance(response.context["pt_table"], PendingTaskTable)
         self.assertEqual(len(response.context["pt_table"].rows), 10)
 
 

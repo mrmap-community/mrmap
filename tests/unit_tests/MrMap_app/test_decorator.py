@@ -11,7 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.test import TestCase, Client, RequestFactory
 
-from MrMap.decorator import log_proxy, check_permission, check_ownership, resolve_metadata_public_id
+from MrMap.decorators import log_proxy, permission_required, ownership_required, resolve_metadata_public_id
 from service.models import Metadata, ProxyLog, Service
 from structure.models import MrMapGroup, Organization, Permission
 from structure.permissionEnums import PermissionEnum
@@ -55,7 +55,7 @@ class DecoratorTestCase(TestCase):
 
         """
         # Mock decorator usage
-        @check_permission(PermissionEnum.CAN_CREATE_ORGANIZATION)
+        @permission_required(PermissionEnum.CAN_CREATE_ORGANIZATION)
         def test_function(request, *args, **kwargs):
             return HttpResponse()
 
@@ -101,7 +101,7 @@ class DecoratorTestCase(TestCase):
         """
 
         # Mock the usage of the decorator
-        @check_ownership(
+        @ownership_required(
             klass=Service,
             id_name='service_id'
         )
@@ -142,7 +142,7 @@ class DecoratorTestCase(TestCase):
         """
 
         # Mock the usage of the decorator
-        @check_ownership(
+        @ownership_required(
             klass=MrMapGroup,
             id_name='group_id'
         )
@@ -183,7 +183,7 @@ class DecoratorTestCase(TestCase):
         """
 
         # Mock the usage of the decorator
-        @check_ownership(
+        @ownership_required(
             klass=Organization,
             id_name='org_id'
         )

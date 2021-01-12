@@ -310,6 +310,8 @@ class ResourceDelete(DeleteView):
         return HttpResponseRedirect(success_url)
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value), name='dispatch')
 class ResourceActivateDeactivate(AsyncUpdateView):
     model = Metadata
     fields = ['is_active']
@@ -600,8 +602,8 @@ def get_metadata_html(request: HttpRequest, metadata_id):
 
 
 @login_required
-#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+#@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
+#@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def new_pending_update_service(request: HttpRequest, metadata_id):
     """ Compare old service with new service and collect differences

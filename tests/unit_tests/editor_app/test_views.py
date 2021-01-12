@@ -118,7 +118,7 @@ class EditorDatasetWizardNewViewTestCase(TestCase):
             reverse(EDITOR_DATASET_WIZARD_NEW,)+"?current-view=resource:datasets-index",
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/datasets_index.html")
+        self.assertTemplateUsed(response=response, template_name="generic_views/generic_list_with_base.html")
         self.assertIsInstance(response.context["dataset_table"], DatasetTable)
         self.assertEqual(len(response.context["dataset_table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed

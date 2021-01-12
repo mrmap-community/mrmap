@@ -24,7 +24,7 @@ from users.helper import user_helper
 
 
 @login_required
-@permission_required(PermissionEnum.CAN_REMOVE_DATASET_METADATA)
+@permission_required(PermissionEnum.CAN_REMOVE_DATASET_METADATA.value)
 @ownership_required(Metadata, 'metadata_id')
 def remove_dataset(request: HttpRequest, metadata_id):
     """ The remove view for dataset metadata
@@ -62,7 +62,7 @@ def remove_dataset(request: HttpRequest, metadata_id):
 
 
 @login_required
-@permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA)
+@permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value)
 def add_new_dataset_wizard(request: HttpRequest, ):
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,

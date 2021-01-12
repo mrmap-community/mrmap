@@ -10,6 +10,7 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.test import TestCase, Client, RequestFactory
+from django.urls import ResolverMatch
 
 from MrMap.decorators import log_proxy, permission_required, ownership_required, resolve_metadata_public_id
 from service.models import Metadata, ProxyLog, Service
@@ -55,7 +56,7 @@ class DecoratorTestCase(TestCase):
 
         """
         # Mock decorator usage
-        @permission_required(PermissionEnum.CAN_CREATE_ORGANIZATION)
+        @permission_required(PermissionEnum.CAN_CREATE_ORGANIZATION.value)
         def test_function(request, *args, **kwargs):
             return HttpResponse()
 
@@ -116,6 +117,7 @@ class DecoratorTestCase(TestCase):
             "http://test.com/{}".format(requested_service.id),
         )
         request.user = self.default_user
+        request.resolver_match = ResolverMatch(None, None, {'service_id': requested_service.id})
 
         # add support for message middleware
         session_middleware = SessionMiddleware()
@@ -157,6 +159,7 @@ class DecoratorTestCase(TestCase):
             "http://test.com/{}".format(requested_group.id),
         )
         request.user = self.default_user
+        request.resolver_match = ResolverMatch(None, None, {'group_id': requested_group.id})
 
         # add support for message middleware
         session_middleware = SessionMiddleware()
@@ -198,6 +201,7 @@ class DecoratorTestCase(TestCase):
             "http://test.com/{}".format(requested_organization.id),
         )
         request.user = self.default_user
+        request.resolver_match = ResolverMatch(None, None, {'org_id': requested_organization.id})
 
         # add support for message middleware
         session_middleware = SessionMiddleware()

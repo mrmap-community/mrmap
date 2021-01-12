@@ -318,6 +318,7 @@ def remove_service(metadata: Metadata, user: MrMapUser):
         sub_metadata.save()
 
     # call removing as async task
+    # todo: maybe django singls can help us to call this function on post_delete
     tasks.async_remove_service_task.delay(metadata.service.id)
 
 

@@ -341,35 +341,6 @@ class ResourceActivateDeactivate(AsyncUpdateView):
         return super().form_valid(form=form)
 
 
-@login_required
-@resolve_metadata_public_id
-#@check_permission(PermissionEnum.CAN_ACTIVATE_RESOURCE)
-@ownership_required(Metadata, 'pk')
-def activate(request: HttpRequest, pk):
-    """ (De-)Activates a service and all of its layers
-
-    Args:
-        pk:
-        request:
-    Returns:
-         redirects to service:index
-    """
-    md = get_object_or_404(Metadata, id=pk)
-
-    form = ActivateServiceForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='resource:activate',
-        reverse_args=[pk, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _l("Activate resource \n<strong>{}</strong>").format(md.title),
-        is_confirmed_label=_l("Do you really want to deactivate this resource?") if md.is_active else _l("Do you really want to activate this resource?"),
-        instance=md,
-    )
-    return form.process_request(valid_func=form.process_activate_service)
-
-
 @resolve_metadata_public_id
 def get_service_metadata(request: HttpRequest, metadata_id):
     """ Returns the service metadata xml file for a given metadata id

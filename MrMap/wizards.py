@@ -74,6 +74,7 @@ class MrMapWizard(SessionWizardView, ABC):
         return context
 
     def render(self, form=None, **kwargs):
+        # todo: refactor this by using the default rendering (match ajax modal)
         # we implement custom rendering, for that we need the current we to render the modal as string and
         # pass it to the view where the wizard should be rendered
         form = form or self.get_form()

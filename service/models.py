@@ -634,6 +634,23 @@ class Metadata(Resource):
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
 
+    def is_updatecandidate(self):
+        # get service object
+        if self.is_metadata_type(MetadataEnum.FEATURETYPE):
+            service = self.featuretype.parent_service
+        elif self.is_metadata_type(MetadataEnum.DATASET):
+            return False
+        else:
+            service = self.service
+        # proof if the requested metadata is a update_candidate --> 404
+        if service.is_root:
+            if service.is_update_candidate_for is not None:
+                return True
+        else:
+            if service.parent_service.is_update_candidate_for is not None:
+                return True
+        return False
+
     def get_absolute_url(self):
         return reverse('resource:detail', kwargs={'pk': self.pk})
 

@@ -262,32 +262,14 @@ class ResourceIndexView(TemplateView):
         rendered_wfs_view = WfsIndexView.as_view()(request=self.request)
         rendered_csw_view = CswIndexView.as_view()(request=self.request)
         rendered_dataset_view = DatasetIndexView.as_view()(request=self.request)
-        #rendered_pending_task_ajax = render_to_string(template_name='pending_task_list_ajax.html')
+        rendered_pending_task_ajax = render_to_string(template_name='pending_task_list_ajax.html')
 
-        context['inline_html_items'] = [#rendered_pending_task_ajax,
+        context['inline_html_items'] = [rendered_pending_task_ajax,
                                         rendered_wms_view.rendered_content,
                                         rendered_wfs_view.rendered_content,
                                         rendered_csw_view.rendered_content,
                                         rendered_dataset_view.rendered_content,]
         return context
-
-
-def _is_updatecandidate(metadata: Metadata):
-    # get service object
-    if metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
-        service = metadata.featuretype.parent_service
-    elif metadata.is_metadata_type(MetadataEnum.DATASET):
-        return False
-    else:
-        service = metadata.service
-    # proof if the requested metadata is a update_candidate --> 404
-    if service.is_root:
-        if service.is_update_candidate_for is not None:
-            return True
-    else:
-        if service.parent_service.is_update_candidate_for is not None:
-            return True
-    return False
 
 
 @method_decorator(login_required, name='dispatch')
@@ -434,7 +416,7 @@ def get_service_preview(request: HttpRequest, metadata_id):
     md = get_object_or_404(Metadata, id=metadata_id)
     if md.is_metadata_type(MetadataEnum.DATASET) or \
             md.is_metadata_type(MetadataEnum.FEATURETYPE) or \
-            not md.service.is_service_type(OGCServiceEnum.WMS) or _is_updatecandidate(md):
+            not md.service.is_service_type(OGCServiceEnum.WMS) or md.is_updatecandidate:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
@@ -548,7 +530,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
     base_template = '404.html'
     # ----
     md = get_object_or_404(Metadata, id=metadata_id)
-    if _is_updatecandidate(md):
+    if md.is_updatecandidate:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     # collect global data for all cases

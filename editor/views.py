@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -6,9 +7,12 @@ from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
+from django.views.generic import UpdateView
+
 from MrMap.decorators import permission_required, ownership_required
 from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext
+from MrMap.views import GenericUpdateView
 from editor.filters import EditorAccessFilter
 from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata, \
     RestrictAccessForm, RestrictAccessSpatially
@@ -57,6 +61,20 @@ def remove_dataset(request: HttpRequest, metadata_id):
                              is_confirmed_label=_("Do you really want to delete this dataset?"),
                              instance=metadata)
     return form.process_request(valid_func=form.process_remove_dataset)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class EditMetadata(GenericUpdateView):
+    model = Metadata
+    form_class = MetadataEditorForm
+
+    def get_object(self, queryset=None):
+        instance = super().get_object(queryset=queryset)
+        self.action_url = instance.edit_view_uri
+        self.action = _("Edit " + instance.__str__())
+        return instance
 
 
 @login_required

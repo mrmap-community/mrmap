@@ -329,7 +329,8 @@ function submitAsync( event ) {
   // Post data using the Fetch API
   fetch(form.action, {
       method: form.method,
-      body: formData
+      body: formData,
+      redirect: 'manual'
     }).then(response => {
         if(response.ok) {
             return response;
@@ -338,6 +339,7 @@ function submitAsync( event ) {
         }
     }).then(response => {
         const contentType = response.headers.get("content-type");
+        console.log(response.status);
         if (contentType && contentType.indexOf("application/json") !== -1) {
             return response.json().then(data => {
               // process your JSON data further

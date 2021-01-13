@@ -20,7 +20,7 @@ urlpatterns = [
     path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
 
     # todo refactor this as generic view
-    path('metadata/<metadata_id>', edit, name='edit'),
+    path('metadata/<pk>/edit', EditMetadata.as_view(), name='edit'),
 
     # wizards
     path('dataset/add',

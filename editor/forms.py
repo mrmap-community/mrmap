@@ -9,7 +9,7 @@ import json
 
 from dal import autocomplete
 from django.db.models import Q
-from django.forms import ModelMultipleChoiceField
+from django.forms import ModelMultipleChoiceField, ModelForm
 from django.http import HttpResponseRedirect
 from django.urls import reverse, NoReverseMatch
 from django.utils.translation import gettext_lazy as _
@@ -34,7 +34,7 @@ from users.helper import user_helper
 from django.contrib import messages
 
 
-class MetadataEditorForm(MrMapModelForm):
+class MetadataEditorForm(ModelForm):
     def __init__(self, *args, **kwargs):
         # first call parent's constructor
         super(MetadataEditorForm, self).__init__(*args, **kwargs)
@@ -43,7 +43,7 @@ class MetadataEditorForm(MrMapModelForm):
         self.fields['licence'].required = False
         self.fields['categories'].required = False
         self.fields['keywords'].required = False
-        self.has_autocomplete = True
+        self.has_autocomplete_fields = True
 
     class Meta:
         model = Metadata

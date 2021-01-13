@@ -732,11 +732,12 @@ class Metadata(Resource):
                                           tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
             else:
-                actions.extend([LinkButton(url=self.edit_view_uri,
-                                           content=FONT_AWESOME_ICONS["EDIT"],
-                                           color=ButtonColorEnum.WARNING,
-                                           tooltip=_l("Edit the metadata of this resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
+                actions.extend([Modal(fetch_url=self.edit_view_uri,
+                                      btn_content=FONT_AWESOME_ICONS["EDIT"],
+                                      btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
+                                      btn_tooltip=_l("Edit the metadata of this resource"),
+                                      size=ModalSizeEnum.LARGE,
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
                                 LinkButton(url=self.edit_access_view_uri,
                                            content=FONT_AWESOME_ICONS["ACCESS"],
                                            color=ButtonColorEnum.WARNING,

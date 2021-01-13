@@ -1,23 +1,25 @@
 from django.http import JsonResponse
-from django.template.loader import render_to_string
 from django.views.generic import UpdateView
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum
 
 
-class AsyncUpdateView(UpdateView):
+class GenericUpdateView(UpdateView):
     template_name = 'generic_views/generic_update.html'
     action = ""
     action_url = ""
-    alert_msg = ""
-    async_task_func = None
-    async_task_params = {}
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update({"action": self.action,
                         "action_url": self.action_url})
         return context
+
+
+class AsyncUpdateView(GenericUpdateView):
+    alert_msg = ""
+    async_task_func = None
+    async_task_params = {}
 
     def form_valid(self, form):
         self.object.save()

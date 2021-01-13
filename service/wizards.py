@@ -12,6 +12,7 @@ from MrMap.wizards import MrMapWizard
 from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
+from service.settings import service_logger
 from structure.permissionEnums import PermissionEnum
 
 FIRST_STEP_ID = _("URL")
@@ -98,6 +99,8 @@ class NewResourceWizard(MrMapWizard):
                     return JsonResponse(status=202, data=content)
 
                 except Exception as e:
+                    service_logger.exception(e, stack_info=True, exc_info=True)
+
                     content = {
                         "alert": Alert(msg=str(e), alert_type=AlertEnum.DANGER).render()
                     }

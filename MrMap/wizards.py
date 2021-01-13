@@ -9,7 +9,6 @@ from MrMap.utils import get_theme
 from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _
 
-
 CURRENT_VIEW_QUERYPARAM = 'current-view'
 CURRENT_VIEW_ARG_QUERYPARAM = 'current-view-arg'
 
@@ -48,27 +47,31 @@ class MrMapWizard(SessionWizardView, ABC):
                         'action_url': self.action_url + self.url_querystring,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
-
-        if bool(self.storage.data['step_data']):
-            # this wizard is not new, prevent from bootstrap modal fading
-            context.update({'fade_modal': False, })
-
         return context
 
     def render_goto_step(self, goto_step, **kwargs):
+        current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
+
+        if self.is_form_update():
+            return self.render(current_form)
+
         # 1. save current form, we doesn't matter for validation for now.
         # If the wizard is done, he will perform validation for each.
-        current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
         self.storage.set_step_data(self.steps.current,
                                    self.process_step(current_form))
         self.storage.set_step_files(self.steps.current, self.process_step_files(current_form))
-
-        if self.storage.current_step == goto_step and \
-                f"{current_form.prefix}-is_form_update" in self.request.POST and \
-                self.request.POST[f"{current_form.prefix}-is_form_update"] == 'True':
-            # it's update of dropdown items or something else
-            return self.render(current_form)
         return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
+
+    def is_form_update(self):
+        if 'is_form_update' in self.request.POST:
+            # it's update of dropdown items or something else
+            # refresh with updated form
+            return True
+
+    def render_done(self, form, **kwargs):
+        if self.is_form_update():
+            return self.render(form)
+        return super().render_done(form=form, kwargs=kwargs)
 
     def process_step(self, form):
         # we implement custom logic to ignore uncomitted forms,

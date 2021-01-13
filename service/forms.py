@@ -46,7 +46,7 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
     registering_with_group = forms.ModelChoiceField(
         label=_("Registration with group"),
         help_text=_("Select a group for which this resource shall be registered."),
-        widget=forms.Select(attrs={'class': 'auto_submit_item'}),
+        widget=forms.Select(attrs={'onchange': 'isFormUpdateEventHandler(event);'}),
         queryset=MrMapGroup.objects.none(),
         to_field_name='id',
         initial=1,
@@ -63,7 +63,7 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
     service_needs_authentication = forms.BooleanField(
         label=_("Service needs authentication"),
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', })
+        widget=forms.CheckboxInput(attrs={'onchange': 'isFormUpdateEventHandler(event);'})
     )
     username = forms.CharField(label=_("Username"), required=False, disabled=True)
     password = forms.CharField(label=_("Password"), required=False, widget=forms.PasswordInput, disabled=True)
@@ -99,7 +99,7 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
                 "registering_for_other_organization"].queryset = user_groups.first().publish_for_organizations.all()
         if service_needs_authentication:
             self.fields["service_needs_authentication"].initial = "on"
-            self.fields["service_needs_authentication"].required = True
+            # self.fields["service_needs_authentication"].required = True
             self.fields["username"].disabled = False
             self.fields["username"].required = True
             self.fields["password"].disabled = False

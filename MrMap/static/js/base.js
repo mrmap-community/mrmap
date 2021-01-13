@@ -303,7 +303,7 @@ $(document).ready(function(){
     });
 
     $(function () {
-      $('[data-toggle="tooltip"]').tooltip()
+      $('[data-toggle="tooltip"]').tooltip();
     })
 
 });
@@ -345,10 +345,12 @@ function asyncForm( event ) {
             return response.text().then(text => {
                 // There is still a html content to render
                 modalContent.innerHTML = text;
+                $('[data-toggle="tooltip"]').tooltip();
             });
         }
     }).catch(err => {
         $('#' + modal.id).modal('hide');
+        modalContent.innerHTML = "";
         console.log(err);
     });
 
@@ -365,4 +367,15 @@ function asyncForm( event ) {
 
   // Prevent the default form submit
   event.preventDefault();
+}
+
+// adds auto submitting functionality to submit if a auto submit tagged item becomes changes
+function isFormUpdateEventHandler( event ){
+    const form = event.target.closest("form");
+    const isFormUpdate = document.createElement("input");
+    isFormUpdate.type = "hidden";
+    isFormUpdate.name = "is_form_update";
+    isFormUpdate.value = 'True'
+    form.appendChild(isFormUpdate);
+    form.querySelectorAll('[type=submit]')[0].click();
 }

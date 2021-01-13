@@ -1,11 +1,11 @@
 {% load bootstrap4 %}
 {% load i18n %}
 <div class="modal-header">
-    <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
+    <h5 class="modal-title" id="{{id_modal}}_title">
         {{ modal_title }}
     </h5>
 </div>
-<form action="{{action_url}}" method="post" onsubmit="asyncForm(event);" id="id_modal_form_{{id_modal}}">
+<form action="{{action_url}}" method="post" onsubmit="asyncForm(event);" id="{{id_modal}}_form">
     {% csrf_token %}
     <div class="modal-body"><!-- <modal-body> -->
         {% if wizard.messages %}
@@ -50,7 +50,7 @@
         <div class="container-fluid">
         <div class="row">
             <div class="col-sm">
-                todo dismiss btn
+                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
             </div>
             <div class="col-sm">
                 <div class="mx-auto text-center">

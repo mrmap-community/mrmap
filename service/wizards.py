@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
@@ -9,7 +9,6 @@ from django_bootstrap_swt.enums import AlertEnum
 from MrMap.decorators import permission_required
 from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
-from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
@@ -71,7 +70,7 @@ class NewResourceWizard(MrMapWizard):
                     'uri': url_dict["base_uri"],
                     'service_needs_authentication': needs_authentication,
                 })
-        return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
+        return super().render_goto_step(goto_step=goto_step)
 
     def done(self, form_list, **kwargs):
         """ Iterates over all forms and fills the Metadata/Dataset records accordingly

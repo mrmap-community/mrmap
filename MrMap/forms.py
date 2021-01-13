@@ -183,10 +183,6 @@ class MrMapModelForm(ModelForm, MrMapModalForm):
 
 
 class MrMapWizardForm(forms.Form):
-    is_form_update = forms.BooleanField(label=_('form update'),
-                                        widget=forms.HiddenInput(attrs={'class': 'is_form_update'}),
-                                        initial=False,
-                                        required=False,)
 
     def __init__(self,
                  request: HttpRequest,
@@ -194,6 +190,7 @@ class MrMapWizardForm(forms.Form):
                  has_autocomplete_fields: bool = False,
                  *args,
                  **kwargs):
+
         super(MrMapWizardForm, self).__init__(*args, **kwargs)
         self.request = request
         self.requesting_user = user_helper.get_user(request)

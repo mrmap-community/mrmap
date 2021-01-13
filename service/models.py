@@ -683,10 +683,11 @@ class Metadata(Resource):
 
     @classmethod
     def get_add_dataset_action(cls):
-        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset'),
-                          color=ButtonColorEnum.SUCCESS,
-                          url=reverse('editor:dataset-metadata-wizard-new'),
-                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+        return Modal(btn_content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset'),
+                     btn_attrs={"class": [ButtonColorEnum.SUCCESS.value]},
+                     fetch_url=reverse('editor:dataset-metadata-wizard-new'),
+                     size=ModalSizeEnum.LARGE,
+                     needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     def get_actions(self):
         actions = []

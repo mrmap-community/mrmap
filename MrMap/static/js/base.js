@@ -309,7 +309,9 @@ $(document).ready(function(){
 });
 
 
-function asyncForm( event ) {
+function submitAsync( event ) {
+  const submitter = event.submitter;
+
   // Store reference to form and modal to make later code easier to read
   const form = event.target;
   const modal = form.querySelector("div").closest(".modal")
@@ -320,10 +322,14 @@ function asyncForm( event ) {
   const submitBtnTxt = form.querySelectorAll('.submit_btn_txt');
   const submitBtnSpinner = form.querySelectorAll('.submit_btn_spinner');
 
+  var formData = new FormData(form);
+  if (submitter.name != ""){
+    formData.append(submitter.name, "");
+  }
   // Post data using the Fetch API
   fetch(form.action, {
       method: form.method,
-      body: new FormData(form)
+      body: formData
     }).then(response => {
         if(response.ok) {
             return response;
@@ -335,7 +341,7 @@ function asyncForm( event ) {
         if (contentType && contentType.indexOf("application/json") !== -1) {
             return response.json().then(data => {
               // process your JSON data further
-              if ( data.hasOwnProperty('task') ){
+              if ( data.hasOwnProperty('data') ){
                 $('#' + modal.id).modal('hide');
                 // todo: this should be fetch by a websocket
                 document.querySelector("#body-content").insertAdjacentHTML('beforebegin', data.alert);

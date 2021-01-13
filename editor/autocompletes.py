@@ -6,8 +6,10 @@ Created on: 09.03.20
 
 """
 from dal import autocomplete
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpRequest
+from django.utils.decorators import method_decorator
 
 from service.helper.enums import MetadataEnum
 from service.models import Keyword, Category, ReferenceSystem, Metadata
@@ -16,6 +18,7 @@ from structure.permissionEnums import PermissionEnum
 from users.helper.user_helper import get_user
 
 
+@method_decorator(login_required, name='dispatch')
 class KeywordAutocomplete(autocomplete.Select2QuerySetView):
     """ Provides an autocomplete functionality for keyword records
 
@@ -54,6 +57,7 @@ class KeywordAutocomplete(autocomplete.Select2QuerySetView):
         return user is not None and is_editor
 
 
+@method_decorator(login_required, name='dispatch')
 class CategoryAutocomplete(autocomplete.Select2QuerySetView):
     """ Provides an autocomplete functionality for categories records
 
@@ -78,7 +82,7 @@ class CategoryAutocomplete(autocomplete.Select2QuerySetView):
 
         return records
 
-
+@method_decorator(login_required, name='dispatch')
 class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
     """ Provides an autocomplete functionality for dataset metadata records
 
@@ -113,6 +117,7 @@ class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
         return '{} #{}'.format(result.title, result.id)
 
 
+@method_decorator(login_required, name='dispatch')
 class ServiceMetadataAutocomplete(autocomplete.Select2QuerySetView):
     """ Provides an autocomplete functionality for dataset metadata records
 
@@ -150,6 +155,7 @@ class ServiceMetadataAutocomplete(autocomplete.Select2QuerySetView):
         return '{} #{}'.format(result.title, result.id)
 
 
+@method_decorator(login_required, name='dispatch')
 class ReferenceSystemAutocomplete(autocomplete.Select2QuerySetView):
     """ Provides an autocomplete functionality for categories records
 

@@ -62,17 +62,6 @@ def remove_dataset(request: HttpRequest, metadata_id):
 
 
 @login_required
-@permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value)
-def add_new_dataset_wizard(request: HttpRequest, ):
-    return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
-                                 ignore_uncomitted_forms=True,
-                                 current_view=request.GET.get('current-view'),
-                                 title=_(format_html('<b>Add New Dataset</b>')),
-                                 id_wizard='add_new_dataset_wizard',
-                                 )(request=request)
-
-
-@login_required
 @permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
 @ownership_required(Metadata, 'pk')
 def edit_dataset_wizard(request, pk):

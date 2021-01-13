@@ -89,7 +89,7 @@ class NewResourceWizard(MrMapWizard):
                     # Function returns the pending task object
                     task = service_helper.create_new_service(form, form.requesting_user)
                     content = {
-                        "task": {
+                        "data": {
                             "id": task.task_id,
                         },
                         "alert": Alert(msg="Registering new resource scheduled", alert_type=AlertEnum.SUCCESS).render()

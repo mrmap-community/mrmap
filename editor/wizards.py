@@ -1,11 +1,17 @@
 import json
-import uuid
 from json import JSONDecodeError
 
+from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponseRedirect
+from django.http import JsonResponse
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html
+from django_bootstrap_swt.components import Alert
+from django_bootstrap_swt.enums import AlertEnum
+
+from MrMap.decorators import permission_required
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
@@ -16,7 +22,7 @@ from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilde
 from service.models import Dataset, Metadata, MetadataRelation, Document
 from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
-from users.helper import user_helper
+from structure.permissionEnums import PermissionEnum
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -28,16 +34,16 @@ DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
 DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsible party']
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value), name='dispatch')
 class DatasetWizard(MrMapWizard):
-    def __init__(self, current_view, current_view_arg=None, instance_id=None, *args, **kwargs):
+    def __init__(self, instance_id=None, *args, **kwargs):
         super(MrMapWizard, self).__init__(
             required_forms=DATASET_WIZARD_FORMS_REQUIRED,
-            action_url=reverse('editor:dataset-metadata-wizard-instance',
-                               args=(instance_id,))+f"?current-view={current_view}"
-            if instance_id else reverse('editor:dataset-metadata-wizard-new',)+f"?current-view={current_view}",
-            current_view=current_view,
-            current_view_arg=current_view_arg,
+            action_url=reverse('editor:dataset-metadata-wizard-instance', args=(instance_id,))
+            if instance_id else reverse('editor:dataset-metadata-wizard-new',),
             instance_id=instance_id,
+            title=_(format_html('<b>Add New Dataset</b>')),
             *args,
             **kwargs)
 
@@ -58,7 +64,7 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        if self.instance_id is not None:
+        if self.instance_id:
             # Update
             metadata = Metadata.objects.get(id=self.instance_id)
             dataset = Dataset.objects.get(metadata=metadata)
@@ -82,10 +88,17 @@ class DatasetWizard(MrMapWizard):
             dataset.save()
             metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(dataset.id,))
 
-        user = user_helper.get_user(request=self.request)
-        self._fill_form_list(form_list, metadata, dataset, user)
+        self._fill_form_list(form_list, metadata, dataset, self.request.user)
 
-        return HttpResponseRedirect(reverse(self.current_view, ), status=303)
+        content = {
+            "data": {
+                "id": metadata.id,
+            },
+            "alert": Alert(msg="Registering new resource scheduled", alert_type=AlertEnum.SUCCESS).render()
+        }
+
+        # cause this is a async task which can take longer we response with 'accept' status
+        return JsonResponse(status=200, data=content)
 
     @staticmethod
     def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user: MrMapUser):

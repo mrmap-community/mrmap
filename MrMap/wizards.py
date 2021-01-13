@@ -87,6 +87,11 @@ class MrMapWizard(SessionWizardView, ABC):
                 # x.1. self.get_form_list(): get the unbounded forms
                 if not form_obj.is_bound and form_key != self.steps.current:
                     uncomitted_forms.append(form_key)
+
+            for uncomitted_form in uncomitted_forms:
+                if uncomitted_form in self.required_forms:
+                    # not all required forms are posted. Render next form.
+                    return self.get_form_step_data(form)
             # x.4. if no unbounded form has required fields then remove them from the form_list
             temp_form_list = self.form_list
             for uncomitted_form in uncomitted_forms:

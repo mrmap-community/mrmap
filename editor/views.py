@@ -1,5 +1,4 @@
 from django.urls import reverse
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -14,7 +13,6 @@ from editor.filters import EditorAccessFilter
 from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata, \
     RestrictAccessForm, RestrictAccessSpatially
 from editor.tables import EditorAcessTable
-from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.models import MetadataRelation
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata
@@ -59,23 +57,6 @@ def remove_dataset(request: HttpRequest, metadata_id):
                              is_confirmed_label=_("Do you really want to delete this dataset?"),
                              instance=metadata)
     return form.process_request(valid_func=form.process_remove_dataset)
-
-
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
-@ownership_required(Metadata, 'pk')
-def edit_dataset_wizard(request, pk):
-    metadata = get_object_or_404(Metadata,
-                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                                 id=pk)
-    return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
-                                 ignore_uncomitted_forms=True,
-                                 current_view=request.GET.get('current-view'),
-                                 current_view_arg=request.GET.get('current-view-arg', None),
-                                 instance_id=pk,
-                                 title=_(format_html(f'<b>Edit</b> <i>{metadata.title}</i> <b>Dataset</b>')),
-                                 id_wizard=f'edit_{metadata.id}_dataset_wizard',
-                                 )(request=request)
 
 
 @login_required

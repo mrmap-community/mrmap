@@ -195,8 +195,8 @@ class DatasetIdentificationForm(MrMapWizardForm):
         self.fields["created_by"].initial = user_groups.first()
 
         if self.instance_id:
-            metadata = Metadata.objects.get(id=self.instance_id)
-            dataset = Dataset.objects.get(id=metadata.dataset.id)
+            metadata = Metadata.objects.get(pk=self.instance_id)
+            dataset = Dataset.objects.get(pk=metadata.dataset.id)
             self.fields['title'].initial = metadata.title
             self.fields['abstract'].initial = metadata.abstract
             self.fields['reference_system'].initial = metadata.reference_system.all()

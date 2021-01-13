@@ -11,7 +11,7 @@ from django.utils.html import format_html
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum
 
-from MrMap.decorators import permission_required
+from MrMap.decorators import permission_required, ownership_required
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
@@ -35,15 +35,13 @@ DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsibl
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value), name='dispatch')
 class DatasetWizard(MrMapWizard):
-    def __init__(self, instance_id=None, *args, **kwargs):
+    metadata = None
+    dataset = None
+
+    def __init__(self, *args, **kwargs):
         super(MrMapWizard, self).__init__(
             required_forms=DATASET_WIZARD_FORMS_REQUIRED,
-            action_url=reverse('editor:dataset-metadata-wizard-instance', args=(instance_id,))
-            if instance_id else reverse('editor:dataset-metadata-wizard-new',),
-            instance_id=instance_id,
-            title=_(format_html('<b>Add New Dataset</b>')),
             *args,
             **kwargs)
 
@@ -64,40 +62,15 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        if self.instance_id:
-            # Update
-            metadata = Metadata.objects.get(id=self.instance_id)
-            dataset = Dataset.objects.get(metadata=metadata)
-        else:
-            # New
-            # Create instances
-            metadata = Metadata()
-            metadata.metadata_type = MetadataEnum.DATASET.value
-            metadata.is_active = True
-
-            dataset = Dataset()
-            dataset.is_active = True
-            dataset.md_identifier_code = metadata.identifier
-            dataset.metadata_standard_name = "ISO 19115 Geographic information - Metadata"
-            dataset.metadata_standard_version = "ISO 19115:2003(E)"
-
-            # Pre-save objects to be able to add M2M relations
-            metadata.save()
-            metadata.identifier = metadata.id
-            dataset.metadata = metadata
-            dataset.save()
-            metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(dataset.id,))
-
-        self._fill_form_list(form_list, metadata, dataset, self.request.user)
+        self._fill_form_list(form_list, self.metadata, self.dataset, self.request.user)
 
         content = {
             "data": {
-                "id": metadata.id,
+                "id": self.metadata.id,
             },
-            "alert": Alert(msg="Registering new resource scheduled", alert_type=AlertEnum.SUCCESS).render()
+            "alert": Alert(msg="Dataset metadata created/edited", alert_type=AlertEnum.SUCCESS).render()
         }
 
-        # cause this is a async task which can take longer we response with 'accept' status
         return JsonResponse(status=200, data=content)
 
     @staticmethod
@@ -323,3 +296,71 @@ class DatasetWizard(MrMapWizard):
         dataset_doc_string = doc_builder.overwrite_dataset_metadata(doc.content)
         doc.content = dataset_doc_string.decode("UTF-8")
         doc.save()
+
+
+@method_decorator(permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value), name='dispatch')
+class NewDatasetWizard(DatasetWizard):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            action_url=reverse('editor:dataset-metadata-wizard-new', ),
+            title=_(format_html('<b>Add New Dataset</b>')),
+            *args,
+            **kwargs)
+
+    def done(self, form_list, **kwargs):
+        """ Iterates over all forms and fills the Metadata/Dataset records accordingly
+
+        Args:
+            form_list (FormList): An iterable list of forms
+            kwargs:
+        Returns:
+
+        """
+        # Create instances
+        self.metadata = Metadata()
+        self.metadata.metadata_type = MetadataEnum.DATASET.value
+        self.metadata.is_active = True
+
+        self.dataset = Dataset()
+        self.dataset.is_active = True
+        self.dataset.md_identifier_code = self.metadata.identifier
+        self.dataset.metadata_standard_name = "ISO 19115 Geographic information - Metadata"
+        self.dataset.metadata_standard_version = "ISO 19115:2003(E)"
+
+        # Pre-save objects to be able to add M2M relations
+        self.metadata.save()
+        self.metadata.identifier = self.metadata.id
+        self.dataset.metadata = self.metadata
+        self.dataset.save()
+        self.metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(self.dataset.id,))
+
+        return super().done(form_list=form_list, **kwargs)
+
+
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class EditDatasetWizard(DatasetWizard):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            title=_(format_html('<b>Edit Dataset</b>')),
+            *args,
+            **kwargs)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.instance_id = request.resolver_match.kwargs.get('pk')
+        self.action_url = reverse('editor:dataset-metadata-wizard-instance', args=(self.instance_id,))
+        return super().dispatch(request=request, args=args, kwargs=kwargs)
+
+    def done(self, form_list, **kwargs):
+        """ Iterates over all forms and fills the Metadata/Dataset records accordingly
+
+        Args:
+            form_list (FormList): An iterable list of forms
+            kwargs:
+        Returns:
+
+        """
+        self.metadata = Metadata.objects.get(id=self.instance_id)
+        self.dataset = Dataset.objects.get(metadata=self.metadata)
+
+        return super().done(form_list=form_list, **kwargs)

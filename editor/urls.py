@@ -9,6 +9,7 @@ from django.urls import path
 from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
     ReferenceSystemAutocomplete, ServiceMetadataAutocomplete
 from editor.views import *
+from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_FORMS
 
 app_name = 'editor'
 urlpatterns = [
@@ -21,9 +22,13 @@ urlpatterns = [
     # todo refactor this as generic view
     path('metadata/<metadata_id>', edit, name='edit'),
 
-    # todo refactor this as generic view
-    path('dataset/wizard', DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True), name="dataset-metadata-wizard-new"),
-    path('dataset/wizard/<pk>', edit_dataset_wizard, name="dataset-metadata-wizard-instance"),
+    # wizards
+    path('dataset/add',
+         NewDatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True),
+         name="dataset-metadata-wizard-new"),
+    path('dataset/<pk>/edit',
+         EditDatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True),
+         name="dataset-metadata-wizard-instance"),
 
     # todo refactor this as generic view
     path('dataset/remove/<metadata_id>', remove_dataset, name='remove-dataset-metadata'),

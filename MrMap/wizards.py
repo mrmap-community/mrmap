@@ -20,10 +20,9 @@ class MrMapWizard(SessionWizardView, ABC):
     title = None
     id_wizard = None
     required_forms = None
-    url_querystring = ""
 
     def __init__(self,
-                 action_url: str,
+                 action_url: str = None,
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
                  required_forms: list = None,
@@ -44,7 +43,7 @@ class MrMapWizard(SessionWizardView, ABC):
         context.update({'id_modal': self.id_wizard,
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
-                        'action_url': self.action_url + self.url_querystring,
+                        'action_url': self.action_url,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
         return context

@@ -695,11 +695,12 @@ class Metadata(Resource):
             # datasets can be edited,
             # removed if it is a dataset which is created from the user,
             # restored if it's customized
-            actions.append(LinkButton(url=self.edit_view_uri,
-                                      content=FONT_AWESOME_ICONS["EDIT"],
-                                      color=ButtonColorEnum.WARNING,
-                                      tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
-                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+            actions.append(Modal(fetch_url=self.edit_view_uri,
+                                 btn_content=FONT_AWESOME_ICONS["EDIT"],
+                                 btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
+                                 btn_tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
+                                 size=ModalSizeEnum.LARGE,
+                                 needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             is_mr_map_origin = not MetadataRelation.objects.filter(
                 metadata_to=self
             ).exclude(
@@ -722,7 +723,7 @@ class Metadata(Resource):
             actions.append(Modal(fetch_url=self.activate_view_uri,
                                  btn_content=FONT_AWESOME_ICONS["POWER_OFF"],
                                  btn_attrs={"class": [ButtonColorEnum.WARNING.value if self.is_active else ButtonColorEnum.SUCCESS.value]},
-                                 tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
+                                 btn_tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
                                  needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
             if self.is_service_type(OGCServiceEnum.CSW):
                 actions.append(LinkButton(url=self.harvest_view_uri,

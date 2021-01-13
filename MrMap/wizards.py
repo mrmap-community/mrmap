@@ -48,6 +48,12 @@ class MrMapWizard(SessionWizardView, ABC):
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
         return context
 
+    def is_form_update(self):
+        if 'is_form_update' in self.request.POST:
+            # it's update of dropdown items or something else
+            # refresh with updated form
+            return True
+
     def render_goto_step(self, goto_step, **kwargs):
         current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
 
@@ -60,12 +66,6 @@ class MrMapWizard(SessionWizardView, ABC):
                                    self.process_step(current_form))
         self.storage.set_step_files(self.steps.current, self.process_step_files(current_form))
         return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
-
-    def is_form_update(self):
-        if 'is_form_update' in self.request.POST:
-            # it's update of dropdown items or something else
-            # refresh with updated form
-            return True
 
     def render_done(self, form, **kwargs):
         if self.is_form_update():

@@ -69,45 +69,13 @@ def remove_dataset(request: HttpRequest, metadata_id):
 class EditMetadata(GenericUpdateView):
     model = Metadata
     form_class = MetadataEditorForm
+    queryset = Metadata.objects.all().exclude(metadata_type=MetadataEnum.CATALOGUE.value)
 
     def get_object(self, queryset=None):
         instance = super().get_object(queryset=queryset)
         self.action_url = instance.edit_view_uri
         self.action = _("Edit " + instance.__str__())
         return instance
-
-
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
-@ownership_required(Metadata, 'metadata_id')
-def edit(request: HttpRequest, metadata_id):
-    """ The edit view for metadata
-
-    Provides editing functions for all elements which are described by Metadata objects
-
-    Args:
-        request: The incoming request
-        metadata_id: The metadata id
-    Returns:
-        A rendered view
-    """
-    metadata = get_object_or_404(Metadata,
-                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                                 id=metadata_id,)
-    if metadata.metadata_type == MetadataEnum.DATASET.value:
-        return HttpResponseRedirect(reverse("editor:edit-dataset-metadata", args=(metadata_id,)), status=303)
-
-    form = MetadataEditorForm(data=request.POST or None,
-                              instance=metadata,
-                              request=request,
-                              reverse_lookup='editor:edit',
-                              reverse_args=[metadata_id, ],
-                              # ToDo: after refactoring of all forms is done, show_modal can be removed
-                              show_modal=True,
-                              has_autocomplete_fields=True,
-                              form_title=_("Edit metadata <strong>{}</strong>").format(metadata.title)
-                              )
-    return form.process_request(valid_func=form.process_edit_metadata)
 
 
 @login_required

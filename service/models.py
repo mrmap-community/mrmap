@@ -707,11 +707,11 @@ class Metadata(Resource):
                 origin=ResourceOriginEnum.EDITOR.value
             ).exists()
             if is_mr_map_origin:
-                actions.append(LinkButton(url=self.remove_view_uri,
-                                          content=FONT_AWESOME_ICONS["REMOVE"],
-                                          color=ButtonColorEnum.WARNING,
-                                          tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
-                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+                actions.append(Modal(fetch_url=self.remove_view_uri,
+                                     btn_content=FONT_AWESOME_ICONS["REMOVE"],
+                                     btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
+                                     btn_tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
+                                     needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             if self.is_custom:
                 actions.append(LinkButton(url=self.restore_view_uri,
                                           content=FONT_AWESOME_ICONS["UNDO"],

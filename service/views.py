@@ -277,7 +277,16 @@ class ResourceIndexView(TemplateView):
 class ResourceDelete(DeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:index')
-    template_name = 'generic_views/generic_delete_confirm.html'
+    template_name = 'generic_views/generic_confirm.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "action_url": self.object.remove_view_uri,
+            "action": _("Delete"),
+            "msg": _("Are you sure you want to delete " + self.object.__str__()) + "?"
+        })
+        return context
 
     def delete(self, request, *args, **kwargs):
         """

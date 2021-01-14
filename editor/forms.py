@@ -105,15 +105,15 @@ class MetadataEditorForm(ModelForm):
             # might have changed!
             self.instance.clear_cached_documents()
 
-        editor_helper.resolve_iso_metadata_links(self.request, self.instance, self)
+        editor_helper.resolve_iso_metadata_links(self.instance, self)
         editor_helper.overwrite_metadata(self.instance, custom_md, self)
 
         # Clear page cache for API, so the changes will be visible on the next cache
         p_cacher = PageCacher()
         p_cacher.remove_pages(API_CACHE_KEY_PREFIX)
 
-        messages.add_message(self.request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-
+        # todo: add last_changed_by_user field to Metadata model
+        """
         if self.instance.is_root():
             parent_service = self.instance.service
         else:
@@ -122,8 +122,11 @@ class MetadataEditorForm(ModelForm):
             elif self.instance.is_service_type(OGCServiceEnum.WFS):
                 parent_service = self.instance.featuretype.parent_service
 
-        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_EDITED,
-                                          "{}: {}".format(parent_service.metadata.title, self.instance.title))
+        
+        #user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_EDITED,
+        #                                 "{}: {}".format(parent_service.metadata.title, self.instance.title))
+        """
+        custom_md.save()
 
 
 class MetadataModelMultipleChoiceField(ModelMultipleChoiceField):
@@ -354,57 +357,6 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
         super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
 
         self.fields['organization'].queryset = organizations
-
-
-class RestoreMetadataForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(RestoreMetadataForm, self).__init__(*args, **kwargs)
-
-    def process_restore_metadata(self):
-        ext_auth = self.instance.get_external_authentication_object()
-        service_type = self.instance.service_type.value
-        if service_type == OGCServiceEnum.WMS.value:
-            children_md = Metadata.objects.filter(service__parent_service__metadata=self.instance, is_custom=True)
-        elif service_type == OGCServiceEnum.WFS.value:
-            children_md = Metadata.objects.filter(featuretype__parent_service__metadata=self.instance, is_custom=True)
-
-        if not self.instance.is_custom and len(children_md) == 0:
-            messages.add_message(self.request, messages.INFO, METADATA_IS_ORIGINAL)
-            try:
-                redirect = HttpResponseRedirect(
-                    reverse(
-                        self.request.GET.get('current-view', 'home'),
-                        args=(
-                            self.request.GET.get('current-view-arg', ""),
-                        ),
-                    ),
-                    status=303
-                )
-            except NoReverseMatch:
-                redirect = HttpResponseRedirect(reverse(self.request.GET.get('current-view', 'home')), status=303)
-            return redirect
-
-        if self.instance.is_custom:
-            self.instance.restore(self.instance.identifier, external_auth=ext_auth)
-            self.instance.save()
-
-        for md in children_md:
-            md.restore(md.identifier)
-            md.save()
-        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
-        if not self.instance.is_root():
-            if service_type == OGCServiceEnum.WMS.value:
-                parent_metadata = self.instance.service.parent_service.metadata
-            elif service_type == OGCServiceEnum.WFS.value:
-                parent_metadata = self.instance.featuretype.parent_service.metadata
-            else:
-                # This case is not important now
-                pass
-        else:
-            parent_metadata = self.instance
-        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
-                                          "{}: {}".format(parent_metadata.title, self.instance.title))
 
 
 class RestoreDatasetMetadata(MrMapConfirmForm):

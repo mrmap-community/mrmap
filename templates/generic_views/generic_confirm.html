@@ -1,16 +1,16 @@
 {% load i18n %}
 <div class="modal-header" style="white-space: normal;">
     <h5 class="modal-title" id="id_modal_title">
-        Delete {{ object.title }}
+        {{ action }} {{ object.title }}
     </h5>
 </div>
-<form action="{{object.remove_view_uri}}" method="post">
+<form action="{{ action_url }}" method="post">
     {% csrf_token %}
     <div class="modal-body" style="white-space: normal;">
-        <p>Are you sure you want to delete "{{ object }}"?</p>
+        <p>{{ msg }}</p>
     </div>
     <div class="modal-footer" style="white-space: normal;">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans 'Dismiss' %}</button>
-        <button type="submit" class="btn btn-danger">{% trans 'Remove' %}</button>
+        <button type="submit" class="btn btn-danger">{{ action }}</button>
     </div>
 </form>

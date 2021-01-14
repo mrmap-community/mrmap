@@ -8,13 +8,12 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
 from django.views.generic import DeleteView
-
 from MrMap.decorators import permission_required, ownership_required
-from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
+from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
 from MrMap.responses import DefaultContext
 from MrMap.views import GenericUpdateView
 from editor.filters import EditorAccessFilter
-from editor.forms import MetadataEditorForm, RestoreMetadataForm, RestoreDatasetMetadata, \
+from editor.forms import MetadataEditorForm, RestoreDatasetMetadata, \
     RestrictAccessForm, RestrictAccessSpatially
 from editor.tables import EditorAcessTable
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
@@ -30,10 +29,19 @@ from users.helper import user_helper
 class DatasetDelete(DeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:index')
-    template_name = 'generic_views/generic_delete_confirm.html'
+    template_name = 'generic_views/generic_confirm.html'
     # todo: filter isn't working as expected. See issue #519
     #  what's about dataset metadatas without any relations?
     queryset = Metadata.objects.filter(metadata_type=MetadataEnum.DATASET.value, related_metadata__origin=ResourceOriginEnum.EDITOR.value)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "action_url": self.object.remove_view_uri,
+            "action": _("Delete"),
+            "msg": _("Are you sure you want to delete " + self.object.__str__()) + "?"
+        })
+        return context
 
     def delete(self, request, *args, **kwargs):
         """
@@ -60,9 +68,6 @@ class EditMetadata(GenericUpdateView):
         self.action_url = instance.edit_view_uri
         self.action = _("Edit " + instance.__str__())
         return instance
-
-
-
 
 
 @login_required
@@ -172,32 +177,47 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
     return form.process_request(valid_func=form.process_restict_access_spatially)
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
-@ownership_required(Metadata, 'metadata_id')
-def restore(request: HttpRequest, metadata_id):
-    """ Drops custom metadata and load original metadata from capabilities and ISO metadata
-
-    Args,
-        request: The incoming request
-        id: The metadata id
-    Returns:
-         Redirects back to edit view
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class RestoreMetadata(DeleteView):
     """
-    metadata = get_object_or_404(Metadata,
-                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                                 id=metadata_id)
+    Abuse DeleteView caus of easy confirm post logic here
+    """
+    model = Metadata
+    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
+    no_dataset_type = ~Q(metadata_type=MetadataEnum.DATASET.value)
+    is_custom = Q(is_custom=True)
+    queryset = Metadata.objects.filter(is_custom | no_cataloge_type | no_dataset_type)
+    template_name = 'generic_views/generic_confirm.html'
 
-    form = RestoreMetadataForm(data=request.POST or None,
-                               request=request,
-                               reverse_lookup='editor:restore',
-                               reverse_args=[metadata_id, ],
-                               # ToDo: after refactoring of all forms is done, show_modal can be removed
-                               show_modal=True,
-                               is_confirmed_label=_("Do you really want to restore this metadata?"),
-                               form_title=_(f"Restore metadata <strong>{metadata.title}</strong>"),
-                               instance=metadata)
-    return form.process_request(valid_func=form.process_restore_metadata)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "action_url": self.object.restore_view_uri,
+            "action": _("Restore"),
+            "msg": _("Are you sure you want to restore " + self.object.__str__()) + "?"
+        })
+        return context
+
+    def delete(self, request, *args, **kwargs):
+        """
+
+        """
+        self.object = self.get_object()
+
+        ext_auth = self.object.get_external_authentication_object()
+
+        self.object.restore(self.object.identifier, external_auth=ext_auth)
+
+        # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
+        user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
+                                          "{}: {}".format(self.object.get_parent_service_metadata.title, self.object.title))
+
+        success_url = self.get_success_url()
+
+        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+        return HttpResponseRedirect(success_url)
 
 
 @login_required

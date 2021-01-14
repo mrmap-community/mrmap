@@ -94,8 +94,8 @@ class MetadataEditorForm(ModelForm):
             ),
         }
 
-    def process_edit_metadata(self):
-        custom_md = self.save(commit=False)
+    def save(self, commit=True):
+        custom_md = super().save(commit=False)
         if not self.instance.is_root():
             # this is for the case that we are working on a non root element which is not allowed to change the
             # inheritance setting for the whole service -> we act like it didn't change
@@ -354,16 +354,6 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
         super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
 
         self.fields['organization'].queryset = organizations
-
-
-class RemoveDatasetForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(RemoveDatasetForm, self).__init__(*args, **kwargs)
-
-    def process_remove_dataset(self):
-        self.instance.delete(force=True)
-        messages.success(self.request, message=_("Dataset successfully deleted."))
 
 
 class RestoreMetadataForm(MrMapConfirmForm):

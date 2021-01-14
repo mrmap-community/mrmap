@@ -24,12 +24,6 @@ from service.settings import NONE_UUID
 from structure.models import Organization
 
 
-class ServiceURIForm(forms.Form):
-    uri = forms.CharField(label=_("GetRequest URI"), widget=forms.TextInput(attrs={
-        "id": "capabilities-uri"
-    }))
-
-
 class RegisterNewResourceWizardPage1(MrMapWizardForm):
     get_request_uri = forms.URLField(
         validators=[validate_get_capablities_uri],
@@ -188,32 +182,3 @@ class UpdateOldToNewElementsForm(forms.Form):
         if choices is not None:
             for identifier, choice in choices.items():
                 self.fields['new_elem_{}'.format(identifier)].initial = choice
-
-
-class RemoveServiceForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(RemoveServiceForm, self).__init__(*args, **kwargs)
-
-    def process_remove_service(self):
-        service_helper.remove_service(self.instance, self.requesting_user)
-
-
-class ActivateServiceForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(ActivateServiceForm, self).__init__(*args, **kwargs)
-
-    def process_activate_service(self):
-        self.instance.is_active = not self.instance.is_active
-        self.instance.save()
-
-        # run activation async!
-        tasks.async_activate_service.delay(self.instance.id, self.requesting_user.id, self.instance.is_active)
-
-        # If metadata WAS active, then it will be deactivated now
-        if self.instance.is_active:
-            msg = SERVICE_ACTIVATED_TEMPLATE.format(self.instance.title)
-        else:
-            msg = SERVICE_DEACTIVATED_TEMPLATE.format(self.instance.title)
-        messages.success(self.request, msg)

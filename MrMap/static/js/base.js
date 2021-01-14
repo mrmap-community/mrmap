@@ -315,7 +315,7 @@ function submitAsync( event ) {
   // Store reference to form and modal to make later code easier to read
   const form = event.target;
   const modal = form.querySelector("div").closest(".modal")
-  const modalContent = form.querySelector("div").closest(".modal-content")
+  const modalContent = form.querySelector("div").closest(".modal-fetched-content")
 
 
   // get status message references
@@ -339,7 +339,6 @@ function submitAsync( event ) {
         }
     }).then(response => {
         const contentType = response.headers.get("content-type");
-        console.log(response.status);
         if (contentType && contentType.indexOf("application/json") !== -1) {
             return response.json().then(data => {
               // process your JSON data further
@@ -347,6 +346,8 @@ function submitAsync( event ) {
                 $('#' + modal.id).modal('hide');
                 // todo: this should be fetch by a websocket
                 document.querySelector("#body-content").insertAdjacentHTML('beforebegin', data.alert);
+              } else {
+                throw Error(`Response has no data attribute`);
               }
             });
         } else {

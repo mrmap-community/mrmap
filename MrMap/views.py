@@ -28,7 +28,7 @@ class AsyncUpdateView(GenericUpdateView):
                                           additional_params=self.async_task_params)
 
         content = {
-            "task": {
+            "data": {
                 "id": task.task_id,
             },
             "alert": Alert(msg=self.alert_msg, alert_type=AlertEnum.SUCCESS).render()

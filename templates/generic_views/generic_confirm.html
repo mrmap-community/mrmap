@@ -4,13 +4,19 @@
         {{ action }} {{ object.title }}
     </h5>
 </div>
-<form action="{{ action_url }}" method="post">
+<form action="{{ action_url }}" method="post" onsubmit="submitAsync(event);">
     {% csrf_token %}
     <div class="modal-body" style="white-space: normal;">
         <p>{{ msg }}</p>
     </div>
     <div class="modal-footer" style="white-space: normal;">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans 'Dismiss' %}</button>
-        <button type="submit" class="btn btn-danger">{{ action }}</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            <span class="submit_btn_txt">{% trans 'Dismiss' %}</span>
+            <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+        </button>
+        <button type="submit" class="btn btn-danger">
+            <span class="submit_btn_txt">{{ action }}</span>
+            <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+        </button>
     </div>
 </form>

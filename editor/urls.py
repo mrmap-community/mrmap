@@ -34,6 +34,7 @@ urlpatterns = [
     # todo refactor this as generic view
     path('access/<object_id>', edit_access, name='edit_access'),
     path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
-    path('metadata/<metadata_id>/restore', RestoreMetadata, name='restore'),
+
+    path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
     path('restore-dataset-metadata/<metadata_id>', restore_dataset_metadata, name='restore-dataset-metadata'),
 ]

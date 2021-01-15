@@ -182,7 +182,7 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class RestoreMetadata(DeleteView):
     """
-    Abuse DeleteView caus of easy confirm post logic here
+    Abuse DeleteView cause of easy confirm post logic here
     """
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
@@ -190,6 +190,7 @@ class RestoreMetadata(DeleteView):
     is_custom = Q(is_custom=True)
     queryset = Metadata.objects.filter(is_custom | no_cataloge_type | no_dataset_type)
     template_name = 'generic_views/generic_confirm.html'
+    success_url = reverse_lazy('home')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
@@ -200,6 +201,7 @@ class RestoreMetadata(DeleteView):
         })
         return context
 
+    # Abuse delete function cause of easy confirm post logic here
     def delete(self, request, *args, **kwargs):
         """
 
@@ -212,7 +214,7 @@ class RestoreMetadata(DeleteView):
 
         # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
         user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                          "{}: {}".format(self.object.get_parent_service_metadata.title, self.object.title))
+                                          "{}: {}".format(self.object.get_parent_service_metadata().title, self.object.title))
 
         success_url = self.get_success_url()
 

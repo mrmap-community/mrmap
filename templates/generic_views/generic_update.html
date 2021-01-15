@@ -14,7 +14,10 @@
         {% endif %}
     </div>
     <div class="modal-footer" style="white-space: normal;">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans 'Close' %}</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            <span class="submit_btn_txt">{% trans 'Close' %}</span>
+            <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+        </button>
         <button type="submit" class="btn btn-primary">
             <span class="submit_btn_txt">{% trans 'Save changes' %}</span>
             <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>

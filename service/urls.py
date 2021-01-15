@@ -1,6 +1,7 @@
 from django.urls import path
 
 from service.views import *
+from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 
 app_name = 'resource'
 urlpatterns = [

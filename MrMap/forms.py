@@ -234,3 +234,19 @@ class MrMapConfirmForm(MrMapForm):
         if is_confirmed is not True:
             self.add_error("is_confirmed", _("Check this field"))
         return cleaned_data
+
+
+class ConfirmForm(forms.Form):
+    is_confirmed = forms.BooleanField()
+
+    def __init__(self, *args, **kwargs):
+        is_confirmed_label = '' if 'is_confirmed_label' not in kwargs else kwargs.pop('is_confirmed_label')
+        super(ConfirmForm, self).__init__(*args, **kwargs)
+        self.fields["is_confirmed"].label = is_confirmed_label
+
+    def clean(self):
+        cleaned_data = super(ConfirmForm, self).clean()
+        is_confirmed = cleaned_data.get("is_confirmed")
+        if is_confirmed is not True:
+            self.add_error("is_confirmed", _("Check this field"))
+        return cleaned_data

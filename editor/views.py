@@ -8,10 +8,11 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
 from django.views.generic import DeleteView
+
 from MrMap.decorators import permission_required, ownership_required
 from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
 from MrMap.responses import DefaultContext
-from MrMap.views import GenericUpdateView
+from MrMap.views import GenericUpdateView, ConfirmView
 from editor.filters import EditorAccessFilter
 from editor.forms import MetadataEditorForm, RestoreDatasetMetadata, \
     RestrictAccessForm, RestrictAccessSpatially
@@ -180,32 +181,30 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class RestoreMetadata(DeleteView):
-    """
-    Abuse DeleteView cause of easy confirm post logic here
-    """
+class RestoreMetadata(ConfirmView):
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
     no_dataset_type = ~Q(metadata_type=MetadataEnum.DATASET.value)
     is_custom = Q(is_custom=True)
     queryset = Metadata.objects.filter(is_custom | no_cataloge_type | no_dataset_type)
-    template_name = 'generic_views/generic_confirm.html'
-    success_url = reverse_lazy('home')
+    action = _("Restore")
+
+    def get_success_url(self):
+        return self.object.restore_view_uri
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"is_confirmed_label": _("Do you really want to restore Metadata?")})
+        return kwargs
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data()
+        context = super().get_context_data(**kwargs)
         context.update({
             "action_url": self.object.restore_view_uri,
-            "action": _("Restore"),
-            "msg": _("Are you sure you want to restore " + self.object.__str__()) + "?"
         })
         return context
 
-    # Abuse delete function cause of easy confirm post logic here
-    def delete(self, request, *args, **kwargs):
-        """
-
-        """
+    def form_valid(self, form):
         self.object = self.get_object()
 
         ext_auth = self.object.get_external_authentication_object()

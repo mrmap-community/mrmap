@@ -7,20 +7,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.forms.utils import ErrorList
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect, \
-    HttpResponseBadRequest, JsonResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, TemplateView, DetailView, DeleteView, FormView, UpdateView
-from django.views.generic.base import ContextMixin
+from django.views.generic import ListView, TemplateView, DetailView, DeleteView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
-    Badge, Accordion, CardHeader, Alert
-from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum, AlertEnum
+    Badge, Accordion, CardHeader
+from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
@@ -35,12 +32,11 @@ from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, \
-    SERVICE_ACTIVATED_TEMPLATE, SERVICE_DEACTIVATED_TEMPLATE
+    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED
 from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.views import AsyncUpdateView
+from MrMap.views import AsyncConfirmView
 from service import tasks
 from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
@@ -57,12 +53,10 @@ from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog, FeatureTypeElement
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 from django.urls import reverse, reverse_lazy
-
 from users.models import Subscription
 
 
@@ -302,9 +296,8 @@ class ResourceDelete(DeleteView):
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value), name='dispatch')
-class ResourceActivateDeactivate(AsyncUpdateView):
+class ResourceActivateDeactivate(AsyncConfirmView):
     model = Metadata
-    fields = ['is_active']
 
     def dispatch(self, request, *args, **kwargs):
         self.async_task_func = tasks.async_activate_service
@@ -314,22 +307,32 @@ class ResourceActivateDeactivate(AsyncUpdateView):
     def get_object(self, queryset=None):
         instance = super().get_object(queryset=queryset)
         self.action_url = instance.activate_view_uri
-        # toggle is_active to initial the is_active field with the negated value
-        instance.is_active = False if instance.is_active else True
+        if instance.is_active:
+            self.action = _l("Deactivate")
+            self.async_task_params.update({'is_active': False})
+            self.action_btn_color = ButtonColorEnum.WARNING
+        else:
+            self.action = _l("Activate")
+            self.async_task_params.update({'is_active': True})
+            self.action_btn_color = ButtonColorEnum.SUCCESS
+
         return instance
 
-    def form_valid(self, form):
-        is_active = form.cleaned_data.get('is_active')
-        if is_active:
-            self.action = _l("Activate")
-            activate_deactivate = _("activating")
-            self.async_task_params.update({'is_active': True})
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.get_object().is_active:
+            activate_deactivate = _("deactivate")
         else:
-            self.action = _l("Deactivate")
-            activate_deactivate = _("deactivating")
-            self.async_task_params.update({'is_active': False})
+            activate_deactivate = _("activate")
+        kwargs.update({"is_confirmed_label": _("Do you really want to " + activate_deactivate + " " + self.object.title + "?")})
+        return kwargs
 
-        self.alert_msg = _(f"Task for {activate_deactivate} {self.object.title} scheduled")
+    def form_valid(self, form):
+        if self.object.is_active:
+            activate_deactivate = _("deactivating")
+        else:
+            activate_deactivate = _("activating")
+        self.alert_msg = _(f"Task for {activate_deactivate} {self.object.title} scheduled.")
         return super().form_valid(form=form)
 
 

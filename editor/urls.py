@@ -13,14 +13,19 @@ from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_F
 
 app_name = 'editor'
 urlpatterns = [
+    # todo: all autocomplete views should be moved to the service (resource) app
     path('keyword-autocomplete/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword-autocomplete"),
     path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
     path('metadata-autocomplete/', DatasetMetadataAutocomplete.as_view(), name="metadata-autocomplete"),
     path('service-autocomplete/', ServiceMetadataAutocomplete.as_view(), name="service-autocomplete"),
     path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
 
-    # todo refactor this as generic view
     path('metadata/<pk>/edit', EditMetadata.as_view(), name='edit'),
+    path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
+    path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
+    # todo refactor this as generic view
+    path('access/<object_id>', edit_access, name='edit_access'),
+    path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
 
     # wizards
     path('dataset/add',
@@ -30,10 +35,4 @@ urlpatterns = [
          EditDatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True),
          name="dataset-metadata-wizard-instance"),
 
-    path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
-    # todo refactor this as generic view
-    path('access/<object_id>', edit_access, name='edit_access'),
-    path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
-
-    path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
 ]

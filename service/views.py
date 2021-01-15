@@ -1006,7 +1006,7 @@ class ResourceTreeView(DetailView):
                         sub_sub_elements_count = sub_element.elements.count()
 
                     accordion_title = sub_element_icon + sub_element.metadata.title + ' ' + Badge(content=sub_sub_elements_count)
-                    accordion_title_center = f'{details}{details.button}{metadata_dropdown}'
+                    accordion_title_center = f'{details}{metadata_dropdown}'
 
                     related_datasets = sub_element.metadata.get_related_dataset_metadata(count=True)
                     if related_datasets > 0:
@@ -1046,7 +1046,7 @@ class ResourceTreeView(DetailView):
                                      tooltip=_l('Show metadata'),
                                      header=_l('Show metadata as:'))
 
-        card_header_title_center = root_details.button+root_details if root_details else ''
+        card_header_title_center = root_details if root_details else ''
         card_header_title_center += capabilities_dropdown if capabilities_dropdown else ''
         card_header_title_center += metadata_dropdown
 

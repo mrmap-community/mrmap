@@ -36,5 +36,5 @@ urlpatterns = [
     path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
 
     path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
-    path('restore-dataset-metadata/<metadata_id>', restore_dataset_metadata, name='restore-dataset-metadata'),
+    path('dataset/<pk>/restore', RestoreDatasetMetadata.as_view(), name='restore-dataset-metadata'),
 ]

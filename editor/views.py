@@ -189,9 +189,6 @@ class RestoreMetadata(ConfirmView):
     queryset = Metadata.objects.filter(is_custom | no_cataloge_type | no_dataset_type)
     action = _("Restore")
 
-    def get_success_url(self):
-        return self.object.restore_view_uri
-
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs.update({"is_confirmed_label": _("Do you really want to restore Metadata?")})
@@ -221,29 +218,36 @@ class RestoreMetadata(ConfirmView):
         return HttpResponseRedirect(success_url)
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
-@ownership_required(Metadata, 'metadata_id')
-def restore_dataset_metadata(request: HttpRequest, metadata_id):
-    """ Drops custom metadata and load original metadata from capabilities and ISO metadata
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class RestoreDatasetMetadata(ConfirmView):
+    model = Metadata
+    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
+    is_dataset_type = Q(metadata_type=MetadataEnum.DATASET.value)
+    is_custom = Q(is_custom=True)
+    queryset = Metadata.objects.filter(is_custom | no_cataloge_type | is_dataset_type)
+    action = _("Restore")
 
-    Args,
-        request: The incoming request
-        metadata_id: The metadata id
-    Returns:
-         Redirects back to edit view
-    """
-    metadata = get_object_or_404(Metadata,
-                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                                 id=metadata_id)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"is_confirmed_label": _("Do you really want to restore Dataset?")})
+        return kwargs
 
-    form = RestoreDatasetMetadata(data=request.POST or None,
-                                  request=request,
-                                  reverse_lookup='editor:restore-dataset-metadata',
-                                  reverse_args=[metadata_id, ],
-                                  # ToDo: after refactoring of all forms is done, show_modal can be removed
-                                  show_modal=True,
-                                  is_confirmed_label=_("Do you really want to restore this dataset?"),
-                                  form_title=_(f"Restore dataset metadata <strong>{metadata.title}</strong>"),
-                                  instance=metadata)
-    return form.process_request(valid_func=form.process_restore_dataset_metadata)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            "action_url": self.object.restore_view_uri,
+        })
+        return context
+
+    def form_valid(self, form):
+        ext_auth = self.object.get_external_authentication_object()
+
+        self.object.restore(self.object.identifier, external_auth=ext_auth)
+
+        user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
+                                          "{}".format(self.object.title, ))
+        success_url = self.get_success_url()
+        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+        return HttpResponseRedirect(success_url)

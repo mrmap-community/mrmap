@@ -608,7 +608,7 @@ class Metadata(Resource):
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
     related_metadata = models.ManyToManyField(MetadataRelation, blank=True, related_name='related_to')
-    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE, blank=True, null=True)
     origin = None
 
     class Meta:
@@ -713,11 +713,11 @@ class Metadata(Resource):
                                      btn_tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             if self.is_custom:
-                actions.append(LinkButton(url=self.restore_view_uri,
-                                          content=FONT_AWESOME_ICONS["UNDO"],
-                                          color=ButtonColorEnum.DANGER,
-                                          tooltip=_l(f"Restore <strong>{self.title} [{self.id}]</strong> dataset"),
-                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+                actions.append(Modal(fetch_url=self.restore_view_uri,
+                                     btn_content=FONT_AWESOME_ICONS["UNDO"],
+                                     btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
+                                     btn_tooltip=_l(f"Restore <strong>{self.title} [{self.id}]</strong> dataset"),
+                                     needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
             actions.append(Modal(fetch_url=self.activate_view_uri,

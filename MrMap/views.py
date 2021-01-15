@@ -68,6 +68,9 @@ class ConfirmView(FormMixin, DetailView):
                         "action_btn_color": self.action_btn_color,})
         return context
 
+    def get_success_url(self):
+        return self.object.detail_view_uri
+
 
 class AsyncConfirmView(ConfirmView):
     alert_msg = ""

@@ -13,6 +13,7 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
+from editor.settings import editor_logger
 from service.helper.iso.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
@@ -390,7 +391,7 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
 
 
 @transaction.atomic
-def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_form):
+def resolve_iso_metadata_links(metadata: Metadata, editor_form):
     """ Iterate over all provided iso metadata links and create metadata from it which will be related to the metadata
 
     Args:
@@ -409,10 +410,10 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
         _remove_iso_metadata(metadata, md_links, existing_iso_links)
         _add_iso_metadata(metadata, md_links, existing_iso_links)
     except MissingSchema as e:
-        messages.add_message(request, messages.ERROR, EDITOR_INVALID_ISO_LINK.format(e.link))
+        editor_logger.error(msg=EDITOR_INVALID_ISO_LINK.format(e.link))
+        editor_logger.exception(e, exc_info=True, stack_info=True)
     except Exception as e:
-        messages.add_message(request, messages.ERROR, e)
-
+        editor_logger.exception(e, exc_info=True, stack_info=True)
 
 @transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):

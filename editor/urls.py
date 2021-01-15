@@ -30,10 +30,10 @@ urlpatterns = [
          EditDatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True),
          name="dataset-metadata-wizard-instance"),
 
-    # todo refactor this as generic view
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
+    # todo refactor this as generic view
     path('access/<object_id>', edit_access, name='edit_access'),
     path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
-    path('restore/<metadata_id>', restore, name='restore'),
+    path('metadata/<metadata_id>/restore', RestoreMetadata, name='restore'),
     path('restore-dataset-metadata/<metadata_id>', restore_dataset_metadata, name='restore-dataset-metadata'),
 ]

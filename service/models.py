@@ -607,7 +607,7 @@ class Metadata(Resource):
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
-    related_metadata = models.ManyToManyField(MetadataRelation, blank=True, related_name='metadata_from')
+    related_metadata = models.ManyToManyField(MetadataRelation, blank=True, related_name='related_to')
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -763,11 +763,11 @@ class Metadata(Resource):
                                           needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), ])
 
                 if self.is_custom:
-                    actions.append(LinkButton(url=self.restore_view_uri,
-                                              content=FONT_AWESOME_ICONS["UNDO"],
-                                              color=ButtonColorEnum.DANGER,
-                                              tooltip=_l("Restore the metadata for resource"),
-                                              needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
+                    actions.append(Modal(fetch_url=self.restore_view_uri,
+                                         btn_content=FONT_AWESOME_ICONS["UNDO"],
+                                         btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
+                                         btn_tooltip=_l("Restore the metadata for resource"),
+                                         needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
 
         return actions
 
@@ -1023,6 +1023,19 @@ class Metadata(Resource):
         elif self.is_featuretype_metadata:
             ret_val = self.featuretype
         return ret_val
+
+    def get_parent_service_metadata(self):
+        if self.is_root():
+            parent_metadata = self
+        else:
+            if self.is_service_type(OGCServiceEnum.WMS):
+                parent_metadata = self.service.parent_service.metadata
+            elif self.is_service_type(OGCServiceEnum.WFS):
+                parent_metadata = self.instance.featuretype.parent_service.metadata
+            else:
+                # This case is not important now
+                parent_metadata = None
+        return parent_metadata
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -1817,12 +1830,13 @@ class Metadata(Resource):
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
 
-    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
+    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None, restore_children=True):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
             identifier (str): The identifier of a featureType or Layer (in xml often named 'name')
             external_auth (ExternalAuthentication):
+            restore_children (bool):
         Returns:
              nothing
         """
@@ -1833,11 +1847,19 @@ class Metadata(Resource):
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         if self.is_service_type(OGCServiceEnum.WFS):
             self._restore_wfs(identifier, external_auth=external_auth)
+            if restore_children:
+                for children in Metadata.objects.filter(featuretype__parent_service__metadata=self, is_custom=True):
+                    # avoid childlookup `restore_children=False`
+                    children.restore(identifier=children.identifier, external_auth=external_auth, restore_children=False)
         elif self.is_service_type(OGCServiceEnum.WMS):
             self._restore_wms(external_auth=external_auth)
+            if restore_children:
+                for children in Metadata.objects.filter(service__parent_service__metadata=self, is_custom=True):
+                    children.restor(external_auth=external_auth, restore_children=False)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
         self.clear_cached_documents()
+        self.save()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them

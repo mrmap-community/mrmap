@@ -68,6 +68,7 @@ def get_public_groups():
     return public_groups
 
 
+# todo: use django signals to fire this
 def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.
 

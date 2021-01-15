@@ -24,7 +24,8 @@ urlpatterns = [
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
     path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
     # todo refactor this as generic view
-    path('access/<object_id>', edit_access, name='edit_access'),
+    path('access/<pk>', GeneralAccessSettings.as_view(), name='edit_access'),
+    path('access/<pk>', GroupAccessTable.as_view(), name='edit_access'),
     path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
 
     # wizards

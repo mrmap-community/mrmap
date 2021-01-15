@@ -22,3 +22,4 @@ class IconEnum(Enum):
     PLAY = "fas fa-play"
     LOGS = "fas fa-stethoscope"
     DOWNLOAD = "fas fa-download"
+    PUBLIC = "fas fa-globe"

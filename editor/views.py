@@ -7,7 +7,11 @@ from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
-from django.views.generic import DeleteView
+from django.views.generic import DeleteView, DetailView
+from django.views.generic.edit import FormMixin
+from django_bootstrap_swt.enums import ButtonColorEnum
+from django_filters.views import FilterView
+from django_tables2 import SingleTableMixin
 
 from MrMap.decorators import permission_required, ownership_required
 from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
@@ -70,6 +74,60 @@ class EditMetadata(GenericUpdateView):
         self.action = _("Edit " + instance.__str__())
         return instance
 
+
+class GeneralAccessSettings(FormMixin, DetailView):
+    template_name = 'generic_views/generic_confirm_form.html'
+    success_url = reverse_lazy('home')
+    form_class = RestrictAccessForm
+    model = Metadata
+    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
+    is_root = Q(is_root=True)
+    queryset = Metadata.objects.filter(is_root | no_cataloge_type)
+
+    action = "General settings"
+    action_url = ""
+    action_btn_color = ButtonColorEnum.PRIMARY
+
+    # decorator or some other function could pass *args or **kwargs it to this function
+    # so keep *args and **kwargs here to avoid from
+    # TypeError: post() got an unexpected keyword argument 'pk' for example
+    def post(self, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"action": self.action,
+                        "action_url": reverse("editor:edit_access", args=self.object.pk),
+                        "action_btn_color": self.action_btn_color, })
+        return context
+
+    def get_success_url(self):
+        return self.object.detail_view_uri
+
+
+class GroupAccessTable(SingleTableMixin, FilterView):
+    model = MrMapGroup
+    table_class = EditorAcessTable
+    filterset_class = EditorAccessFilter
+    template_name = "generic_views/generic_list_without_base.html"
+    queryset = MrMapGroup.objects.filter(Q(is_permission_group=False) | Q(is_public_group=True)).order_by(Case(
+            When(
+                is_public_group=True,
+                then=0
+            )
+        ),
+        'name')
+
+    def get_table_kwargs(self):
+        return {
+            # todo: pass the related_metadata object
+            'related_metadata': "todo"
+        }
 
 @login_required
 @permission_required(PermissionEnum.CAN_EDIT_METADATA.value)

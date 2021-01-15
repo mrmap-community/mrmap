@@ -1,15 +1,19 @@
 from django.urls import reverse
 from django.utils.html import format_html
+from django_bootstrap_swt.components import Link, Button, LinkButton, Tag
+from django_tables2 import tables
 
 from MrMap.columns import MrMapColumn
+from MrMap.icons import IconEnum
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.utils import get_theme, get_ok_nok_icon
+from structure.models import MrMapGroup
 from structure.permissionEnums import PermissionEnum
 
 
-class EditorAcessTable(MrMapTable):
+class EditorAcessTable(tables.Table):
 
     editor_group_name = MrMapColumn(
         accessor='name',
@@ -35,12 +39,19 @@ class EditorAcessTable(MrMapTable):
         empty_values=[],
         tooltip=_('Boolean flag if the access is spatially restricted or not.'), )
 
-    editor_actions = MrMapColumn(
+    actions = MrMapColumn(
         verbose_name=_('Actions'),
         empty_values=[],
         orderable=False,
         tooltip=_('Actions you can perform'),
         attrs={"td": {"style": "white-space:nowrap;"}})
+
+    """class Meta:
+        model = MrMapGroup
+        fields = ('status', 'service', 'phase', 'progress', 'actions')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'pending-task-table'
+        orderable = False"""
 
     def __init__(self,
                  related_metadata,
@@ -48,6 +59,7 @@ class EditorAcessTable(MrMapTable):
                  **kwargs):
         self.related_metadata = related_metadata
         self.secured_operations = related_metadata.secured_operations.all()
+
         super(EditorAcessTable, self).__init__(*args, **kwargs)
 
     def render_editor_group_name(self, record):
@@ -55,23 +67,22 @@ class EditorAcessTable(MrMapTable):
         icon = ''
         tooltip = _('Click to open the detail view of <strong>{}</strong>'.format(record.name))
         if record.is_public_group:
-            icon = get_theme(self.user)['ICONS']['PUBLIC']
+            icon = Tag(tag='i', content=IconEnum.PUBLIC.value).render()
             tooltip = _('This is the anonymous public user group.') + " {}".format(tooltip)
-        return self.get_link(tooltip=tooltip,
-                             href=url,
-                             value=format_html("{} {}".format(icon, record.name)),
-                             permission=None,
-                             open_in_new_tab=True, )
+        return Link(tooltip=tooltip,
+                    url=url,
+                    content=format_html("{} {}".format(icon, record.name)),
+                    needs_perm=None,
+                    open_in_new_tab=True, )
 
     def render_editor_organization(self, record):
         if record.organization:
             url = reverse('structure:detail-organization', args=(record.organization.id,))
             tooltip = _('Click to open the detail view of <strong>{}</strong>.'.format(record.organization.organization_name))
-            return self.get_link(tooltip=tooltip,
-                                 href=url,
-                                 value=record.organization.organization_name,
-                                 permission=None,
-                                 open_in_new_tab=True, )
+            return Link(tooltip=tooltip,
+                        url=url,
+                        content=record.organization.organization_name,
+                        open_in_new_tab=True)
         else:
             return '-'
 
@@ -95,12 +106,11 @@ class EditorAcessTable(MrMapTable):
 
     def render_editor_actions(self, record):
         btns = ''
-        btns += self.get_btn(
-            #ToDo: current-view-args should be in the table object passed from the constructor
-            href=reverse('editor:access_geometry_form', args=(self.related_metadata.id, record.id,)) + f"?current-view={self.current_view}&current-view-arg={self.related_metadata.id}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
-            permission=PermissionEnum.CAN_EDIT_METADATA,
+        btns += LinkButton(
+            url=reverse('editor:access_geometry_form', args=(self.related_metadata.id, record.id,)),
+            color=get_theme(self.request.user)["TABLE"]["BTN_INFO_COLOR"],
+            content=get_theme(self.request.user)["ICONS"]['EDIT'],
+            needs_perm=PermissionEnum.CAN_EDIT_METADATA,
             tooltip=format_html(_(f"Edit access for group <strong>{record.name}</strong>"), ),
             tooltip_placement='left', )
 

@@ -2,19 +2,22 @@ import django_filters
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from structure.models import MrMapGroup
 from users.helper import user_helper
 
 
 class EditorAccessFilter(django_filters.FilterSet):
-    q = django_filters.CharFilter(
-        method='filter_search_over_all',
-        label=_('Search')
-    )
+    class Meta:
+        model = MrMapGroup
+        fields = {'name': ['icontains'],
+                  'organization__organization_name': ['icontains']}
+
     mg = django_filters.BooleanFilter(
         method='filter_my_groups',
         widget=forms.CheckboxInput(),
         label=_("My groups")
     )
+
     mog = django_filters.BooleanFilter(
         method='filter_my_org_groups',
         widget=forms.CheckboxInput(),

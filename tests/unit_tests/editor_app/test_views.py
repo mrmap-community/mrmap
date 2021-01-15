@@ -248,7 +248,7 @@ class EditorRestoreDatasetViewTestCase(TestCase):
         datasets = self.user.get_datasets_as_qs()
 
         response = self.client.post(
-            reverse('editor:restore-dataset-metadata', args=(datasets[0].id,))+"?current-view=resource:index",
+            reverse('editor:restore', args=(datasets[0].id,))+"?current-view=resource:index",
             HTTP_REFERER=reverse('resource:index'),
             data={'is_confirmed': 'True'},
         )

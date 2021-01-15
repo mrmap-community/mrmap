@@ -184,9 +184,8 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
 class RestoreMetadata(ConfirmView):
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
-    no_dataset_type = ~Q(metadata_type=MetadataEnum.DATASET.value)
     is_custom = Q(is_custom=True)
-    queryset = Metadata.objects.filter(is_custom | no_cataloge_type | no_dataset_type)
+    queryset = Metadata.objects.filter(is_custom | no_cataloge_type)
     action = _("Restore")
 
     def get_form_kwargs(self):
@@ -209,45 +208,14 @@ class RestoreMetadata(ConfirmView):
         self.object.restore(self.object.identifier, external_auth=ext_auth)
 
         # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
-        user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                          "{}: {}".format(self.object.get_parent_service_metadata().title, self.object.title))
+        if self.object.is_metadata_type(MetadataEnum.DATASET):
+            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
+                                              "{}".format(self.object.title, ))
+        else:
+            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
+                                              "{}: {}".format(self.object.get_parent_service_metadata().title,
+                                                              self.object.title))
 
-        success_url = self.get_success_url()
-
-        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
-        return HttpResponseRedirect(success_url)
-
-
-@method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class RestoreDatasetMetadata(ConfirmView):
-    model = Metadata
-    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
-    is_dataset_type = Q(metadata_type=MetadataEnum.DATASET.value)
-    is_custom = Q(is_custom=True)
-    queryset = Metadata.objects.filter(is_custom | no_cataloge_type | is_dataset_type)
-    action = _("Restore")
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({"is_confirmed_label": _("Do you really want to restore Dataset?")})
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            "action_url": self.object.restore_view_uri,
-        })
-        return context
-
-    def form_valid(self, form):
-        ext_auth = self.object.get_external_authentication_object()
-
-        self.object.restore(self.object.identifier, external_auth=ext_auth)
-
-        user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                          "{}".format(self.object.title, ))
         success_url = self.get_success_url()
         messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
         return HttpResponseRedirect(success_url)

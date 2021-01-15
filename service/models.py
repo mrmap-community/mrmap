@@ -712,12 +712,6 @@ class Metadata(Resource):
                                      btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
                                      btn_tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
-            if self.is_custom:
-                actions.append(Modal(fetch_url=self.restore_view_uri,
-                                     btn_content=FONT_AWESOME_ICONS["UNDO"],
-                                     btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
-                                     btn_tooltip=_l(f"Restore <strong>{self.title} [{self.id}]</strong> dataset"),
-                                     needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
             actions.append(Modal(fetch_url=self.activate_view_uri,
@@ -762,12 +756,12 @@ class Metadata(Resource):
                                           btn_tooltip=_l("Remove this resource"),
                                           needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), ])
 
-                if self.is_custom:
-                    actions.append(Modal(fetch_url=self.restore_view_uri,
-                                         btn_content=FONT_AWESOME_ICONS["UNDO"],
-                                         btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
-                                         btn_tooltip=_l("Restore the metadata for resource"),
-                                         needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
+        if self.is_custom:
+            actions.append(Modal(fetch_url=self.restore_view_uri,
+                                 btn_content=FONT_AWESOME_ICONS["UNDO"],
+                                 btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
+                                 btn_tooltip=_l("Restore the metadata for resource"),
+                                 needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
 
         return actions
 
@@ -876,8 +870,6 @@ class Metadata(Resource):
 
     @property
     def restore_view_uri(self):
-        if self.metadata_type == MetadataEnum.DATASET.value:
-            return reverse('editor:restore-dataset-metadata', args=[self.pk, ])
         return reverse('editor:restore', args=[self.pk, ])
 
     @property

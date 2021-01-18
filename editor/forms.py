@@ -380,44 +380,27 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
                                           "{}".format(self.instance.title, ))
 
 
-class RestrictAccessForm(MrMapForm):
-    use_proxy = forms.BooleanField(
-        required=False,
-        label=_("Use proxy"),
-        help_text=_(
-            "Activate to reroute all traffic for this service on MrMap"
-        )
-    )
-    log_proxy = forms.BooleanField(
-        required=False,
-        label=_("Log proxy activity"),
-        help_text=_(
-            "Activate to log every traffic activity for this service"
-        )
-    )
-    restrict_access = forms.BooleanField(
-        required=False,
-        label=_("Restrict access"),
-        help_text=_(
-            "Activate to restrict access on this service"
-        ),
-        widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', })
-    )
+class GeneralAccessSettingsForm(forms.ModelForm):
 
-    def __init__(self, metadata: Metadata, *args, **kwargs):
-        super(RestrictAccessForm, self).__init__(*args, **kwargs)
-        self.metadata = metadata
-        self.fields["use_proxy"].initial = metadata.use_proxy_uri
-        self.fields["log_proxy"].initial = metadata.log_proxy_access
-        self.fields["restrict_access"].initial = metadata.is_secured
-
-        is_root = metadata.is_root()
-        self.fields["use_proxy"].disabled = not is_root
-        self.fields["log_proxy"].disabled = not is_root
-        self.fields["restrict_access"].disabled = not is_root
+    class Meta:
+        model = Metadata
+        fields = ('use_proxy_uri', 'log_proxy_access', 'is_secured')
+        labels = {
+            'use_proxy_uri': _("Use proxy"),
+            'log_proxy_access': _("Log proxy activity"),
+            'is_secured': _("Restrict access"),
+        }
+        help_texts = {
+            'use_proxy_uri': _('Activate to reroute all traffic for this service on MrMap.'),
+            'log_proxy_access': _('Activate to log every traffic activity for this service.'),
+            'is_secured': _('Activate to restrict access on this service')
+        }
+        widgets = {
+            'is_secured': forms.CheckboxInput(attrs={'class': 'auto_submit_item', }),
+        }
 
     def clean(self):
-        cleaned_data = super(RestrictAccessForm, self).clean()
+        cleaned_data = super().clean()
         use_proxy = cleaned_data.get("use_proxy")
         log_proxy = cleaned_data.get("log_proxy")
         restrict_access = cleaned_data.get("restrict_access")
@@ -427,32 +410,28 @@ class RestrictAccessForm(MrMapForm):
             self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
 
         # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-        if self.metadata.has_external_authentication and not use_proxy:
+        if self.instance.has_external_authentication and not use_proxy:
             raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
         return cleaned_data
 
-    def process_securing_access(self, metadata: Metadata):
-        """ Call the metadata functions for proxying, logging and securing (access restricting)
+    def save(self, commit=True):
 
-        Args:
-            metadata (Metadata):
-        Returns:
-
-        """
-        use_proxy = self.cleaned_data.get("use_proxy", False)
-        log_proxy = self.cleaned_data.get("log_proxy", False)
-        restrict_access = self.cleaned_data.get("restrict_access", False)
+        # todo: just save the fields and implement a signal which detects if one of the three fields become changed.
+        #  the signal can then fire the async task.
+        use_proxy = self.cleaned_data.get("use_proxy_uri", False)
+        log_proxy = self.cleaned_data.get("log_proxy_access", False)
+        restrict_access = self.cleaned_data.get("is_secured", False)
 
         async_process_securing_access.delay(
-            metadata.id,
+            self.instance.id,
             use_proxy,
             log_proxy,
             restrict_access
         )
 
 
-class RestrictAccessSpatially(MrMapForm):
+class RestrictAccessSpatiallyForm(forms.ModelForm):
     HELP_TXT_TEMPLATE = _("Activate to allow <strong>{}</strong> in the area defined in the map viewer below.\nIf you want to allow {} without spatial restriction (everywhere), just remove any restriction below.")
     get_map = forms.BooleanField(
         required=False,
@@ -476,20 +455,20 @@ class RestrictAccessSpatially(MrMapForm):
         help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),
     )
 
-    def __init__(self, metadata_id: int, group_id: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.metadata_id = metadata_id
-        self.group_id = group_id
+    class Meta:
+        model = Metadata
+        fields = ()
 
-        self.metadata = Metadata.objects.get(
-            id=metadata_id
-        )
-        md_is_root = self.metadata.is_root()
+    def __init__(self, group: MrMapGroup, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.group = group
+
+        md_is_root = self.instance.is_root()
 
         # Read initial data for fields
         secured_operations = SecuredOperation.objects.filter(
-            secured_metadata__id=metadata_id,
-            allowed_group__id=group_id
+            secured_metadata__id=self.instance.id,
+            allowed_group__id=self.group.pk
         )
         secured_operation_get_map = secured_operations.filter(
             operation=OGCOperationEnum.GET_MAP.value
@@ -511,7 +490,7 @@ class RestrictAccessSpatially(MrMapForm):
         # If the metadata is not root, we are not allowed to create own geometries but we need to inherit the ones from
         # the parent. Therefore we read it from the root in this case
         if not md_is_root:
-            secured_operations_bounding_geometry = self.metadata.get_root_metadata().secured_operations.all().first()
+            secured_operations_bounding_geometry = self.instance.get_root_metadata().secured_operations.all().first()
         else:
             secured_operations_bounding_geometry = secured_operations.first()
         if secured_operations_bounding_geometry is not None:
@@ -537,11 +516,11 @@ class RestrictAccessSpatially(MrMapForm):
             self.fields["spatial_restricted_area"].widget = forms.HiddenInput()
 
         # Set initial fields
-        if self.metadata.service.is_wms:
+        if self.instance.service.is_wms:
             self.fields["get_map"].initial = secured_operation_get_map
             self.fields["get_feature_info"].initial = secured_operation_get_feature_info
             del self.fields["get_feature"]
-        elif self.metadata.service.is_wfs:
+        elif self.instance.service.is_wfs:
             self.fields["get_feature"].initial = secured_operation_get_feature
             del self.fields["get_map"]
             del self.fields["get_feature_info"]
@@ -549,15 +528,15 @@ class RestrictAccessSpatially(MrMapForm):
             raise AssertionError("Wrong service type for spatial access form!")
         self.fields["spatial_restricted_area"].initial = feature_geojson
 
-    def process_restict_access_spatially(self):
+    def save(self, commit=True):
         """ Create SecuredOperations for metadata, according to form data
 
         Returns:
 
         """
         # Check if the metadata is already secured. If not, secure it!
-        if not self.metadata.is_secured:
-            self.metadata.set_secured(True)
+        if not self.instance.is_secured:
+            self.instance.set_secured(True)
 
         bounding_geometry = self.cleaned_data.get("spatial_restricted_area", None)
         try:
@@ -586,8 +565,8 @@ class RestrictAccessSpatially(MrMapForm):
 
         # Call persisting of new settings in background process
         async_secure_service_task.delay(
-            self.metadata_id,
-            self.group_id,
+            self.instance.id,
+            self.group.pk,
             operations,
             bounding_geometry
         )

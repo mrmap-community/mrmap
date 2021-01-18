@@ -6,6 +6,7 @@ from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum, ButtonColorEnum
 
 from MrMap.forms import ConfirmForm
+from MrMap.responses import DefaultContext
 
 
 class GenericUpdateView(UpdateView):
@@ -40,6 +41,42 @@ class AsyncUpdateView(GenericUpdateView):
 
         # cause this is a async task which can take longer we response with 'accept' status
         return JsonResponse(status=202, data=content)
+
+
+class ModelFormView(FormMixin, DetailView):
+    template_name = 'generic_views/generic_confirm_form.html'
+    success_url = reverse_lazy('home')
+    action = ""
+    action_url = ""
+    action_btn_color = ButtonColorEnum.PRIMARY
+
+    # decorator or some other function could pass *args or **kwargs it to this function
+    # so keep *args and **kwargs here to avoid from
+    # TypeError: post() got an unexpected keyword argument 'pk' for example
+    def post(self, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"action": self.action,
+                        "action_url": self.action_url,
+                        "action_btn_color": self.action_btn_color, })
+        context = DefaultContext(request=self.request, context=context).get_context()
+        return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({'instance': self.object})
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        return super().form_valid(form=form)
 
 
 class ConfirmView(FormMixin, DetailView):

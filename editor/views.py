@@ -7,19 +7,21 @@ from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
-from django.views.generic import DeleteView, DetailView
-from django.views.generic.edit import FormMixin
+from django.views.generic import DeleteView, DetailView, TemplateView
+from django.views.generic.edit import FormMixin, FormView
+from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 
 from MrMap.decorators import permission_required, ownership_required
+from MrMap.icons import IconEnum
 from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
 from MrMap.responses import DefaultContext
-from MrMap.views import GenericUpdateView, ConfirmView
+from MrMap.views import GenericUpdateView, ConfirmView, ModelFormView
 from editor.filters import EditorAccessFilter
 from editor.forms import MetadataEditorForm, RestoreDatasetMetadata, \
-    RestrictAccessForm, RestrictAccessSpatially
+    RestrictAccessSpatiallyForm, GeneralAccessSettingsForm
 from editor.tables import EditorAcessTable
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata
@@ -75,41 +77,52 @@ class EditMetadata(GenericUpdateView):
         return instance
 
 
-class GeneralAccessSettings(FormMixin, DetailView):
-    template_name = 'generic_views/generic_confirm_form.html'
-    success_url = reverse_lazy('home')
-    form_class = RestrictAccessForm
-    model = Metadata
-    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
-    is_root = Q(is_root=True)
-    queryset = Metadata.objects.filter(is_root | no_cataloge_type)
-
-    action = "General settings"
-    action_url = ""
-    action_btn_color = ButtonColorEnum.PRIMARY
-
-    # decorator or some other function could pass *args or **kwargs it to this function
-    # so keep *args and **kwargs here to avoid from
-    # TypeError: post() got an unexpected keyword argument 'pk' for example
-    def post(self, *args, **kwargs):
-        self.object = self.get_object()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
+class AccessEditorView(TemplateView):
+    template_name = "generic_views/wrapper_template_with_base.html"
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({"action": self.action,
-                        "action_url": reverse("editor:edit_access", args=self.object.pk),
-                        "action_btn_color": self.action_btn_color, })
+        context = super(AccessEditorView, self).get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+
+        self.request.GET._mutable = True
+        self.request.GET.update({'with-base': False})
+        self.request.GET._mutable = False
+
+        rendered_generala_access_settings = GeneralAccessSettingsView.as_view()(request=self.request, **kwargs)
+        rendered_group_access_table = GroupAccessTable.as_view()(request=self.request, **kwargs)
+
+        context['inline_html_items'] = [rendered_generala_access_settings.rendered_content,
+                                        rendered_group_access_table.rendered_content]
         return context
 
-    def get_success_url(self):
-        return self.object.detail_view_uri
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class GeneralAccessSettingsView(ModelFormView):
+    template_name = "generic_views/generic_form.html"
+    form_class = GeneralAccessSettingsForm
+    model = Metadata
+    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
+    is_root = Q(metadata_type=MetadataEnum.SERVICE.value)
+    queryset = Metadata.objects.filter(is_root | no_cataloge_type)
+    action = "Save settings"
+
+    def get_object(self, queryset=None):
+        _object = super().get_object(queryset=queryset)
+        self.success_url = _object.detail_view_uri
+        self.action_url = reverse("editor:general-access-settings", args=[_object.pk])
+        return _object
+
+    # we won't redirect here, cause our js script does not inject the returned form on redirects
+    # so we need to overwrite the default form_valid
+    def form_valid(self, form):
+        form.save()
+        return self.render_to_response(self.get_context_data(form=form))
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
 class GroupAccessTable(SingleTableMixin, FilterView):
     model = MrMapGroup
     table_class = EditorAcessTable
@@ -123,117 +136,54 @@ class GroupAccessTable(SingleTableMixin, FilterView):
         ),
         'name')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        return context
+
     def get_table_kwargs(self):
+        # Next, try looking up by primary key.
+        pk = self.kwargs.get('pk')
+        if pk is not None:
+            metadata = get_object_or_404(klass=Metadata, id=pk)
+
         return {
-            # todo: pass the related_metadata object
-            'related_metadata': "todo"
+            'related_metadata': metadata
         }
 
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_METADATA.value)
-@ownership_required(Metadata, 'object_id')
-def edit_access(request: HttpRequest, object_id, update_params: dict = None, status_code: int = 200,):
-    """ The edit view for the operations access
-
-    Provides a form to set the access permissions for a metadata-related object.
-    Processes the form input afterwards
-
-    Args:
-        request (HttpRequest): The incoming request
-        id (int): The metadata id
-    Returns:
-         A rendered view
-    """
-    template = "views/editor_edit_access_index.html"
-    user = user_helper.get_user(request)
-    md = get_object_or_404(Metadata,
-                           ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                           id=object_id)
-    is_root = md.is_root()
-
-    form = RestrictAccessForm(
-        data=request.POST or None,
-        request=request,
-        action_url=reverse('editor:edit_access', args=[object_id, ], ),
-        metadata=md
-    )
-
-    all_groups = MrMapGroup.objects.filter(
-        is_permission_group=False
-    )
-    all_groups = MrMapGroup.objects.filter(
-        is_public_group=True
-    ) | all_groups
-
-    all_groups = all_groups.order_by(
-        Case(
-            When(
-                is_public_group=True,
-                then=0
-            )
-        ),
-        'name'
-    )
-
-    table = EditorAcessTable(
-        request=request,
-        queryset=all_groups,
-        filter_set_class=EditorAccessFilter,
-        current_view='editor:edit_access',
-        related_metadata=md,
-    )
-
-    params = {
-        "restrict_access_form": form,
-        "restrict_access_table": table,
-        "service_metadata": md,
-        "is_root": is_root,
-    }
-
-    if request.method == 'POST':
-        # Check if update form is valid or action is performed on a root metadata
-        if not is_root:
-            messages.error(request, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
-        elif form.is_valid():
-            form.process_securing_access(md)
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = _('Restrict Access for a group')
+        return table
 
 
-@login_required
-def access_geometry_form(request: HttpRequest, metadata_id, group_id):
-    """ Renders the geometry form for the access editing
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class RestrictAccessSpatiallyView(ModelFormView):
+    template_name = "generic_views/generic_confirm_form.html"
+    form_class = RestrictAccessSpatiallyForm
+    model = Metadata
+    no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
+    queryset = Metadata.objects.filter(no_cataloge_type)
+    action = "Restrict spatially"
+    group = None
 
-    Args:
-        request (HttpRequest): The incoming request
-        metadata_id (int): The id of the metadata object, which will be edited
-        group_id:
-    Returns:
+    def dispatch(self, request, *args, **kwargs):
+        self.group = get_object_or_404(klass=MrMapGroup, id=self.kwargs.get('group_pk', None))
+        return super(RestrictAccessSpatiallyView, self).dispatch(request=request, *args, **kwargs)
 
-    """
-    get_object_or_404(Metadata,
-                      ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                      id=metadata_id)
-    group = get_object_or_404(MrMapGroup, id=group_id)
-    form = RestrictAccessSpatially(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='editor:access_geometry_form',
-        reverse_args=[metadata_id, group_id],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_(f"Edit spatial area for group <strong>{group.name}</strong>"),
-        metadata_id=metadata_id,
-        group_id=group_id,
-    )
-    return form.process_request(valid_func=form.process_restict_access_spatially)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"group": self.group})
+        return kwargs
+
+    def get_object(self, queryset=None):
+        _object = super().get_object(queryset=queryset)
+        self.success_url = _object.detail_view_uri
+        self.action_url = reverse("editor:restrict-access-spatially", args=[_object.pk, self.group.id])
+        return _object
 
 
 @method_decorator(login_required, name='dispatch')

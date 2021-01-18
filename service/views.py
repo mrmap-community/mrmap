@@ -240,7 +240,7 @@ class ResourceIndexView(TemplateView):
     This is the wrapper view, you include the inline view inside the
     wrapper view get_context_data.
     """
-    template_name = "generic_views/wrapper_template.html"
+    template_name = "generic_views/wrapper_template_with_base.html"
 
     def get_context_data(self, **kwargs):
         context = super(ResourceIndexView, self).get_context_data(**kwargs)

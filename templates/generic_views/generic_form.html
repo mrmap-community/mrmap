@@ -1,0 +1,23 @@
+{% load bootstrap4 %}
+{% load i18n %}
+<div class="modal-fetched-content">
+    <div class="container-fluid px-5">
+        <div class="card bg-light my-3 border border-dark rounded">
+          <div class="card-header">
+            {{ action }} {{ object.title }}
+          </div>
+          <form action="{{ action_url }}" method="post" onsubmit="submitAsync(event);">
+              <div class="card-body">
+                {% csrf_token %}
+                {% bootstrap_form form %}
+              </div>
+              <div class="card-footer text-muted">
+                <button type="submit" class="btn {{ action_btn_color.value }}">
+                    <span class="submit_btn_txt">{{ action }}</span>
+                    <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                </button>
+              </div>
+          </form>
+        </div>
+    </div>
+</div>

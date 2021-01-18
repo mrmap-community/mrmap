@@ -5,7 +5,7 @@
         {{ modal_title }}
     </h5>
 </div>
-<form action="{{action_url}}" method="post" onsubmit="submitAsync(event);" id="{{id_modal}}_form">
+<form action="{{action_url}}" method="post" onsubmit="submitAsync(event, true);" id="{{id_modal}}_form">
     {% csrf_token %}
     <div class="modal-body" style="white-space: normal;"><!-- <modal-body> -->
         {% if wizard.messages %}

@@ -23,3 +23,4 @@ class IconEnum(Enum):
     LOGS = "fas fa-stethoscope"
     DOWNLOAD = "fas fa-download"
     PUBLIC = "fas fa-globe"
+    EDIT = "fas fa-edit"

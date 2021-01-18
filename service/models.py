@@ -383,88 +383,6 @@ class RequestOperation(models.Model):
         return self.operation_name
 
 
-class SecuredOperation(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), null=True, blank=True)
-    allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
-    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
-    secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
-
-    def __str__(self):
-        return str(self.id)
-
-    def delete(self, using=None, keep_parents=False):
-        """ Overwrites builtin delete() method with model specific logic.
-
-        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
-        existing SecuredOperation records as well.
-
-        Args:
-            using:
-            keep_parents:
-        Returns:
-
-        """
-        md = self.secured_metadata
-        operation = self.operation
-        group = self.allowed_group
-
-        # continue with possibly existing children
-        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
-            sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=md,
-                operation=operation,
-                allowed_group=group
-            )
-            sec_ops.delete()
-
-        elif md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
-            if md.is_service_type(OGCServiceEnum.WFS):
-                # find all wfs featuretypes
-                featuretypes = md.service.featuretypes.all()
-                for featuretype in featuretypes:
-                    sec_ops = SecuredOperation.objects.filter(
-                        secured_metadata=featuretype.metadata,
-                        operation=operation,
-                        allowed_group=group,
-                    )
-                    sec_ops.delete()
-
-            elif md.is_service_type(OGCServiceEnum.WMS):
-                if md.service.is_root:
-                    # find root layer
-                    layer = Layer.objects.get(
-                        parent_layer=None,
-                        parent_service=md.service
-                    )
-                else:
-                    # find layer which is described by this metadata
-                    layer = Layer.objects.get(
-                        metadata=md
-                    )
-
-                # remove root layer secured operation
-                sec_op = SecuredOperation.objects.filter(
-                    secured_metadata=layer.metadata,
-                    operation=operation,
-                    allowed_group=group
-                )
-                sec_op.delete()
-
-                # remove secured operations of root layer children
-                for child_layer in layer.child_layers.all():
-                    sec_ops = SecuredOperation.objects.filter(
-                        secured_metadata=child_layer.metadata,
-                        operation=operation,
-                        allowed_group=group,
-                    )
-                    sec_ops.delete()
-                    child_layer.delete_children_secured_operations(child_layer, operation, group)
-
-        # delete current object
-        super().delete(using, keep_parents)
-
-
 class MetadataRelation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE)
@@ -569,8 +487,6 @@ class Metadata(Resource):
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True, blank=True)
-    use_proxy_uri = models.BooleanField(default=False)
-    log_proxy_access = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True, blank=True)
     spatial_res_value = models.CharField(max_length=100, null=True, blank=True)
     is_broken = models.BooleanField(default=False)
@@ -588,6 +504,10 @@ class Metadata(Resource):
     ))
 
     # security
+    use_proxy_uri = models.BooleanField(default=False)
+    # log_proxy_access constraint: if True user_proxy_uri shall also be True
+    log_proxy_access = models.BooleanField(default=False)
+    # is_secured constraint: if True user_proxy_uri shall also be True
     is_secured = models.BooleanField(default=False)
 
     # capabilities
@@ -860,7 +780,7 @@ class Metadata(Resource):
 
     @property
     def edit_access_view_uri(self):
-        return reverse('editor:edit_access', args=(self.pk,))
+        return reverse('editor:edit-access', args=(self.pk,))
 
     @property
     def remove_view_uri(self):
@@ -2059,6 +1979,87 @@ class Metadata(Resource):
         health_states = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
         return health_states
 
+
+class SecuredOperation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), null=True, blank=True)
+    allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
+    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
+    secured_metadata = models.ForeignKey(Metadata, related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites builtin delete() method with model specific logic.
+
+        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
+        existing SecuredOperation records as well.
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        md = self.secured_metadata
+        operation = self.operation
+        group = self.allowed_group
+
+        # continue with possibly existing children
+        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=md,
+                operation=operation,
+                allowed_group=group
+            )
+            sec_ops.delete()
+
+        elif md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
+            if md.is_service_type(OGCServiceEnum.WFS):
+                # find all wfs featuretypes
+                featuretypes = md.service.featuretypes.all()
+                for featuretype in featuretypes:
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=featuretype.metadata,
+                        operation=operation,
+                        allowed_group=group,
+                    )
+                    sec_ops.delete()
+
+            elif md.is_service_type(OGCServiceEnum.WMS):
+                if md.service.is_root:
+                    # find root layer
+                    layer = Layer.objects.get(
+                        parent_layer=None,
+                        parent_service=md.service
+                    )
+                else:
+                    # find layer which is described by this metadata
+                    layer = Layer.objects.get(
+                        metadata=md
+                    )
+
+                # remove root layer secured operation
+                sec_op = SecuredOperation.objects.filter(
+                    secured_metadata=layer.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+                sec_op.delete()
+
+                # remove secured operations of root layer children
+                for child_layer in layer.child_layers.all():
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=child_layer.metadata,
+                        operation=operation,
+                        allowed_group=group,
+                    )
+                    sec_ops.delete()
+                    child_layer.delete_children_secured_operations(child_layer, operation, group)
+
+        # delete current object
+        super().delete(using, keep_parents)
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices

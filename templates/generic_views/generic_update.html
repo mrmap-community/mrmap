@@ -5,7 +5,7 @@
         {{ action }} {{ object.title }}
     </h5>
 </div>
-<form action="{{ action_url }}" method="post" onsubmit="submitAsync(event);">
+<form action="{{ action_url }}" method="post" onsubmit="submitAsync(event, true);">
     {% csrf_token %}
     <div class="modal-body" style="white-space: normal;">
         {% bootstrap_form form %}

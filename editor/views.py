@@ -1,3 +1,4 @@
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
@@ -77,8 +78,12 @@ class EditMetadata(GenericUpdateView):
         return instance
 
 
-class AccessEditorView(TemplateView):
-    template_name = "generic_views/wrapper_template_with_base.html"
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class AccessEditorView(DetailView):
+    template_name = "views/editor_edit_access_index.html"
+    model = Metadata
 
     def get_context_data(self, **kwargs):
         context = super(AccessEditorView, self).get_context_data(**kwargs)
@@ -88,11 +93,14 @@ class AccessEditorView(TemplateView):
         self.request.GET.update({'with-base': False})
         self.request.GET._mutable = False
 
-        rendered_generala_access_settings = GeneralAccessSettingsView.as_view()(request=self.request, **kwargs)
-        rendered_group_access_table = GroupAccessTable.as_view()(request=self.request, **kwargs)
+        kwargs.update({"pk": str(self.object.pk)})
 
-        context['inline_html_items'] = [rendered_generala_access_settings.rendered_content,
-                                        rendered_group_access_table.rendered_content]
+        form = GeneralAccessSettingsView.as_view()(request=self.request, **kwargs)
+        table = GroupAccessTable.as_view()(request=self.request, **kwargs)
+
+        context.update({"form": form,
+                        "table": table})
+
         return context
 
 
@@ -104,12 +112,13 @@ class GeneralAccessSettingsView(ModelFormView):
     form_class = GeneralAccessSettingsForm
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
-    is_root = Q(metadata_type=MetadataEnum.SERVICE.value)
-    queryset = Metadata.objects.filter(is_root | no_cataloge_type)
-    action = "Save settings"
+    queryset = Metadata.objects.filter(no_cataloge_type)
+    action = _("Edit general settings")
 
     def get_object(self, queryset=None):
         _object = super().get_object(queryset=queryset)
+        # currently all settings are only supported for root services
+        _object = _object.get_parent_service_metadata()
         self.success_url = _object.detail_view_uri
         self.action_url = reverse("editor:general-access-settings", args=[_object.pk])
         return _object
@@ -142,7 +151,7 @@ class GroupAccessTable(SingleTableMixin, FilterView):
         return context
 
     def get_table_kwargs(self):
-        # Next, try looking up by primary key.
+        # Next, try looking up by primary key for requested metadata object.
         pk = self.kwargs.get('pk')
         if pk is not None:
             metadata = get_object_or_404(klass=Metadata, id=pk)

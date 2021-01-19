@@ -652,11 +652,11 @@ class Metadata(Resource):
                                       btn_tooltip=_l("Edit the metadata of this resource"),
                                       size=ModalSizeEnum.LARGE,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
-                                LinkButton(url=self.edit_access_view_uri,
-                                           content=FONT_AWESOME_ICONS["ACCESS"],
-                                           color=ButtonColorEnum.WARNING,
-                                           tooltip=_l("Edit the access for resource"),
-                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ]
+                                Modal(fetch_url=self.edit_access_view_uri,
+                                      btn_content=FONT_AWESOME_ICONS["ACCESS"],
+                                      btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
+                                      btn_tooltip=_l("Edit the access for resource"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ]
                                )
 
                 if self.is_metadata_type(MetadataEnum.SERVICE):
@@ -780,7 +780,7 @@ class Metadata(Resource):
 
     @property
     def edit_access_view_uri(self):
-        return reverse('editor:edit-access', args=(self.pk,))
+        return reverse('editor:access-editor-wizard', args=(self.pk,))
 
     @property
     def remove_view_uri(self):

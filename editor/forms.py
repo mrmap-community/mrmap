@@ -401,13 +401,13 @@ class GeneralAccessSettingsForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        use_proxy = cleaned_data.get("use_proxy")
-        log_proxy = cleaned_data.get("log_proxy")
-        restrict_access = cleaned_data.get("restrict_access")
+        use_proxy = cleaned_data.get("use_proxy_uri")
+        log_proxy = cleaned_data.get("log_proxy_access")
+        restrict_access = cleaned_data.get("is_secured")
 
         # log_proxy and restrict_access can only be activated in combination with use_proxy!
         if log_proxy and not use_proxy or restrict_access and not use_proxy:
-            self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
+            self.add_error("use_proxy_uri", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
 
         # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
         if self.instance.has_external_authentication and not use_proxy:

@@ -1,4 +1,5 @@
 import json
+from abc import ABC
 from json import JSONDecodeError
 
 from django.contrib.auth.decorators import login_required
@@ -10,11 +11,13 @@ from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum
+from formtools.wizard.views import SessionWizardView
 
 from MrMap.decorators import permission_required, ownership_required
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
-    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
+    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
+    GeneralAccessSettingsForm
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
@@ -24,6 +27,9 @@ from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
 
+
+ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm)]
+
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
                         (_("responsible party"), DatasetResponsiblePartyForm),
@@ -32,6 +38,12 @@ DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("Quality"), DatasetQualityForm), ]
 
 DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsible party']
+
+
+class AccessEditorWizard(SessionWizardView, ABC):
+    template_name = "generic_views/generic_wizard_form.html"
+    action_url = ""
+
 
 
 @method_decorator(login_required, name='dispatch')

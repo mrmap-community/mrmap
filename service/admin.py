@@ -176,9 +176,8 @@ class RequestOperationAdmin(admin.ModelAdmin):
 
 
 class SecuredOperationAdmin(admin.ModelAdmin):
-    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
-    list_filter = ('operation', 'allowed_group')
-    search_fields = ['id', 'operation', 'secured_metadata__title', 'allowed_group__name']
+    list_display = ("id", 'secured_metadata')
+    search_fields = ['id', 'secured_metadata__title']
 
 
 class GenericUrlAdmin(admin.ModelAdmin):

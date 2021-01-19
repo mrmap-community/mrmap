@@ -34,16 +34,26 @@
         {% if wizard.form.forms %}
             {{ wizard.form.management_form }}
             {% for form in wizard.form.forms %}
-                {% bootstrap_form form %}
-                {% if form.has_autocomplete_fields %}
-                    {% include 'sceletons/autocomplete_form_media.html' %}
-                {% endif %}
+                <div id="id-accordion-{{ forloop.counter0 }}">
+                  <div class="card">
+                    <div class="card-header" id="id-heading-{{ forloop.counter0 }}">
+                      <h5 class="mb-0">
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#id-collapse-{{ forloop.counter0 }}" aria-expanded="true" aria-controls="id-collapse-{{ forloop.counter0 }}">
+                          Collapsible Group Item #{{ forloop.counter0 }}
+                        </button>
+                      </h5>
+                    </div>
+                    <div id="id-collapse-{{ forloop.counter0 }}" class="collapse show" aria-labelledby="id-heading-{{ forloop.counter0 }}" data-parent="#id-accordion-{{ forloop.counter0 }}">
+                      <div class="card-body">
+                        {% bootstrap_form form %}
+                        {{ form.media }}
+                      </div>
+                    </div>
+                  </div>
             {% endfor %}
         {% else %}
             {% bootstrap_form wizard.form %}
-            {% if wizard.form.has_autocomplete_fields %}
-                {% include 'sceletons/autocomplete_form_media.html' %}
-            {% endif %}
+            {{ wizard.form.media }}
         {% endif %}
     </div><!-- </modal-body> -->
     <div class="modal-footer"><!-- <modal-footer> -->

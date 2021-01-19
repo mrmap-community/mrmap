@@ -12,7 +12,7 @@ from django.http import HttpRequest
 from django.utils.decorators import method_decorator
 
 from service.helper.enums import MetadataEnum
-from service.models import Keyword, Category, ReferenceSystem, Metadata
+from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
 
 from structure.permissionEnums import PermissionEnum
 from users.helper.user_helper import get_user
@@ -81,6 +81,7 @@ class CategoryAutocomplete(autocomplete.Select2QuerySetView):
         records = records.filter(title_locale_1__icontains=query)
 
         return records
+
 
 @method_decorator(login_required, name='dispatch')
 class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
@@ -167,7 +168,7 @@ class ReferenceSystemAutocomplete(autocomplete.Select2QuerySetView):
              records (QuerySet): The matched records
         """
         records = ReferenceSystem.objects.all()
-        query=""
+        query = ""
         if self.q:
             # There are filtering parameters!
             query = self.q
@@ -184,3 +185,29 @@ class ReferenceSystemAutocomplete(autocomplete.Select2QuerySetView):
             so the user can differentiate the results where title is equal.
         """
         return f'{result.prefix}{result.code}'
+
+
+@method_decorator(login_required, name='dispatch')
+class OperationsAutocomplete(autocomplete.Select2QuerySetView):
+    """ Provides an autocomplete functionality for categories records
+
+    """
+    def get_queryset(self):
+        """ Getter for the matching categories
+
+        Returns:
+             records (QuerySet): The matched records
+        """
+        user = get_user(self.request)
+        if user is None:
+            return None
+
+        records = OGCOperation.objects.all()
+        query = ""
+        if self.q:
+            # There are filtering parameters!
+            query = self.q
+        records = records.filter(
+            Q(operation__icontains=query)
+        )
+        return records

@@ -656,6 +656,7 @@ class Metadata(Resource):
                                       btn_content=FONT_AWESOME_ICONS["ACCESS"],
                                       btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
                                       btn_tooltip=_l("Edit the access for resource"),
+                                      size=ModalSizeEnum.LARGE,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ]
                                )
 
@@ -1980,12 +1981,19 @@ class Metadata(Resource):
         return health_states
 
 
+class OGCOperation(models.Model):
+    operation = models.CharField(primary_key=True, max_length=255, choices=OGCOperationEnum.as_choices())
+
+    def __str__(self):
+        return self.operation
+
+
 class SecuredOperation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), null=True, blank=True)
-    allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
-    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
-    secured_metadata = models.ForeignKey(Metadata, related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
+    operations = models.ManyToManyField(OGCOperation, related_name="secured_operations")
+    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="allowed_operations")
+    bounding_geometry = models.MultiPolygonField(blank=True, null=True)
+    secured_metadata = models.ForeignKey(Metadata, related_name="secured_operations", on_delete=models.CASCADE)
 
     def __str__(self):
         return str(self.id)
@@ -2060,6 +2068,7 @@ class SecuredOperation(models.Model):
 
         # delete current object
         super().delete(using, keep_parents)
+
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices

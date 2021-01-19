@@ -5,7 +5,9 @@ from json import JSONDecodeError
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import JsonResponse
+from django.forms import modelformset_factory
+from django.http import JsonResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
@@ -14,21 +16,23 @@ from django_bootstrap_swt.enums import AlertEnum
 from formtools.wizard.views import SessionWizardView
 
 from MrMap.decorators import permission_required, ownership_required
+from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
-    GeneralAccessSettingsForm
+    GeneralAccessSettingsForm, RestrictAccessSpatiallyForm, SecuredOperationForm
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, MetadataRelation, Document
+from service.models import Dataset, Metadata, MetadataRelation, Document, SecuredOperation
 from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
 
 
-ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm)]
+ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
+                              (_("restrict"), modelformset_factory(SecuredOperation, form=SecuredOperationForm)), ]
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -40,10 +44,43 @@ DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
 DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsible party']
 
 
+def show_restrict_spatially_form_condition(wizard):
+    # try to get the cleaned data of step 1
+    cleaned_data = wizard.get_cleaned_data_for_step('general') or {}
+    # check if the field ``is_secured`` was checked.
+    return cleaned_data.get('is_secured', True)
+
+
+@method_decorator(login_required, name='dispatch')
 class AccessEditorWizard(SessionWizardView, ABC):
     template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
+    metadata_object = None
+    condition_dict = {"restrict": show_restrict_spatially_form_condition}
 
+    def dispatch(self, request, *args, **kwargs):
+        pk = kwargs.get('pk', None)
+        self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
+        self.instance_dict = {"general": self.metadata_object}
+        self.initial_dict = {"restrict": [{"secured_metadata": self.metadata_object}]}
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form, **kwargs)
+        context = DefaultContext(self.request, context, self.request.user).context
+        context.update({'action_url': reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ])})
+        return context
+
+    def show_restrict_spatially_form_condition(self):
+        # try to get the cleaned data of step 1
+        cleaned_data = self.get_cleaned_data_for_step('general') or {}
+        # check if the field ``is_secured`` was checked.
+        return cleaned_data.get('is_secured', True)
+
+    def done(self, form_list, **kwargs):
+        for form in form_list:
+            form.save()
+        return HttpResponseRedirect(reverse('home'))
 
 
 @method_decorator(login_required, name='dispatch')

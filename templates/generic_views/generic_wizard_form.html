@@ -51,6 +51,9 @@
                     </div>
                   </div>
             {% endfor %}
+                    <button class="btn btn-sm btn-success" name="{{wizard.form.management_form.prefix}}-APPEND_FORMSET" type="submit" value="">
+                        +
+                    </button>
         {% else %}
             {% bootstrap_form wizard.form %}
             {{ wizard.form.media }}

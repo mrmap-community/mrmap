@@ -11,6 +11,7 @@ from dal import autocomplete
 from django.db.models import Q
 from django.forms import ModelMultipleChoiceField, ModelForm, modelformset_factory
 from django.forms import BaseModelFormSet
+from django.forms.formsets import TOTAL_FORM_COUNT, INITIAL_FORM_COUNT
 from django.http import HttpResponseRedirect
 from django.urls import reverse, NoReverseMatch
 from django.utils.translation import gettext_lazy as _
@@ -433,6 +434,37 @@ class GeneralAccessSettingsForm(forms.ModelForm):
             log_proxy,
             restrict_access
         )
+
+
+class MrMapFormset(BaseModelFormSet):
+
+    def _increment_initial_form_count(self):
+        self.management_form.cleaned_data[INITIAL_FORM_COUNT] += 1
+        self.data[f"{self.management_form.prefix}-{INITIAL_FORM_COUNT}"] = self.management_form.cleaned_data[
+            INITIAL_FORM_COUNT]
+
+    def add_form(self, initialize=True, **kwargs):
+        self.data._mutable = True
+
+        # if initialize is True, we need to increment `INITIAL_FORM_COUNT´ first, cause based on this data,
+        # the ``self._construct_form()´´ function processes the initialization of created forms based on the
+        # `initial_dict´ of the formset
+        # else increment the initial form count after adding the form to tell the management form that there is
+        # new added form which needs to initialize if the formset is processed again
+        if initialize:
+            self._increment_initial_form_count()
+
+        # add the form
+        tfc = self.total_form_count()
+        self.forms.append(self._construct_form(tfc, **kwargs))
+
+        self.management_form.cleaned_data[TOTAL_FORM_COUNT] += 1
+        self.data[f"{self.management_form.prefix}-{TOTAL_FORM_COUNT}"] = self.management_form.cleaned_data[
+            TOTAL_FORM_COUNT]
+
+        if not initialize:
+            self._increment_initial_form_count()
+        self.data._mutable = False
 
 
 class SecuredOperationForm(forms.ModelForm):

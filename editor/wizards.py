@@ -1,11 +1,12 @@
 import json
 from abc import ABC
+from collections import Iterable
 from json import JSONDecodeError
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import modelformset_factory
+from django.forms import modelformset_factory, BaseFormSet
 from django.http import JsonResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -20,7 +21,7 @@ from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
-    GeneralAccessSettingsForm, RestrictAccessSpatiallyForm, SecuredOperationForm
+    GeneralAccessSettingsForm, RestrictAccessSpatiallyForm, SecuredOperationForm, MrMapFormset
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
@@ -32,7 +33,10 @@ from structure.permissionEnums import PermissionEnum
 
 
 ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
-                              (_("restrict"), modelformset_factory(SecuredOperation, form=SecuredOperationForm)), ]
+                              (_("restrict"), modelformset_factory(SecuredOperation,
+                                                                   form=SecuredOperationForm,
+                                                                   formset=MrMapFormset,
+                                                                   extra=1)), ]
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -63,7 +67,26 @@ class AccessEditorWizard(SessionWizardView, ABC):
         self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
         self.instance_dict = {"general": self.metadata_object}
         self.initial_dict = {"restrict": [{"secured_metadata": self.metadata_object}]}
+
         return super().dispatch(request, *args, **kwargs)
+
+    def is_append_formset(self, form, return_hook, **kwargs):
+        if issubclass(form.__class__, BaseFormSet):
+            # formset is posted
+            form_data_lookup_key = f"{form.prefix}-APPEND_FORMSET" if form.prefix else "APPEND_FORMSET"
+            if form_data_lookup_key in form.data:
+
+                form.add_form()
+                # todo: rendered form will not be initilazed... i dont know why :(
+                # render form again
+                return super().render(form=form, **kwargs)
+        return return_hook(form=form, **kwargs)
+
+    def render_next_step(self, form, **kwargs):
+        return self.is_append_formset(form=form, return_hook=super().render_next_step, **kwargs)
+
+    def render_done(self, form, **kwargs):
+        return self.is_append_formset(form=form, return_hook=super().render_done, **kwargs)
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)

@@ -456,7 +456,9 @@ class MrMapFormset(BaseModelFormSet):
 
         # add the form
         tfc = self.total_form_count()
-        self.forms.append(self._construct_form(tfc, **kwargs))
+        form = self._construct_form(tfc, **kwargs)
+        form.is_bound = False
+        self.forms.append(form)
 
         self.management_form.cleaned_data[TOTAL_FORM_COUNT] += 1
         self.data[f"{self.management_form.prefix}-{TOTAL_FORM_COUNT}"] = self.management_form.cleaned_data[

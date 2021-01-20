@@ -34,9 +34,6 @@
         {% if wizard.form.forms %}
             {{ wizard.form.management_form }}
             {% for form in wizard.form.forms %}
-                {% if forloop.first %}
-                <input id="id_{{ wizard.form.management_form.prefix }}_INITIAL_COUNT" value="{{ wizard.form.forms|length }}" type="hidden">
-                {% endif %}
                 <div id="id-accordion-{{ forloop.counter0 }}">
                   <div class="card">
                     <div class="card-header" id="id-heading-{{ forloop.counter0 }}">
@@ -55,9 +52,6 @@
                     </div>
                   </div>
                 </div>
-                {% if forloop.last %}
-                <button type="button" class="btn btn-sm btn-success create-form" data-target="#id-accordion-{{ forloop.counter0 }}" data-formprefix="{{ wizard.form.management_form.prefix }}">+</button>
-                {% endif %}
             {% endfor %}
                     <button class="btn btn-sm btn-success" name="{{wizard.form.management_form.prefix}}-APPEND_FORMSET" type="submit" value="">
                         +

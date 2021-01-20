@@ -58,6 +58,11 @@ class AccessEditorWizard(SessionWizardView, ABC):
     metadata_object = None
     condition_dict = {"restrict": show_restrict_spatially_form_condition}
 
+
+    def process_step(self, form):
+        i = 0
+        return super().process_step(form)
+
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
         self.metadata_object = get_object_or_404(klass=Metadata, id=pk)

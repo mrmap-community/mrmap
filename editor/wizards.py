@@ -32,11 +32,14 @@ from structure.models import Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
 
 
+ACCESS_EDITOR_STEP_2_NAME = _("restrict")
+APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
+
+
 ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
-                              (_("restrict"), modelformset_factory(SecuredOperation,
-                                                                   form=SecuredOperationForm,
-                                                                   formset=MrMapFormset,
-                                                                   extra=1)), ]
+                              (ACCESS_EDITOR_STEP_2_NAME, modelformset_factory(SecuredOperation,
+                                                                               form=SecuredOperationForm,
+                                                                               extra=1)), ]
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -60,24 +63,34 @@ class AccessEditorWizard(SessionWizardView, ABC):
     template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
     metadata_object = None
-    condition_dict = {"restrict": show_restrict_spatially_form_condition}
+    condition_dict = {ACCESS_EDITOR_STEP_2_NAME: show_restrict_spatially_form_condition}
 
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
         self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
-        self.instance_dict = {"general": self.metadata_object}
-        self.initial_dict = {"restrict": [{"secured_metadata": self.metadata_object}]}
+        secured_operations = SecuredOperation.objects.filter(secured_metadata=self.metadata_object)
+        self.instance_dict = {"general": self.metadata_object,
+                              ACCESS_EDITOR_STEP_2_NAME: secured_operations, }
+        self.initial_dict = {ACCESS_EDITOR_STEP_2_NAME: [{"secured_metadata": self.metadata_object}]}
+
+        # if we got existing SecuredOperation objects for the requested metadata object, we do not serve extra empty
+        # forms in our formset. The user can add some if he want with the add button which will post the APPEND_FORMSET
+        # field.
+        if secured_operations:
+            form_data_lookup_key = f"{ACCESS_EDITOR_STEP_2_NAME}-{APPEND_FORM_LOOKUP_KEY}"
+            extra = 1 if form_data_lookup_key in request.POST else 0
+            self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(SecuredOperation,
+                                                                             form=SecuredOperationForm,
+                                                                             extra=extra)
 
         return super().dispatch(request, *args, **kwargs)
 
     def is_append_formset(self, form, return_hook, **kwargs):
         if issubclass(form.__class__, BaseFormSet):
             # formset is posted
-            form_data_lookup_key = f"{form.prefix}-APPEND_FORMSET" if form.prefix else "APPEND_FORMSET"
+            form_data_lookup_key = f"{form.prefix}-{APPEND_FORM_LOOKUP_KEY}" if form.prefix else APPEND_FORM_LOOKUP_KEY
             if form_data_lookup_key in form.data:
-
-                form.add_form()
-                # todo: rendered form will not be initilazed... i dont know why :(
+                #form.add_form()
                 # render form again
                 return super().render(form=form, **kwargs)
         return return_hook(form=form, **kwargs)
@@ -91,14 +104,10 @@ class AccessEditorWizard(SessionWizardView, ABC):
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
         context = DefaultContext(self.request, context, self.request.user).context
-        context.update({'action_url': reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ])})
-        return context
+        context.update({'action_url': reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ]),
+                        'APPEND_FORM_LOOKUP_KEY': APPEND_FORM_LOOKUP_KEY})
 
-    def show_restrict_spatially_form_condition(self):
-        # try to get the cleaned data of step 1
-        cleaned_data = self.get_cleaned_data_for_step('general') or {}
-        # check if the field ``is_secured`` was checked.
-        return cleaned_data.get('is_secured', True)
+        return context
 
     def done(self, form_list, **kwargs):
         for form in form_list:

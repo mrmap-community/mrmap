@@ -457,6 +457,7 @@ class MrMapFormset(BaseModelFormSet):
         # add the form
         tfc = self.total_form_count()
         form = self._construct_form(tfc, **kwargs)
+        # is bound needs to be False. Otherwise the initialization don't will force.
         form.is_bound = False
         self.forms.append(form)
 

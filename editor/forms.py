@@ -481,7 +481,8 @@ class SecuredOperationForm(forms.ModelForm):
             'secured_metadata': forms.HiddenInput(),
         }
 
-
+# Todo: old form --> delete it
+#  tag:delete
 class RestrictAccessSpatiallyForm(forms.ModelForm):
     HELP_TXT_TEMPLATE = _("Activate to allow <strong>{}</strong> in the area defined in the map viewer below.\nIf you want to allow {} without spatial restriction (everywhere), just remove any restriction below.")
     get_map = forms.BooleanField(

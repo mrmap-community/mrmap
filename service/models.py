@@ -1989,17 +1989,35 @@ class OGCOperation(models.Model):
 
 
 class SecuredOperation(models.Model):
+    """
+
+    id: the id of the ``SecuredOperation`` object
+    operations: a list of allowed ``OGCOperation`` objects
+    allowed_groups: a list of groups which are allowed to perform the operations from the ``operations`` field on all
+                    ``Metadata`` objects from the secured_metadata list
+    secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
+                      apply to
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     operations = models.ManyToManyField(OGCOperation, related_name="secured_operations")
-    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="allowed_operations")
+    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="secured_operations")
     bounding_geometry = models.MultiPolygonField(blank=True, null=True)
-    secured_metadata = models.ForeignKey(Metadata, related_name="secured_operations", on_delete=models.CASCADE)
+    secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations", on_delete=models.CASCADE,
+                                              blank=False)
 
     def __str__(self):
         return str(self.id)
 
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        # todo:
+        #  - figure out what is the root Metadata object of all the Metadata objects in the secured_metadata set.
+        #  - get all children of the root Metadata object and setup a new list flat list of Metadata objects.
+        super().save(force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields)
+
+    """
     def delete(self, using=None, keep_parents=False):
-        """ Overwrites builtin delete() method with model specific logic.
+         Overwrites builtin delete() method with model specific logic.
 
         If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
         existing SecuredOperation records as well.
@@ -2009,24 +2027,23 @@ class SecuredOperation(models.Model):
             keep_parents:
         Returns:
 
-        """
-        md = self.secured_metadata
-        operation = self.operation
-        group = self.allowed_group
+        
+        operation = self.operations
+        group = self.allowed_groups
 
         # continue with possibly existing children
-        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
+        if self.secured_metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=md,
+                secured_metadata=self.secured_metadata,
                 operation=operation,
                 allowed_group=group
             )
             sec_ops.delete()
 
-        elif md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
-            if md.is_service_type(OGCServiceEnum.WFS):
+        elif self.secured_metadata.is_metadata_type(MetadataEnum.SERVICE) or self.secured_metadata.is_metadata_type(MetadataEnum.LAYER):
+            if self.secured_metadata.is_service_type(OGCServiceEnum.WFS):
                 # find all wfs featuretypes
-                featuretypes = md.service.featuretypes.all()
+                featuretypes = self.secured_metadata.service.featuretypes.all()
                 for featuretype in featuretypes:
                     sec_ops = SecuredOperation.objects.filter(
                         secured_metadata=featuretype.metadata,
@@ -2035,17 +2052,17 @@ class SecuredOperation(models.Model):
                     )
                     sec_ops.delete()
 
-            elif md.is_service_type(OGCServiceEnum.WMS):
-                if md.service.is_root:
+            elif self.secured_metadata.is_service_type(OGCServiceEnum.WMS):
+                if self.secured_metadata.service.is_root:
                     # find root layer
                     layer = Layer.objects.get(
                         parent_layer=None,
-                        parent_service=md.service
+                        parent_service=self.secured_metadata.service
                     )
                 else:
                     # find layer which is described by this metadata
                     layer = Layer.objects.get(
-                        metadata=md
+                        metadata=self.secured_metadata
                     )
 
                 # remove root layer secured operation
@@ -2068,6 +2085,7 @@ class SecuredOperation(models.Model):
 
         # delete current object
         super().delete(using, keep_parents)
+    """
 
 
 class Document(Resource):
@@ -3013,6 +3031,8 @@ class Service(Resource):
         """
         return self.service_type.name == enum.value
 
+    # todo: maybe we don't need this function after SecuredOperation is refactored
+    #  tag: delete
     def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
         """ Secures a single element
 
@@ -3055,6 +3075,8 @@ class Service(Resource):
         element.metadata.save()
         element.save()
 
+    # todo: maybe we don't need this function after SecuredOperation is refactored
+    #  tag:delete
     def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
 
@@ -3079,6 +3101,8 @@ class Service(Resource):
             )
         start_element.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
+    # todo: maybe we don't need this function after SecuredOperation is refactored
+    #  tag: delete
     def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
 
@@ -3095,6 +3119,8 @@ class Service(Resource):
             for element in elements:
                 self.secure_access(is_secured, group, operation, group_polygons, secured_operation, element=element)
 
+    # todo: maybe we don't need this function after SecuredOperation is refactored
+    #  tag: delete
     def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub elements of this layer
 
@@ -3375,6 +3401,8 @@ class Layer(Service):
                 upper_element = None
         return ret_list
 
+    # todo: maybe we don't need this function after SecuredOperation is refactored
+    #  tag:delete
     def delete_children_secured_operations(self, layer, operation, group):
         """ Walk recursive through all layers of wms and remove their secured operations
 
@@ -3471,6 +3499,8 @@ class Layer(Service):
         leaf_layers = self._get_bottom_layers_identifier_iterative()
         return leaf_layers
 
+    # todo: maybe we don't need this function after SecuredOperation is refactored
+    #  tag: delete
     def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Recursive implementation of securing all sub layers of a current layer
 
@@ -3890,7 +3920,9 @@ class FeatureType(Resource):
     def __str__(self):
         return self.metadata.identifier
 
-    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation, secured_operation: SecuredOperation):
+    # todo: this function is never used --> Delete this function
+    #  tag:delete
+    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation):
         """ Secures the feature type or removes the secured constraints
 
         Args:

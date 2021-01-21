@@ -506,6 +506,8 @@ def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, edit
     original_ft.save()
 
 
+# todo: never used --> delete this function
+#  tag:delete
 def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata):
     """ Merges RequestOperations and SecuredOperations into a usable form for the template rendering.
 

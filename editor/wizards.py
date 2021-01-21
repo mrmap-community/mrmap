@@ -1,12 +1,12 @@
 import json
 from abc import ABC
-from collections import Iterable
 from json import JSONDecodeError
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import modelformset_factory, BaseFormSet
+from django.forms import modelformset_factory, BaseFormSet, HiddenInput
+from django.forms.formsets import DELETION_FIELD_NAME
 from django.http import JsonResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -21,7 +21,7 @@ from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
-    GeneralAccessSettingsForm, RestrictAccessSpatiallyForm, SecuredOperationForm, MrMapFormset
+    GeneralAccessSettingsForm, SecuredOperationForm
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
@@ -38,8 +38,9 @@ APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
 
 ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
                               (ACCESS_EDITOR_STEP_2_NAME, modelformset_factory(SecuredOperation,
+                                                                               can_delete=True,
                                                                                form=SecuredOperationForm,
-                                                                               extra=1)), ]
+                                                                               extra=2)), ]
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -77,22 +78,39 @@ class AccessEditorWizard(SessionWizardView, ABC):
         # forms in our formset. The user can add some if he want with the add button which will post the APPEND_FORMSET
         # field.
         if secured_operations:
-            form_data_lookup_key = f"{ACCESS_EDITOR_STEP_2_NAME}-{APPEND_FORM_LOOKUP_KEY}"
-            extra = 1 if form_data_lookup_key in request.POST else 0
-            self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(SecuredOperation,
-                                                                             form=SecuredOperationForm,
-                                                                             extra=extra)
+            extra = 0
+        else:
+            extra = 1
+
+        self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(SecuredOperation,
+                                                                         can_delete=True,
+                                                                         form=SecuredOperationForm,
+                                                                         extra=extra)
 
         return super().dispatch(request, *args, **kwargs)
 
     def is_append_formset(self, form, return_hook, **kwargs):
         if issubclass(form.__class__, BaseFormSet):
             # formset is posted
-            form_data_lookup_key = f"{form.prefix}-{APPEND_FORM_LOOKUP_KEY}" if form.prefix else APPEND_FORM_LOOKUP_KEY
-            if form_data_lookup_key in form.data:
-                #form.add_form()
+            append_form_lookup_key = f"{form.prefix}-{APPEND_FORM_LOOKUP_KEY}" if form.prefix else APPEND_FORM_LOOKUP_KEY
+            if append_form_lookup_key in form.data:
+                # to prevent data loses, we have to store the current form
+                self.storage.set_step_data(self.steps.current, self.process_step(form))
+                self.storage.set_step_files(self.steps.current, self.process_step_files(form))
+
+                current_extra = len(form.extra_forms)
+                new_init_list = []
+                for i in range(current_extra + 1):
+                    new_init_list.append(self.initial_dict[ACCESS_EDITOR_STEP_2_NAME][0])
+                self.initial_dict[ACCESS_EDITOR_STEP_2_NAME] = new_init_list
+
+                self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(SecuredOperation,
+                                                                                 can_delete=True,
+                                                                                 form=SecuredOperationForm,
+                                                                                 extra=current_extra + 1)
+
                 # render form again
-                return super().render(form=form, **kwargs)
+                return super().render(**kwargs)
         return return_hook(form=form, **kwargs)
 
     def render_next_step(self, form, **kwargs):
@@ -106,8 +124,14 @@ class AccessEditorWizard(SessionWizardView, ABC):
         context = DefaultContext(self.request, context, self.request.user).context
         context.update({'action_url': reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ]),
                         'APPEND_FORM_LOOKUP_KEY': APPEND_FORM_LOOKUP_KEY})
-
         return context
+
+    def get_form(self, step=None, data=None, files=None):
+        form = super().get_form(step=step, data=data, files=files)
+        if issubclass(form.__class__, BaseFormSet) and form.can_delete:
+            for _form in form.forms:
+                _form.fields[DELETION_FIELD_NAME].widget = HiddenInput()
+        return form
 
     def done(self, form_list, **kwargs):
         for form in form_list:

@@ -41,6 +41,11 @@
                         <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#id-collapse-{{ forloop.counter0 }}" aria-expanded="true" aria-controls="id-collapse-{{ forloop.counter0 }}">
                           Collapsible Group Item #{{ forloop.counter0 }}
                         </button>
+                        {% if wizard.form.can_delete %}
+                        <button class="btn btn-sm btn-danger delete-form" data-target="#id_{{form.prefix}}-DELETE" data-parent="#id-accordion-{{ forloop.counter0 }}" type="button" onclick="markFormAsDelete(this)">
+                        -
+                        </button>
+                        {% endif %}
                       </h5>
                     </div>
                     <div id="id-collapse-{{ forloop.counter0 }}" class="collapse show" aria-labelledby="id-heading-{{ forloop.counter0 }}" data-parent="#id-accordion-{{ forloop.counter0 }}">

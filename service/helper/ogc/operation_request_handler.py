@@ -37,7 +37,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, ProxyLog
+from service.models import Metadata, FeatureType, Layer, ProxyLog, SecuredOperation
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -58,6 +58,7 @@ class OGCOperationRequestHandler:
             metadata (Metadata): The metadata object related to the operation call
             uri (str): The uri of the requested operation (optional)
         """
+        self.metadata = metadata
         self.get_uri = uri
         self.original_operation_base_uri = None
         self.post_uri = None
@@ -1179,6 +1180,9 @@ class OGCOperationRequestHandler:
                     self.get_uri = utils.set_uri_GET_param(self.get_uri, key, val)
         return self.get_uri
 
+    # todo: maybe we don't need this function after refactoring SecuredOperation,
+    #  cause we can do this with a lookup expression
+    #  tag:delete
     def _check_get_feature_info_operation_access(self, sec_ops: QueryDict):
         """ Checks whether the user given x/y Point parameter object is inside the geometry, which defines the allowed
         access for the GetFeatureInfo operation
@@ -1461,41 +1465,48 @@ class OGCOperationRequestHandler:
         self.filter_param = _filter
         self.new_params_dict["FILTER"] = self.filter_param
 
-    def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata, proxy_log: ProxyLog):
+    def get_secured_operation_response(self):
         """ Calls the operation of a service if it is secured.
-
-        Args:
-            request (HttpRequest): The incoming request
-            metadata (Metadata): The metadata object
-            proxy_log (ProxyLog): The logging object
-        Returns:
-
         """
         response = {
             "response": None,
             "response_type": ""
         }
 
-        check_sec_ops = self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS
+        # check_sec_ops = self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS
+
+        # todo: geom should be the requested geometry as GEOSGeometry or a string of GeoJSON, WKT or HEXEWKB
+        #  maybe we could get it from the self.x_y_coord
+        #  have also a look on the lookup expressions for the GEOSGeometry field here:
+        #  https://docs.djangoproject.com/en/3.1/ref/contrib/gis/geoquerysets/#std:fieldlookup-gis-contains
+        #  the current lookup `covers` will not work for the current WMS GETMAP operation
+        geom = None
 
         # check if the metadata allows operation performing for certain groups
-        sec_ops = metadata.secured_operations.filter(
+        is_allowed = SecuredOperation.objects.filter(secured_metadata__in=self.metadata,
+                                                     allowed_groups__in=self.user_groups,
+                                                     bounding_geometry__covers=geom,
+                                                     operations__in=self.request_param).exists()
+        """
+        sec_ops = self.metadata.secured_operations.filter(
             operation__iexact=self.request_param,
             allowed_group__in=self.user_groups,
-        )
+        )"""
 
-        if check_sec_ops and sec_ops.count() == 0:
+        if not is_allowed:
             # this means the service is secured and the group has no access!
             return response
 
+        # todo: if the lookup expression for bounding_geometry fails should there no FeatureInfo returned?
+        """
         # WMS - Features
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
             allowed = self._check_get_feature_info_operation_access(sec_ops)
             if allowed:
-                response = self.get_operation_response()
+                response = self.get_operation_response()"""
 
         # WMS - 'Map image'
-        elif self.request_param.upper() == OGCOperationEnum.GET_MAP.value.upper():
+        if self.request_param.upper() == OGCOperationEnum.GET_MAP.value.upper():
             # We don't check any kind of is-allowed or not here.
             # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
             # To improve the performance here, we use a multithreaded approach, where the original map image and the

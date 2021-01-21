@@ -404,3 +404,14 @@ function isFormUpdateEventHandler( event ){
     form.appendChild(isFormUpdate);
     form.querySelectorAll('[type=submit]')[0].click();
 }
+
+// adds formset delete form functionality to the frontend
+
+function markFormAsDelete( submitter ){
+
+    const formDeleteCheckbox = document.querySelector(submitter.dataset.target);
+    const parentContainer = document.querySelector(submitter.dataset.parent);
+    formDeleteCheckbox.value = "on";
+    parentContainer.classList.add("d-none");
+
+}

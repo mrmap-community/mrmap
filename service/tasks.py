@@ -112,6 +112,8 @@ def async_activate_service(object_id: int, additional_params: dict):
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
 
+# todo: maybe we don't need this function after SecuredOperation is refactored
+#  tag: delete
 @shared_task(name="async_secure_service_task")
 def async_secure_service_task(metadata_id: int, group_id: int, operations: list, bounding_geometry: str):
     """ Async call for securing a service

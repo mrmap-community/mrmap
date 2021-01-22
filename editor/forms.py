@@ -478,8 +478,9 @@ class SecuredOperationForm(forms.ModelForm):
 
         widgets = {
             'bounding_geometry': LeafletGeometryInput(),
-            'secured_metadata': forms.HiddenInput(),
+            'secured_metadata': forms.MultipleHiddenInput(),
         }
+
 
 # Todo: old form --> delete it
 #  tag:delete

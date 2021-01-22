@@ -13,10 +13,13 @@ from typing import Iterator, Type
 
 from PIL import Image
 from dateutil.parser import parse
-from django.contrib.gis.geos import Polygon, GeometryCollection
+from django.contrib.gis.geos import Polygon, GeometryCollection, MultiPolygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
+from django.db.models import CheckConstraint, Q
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
@@ -1376,6 +1379,7 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        # todo: this check is no longer needed cause there is a bind signal on `SecuredOperation`
         # check for SecuredOperations
         if self.is_secured:
             sec_ops = self.secured_operations.all()
@@ -1994,98 +1998,65 @@ class SecuredOperation(models.Model):
     id: the id of the ``SecuredOperation`` object
     operations: a list of allowed ``OGCOperation`` objects
     allowed_groups: a list of groups which are allowed to perform the operations from the ``operations`` field on all
-                    ``Metadata`` objects from the secured_metadata list
+                    ``Metadata`` objects from the secured_metadata list.
     secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
-                      apply to
+                      applies to.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     operations = models.ManyToManyField(OGCOperation, related_name="secured_operations")
     allowed_groups = models.ManyToManyField(MrMapGroup, related_name="secured_operations")
     bounding_geometry = models.MultiPolygonField(blank=True, null=True)
-    secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations", on_delete=models.CASCADE,
-                                              blank=False)
+    secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations", blank=False)
+
+    class Meta:
+        """
+            In the `OGCOperationRequestHandler` we have some query's against the `SecuredOperation` object filtered by
+            an empty `GEOSGeometry` looked up in the `bounding_geometry` field. The lookup is implemented with
+            `bounding_geometry=None`. So we have to prevent saving empty GEOSGeometry objects by adding a constraint.
+        """
+        constraints = [
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_no_empty_geometries",
+                check=~Q(bounding_geometry__empty=True),
+            ),
+        ]
 
     def __str__(self):
         return str(self.id)
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        # todo:
-        #  - figure out what is the root Metadata object of all the Metadata objects in the secured_metadata set.
-        #  - get all children of the root Metadata object and setup a new list flat list of Metadata objects.
-        super().save(force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields)
 
+# todo: set transaction atomic and roleback on failures. SecuredOperation shall not be stored if anything happens!
+@receiver(m2m_changed, sender=SecuredOperation.secured_metadata.through)
+def setup_secured_metadata_relations(action, instance, pk_set, **kwargs):
+    """ If a new SecuredOperation is created, we have to relate all child nodes of the Metadata root node.
+
+        **kwargs: leaf this unused variable; Signal receivers always needs this.
     """
-    def delete(self, using=None, keep_parents=False):
-         Overwrites builtin delete() method with model specific logic.
+    if action == 'post_add':
+        # 'Sent after one or more objects are added to the relation'
+        if len(pk_set) == 1:
+            # Only if a new SecuredOperation is created, there should be only one related Metadata object
+            child_nodes = instance.secured_metadata.all()[0].get_subelements_metadatas()
+            if len(child_nodes) > 0:
+                # if there are child nodes we have to add them also to the many to many field
+                instance.secured_metadata.add(*child_nodes)
 
-        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
-        existing SecuredOperation records as well.
 
-        Args:
-            using:
-            keep_parents:
-        Returns:
-
-        
-        operation = self.operations
-        group = self.allowed_groups
-
-        # continue with possibly existing children
-        if self.secured_metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
-            sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=self.secured_metadata,
-                operation=operation,
-                allowed_group=group
-            )
-            sec_ops.delete()
-
-        elif self.secured_metadata.is_metadata_type(MetadataEnum.SERVICE) or self.secured_metadata.is_metadata_type(MetadataEnum.LAYER):
-            if self.secured_metadata.is_service_type(OGCServiceEnum.WFS):
-                # find all wfs featuretypes
-                featuretypes = self.secured_metadata.service.featuretypes.all()
-                for featuretype in featuretypes:
-                    sec_ops = SecuredOperation.objects.filter(
-                        secured_metadata=featuretype.metadata,
-                        operation=operation,
-                        allowed_group=group,
-                    )
-                    sec_ops.delete()
-
-            elif self.secured_metadata.is_service_type(OGCServiceEnum.WMS):
-                if self.secured_metadata.service.is_root:
-                    # find root layer
-                    layer = Layer.objects.get(
-                        parent_layer=None,
-                        parent_service=self.secured_metadata.service
-                    )
-                else:
-                    # find layer which is described by this metadata
-                    layer = Layer.objects.get(
-                        metadata=self.secured_metadata
-                    )
-
-                # remove root layer secured operation
-                sec_op = SecuredOperation.objects.filter(
-                    secured_metadata=layer.metadata,
-                    operation=operation,
-                    allowed_group=group
-                )
-                sec_op.delete()
-
-                # remove secured operations of root layer children
-                for child_layer in layer.child_layers.all():
-                    sec_ops = SecuredOperation.objects.filter(
-                        secured_metadata=child_layer.metadata,
-                        operation=operation,
-                        allowed_group=group,
-                    )
-                    sec_ops.delete()
-                    child_layer.delete_children_secured_operations(child_layer, operation, group)
-
-        # delete current object
-        super().delete(using, keep_parents)
-    """
+@receiver(m2m_changed, sender=SecuredOperation.secured_metadata.through)
+def secured_metadata_changed(sender, **kwargs):
+    action = kwargs.pop('action', None)
+    if action and action == 'post_remove':
+        """ 
+        # one or more objects are removed from the relation.
+        # the secured_metadata field holds all children nodes from the secured root node on.
+            if one of the nodes are deleted, the SecuredOperation object is no longer an integrity one. So we should 
+            better delete the SecuredOperation.
+        # But if the service is just updated and one of it's wms layers has been deleted, the relation will also
+            changed and the SecuredOperation should still be correct. So we need to catch this case.
+        """
+        # todo: catch update service by checking if root node still exists.
+        instance = kwargs.pop('instance', None)
+        instance.delete()
 
 
 class Document(Resource):

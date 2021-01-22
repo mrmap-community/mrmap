@@ -18,6 +18,7 @@ from PIL import Image, ImageFont, ImageDraw
 from cryptography.fernet import InvalidToken
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
+from django.db.models import Q
 from lxml import etree
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
@@ -1480,33 +1481,41 @@ class OGCOperationRequestHandler:
         #  have also a look on the lookup expressions for the GEOSGeometry field here:
         #  https://docs.djangoproject.com/en/3.1/ref/contrib/gis/geoquerysets/#std:fieldlookup-gis-contains
         #  the current lookup `covers` will not work for the current WMS GETMAP operation
-        geom = None
 
         # check if the metadata allows operation performing for certain groups
         is_allowed = SecuredOperation.objects.filter(secured_metadata__in=self.metadata,
                                                      allowed_groups__in=self.user_groups,
-                                                     bounding_geometry__covers=geom,
+                                                     bounding_geometry__intersects=self.x_y_coord,
                                                      operations__in=self.request_param).exists()
-        """
-        sec_ops = self.metadata.secured_operations.filter(
-            operation__iexact=self.request_param,
-            allowed_group__in=self.user_groups,
-        )"""
 
         if not is_allowed:
             # this means the service is secured and the group has no access!
             return response
 
-        # todo: if the lookup expression for bounding_geometry fails should there no FeatureInfo returned?
-        """
+        # todo: move to needed sub if/else trees which needs this queryset
+        sec_ops = SecuredOperation.objects.filter(secured_metadata__in=self.metadata,
+                                                  allowed_groups__in=self.user_groups,
+                                                  operations__in=self.request_param)
+
         # WMS - Features
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
-            allowed = self._check_get_feature_info_operation_access(sec_ops)
-            if allowed:
-                response = self.get_operation_response()"""
+
+            bounding_geometry_covers = Q(secured_metadata__in=self.metadata,
+                                         allowed_groups__in=self.user_groups,
+                                         bounding_geometry__covers=self.x_y_coord,
+                                         operations__in=self.request_param)
+            bounding_geometry_is_empty = Q(secured_metadata__in=self.metadata,
+                                           allowed_groups__in=self.user_groups,
+                                           bounding_geometry=None,
+                                           operations__in=self.request_param)
+
+            is_allowed = SecuredOperation.objects.filter(bounding_geometry_covers | bounding_geometry_is_empty).exists()
+
+            if is_allowed:
+                response = self.get_operation_response()
 
         # WMS - 'Map image'
-        if self.request_param.upper() == OGCOperationEnum.GET_MAP.value.upper():
+        elif self.request_param.upper() == OGCOperationEnum.GET_MAP.value.upper():
             # We don't check any kind of is-allowed or not here.
             # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
             # To improve the performance here, we use a multithreaded approach, where the original map image and the
@@ -1517,7 +1526,7 @@ class OGCOperationRequestHandler:
                 Thread(target=lambda r: r.put(self.get_operation_response(), connection.close()), args=(results,))
             )
             thread_list.append(
-                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s), connection.close()), args=(results, metadata, sec_ops))
+                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s), connection.close()), args=(results, self.metadata, sec_ops))
             )
             execute_threads(thread_list)
 

@@ -1483,31 +1483,31 @@ class OGCOperationRequestHandler:
         #  the current lookup `covers` will not work for the current WMS GETMAP operation
 
         # check if the metadata allows operation performing for certain groups
-        is_allowed = SecuredOperation.objects.filter(secured_metadata__in=self.metadata,
+        is_allowed = SecuredOperation.objects.filter(secured_metadata__contains=self.metadata,
                                                      allowed_groups__in=self.user_groups,
                                                      bounding_geometry__intersects=self.x_y_coord,
-                                                     operations__in=self.request_param).exists()
+                                                     operations__icontains=self.request_param).exists()
 
         if not is_allowed:
             # this means the service is secured and the group has no access!
             return response
 
         # todo: move to needed sub if/else trees which needs this queryset
-        sec_ops = SecuredOperation.objects.filter(secured_metadata__in=self.metadata,
+        sec_ops = SecuredOperation.objects.filter(secured_metadata__contains=self.metadata,
                                                   allowed_groups__in=self.user_groups,
-                                                  operations__in=self.request_param)
+                                                  operations__icontains=self.request_param)
 
         # WMS - Features
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
 
-            bounding_geometry_covers = Q(secured_metadata__in=self.metadata,
+            bounding_geometry_covers = Q(secured_metadata__contains=self.metadata,
                                          allowed_groups__in=self.user_groups,
                                          bounding_geometry__covers=self.x_y_coord,
-                                         operations__in=self.request_param)
-            bounding_geometry_is_empty = Q(secured_metadata__in=self.metadata,
+                                         operations__icontains=self.request_param)
+            bounding_geometry_is_empty = Q(secured_metadata__contains=self.metadata,
                                            allowed_groups__in=self.user_groups,
                                            bounding_geometry=None,
-                                           operations__in=self.request_param)
+                                           operations__icontains=self.request_param)
 
             is_allowed = SecuredOperation.objects.filter(bounding_geometry_covers | bounding_geometry_is_empty).exists()
 

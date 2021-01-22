@@ -118,7 +118,7 @@ class GeneralAccessSettingsView(ModelFormView):
     def get_object(self, queryset=None):
         _object = super().get_object(queryset=queryset)
         # currently all settings are only supported for root services
-        _object = _object.get_parent_service_metadata()
+        _object = _object.get_root_metadata()
         self.success_url = _object.detail_view_uri
         self.action_url = reverse("editor:general-access-settings", args=[_object.pk])
         return _object
@@ -230,7 +230,7 @@ class RestoreMetadata(ConfirmView):
                                               "{}".format(self.object.title, ))
         else:
             user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                              "{}: {}".format(self.object.get_parent_service_metadata().title,
+                                              "{}: {}".format(self.object.get_root_metadata().title,
                                                               self.object.title))
 
         success_url = self.get_success_url()

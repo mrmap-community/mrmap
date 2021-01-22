@@ -18,7 +18,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.db.models import CheckConstraint, Q
-from django.db.models.signals import m2m_changed
+from django.db.models.signals import m2m_changed, post_save
 from django.dispatch import receiver
 from django.http import HttpRequest
 from django.urls import reverse
@@ -940,18 +940,37 @@ class Metadata(Resource):
             ret_val = self.featuretype
         return ret_val
 
-    def get_parent_service_metadata(self):
+    def get_root_metadata(self):
+        """ returns the root metadata object of the current metadata object. If the current one is the root node,
+            it returns it self.
+        """
         if self.is_root():
             parent_metadata = self
         else:
             if self.is_service_type(OGCServiceEnum.WMS):
                 parent_metadata = self.service.parent_service.metadata
             elif self.is_service_type(OGCServiceEnum.WFS):
-                parent_metadata = self.instance.featuretype.parent_service.metadata
+                parent_metadata = self.featuretype.parent_service.metadata
             else:
                 # This case is not important now
                 parent_metadata = None
         return parent_metadata
+
+    def get_parent_filters(self, include_self=True):
+        """ recursive helper function for `get_all_parent_metadata` """
+        filters = Q(pk=0)
+        if include_self:
+            filters |= Q(pk=self.pk)
+        for c in Metadata.objects.filter(service__child_layers=self):
+            _r = c.get_parent_filters(include_self=True)
+            if _r:
+                filters |= _r
+        return filters
+
+    def get_all_parent_metadata(self, include_self=True):
+        """ returns a queryset of all parent metadata nodes with first degree relation"""
+        if self.is_service_type(OGCServiceEnum.WMS):
+            return Metadata.objects.filter(self.get_parent_filters(include_self))
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -1035,22 +1054,6 @@ class Metadata(Resource):
             ret_list += list(subelement_metadatas)
 
         return ret_list
-
-    def get_root_metadata(self):
-        """ Returns the root metadata of the current metadata if there is one.
-
-        Returns the same metadata otherwise
-
-
-        Returns:
-             ret_list (list)
-        """
-        if self.service.parent_service is not None:
-            root_md = self.service.parent_service.metadata
-        else:
-            root_md = self
-
-        return root_md
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -1999,6 +2002,8 @@ class SecuredOperation(models.Model):
     operations: a list of allowed ``OGCOperation`` objects
     allowed_groups: a list of groups which are allowed to perform the operations from the ``operations`` field on all
                     ``Metadata`` objects from the secured_metadata list.
+    root_metadata: holds the root node of the secured_metadata set. With that we solve another problem. The deletion
+                   trigger, if the `Metadata` object is deleted. Then the `SecuredOperation` will be also deleted.
     secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
                       applies to.
     """
@@ -2006,6 +2011,7 @@ class SecuredOperation(models.Model):
     operations = models.ManyToManyField(OGCOperation, related_name="secured_operations")
     allowed_groups = models.ManyToManyField(MrMapGroup, related_name="secured_operations")
     bounding_geometry = models.MultiPolygonField(blank=True, null=True)
+    root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations", blank=False)
 
     class Meta:
@@ -2025,39 +2031,24 @@ class SecuredOperation(models.Model):
         return str(self.id)
 
 
-# todo: set transaction atomic and roleback on failures. SecuredOperation shall not be stored if anything happens!
-@receiver(m2m_changed, sender=SecuredOperation.secured_metadata.through)
-def setup_secured_metadata_relations(action, instance, pk_set, **kwargs):
+@receiver(post_save, sender=SecuredOperation)
+def setup_secured_metadata_relations(instance, created, **kwargs):
     """ If a new SecuredOperation is created, we have to relate all child nodes of the Metadata root node.
 
         **kwargs: leaf this unused variable; Signal receivers always needs this.
     """
-    if action == 'post_add':
-        # 'Sent after one or more objects are added to the relation'
-        if len(pk_set) == 1:
-            # Only if a new SecuredOperation is created, there should be only one related Metadata object
-            child_nodes = instance.secured_metadata.all()[0].get_subelements_metadatas()
-            if len(child_nodes) > 0:
-                # if there are child nodes we have to add them also to the many to many field
-                instance.secured_metadata.add(*child_nodes)
+    if created:
+        child_nodes = instance.get_subelements_metadatas()
+        instance.secured_metadata.add(*child_nodes)
 
 
 @receiver(m2m_changed, sender=SecuredOperation.secured_metadata.through)
-def secured_metadata_changed(sender, **kwargs):
-    action = kwargs.pop('action', None)
-    if action and action == 'post_remove':
-        """ 
-        # one or more objects are removed from the relation.
-        # the secured_metadata field holds all children nodes from the secured root node on.
-            if one of the nodes are deleted, the SecuredOperation object is no longer an integrity one. So we should 
-            better delete the SecuredOperation.
-        # But if the service is just updated and one of it's wms layers has been deleted, the relation will also
-            changed and the SecuredOperation should still be correct. So we need to catch this case.
-        """
-        # todo: catch update service by checking if root node still exists.
-        instance = kwargs.pop('instance', None)
-        instance.delete()
-
+def secured_metadata_changed(action, instance, **kwargs):
+    if action == 'post_remove':
+        # todo: update the secured_metadata set
+        #child_nodes = instance.get_subelements_metadatas()
+        #instance.secured_metadata.add(*child_nodes)
+        pass
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices

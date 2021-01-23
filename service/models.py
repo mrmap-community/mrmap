@@ -2030,23 +2030,19 @@ class SecuredOperation(models.Model):
     def __str__(self):
         return str(self.id)
 
-
-@receiver(post_save, sender=SecuredOperation)
-def setup_secured_metadata_relations(instance, created, **kwargs):
-    """ If a new SecuredOperation is created, we have to relate all child nodes of the Metadata root node.
-
-        **kwargs: leaf this unused variable; Signal receivers always needs this.
-    """
-    if created:
-        child_nodes = instance.get_subelements_metadatas()
-        instance.secured_metadata.add(*child_nodes)
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self._state.adding:
+            child_nodes = self.root_metadata.get_subelements_metadatas()
+            self.secured_metadata.add(*child_nodes)
 
 
 @receiver(m2m_changed, sender=SecuredOperation.secured_metadata.through)
 def secured_metadata_changed(action, instance, **kwargs):
     if action == 'post_remove':
-        # todo: update the secured_metadata set
+        # todo: check if this is just an update of a service; if so we need to update the secured_metadata set
         #child_nodes = instance.get_subelements_metadatas()
+        #instance.secured_metadata.clear()
         #instance.secured_metadata.add(*child_nodes)
         pass
 

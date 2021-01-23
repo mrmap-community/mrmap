@@ -474,11 +474,11 @@ class SecuredOperationForm(forms.ModelForm):
 
     class Meta:
         model = SecuredOperation
-        fields = ('operations', 'allowed_groups', 'bounding_geometry', 'secured_metadata')
+        fields = ('operations', 'allowed_groups', 'bounding_geometry', 'root_metadata')
 
         widgets = {
             'bounding_geometry': LeafletGeometryInput(),
-            'secured_metadata': forms.MultipleHiddenInput(),
+            'root_metadata': forms.HiddenInput(),
         }
 
 

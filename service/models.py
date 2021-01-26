@@ -1989,26 +1989,6 @@ class Metadata(Resource):
         health_states = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
         return health_states
 
-    def get_child_filters(self, include_self=True):
-        """ recursive helper function for `get_all_child_metadata` """
-        filters = Q(pk=0)
-        if include_self:
-            filters |= Q(pk=self.pk)
-        if self.is_root:
-            qs = Metadata.objects.filter(service=self.service)
-        else:
-            qs = Metadata.objects.filter(service__parent_layers=self.service)
-        for c in qs:
-            _r = c.get_child_filters(include_self=True)
-            if _r:
-                filters |= _r
-        return filters
-
-    def get_all_child_metadata(self, include_self=True):
-        """ returns a queryset of all parent metadata nodes with first degree relation"""
-        if self.is_service_type(OGCServiceEnum.WMS):
-            return Metadata.objects.filter(self.get_child_filters(include_self))
-
 
 class OGCOperation(models.Model):
     operation = models.CharField(primary_key=True, max_length=255, choices=OGCOperationEnum.as_choices())

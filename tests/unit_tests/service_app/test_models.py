@@ -65,8 +65,9 @@ class MetadataTestCase(TestCase):
                                                how_much_featuretypes=10,
                                                how_much_services=2)
 
-    def test_get_all_child_metadata(self):
-        qs = self.wms_metadata[0].get_all_child_metadata(include_self=True)
+    def test_get_subelements_metadatas_as_qs(self):
+        qs = self.wms_metadata[0].get_subelements_metadatas_as_qs()
 
-        self.assertEqual(11, qs.count())
+        # 12 cause root layer is also added in addition to the how_much_sublayers attribute
+        self.assertEqual(12, qs.count())
 

@@ -607,3 +607,4 @@ class GetServiceMetadataViewTestCase(TestCase):
             reverse('resource:get-service-metadata', args=(self.wms_metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
+

@@ -1,3 +1,4 @@
+from django.contrib.gis.geos import MultiPolygon
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
@@ -7,7 +8,7 @@ from monitoring.models import MonitoringRun
 from monitoring.settings import WARNING_RESPONSE_TIME
 from structure.models import MrMapUser, Organization, Permission, Role
 from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum
-from service.models import Service, MetadataRelation, Metadata
+from service.models import Service, MetadataRelation, Metadata, OGCOperation
 from structure.models import MrMapGroup
 from structure.permissionEnums import PermissionEnum
 from tests.utils import generate_random_string
@@ -421,3 +422,31 @@ def create_monitoring_result(metadata: Metadata,
             available=available,
             monitoring_run=monitoring_run,
         )
+
+
+def create_ogc_operations(operations: list):
+    ogc_operations = []
+    for operation in operations:
+        ogc_operations.append(
+            baker.make_recipe(
+                "tests.baker_recipes.service_app.ogc_operation",
+                operation=operation
+            )
+        )
+    return ogc_operations
+
+
+def create_allowed_operation(allowed_groups: QuerySet(MrMapGroup),
+                             operations: QuerySet(OGCOperation),
+                             root_metadata: Metadata,
+                             how_much_allowed_operations: int = 1,
+                             bounding_geometry: MultiPolygon = None,):
+
+    return baker.make_recipe(
+        "tests.baker_recipes.service_app.allowed_operation",
+        _quantity=how_much_allowed_operations,
+        root_metadata=root_metadata,
+        allowed_groups=allowed_groups,
+        operations=operations,
+        bounding_geometry=bounding_geometry,
+    )

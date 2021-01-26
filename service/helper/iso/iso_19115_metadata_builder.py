@@ -1235,7 +1235,7 @@ class Iso19115MetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        bbox = self.metadata.bounding_geometry
+        bbox = self.metadata.allowed_area
         if bbox is None:
             bbox = self.metadata.find_max_bounding_box()
         if bbox is None:

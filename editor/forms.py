@@ -5,32 +5,28 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-import json
-
 from dal import autocomplete
 from django.db.models import Q
-from django.forms import ModelMultipleChoiceField, ModelForm, modelformset_factory
+from django.forms import ModelMultipleChoiceField, ModelForm
 from django.forms import BaseModelFormSet
 from django.forms.formsets import TOTAL_FORM_COUNT, INITIAL_FORM_COUNT
 from django.http import HttpResponseRedirect
-from django.urls import reverse, NoReverseMatch
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django import forms
 from MrMap.cacher import PageCacher
 from MrMap.forms import MrMapConfirmForm, MrMapForm
-from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA_IS_ORIGINAL, \
+from MrMap.messages import METADATA_IS_ORIGINAL, \
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
 from editor.tasks import async_process_securing_access
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum
-from MrMap.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.forms import MrMapWizardForm
 from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence, \
-    AllowedOperation, OGCOperation
+    AllowedOperation
 from service.settings import ISO_19115_LANG_CHOICES
-from service.tasks import async_secure_service_task
 from structure.models import Organization, MrMapGroup
 from users.helper import user_helper
 from django.contrib import messages
@@ -302,11 +298,11 @@ class DatasetSpatialExtentForm(MrMapWizardForm):
             bbox = metadata.find_max_bounding_box()
 
             self.fields['bounding_geometry'].widget = LeafletGeometryInput(bbox=bbox,
-                                                                           geojson=metadata.bounding_geometry.geojson
+                                                                           geojson=metadata.allowed_area.geojson
                                                                            if data_for_bounding_geometry is None
                                                                            else data_for_bounding_geometry,
                                                                            request=self.request,)
-            self.fields['bounding_geometry'].initial = metadata.bounding_geometry.geojson
+            self.fields['bounding_geometry'].initial = metadata.allowed_area.geojson
 
 
 class DatasetQualityForm(MrMapWizardForm):
@@ -474,153 +470,9 @@ class AllowedOperationForm(forms.ModelForm):
 
     class Meta:
         model = AllowedOperation
-        fields = ('operations', 'allowed_groups', 'bounding_geometry', 'root_metadata')
+        fields = ('operations', 'allowed_groups', 'allowed_area', 'root_metadata')
 
         widgets = {
-            'bounding_geometry': LeafletGeometryInput(),
+            'allowed_area': LeafletGeometryInput(),
             'root_metadata': forms.HiddenInput(),
         }
-
-
-
-# Todo: old form --> delete it
-#  tag:delete
-class RestrictAccessSpatiallyForm(forms.ModelForm):
-    HELP_TXT_TEMPLATE = _("Activate to allow <strong>{}</strong> in the area defined in the map viewer below.\nIf you want to allow {} without spatial restriction (everywhere), just remove any restriction below.")
-    get_map = forms.BooleanField(
-        required=False,
-        label=OGCOperationEnum.GET_MAP.value,
-        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
-    )
-    get_feature_info = forms.BooleanField(
-        required=False,
-        label=OGCOperationEnum.GET_FEATURE_INFO.value,
-        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
-    )
-    get_feature = forms.BooleanField(
-        required=False,
-        label=OGCOperationEnum.GET_FEATURE.value,
-        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
-    )
-    spatial_restricted_area = forms.CharField(
-        label=_('Allowed area'),
-        required=False,
-        widget=LeafletGeometryInput(),
-        help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),
-    )
-
-    class Meta:
-        model = Metadata
-        fields = ()
-
-    def __init__(self, group: MrMapGroup, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.group = group
-
-        md_is_root = self.instance.is_root()
-
-        # Read initial data for fields
-        secured_operations = AllowedOperation.objects.filter(
-            secured_metadata__id=self.instance.id,
-            allowed_group__id=self.group.pk
-        )
-        secured_operation_get_map = secured_operations.filter(
-            operation=OGCOperationEnum.GET_MAP.value
-        ).exists()
-        secured_operation_get_feature_info = secured_operations.filter(
-            operation=OGCOperationEnum.GET_FEATURE_INFO.value
-        ).exists()
-        secured_operation_get_feature = secured_operations.filter(
-            operation=OGCOperationEnum.GET_FEATURE.value
-        ).exists()
-
-        # Since we persist geometries in GeometryCollections, containing Polygon obejcts, we need to use a little hack
-        # to force Leaflet to read this artifical FeatureCollection, which is filled by the persisted Polygon objects
-        feature_geojson = {
-            "type": "FeatureCollection",
-            "features": [],
-        }
-
-        # If the metadata is not root, we are not allowed to create own geometries but we need to inherit the ones from
-        # the parent. Therefore we read it from the root in this case
-        if not md_is_root:
-            secured_operations_bounding_geometry = self.instance.get_root_metadata().secured_operations.all().first()
-        else:
-            secured_operations_bounding_geometry = secured_operations.first()
-        if secured_operations_bounding_geometry is not None:
-            secured_operations_bounding_geometry = secured_operations_bounding_geometry.bounding_geometry
-            if secured_operations_bounding_geometry is not None:
-                for geom in secured_operations_bounding_geometry:
-                    feature = {
-                        "type": "Feature",
-                        "properties": "{}",
-                        "geometry": json.loads(geom.geojson),
-                    }
-                    feature_geojson["features"].append(feature)
-                feature_geojson = json.dumps(feature_geojson)
-            else:
-                # If no bounding geometry exists, we need to set feature_geojson to None,
-                # so it will be interpreted as empty geometry input
-                feature_geojson = None
-        else:
-            feature_geojson = None
-
-        # restricting via geometry is only allowed for root metadata, not for every single subelement
-        if not md_is_root:
-            self.fields["spatial_restricted_area"].widget = forms.HiddenInput()
-
-        # Set initial fields
-        if self.instance.service.is_wms:
-            self.fields["get_map"].initial = secured_operation_get_map
-            self.fields["get_feature_info"].initial = secured_operation_get_feature_info
-            del self.fields["get_feature"]
-        elif self.instance.service.is_wfs:
-            self.fields["get_feature"].initial = secured_operation_get_feature
-            del self.fields["get_map"]
-            del self.fields["get_feature_info"]
-        else:
-            raise AssertionError("Wrong service type for spatial access form!")
-        self.fields["spatial_restricted_area"].initial = feature_geojson
-
-    def save(self, commit=True):
-        """ Create SecuredOperations for metadata, according to form data
-
-        Returns:
-
-        """
-        # Check if the metadata is already secured. If not, secure it!
-        if not self.instance.is_secured:
-            self.instance.set_secured(True)
-
-        bounding_geometry = self.cleaned_data.get("spatial_restricted_area", None)
-        try:
-            del self.cleaned_data["spatial_restricted_area"]
-        except KeyError:
-            # happens on a non-root service
-            pass
-
-        ogc_operation_map = {
-            "get_map": OGCOperationEnum.GET_MAP.value,
-            "get_feature_info": OGCOperationEnum.GET_FEATURE_INFO.value,
-            "get_feature": OGCOperationEnum.GET_FEATURE.value,
-        }
-        operation_map = {
-            "get_map": None,
-            "get_feature_info": None,
-            "get_feature": None,
-        }
-        for k, v in self.cleaned_data.items():
-            try:
-                operation_map[k] = v
-            except KeyError:
-                pass
-        # Reduce operation_map on valid data
-        operations = [v for k, v in ogc_operation_map.items() if k in operation_map and operation_map[k] is True]
-
-        # Call persisting of new settings in background process
-        async_secure_service_task.delay(
-            self.instance.id,
-            self.group.pk,
-            operations,
-            bounding_geometry
-        )

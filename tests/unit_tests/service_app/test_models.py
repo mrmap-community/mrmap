@@ -18,18 +18,18 @@ class AllowedOperationTestCase(TestCase):
         """IF a AllowedOperation object with an empty geometry is prepeard for saving with the full_clean() method, THEN the AllowedOperation object shall raise a ValidationError for the bounding_geometry field."""
         raised = False
         try:
-            allowed_operation = AllowedOperation(bounding_geometry=MultiPolygon(), root_metadata=self.root_metadata)
+            allowed_operation = AllowedOperation(allowed_area=MultiPolygon(), root_metadata=self.root_metadata)
             allowed_operation.full_clean()
         except ValidationError as e:
             raised = True
-            self.assertIn('bounding_geometry', e.message_dict,
-                          msg='There is no ValidationError for field `bounding_geometry`.')
+            self.assertIn('allowed_area', e.message_dict,
+                          msg='There is no ValidationError for field `allowed_area`.')
         finally:
             self.assertIs(True, raised, msg='ValidationError didn\'t raised')
 
     def test_object_with_validation_errors_shall_not_be_stored(self):
         """IF a AllowedOperation object with an empty geometry should be saved, THEN the AllowedOperation object shall not be stored to the database."""
-        allowed_operation = AllowedOperation(bounding_geometry=MultiPolygon(), root_metadata=self.root_metadata)
+        allowed_operation = AllowedOperation(allowed_area=MultiPolygon(), root_metadata=self.root_metadata)
         try:
             allowed_operation.save()
         except:
@@ -42,7 +42,7 @@ class AllowedOperationTestCase(TestCase):
         """IF a valid AllowedOperation object should be saved, THEN the AllowedOperation object shall be stored to the database with correct secured_metadata relations."""
         p1 = Polygon(((0, 0), (0, 1), (1, 1), (0, 0)))
         p2 = Polygon(((1, 1), (1, 2), (2, 2), (1, 1)))
-        allowed_operation = AllowedOperation(bounding_geometry=MultiPolygon(p1, p2), root_metadata=self.root_metadata)
+        allowed_operation = AllowedOperation(allowed_area=MultiPolygon(p1, p2), root_metadata=self.root_metadata)
         allowed_operation.save()
         self.assertEqual(1, AllowedOperation.objects.all().count(),
                          msg='The AllowedOperation table shall be contains exactly 1 object.')

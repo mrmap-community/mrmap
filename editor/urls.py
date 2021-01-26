@@ -26,12 +26,6 @@ urlpatterns = [
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
     path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
 
-    # access editor
-    path('access/<pk>/general', GeneralAccessSettingsView.as_view(), name='general-access-settings'),
-    path('access/<pk>/table', GroupAccessTable.as_view(), name='edit-group-table'),
-    path('access/<pk>/<group_pk>/restrict', RestrictAccessSpatiallyView.as_view(), name='restrict-access-spatially'),
-    path('access/<pk>', AccessEditorView.as_view(), name='edit-access'),
-
     # access editor wizard
     path('access/<pk>/edit', AccessEditorWizard.as_view(form_list=ACCESS_EDITOR_WIZARD_FORMS),
          name='access-editor-wizard'),

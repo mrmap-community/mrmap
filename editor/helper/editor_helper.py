@@ -478,8 +478,6 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         overwrite_capabilities_document(original_md)
 
 
-
-
 def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, editor_form):
     """ Overwrites the original data with the custom date
 
@@ -505,66 +503,3 @@ def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, edit
     original_ft.is_custom = True
     original_ft.save()
 
-
-# todo: never used --> delete this function
-#  tag:delete
-def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata):
-    """ Merges RequestOperations and SecuredOperations into a usable form for the template rendering.
-
-    Iterates over all SecuredOperations of a metadata, simplifies the objects into dicts, adds the remaining
-    RequestOperation objects.
-
-    Args:
-        operations: The RequestOperation query set
-        sec_ops: The SecuredOperation query set
-        all_groups: All system groups
-        metadata: The secured metadata
-    Returns:
-         A list, containing dicts of all operations with groups and only the most important data
-    """
-    tmp = []
-    for op in operations:
-        op_dict = {
-            "operation": op,
-            "groups": []
-        }
-        secured_operations = AllowedOperation.objects.filter(
-            operation=op,
-            secured_metadata=metadata,
-        )
-        if secured_operations.count() > 0:
-            allowed_groups = [x.allowed_group for x in secured_operations]
-
-            for group in all_groups:
-                allowed = False
-                sec_id = -1
-                geometry = None
-                if group in allowed_groups:
-                    allowed = True
-                    sec_op = secured_operations.get(allowed_group=group)
-                    geometry_collection = sec_op.bounding_geometry
-                    polygon_list = [json.loads(x.geojson) for x in geometry_collection]
-                    geometry = json.dumps(polygon_list)
-                    if len(polygon_list) == 0:
-                        geometry = None
-                    sec_id = sec_op.id
-
-                op_dict["groups"].append({
-                    "group": group,
-                    "allowed": allowed,
-                    "sec_id": sec_id,
-                    "geo_json_geometry": geometry,
-                })
-
-            tmp.append(op_dict)
-
-        else:
-            for group in all_groups:
-                op_dict["groups"].append({
-                    "group": group,
-                    "allowed": False,
-                    "sec_id": -1,
-                    "geo_json_geometry": None,
-                })
-            tmp.append(op_dict)
-    return tmp

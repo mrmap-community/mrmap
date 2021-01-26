@@ -558,7 +558,7 @@ class EditorTestCase(TestCase):
         for op in secured_operations_wms:
             self.assertTrue(op.operation in wms_operations, msg="Wrong operation stored in secured operation! Found {}!".format(op.operation))
             self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
-            self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
+            self.assertGreater(op.allowed_area.area, 0, msg="Invalid area size detected: {}".format(op.allowed_area.area))
 
         # Check request result!
         # Run regular /operation request for WMS
@@ -652,7 +652,7 @@ class EditorTestCase(TestCase):
         for op in secured_operations_wfs:
             self.assertEqual(op.operation, "GetFeature", msg="Wrong operation stored in secured operation!")
             self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
-            self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
+            self.assertGreater(op.allowed_area.area, 0, msg="Invalid area size detected: {}".format(op.allowed_area.area))
 
         # Rerun request
         response = self._run_request(params, url, "get", client)

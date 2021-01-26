@@ -176,7 +176,7 @@ class ServiceTaskTestCase(TestCase):
                 secured_metadata=self.metadata
             )
             self.assertEqual(secured_operation.operation, OGCOperationEnum.GET_MAP.value, msg=fail_msg)
-            self.assertEqual(secured_operation.bounding_geometry.area, geometry.area, msg=fail_msg)
-            self.assertEqual(secured_operation.bounding_geometry.convex_hull, geometry.convex_hull, msg=fail_msg)
+            self.assertEqual(secured_operation.allowed_area.area, geometry.area, msg=fail_msg)
+            self.assertEqual(secured_operation.allowed_area.convex_hull, geometry.convex_hull, msg=fail_msg)
         except ObjectDoesNotExist:
             self.fail(msg=fail_msg)

@@ -12,7 +12,7 @@ import traceback
 
 import requests
 from celery import shared_task
-from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
+from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection, MultiPolygon
 from django.db import transaction
 
 from lxml.etree import XMLSyntaxError, XPathEvalError
@@ -26,7 +26,7 @@ from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
 from service.settings import DEFAULT_SRS
 from service.models import Service, Metadata, AllowedOperation, ExternalAuthentication, \
-    MetadataRelation, ProxyLog
+    MetadataRelation, ProxyLog, OGCOperation
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import service_helper, task_helper
@@ -115,7 +115,10 @@ def async_activate_service(object_id: int, additional_params: dict):
 # todo: maybe we don't need this function after SecuredOperation is refactored
 #  tag: delete
 @shared_task(name="async_secure_service_task")
-def async_secure_service_task(metadata_id: int, group_id: int, operations: list, bounding_geometry: str):
+def async_secure_service_task(root_metadata_id: int,
+                              groups_id_list: list,
+                              operations_id_list: list,
+                              allowed_area: str):
     """ Async call for securing a service
 
     Since this is something that can happen in the background, we should push it to the background!
@@ -128,74 +131,25 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
     Returns:
          nothing
     """
-    md = Metadata.objects.get(id=metadata_id)
+    root_metadata = Metadata.objects.get(id=root_metadata_id)
+    allowed_groups = MrMapGroup.objects.filter(
+        id__in=groups_id_list
+    )
+    operations = OGCOperation.objects.filter(
+        id__in=operations_id_list
+    )
+    allowed_area = MultiPolygon(allowed_area)
 
-    # First get the MrMapGroup object
-    if group_id is None:
-        group = None
-    else:
-        group = MrMapGroup.objects.get(
-            id=group_id
-        )
+    obj, created = AllowedOperation.objects.get_or_create(
+        root_metadata=root_metadata,
+    )
+    obj.allowed_groups.clear()
+    obj.operations.clear()
+    obj.allowed_groups.add(*allowed_groups)
+    obj.operations.add(*operations)
+    obj.allowed_area = allowed_area
 
-    try:
-        features = json.loads(bounding_geometry)
-        geoms = []
-        for feature in features["features"]:
-            feature_geom = feature["geometry"]
-            feature_coords = feature_geom["coordinates"]
-            for coord in feature_coords:
-                geom = GEOSGeometry(Polygon(coord), srid=DEFAULT_SRS)
-                geoms.append(geom)
-        # Create GeosGeometry from GeoJson
-        bounding_geometry = GeometryCollection(
-            geoms
-        )
-    except Exception as e:
-        bounding_geometry = None
-
-    # Create list of parent metadata and all subelement metadatas
-    metadatas = md.get_subelements_metadatas()
-    metadatas = [md] + metadatas
-
-    with transaction.atomic():
-        # Iterate over all metadatas to set the restricted geometry
-        for md in metadatas:
-            # Create a list of objects, which shall be deleted if not found anymore in the new form data
-            to_be_deleted = md.secured_operations.filter(
-                allowed_group=group
-            )
-            to_be_deleted = {op.operation: op for op in to_be_deleted}
-            # Then iterate over all operations, which shall be secured and create/update the bounding geometry
-            for operation in operations:
-                try:
-                    # Since we are currently iterating through this operation, which shall be secured, we can delete
-                    # the entry from the list of entries which would be deleted in the end!
-                    del to_be_deleted[operation]
-                except KeyError:
-                    pass
-                secured_operation = md.secured_operations.filter(
-                    operation=operation,
-                    allowed_group=group,
-                )
-                if secured_operation.exists():
-                    # update
-                    secured_operation = secured_operation.first()
-                    secured_operation.bounding_geometry = bounding_geometry
-                    secured_operation.save()
-                else:
-                    # New!
-                    sec_op = AllowedOperation.objects.create(
-                        secured_metadata=md,
-                        operation=operation,
-                        allowed_group=group,
-                        bounding_geometry=bounding_geometry
-                    )
-                    md.secured_operations.add(sec_op)
-
-            # Delete the operations which are not present anymore in the form data!
-            for key, entry in to_be_deleted.items():
-                entry.delete()
+    obj.save()
 
 
 @shared_task(name="async_remove_service_task")

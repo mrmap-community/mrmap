@@ -439,10 +439,10 @@ def get_service_preview(request: HttpRequest, metadata_id):
         layer = md.service.layer
 
     layer = layer.identifier
-    if md.bounding_geometry.area == 0:
+    if md.allowed_area.area == 0:
         bbox = md.find_max_bounding_box()
     else:
-        bbox = md.bounding_geometry
+        bbox = md.allowed_area
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
     img_width = 200
@@ -562,7 +562,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
     if md.is_metadata_type(MetadataEnum.DATASET):
         base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
         params['contact'] = collect_contact_data(md.contact)
-        params['bounding_box'] = md.bounding_geometry
+        params['bounding_box'] = md.allowed_area
         params['dataset_metadata'] = md
         params['fees'] = md.fees
         params['licence'] = md.licence
@@ -1071,8 +1071,8 @@ class ResourceTreeView(DetailView):
         return context
 
 
-@csrf_exempt
-@resolve_metadata_public_id
+#@csrf_exempt
+#@resolve_metadata_public_id
 @log_proxy
 def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
@@ -1125,7 +1125,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
                 # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
         if md_secured:
-            response_dict = operation_handler.get_secured_operation_response()
+            response_dict = operation_handler.get_allowed_operation_response()
         else:
             response_dict = operation_handler.get_operation_response(proxy_log=proxy_log)
 

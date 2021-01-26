@@ -1376,8 +1376,8 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         reference_systems = layer.get_inherited_reference_systems()
 
         # wms:EX_GeographicBoundingBox
-        bounding_geometry = md.bounding_geometry
-        bbox = md.bounding_geometry.extent
+        bounding_geometry = md.allowed_area
+        bbox = md.allowed_area.extent
 
         # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
         # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
@@ -1779,7 +1779,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         try:
-            bbox = feature_type_obj.metadata.bounding_geometry.extent
+            bbox = feature_type_obj.metadata.allowed_area.extent
             bbox_elem = xml_helper.create_subelement(
                 upper_elem,
                 "{}WGS84BoundingBox".format(self.default_ns),

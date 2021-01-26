@@ -38,7 +38,6 @@ class EpsgApi:
             "prefix": prefix,
         }
 
-
     def get_real_identifier(self, identifier: str):
         """ Returns only the numeral identifier of the spatial reference system.
 
@@ -76,7 +75,7 @@ class EpsgApi:
 
         XML_NAMESPACES["gml"] = "http://www.opengis.net/gml/3.2"
 
-        uri=self.registry_uri + self.id_prefix + str(id)
+        uri = self.registry_uri + self.id_prefix + str(id)
         response = requests.request("Get", url=uri, proxies=PROXIES)
         response = xml_helper.parse_xml(str(response.content.decode()))
         type = xml_helper.try_get_text_from_xml_element(xml_elem=response, elem="//epsg:type")

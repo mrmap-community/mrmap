@@ -69,15 +69,15 @@ class AccessEditorWizard(SessionWizardView, ABC):
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
         self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
-        secured_operations = AllowedOperation.objects.filter(secured_metadata=self.metadata_object)
+        allowed_operations = AllowedOperation.objects.filter(secured_metadata=self.metadata_object)
         self.instance_dict = {"general": self.metadata_object,
-                              ACCESS_EDITOR_STEP_2_NAME: secured_operations, }
+                              ACCESS_EDITOR_STEP_2_NAME: allowed_operations, }
         self.initial_dict = {ACCESS_EDITOR_STEP_2_NAME: [{"root_metadata": self.metadata_object}]}
 
         # if we got existing SecuredOperation objects for the requested metadata object, we do not serve extra empty
         # forms in our formset. The user can add some if he want with the add button which will post the APPEND_FORMSET
         # field.
-        if secured_operations:
+        if allowed_operations:
             extra = 0
         else:
             extra = 1

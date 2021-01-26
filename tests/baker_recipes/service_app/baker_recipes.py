@@ -164,5 +164,5 @@ allowed_operation = Recipe(
     root_metadata=foreign_key(active_wms_service_metadata),
     operations=related(ogc_operation),
     allowed_groups=related(superadmin_group),
-    bounding_geometry=None,
+    allowed_area=None,
 )

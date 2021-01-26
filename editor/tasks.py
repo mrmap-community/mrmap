@@ -41,7 +41,7 @@ def async_process_securing_access(md_id, use_proxy: bool, log_proxy: bool, restr
 
     for md in metadatas:
         if restrict_access is False:
-            md.secured_operations.all().delete()
+            md.allowed_operations.all().delete()
         # Clear cached documents
         ## There might be the case, that a user requests a subelements capability document just before the securing is finished
         ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end

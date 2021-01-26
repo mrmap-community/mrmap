@@ -1384,12 +1384,6 @@ class Metadata(Resource):
         Returns:
             nothing
         """
-        # todo: this check is no longer needed cause there is a bind signal on `SecuredOperation`
-        # check for SecuredOperations
-        if self.is_secured:
-            sec_ops = self.secured_operations.all()
-            sec_ops.delete()
-
         # remove externalAuthentication object if it exists
         try:
             self.external_authentication.delete()
@@ -2010,25 +2004,19 @@ class AllowedOperation(models.Model):
                       applies to.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    operations = models.ManyToManyField(OGCOperation, related_name="secured_operations")
-    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="secured_operations")
-    bounding_geometry = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
+    operations = models.ManyToManyField(OGCOperation, related_name="allowed_operations")
+    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="allowed_operations")
+    allowed_area = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations")
+    secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")
 
     def __str__(self):
         return str(self.id)
 
     def setup_secured_metadata(self):
-        if self._state.adding:
-            child_nodes = self.root_metadata.get_subelements_metadatas_as_qs()
-            self.secured_metadata.add(*child_nodes)
-
-    # todo: if a service becomes updated, some childnodes could be deleted in the new service state. So we need also to
-    #  update the secured_metadata field as well. For that connect the clear function on Metadata.delete() function and
-    #  after that call the setup_secured_metadata() function to update the m2m field.
-    def clear_secured_metadata(self):
+        child_nodes = self.root_metadata.get_subelements_metadatas_as_qs()
         self.secured_metadata.clear()
+        self.secured_metadata.add(*child_nodes)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -2042,8 +2030,10 @@ class AllowedOperation(models.Model):
         ModelForm. For that we need to call the full_clean() method ALWAYS before saving.
         """
         self.full_clean()
-        self.setup_secured_metadata()
+
         super().save(force_insert=False, force_update=force_update, using=using, update_fields=update_fields)
+
+        self.setup_secured_metadata()
 
 
 class Document(Resource):
@@ -3017,111 +3007,6 @@ class Service(Resource):
         """
         return self.service_type.name == enum.value
 
-    # todo: maybe we don't need this function after SecuredOperation is refactored
-    #  tag: delete
-    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: AllowedOperation, element=None):
-        """ Secures a single element
-
-        Args:
-            is_secured (bool): Whether to secure the element or not
-            group (MrMapGroup): The group which is allowed to perform an operation
-            operation (RequestOperation): The operation which can be performed by the groups
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-
-        """
-        if element is None:
-            element = self
-        element.metadata.is_secured = is_secured
-        if is_secured:
-
-            if sec_op is None:
-                sec_op = AllowedOperation()
-                sec_op.operation = operation
-                sec_op.allowed_group = group
-            else:
-                sec_op = AllowedOperation.objects.get(
-                    secured_metadata=element.metadata,
-                    operation=operation,
-                    allowed_group=group
-                )
-
-            poly_list = []
-            for group_polygon in group_polygons:
-                poly_str = group_polygon.get("geometry", group_polygon).get("coordinates", [None])[0]
-                tmp_poly = Polygon(poly_str)
-                poly_list.append(tmp_poly)
-
-            sec_op.bounding_geometry = GeometryCollection(poly_list)
-            sec_op.save()
-            element.metadata.secured_operations.add(sec_op)
-        else:
-            element.metadata.secured_operations.all().delete()
-            element.metadata.secured_operations.clear()
-        element.metadata.save()
-        element.save()
-
-    # todo: maybe we don't need this function after SecuredOperation is refactored
-    #  tag:delete
-    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_root:
-            # get the first layer in this service
-            start_element = Layer.objects.get(
-                parent_service=self,
-                parent_layer=None,
-            )
-        else:
-            # simply get the layer which is described by the given metadata
-            start_element = Layer.objects.get(
-                metadata=self.metadata
-            )
-        start_element.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
-
-    # todo: maybe we don't need this function after SecuredOperation is refactored
-    #  tag: delete
-    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_root:
-            elements = self.featuretypes.all()
-            for element in elements:
-                self.secure_access(is_secured, group, operation, group_polygons, secured_operation, element=element)
-
-    # todo: maybe we don't need this function after SecuredOperation is refactored
-    #  tag: delete
-    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
-        """ Secures all sub elements of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_service_type(OGCServiceEnum.WMS):
-            self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
     def delete_child_data(self, child):
@@ -3329,7 +3214,7 @@ class Layer(Service):
         bounding_geometry = self.metadata.bounding_geometry
         parent_layer = self.parent_layer
         while parent_layer is not None:
-            parent_geometry = parent_layer.metadata.bounding_geometry
+            parent_geometry = parent_layer.metadata.allowed_area
             if bounding_geometry.area > 0:
                 if parent_geometry.covers(bounding_geometry):
                     bounding_geometry = parent_geometry
@@ -3390,29 +3275,6 @@ class Layer(Service):
             except ObjectDoesNotExist:
                 upper_element = None
         return ret_list
-
-    # todo: maybe we don't need this function after SecuredOperation is refactored
-    #  tag:delete
-    def delete_children_secured_operations(self, layer, operation, group):
-        """ Walk recursive through all layers of wms and remove their secured operations
-
-        The 'layer' will not be affected!
-
-        Args:
-            layer: The layer, which children shall be changed.
-            operation: The RequestOperation of the SecuredOperation
-            group: The group
-        Returns:
-
-        """
-        for child_layer in layer.child_layers.all():
-            sec_ops = AllowedOperation.objects.filter(
-                secured_metadata=child_layer.metadata,
-                operation=operation,
-                allowed_group=group,
-            )
-            sec_ops.delete()
-            self.delete_children_secured_operations(child_layer, operation, group)
 
     def activate_layer_recursive(self, new_status):
         """ Walk recursive through all layers of a wms and set the activity status new
@@ -3488,24 +3350,6 @@ class Layer(Service):
         """
         leaf_layers = self._get_bottom_layers_identifier_iterative()
         return leaf_layers
-
-    # todo: maybe we don't need this function after SecuredOperation is refactored
-    #  tag: delete
-    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
-        """ Recursive implementation of securing all sub layers of a current layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        self.secure_access(is_secured, group, operation, group_polygons, secured_operation)
-
-        for layer in self.child_layers.all():
-            layer.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
 
 class Module(Service):
@@ -3909,33 +3753,6 @@ class FeatureType(Resource):
 
     def __str__(self):
         return self.metadata.identifier
-
-    # todo: this function is never used --> Delete this function
-    #  tag:delete
-    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation):
-        """ Secures the feature type or removes the secured constraints
-
-        Args:
-            is_secured (bool): Whether to secure the feature type or not
-            groups (list): The list of groups which are allowed to perform an operation
-            operation (RequestOperation): The operation which can be allowed
-        Returns:
-
-        """
-        self.metadata.is_secured = is_secured
-        if is_secured:
-            sec_op = AllowedOperation()
-            sec_op.operation = operation
-            sec_op.save()
-            for g in groups:
-                sec_op.allowed_groups.add(g)
-            self.metadata.secured_operations.add(sec_op)
-        else:
-            for sec_op in self.metadata.secured_operations.all():
-                sec_op.delete()
-            self.metadata.secured_operations.clear()
-        self.metadata.save()
-        self.save()
 
     def restore(self):
         """ Reset the metadata to it's original capabilities content

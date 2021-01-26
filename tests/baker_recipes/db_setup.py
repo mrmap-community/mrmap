@@ -440,7 +440,7 @@ def create_allowed_operation(allowed_groups: QuerySet(MrMapGroup),
                              operations: QuerySet(OGCOperation),
                              root_metadata: Metadata,
                              how_much_allowed_operations: int = 1,
-                             bounding_geometry: MultiPolygon = None,):
+                             allowed_area: MultiPolygon = None,):
 
     return baker.make_recipe(
         "tests.baker_recipes.service_app.allowed_operation",
@@ -448,5 +448,5 @@ def create_allowed_operation(allowed_groups: QuerySet(MrMapGroup),
         root_metadata=root_metadata,
         allowed_groups=allowed_groups,
         operations=operations,
-        bounding_geometry=bounding_geometry,
+        allowed_area=allowed_area,
     )

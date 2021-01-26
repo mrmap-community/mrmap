@@ -75,7 +75,7 @@ class EditorAcessTable(tables.Table):
             return get_ok_nok_icon(False)
 
     def render_access_restricted_spatially(self, value):
-        is_restricted_spatially = ~Q(bounding_geometry=None)
+        is_restricted_spatially = ~Q(allowed_area=None)
         is_equal_secured_metadata = Q(secured_metadata=self.related_metadata)
         if value.filter(is_equal_secured_metadata & is_restricted_spatially).exists():
             return get_ok_nok_icon(True)

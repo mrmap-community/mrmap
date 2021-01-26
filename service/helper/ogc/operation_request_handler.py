@@ -16,6 +16,7 @@ from threading import Thread
 
 from PIL import Image, ImageFont, ImageDraw
 from cryptography.fernet import InvalidToken
+from django.contrib.gis.gdal import SpatialReference
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
 from django.db.models import Q
@@ -31,7 +32,6 @@ from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from MrMap.utils import execute_threads
-from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
@@ -140,7 +140,14 @@ class OGCOperationRequestHandler:
         # We expect the srs_code to be set until now. There are cases where this might fail - so we make a last check in here.
         # Check if the srs_param is set, but the srs_code isn't yet. If so -> find the code inside the param.
         # srs_param could be a link, but also something like "EPSG:4326"...
+        # Qgis 2.18.28 and 3.16.3-Hannover for example, requests with "SRS=CRS:84" if "EPSG:4326" is selected, what
+        # means that the "name" of the coordinate reference system is passed instead of the epsg srs id combination.
+        # We need to catch this also.
         if self.srs_param is not None and self.srs_code is None:
+            if self.srs_param.split(":")[0].upper() == 'CRS':
+                # the crs name is given not the srs id
+                # todo: try to convert to the srs id
+                pass
             self.srs_code = int(self.srs_param.split(":")[-1])
 
         # Only work on the requested param objects, if the metadata is secured.
@@ -338,8 +345,8 @@ class OGCOperationRequestHandler:
                 identifier__in=layer_identifiers,
             )
             allowed_layers = layers.filter(
-                secured_operations__allowed_group__in=self.user_groups,
-                secured_operations__operation__iexact=self.request_param,
+                allowed_operations__allowed_groups__id__in=self.user_groups.values_list('id'),
+                allowed_operations__operations__operation__iexact=self.request_param
             )
             restricted_layers = layers.difference(allowed_layers)
             self.new_params_dict["LAYERS"] = ",".join(allowed_layers.values_list("identifier", flat=True))
@@ -474,7 +481,7 @@ class OGCOperationRequestHandler:
             service = feature_type.parent_service
             metadata = service.metadata
             operation_urls = service.operation_urls.all()
-            secured_operation_uris = {
+            allowed_operation_uris = {
                 "GETFEATURE": {
                     "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
                     "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
@@ -486,7 +493,7 @@ class OGCOperationRequestHandler:
             }
         else:
             operation_urls = metadata.service.operation_urls.all()
-            secured_operation_uris = {
+            allowed_operation_uris = {
                 "GETMAP": {
                     "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
                     "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
@@ -497,8 +504,8 @@ class OGCOperationRequestHandler:
                 },
             }
 
-        secured_uri_get = secured_operation_uris.get(self.request_param.upper(), {}).get("get", None)
-        secured_uri_post = secured_operation_uris.get(self.request_param.upper(), {}).get("post", None)
+        secured_uri_get = allowed_operation_uris.get(self.request_param.upper(), {}).get("get", None)
+        secured_uri_post = allowed_operation_uris.get(self.request_param.upper(), {}).get("post", None)
 
         if secured_uri_get is not None:
             # use the secured uri
@@ -1201,11 +1208,11 @@ class OGCOperationRequestHandler:
             constraints["x_y"] = False
 
         for sec_op in sec_ops:
-            if sec_op.bounding_geometry.empty:
+            if sec_op.allowed_area.empty:
                 # there is no specific area, so this group is allowed to request everywhere
                 constraints["x_y"] = True
                 break
-            total_bounding_geometry = sec_op.bounding_geometry.unary_union
+            total_bounding_geometry = sec_op.allowed_area.unary_union
             if self.x_y_coord is not None and total_bounding_geometry.covers(self.x_y_coord):
                 constraints["x_y"] = True
 
@@ -1227,7 +1234,7 @@ class OGCOperationRequestHandler:
         height = int(self.height_param)
         try:
             for op in sec_ops:
-                if op.bounding_geometry is None or op.bounding_geometry.empty:
+                if op.allowed_area is None or op.allowed_area.empty:
                     return None
                 request_dict = {
                     "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
@@ -1353,11 +1360,11 @@ class OGCOperationRequestHandler:
         root_xml = None
         for sec_op in sec_ops:
 
-            if sec_op.bounding_geometry.empty:
+            if sec_op.allowed_area.empty:
                 # there is no allowed area defined, so this group is allowed to request everywhere. No filter needed
                 return
 
-            bounding_geom = sec_op.bounding_geometry.unary_union
+            bounding_geom = sec_op.allowed_area.unary_union
 
             for trans_geom in self.transaction_geometries:
                 xml_element = trans_geom.get("xml_element")
@@ -1427,7 +1434,7 @@ class OGCOperationRequestHandler:
 
         # First get all polygons from the GeometryCollection and transform them according to the requested srs code
         for sec_op in sec_ops:
-            bounding_geom_collection = sec_op.bounding_geometry
+            bounding_geom_collection = sec_op.allowed_area
             if bounding_geom_collection is None:
                 continue
             for bounding_geom in bounding_geom_collection.coords:
@@ -1466,7 +1473,7 @@ class OGCOperationRequestHandler:
         self.filter_param = _filter
         self.new_params_dict["FILTER"] = self.filter_param
 
-    def get_secured_operation_response(self):
+    def get_allowed_operation_response(self):
         """ Calls the operation of a service if it is secured.
         """
         response = {
@@ -1480,13 +1487,12 @@ class OGCOperationRequestHandler:
         #  maybe we could get it from the self.x_y_coord
         #  have also a look on the lookup expressions for the GEOSGeometry field here:
         #  https://docs.djangoproject.com/en/3.1/ref/contrib/gis/geoquerysets/#std:fieldlookup-gis-contains
-        #  the current lookup `covers` will not work for the current WMS GETMAP operation
 
         # check if the metadata allows operation performing for certain groups
-        is_allowed = AllowedOperation.objects.filter(secured_metadata__contains=self.metadata,
-                                                     allowed_groups__in=self.user_groups,
-                                                     bounding_geometry__intersects=self.x_y_coord,
-                                                     operations__icontains=self.request_param).exists()
+        is_allowed = AllowedOperation.objects.filter(secured_metadata__id__contains=self.metadata.id,
+                                                     allowed_groups__id__in=self.user_groups.values_list('id'),
+                                                     allowed_area__intersects=self.bbox_param['geom'],
+                                                     operations__operation__iexact=self.request_param).exists()
 
         if not is_allowed:
             # this means the service is secured and the group has no access!
@@ -1495,21 +1501,21 @@ class OGCOperationRequestHandler:
         # todo: move to needed sub if/else trees which needs this queryset
         sec_ops = AllowedOperation.objects.filter(secured_metadata__contains=self.metadata,
                                                   allowed_groups__in=self.user_groups,
-                                                  operations__icontains=self.request_param)
+                                                  operations__operation__iexact=self.request_param)
 
         # WMS - Features
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
 
-            bounding_geometry_covers = Q(secured_metadata__contains=self.metadata,
-                                         allowed_groups__in=self.user_groups,
-                                         bounding_geometry__covers=self.x_y_coord,
-                                         operations__icontains=self.request_param)
-            bounding_geometry_is_empty = Q(secured_metadata__contains=self.metadata,
-                                           allowed_groups__in=self.user_groups,
-                                           bounding_geometry=None,
-                                           operations__icontains=self.request_param)
+            allowed_area_covered_by = Q(secured_metadata__contains=self.metadata,
+                                        allowed_groups__in=self.user_groups,
+                                        allowed_area__covers=self.x_y_coord,
+                                        operations__operation__iexact=self.request_param)
+            allowed_area_is_empty = Q(secured_metadata__contains=self.metadata,
+                                      allowed_groups__in=self.user_groups,
+                                      allowed_area=None,
+                                      operations__operation__iexact=self.request_param)
 
-            is_allowed = AllowedOperation.objects.filter(bounding_geometry_covers | bounding_geometry_is_empty).exists()
+            is_allowed = AllowedOperation.objects.filter(allowed_area_covered_by | allowed_area_is_empty).exists()
 
             if is_allowed:
                 response = self.get_operation_response()

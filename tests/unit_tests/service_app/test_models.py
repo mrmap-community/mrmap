@@ -53,19 +53,20 @@ class AllowedOperationTestCase(TestCase):
                          list(allowed_operation.root_metadata.get_subelements_metadatas_as_qs().order_by('id')),
                          msg='The secured_metadata field shall contains all children of the root_metadata field.')
 
-    class MetadataTestCase(TestCase):
 
-        def setUp(self):
-            self.user = create_superadminuser()
-            self.wms_metadata = create_wms_service(group=self.user.get_groups().first(),
-                                                   how_much_sublayers=10,
-                                                   how_much_services=2)
-            self.wfs_metadata = create_wfs_service(group=self.user.get_groups().first(),
-                                                   how_much_featuretypes=10,
-                                                   how_much_services=2)
+class MetadataTestCase(TestCase):
 
-        def test_get_all_child_metadata(self):
-            qs = self.wms_metadata[0].get_all_child_metadata(include_self=True)
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(),
+                                               how_much_sublayers=10,
+                                               how_much_services=2)
+        self.wfs_metadata = create_wfs_service(group=self.user.get_groups().first(),
+                                               how_much_featuretypes=10,
+                                               how_much_services=2)
 
-            self.assertEqual(11, qs.count())
+    def test_get_all_child_metadata(self):
+        qs = self.wms_metadata[0].get_all_child_metadata(include_self=True)
+
+        self.assertEqual(11, qs.count())
 

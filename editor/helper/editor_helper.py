@@ -21,7 +21,7 @@ from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum, \
     MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, SecuredOperation
+from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, AllowedOperation
 from service.helper import xml_helper
 
 
@@ -528,7 +528,7 @@ def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata)
             "operation": op,
             "groups": []
         }
-        secured_operations = SecuredOperation.objects.filter(
+        secured_operations = AllowedOperation.objects.filter(
             operation=op,
             secured_metadata=metadata,
         )

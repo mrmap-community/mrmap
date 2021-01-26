@@ -25,7 +25,7 @@ from MrMap.settings import EXEC_TIME_PRINT
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
 from service.settings import DEFAULT_SRS
-from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, \
+from service.models import Service, Metadata, AllowedOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
@@ -185,7 +185,7 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
                     secured_operation.save()
                 else:
                     # New!
-                    sec_op = SecuredOperation.objects.create(
+                    sec_op = AllowedOperation.objects.create(
                         secured_metadata=md,
                         operation=operation,
                         allowed_group=group,

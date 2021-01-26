@@ -28,7 +28,7 @@ from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence, \
-    SecuredOperation, OGCOperation
+    AllowedOperation, OGCOperation
 from service.settings import ISO_19115_LANG_CHOICES
 from service.tasks import async_secure_service_task
 from structure.models import Organization, MrMapGroup
@@ -470,16 +470,17 @@ class MrMapFormset(BaseModelFormSet):
         self.data._mutable = False
 
 
-class SecuredOperationForm(forms.ModelForm):
+class AllowedOperationForm(forms.ModelForm):
 
     class Meta:
-        model = SecuredOperation
+        model = AllowedOperation
         fields = ('operations', 'allowed_groups', 'bounding_geometry', 'root_metadata')
 
         widgets = {
             'bounding_geometry': LeafletGeometryInput(),
             'root_metadata': forms.HiddenInput(),
         }
+
 
 
 # Todo: old form --> delete it
@@ -519,7 +520,7 @@ class RestrictAccessSpatiallyForm(forms.ModelForm):
         md_is_root = self.instance.is_root()
 
         # Read initial data for fields
-        secured_operations = SecuredOperation.objects.filter(
+        secured_operations = AllowedOperation.objects.filter(
             secured_metadata__id=self.instance.id,
             allowed_group__id=self.group.pk
         )

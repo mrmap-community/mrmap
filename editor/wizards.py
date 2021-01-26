@@ -21,12 +21,12 @@ from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
-    GeneralAccessSettingsForm, SecuredOperationForm
+    GeneralAccessSettingsForm, AllowedOperationForm
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, MetadataRelation, Document, SecuredOperation
+from service.models import Dataset, Metadata, MetadataRelation, Document, AllowedOperation
 from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
@@ -37,9 +37,9 @@ APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
 
 
 ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
-                              (ACCESS_EDITOR_STEP_2_NAME, modelformset_factory(SecuredOperation,
+                              (ACCESS_EDITOR_STEP_2_NAME, modelformset_factory(AllowedOperation,
                                                                                can_delete=True,
-                                                                               form=SecuredOperationForm,
+                                                                               form=AllowedOperationForm,
                                                                                extra=2)), ]
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
@@ -69,7 +69,7 @@ class AccessEditorWizard(SessionWizardView, ABC):
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
         self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
-        secured_operations = SecuredOperation.objects.filter(secured_metadata=self.metadata_object)
+        secured_operations = AllowedOperation.objects.filter(secured_metadata=self.metadata_object)
         self.instance_dict = {"general": self.metadata_object,
                               ACCESS_EDITOR_STEP_2_NAME: secured_operations, }
         self.initial_dict = {ACCESS_EDITOR_STEP_2_NAME: [{"root_metadata": self.metadata_object}]}
@@ -82,9 +82,9 @@ class AccessEditorWizard(SessionWizardView, ABC):
         else:
             extra = 1
 
-        self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(SecuredOperation,
+        self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(AllowedOperation,
                                                                          can_delete=True,
-                                                                         form=SecuredOperationForm,
+                                                                         form=AllowedOperationForm,
                                                                          extra=extra)
 
         return super().dispatch(request, *args, **kwargs)
@@ -104,9 +104,9 @@ class AccessEditorWizard(SessionWizardView, ABC):
                     new_init_list.append(self.initial_dict[ACCESS_EDITOR_STEP_2_NAME][0])
                 self.initial_dict[ACCESS_EDITOR_STEP_2_NAME] = new_init_list
 
-                self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(SecuredOperation,
+                self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(AllowedOperation,
                                                                                  can_delete=True,
-                                                                                 form=SecuredOperationForm,
+                                                                                 form=AllowedOperationForm,
                                                                                  extra=current_extra + 1)
 
                 # render form again

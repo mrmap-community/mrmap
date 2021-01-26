@@ -7,7 +7,7 @@ from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from editor.tasks import async_process_securing_access
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper import service_helper, xml_helper
-from service.models import Document, ProxyLog, Layer, SecuredOperation
+from service.models import Document, ProxyLog, Layer, AllowedOperation
 from service.tasks import async_log_response, async_secure_service_task
 from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
@@ -550,7 +550,7 @@ class EditorTestCase(TestCase):
 
         # Assert existing securedoperations for service and all subelements
         wms_elements = [self.service_wms.metadata] + [elem.metadata for elem in self.service_wms.subelements]
-        secured_operations_wms = SecuredOperation.objects.filter(
+        secured_operations_wms = AllowedOperation.objects.filter(
             secured_metadata__in=wms_elements
         )
 
@@ -646,7 +646,7 @@ class EditorTestCase(TestCase):
         )
 
         wfs_elements = [self.service_wfs.metadata] + [elem.metadata for elem in self.service_wfs.subelements]
-        secured_operations_wfs = SecuredOperation.objects.filter(
+        secured_operations_wfs = AllowedOperation.objects.filter(
             secured_metadata__in=wfs_elements
         )
         for op in secured_operations_wfs:

@@ -14,7 +14,7 @@ from typing import Iterator, Type
 from PIL import Image
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GeometryCollection, MultiPolygon
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.db.models import CheckConstraint, Q
@@ -37,7 +37,7 @@ from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, R
 from MrMap import utils
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.utils import get_theme
-from MrMap.validators import not_uuid
+from MrMap.validators import not_uuid, geometry_is_empty
 from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
@@ -956,22 +956,6 @@ class Metadata(Resource):
                 parent_metadata = None
         return parent_metadata
 
-    def get_parent_filters(self, include_self=True):
-        """ recursive helper function for `get_all_parent_metadata` """
-        filters = Q(pk=0)
-        if include_self:
-            filters |= Q(pk=self.pk)
-        for c in Metadata.objects.filter(service__child_layers=self):
-            _r = c.get_parent_filters(include_self=True)
-            if _r:
-                filters |= _r
-        return filters
-
-    def get_all_parent_metadata(self, include_self=True):
-        """ returns a queryset of all parent metadata nodes with first degree relation"""
-        if self.is_service_type(OGCServiceEnum.WMS):
-            return Metadata.objects.filter(self.get_parent_filters(include_self))
-
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
 
@@ -1054,6 +1038,24 @@ class Metadata(Resource):
             ret_list += list(subelement_metadatas)
 
         return ret_list
+
+    def get_subelements_metadatas_as_qs(self, include_self=True):
+        """ Returns a QuerySet containing all subelement metadata records
+
+        Returns:
+             qs (QuerySet)
+        """
+        is_service = self.is_metadata_type(MetadataEnum.SERVICE)
+        is_layer = self.is_metadata_type(MetadataEnum.LAYER)
+        if is_service or is_layer:
+            qs = Metadata.objects.filter(service__in=self.service.subelements_as_qs)
+        else:
+            qs = Metadata.objects.filter(
+                service__parent_service__metadata=self,
+            )
+        if include_self:
+            qs = qs | Metadata.objects.filter(id=self.id)
+        return qs
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -1987,6 +1989,26 @@ class Metadata(Resource):
         health_states = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
         return health_states
 
+    def get_child_filters(self, include_self=True):
+        """ recursive helper function for `get_all_child_metadata` """
+        filters = Q(pk=0)
+        if include_self:
+            filters |= Q(pk=self.pk)
+        if self.is_root:
+            qs = Metadata.objects.filter(service=self.service)
+        else:
+            qs = Metadata.objects.filter(service__parent_layers=self.service)
+        for c in qs:
+            _r = c.get_child_filters(include_self=True)
+            if _r:
+                filters |= _r
+        return filters
+
+    def get_all_child_metadata(self, include_self=True):
+        """ returns a queryset of all parent metadata nodes with first degree relation"""
+        if self.is_service_type(OGCServiceEnum.WMS):
+            return Metadata.objects.filter(self.get_child_filters(include_self))
+
 
 class OGCOperation(models.Model):
     operation = models.CharField(primary_key=True, max_length=255, choices=OGCOperationEnum.as_choices())
@@ -1995,8 +2017,8 @@ class OGCOperation(models.Model):
         return self.operation
 
 
-class SecuredOperation(models.Model):
-    """
+class AllowedOperation(models.Model):
+    """Configures the operation(s) which allows one or more groups to access a :class:`service.models.Resource`.
 
     id: the id of the ``SecuredOperation`` object
     operations: a list of allowed ``OGCOperation`` objects
@@ -2010,41 +2032,39 @@ class SecuredOperation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     operations = models.ManyToManyField(OGCOperation, related_name="secured_operations")
     allowed_groups = models.ManyToManyField(MrMapGroup, related_name="secured_operations")
-    bounding_geometry = models.MultiPolygonField(blank=True, null=True)
+    bounding_geometry = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations", blank=False)
-
-    class Meta:
-        """
-            In the `OGCOperationRequestHandler` we have some query's against the `SecuredOperation` object filtered by
-            an empty `GEOSGeometry` looked up in the `bounding_geometry` field. The lookup is implemented with
-            `bounding_geometry=None`. So we have to prevent saving empty GEOSGeometry objects by adding a constraint.
-        """
-        constraints = [
-            models.CheckConstraint(
-                name="%(app_label)s_%(class)s_no_empty_geometries",
-                check=~Q(bounding_geometry__empty=True),
-            ),
-        ]
+    secured_metadata = models.ManyToManyField(Metadata, related_name="secured_operations")
 
     def __str__(self):
         return str(self.id)
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+    def setup_secured_metadata(self):
         if self._state.adding:
-            child_nodes = self.root_metadata.get_subelements_metadatas()
+            child_nodes = self.root_metadata.get_subelements_metadatas_as_qs()
             self.secured_metadata.add(*child_nodes)
 
+    # todo: if a service becomes updated, some childnodes could be deleted in the new service state. So we need also to
+    #  update the secured_metadata field as well. For that connect the clear function on Metadata.delete() function and
+    #  after that call the setup_secured_metadata() function to update the m2m field.
+    def clear_secured_metadata(self):
+        self.secured_metadata.clear()
 
-@receiver(m2m_changed, sender=SecuredOperation.secured_metadata.through)
-def secured_metadata_changed(action, instance, **kwargs):
-    if action == 'post_remove':
-        # todo: check if this is just an update of a service; if so we need to update the secured_metadata set
-        #child_nodes = instance.get_subelements_metadatas()
-        #instance.secured_metadata.clear()
-        #instance.secured_metadata.add(*child_nodes)
-        pass
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        """
+        In the `OGCOperationRequestHandler` we have some query's against the `SecuredOperation` object filtered by
+        an empty `GEOSGeometry` looked up in the `bounding_geometry` field. The lookup is implemented with
+        `bounding_geometry=None`. So we have to prevent saving empty GEOSGeometry objects by adding a validator.
+        However, this is security component, which shall work always as expected. So we have to make sure, that
+        inconsistent data is never saved to the database. Cause the full_clean() method will only called in ModelForm
+        classes, we need to add this again at this point, if the AllowedOperation will be used in other ways as
+        ModelForm. For that we need to call the full_clean() method ALWAYS before saving.
+        """
+        self.full_clean()
+        self.setup_secured_metadata()
+        super().save(force_insert=False, force_update=force_update, using=using, update_fields=update_fields)
+
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices
@@ -2953,6 +2973,34 @@ class Service(Resource):
         return ret_list
 
     @property
+    def subelements_as_qs(self):
+        """ Returns a QuerySet of Layer or Featuretype records.
+
+        Returns:
+             qs (QuerySet): The list of subelements
+        """
+        if self.is_service_type(OGCServiceEnum.WMS):
+            if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
+                qs = Layer.objects.filter(
+                    parent_service=self
+                ).prefetch_related(
+                    "metadata"
+                )
+            else:
+                self_layer_instance = Layer.objects.get(metadata=self.metadata)
+                qs = self_layer_instance.child_layers.all()
+                for layer in qs:
+                    qs += qs | layer.child_layers.all()
+        elif self.is_service_type(OGCServiceEnum.WFS):
+            qs = FeatureType.objects.filter(
+                parent_service=self
+            ).prefetch_related(
+                "metadata"
+            )
+
+        return qs
+
+    @property
     def is_wms(self):
         """ Returns whether the service is a WMS or not
 
@@ -2991,7 +3039,7 @@ class Service(Resource):
 
     # todo: maybe we don't need this function after SecuredOperation is refactored
     #  tag: delete
-    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
+    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: AllowedOperation, element=None):
         """ Secures a single element
 
         Args:
@@ -3008,11 +3056,11 @@ class Service(Resource):
         if is_secured:
 
             if sec_op is None:
-                sec_op = SecuredOperation()
+                sec_op = AllowedOperation()
                 sec_op.operation = operation
                 sec_op.allowed_group = group
             else:
-                sec_op = SecuredOperation.objects.get(
+                sec_op = AllowedOperation.objects.get(
                     secured_metadata=element.metadata,
                     operation=operation,
                     allowed_group=group
@@ -3035,7 +3083,7 @@ class Service(Resource):
 
     # todo: maybe we don't need this function after SecuredOperation is refactored
     #  tag:delete
-    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
         """ Secures all sub layers of this layer
 
         Args:
@@ -3061,7 +3109,7 @@ class Service(Resource):
 
     # todo: maybe we don't need this function after SecuredOperation is refactored
     #  tag: delete
-    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
         """ Secures all sub layers of this layer
 
         Args:
@@ -3079,7 +3127,7 @@ class Service(Resource):
 
     # todo: maybe we don't need this function after SecuredOperation is refactored
     #  tag: delete
-    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
         """ Secures all sub elements of this layer
 
         Args:
@@ -3157,6 +3205,8 @@ class Service(Resource):
         self.metadata.delete()
         super().delete()
 
+    # todo: only used in never used function get_all_layers()...
+    #  tag:deleted
     def __get_children(self, current, layers: list):
         """ Recursive appending of all layers
 
@@ -3172,6 +3222,8 @@ class Service(Resource):
             if len(layer.children_list) > 0:
                 self.__get_children(layer, layers)
 
+    # todo: never used...
+    #  tag:deleted
     def get_all_layers(self):
         """ Returns all layers in a list that can be found in this service
 
@@ -3374,7 +3426,7 @@ class Layer(Service):
 
         """
         for child_layer in layer.child_layers.all():
-            sec_ops = SecuredOperation.objects.filter(
+            sec_ops = AllowedOperation.objects.filter(
                 secured_metadata=child_layer.metadata,
                 operation=operation,
                 allowed_group=group,
@@ -3459,7 +3511,7 @@ class Layer(Service):
 
     # todo: maybe we don't need this function after SecuredOperation is refactored
     #  tag: delete
-    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: AllowedOperation):
         """ Recursive implementation of securing all sub layers of a current layer
 
         Args:
@@ -3892,7 +3944,7 @@ class FeatureType(Resource):
         """
         self.metadata.is_secured = is_secured
         if is_secured:
-            sec_op = SecuredOperation()
+            sec_op = AllowedOperation()
             sec_op.operation = operation
             sec_op.save()
             for g in groups:

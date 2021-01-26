@@ -234,7 +234,7 @@ class LegalDateAdmin(admin.ModelAdmin):
 admin.site.register(Dimension, DimensionAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
-admin.site.register(SecuredOperation, SecuredOperationAdmin)
+admin.site.register(AllowedOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)

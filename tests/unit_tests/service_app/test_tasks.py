@@ -13,7 +13,7 @@ from django.test import TestCase
 
 from service.helper import service_helper
 from service.helper.enums import OGCOperationEnum
-from service.models import Metadata, Layer, RequestOperation, SecuredOperation
+from service.models import Metadata, Layer, RequestOperation, AllowedOperation
 from service.settings import DEFAULT_SRS
 from service.tasks import async_increase_hits, async_activate_service, async_remove_service_task, \
     async_secure_service_task
@@ -131,7 +131,7 @@ class ServiceTaskTestCase(TestCase):
 
     def test_async_secure_service_task(self):
 
-        pre_num_secured_oeprations = SecuredOperation.objects.all().count()
+        pre_num_secured_oeprations = AllowedOperation.objects.all().count()
         coordinates = [
             [7.117939, 50.501822],
             [7.117939, 50.542],
@@ -167,12 +167,12 @@ class ServiceTaskTestCase(TestCase):
         )
 
         fail_msg = "SecuredOperation was not created"
-        post_num_secured_oeprations = SecuredOperation.objects.all().count()
+        post_num_secured_oeprations = AllowedOperation.objects.all().count()
         self.assertNotEqual(pre_num_secured_oeprations, post_num_secured_oeprations, msg=fail_msg)
 
         # Try to get the created SecuredOperation record
         try:
-            secured_operation = SecuredOperation.objects.get(
+            secured_operation = AllowedOperation.objects.get(
                 secured_metadata=self.metadata
             )
             self.assertEqual(secured_operation.operation, OGCOperationEnum.GET_MAP.value, msg=fail_msg)

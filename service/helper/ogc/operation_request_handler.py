@@ -38,7 +38,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, ProxyLog, SecuredOperation
+from service.models import Metadata, FeatureType, Layer, ProxyLog, AllowedOperation
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -1483,7 +1483,7 @@ class OGCOperationRequestHandler:
         #  the current lookup `covers` will not work for the current WMS GETMAP operation
 
         # check if the metadata allows operation performing for certain groups
-        is_allowed = SecuredOperation.objects.filter(secured_metadata__contains=self.metadata,
+        is_allowed = AllowedOperation.objects.filter(secured_metadata__contains=self.metadata,
                                                      allowed_groups__in=self.user_groups,
                                                      bounding_geometry__intersects=self.x_y_coord,
                                                      operations__icontains=self.request_param).exists()
@@ -1493,7 +1493,7 @@ class OGCOperationRequestHandler:
             return response
 
         # todo: move to needed sub if/else trees which needs this queryset
-        sec_ops = SecuredOperation.objects.filter(secured_metadata__contains=self.metadata,
+        sec_ops = AllowedOperation.objects.filter(secured_metadata__contains=self.metadata,
                                                   allowed_groups__in=self.user_groups,
                                                   operations__icontains=self.request_param)
 
@@ -1509,7 +1509,7 @@ class OGCOperationRequestHandler:
                                            bounding_geometry=None,
                                            operations__icontains=self.request_param)
 
-            is_allowed = SecuredOperation.objects.filter(bounding_geometry_covers | bounding_geometry_is_empty).exists()
+            is_allowed = AllowedOperation.objects.filter(bounding_geometry_covers | bounding_geometry_is_empty).exists()
 
             if is_allowed:
                 response = self.get_operation_response()

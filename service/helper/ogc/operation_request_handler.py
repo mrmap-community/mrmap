@@ -373,7 +373,8 @@ class OGCOperationRequestHandler:
 
                 for restricted_layer in restricted_layers:
                     # render text listed one under another
-                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer.identifier), (0, 0, 0), font=font)
+                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer.identifier), (0, 0, 0),
+                              font=font)
                     y += font_size
                 self.access_denied_img = text_img
 
@@ -483,24 +484,40 @@ class OGCOperationRequestHandler:
             operation_urls = service.operation_urls.all()
             allowed_operation_uris = {
                 "GETFEATURE": {
-                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
-                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
+                    "get": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(),
+                        "url", None),
+                    "post": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(),
+                        "url", None),
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(), "url", None),
-                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(), "url", None),
+                    "get": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(),
+                        "url", None),
+                    "post": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(),
+                        "url", None),
                 },
             }
         else:
             operation_urls = metadata.service.operation_urls.all()
             allowed_operation_uris = {
                 "GETMAP": {
-                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
-                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
+                    "get": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url",
+                        None),
+                    "post": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url",
+                        None),
                 },
                 "GETFEATUREINFO": {
-                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(), "url", None),
-                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(), "url", None),
+                    "get": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),
+                        "url", None),
+                    "post": getattr(
+                        operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),
+                        "url", None),
                 },
             }
 
@@ -578,9 +595,11 @@ class OGCOperationRequestHandler:
         root = xml.getroot()
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
 
-        self.layers_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+        self.layers_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format(
+            "NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
 
-        bbox_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
+        bbox_elem = xml_helper.try_get_single_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
 
         # Old client implementations might not send the expected 'EPSG:xyz' style. Instead they send a link, which ends on e.g. '...#4326'
         self.srs_param = xml_helper.try_get_text_from_xml_element(root, "//" + GENERIC_NAMESPACE_TEMPLATE.format("CRS"))
@@ -597,27 +616,39 @@ class OGCOperationRequestHandler:
 
         bbox_extent = []
         # bbox extent could exist by using gml:coord or ogc:lowerCorner/ogc:upperCorner
-        bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"), xml_elem=bbox_elem)
+        bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"),
+                                                          xml_elem=bbox_elem)
         if len(bbox_coords) > 0:
             tmp = ["X", "Y"]
             for coord in bbox_coords:
                 for t in tmp:
-                    bbox_extent.append(xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(t), xml_elem=coord))
+                    bbox_extent.append(
+                        xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(t),
+                                                                 xml_elem=coord))
         else:
             del bbox_coords
-            bbox_lower_corner_txt = xml_helper.try_get_text_from_xml_element(bbox_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner"))
-            bbox_upper_corner_txt = xml_helper.try_get_text_from_xml_element(bbox_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner"))
+            bbox_lower_corner_txt = xml_helper.try_get_text_from_xml_element(bbox_elem,
+                                                                             ".//" + GENERIC_NAMESPACE_TEMPLATE.format(
+                                                                                 "lowerCorner"))
+            bbox_upper_corner_txt = xml_helper.try_get_text_from_xml_element(bbox_elem,
+                                                                             ".//" + GENERIC_NAMESPACE_TEMPLATE.format(
+                                                                                 "upperCorner"))
             bbox_extent += bbox_lower_corner_txt.split(" ")
             bbox_extent += bbox_upper_corner_txt.split(" ")
 
         self.bbox_param = ",".join(bbox_extent)
 
-        output_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Output"), xml_elem=xml)
-        self.format_param = xml_helper.try_get_text_from_xml_element(output_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"))
+        output_elem = xml_helper.try_get_single_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Output"), xml_elem=xml)
+        self.format_param = xml_helper.try_get_text_from_xml_element(output_elem,
+                                                                     "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"))
 
-        size_elem = xml_helper.try_get_single_element_from_xml(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Size"), xml_elem=output_elem)
-        self.height_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Height")))
-        self.width_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Width")))
+        size_elem = xml_helper.try_get_single_element_from_xml(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Size"),
+                                                               xml_elem=output_elem)
+        self.height_param = int(
+            xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Height")))
+        self.width_param = int(
+            xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Width")))
 
         # type_name differs in WFS versions
         if self.version_param == OGCServiceVersionEnum.V_2_0_2.value or self.version_param == OGCServiceVersionEnum.V_2_0_0.value:
@@ -625,8 +656,12 @@ class OGCOperationRequestHandler:
         else:
             type_name = "typeName"
 
-        self.type_name_param = xml_helper.try_get_attribute_from_xml_element(xml, type_name, "//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"))
-        self.filter_param = xml_helper.xml_to_string(xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), xml_elem=xml))
+        self.type_name_param = xml_helper.try_get_attribute_from_xml_element(xml, type_name,
+                                                                             "//" + GENERIC_NAMESPACE_TEMPLATE.format(
+                                                                                 "Query"))
+        self.filter_param = xml_helper.xml_to_string(
+            xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"),
+                                                       xml_elem=xml))
 
     def _parse_post_get_feature_xml_body(self, xml):
         """ Tries to parse the most important data from the POST xml body
@@ -640,7 +675,9 @@ class OGCOperationRequestHandler:
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
         self.service_type_param = xml_helper.try_get_attribute_from_xml_element(root, "service")
         self.format_param = xml_helper.try_get_attribute_from_xml_element(root, "outputFormat")
-        self.count_param = xml_helper.try_get_attribute_from_xml_element(root, "count") or xml_helper.try_get_attribute_from_xml_element(root, "maxFeatures")
+        self.count_param = xml_helper.try_get_attribute_from_xml_element(root,
+                                                                         "count") or xml_helper.try_get_attribute_from_xml_element(
+            root, "maxFeatures")
 
         # multiple <Query> objects are possible according to the specification
         # Due to our security restrictions we cannot allow a GetFeature POST xml request, since multiple different <Filter>
@@ -651,7 +688,8 @@ class OGCOperationRequestHandler:
 
         for query in queries:
             self.type_name_param = xml_helper.try_get_attribute_from_xml_element(query, "typeName")
-            filter_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), query)
+            filter_elem = xml_helper.try_get_single_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), query)
             self.filter_param = xml_helper.xml_to_string(filter_elem)
 
     def _parse_post_transaction_xml_body(self, xml):
@@ -704,9 +742,12 @@ class OGCOperationRequestHandler:
             self.srs_code = int(srs_name.split(":")[-1])
 
             # Check which type of gml format is used to store the geometrical information
-            has_coordinates = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"), xml_element) is not None
-            has_pos_list = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"), xml_element) is not None
-            has_pos = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("pos"), xml_element) is not None
+            has_coordinates = xml_helper.try_get_single_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"), xml_element) is not None
+            has_pos_list = xml_helper.try_get_single_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"), xml_element) is not None
+            has_pos = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("pos"),
+                                                                 xml_element) is not None
 
             if has_coordinates:
                 geometry_obj = self._create_geometry_from_gml_coordinates(xml_element)
@@ -937,9 +978,9 @@ class OGCOperationRequestHandler:
         # Check whether the axis of the bbox have to be switched
         # ToDo: Rethink this! We can expect the bbox parameter to have the correct axis order, since it comes from a GIS client!
         tmp_backup = copy(tmp_bbox)
-        #epsg_api = EpsgApi()
-        #switch_axis = epsg_api.check_switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
-        #if switch_axis:
+        # epsg_api = EpsgApi()
+        # switch_axis = epsg_api.check_switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
+        # if switch_axis:
         #    tmp_bbox = epsg_api.perform_switch_axis_order(tmp_bbox)
 
         # Create Polygon from (possibly axis-switched bbox)
@@ -1032,7 +1073,8 @@ class OGCOperationRequestHandler:
         ret_list = []
 
         for elem in multi_line_string_elements:
-            coord_list = xml_helper.try_get_element_from_xml(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"))
+            coord_list = xml_helper.try_get_element_from_xml(elem,
+                                                             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"))
 
             for coord in coord_list:
                 separator = xml_helper.try_get_attribute_from_xml_element(coord, "cs")
@@ -1103,7 +1145,8 @@ class OGCOperationRequestHandler:
 
         # Find INSERT and UPDATE geometries
         for action in actions:
-            xml_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format(action), xml_body)
+            xml_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format(action),
+                                                               xml_body)
 
             for xml_element in xml_elements:
                 # vertices can be found in <gml:posList> elements, as well as in <gml:coordinates>
@@ -1488,34 +1531,29 @@ class OGCOperationRequestHandler:
         #  have also a look on the lookup expressions for the GEOSGeometry field here:
         #  https://docs.djangoproject.com/en/3.1/ref/contrib/gis/geoquerysets/#std:fieldlookup-gis-contains
 
+        all_sec_ops_for_user_by_operation = Q(secured_metadata__id__contains=self.metadata.id,
+                                              allowed_groups__id__in=self.user_groups.values_list('id'),
+                                              operations__operation__iexact=self.request_param)
+
+        allowed_area_coveres_bbox = Q(allowed_area__covers=self.bbox_param['geom'])
+        allowed_area_intersects_bbox = Q(allowed_area__intersects=self.bbox_param['geom'])
+        allowed_area_is_empty = Q(allowed_area=None)
+
         # check if the metadata allows operation performing for certain groups
-        is_allowed = AllowedOperation.objects.filter(secured_metadata__id__contains=self.metadata.id,
-                                                     allowed_groups__id__in=self.user_groups.values_list('id'),
-                                                     allowed_area__intersects=self.bbox_param['geom'],
-                                                     operations__operation__iexact=self.request_param).exists()
+        is_allowed = AllowedOperation.objects.filter(all_sec_ops_for_user_by_operation & allowed_area_intersects_bbox
+                                                     | all_sec_ops_for_user_by_operation & allowed_area_is_empty).exists()
 
         if not is_allowed:
             # this means the service is secured and the group has no access!
             return response
 
         # todo: move to needed sub if/else trees which needs this queryset
-        sec_ops = AllowedOperation.objects.filter(secured_metadata__contains=self.metadata,
-                                                  allowed_groups__in=self.user_groups,
-                                                  operations__operation__iexact=self.request_param)
+        sec_ops = AllowedOperation.objects.filter(all_sec_ops_for_user_by_operation)
 
         # WMS - Features
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
-
-            allowed_area_covered_by = Q(secured_metadata__contains=self.metadata,
-                                        allowed_groups__in=self.user_groups,
-                                        allowed_area__covers=self.x_y_coord,
-                                        operations__operation__iexact=self.request_param)
-            allowed_area_is_empty = Q(secured_metadata__contains=self.metadata,
-                                      allowed_groups__in=self.user_groups,
-                                      allowed_area=None,
-                                      operations__operation__iexact=self.request_param)
-
-            is_allowed = AllowedOperation.objects.filter(allowed_area_covered_by | allowed_area_is_empty).exists()
+            is_allowed = AllowedOperation.objects.filter(all_sec_ops_for_user_by_operation & allowed_area_coveres_bbox
+                                                         | allowed_area_coveres_bbox & allowed_area_is_empty).exists()
 
             if is_allowed:
                 response = self.get_operation_response()
@@ -1532,7 +1570,8 @@ class OGCOperationRequestHandler:
                 Thread(target=lambda r: r.put(self.get_operation_response(), connection.close()), args=(results,))
             )
             thread_list.append(
-                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s), connection.close()), args=(results, self.metadata, sec_ops))
+                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s), connection.close()),
+                       args=(results, self.metadata, sec_ops))
             )
             execute_threads(thread_list)
 
@@ -1574,7 +1613,8 @@ class OGCOperationRequestHandler:
 
         return response
 
-    def get_operation_response(self, uri: str = None, post_data: dict = None, proxy_log:ProxyLog = None, post_xml_body: str = None):
+    def get_operation_response(self, uri: str = None, post_data: dict = None, proxy_log: ProxyLog = None,
+                               post_xml_body: str = None):
         """ Performs the request.
 
         This may be called after the security checks have passed or otherwise if no security checks had to be done.
@@ -1629,7 +1669,8 @@ class OGCOperationRequestHandler:
             # It may happen, that some GIS servers can not handle the x-www-form-urlencoded content, so we need to
             # create a XML document, based on our post_content, and try to post again!
             c.post(post_content)
-            try_again_code_list = [500, 501, 502, 504, 510]  # if one of these codes will be returned, we need to try again using xml post
+            try_again_code_list = [500, 501, 502, 504,
+                                   510]  # if one of these codes will be returned, we need to try again using xml post
 
             if c.status_code is not None and c.status_code in try_again_code_list:
                 # create xml from parameters according to specification

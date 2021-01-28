@@ -91,8 +91,10 @@
                         if ( polygonPoints != lastPolygonPoints ){
                             console.log(', added');
                             return ', ';
+                        } else  {
+                            return '';
                         }
-                        return '';
+                        
                     }
 
                     function toGEOSMultiPolygon( lPolygons ){
@@ -107,12 +109,13 @@
                                         // multi-dimensinal array for multi polygons
                                         for ( _polygonPoints of polygonPoints ){
                                             geosMultiPolygon += toGEOSPolygon( _polygonPoints );
+                                            geosMultiPolygon += appendCommaToGEOSPolygon(_polygonPoints, polygonPoints[_polygonPoints.length - 1]);
                                         }
                                     } else {
                                         geosMultiPolygon += toGEOSPolygon( polygonPoints );
                                         
                                     }
-                                    geosMultiPolygon += appendCommaToGEOSPolygon(polygonPoints, polygonsLatLngs[polygonsLatLngs.length - 1]);
+                                    geosMultiPolygon += appendCommaToGEOSPolygon(polygonPoints, polygonsLatLngs[polygonsLatLngs.length - 1]);   
                                 }
                             }
                             return geosMultiPolygon + ')';

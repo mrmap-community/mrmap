@@ -6,7 +6,7 @@ Created on: 15.04.19
 
 """
 from django import forms
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ImproperlyConfigured
 from django.urls import reverse_lazy
 from django.utils.html import format_html
 
@@ -24,7 +24,7 @@ from service.settings import NONE_UUID
 from structure.models import Organization
 
 
-class RegisterNewResourceWizardPage1(MrMapWizardForm):
+class RegisterNewResourceWizardPage1(forms.Form):
     get_request_uri = forms.URLField(
         validators=[validate_get_capablities_uri],
         label=_("Resource URL"),
@@ -32,7 +32,7 @@ class RegisterNewResourceWizardPage1(MrMapWizardForm):
     )
 
 
-class RegisterNewResourceWizardPage2(MrMapWizardForm):
+class RegisterNewResourceWizardPage2(forms.Form):
     ogc_request = forms.CharField(label=_('OGC Request'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_service = forms.CharField(label=_('OGC Service'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_version = forms.CharField(label=_('OGC Version'), widget=forms.TextInput(attrs={'readonly': '', }))
@@ -57,6 +57,7 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
     service_needs_authentication = forms.BooleanField(
         label=_("Service needs authentication"),
         required=False,
+        initial=False,
         widget=forms.CheckboxInput(attrs={'onchange': 'isFormUpdateEventHandler(event);'})
     )
     username = forms.CharField(label=_("Username"), required=False, disabled=True)
@@ -69,11 +70,17 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
     )
 
     def __init__(self,  *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        if not self.request:
+            raise ImproperlyConfigured("request is needed for this form to configure fields with dependencies.")
+
         super(RegisterNewResourceWizardPage2, self).__init__(*args, **kwargs)
         registering_with_group_key = self.prefix+"-registering_with_group" if self.prefix else "registering_with_group"
         selected_group = None
+
         if registering_with_group_key in self.request.POST:
             selected_group = MrMapGroup.objects.get(id=int(self.request.POST.get(registering_with_group_key)))
+
         service_needs_authentication_key = self.prefix+"-service_needs_authentication" if self.prefix else "service_needs_authentication"
         service_needs_authentication = None
         if service_needs_authentication_key in self.request.POST:
@@ -82,13 +89,13 @@ class RegisterNewResourceWizardPage2(MrMapWizardForm):
             service_needs_authentication = True
 
         # initial the fields if the values are transfered
-        if self.requesting_user is not None:
-            user_groups = self.requesting_user.get_groups({"is_public_group": False, "is_permission_group": False})
+        if self.request.user is not None:
+            user_groups = self.request.user.get_groups({"is_public_group": False, "is_permission_group": False})
             self.fields["registering_with_group"].queryset = user_groups.all()
             self.fields["registering_with_group"].initial = user_groups.first()
         if selected_group is not None:
             self.fields["registering_for_other_organization"].queryset = selected_group.publish_for_organizations.all()
-        elif self.requesting_user is not None and user_groups.first() is not None:
+        elif self.request.user is not None and user_groups.first() is not None:
             self.fields[
                 "registering_for_other_organization"].queryset = user_groups.first().publish_for_organizations.all()
         if service_needs_authentication:

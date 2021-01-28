@@ -3,6 +3,7 @@ from abc import ABC
 
 from django.core.exceptions import ImproperlyConfigured
 from django.forms import BaseFormSet, modelformset_factory, HiddenInput
+from django.shortcuts import redirect
 from django.template.loader import render_to_string
 from django.urls import resolve, reverse
 from formtools.wizard.views import SessionWizardView
@@ -34,8 +35,10 @@ class MrMapWizard(SessionWizardView, ABC):
     action_url = ""
     current_view_arg = None
     current_view = None
+    # Todo: move this to settings.py
     current_view_queryparam = 'current-view'
     current_view_arg_queryparam = 'current-view-arg'
+    current_view_url = ""
 
     def __init__(self, *args, **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
@@ -47,6 +50,12 @@ class MrMapWizard(SessionWizardView, ABC):
             raise ImproperlyConfigured(f"query param '{self.current_view_queryparam}' "
                                        f"was not found in the url query parameters")
         self.current_view_arg = request.GET.get(self.current_view_arg_queryparam, None)
+
+        if self.current_view_arg:
+            self.current_view_url = reverse(f"{self.current_view}", args=[self.current_view_arg, ])
+        else:
+            self.current_view_url = reverse(f"{self.current_view}", )
+
         self.action_url += self.prepare_query_params()
         return super().dispatch(request, *args, **kwargs)
 
@@ -110,7 +119,8 @@ class MrMapWizard(SessionWizardView, ABC):
 
     def render_goto_step(self, goto_step, **kwargs):
         current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
-
+        if self.is_append_formset(form=current_form) or self.is_form_update():
+            return self.render(form=current_form)
         # 1. save current form, we doesn't matter for validation for now.
         # If the wizard is done, he will perform validation for each.
         self.storage.set_step_data(self.steps.current,
@@ -170,12 +180,7 @@ class MrMapWizard(SessionWizardView, ABC):
                                           context={'content': rendered_wizard,
                                                    'id_modal': 'id_' + str(uuid.uuid4()),
                                                    'show_modal': True})
-
-        if self.current_view_arg:
-            resolver_match = resolve(reverse(f"{self.current_view}", args=[self.current_view_arg, ]))
-        else:
-            resolver_match = resolve(reverse(f"{self.current_view}", ))
-
+        resolver_match = resolve(self.current_view_url)
         # todo: catch simple non class based views
         func = resolver_match.func
         module = func.__module__
@@ -186,5 +191,7 @@ class MrMapWizard(SessionWizardView, ABC):
         self.request.POST = {}
         return clss.as_view(extra_context={'rendered_modal': rendered_modal})(request=self.request)
 
+    def done(self, form_list, **kwargs):
+        return redirect(to=self.current_view_url)
 
 

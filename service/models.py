@@ -598,11 +598,10 @@ class Metadata(Resource):
 
     @classmethod
     def get_add_resource_action(cls):
-        return Modal(btn_content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource'),
-                     btn_attrs={"class": [ButtonColorEnum.SUCCESS.value]},
-                     fetch_url=reverse('resource:add'),
-                     size=ModalSizeEnum.LARGE,
-                     needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource'),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('resource:add'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     @classmethod
     def get_add_dataset_action(cls):
@@ -655,13 +654,11 @@ class Metadata(Resource):
                                       btn_tooltip=_l("Edit the metadata of this resource"),
                                       size=ModalSizeEnum.LARGE,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
-                                Modal(fetch_url=self.edit_access_view_uri,
-                                      btn_content=FONT_AWESOME_ICONS["ACCESS"],
-                                      btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
-                                      btn_tooltip=_l("Edit the access for resource"),
-                                      size=ModalSizeEnum.LARGE,
-                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ]
-                               )
+                                LinkButton(url=self.edit_access_view_uri,
+                                           content=FONT_AWESOME_ICONS["ACCESS"],
+                                           color=ButtonColorEnum.WARNING,
+                                           tooltip=_l("Edit the access for resource"),
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ])
 
                 if self.is_metadata_type(MetadataEnum.SERVICE):
                     actions.extend([LinkButton(url=self.update_view_uri,

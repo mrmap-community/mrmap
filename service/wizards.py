@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -33,6 +34,12 @@ class NewResourceWizard(MrMapWizard):
             title=_(format_html('<b>Add New Resource</b>')),
             *args,
             **kwargs)
+
+    def get_form_kwargs(self, step=None):
+        if step == SECOND_STEP_ID:
+            return {'request': self.request}
+        else:
+            return super().get_form_kwargs(step=step)
 
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})
@@ -85,23 +92,10 @@ class NewResourceWizard(MrMapWizard):
         for form in form_list:
             if isinstance(form, RegisterNewResourceWizardPage2):
                 try:
-                    # Run creation async!
-                    # Function returns the pending task object
-                    task = service_helper.create_new_service(form, form.requesting_user)
-                    content = {
-                        "data": {
-                            "id": task.task_id,
-                        },
-                        "alert": Alert(msg="Registering new resource scheduled", alert_type=AlertEnum.SUCCESS).render()
-                    }
-
-                    # cause this is a async task which can take longer we response with 'accept' status
-                    return JsonResponse(status=202, data=content)
-
+                    service_helper.create_new_service(form, self.request.user)
+                    messages.success(self.request, 'Async task was created to create new resource.')
                 except Exception as e:
                     service_logger.exception(e, stack_info=True, exc_info=True)
-
-                    content = {
-                        "alert": Alert(msg=str(e), alert_type=AlertEnum.DANGER).render()
-                    }
-                    return JsonResponse(status=500, data=content)
+                    messages.error(self.request, 'Something went wrong. See service.log for details.')
+                finally:
+                    return super().done(form_list, **kwargs)

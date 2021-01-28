@@ -87,9 +87,7 @@
                     }
 
                     function appendCommaToGEOSPolygon( polygonPoints, lastPolygonPoints ) {
-                        console.log(polygonPoints, lastPolygonPoints);
                         if ( polygonPoints != lastPolygonPoints ){
-                            console.log(', added');
                             return ', ';
                         } else  {
                             return '';
@@ -101,23 +99,27 @@
                         if ( lPolygons.length == 0 ) {
                             return "";
                         } else {
-                            var geosMultiPolygon = 'SRID=4326;MULTIPOLYGON (';
-                             for (lPolygon of lPolygons){
-                                var polygonsLatLngs = lPolygon.getLatLngs();
-                                for ( polygonPoints of polygonsLatLngs){
+                            var allPolygonPointsFlat = []
+
+                            for (lPolygon of lPolygons){
+                                for ( polygonPoints of lPolygon.getLatLngs()){
                                     if ( polygonPoints[0] instanceof Array ) {
                                         // multi-dimensinal array for multi polygons
                                         for ( _polygonPoints of polygonPoints ){
-                                            geosMultiPolygon += toGEOSPolygon( _polygonPoints );
-                                            geosMultiPolygon += appendCommaToGEOSPolygon(_polygonPoints, polygonPoints[_polygonPoints.length - 1]);
+                                            allPolygonPointsFlat.push( _polygonPoints );
                                         }
                                     } else {
-                                        geosMultiPolygon += toGEOSPolygon( polygonPoints );
-                                        
+                                        allPolygonPointsFlat.push( polygonPoints );                                        
                                     }
-                                    geosMultiPolygon += appendCommaToGEOSPolygon(polygonPoints, polygonsLatLngs[polygonsLatLngs.length - 1]);   
                                 }
                             }
+
+                            var geosMultiPolygon = 'SRID=4326;MULTIPOLYGON (';
+                            for (polygonPoints in allPolygonPointsFlat){
+                                geosMultiPolygon += toGEOSPolygon( allPolygonPointsFlat[polygonPoints] ); 
+                                geosMultiPolygon += appendCommaToGEOSPolygon(allPolygonPointsFlat[polygonPoints], allPolygonPointsFlat[allPolygonPointsFlat.length - 1]);
+                            }
+
                             return geosMultiPolygon + ')';
                         }
                     }
@@ -190,7 +192,7 @@
                                         [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
                                         [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
                                     ]
-                                    );
+                                );
                             {% endif %}
 
                             // set which controls should be available in the toolbar

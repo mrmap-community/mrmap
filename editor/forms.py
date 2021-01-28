@@ -420,6 +420,7 @@ class GeneralAccessSettingsForm(forms.ModelForm):
 
         # todo: just save the fields and implement a signal which detects if one of the three fields become changed.
         #  the signal can then fire the async task.
+        # todo: maybe we could merge the async_proccess from step 1 and two of the wizard
         use_proxy = self.cleaned_data.get("use_proxy_uri", False)
         log_proxy = self.cleaned_data.get("log_proxy_access", False)
         restrict_access = self.cleaned_data.get("is_secured", False)
@@ -439,6 +440,24 @@ class AllowedOperationForm(forms.ModelForm):
         fields = ('operations', 'allowed_groups', 'allowed_area', 'root_metadata')
 
         widgets = {
+            'operations': autocomplete.ModelSelect2Multiple(
+                url='editor:operations-autocomplete',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
+                    }
+                },
+            ),
+            'allowed_groups': autocomplete.ModelSelect2Multiple(
+                url='editor:groups',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
+                    }
+                },
+            ),
             'allowed_area': LeafletGeometryInput(),
             'root_metadata': forms.HiddenInput(),
         }

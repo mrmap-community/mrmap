@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 
 from service.helper.enums import MetadataEnum
 from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
+from structure.models import MrMapGroup
 
 from structure.permissionEnums import PermissionEnum
 from users.helper.user_helper import get_user
@@ -193,14 +194,11 @@ class OperationsAutocomplete(autocomplete.Select2QuerySetView):
 
     """
     def get_queryset(self):
-        """ Getter for the matching categories
+        """ Getter for the matching OGCOperations
 
         Returns:
              records (QuerySet): The matched records
         """
-        user = get_user(self.request)
-        if user is None:
-            return None
 
         records = OGCOperation.objects.all()
         query = ""
@@ -209,5 +207,27 @@ class OperationsAutocomplete(autocomplete.Select2QuerySetView):
             query = self.q
         records = records.filter(
             Q(operation__icontains=query)
+        )
+        return records
+
+
+@method_decorator(login_required, name='dispatch')
+class GroupsAutocomplete(autocomplete.Select2QuerySetView):
+    """ Provides an autocomplete functionality for categories records
+
+    """
+    def get_queryset(self):
+        """ Getter for the matching groups
+
+        Returns:
+             records (QuerySet): The matched records
+        """
+        records = MrMapGroup.objects.filter(Q(is_permission_group=False) | Q(is_public_group=True))
+        query = ""
+        if self.q:
+            # There are filtering parameters!
+            query = self.q
+        records = records.filter(
+            Q(name__icontains=query)
         )
         return records

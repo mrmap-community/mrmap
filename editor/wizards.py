@@ -1,12 +1,9 @@
 import json
-from abc import ABC
 from json import JSONDecodeError
-
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import modelformset_factory, BaseFormSet, HiddenInput
-from django.forms.formsets import DELETION_FIELD_NAME
+from django.forms import modelformset_factory
 from django.http import JsonResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -14,8 +11,6 @@ from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum
-from formtools.wizard.views import SessionWizardView
-
 from MrMap.decorators import permission_required, ownership_required
 from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
@@ -23,7 +18,6 @@ from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
     GeneralAccessSettingsForm, AllowedOperationForm
 from django.utils.translation import gettext_lazy as _
-
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, Document, AllowedOperation
@@ -31,10 +25,8 @@ from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
 
-
 ACCESS_EDITOR_STEP_2_NAME = _("restrict")
 APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
-
 
 ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
                               (ACCESS_EDITOR_STEP_2_NAME, modelformset_factory(AllowedOperation,
@@ -60,7 +52,7 @@ def show_restrict_spatially_form_condition(wizard):
 
 
 @method_decorator(login_required, name='dispatch')
-class AccessEditorWizard(SessionWizardView, ABC):
+class AccessEditorWizard(MrMapWizard):
     template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
     metadata_object = None
@@ -87,51 +79,16 @@ class AccessEditorWizard(SessionWizardView, ABC):
                                                                          form=AllowedOperationForm,
                                                                          extra=extra)
 
+        self.action_url = reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ])
+
         return super().dispatch(request, *args, **kwargs)
-
-    def is_append_formset(self, form, return_hook, **kwargs):
-        if issubclass(form.__class__, BaseFormSet):
-            # formset is posted
-            append_form_lookup_key = f"{form.prefix}-{APPEND_FORM_LOOKUP_KEY}" if form.prefix else APPEND_FORM_LOOKUP_KEY
-            if append_form_lookup_key in form.data:
-                # to prevent data loses, we have to store the current form
-                self.storage.set_step_data(self.steps.current, self.process_step(form))
-                self.storage.set_step_files(self.steps.current, self.process_step_files(form))
-
-                current_extra = len(form.extra_forms)
-                new_init_list = []
-                for i in range(current_extra + 1):
-                    new_init_list.append(self.initial_dict[ACCESS_EDITOR_STEP_2_NAME][0])
-                self.initial_dict[ACCESS_EDITOR_STEP_2_NAME] = new_init_list
-
-                self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(AllowedOperation,
-                                                                                 can_delete=True,
-                                                                                 form=AllowedOperationForm,
-                                                                                 extra=current_extra + 1)
-
-                # render form again
-                return super().render(**kwargs)
-        return return_hook(form=form, **kwargs)
-
-    def render_next_step(self, form, **kwargs):
-        return self.is_append_formset(form=form, return_hook=super().render_next_step, **kwargs)
-
-    def render_done(self, form, **kwargs):
-        return self.is_append_formset(form=form, return_hook=super().render_done, **kwargs)
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
         context = DefaultContext(self.request, context, self.request.user).context
-        context.update({'action_url': reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ]),
+        context.update({'action_url': self.action_url,
                         'APPEND_FORM_LOOKUP_KEY': APPEND_FORM_LOOKUP_KEY})
         return context
-
-    def get_form(self, step=None, data=None, files=None):
-        form = super().get_form(step=step, data=data, files=files)
-        if issubclass(form.__class__, BaseFormSet) and form.can_delete:
-            for _form in form.forms:
-                _form.fields[DELETION_FIELD_NAME].widget = HiddenInput()
-        return form
 
     def done(self, form_list, **kwargs):
         for form in form_list:
@@ -218,7 +175,6 @@ class DatasetWizard(MrMapWizard):
         except ObjectDoesNotExist:
             DatasetWizard._create_dataset_document(metadata)
 
-
     @staticmethod
     def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
@@ -296,7 +252,8 @@ class DatasetWizard(MrMapWizard):
             bounding_geometry = {}
         if bounding_geometry.get("features", None) is not None:
             # A list of features
-            geoms = [GEOSGeometry(str(feature["geometry"]), srid=DEFAULT_SRS) for feature in bounding_geometry.get("features")]
+            geoms = [GEOSGeometry(str(feature["geometry"]), srid=DEFAULT_SRS) for feature in
+                     bounding_geometry.get("features")]
             geom = GeometryCollection(geoms, srid=DEFAULT_SRS).unary_union
         elif bounding_geometry.get("feature", None) is not None:
             geom = GEOSGeometry(str(bounding_geometry.get("feature")["geometry"]), srid=DEFAULT_SRS)
@@ -339,7 +296,8 @@ class DatasetWizard(MrMapWizard):
         dataset.lineage_statement = data.get("lineage_statement", None)
 
     @staticmethod
-    def _fill_metadata_dataset_responsible_party_form(data:dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_responsible_party_form(data: dict, metadata: Metadata, dataset: Dataset,
+                                                      user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:

@@ -5,7 +5,7 @@
         {{ modal_title }}
     </h5>
 </div>
-<form action="{{action_url}}" method="post" onsubmit="submitAsync(event, true);" id="{{id_modal}}_form">
+<form action="{{action_url}}" method="post" id="{{id_modal}}_form">
     {% csrf_token %}
     <div class="modal-body" style="white-space: normal;"><!-- <modal-body> -->
         {% if wizard.messages %}
@@ -50,8 +50,9 @@
                     </div>
                     <div id="id-collapse-{{ forloop.counter0 }}" class="collapse show" aria-labelledby="id-heading-{{ forloop.counter0 }}" data-parent="#id-accordion-{{ forloop.counter0 }}">
                       <div class="card-body">
-                        {% bootstrap_form form %}
                         {{ form.media }}
+                        {% bootstrap_form form %}
+
                       </div>
                     </div>
                   </div>
@@ -61,8 +62,8 @@
                         +
                     </button>
         {% else %}
-            {% bootstrap_form wizard.form %}
             {{ wizard.form.media }}
+            {% bootstrap_form wizard.form %}
         {% endif %}
     </div><!-- </modal-body> -->
     <div class="modal-footer"><!-- <modal-footer> -->

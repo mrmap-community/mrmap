@@ -1,0 +1,12 @@
+<div class="modal" tabindex="-1" role="dialog" id="{{id_modal}}">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        {{content}}
+    </div>
+  </div>
+</div>
+{% if show_modal %}
+    <script type="application/javascript">
+        $('#{{id_modal}}').modal('show');
+    </script>
+{% endif %}

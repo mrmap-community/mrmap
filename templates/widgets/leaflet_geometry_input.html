@@ -35,6 +35,7 @@
                             <span class="ml-2">{% trans 'Export as GeoJSON' %}</span>
                         </button>
                         <script type="application/javascript">
+                            // export geojson as downloadable file
                             $("#id_geometry_download_{{ widget.leaflet_geometry_input_id }}").click(function(){
                                 var file = new Blob([$('#{{widget.attrs.id}}').val()], {type: "geojson"});
                                 if (window.navigator.msSaveOrOpenBlob) // IE10+
@@ -73,22 +74,56 @@
                     }
 
                     function getAllPolygons(){
-                        var layers = [];
-                        map_{{ id_map }}.eachLayer(function(layer) {
+                        var polygons = [];
+                        map_{{ id_map }}.eachLayer( function( layer ) {
                             if ( layer instanceof L.Polygon ) {
-                                layers.push(layer);
+                                polygons.push(layer);
                             }
                         });
-                        return layers;
+                        return polygons;
                     }
 
-                    function updateGeoJsonInput( layers ){
-                        if ( layers.length == 0 ) {
-                            $('#{{widget.attrs.id}}').val("");
-                        } else {
-                            var layer_group = L.layerGroup(layers);
-                            $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                    function toGEOSPolygon( points ){
+                        var geosPolygon = '((';
+                        for ( point of points ) {
+                            geosPolygon +=  point.lng + ' ' + point.lat + ', ';
+                            if ( point == points[points.length - 1] ){
+                                geosPolygon +=  points[0].lng + ' ' + points[0].lat;
+                            }
                         }
+                        geosPolygon += '))';
+                        return geosPolygon;
+                    }
+
+                    function toGEOSMultiPolygon( lPolygons ){
+                        if ( lPolygons.length == 0 ) {
+                            return "";
+                        } else {
+                            var geosMultiPolygon = 'SRID=4326;MULTIPOLYGON (';
+                             for (lPolygon of lPolygons){
+                                var polygonsLatLngs = lPolygon.getLatLngs();
+                                for ( polygonPoints of polygonsLatLngs){
+                                    if ( polygonPoints[0] instanceof Array ) {
+                                        // multi-dimensinal array for multi polygons
+                                        for ( polygonPoints of polygonPoints ){
+                                            geosMultiPolygon += toGEOSPolygon( polygonPoints );
+                                        }
+                                    } else {
+                                        geosMultiPolygon += toGEOSPolygon( polygonPoints );
+                                    }
+
+                                    if ( polygonPoints != polygonsLatLngs[polygonsLatLngs.length - 1] ){
+                                        geosMultiPolygon += ', ';
+                                    }
+                                }
+
+                            }
+                            return geosMultiPolygon + ')';
+                        }
+                    }
+
+                    function updateGeoJsonInput( polygons ){
+                        $('#{{widget.attrs.id}}').val( toGEOSMultiPolygon ( polygons ) );
                     }
 
                     function addEventListenersToLayer( layer ){
@@ -134,10 +169,10 @@
 
                             // zoom in and fit the bound of all presented layers
                             {% if geojson %}
-                                var polygon = new L.geoJSON({{ geojson|safe }}, {style: {fillColor: 'red', color: 'red'}});
-                                var bounds = polygon.getBounds();
-                                map_{{ id_map }}.addLayer( polygon );
-                                map_{{ id_map }}.fitBounds(bounds);
+                                var geoJson = new L.geoJSON({{ geojson.geojson|safe }}, {style: {fillColor: 'red', color: 'red'}});
+                                var bounds = geoJson.getBounds();
+                                map_{{ id_map }}.addLayer( geoJson );
+                                map_{{ id_map }}.fitBounds( bounds );
                             {% else %}
                                 map_{{ id_map }}.fitBounds(
                                     [

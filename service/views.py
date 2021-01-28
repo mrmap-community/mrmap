@@ -1071,8 +1071,8 @@ class ResourceTreeView(DetailView):
         return context
 
 
-#@csrf_exempt
-#@resolve_metadata_public_id
+@csrf_exempt
+@resolve_metadata_public_id
 @log_proxy
 def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.

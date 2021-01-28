@@ -2029,10 +2029,7 @@ class AllowedOperation(models.Model):
         classes, we need to add this again at this point, if the AllowedOperation will be used in other ways as
         ModelForm. For that we need to call the full_clean() method ALWAYS before saving.
         """
-        self.full_clean()
-
         super().save(force_insert=False, force_update=force_update, using=using, update_fields=update_fields)
-
         self.setup_secured_metadata()
 
 

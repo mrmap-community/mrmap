@@ -432,40 +432,6 @@ class GeneralAccessSettingsForm(forms.ModelForm):
         )
 
 
-class MrMapFormset(BaseModelFormSet):
-
-    def _increment_initial_form_count(self):
-        self.management_form.cleaned_data[INITIAL_FORM_COUNT] += 1
-        self.data[f"{self.management_form.prefix}-{INITIAL_FORM_COUNT}"] = self.management_form.cleaned_data[
-            INITIAL_FORM_COUNT]
-
-    def add_form(self, initialize=True, **kwargs):
-        self.data._mutable = True
-
-        # if initialize is True, we need to increment `INITIAL_FORM_COUNT´ first, cause based on this data,
-        # the ``self._construct_form()´´ function processes the initialization of created forms based on the
-        # `initial_dict´ of the formset
-        # else increment the initial form count after adding the form to tell the management form that there is
-        # new added form which needs to initialize if the formset is processed again
-        if initialize:
-            self._increment_initial_form_count()
-
-        # add the form
-        tfc = self.total_form_count()
-        form = self._construct_form(tfc, **kwargs)
-        # is bound needs to be False. Otherwise the initialization don't will force.
-        form.is_bound = False
-        self.forms.append(form)
-
-        self.management_form.cleaned_data[TOTAL_FORM_COUNT] += 1
-        self.data[f"{self.management_form.prefix}-{TOTAL_FORM_COUNT}"] = self.management_form.cleaned_data[
-            TOTAL_FORM_COUNT]
-
-        if not initialize:
-            self._increment_initial_form_count()
-        self.data._mutable = False
-
-
 class AllowedOperationForm(forms.ModelForm):
 
     class Meta:

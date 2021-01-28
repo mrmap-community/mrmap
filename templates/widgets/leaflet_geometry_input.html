@@ -132,8 +132,6 @@
                         // create a listener which is triggered when the created polygon is edited
                         layer.on('pm:edit', e => {
                             updateGeoJsonInput( getAllPolygons() );
-                            console.log(e);
-                            console.log(e.layer.options.color);
                             if (e.layer.options.color == 'red'){
                                 e.layer.setStyle({color: 'orange'})
                             }
@@ -186,8 +184,6 @@
 
                                     for (key2 in layer._latlngs){
                                         var latLng = layer._latlngs[key2];
-                                        console.log( latLng );
-
                                         var polygon = L.polygon(latLng, {color: 'red'}).addTo(map_{{ id_map }});
                                         addEventListenersToLayer( polygon );
                                     }

@@ -1,7 +1,6 @@
 {% load static i18n l10n %}
   {% include "django/forms/widgets/textarea.html" %}
   <div class="card mt-2">
-            
           <div class="card-body">
                 <link rel="stylesheet" href="{% static 'css/leaflet-geoman.min.css' %}" />
                 <div id="id_map_{{ widget.leaflet_geometry_input_id }}" style="height: 60vh; min-height: 400px;"></div>
@@ -150,7 +149,7 @@
                         });
                     }
 
-                    function initializeLeafletClient(){
+                    function initializeLeafletClient_{{ id_map }}(){
                         if (!initialized) {
                             // create the map instance and save it to the var
                             map_{{ id_map }} = L.map('{{ id_map }}', {
@@ -167,12 +166,7 @@
 
                             // zoom in and fit the bound of all presented layers
                             {% if geojson %}
-
-                                function addLayerToMap(feature, layer){
-                                    map_{{ id_map }}.addLayer( layer );
-                                    addEventListenersToLayer( layer );
-                                }
-                                var geojson = new L.geoJSON({{ geojson.geojson|safe }}, 
+                                var geojson = new L.geoJSON({{ geojson|safe }}, 
                                                           {
                                                             style: {
                                                                 fillColor: 'red', 
@@ -226,7 +220,7 @@
                     // visible by default, the initialization of the leaflet client failed, cause it depends on the current view port.
                     var observer = new IntersectionObserver(function(entries) {
                         if(entries[0].isIntersecting === true)
-                            initializeLeafletClient();
+                            initializeLeafletClient_{{ id_map }}();
                     }, { threshold: [0] });
 
                     observer.observe(document.querySelector("#id_map_{{ widget.leaflet_geometry_input_id }}"));

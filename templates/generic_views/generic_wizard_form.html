@@ -39,12 +39,14 @@
                     <div class="card-header" id="id-heading-{{ forloop.counter0 }}">
                       <h5 class="mb-0">
                         <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#id-collapse-{{ forloop.counter0 }}" aria-expanded="true" aria-controls="id-collapse-{{ forloop.counter0 }}">
-                          Collapsible Group Item #{{ forloop.counter0 }}
+                          {{ form.accordion_title }} #{{ forloop.counter0 }}
                         </button>
                         {% if wizard.form.can_delete %}
-                        <button class="btn btn-sm btn-danger delete-form" data-target="#id_{{form.prefix}}-DELETE" data-parent="#id-accordion-{{ forloop.counter0 }}" type="button" onclick="markFormAsDelete(this)">
-                        -
-                        </button>
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Delete this '%}{{ form.accordion_title }}">
+                            <button class="btn btn-sm btn-danger delete-form" data-target="#id_{{form.prefix}}-DELETE" data-parent="#id-accordion-{{ forloop.counter0 }}" type="button" onclick="markFormAsDelete(this)">
+                                {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %}
+                            </button>
+                        </span>
                         {% endif %}
                       </h5>
                     </div>
@@ -52,15 +54,16 @@
                       <div class="card-body">
                         {{ form.media }}
                         {% bootstrap_form form %}
-
                       </div>
                     </div>
                   </div>
                 </div>
             {% endfor %}
-                    <button class="btn btn-sm btn-success" name="{{wizard.form.management_form.prefix}}-{{APPEND_FORM_LOOKUP_KEY}}" type="submit" value="">
-                        +
-                    </button>
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Add new '%}{{ form.accordion_title }}">
+                <button class="btn btn-sm btn-success" name="{{wizard.form.management_form.prefix}}-{{APPEND_FORM_LOOKUP_KEY}}" type="submit" value="">
+                    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}
+                </button>
+            </span>
         {% else %}
             {{ wizard.form.media }}
             {% bootstrap_form wizard.form %}

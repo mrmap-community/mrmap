@@ -100,27 +100,39 @@ class MrMapWizard(SessionWizardView, ABC):
                 self.initial_dict[self.steps.current] = new_init_list
 
                 # overwrite new generated forms to form list
-                self.form_list[self.steps.current] = modelformset_factory(form.model,
+                self.form_list[self.steps.current] = modelformset_factory(form.form.Meta.model,
                                                                           can_delete=True,
-                                                                          form=form.__class__,
+                                                                          # be carefully; there could also be other Form
+                                                                          # classes
+                                                                          form=form.forms[0].__class__,
                                                                           extra=current_extra + 1)
+
                 return True
         return False
 
     def render_next_step(self, form, **kwargs):
-        if self.is_append_formset(form=form) or self.is_form_update():
+        if self.is_append_formset(form=form):
+            # call form again with get_form(), cause it is updated and the current form instance does not hold updates
+            return self.render(form=self.get_form(step=self.steps.current))
+        if self.is_form_update():
             return self.render(form=form)
         return super().render_next_step(form=form, **kwargs)
 
     def render_done(self, form, **kwargs):
-        if self.is_append_formset(form=form) or self.is_form_update():
+        if self.is_append_formset(form=form):
+            # call form again with get_form(), cause it is updated and the current form instance does not hold updates
+            return self.render(form=self.get_form(step=self.steps.current))
+        if self.is_form_update():
             return self.render(form=form)
         return super().render_done(form=form, **kwargs)
 
     def render_goto_step(self, goto_step, **kwargs):
         current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
-        if self.is_append_formset(form=current_form) or self.is_form_update():
-            return self.render(form=current_form)
+        if self.is_append_formset(form=current_form):
+            # call form again with get_form(), cause it is updated and the current form instance does not hold updates
+            return self.render(form=self.get_form(step=self.steps.current))
+        if self.is_form_update():
+            return self.render(current_form)
         # 1. save current form, we doesn't matter for validation for now.
         # If the wizard is done, he will perform validation for each.
         self.storage.set_step_data(self.steps.current,

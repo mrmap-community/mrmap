@@ -24,6 +24,8 @@ from service.models import Dataset, Metadata, MetadataRelation, Document, Allowe
 from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
+from django.forms import BaseFormSet
+
 
 ACCESS_EDITOR_STEP_2_NAME = _("restrict")
 APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
@@ -89,6 +91,13 @@ class AccessEditorWizard(MrMapWizard):
         context.update({'action_url': self.action_url,
                         'APPEND_FORM_LOOKUP_KEY': APPEND_FORM_LOOKUP_KEY})
         return context
+
+    def get_form(self, step=None, data=None, files=None):
+        form = super().get_form(step=step, data=data, files=files)
+        if issubclass(form.__class__, BaseFormSet) and form.can_delete:
+            for _form in form.forms:
+                _form.accordion_title = _('Allowed operation')
+        return form
 
     def done(self, form_list, **kwargs):
         for form in form_list:

@@ -66,7 +66,8 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
-    'django_bootstrap_swt'
+    'django_bootstrap_swt',
+    'leaflet'
 ]
 if DEBUG:
     INSTALLED_APPS.append(

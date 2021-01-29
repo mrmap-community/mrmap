@@ -1,5 +1,6 @@
 {% load fontawesome_5 %}
 {% load static %}
+{% load leaflet_tags %}
 <meta charset="UTF-8">
 <title>
     MrMap {% block title %}{% endblock %}
@@ -15,6 +16,7 @@
 {% if THEME.NAME == 'light' %}
 <link rel="stylesheet" type="text/css" href="{% static '/css/custom_bootstrap4.css' %}" media="all"/>
 <link rel="stylesheet" type="text/css" href="{% static '/css/custom_select2.css' %}" media="all"/>
+{% leaflet_css plugins="forms" %}
 {% endif %}
 <script>var rootUrl = '{{ ROOT_URL }}'</script>
 <script type="text/javascript" src="{% static '/js/jquery.min.js' %}"></script>
@@ -23,3 +25,4 @@
 <script type="text/javascript" src="{% static '/js/moment.min.js' %}"></script>
 <script type="text/javascript" src="{% static '/js/tempusdominus-bootstrap-4.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'django_bootstrap_swt/js/django_bootstrap_swt.js' %}"></script>
+{% leaflet_js plugins="forms" %}

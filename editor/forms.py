@@ -14,6 +14,8 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django import forms
+from leaflet.forms.widgets import LeafletWidget
+
 from MrMap.cacher import PageCacher
 from MrMap.forms import MrMapConfirmForm, MrMapForm
 from MrMap.messages import METADATA_IS_ORIGINAL, \
@@ -458,6 +460,11 @@ class AllowedOperationForm(forms.ModelForm):
                     }
                 },
             ),
-            'allowed_area': LeafletGeometryInput(),
+            'allowed_area': LeafletWidget(attrs={
+                                            'map_height': '500px',
+                                            'map_width': '100%',
+                                            #'display_raw': 'true',
+                                            'map_srid': 4326,
+                                        }),
             'root_metadata': forms.HiddenInput(),
         }

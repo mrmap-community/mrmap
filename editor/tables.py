@@ -1,16 +1,40 @@
 from django.db.models import Q
+from django.forms import fields
 from django.urls import reverse
 from django.utils.html import format_html
-from django_bootstrap_swt.components import Link, Tag, Modal
+from django_bootstrap_swt.components import Link, Tag, Modal, Accordion
 from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
 import django_tables2 as tables
+from leaflet.forms.fields import GeometryField
+from leaflet.forms.widgets import LeafletWidget
+
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum
 from django.utils.translation import gettext_lazy as _
 from MrMap.utils import get_ok_nok_icon
-from service.models import Metadata
+from service.models import Metadata, AllowedOperation
 from structure.models import MrMapGroup
 from structure.permissionEnums import PermissionEnum
+
+
+class AllowedOperationTable(tables.Table):
+    class Meta:
+        model = AllowedOperation
+        fields = ('operations', 'allowed_groups', 'root_metadata', 'allowed_area')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'allowed-operations-table'
+
+    def render_allowed_area(self, record, value):
+        leaflet_widget = LeafletWidget()
+        leaflet_widget.modifiable = False
+        leaflet_field = GeometryField(widget=leaflet_widget)
+        field_name = f'id-{record.id}-allowed_area'
+        field_value = value.geojson
+        leaflet_field_html = leaflet_field.widget.render(field_name, field_value)
+        # todo: nest the leaflet client in a accordion. We need to customize the init call to the shown event of the
+        #  accordion
+        #map_accordion = Accordion(btn_value='Show map', content=leaflet_field_html).render(safe=True)
+        return leaflet_field_html
 
 
 class EditorAcessTable(tables.Table):

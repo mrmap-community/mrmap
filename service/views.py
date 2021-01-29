@@ -60,6 +60,7 @@ from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 
 
+# todo: move this function to a global place; Maybe a class called MrMapDefaultContextMixin
 def default_dispatch(instance, extra_context=None, with_base: bool = True, is_list_view: bool = True):
     if is_list_view:
         # configure table_pagination dynamically to support per_page switching

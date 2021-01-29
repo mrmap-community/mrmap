@@ -27,6 +27,8 @@ urlpatterns = [
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
     path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
 
+    path('access/<pk>/table', AllowedOperationTableView.as_view(), name='allowed-operations'),
+
     # access editor wizard
     path('access/<pk>/edit', AccessEditorWizard.as_view(form_list=ACCESS_EDITOR_WIZARD_FORMS),
          name='access-editor-wizard'),

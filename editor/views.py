@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
@@ -5,13 +6,23 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.db.models import Q
-from django.views.generic import DeleteView
+from django.views.generic import DeleteView, DetailView
+from django_bootstrap_swt.components import Tag
+from django_bootstrap_swt.utils import RenderHelper
+from django_filters.views import FilterView
+from django_tables2 import SingleTableMixin
+
 from MrMap.decorators import permission_required, ownership_required
+from MrMap.forms import get_current_view_args
+from MrMap.icons import IconEnum
 from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
 from MrMap.views import GenericUpdateView, ConfirmView
+from editor.filters import AllowedOperationFilter
 from editor.forms import MetadataEditorForm
+from editor.tables import AllowedOperationTable
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
-from service.models import Metadata
+from service.models import Metadata, AllowedOperation
+from service.views import default_dispatch
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -104,3 +115,31 @@ class RestoreMetadata(ConfirmView):
         success_url = self.get_success_url()
         messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
         return HttpResponseRedirect(success_url)
+
+
+@method_decorator(login_required, name='dispatch')
+class AllowedOperationTableView(SingleTableMixin, FilterView):
+    model = AllowedOperation
+    table_class = AllowedOperationTable
+    filterset_class = AllowedOperationFilter
+    template_name = 'generic_views/generic_list_with_base.html'
+    root_metadata = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.root_metadata = get_object_or_404(Metadata, id=kwargs.get('pk', None))
+        default_dispatch(instance=self)
+        return super(AllowedOperationTableView, self).dispatch(request, *args, **kwargs)
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(AllowedOperationTableView, self).get_table(**kwargs)
+
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.ACCESS.value]}).render() + f' Allowed Operations for {self.root_metadata}'
+
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        #table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
+        return table
+
+    def get_queryset(self):
+        return AllowedOperation.objects.filter(root_metadata=self.root_metadata)

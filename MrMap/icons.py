@@ -24,3 +24,4 @@ class IconEnum(Enum):
     DOWNLOAD = "fas fa-download"
     PUBLIC = "fas fa-globe"
     EDIT = "fas fa-edit"
+    ACCESS = "fas fa-key"

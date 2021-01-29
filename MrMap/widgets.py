@@ -13,7 +13,7 @@ GEOMAN_CONTROLS = {'position': '\'topright\'',
                    'drawRectangle': 'true',
                    'drawMarker': 'false',
                    'removalMode': 'true',
-                   'cutPolygon': 'true', }
+                   'cutPolygon': 'false', }
 
 
 class BootstrapDatePickerInput(DateInput):

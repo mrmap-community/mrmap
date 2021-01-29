@@ -42,7 +42,7 @@ from service.models import Metadata, FeatureType, Layer, ProxyLog, AllowedOperat
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
 from users.helper import user_helper
 
 
@@ -1315,8 +1315,10 @@ class OGCOperationRequestHandler:
             # Put combined mask on white background
             background = Image.new("RGB", (width, height), (255, 255, 255))
             background.paste(mask, mask=mask)
-        except Exception:
-            # If anything occurs during the mask creation, we have to make sure the response won't contain any information at all.
+        except Exception as e:
+            service_logger.exception(e)
+            # If anything occurs during the mask creation, we have to make sure the response won't contain any
+            # information at all.
             # So create an error mask
             background = Image.new("RGB", (width, height), (ERROR_MASK_VAL, ERROR_MASK_VAL, ERROR_MASK_VAL))
 

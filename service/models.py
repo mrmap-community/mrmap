@@ -28,7 +28,7 @@ from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django_bootstrap_swt.components import LinkButton, Badge, Tag, Dropdown, Link, Modal
-from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum
+from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum, ButtonSizeEnum
 
 from MrMap.cacher import DocumentCacher
 from MrMap.icons import IconEnum
@@ -617,12 +617,11 @@ class Metadata(Resource):
             # datasets can be edited,
             # removed if it is a dataset which is created from the user,
             # restored if it's customized
-            actions.append(Modal(fetch_url=self.edit_view_uri,
-                                 btn_content=FONT_AWESOME_ICONS["EDIT"],
-                                 btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
-                                 btn_tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
-                                 size=ModalSizeEnum.LARGE,
-                                 needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+            actions.append(LinkButton(url=self.edit_view_uri,
+                                      content=FONT_AWESOME_ICONS["EDIT"],
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             is_mr_map_origin = not MetadataRelation.objects.filter(
                 metadata_to=self
             ).exclude(
@@ -648,12 +647,11 @@ class Metadata(Resource):
                                           tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
             else:
-                actions.extend([Modal(fetch_url=self.edit_view_uri,
-                                      btn_content=FONT_AWESOME_ICONS["EDIT"],
-                                      btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
-                                      btn_tooltip=_l("Edit the metadata of this resource"),
-                                      size=ModalSizeEnum.LARGE,
-                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
+                actions.extend([LinkButton(url=self.edit_view_uri,
+                                           content=FONT_AWESOME_ICONS["EDIT"],
+                                           color=ButtonColorEnum.WARNING,
+                                           tooltip=_l("Edit the metadata of this resource"),
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
                                 LinkButton(url=self.edit_access_view_uri,
                                            content=FONT_AWESOME_ICONS["ACCESS"],
                                            color=ButtonColorEnum.WARNING,
@@ -701,8 +699,13 @@ class Metadata(Resource):
             icons.append(Tag(tag='i', attrs={"class": [IconEnum.LOGGING.value]},
                              tooltip=_l('This resource will be logged')))
         if self.is_secured:
-            icons.append(Tag(tag='i', attrs={"class": [IconEnum.WFS.value]},
-                             tooltip=_l('This resource is secured')))
+            security_icon = Tag(tag='i', attrs={"class": [IconEnum.WFS.value]}).render()
+            security_overview_link = LinkButton(url=self.security_overview_uri,
+                                                content=security_icon,
+                                                color=ButtonColorEnum.INFO_OUTLINE,
+                                                tooltip=_l('This resource is secured'))
+            security_overview_link.update_attributes({'class': [ButtonSizeEnum.SMALL.value]})
+            icons.append(security_overview_link)
         if hasattr(self, 'external_authentication'):
             icons.append(Tag(tag='i', attrs={"class": [IconEnum.PASSWORD.value]},
                              tooltip=_l('This resource has external authentication.')))
@@ -782,6 +785,10 @@ class Metadata(Resource):
     @property
     def edit_access_view_uri(self):
         return reverse('editor:access-editor-wizard', args=(self.pk,))
+
+    @property
+    def security_overview_uri(self):
+        return reverse('editor:allowed-operations', args=(self.pk,))
 
     @property
     def remove_view_uri(self):

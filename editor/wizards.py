@@ -16,7 +16,7 @@ from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
-    GeneralAccessSettingsForm, AllowedOperationForm
+    GeneralAccessSettingsForm, AllowedOperationForm, MetadataEditorForm
 from django.utils.translation import gettext_lazy as _
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
@@ -102,7 +102,36 @@ class AccessEditorWizard(MrMapWizard):
     def done(self, form_list, **kwargs):
         for form in form_list:
             form.save()
-        return HttpResponseRedirect(reverse('home'))
+        return HttpResponseRedirect(self.current_view_url)
+
+
+METADATA_WIZARD_FORMS = [(_("Metadata"), MetadataEditorForm)]
+
+
+class MetadataEditorWizard(MrMapWizard):
+    template_name = "generic_views/generic_wizard_form.html"
+    action_url = ""
+    metadata_object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        pk = kwargs.get('pk', None)
+        self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
+        self.instance_dict = {"Metadata": self.metadata_object}
+
+        self.action_url = reverse('editor:edit', args=[self.metadata_object.pk, ])
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form, **kwargs)
+        context = DefaultContext(self.request, context, self.request.user).context
+        context.update({'action_url': self.action_url})
+        return context
+
+    def done(self, form_list, **kwargs):
+        for form in form_list:
+            form.save()
+        return HttpResponseRedirect(self.current_view_url)
 
 
 @method_decorator(login_required, name='dispatch')

@@ -10,7 +10,7 @@ from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, Data
     ReferenceSystemAutocomplete, ServiceMetadataAutocomplete, OperationsAutocomplete, GroupsAutocomplete
 from editor.views import *
 from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_FORMS, AccessEditorWizard, \
-    ACCESS_EDITOR_WIZARD_FORMS
+    ACCESS_EDITOR_WIZARD_FORMS, MetadataEditorWizard, METADATA_WIZARD_FORMS
 
 app_name = 'editor'
 urlpatterns = [
@@ -23,7 +23,7 @@ urlpatterns = [
     path('operations/', OperationsAutocomplete.as_view(), name="operations-autocomplete"),
     path('groups/', GroupsAutocomplete.as_view(), name="groups"),
 
-    path('metadata/<pk>/edit', EditMetadata.as_view(), name='edit'),
+    path('metadata/<pk>/edit', MetadataEditorWizard.as_view(form_list=METADATA_WIZARD_FORMS), name='edit'),
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
     path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
 

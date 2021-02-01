@@ -2,6 +2,7 @@ from django.db.models import Q
 from django.forms import fields
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django_bootstrap_swt.components import Link, Tag, Modal, Accordion
 from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
 import django_tables2 as tables
@@ -33,8 +34,7 @@ class AllowedOperationTable(tables.Table):
         leaflet_field_html = leaflet_field.widget.render(field_name, field_value)
         # todo: nest the leaflet client in a accordion. We need to customize the init call to the shown event of the
         #  accordion
-        #map_accordion = Accordion(btn_value='Show map', content=leaflet_field_html).render(safe=True)
-        return leaflet_field_html
+        return mark_safe(leaflet_field_html)
 
 
 class EditorAcessTable(tables.Table):

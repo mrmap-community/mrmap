@@ -81,7 +81,7 @@ class OgcServiceTable(tables.Table):
     featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], accessor='service__featuretypes__count')
     parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[],
                                    accessor='service__parent_service__metadata')
-    status = tables.Column(verbose_name=_('Status'), empty_values=[], )
+    status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
     last_harvest = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
     collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], )
@@ -136,7 +136,13 @@ class OgcServiceTable(tables.Table):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_status(self, record):
-        return format_html(self.render_helper.render_list_coherent(items=record.get_status_icons(), safe=True))
+        self.render_helper.update_attrs = {'class': ['mr-1']}
+        update_url_qs = self.render_helper.update_url_qs
+        self.render_helper.update_url_qs = {}
+        icons = self.render_helper.render_list_coherent(items=record.get_status_icons(), safe=True)
+        self.render_helper.update_attrs = {}
+        self.render_helper.update_url_qs = update_url_qs
+        return format_html(icons)
 
     def render_health(self, record):
         return format_html(self.render_helper.render_list_coherent(items=record.get_health_icons(), safe=True))

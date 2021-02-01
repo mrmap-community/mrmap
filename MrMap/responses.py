@@ -18,7 +18,7 @@ class DefaultContext:
     """
 
     def __init__(self, request: HttpRequest, context: dict, user: MrMapUser = None):
-        if user is not None:
+        if user is not None and not user.is_anonymous:
             permissions = user.get_permissions()
         else:
             permissions = []

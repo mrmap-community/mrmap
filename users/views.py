@@ -8,11 +8,10 @@ Created on: 28.05.19
 
 import os
 from random import random
-from django.utils import timezone
 from django.contrib import messages
-from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.views import LoginView
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
@@ -20,80 +19,35 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.messages import USERNAME_OR_PW_INVALID, \
-    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
+from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     RESOURCE_NOT_FOUND_OR_NOT_OWNER
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
-from structure.forms import LoginForm, RegistrationForm
+from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, MrMapGroup, \
     PublishRequest, GroupInvitationRequest
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
-from django.urls import reverse
-
 from users.models import Subscription
 from users.settings import users_logger
 from users.tables import SubscriptionTable
 
 
-def login_view(request: HttpRequest):
-    """ Login landing page
+class MrMapLoginView(LoginView):
+    template_name = "views/login.html"
+    redirect_authenticated_user = True
 
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    template = "views/login.html"
-    form = LoginForm(request.POST)
-
-    # check if user is still logged in!
-    user = request.user
-
-    if user.is_authenticated:
-        return redirect("home")
-
-    # Someone wants to login
-    if request.method == 'POST' and form.is_valid() and user.is_anonymous:
-        # trial to login the user
-        username = form.cleaned_data.get("username")
-        password = form.cleaned_data.get("password")
-        user = authenticate(request=request, username=username, password=password)
-
-        if user is None:
-            # Is user not activated yet?
-            try:
-                user = MrMapUser.objects.get_by_natural_key(username)
-                if not user.is_active:
-                    messages.add_message(request, messages.INFO, ACCOUNT_NOT_ACTIVATED)
-                    return redirect("login")
-            except ObjectDoesNotExist:
-                messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
-                return redirect("login")
-
-        login(request, user)
-        _next = form.cleaned_data.get("next", None)
-
-        if _next is None or len(_next) == 0:
-            home_uri = reverse("home")
-            _next = home_uri
-
-        return redirect(_next)
-
-    params = {
-        "login_form": LoginForm(),
-        "login_article_title": _("Sign in for Mr. Map"),
-        "login_article": _(
-            "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
-        "username_label": form['username'].label,
-        "password_label": form['password'].label
-    }
-    context = DefaultContext(request, params)
-    return render(request=request, template_name=template, context=context.get_context())
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            "login_article_title": _("Sign in for Mr. Map"),
+            "login_article": _(
+                "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
+        })
+        context = DefaultContext(request=self.request, context=context, user=self.request.user).context
+        return context
 
 
 @login_required
@@ -285,19 +239,6 @@ def activate_user(request: HttpRequest, activation_hash: str):
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
-
-
-def logout_view(request: HttpRequest):
-    """ Logout the user and redirect to login view
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    messages.add_message(request, messages.SUCCESS, LOGOUT_SUCCESS)
-    logout(request)
-    return redirect('login')
 
 
 @transaction.atomic

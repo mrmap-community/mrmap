@@ -24,12 +24,6 @@ from users.helper import user_helper
 from users.helper.user_helper import create_group_activity
 
 
-class LoginForm(forms.Form):
-    username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ")
-    password = forms.CharField(max_length=255, label=_("Password"), label_suffix=" ", widget=forms.PasswordInput)
-    next = forms.CharField(max_length=255, show_hidden_initial=False, widget=forms.HiddenInput(), required=False)
-
-
 class GroupForm(MrMapModelForm):
     description = forms.CharField(
         label=_("Description"),

@@ -5,12 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 28.05.19
 
 """
-from django.contrib.auth.views import LogoutView
+from django.contrib.auth.views import LogoutView, PasswordResetConfirmView
 from django.urls import path
 from .views import *
 
 urlpatterns = [
-    path('', home_view, name="home"),
+    path('', HomeView.as_view(), name="home"),
     path('accounts/login', MrMapLoginView.as_view(), name="login"),
     path('accounts/login', MrMapLoginView.as_view(), name="password_reset_done"),
     path('accounts/login', MrMapLoginView.as_view(), name="password_reset_complete"),

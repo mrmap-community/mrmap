@@ -6,17 +6,12 @@ Created on: 28.05.19
 
 """
 
-import os
 from collections import OrderedDict
-from random import random
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.hashers import make_password
-from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView, PasswordResetConfirmView
+from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse_lazy
@@ -24,22 +19,21 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _, gettext
-from django.views.generic import DetailView, ListView
+from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
 from django_bootstrap_swt.components import Tag
 from django_tables2 import SingleTableMixin
 from MrMap.icons import IconEnum
-from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
+from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS
 from MrMap.responses import DefaultContext
-from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from service.helper.crypto_handler import CryptoHandler
+from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
 from service.models import Metadata
 from structure.forms import RegistrationForm
-from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, MrMapGroup, \
+from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, \
     PublishRequest, GroupInvitationRequest
-from users.forms import PasswordResetForm, SubscriptionForm
+from users.forms import SubscriptionForm
 from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
@@ -50,6 +44,11 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
     template_name = "users/views/logged_out/login.html"
     redirect_authenticated_user = True
     success_message = _('Successfully signed in.')
+
+    def form_invalid(self, form):
+        users_logger.info(f'User {form.cleaned_data["username"]} trial to login, but the following error occurs. '
+                          f'{form.error}')
+        return super().form_invalid(form=form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -62,63 +61,50 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
         return context
 
 
-@login_required
-def home_view(request: HttpRequest,  update_params=None, status_code=None):
-    """ Renders the dashboard / home view of the user
+@method_decorator(login_required, name='dispatch')
+class HomeView(TemplateView):
+    template_name = "users/views/home/dashboard.html"
 
-    Args:
-        request: The incoming request
-        user: The performing user
-    Returns:
-         A rendered view
-    """
-    user = user_helper.get_user(request)
-    template = "views/dashboard.html"
-    user_groups = user.get_groups()
-    user_services_wms = Metadata.objects.filter(
-        service__service_type__name="wms",
-        service__is_root=True,
-        created_by__in=user_groups,
-        service__is_deleted=False,
-    ).count()
-    user_services_wfs = Metadata.objects.filter(
-        service__service_type__name="wfs",
-        service__is_root=True,
-        created_by__in=user_groups,
-        service__is_deleted=False,
-    ).count()
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
-    datasets_count = user.get_datasets_as_qs(count=True)
+        user_groups = self.request.user.get_groups()
+        user_services_wms = Metadata.objects.filter(
+            service__service_type__name="wms",
+            service__is_root=True,
+            created_by__in=user_groups,
+            service__is_deleted=False,
+        ).count()
+        user_services_wfs = Metadata.objects.filter(
+            service__service_type__name="wfs",
+            service__is_root=True,
+            created_by__in=user_groups,
+            service__is_deleted=False,
+        ).count()
 
-    activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
-    group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
-        "-created_on")
+        datasets_count = self.request.user.get_datasets_as_qs(count=True)
 
-    pending_requests = PublishRequest.objects.filter(organization=user.organization)
-    group_invitation_requests = GroupInvitationRequest.objects.filter(
-        invited_user=user
-    )
-    params = {
-        "wms_count": user_services_wms,
-        "wfs_count": user_services_wfs,
-        "datasets_count": datasets_count,
-        "all_count": user_services_wms + user_services_wfs + datasets_count,
-        "publishing_requests": pending_requests,
-        "group_invitation_requests": group_invitation_requests,
-        "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),
-        "group_activities": group_activities,
-        "groups": user_groups,
-        "organizations": Organization.objects.filter(is_auto_generated=False),
-        "current_view": "home",
-    }
-    if update_params:
-        params.update(update_params)
+        activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
+        group_activities = GroupActivity.objects.filter(group__in=user_groups,
+                                                        created_on__gte=activities_since).order_by("-created_on")
 
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=200 if status_code is None else status_code)
+        pending_requests = PublishRequest.objects.filter(organization=self.request.user.organization)
+        group_invitation_requests = GroupInvitationRequest.objects.filter(invited_user=self.request.user)
+        context.update({
+            "wms_count": user_services_wms,
+            "wfs_count": user_services_wfs,
+            "datasets_count": datasets_count,
+            "all_count": user_services_wms + user_services_wfs + datasets_count,
+            "publishing_requests": pending_requests,
+            "group_invitation_requests": group_invitation_requests,
+            "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),
+            "group_activities": group_activities,
+            "groups": user_groups,
+            "organizations": Organization.objects.filter(is_auto_generated=False),
+            "current_view": "home",
+        })
+        context = DefaultContext(self.request, context, self.request.user).get_context()
+        return context
 
 
 @method_decorator(login_required, name='dispatch')

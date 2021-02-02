@@ -47,7 +47,7 @@ from users.tables import SubscriptionTable
 
 
 class MrMapLoginView(SuccessMessageMixin, LoginView):
-    template_name = "views/login.html"
+    template_name = "users/views/logged_out/login.html"
     redirect_authenticated_user = True
     success_message = _('Successfully signed in.')
 
@@ -123,7 +123,7 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
 
 @method_decorator(login_required, name='dispatch')
 class ProfileView(DetailView):
-    template_name = "views/profile/profile.html"
+    template_name = "users/views/profile/profile.html"
     model = MrMapUser
     slug_field = "username"
 
@@ -142,7 +142,7 @@ class ProfileView(DetailView):
 
 
 class MrMapPasswordChangeView(SuccessMessageMixin, PasswordChangeView):
-    template_name = 'views/profile/password_change.html'
+    template_name = 'users/views/profile/password_change.html'
     success_message = PASSWORD_CHANGE_SUCCESS
 
     def get_context_data(self, **kwargs):
@@ -162,7 +162,7 @@ class MrMapPasswordResetView(SuccessMessageMixin, PasswordResetView):
 
 
 class EditProfileView(SuccessMessageMixin, UpdateView):
-    template_name = 'views/profile/password_change.html'
+    template_name = 'users/views/profile/password_change.html'
     success_message = _('Profile successfully edited.')
     model = MrMapUser
     fields = [
@@ -243,7 +243,7 @@ class SignUpView(SuccessMessageMixin, CreateView):
 class SubscriptionTableView(SingleTableMixin, ListView):
     model = Subscription
     table_class = SubscriptionTable
-    template_name = 'views/profile/manage_subscriptions.html'
+    template_name = 'users/views/profile/manage_subscriptions.html'
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -270,7 +270,7 @@ class SubscriptionTableView(SingleTableMixin, ListView):
 @method_decorator(login_required, name='dispatch')
 class AddSubscriptionView(SuccessMessageMixin, CreateView):
     model = Subscription
-    template_name = "views/profile/add_update_subscription.html"
+    template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
     success_message = SUBSCRIPTION_SUCCESSFULLY_CREATED
 
@@ -289,7 +289,7 @@ class AddSubscriptionView(SuccessMessageMixin, CreateView):
 @method_decorator(login_required, name='dispatch')
 class UpdateSubscriptionView(SuccessMessageMixin, UpdateView):
     model = Subscription
-    template_name = "views/profile/add_update_subscription.html"
+    template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
     success_message = SUBSCRIPTION_EDITING_SUCCESSFULL
 
@@ -303,7 +303,7 @@ class UpdateSubscriptionView(SuccessMessageMixin, UpdateView):
 @method_decorator(login_required, name='dispatch')
 class DeleteSubscriptionView(SuccessMessageMixin, DeleteView):
     model = Subscription
-    template_name = "views/profile/delete_subscription.html"
+    template_name = "users/views/profile/delete_subscription.html"
     success_url = reverse_lazy('manage_subscriptions')
     success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
 

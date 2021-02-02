@@ -27,8 +27,8 @@
                     <hr>
                     <div class="text-center">
                         <span>{% trans 'Don`t have an account?' %} </span>
-                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'register' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
-                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'password-reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
+                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'signup' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
+                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'password_reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
                     </div>
                 </div>
 

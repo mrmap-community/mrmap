@@ -262,10 +262,10 @@ class MrMapUser(AbstractUser):
     salt = models.CharField(max_length=500)
     organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.SET_NULL, null=True,
                                      blank=True)
-    confirmed_newsletter = models.BooleanField(default=False)
-    confirmed_survey = models.BooleanField(default=False)
-    confirmed_dsgvo = models.DateTimeField(auto_now_add=True, null=True,
-                                           blank=True)  # ToDo: For production this is not supposed to be nullable!!!
+    confirmed_newsletter = models.BooleanField(default=False, verbose_name=_("I want to sign up for the newsletter"))
+    confirmed_survey = models.BooleanField(default=False, verbose_name=_("I want to participate in surveys"))
+    confirmed_dsgvo = models.DateTimeField(auto_now_add=True,
+                                           verbose_name=_("I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."))
     theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):

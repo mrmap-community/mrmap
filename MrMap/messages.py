@@ -129,8 +129,10 @@ EMAIL_IS_UNKNOWN = _("Inserted email address is unknown.")
 SUBSCRIPTION_EDITING_SUCCESSFULL = _("Subscription edited successfully.")
 SUBSCRIPTION_EDITING_UNSUCCESSFULL = _("Subscription could not be edited.")
 SUBSCRIPTION_REMOVED_TEMPLATE = _("Subscription for '{}' was removed.")
-SUBSCRIPTION_CREATED_TEMPLATE = _("Subscription for '{}' created.")
+SUBSCRIPTION_SUCCESSFULLY_CREATED = _("Subscription sucessfully created.")
 SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE = _("'{}' already subscribed.")
+SUBSCRIPTION_SUCCESSFULLY_DELETED = _("Subscription successfully deleted.")
+
 
 GROUP_INVITATION_CREATED = _("{} has been invited to {}!")
 GROUP_INVITATION_EXISTS = _("An invitation already exists. {} can respond until {}!")

@@ -1,5 +1,8 @@
+import os
+
 from captcha.fields import CaptchaField
 from django import forms
+from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
@@ -347,15 +350,8 @@ class RemoveOrganizationForm(MrMapConfirmForm):
         messages.success(self.request, message=_('Organization {} successfully deleted.'.format(org_name)))
 
 
-class RegistrationForm(forms.Form):
-    username = forms.CharField(
-        min_length=MIN_USERNAME_LENGTH,
-        max_length=255,
-        validators=USERNAME_VALIDATORS,
-        label=_("Username"),
-        label_suffix=" ",
-        required=True
-    )
+class RegistrationForm(forms.ModelForm):
+
     password = forms.CharField(
         min_length=MIN_PASSWORD_LENGTH,
         max_length=255,
@@ -374,22 +370,25 @@ class RegistrationForm(forms.Form):
         required=True
     )
 
-    first_name = forms.CharField(max_length=200, label=_("First name"), label_suffix=" ", required=True)
-    last_name = forms.CharField(max_length=200, label=_("Last name"), label_suffix=" ", required=True)
-    email = forms.EmailField(max_length=100, label=_("E-mail address"), label_suffix=" ", required=True)
-    address = forms.CharField(max_length=100, label=_("Address"), label_suffix=" ", required=False)
-    postal_code = forms.CharField(max_length=100, label=_("Postal code"), label_suffix=" ", required=False)
-    city = forms.CharField(max_length=100, label=_("City"), label_suffix=" ", required=False)
-    phone = forms.CharField(max_length=100, label=_("Phone"), label_suffix=" ", required=True)
-    facsimile = forms.CharField(max_length=100, label=_("Facsimile"), label_suffix=" ", required=False)
-    newsletter = forms.BooleanField(label=_("I want to sign up for the newsletter"), required=False, initial=True)
-    survey = forms.BooleanField(label=_("I want to participate in surveys"), required=False, initial=True)
     dsgvo = forms.BooleanField(
         initial=False,
         label=_("I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."),
         required=True
     )
     captcha = CaptchaField(label=_("I'm not a robot"), required=True)
+
+    class Meta:
+        model = MrMapUser
+        fields = ('username',
+                  'password',
+                  'password_check',
+                  'first_name',
+                  'last_name',
+                  'email',
+                  'confirmed_newsletter',
+                  'confirmed_survey',
+                  'dsgvo',
+                  'captcha')
 
     def clean(self):
         cleaned_data = super(RegistrationForm, self).clean()
@@ -408,6 +407,25 @@ class RegistrationForm(forms.Form):
             self.add_error("password_check", forms.ValidationError(_("Passwords do not match.")))
 
         return cleaned_data
+
+    def save(self, commit=True):
+        self.instance.salt = str(os.urandom(25).hex())
+        self.instance.password = make_password(self.instance.password, salt=self.instance.salt)
+        self.instance.person_name = self.instance.first_name + " " + self.instance.last_name
+        self.instance.is_active = False
+        return super().save(commit=commit)
+
+        # todo: move this to a signal
+        """
+        # Add user to Public group
+        public_group = MrMapGroup.objects.get(
+            is_public_group=True
+        )
+        public_group.user_set.add(self.instance)
+
+        # create user_activation object to improve checking against activation link
+        self.instance.create_activation()"""
+
 
 
 class RemovePublisherForm(MrMapConfirmForm):

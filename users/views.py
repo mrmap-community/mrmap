@@ -11,8 +11,10 @@ from collections import OrderedDict
 from random import random
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.views import LoginView, PasswordChangeView
+from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView, PasswordResetConfirmView
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
@@ -27,7 +29,9 @@ from django.views.generic.edit import UpdateView, CreateView, DeleteView
 from django_bootstrap_swt.components import Tag
 from django_tables2 import SingleTableMixin
 from MrMap.icons import IconEnum
-from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED
+from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
+    SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
+    PASSWORD_CHANGE_SUCCESS
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from service.helper.crypto_handler import CryptoHandler
@@ -42,9 +46,10 @@ from users.settings import users_logger
 from users.tables import SubscriptionTable
 
 
-class MrMapLoginView(LoginView):
+class MrMapLoginView(SuccessMessageMixin, LoginView):
     template_name = "views/login.html"
     redirect_authenticated_user = True
+    success_message = _('Successfully signed in.')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -136,22 +141,29 @@ class ProfileView(DetailView):
         return context
 
 
-class MrMapPasswordChangeView(PasswordChangeView):
+class MrMapPasswordChangeView(SuccessMessageMixin, PasswordChangeView):
     template_name = 'views/profile/password_change.html'
+    success_message = PASSWORD_CHANGE_SUCCESS
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
-        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
-        breadcrumb_config['change-password'] = {'is_representative': True, 'current_path': '/accounts/profile/change-password'}
-        context.update({'breadcrumb_config': breadcrumb_config})
         return context
 
 
-class EditProfileView(UpdateView):
+class MrMapPasswordResetView(SuccessMessageMixin, PasswordResetView):
+    template_name = 'users/views/logged_out/password_reset_or_confirm.html'
+    success_message = ACTIVATION_LINK_SENT
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        return context
+
+
+class EditProfileView(SuccessMessageMixin, UpdateView):
     template_name = 'views/profile/password_change.html'
+    success_message = _('Profile successfully edited.')
     model = MrMapUser
     fields = [
         "first_name",
@@ -213,93 +225,18 @@ def activate_user(request: HttpRequest, activation_hash: str):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@transaction.atomic
-def password_reset(request: HttpRequest):
-    """ Renders a view for requesting a new auto-generated password which will be sent via mail
+class SignUpView(SuccessMessageMixin, CreateView):
+    template_name = 'users/views/logged_out/sign_up.html'
+    success_url = reverse_lazy('login')
+    model = MrMapUser
+    form_class = RegistrationForm
+    success_message = "Your profile was created successfully"
 
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    template = "views/password_reset.html"
-    form = PasswordResetForm(request.POST or None)
-    params = {
-        "form": form,
-    }
-    if request.method == 'POST' and form.is_valid():
-        # we dont need to check the email address here: see clean function of PasswordResetForm class
-        user = MrMapUser.objects.get(email=form.cleaned_data.get("email"))
-
-        # generate new password
-        # ToDo: Do sending via email!
-        sec_handler = CryptoHandler()
-        gen_pw = sec_handler.sha256(
-            user.salt + str(timezone.now()) + str(random() * 10000)
-        )[:7].upper()
-        users_logger.debug(gen_pw)
-        user.set_password(gen_pw)
-        user.save()
-        messages.add_message(request, messages.INFO, PASSWORD_SENT)
-        return redirect('login')
-
-    context = DefaultContext(request, params)
-    return render(request, template, context=context.get_context())
-
-
-@transaction.atomic
-def register(request: HttpRequest):
-    """
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    template = "views/register.html"
-    form = RegistrationForm(request.POST or None)
-    params = {
-        "form": form,
-        "registration_article": _(
-            "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
-        "registration_title": _("Sign up"),
-        "action_url": ROOT_URL + "/register/"
-    }
-    if request.method == "POST" and form.is_valid():
-        cleaned_data = form.cleaned_data
-
-        # create new user and send mail
-        user = MrMapUser()
-        user.username = cleaned_data.get("username")
-        user.salt = str(os.urandom(25).hex())
-        user.password = make_password(cleaned_data.get("password"), salt=user.salt)
-        user.person_name = cleaned_data.get("first_name") + " " + cleaned_data.get("last_name")
-        user.facsimile = cleaned_data.get("facsimile")
-        user.phone = cleaned_data.get("phone")
-        user.email = cleaned_data.get("email")
-        user.city = cleaned_data.get("city")
-        user.address = cleaned_data.get("address")
-        user.postal_code = cleaned_data.get("postal_code")
-        user.confirmed_dsgvo = timezone.now()
-        user.confirmed_newsletter = cleaned_data.get("newsletter")
-        user.confirmed_survey = cleaned_data.get("survey")
-        user.is_active = False
-        user.save()
-
-        # Add user to Public group
-        public_group = MrMapGroup.objects.get(
-            is_public_group=True
-        )
-        public_group.user_set.add(user)
-
-        # create user_activation object to improve checking against activation link
-        user.create_activation()
-
-        messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
-        return redirect("login")
-
-    context = DefaultContext(request, params)
-    return render(request=request, template_name=template, context=context.get_context())
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Edit profile')})
+        return context
 
 
 @method_decorator(login_required, name='dispatch')
@@ -331,10 +268,11 @@ class SubscriptionTableView(SingleTableMixin, ListView):
 
 
 @method_decorator(login_required, name='dispatch')
-class AddSubscriptionView(CreateView):
+class AddSubscriptionView(SuccessMessageMixin, CreateView):
     model = Subscription
     template_name = "views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
+    success_message = SUBSCRIPTION_SUCCESSFULLY_CREATED
 
     def get_initial(self):
         initial = super().get_initial()
@@ -349,10 +287,11 @@ class AddSubscriptionView(CreateView):
 
 
 @method_decorator(login_required, name='dispatch')
-class UpdateSubscriptionView(UpdateView):
+class UpdateSubscriptionView(SuccessMessageMixin, UpdateView):
     model = Subscription
     template_name = "views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
+    success_message = SUBSCRIPTION_EDITING_SUCCESSFULL
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -362,10 +301,11 @@ class UpdateSubscriptionView(UpdateView):
 
 
 @method_decorator(login_required, name='dispatch')
-class DeleteSubscriptionView(DeleteView):
+class DeleteSubscriptionView(SuccessMessageMixin, DeleteView):
     model = Subscription
     template_name = "views/profile/delete_subscription.html"
     success_url = reverse_lazy('manage_subscriptions')
+    success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -69,7 +69,7 @@ class RegisterNewUserTestCase(TestCase):
         client = Client()
 
         # case: Normal behaviour, user will be created
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = client.post(reverse('signup'), data=self.contact_data)
 
         # we should redirected to the root path /
         self.assertEqual(response.status_code, 302, msg="No redirect after posting user registration form.")
@@ -132,7 +132,7 @@ class RegisterNewUserTestCase(TestCase):
         response = client.get(reverse('register'))
 
         self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
-        self.assertTemplateUsed(response, template_name='views/register.html')
+        self.assertTemplateUsed(response, template_name='views/sign_up.html')
 
 
 class ActivateUserTestCase(TestCase):

@@ -11,13 +11,20 @@ from .views import *
 
 urlpatterns = [
     path('', home_view, name="home"),
-    path('login', MrMapLoginView.as_view(), name="login"),
-    path('logout/', LogoutView.as_view(), name='logout'),
+    path('accounts/login', MrMapLoginView.as_view(), name="login"),
+    path('accounts/login', MrMapLoginView.as_view(), name="password_reset_done"),
+    path('accounts/login', MrMapLoginView.as_view(), name="password_reset_complete"),
+    path('accounts/logout', LogoutView.as_view(), name='logout'),
+    path('accounts/password_reset', MrMapPasswordResetView.as_view(), name='password_reset'),
+    path('accounts/reset/<uidb64>/<token>/',
+         PasswordResetConfirmView.as_view(template_name='users/views/logged_out/password_reset_or_confirm.html'),
+         name='password_reset_confirm'),
+    path('accounts/signup', SignUpView.as_view(), name='signup'),
     # todo: refactor as class based view
-    path('register/', register, name='register'),
-    path('password-reset/', password_reset, name='password-reset'),
     path('activate/<activation_hash>', activate_user, name='activate-user'),
 
+    # user specific views of his profile
+    path('accounts/profile', ProfileView.as_view(), name="profile"),
     path('accounts/profile', ProfileView.as_view(), name="password_change_done"),
     path('accounts/profile/password-change', MrMapPasswordChangeView.as_view(), name="password_change"),
     path('accounts/profile/edit', EditProfileView.as_view(), name="edit_profile"),

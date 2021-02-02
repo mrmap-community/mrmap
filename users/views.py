@@ -7,28 +7,42 @@ Created on: 28.05.19
 """
 
 import os
+import uuid
+from collections import OrderedDict
 from random import random
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
+from django.template.loader import render_to_string
+from django.urls import reverse_lazy
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from django.utils.decorators import method_decorator
+from django.utils.translation import gettext_lazy as _, gettext_lazy, gettext
+from django.views.generic import DetailView, ListView
+from django.views.generic.edit import FormMixin, FormView, UpdateView, CreateView, DeleteView
+from django_bootstrap_swt.components import Tag
+from django_tables2 import SingleTableMixin
 
+from MrMap.decorators import ownership_required
+from MrMap.icons import IconEnum
 from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     RESOURCE_NOT_FOUND_OR_NOT_OWNER
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
+from MrMap.views import ModalFormMixin
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
+from service.views import default_dispatch
 from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, MrMapGroup, \
     PublishRequest, GroupInvitationRequest
-from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
+from users.forms import PasswordResetForm, UserForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
@@ -109,100 +123,65 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
                   status=200 if status_code is None else status_code)
 
 
-@login_required
-def account(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of the user's account information
+@method_decorator(login_required, name='dispatch')
+class ProfileView(DetailView):
+    template_name = "views/profile/profile.html"
+    model = MrMapUser
+    slug_field = "username"
 
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code (MrMapUser): The user
-    Returns:
-         A rendered view
-    """
-    template = "views/account.html"
-    user = user_helper.get_user(request)
-    subscriptions_count = Subscription.objects.filter(user=user).count()
-    params = {
-        "subscriptions_count": subscriptions_count,
-        "current_view": 'account',
-    }
+    def get_object(self, queryset=None):
+        return get_object_or_404(MrMapUser, username=self.request.user.username)
 
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'subscriptions_count': Subscription.objects.filter(user=self.request.user).count()})
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = False
+        breadcrumb_config['profile'] = True
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context
 
 
-@login_required
-def subscriptions(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of the user's account information
+class MrMapPasswordChangeView(PasswordChangeView):
+    template_name = 'views/profile/password_change.html'
 
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code (MrMapUser): The user
-    Returns:
-         A rendered view
-    """
-    template = "views/subscriptions.html"
-    user = user_helper.get_user(request)
-
-    subscription_table = SubscriptionTable(request=request,
-                                           current_view='subscription-index')
-
-    params = {
-        "subscriptions": subscription_table,
-        "current_view": 'subscription-index',
-    }
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
+        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
+        breadcrumb_config['change-password'] = {'is_representative': True, 'current_path': '/accounts/profile/change-password'}
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context
 
 
-@login_required
-def password_change(request: HttpRequest):
-    """ Renders the form for password changing and validates the input afterwards
+class EditProfileView(UpdateView):
+    template_name = 'views/profile/password_change.html'
+    model = MrMapUser
+    fields = [
+        "first_name",
+        "last_name",
+        "email",
+        "confirmed_newsletter",
+        "confirmed_survey",
+        "theme",
+    ]
 
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-        A view
-    """
-    form = PasswordChangeForm(data=request.POST or None,
-                              request=request,
-                              reverse_lookup='password-change',
-                              # ToDo: after refactoring of all forms is done, show_modal can be removed
-                              show_modal=True,
-                              form_title=_(f"Change password"),
-                              )
+    def get_object(self, queryset=None):
+        return get_object_or_404(MrMapUser, username=self.request.user.username)
 
-    return form.process_request(valid_func=form.process_change_password)
-
-
-@login_required
-def account_edit(request: HttpRequest):
-    """ Renders a form for editing user account data
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-        A view
-    """
-    user = user_helper.get_user(request)
-    form = UserForm(data=request.POST or None,
-                    request=request,
-                    reverse_lookup='account-edit',
-                    # ToDo: after refactoring of all forms is done, show_modal can be removed
-                    show_modal=True,
-                    form_title=_(f"<strong>Edit your account information's</strong>"),
-                    instance=user,
-                    initial={'theme': user.theme},)
-    return form.process_request(form.process_account_change)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Edit profile')})
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
+        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
+        breadcrumb_config['edit'] = {'is_representative': True, 'current_path': '/accounts/profile/edit'}
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -330,111 +309,107 @@ def register(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@login_required
-def subscription_index_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of all subscriptions of the performing user
+@method_decorator(login_required, name='dispatch')
+class SubscriptionTableView(SingleTableMixin, ListView):
+    model = Subscription
+    table_class = SubscriptionTable
+    template_name = 'views/profile/manage_subscriptions.html'
 
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A rendered view
-    """
-    template = "views/subscriptions.html"
-    user = user_helper.get_user(request)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(user=self.request.user)
 
-    subscription_table = SubscriptionTable(request=request,
-                                           current_view='subscription-index')
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(SubscriptionTableView, self).get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.SUBSCRIPTION.value]}) + gettext(' Subscriptions')
+        return table
 
-    params = {
-        "subscriptions": subscription_table,
-        "current_view": 'subscription-index',
-    }
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Edit profile')})
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
+        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
+        breadcrumb_config['subscriptions'] = {'is_representative': True, 'current_path': '/accounts/profile/subscriptions'}
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context
 
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
-
-
-@login_required
-def subscription_new_view(request: HttpRequest, ):
-    """ Renders a view for editing a subscription
-
-    Args:
-        request (HttpRequest): The incoming request
-        current_view (str): The current view where the request comes from
-    Returns:
-         A rendered view
-    """
-    form = SubscriptionForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='subscription-new',
-        form_title=_('New Subscription'),
-        # ToDo: show_modal will be default True in future
-        show_modal=True,
-        has_autocomplete_fields=True,
-     )
-    return form.process_request(valid_func=form.process_new_subscription)
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+        return super(SubscriptionTableView, self).dispatch(request, *args, **kwargs)
 
 
-@login_required
-def subscription_edit_view(request: HttpRequest, subscription_id: str, ):
-    """ Renders a view for editing a subscription
+@method_decorator(login_required, name='dispatch')
+class AddSubscriptionView(CreateView):
+    model = Subscription
+    template_name = "views/profile/add_update_subscription.html"
+    form_class = SubscriptionForm
 
-    Args:
-        request (HttpRequest): The incoming request
-        subscription_id (str): The uuid of the subscription as string
-        current_view: The current view where the request comes from
-    Returns:
-         A rendered view
-    """
-    user = user_helper.get_user(request)
-    try:
-        subscription = Subscription.objects.get(
-            id=subscription_id,
-            user=user,
-        )
-    except ObjectDoesNotExist:
-        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
-        return redirect('users:home')
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update({'user': self.request.user})
+        return initial
 
-    form = SubscriptionForm(data=request.POST or None,
-                            instance=subscription,
-                            is_edit=True,
-                            request=request,
-                            reverse_lookup='subscription-edit',
-                            reverse_args=[subscription_id, ],
-                            form_title=_('New Subscription'),
-                            # ToDo: show_modal will be default True in future
-                            show_modal=True,
-                            )
-    return form.process_request(valid_func=form.process_edit_subscription)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Add subscription')})
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
+        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
+        breadcrumb_config['subscriptions'] = {'is_representative': True,
+                                              'current_path': '/accounts/profile/subscriptions'}
+        breadcrumb_config['add'] = {'is_representative': True,
+                                              'current_path': '/accounts/profile/subscriptions/add'}
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context
 
 
-@login_required
-def subscription_remove(request: HttpRequest, subscription_id: str, ):
-    """ Removes a subscription
+@method_decorator(login_required, name='dispatch')
+class UpdateSubscriptionView(UpdateView):
+    model = Subscription
+    template_name = "views/profile/add_update_subscription.html"
+    form_class = SubscriptionForm
 
-    Args:
-        request (HttpRequest): The incoming request
-        id (str): The uuid of the subscription as string
-    Returns:
-         A rendered view
-    """
-    user = user_helper.get_user(request)
-    subscription = get_object_or_404(klass=Subscription,
-                                     id=subscription_id,
-                                     user=user)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Update subscription')})
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
+        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
+        breadcrumb_config['subscriptions'] = {'is_representative': True,
+                                              'current_path': '/accounts/profile/subscriptions'}
+        breadcrumb_config[str(self.object.id)] = {'is_representative': False, 'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}'}
+        breadcrumb_config['edit'] = {'is_representative': True, 'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}/edit'}
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context
 
-    form = SubscriptionRemoveForm(data=request.POST or None,
-                                  request=request,
-                                  reverse_lookup='subscription-remove',
-                                  reverse_args=[subscription_id, ],
-                                  form_title=_(f'Remove Subscription for service <strong>{subscription.metadata}</strong>'),
-                                  # ToDo: show_modal will be default True in future
-                                  show_modal=True,
-                                  instance=subscription,)
-    return form.process_request(valid_func=form.process_remove_subscription)
 
+@method_decorator(login_required, name='dispatch')
+class DeleteSubscriptionView(DeleteView):
+    model = Subscription
+    template_name = "views/profile/delete_subscription.html"
+    success_url = reverse_lazy('manage_subscriptions')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Delete subscription')})
+
+
+
+        breadcrumb_config = OrderedDict()
+        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
+        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
+        breadcrumb_config['subscriptions'] = {'is_representative': True,
+                                              'current_path': '/accounts/profile/subscriptions'}
+        breadcrumb_config[str(self.object.id)] = {'is_representative': False,
+                                                  'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}'}
+        breadcrumb_config['delete'] = {'is_representative': True,
+                                     'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}/delete'}
+        context.update({'breadcrumb_config': breadcrumb_config})
+        return context

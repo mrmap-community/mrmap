@@ -25,3 +25,5 @@ class IconEnum(Enum):
     PUBLIC = "fas fa-globe"
     EDIT = "fas fa-edit"
     ACCESS = "fas fa-key"
+    SUBSCRIPTION = "fas fa-bullhorn"
+    DELETE = "fas fa-trash"

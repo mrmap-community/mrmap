@@ -1,19 +1,17 @@
 {% load bootstrap4 %}
 {% load i18n %}
-
 <div class="card bg-light my-3 border border-dark rounded">
   <div class="card-header">
     {{ title }}
   </div>
-  <form action="{{ action_url }}" method="post">
+  <form method="post">
       <div class="card-body">
         {% csrf_token %}
-        {{form.media}}
-        {% bootstrap_form form %}
+        <p>{% trans 'Are you sure you want to delete' %} "{{ object }}"?</p>
       </div>
       <div class="card-footer text-muted">
-        <button type="submit" class="btn btn-primary">
-            <span class="submit_btn_txt">{% trans 'Save' %}</span>
+        <button type="submit" class="btn btn-danger">
+            <span class="submit_btn_txt">{% trans 'Delete' %}</span>
             <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
         </button>
       </div>

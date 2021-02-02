@@ -58,8 +58,8 @@
             </li>
         </ul>
         <div>
-            <a class="btn {{THEME.NAV.BTN_LIGHT}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
-                {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {{ user.username }}
+            <a class="btn {{THEME.NAV.BTN_LIGHT}}" href="{% url 'password_change_done' %}" title="{% trans 'Account' %}" role="button">
+                {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {{ request.user.username }}
             </a>
             <a class="btn {{THEME.NAV.BTN_LIGHT}}" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
                 {% autoescape off %}{{THEME.ICONS.SIGNOUT}}{% endautoescape %}

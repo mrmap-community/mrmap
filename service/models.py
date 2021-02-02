@@ -1956,6 +1956,7 @@ class Metadata(Resource):
         Returns:
 
         """
+        # todo: use django signals to call inform_subscriptor
         from users.models import Subscription
         subscriptions = Subscription.objects.filter(
             metadata=self

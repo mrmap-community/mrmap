@@ -1,12 +1,76 @@
+import uuid
+from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
-from django.urls import reverse_lazy
-from django.views.generic import UpdateView, DetailView
-from django.views.generic.edit import FormMixin
+from django.template.loader import render_to_string
+from django.test import RequestFactory
+from django.urls import reverse_lazy, resolve, reverse
+from django.views import View
+from django.views.generic import UpdateView, DetailView, TemplateView
+from django.views.generic.edit import FormMixin, FormView
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum, ButtonColorEnum
-
 from MrMap.forms import ConfirmForm
 from MrMap.responses import DefaultContext
+from MrMap.wizards import get_class
+
+
+class ModalFormMixin(FormView):
+    template_name = "generic_views/generic_modal.html"
+    fade = True
+    show = True
+    size = 'modal-lg'
+    id = "id_" + str(uuid.uuid4())
+    action_url = ""
+    current_view_arg = None
+    current_view = None
+    # Todo: move this to settings.py
+    current_view_queryparam = 'current-view'
+    current_view_arg_queryparam = 'current-view-arg'
+    current_view_url = ""
+
+    def prepare_query_params(self):
+        query_params = f"?{self.current_view_queryparam}={self.current_view}"
+        if self.current_view_arg:
+            query_params += f"&{self.current_view_arg_queryparam}={self.current_view_arg}"
+        return query_params
+
+    def dispatch(self, request, *args, **kwargs):
+        self.current_view = request.GET.get(self.current_view_queryparam, None)
+        if not self.current_view:
+            raise ImproperlyConfigured(f"query param '{self.current_view_queryparam}' "
+                                       f"was not found in the url query parameters")
+        self.current_view_arg = request.GET.get(self.current_view_arg_queryparam, None)
+
+        if self.current_view_arg:
+            self.current_view_url = reverse(f"{self.current_view}", args=[self.current_view_arg, ])
+        else:
+            self.current_view_url = reverse(f"{self.current_view}", )
+
+        self.action_url += self.prepare_query_params()
+        self.success_url = self.current_view_url
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(self.__dict__)
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        rendered_modal = render_to_string(template_name=self.template_name,
+                                          context=context,
+                                          request=self.request)
+        resolver_match = resolve(self.current_view_url)
+        # todo: catch simple non class based views
+        func = resolver_match.func
+        module = func.__module__
+        view_name = func.__name__
+        clss = get_class('{0}.{1}'.format(module, view_name))
+
+        factory = RequestFactory()
+        request = factory.get(self.current_view_url)
+        request.user = self.request.user
+
+        return clss.as_view(extra_context={'rendered_modal': rendered_modal})(request=request)
 
 
 class GenericUpdateView(UpdateView):

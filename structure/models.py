@@ -271,6 +271,9 @@ class MrMapUser(AbstractUser):
     def __str__(self):
         return self.username
 
+    def get_absolute_url(self):
+        return reverse('password_change_done')
+
     def get_services(self, type: OGCServiceEnum = None):
         """ Returns all services which are related to the user
 

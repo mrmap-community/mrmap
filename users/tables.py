@@ -1,6 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 from django.utils.html import format_html
+from django_bootstrap_swt.utils import RenderHelper
+from django_tables2 import tables
+
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
@@ -12,7 +15,38 @@ from structure.permissionEnums import PermissionEnum
 from users.models import Subscription
 
 
-class SubscriptionTable(MrMapTable):
+class SubscriptionTable(tables.Table):
+    bs4helper = None
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions to perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
+    class Meta:
+        model = Subscription
+        fields = ('metadata',
+                  'notify_on_update',
+                  'notify_on_metadata_edit',
+                  'notify_on_access_edit',
+                  'health')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'subscription-table'
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
+    def render_actions(self, record):
+        self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
+        self.render_helper.update_attrs = None
+        return format_html(renderd_actions)
+
+
+class SubscriptionTable_OLD(MrMapTable):
     caption = _("Shows your subscripted services.")
 
     subscribed_services = MrMapColumn(

@@ -45,6 +45,7 @@ class DefaultContext:
         self.context = {
             "ROOT_URL": ROOT_URL,
             "PATH": request.path.split("/")[1],
+            "FULL_PATH": request.path,
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
             "user_permissions": permissions,  #user_helper.get_permissions(user)
             "user": user,

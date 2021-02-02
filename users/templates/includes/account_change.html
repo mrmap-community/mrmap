@@ -9,10 +9,10 @@
 {% endblock %}
 {% block card-body %}
 <div class="list-group">
-    <a href="{% url 'password-change' %}?current-view={{current_view}}" class="list-group-item list-group-item-action">
+    <a href="{% url 'password_change' %}" class="list-group-item list-group-item-action">
         {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Change password' %}
     </a>
-    <a href="{% url 'account-edit' %}?current-view={{current_view}}" class="list-group-item list-group-item-action">
+    <a href="{% url 'account-edit' %}" class="list-group-item list-group-item-action">
         {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit account information' %}
     </a>
     <a href="{% url 'subscription-index' %}" class="list-group-item list-group-item-action">

@@ -30,7 +30,7 @@ class MrMapWizard(SessionWizardView, ABC):
     ignore_uncomitted_forms = False
     instance_id = None
     title = _('Wizard')
-    id_wizard = None
+    id_wizard = "id_" + str(uuid.uuid4())
     required_forms = None
     action_url = ""
     current_view_arg = None
@@ -39,10 +39,6 @@ class MrMapWizard(SessionWizardView, ABC):
     current_view_queryparam = 'current-view'
     current_view_arg_queryparam = 'current-view-arg'
     current_view_url = ""
-
-    def __init__(self, *args, **kwargs):
-        super(MrMapWizard, self).__init__(*args, **kwargs)
-        self.id_wizard = "id_" + str(uuid.uuid4())
 
     def dispatch(self, request, *args, **kwargs):
         self.current_view = request.GET.get(self.current_view_queryparam, None)

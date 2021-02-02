@@ -9,7 +9,8 @@ from dal import autocomplete
 from django import forms
 from django.contrib.auth import login
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import HiddenInput
+from django.forms import HiddenInput, Select
+from django.forms.widgets import Input
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
@@ -114,6 +115,7 @@ class SubscriptionForm(forms.ModelForm):
         widgets = {
             'metadata': autocomplete.ModelSelect2(
                             url='editor:service-autocomplete',
+
                         ),
             'user': HiddenInput(),
         }
@@ -122,87 +124,4 @@ class SubscriptionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if kwargs.get('instance', None):
             # it' a update of an existing subscription. For that we set the metadata field to readonly.
-            self.fields['metadata'].widget.attrs = {'disabled': True}
-
-
-class SubscriptionForm_OLD(MrMapModelForm):
-    metadata = forms.ModelChoiceField(
-        label=_("Service"),
-        help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),
-        queryset=Metadata.objects.filter(
-            metadata_type=MetadataEnum.SERVICE.value,
-            is_active=True,
-        ),
-        widget=autocomplete.ModelSelect2(
-            url='editor:service-autocomplete',
-        ),
-    )
-
-    class Meta:
-        model = Subscription
-        fields = [
-            "metadata",
-            "notify_on_update",
-            "notify_on_metadata_edit",
-            "notify_on_access_edit",
-        ]
-        help_texts = {
-            "notify_on_update": _("Sends an e-mai if the service has been updated."),
-            "notify_on_access_edit": _("Sends an e-mai if the service's access has been changed."),
-            "notify_on_metadata_edit": _("Sends an e-mai if the service's metadata has been changed."),
-        }
-        labels = {
-            "notify_on_update": _("Notify on update"),
-            "notify_on_access_edit": _("Notify on access changes"),
-            "notify_on_metadata_edit": _("Notify on metadata changes"),
-        }
-
-    def __init__(self, is_edit: bool = False, *args, **kwargs):
-        from service.helper.enums import MetadataRelationEnum
-
-        super().__init__(*args, **kwargs)
-
-        if is_edit:
-            # Prevent user from changing the subscribed metadata itself
-            self.fields['metadata'].disabled = True
-        self.fields['metadata'].queryset = self.fields['metadata'].queryset.exclude(
-            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-        )
-
-    def process_new_subscription(self):
-        subscription = self.save(commit=False)
-        subscription.user = self.requesting_user
-        # Check if the service is already subscribed by user
-        sub_already_exists = Subscription.objects.filter(
-            user=self.requesting_user,
-            metadata=subscription.metadata,
-        ).exists()
-        if sub_already_exists:
-            messages.info(self.request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(subscription.metadata.title))
-            del subscription
-        else:
-            subscription.save()
-            messages.success(self.request, SUBSCRIPTION_EDITING_SUCCESSFULL)
-
-    def process_edit_subscription(self):
-        # Make sure the related metadata has not been changed
-        form_subscription = self.save(commit=False)
-        if form_subscription.metadata != self.instance.metadata:
-            messages.error(self.request, SUBSCRIPTION_EDITING_UNSUCCESSFULL)
-        else:
-            form_subscription.save()
-            messages.success(self.request, SUBSCRIPTION_EDITING_SUCCESSFULL)
-
-
-class SubscriptionRemoveForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super().__init__(is_confirmed_label=_('Do you realy want to remove this subscription?'), *args, **kwargs)
-
-    def process_remove_subscription(self):
-        subscription_title = self.instance.metadata.title
-        try:
-            self.instance.delete()
-            messages.success(self.request, SUBSCRIPTION_REMOVED_TEMPLATE.format(subscription_title))
-        except ObjectDoesNotExist:
-            messages.error(self.request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+            self.fields['metadata'].widget = HiddenInput()

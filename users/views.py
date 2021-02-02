@@ -7,42 +7,35 @@ Created on: 28.05.19
 """
 
 import os
-import uuid
 from collections import OrderedDict
 from random import random
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
-from django.template.loader import render_to_string
-from django.urls import reverse_lazy, get_resolver, resolve, Resolver404
+from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _, gettext_lazy, gettext
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _, gettext
 from django.views.generic import DetailView, ListView
-from django.views.generic.edit import FormMixin, FormView, UpdateView, CreateView, DeleteView
+from django.views.generic.edit import UpdateView, CreateView, DeleteView
 from django_bootstrap_swt.components import Tag
 from django_tables2 import SingleTableMixin
-
-from MrMap.decorators import ownership_required
 from MrMap.icons import IconEnum
-from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
-    RESOURCE_NOT_FOUND_OR_NOT_OWNER
+from MrMap.messages import ACTIVATION_LINK_INVALID, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from MrMap.views import ModalFormMixin
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
-from service.views import default_dispatch
 from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, MrMapGroup, \
     PublishRequest, GroupInvitationRequest
-from users.forms import PasswordResetForm, UserForm, SubscriptionForm, SubscriptionRemoveForm
+from users.forms import PasswordResetForm, SubscriptionForm
 from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
@@ -352,14 +345,6 @@ class AddSubscriptionView(CreateView):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Add subscription')})
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
-        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
-        breadcrumb_config['subscriptions'] = {'is_representative': True,
-                                              'current_path': '/accounts/profile/subscriptions'}
-        breadcrumb_config['add'] = {'is_representative': True,
-                                              'current_path': '/accounts/profile/subscriptions/add'}
-        context.update({'breadcrumb_config': breadcrumb_config})
         return context
 
 
@@ -372,15 +357,7 @@ class UpdateSubscriptionView(UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
-        context.update({'title': _('Update subscription')})
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
-        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
-        breadcrumb_config['subscriptions'] = {'is_representative': True,
-                                              'current_path': '/accounts/profile/subscriptions'}
-        breadcrumb_config[str(self.object.id)] = {'is_representative': False, 'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}'}
-        breadcrumb_config['edit'] = {'is_representative': True, 'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}/edit'}
-        context.update({'breadcrumb_config': breadcrumb_config})
+        context.update({'title': format_html(_(f'Update subscription for <strong>{self.object.metadata}</strong>'))})
         return context
 
 
@@ -394,17 +371,4 @@ class DeleteSubscriptionView(DeleteView):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Delete subscription')})
-
-
-
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
-        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
-        breadcrumb_config['subscriptions'] = {'is_representative': True,
-                                              'current_path': '/accounts/profile/subscriptions'}
-        breadcrumb_config[str(self.object.id)] = {'is_representative': False,
-                                                  'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}'}
-        breadcrumb_config['delete'] = {'is_representative': True,
-                                     'current_path': f'/accounts/profile/subscriptions/{str(self.object.id)}/delete'}
-        context.update({'breadcrumb_config': breadcrumb_config})
         return context

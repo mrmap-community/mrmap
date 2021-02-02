@@ -20,8 +20,7 @@ urlpatterns = [
          PasswordResetConfirmView.as_view(template_name='users/views/logged_out/password_reset_or_confirm.html'),
          name='password_reset_confirm'),
     path('accounts/signup', SignUpView.as_view(), name='signup'),
-    # todo: refactor as class based view
-    path('activate/<activation_hash>', activate_user, name='activate-user'),
+    path('accounts/activate/<pk>', ActivateUser.as_view(), name='activate-user'),
 
     # user specific views of his profile
     path('accounts/profile', ProfileView.as_view(), name="profile"),

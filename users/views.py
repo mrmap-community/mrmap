@@ -12,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse_lazy
@@ -167,48 +168,32 @@ class EditProfileView(SuccessMessageMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit profile')})
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
-        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
-        breadcrumb_config['edit'] = {'is_representative': True, 'current_path': '/accounts/profile/edit'}
-        context.update({'breadcrumb_config': breadcrumb_config})
         return context
 
 
-def activate_user(request: HttpRequest, activation_hash: str):
-    """ Checks the activation hash and activates the user's account if possible
+class ActivateUser(DetailView):
+    template_name = "views/user_activation.html"
+    model = UserActivation
 
-    Args:
-        request (HttpRequest): The incoming request
-        activation_hash (str): The activation hash from the url
-    Returns:
-         A rendered view
-    """
-    template = "views/user_activation.html"
+    @transaction.atomic
+    def dispatch(self, request, *args, **kwargs):
+        if self.object.activation_until < timezone.now():
+            # The activation was confirmed too late!
+            messages.add_message(request, messages.ERROR, ACTIVATION_LINK_EXPIRED)
+            # Remove the inactive user object
+            self.object.user_activation.user.delete()
+            return redirect("login")
 
-    try:
-        user_activation = UserActivation.objects.get(activation_hash=activation_hash)
-    except ObjectDoesNotExist:
-        messages.add_message(request, messages.ERROR, ACTIVATION_LINK_INVALID)
-        return redirect("login")
+        self.object.user.is_active = True
+        self.object.user.save()
+        self.object.delete()
+        return super().dispatch(request=request, *args, **kwargs)
 
-    activation_until = user_activation.activation_until
-    if activation_until < timezone.now():
-        # The activation was confirmed too late!
-        messages.add_message(request, messages.ERROR, ACTIVATION_LINK_EXPIRED)
-        # Remove the inactive user object
-        user_activation.user.delete()
-        return redirect("login")
-
-    user = user_activation.user
-    user.is_active = True
-    user.save()
-    user_activation.delete()
-    params = {
-        "user": user,
-    }
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'user': self.object.user})
+        return context
 
 
 class SignUpView(SuccessMessageMixin, CreateView):

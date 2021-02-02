@@ -113,11 +113,12 @@ class MrMapUserAdmin(UserAdmin):
 
 
 class UserActivationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'activation_until']
+    list_display = ['user', 'activation_until']
 
 
 class PublishRequestAdmin(admin.ModelAdmin):
     list_display = ['group', 'organization', 'activation_until', 'created_by']
+
 
 class GroupInvitationAdmin(admin.ModelAdmin):
     list_display = ['invited_user', 'to_group', 'activation_until', 'created_by']

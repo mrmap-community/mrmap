@@ -20,7 +20,7 @@ from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
 from django.template.loader import render_to_string
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, get_resolver, resolve, Resolver404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _, gettext_lazy, gettext
@@ -329,11 +329,6 @@ class SubscriptionTableView(SingleTableMixin, ListView):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit profile')})
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = {'is_representative': False, 'current_path': '/accounts'}
-        breadcrumb_config['profile'] = {'is_representative': True, 'current_path': '/accounts/profile'}
-        breadcrumb_config['subscriptions'] = {'is_representative': True, 'current_path': '/accounts/profile/subscriptions'}
-        context.update({'breadcrumb_config': breadcrumb_config})
         return context
 
     def dispatch(self, request, *args, **kwargs):

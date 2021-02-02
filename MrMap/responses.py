@@ -5,7 +5,10 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.04.19
 
 """
+from collections import OrderedDict
+
 from django.http import JsonResponse, HttpRequest
+from django.urls import resolve, Resolver404
 
 from MrMap.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
 from structure.models import MrMapUser
@@ -23,24 +26,18 @@ class DefaultContext:
         else:
             permissions = []
 
-        breadcrumb = []
-        breadcrumb_items = request.path.split("/")
-        breadcrumb_items.pop(0)   # pop the first / item
+        path_items = request.path.split("/")
+        path_items.pop(0)
+        path_tmp = ""
 
-        index = 0
-        while index < len(breadcrumb_items):
-            item = {'item': breadcrumb_items[index]}
-            if index != 0:
-                path = breadcrumb[index-1]["path"] + '/' + breadcrumb_items[index]
-                item.update({'path': path})
-            else:
-                item.update({'path': breadcrumb_items[index]})
-
-            if index == len(breadcrumb_items)-1:
-                item.update({'is_last': True})
-
-            breadcrumb.append(item)
-            index += 1
+        breadcrumb_config = OrderedDict()
+        for path_item in path_items:
+            path_tmp += "/" + path_item
+            try:
+                resolve(path_tmp)
+                breadcrumb_config[path_item] = {'is_representative': True, 'current_path': path_tmp}
+            except Resolver404:
+                breadcrumb_config[path_item] = {'is_representative': False, 'current_path': path_tmp}
 
         self.context = {
             "ROOT_URL": ROOT_URL,
@@ -52,7 +49,7 @@ class DefaultContext:
             "GIT_REPO_URI": GIT_REPO_URI,
             "GIT_GRAPH_URI": GIT_GRAPH_URI,
             "THEME": get_theme(user),
-            "BREADCRUMB": breadcrumb,
+            "BREADCRUMB_CONFIG": breadcrumb_config,
         }
         self.add_context(context)
 

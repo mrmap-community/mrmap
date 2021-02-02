@@ -1,13 +1,13 @@
 {% comment %}
-we use BREADCRUMB from the DefaultContext class; see response.py
+we use BREADCRUMB_CONFIG from the DefaultContext class; see response.py
 for right usage:
 Use this sceleton only on detail views. The two last items of the breadcrum are disabled.
 {% endcomment %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
-      {% for crumb, values in breadcrumb_config.items %}
+      {% for crumb, values in BREADCRUMB_CONFIG.items %}
         <li class="breadcrumb-item {% if forloop.last or not values.is_representative %}active{% endif %}" {% if forloop.last %}aria-current="page"{% endif %}>
-            {% if not forloop.last and values.is_representative %}
+            {% if values.is_representative %}
                 <a href="{{values.current_path}}">
                     {{crumb}}
                 </a>

@@ -272,49 +272,6 @@ class OrganizationForm(MrMapModelForm):
             messages.success(self.request, message=_('Group {} successfully created.'.format(org_group.name)))
 
 
-class RemoveGroupForm(MrMapConfirmForm):
-
-    def __init__(self, instance=None, *args, **kwargs):
-        self.instance = instance
-        super(RemoveGroupForm, self).__init__(*args, **kwargs)
-
-    def clean(self):
-        cleaned_data = super(RemoveGroupForm, self).clean()
-        if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
-            self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
-        return cleaned_data
-
-    def process_remove_group(self):
-        group_name = self.instance.name
-        # clean subgroups from parent
-        sub_groups = MrMapGroup.objects.filter(
-            parent_group=self.instance
-        )
-        for sub in sub_groups:
-            sub.parent = None
-            sub.save()
-        # remove group and all of the related content
-        self.instance.delete()
-        messages.success(self.request, message=GROUP_SUCCESSFULLY_DELETED.format(group_name))
-
-
-class LeaveGroupForm(MrMapConfirmForm):
-    def __init__(self, instance=None, *args, **kwargs):
-        self.instance = instance
-        super().__init__(*args, **kwargs)
-
-    def process_leave_group(self):
-        if self.instance.is_public_group:
-            messages.error(self.request, _("You can't leave this group."))
-        else:
-            user = user_helper.get_user(self.request)
-            self.instance.user_set.remove(user)
-            messages.success(
-                self.request,
-                _("You left group {}").format(self.instance.name)
-            )
-
-
 class RemoveOrganizationForm(MrMapConfirmForm):
     def __init__(self, instance=None, *args, **kwargs):
         self.instance = instance

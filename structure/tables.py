@@ -176,7 +176,7 @@ class GroupTable(tables.Table):
 
     def render_actions(self, record):
         self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions(self.request.user))
         self.render_helper.update_attrs = None
         return format_html(renderd_actions)
 

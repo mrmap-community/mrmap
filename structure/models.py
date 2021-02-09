@@ -279,9 +279,9 @@ class MrMapGroup(Group):
     def leave_view_uri(self):
         return reverse('structure:leave-group', args=[self.pk, ])
 
-    def get_actions(self):
+    def get_actions(self, user):
         actions = []
-        if not self.is_public_group:
+        if not self.is_public_group and user in self.user_set.all():
             actions.append(LinkButton(url=self.leave_view_uri,
                                       content=Tag(tag='i', attrs={"class": [IconEnum.SIGNOUT.value]}).render(),
                                       color=ButtonColorEnum.WARNING,

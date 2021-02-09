@@ -22,12 +22,13 @@ from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
     GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
 from MrMap.responses import DefaultContext
+from MrMap.views import ConfirmView
 from service.views import default_dispatch
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
-from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
+from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, \
     RemoveOrganizationForm, RemovePublisherForm, GroupInvitationForm, \
-    GroupInvitationConfirmForm, LeaveGroupForm, PublishRequestConfirmForm
+    GroupInvitationConfirmForm, PublishRequestConfirmForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable
@@ -131,6 +132,10 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
     model = MrMapGroup
     table_class = GroupTable
     filterset_class = GroupFilter
+    is_public_group = Q(is_public_group=True)
+    is_no_permission_group = Q(is_permission_group=False)
+    queryset = MrMapGroup.objects.filter(is_no_permission_group | is_public_group).\
+        order_by(Case(When(name='Public', then=0)), 'name')
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
@@ -146,8 +151,7 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
         default_dispatch(instance=self)
         return super(MrMapGroupTableView, self).dispatch(request, *args, **kwargs)
 
-    def get_queryset(self):
-        return self.request.user.get_groups().order_by(Case(When(name='Public', then=0)), 'name')
+
 
 
 
@@ -642,6 +646,7 @@ class EditGroupView(SuccessMessageMixin, UpdateView):
     success_message = _('Group successfully edited.')
     model = MrMapGroup
     form_class = GroupForm
+    queryset = MrMapGroup.objects.filter(is_permission_group=False)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -655,29 +660,29 @@ class EditGroupView(SuccessMessageMixin, UpdateView):
         return context
 
 
-@login_required
-def leave_group(request: HttpRequest, object_id: str):
-    """ Removes a user from a group
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value), name='dispatch')
+@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
+class LeaveGroupView(SuccessMessageMixin, ConfirmView):
+    template_name = 'structure/views/groups/leave.html'
+    success_message = _('Group successfully left.')
+    model = MrMapGroup
+    queryset = MrMapGroup.objects.filter(is_public_group=False)
 
-    Args:
-        request: The incoming request
-        object_id: The id of the group
-    Returns:
-         A redirect
-    """
-    group = get_object_or_404(MrMapGroup, id=object_id)
-    form = LeaveGroupForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:leave-group',
-        reverse_args=[object_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        is_confirmed_label=_l("Do you really want to leave this group?"),
-        form_title=_l("Leave group <strong>{}</strong>").format(group),
-        instance=group,
-    )
-    return form.process_request(valid_func=form.process_leave_group)
+    def form_valid(self, form):
+        self.object.user_set.remove(self.request.user)
+        return super().form_valid(form=form)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"is_confirmed_label": _("Do you really want to leave the group?")})
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Leave group')})
+        return context
 
 
 def handler404(request: HttpRequest, exception=None):

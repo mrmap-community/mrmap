@@ -17,9 +17,7 @@ urlpatterns = [
     path('groups/<pk>/members', MrMapGroupMembersTableView.as_view(), name='detail-group-members'),
     path('groups/<pk>/edit', EditGroupView.as_view(), name='edit-group'),
     path('groups/<pk>/remove', DeleteMrMapGroupView.as_view(), name='delete-group'),
-
-
-    path('groups/<object_id>/leave', leave_group, name='leave-group'),
+    path('groups/<pk>/leave', LeaveGroupView.as_view(), name='leave-group'),
 
 
 

@@ -55,7 +55,7 @@ class GroupForm(ModelForm):
 
         super(GroupForm, self).__init__(*args, **kwargs)
 
-        if 'instance' in kwargs:
+        if kwargs.get('instance', None):
             groups = self.request.user.get_groups()
             instance = kwargs.get('instance')
             exclusions = [instance]

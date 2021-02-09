@@ -10,7 +10,7 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django.views.generic import DeleteView, DetailView, UpdateView, ListView
+from django.views.generic import DeleteView, DetailView, UpdateView, ListView, CreateView
 from django.views.generic.detail import SingleObjectMixin
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
@@ -20,7 +20,7 @@ from django_tables2 import SingleTableMixin
 from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
-    GROUP_SUCCESSFULLY_DELETED
+    GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
 from MrMap.responses import DefaultContext
 from service.views import default_dispatch
 from structure.filters import GroupFilter, OrganizationFilter
@@ -538,24 +538,29 @@ def publish_request(request: HttpRequest, org_id: int):
     return form.process_request(valid_func=form.process_new_publisher_request)
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_CREATE_GROUP.value)
-def new_group(request: HttpRequest):
-    """ Renders the new group form and saves the input
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_GROUP.value), name='dispatch')
+class NewMrMapGroup(SuccessMessageMixin, CreateView):
+    model = MrMapGroup
+    form_class = GroupForm
+    template_name = 'structure/views/groups/new.html'
 
-    Args:
-        request: The incoming request
-    Returns:
-         A view
-    """
-    form = GroupForm(data=request.POST or None,
-                     request=request,
-                     reverse_lookup='structure:new-group',
-                     # ToDo: after refactoring of all forms is done, show_modal can be removed
-                     show_modal=True,
-                     form_title=_l(f"Add new group"), )
+    def get_success_message(self, cleaned_data):
+        return GROUP_SUCCESSFULLY_CREATED.format(self.object)
 
-    return form.process_request(valid_func=form.process_new_group)
+    def get_success_url(self):
+        return self.object.detail_view_uri
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('New group')})
+        return context
 
 
 @login_required

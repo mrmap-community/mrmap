@@ -244,6 +244,11 @@ class MrMapGroup(Group):
         if is_new:
             self.user_set.add(user)
 
+    def delete(self, using=None, keep_parents=False, force=False):
+        if (self.is_permission_group or self.is_public_group) and not force:
+            raise ValidationError(_("Group {} is an important main group and therefore can not be removed.").format(_(self.name)))
+        return super().delete(using=using, keep_parents=keep_parents)
+
     def get_absolute_url(self):
         return self.detail_view_uri
 

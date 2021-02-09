@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Case, When
+from django.db.models import Case, When, Q
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -19,7 +19,8 @@ from django_tables2 import SingleTableMixin
 
 from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
-from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER
+from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
+    GROUP_SUCCESSFULLY_DELETED
 from MrMap.responses import DefaultContext
 from service.views import default_dispatch
 from structure.filters import GroupFilter, OrganizationFilter
@@ -611,37 +612,21 @@ def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
     return redirect("structure:detail-group", object_id)
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_DELETE_GROUP.value)
-@ownership_required(MrMapGroup, 'object_id')
-def remove_group(request: HttpRequest, object_id: int):
-    """ Renders the remove form for a group
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value), name='dispatch')
+@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
+class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
+    model = MrMapGroup
+    template_name = "structure/views/groups/delete.html"
+    success_url = reverse_lazy('structure:index')
+    success_message = GROUP_SUCCESSFULLY_DELETED
+    queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
 
-    Args:
-        request(HttpRequest): The used request
-        object_id:
-    Returns:
-        A rendered view
-    """
-    group = get_object_or_404(MrMapGroup, id=object_id)
-
-    if group.is_permission_group or group.is_public_group:
-        messages.error(
-            request,
-            _l("Group {} is an important main group and therefore can not be removed.").format(_l(group.name)),
-        )
-        return redirect("structure:index")
-
-    form = RemoveGroupForm(data=request.POST or None,
-                           request=request,
-                           reverse_lookup='structure:delete-group',
-                           reverse_args=[object_id, ],
-                           # ToDo: after refactoring of all forms is done, show_modal can be removed
-                           show_modal=True,
-                           is_confirmed_label=_l("Do you really want to remove this group?"),
-                           form_title=_l(f"Remove group <strong>{group}</strong>"),
-                           instance=group,)
-    return form.process_request(valid_func=form.process_remove_group)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Delete group')})
+        return context
 
 
 @method_decorator(login_required, name='dispatch')

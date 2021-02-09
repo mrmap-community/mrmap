@@ -15,10 +15,11 @@ urlpatterns = [
     path('groups/<pk>', MrMapGroupDetailView.as_view(), name='detail-group'),
     path('groups/<pk>/members', MrMapGroupMembersTableView.as_view(), name='detail-group-members'),
     path('groups/<pk>/edit', EditGroupView.as_view(), name='edit-group'),
+    path('groups/<pk>/remove', DeleteMrMapGroupView.as_view(), name='delete-group'),
 
 
     path('groups/<object_id>/leave', leave_group, name='leave-group'),
-    path('groups/<object_id>/remove', remove_group, name='delete-group'),
+
     path('groups/new', new_group, name='new-group'),
 
     path('groups/<group_id>/publishers', list_publisher_group, name='publisher-group'),

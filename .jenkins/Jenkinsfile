@@ -1,20 +1,16 @@
 pipeline {
-    agent any
-
+    agent { docker { image 'python:3.7.0' } }
     stages {
-        stage('Build') {
-            steps {
-                echo 'Building..'
-            }
-        }
         stage('Test') {
             steps {
-                echo 'Testing..'
+                echo 'Running Unit-Tests..'
+                sh 'python --version'
+                sh 'python manage.py test --where "tests/unit_tests/"'
             }
         }
-        stage('Deploy') {
+        stage('Analysis') {
             steps {
-                echo 'Deploying....'
+                echo 'Analysing....'
             }
         }
     }

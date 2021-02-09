@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
-from django_bootstrap_swt.components import Link
+from django_bootstrap_swt.components import Link, Tag
 from django_bootstrap_swt.utils import RenderHelper
 
 from MrMap.columns import MrMapColumn
@@ -164,7 +164,7 @@ class GroupTable(tables.Table):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
     def render_name(self, record, value):
-        content = IconEnum.PUBLIC.value + ' ' + value if record.is_public_group else value
+        content = Tag(tag='i', attrs={"class": [IconEnum.PUBLIC.value]}) + ' ' + value if record.is_public_group else value
         return Link(url=record.detail_view_uri,
                     content=content,
                     tooltip=_('Click to open the detail view of <strong>{}</strong>').format(value)).render(safe=True)

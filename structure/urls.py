@@ -10,6 +10,7 @@ urlpatterns = [
 
     path('report/error/<report_id>', generate_error_report, name='generate-error-report'),
 
+    # MrMapGroup
     path('groups/', MrMapGroupTableView.as_view(), name='groups-index'),
     path('groups/detail/<object_id>', detail_group, name='detail-group'),
     path('groups/edit/<object_id>', edit_group, name='edit-group'),

@@ -640,6 +640,7 @@ class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value), name='dispatch')
+# todo: redirecting hell by ownership_required -_-
 @method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
 class EditGroupView(SuccessMessageMixin, UpdateView):
     template_name = 'structure/views/groups/edit.html'
@@ -647,6 +648,7 @@ class EditGroupView(SuccessMessageMixin, UpdateView):
     model = MrMapGroup
     form_class = GroupForm
     queryset = MrMapGroup.objects.filter(is_permission_group=False)
+
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

@@ -1,5 +1,6 @@
 import uuid
 from django.contrib.auth.models import AbstractUser, Group
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.urls import reverse
@@ -12,6 +13,7 @@ from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum
 
 from MrMap.icons import IconEnum
+from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
@@ -223,12 +225,27 @@ class MrMapGroup(Group):
         return self.name
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+             update_fields=None, user=None):
+        # todo: check if this could be done with the default attribute of the role field
         from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
         if self.role is None:
             default_role = Role.objects.get(name=DEFAULT_ROLE_NAME)
             self.role = default_role
+
+        is_new = False
+        if self._state.adding:
+            is_new = True
+            if user:
+                self.created_by = user
+            else:
+                raise ValidationError('user must be passed to this save function for new instances')
+
         super().save(force_insert, force_update, using, update_fields)
+        if is_new:
+            self.user_set.add(user)
+
+    def get_absolute_url(self):
+        return self.detail_view_uri
 
     @classmethod
     def get_add_group_action(cls):

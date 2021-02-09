@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
-from django_bootstrap_swt.components import Link, Tag
+from django_bootstrap_swt.components import Link, Tag, Badge
 from django_bootstrap_swt.utils import RenderHelper
 
 from MrMap.columns import MrMapColumn
@@ -179,6 +179,52 @@ class GroupTable(tables.Table):
         renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
         self.render_helper.update_attrs = None
         return format_html(renderd_actions)
+
+
+class GroupDetailTable(tables.Table):
+    inherited_permissions = tables.Column(verbose_name=_('Inherited Permissions'))
+
+    class Meta:
+        model = MrMapGroup
+        fields = ('name', 'description', 'organization', 'permissions', 'inherited_permissions')
+        template_name = "skeletons/django_tables2_vertical_table.html"
+        # todo: set this prefix dynamic
+        prefix = 'mrmapgroup-detail-table'
+        orderable = False
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
+    def render_permissions(self, record):
+        perms = []
+        for perm in self.request.user.get_permissions(record):
+            perms.append(Badge(content=perm if perm else _('None'), pill=True))
+
+        self.render_helper.update_attrs = {"class": ["mr-1"]}
+        renderd_perms = self.render_helper.render_list_coherent(items=perms)
+        self.render_helper.update_attrs = None
+        return format_html(renderd_perms)
+
+    def render_inherited_permissions(self, record):
+        inherited_permission = []
+        parent = record.parent_group
+        while parent is not None:
+            permissions = self.request.user.get_permissions(parent)
+            perm_dict = {
+                "group": parent,
+                "permissions": permissions,
+            }
+            inherited_permission.append(perm_dict)
+            parent = parent.parent_group
+
+        perms = []
+        for perm in inherited_permission:
+            perms.append(Badge(content=perm if perm else _('None'), pill=True))
+
+        self.render_helper.update_attrs = {"class": ["mr-1"]}
+        renderd_perms = self.render_helper.render_list_coherent(items=perms)
+        self.render_helper.update_attrs = None
+        return format_html(renderd_perms)
 
 
 class OrganizationTable(MrMapTable):

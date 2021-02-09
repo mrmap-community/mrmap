@@ -1,14 +1,16 @@
 import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django.views.generic import DeleteView
+from django.views.generic import DeleteView, DetailView, UpdateView
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
@@ -26,7 +28,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
     GroupInvitationConfirmForm, LeaveGroupForm, PublishRequestConfirmForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
-from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable
+from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable
 from django.urls import reverse, reverse_lazy
 
 from users.filters import MrMapUserFilter
@@ -253,6 +255,33 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
                   context=context.get_context(),
                   status=200 if status_code is None else status_code)
 
+
+@method_decorator(login_required, name='dispatch')
+#@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class MrMapGroupDetailView(DetailView):
+    model = MrMapGroup
+    template_name = 'structure/views/groups/details.html'
+    queryset = MrMapGroup.objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Details')})
+
+        details_table = GroupDetailTable(data=[self.object, ],
+                                         request=self.request)
+        context.update({'details_table': details_table})
+
+        return context
+    """
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        detail_table = GroupDetailTable(data=[self.object, ], request=self.request, )
+        details = render_to_string(template_name='skeletons/django_tables2_render_table.html',
+                                   context={'table': detail_table})
+        context.update({'card_body': details})
+        return context
+    """
 
 @login_required
 @ownership_required(MrMapGroup, 'object_id')
@@ -589,28 +618,25 @@ def remove_group(request: HttpRequest, object_id: int):
     return form.process_request(valid_func=form.process_remove_group)
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_GROUP.value)
-@ownership_required(MrMapGroup, 'object_id')
-def edit_group(request: HttpRequest, object_id: int):
-    """ The edit view for changing group values
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value), name='dispatch')
+@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
+class EditGroupView(SuccessMessageMixin, UpdateView):
+    template_name = 'structure/views/groups/edit.html'
+    success_message = _('Group successfully edited.')
+    model = MrMapGroup
+    form_class = GroupForm
 
-    Args:
-        request:
-        group_id:
-    Returns:
-         A View
-    """
-    group = get_object_or_404(MrMapGroup, id=object_id)
-    form = GroupForm(data=request.POST or None,
-                     request=request,
-                     reverse_lookup='structure:edit-group',
-                     reverse_args=[object_id, ],
-                     # ToDo: after refactoring of all forms is done, show_modal can be removed
-                     show_modal=True,
-                     form_title=_l(f"Edit group <strong>{group}</strong>"),
-                     instance=group,)
-    return form.process_request(valid_func=form.process_edit_group)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Edit group')})
+        return context
 
 
 @login_required

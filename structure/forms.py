@@ -5,6 +5,7 @@ from django import forms
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import transaction
+from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
@@ -27,11 +28,7 @@ from users.helper import user_helper
 from users.helper.user_helper import create_group_activity
 
 
-class GroupForm(MrMapModelForm):
-    description = forms.CharField(
-        label=_("Description"),
-        widget=forms.Textarea(),
-        required=False, )
+class GroupForm(ModelForm):
     parent_group = forms.ModelChoiceField(
         label=_("Parent group"),
         queryset=MrMapGroup.objects.filter(
@@ -49,16 +46,17 @@ class GroupForm(MrMapModelForm):
             "parent_group",
             "organization",
         ]
-        labels = {
-        }
-        help_text = {
+        widgets = {
+            "description": forms.Textarea()
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, request, *args, **kwargs):
+        self.request = request
+
         super(GroupForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
-            groups = self.requesting_user.get_groups()
+            groups = self.request.user.get_groups()
             instance = kwargs.get('instance')
             exclusions = [instance]
             for group in groups:
@@ -73,38 +71,27 @@ class GroupForm(MrMapModelForm):
     def clean(self):
         cleaned_data = super(GroupForm, self).clean()
 
-        if self.instance.created_by_id is not None and self.instance.created_by != self.requesting_user:
+        if self.instance.created_by_id is not None and self.instance.created_by != self.request.user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
 
         parent_group = None if 'parent_group' not in cleaned_data else cleaned_data['parent_group']
 
         if parent_group is not None:
             if self.instance == parent_group:
-                self.add_error('parent_group', "Circular configuration of parent groups detected.")
+                self.add_error('parent_group', _("Circular configuration of parent groups detected."))
             else:
                 while parent_group.parent_group is not None:
                     if self.instance == parent_group.parent_group:
-                        self.add_error('parent_group', "Circular configuration of parent groups detected.")
+                        self.add_error('parent_group', _("Circular configuration of parent groups detected."))
                         break
                     else:
                         parent_group = parent_group.parent_group
 
         return cleaned_data
 
-    def process_new_group(self):
-        # save changes of group
-        group = self.save(commit=False)
-        group.created_by = self.requesting_user
-        if group.role is None:
-            group.role = Role.objects.get_or_create(name=DEFAULT_ROLE_NAME)[0]
-        group.save()
-        group.user_set.add(self.requesting_user)
-        messages.success(self.request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))
-
-    def process_edit_group(self):
-        # save changes of group
-        self.instance.save()
-        messages.success(self.request, message=GROUP_SUCCESSFULLY_EDITED.format(self.instance.name))
+    def save(self, commit=True):
+        self.instance.save(user=self.request.user)
+        return self.instance
 
 
 class PublisherForOrganizationForm(MrMapForm):

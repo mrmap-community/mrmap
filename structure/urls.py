@@ -5,10 +5,12 @@ app_name = 'structure'
 urlpatterns = [
     path('', index, name='index'),
 
-    path('task/remove/<task_id>', remove_task, name='remove-task'),
+    path('tasks/<pk>/remove', PendingTaskDelete.as_view(), name='remove-task'),
+
+
     path('report/error/<report_id>', generate_error_report, name='generate-error-report'),
 
-    path('groups/', groups_index, name='groups-index'),
+    path('groups/', MrMapGroupTableView.as_view(), name='groups-index'),
     path('groups/detail/<object_id>', detail_group, name='detail-group'),
     path('groups/edit/<object_id>', edit_group, name='edit-group'),
     path('groups/leave/<object_id>', leave_group, name='leave-group'),

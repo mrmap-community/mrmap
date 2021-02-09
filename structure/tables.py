@@ -1,13 +1,17 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
+from django_bootstrap_swt.components import Link
+from django_bootstrap_swt.utils import RenderHelper
 
 from MrMap.columns import MrMapColumn
+from MrMap.icons import IconEnum
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
+from structure.models import MrMapGroup
 from structure.permissionEnums import PermissionEnum
 
 
@@ -138,20 +142,8 @@ class PublisherRequestTable(MrMapTable):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class GroupTable(MrMapTable):
-    groups_name = MrMapColumn(
-        accessor='name',
-        verbose_name=_('Name'),
-        tooltip=_("The name of the group"),)
-    groups_description = MrMapColumn(
-        accessor='description',
-        verbose_name=_('Description'),
-        tooltip=_("The description of the group"),)
-    groups_organization = MrMapColumn(
-        accessor='organization.organization_name',
-        verbose_name=_('Organization'),
-        tooltip=_("The organization wich is the home organization of the group"),)
-    groups_actions = MrMapColumn(
+class GroupTable(tables.Table):
+    actions = MrMapColumn(
         verbose_name=_('Actions'),
         tooltip=_('Actions you can perform'),
         empty_values=[],
@@ -159,63 +151,34 @@ class GroupTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}}
     )
 
+    class Meta:
+        model = MrMapGroup
+        fields = ('name', 'description', 'organization', 'actions')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'mrmapgroup-table'
+
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
-    def render_groups_name(self, value, record):
-        url = reverse('structure:detail-group', args=(record.id,))
-        icon = ''
-        value = _(value)
-        tooltip = _('Click to open the detail view of <strong>{}</strong>').format(value)
-        if record.is_public_group:
-            icon = get_theme(self.user)['ICONS']['PUBLIC']
-            tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
-        return self.get_link(tooltip=tooltip,
-                             href=url,
-                             value=format_html(f"{icon} {value}"),
-                             permission=None,
-                             open_in_new_tab=False, )
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
-    @staticmethod
-    def render_groups_description(value, record):
-        value = _(value)
-        return value
+    def render_name(self, record, value):
+        content = IconEnum.PUBLIC.value + ' ' + value if record.is_public_group else value
+        return Link(url=record.detail_view_uri,
+                    content=content,
+                    tooltip=_('Click to open the detail view of <strong>{}</strong>').format(value)).render(safe=True)
 
-    def render_groups_organization(self, value, record):
-        return self.get_link(tooltip=_('Click to open the detail view of the organization'),
-                             href=reverse('structure:detail-organization', args=(record.organization.id,)),
-                             value=value,
-                             permission=None,
-                             open_in_new_tab=False, )
+    def render_organization(self, value):
+        return Link(url=value.detail_view_uri,
+                    content=value,
+                    tooltip=_('Click to open the detail view of the organization')).render(safe=True)
 
-    def render_groups_actions(self, record):
-        btns = ''
-        if not record.is_public_group:
-            btns += format_html(self.get_btn(
-                href=reverse('structure:leave-group', args=(record.id,)) + f"?current-view={self.current_view}",
-                btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-                btn_value=get_theme(self.user)["ICONS"]['SIGNOUT'],
-                tooltip=format_html(_("Leave <strong>{}</strong>").format(record.name), ),
-                tooltip_placement='left',
-                permission=PermissionEnum.CAN_DELETE_GROUP,
-            ))
-        btns += format_html(self.get_btn(
-            href=reverse('structure:edit-group', args=(record.id,)) + f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
-            tooltip=format_html(_("Edit <strong>{}</strong>").format(record.name), ),
-            tooltip_placement='left',
-            permission=PermissionEnum.CAN_EDIT_GROUP,
-        ))
-        if not record.is_permission_group:
-            btns += format_html(self.get_btn(
-                href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
-                btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-                btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-                tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
-                tooltip_placement='left',
-                permission=PermissionEnum.CAN_DELETE_GROUP,
-            ))
-        return format_html(btns)
+    def render_actions(self, record):
+        self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
+        self.render_helper.update_attrs = None
+        return format_html(renderd_actions)
 
 
 class OrganizationTable(MrMapTable):

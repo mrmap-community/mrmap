@@ -18,7 +18,7 @@ class GroupFilter(django_filters.FilterSet):
 
     class Meta:
         model = MrMapGroup
-        fields = []
+        fields = ['gsearch']
 
 
 class OrganizationFilter(django_filters.FilterSet):

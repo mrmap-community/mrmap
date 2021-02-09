@@ -27,3 +27,5 @@ class IconEnum(Enum):
     ACCESS = "fas fa-key"
     SUBSCRIPTION = "fas fa-bullhorn"
     DELETE = "fas fa-trash"
+    GROUP = "fas fa-users"
+    SIGNOUT = "fas fa-sign-out-alt"

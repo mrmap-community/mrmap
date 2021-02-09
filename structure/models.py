@@ -5,6 +5,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
 import json
 
 from django_bootstrap_swt.components import LinkButton, Tag
@@ -156,7 +157,7 @@ class Contact(models.Model):
 
 
 class Organization(Contact):
-    organization_name = models.CharField(max_length=255, null=True, default="")
+    organization_name = models.CharField(max_length=255, null=True, default="", verbose_name=_('Organization'))
     description = models.TextField(default="", null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
@@ -207,7 +208,7 @@ class Organization(Contact):
 
 
 class MrMapGroup(Group):
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, verbose_name=_('Description'))
     parent_group = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True,
                                      related_name="children_groups")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
@@ -229,13 +230,20 @@ class MrMapGroup(Group):
             self.role = default_role
         super().save(force_insert, force_update, using, update_fields)
 
+    @classmethod
+    def get_add_group_action(cls):
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New group').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:new-group'),
+                          needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
+
     @property
     def detail_view_uri(self):
         return reverse('structure:detail-group', args=[self.pk, ])
 
     @property
     def add_view_uri(self):
-        return reverse('structure:new-group', args=[self.pk, ])
+        return reverse('structure:new-group')
 
     @property
     def edit_view_uri(self):
@@ -248,6 +256,27 @@ class MrMapGroup(Group):
     @property
     def leave_view_uri(self):
         return reverse('structure:leave-group', args=[self.pk, ])
+
+    def get_actions(self):
+        actions = []
+        if not self.is_public_group:
+            actions.append(LinkButton(url=self.leave_view_uri,
+                                      content=Tag(tag='i', attrs={"class": [IconEnum.SIGNOUT.value]}).render(),
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_(f"Leave <strong>{self.name}</strong>"),
+                                      needs_perm=PermissionEnum.CAN_DELETE_GROUP.value))
+        actions.append(LinkButton(url=self.edit_view_uri,
+                                  content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
+                                  color=ButtonColorEnum.WARNING,
+                                  tooltip=_(f"Edit <strong>{self.name}</strong>"),
+                                  needs_perm=PermissionEnum.CAN_EDIT_GROUP.value))
+        if not self.is_permission_group:
+            actions.append(LinkButton(url=self.remove_view_uri,
+                                      content=Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render(),
+                                      color=ButtonColorEnum.DANGER,
+                                      tooltip=_(f"Remove <strong>{self.name}</strong>"),
+                                      needs_perm=PermissionEnum.CAN_DELETE_GROUP.value))
+        return actions
 
 
 class Theme(models.Model):

@@ -5,10 +5,20 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
-from django.utils.translation import gettext_lazy as _
+from django.utils.decorators import method_decorator
+from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import gettext as _
+from django.views.generic import DeleteView
+from django_bootstrap_swt.components import Tag
+from django_bootstrap_swt.utils import RenderHelper
+from django_filters.views import FilterView
+from django_tables2 import SingleTableMixin
+
 from MrMap.decorators import ownership_required, permission_required
+from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER
 from MrMap.responses import DefaultContext
+from service.views import default_dispatch
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
@@ -17,7 +27,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 
 from users.filters import MrMapUserFilter
 from users.helper import user_helper
@@ -112,6 +122,32 @@ def index(request: HttpRequest, update_params=None, status_code=None):
                   status=200 if status_code is None else status_code)
 
 
+@method_decorator(login_required, name='dispatch')
+class MrMapGroupTableView(SingleTableMixin, FilterView):
+    model = MrMapGroup
+    table_class = GroupTable
+    filterset_class = GroupFilter
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(MrMapGroupTableView, self).get_table(**kwargs)
+
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.GROUP.value]}).render() + _l(' Groups').__str__()
+
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
+        table.actions = [render_helper.render_item(item=MrMapGroup.get_add_group_action())]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self)
+        return super(MrMapGroupTableView, self).dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return self.request.user.get_groups().order_by(Case(When(name='Public', then=0)), 'name')
+
+
+
+
 @login_required
 def groups_index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all groups
@@ -204,7 +240,7 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
         "members": members,
         "sub_organizations": sub_orgs,  # ToDo: nicht in template
         "all_publisher_table": publisher_table,
-        'caption': _("Shows informations about the organization."),
+        'caption': _l("Shows informations about the organization."),
         "current_view": "structure:detail-organization",
     }
 
@@ -262,7 +298,7 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
         "group_permissions": user.get_permissions(group),
         "show_registering_for": True,
         "all_publisher_table": all_publisher_table,
-        "caption": _("Shows informations about the group."),
+        "caption": _l("Shows informations about the group."),
         "current_view": "structure:detail-group",
     }
     params.update(
@@ -278,23 +314,21 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
                   context=context.get_context(),
                   status=200 if status_code is None else status_code)
 
-@login_required
-def remove_task(request: HttpRequest, task_id: int):
-    """ Removes a pending task from the PendingTask table
 
-    Args:
-        request (HttpRequest): The incoming request
-        task_id (str): The task identifier
-    Returns:
-        A redirect
-    """
-    task = get_object_or_404(PendingTask, id=task_id)
-    descr = json.loads(task.description)
-    messages.info(request, message=SERVICE_REGISTRATION_ABORTED.format(descr.get("service", None)))
+@method_decorator(login_required, name='dispatch')
+class PendingTaskDelete(DeleteView):
+    model = PendingTask
+    success_url = reverse_lazy('resource:index')
+    template_name = 'generic_views/generic_confirm.html'
 
-    task.delete()
-    return HttpResponseRedirect(reverse("resource:index"), status=303)
-
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "action_url": self.object.remove_view_uri,
+            "action": _l("Delete"),
+            "msg": _l("Are you sure you want to delete " + self.object.__str__()) + "?"
+        })
+        return context
 
 @login_required
 def generate_error_report(request: HttpRequest, report_id: int):
@@ -341,7 +375,7 @@ def edit_org(request: HttpRequest, object_id: int):
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_(f"Edit organization <strong>{org}</strong>"),
+        form_title=_l(f"Edit organization <strong>{org}</strong>"),
         instance=org,)
     return form.process_request(valid_func=form.process_edit_org)
 
@@ -366,8 +400,8 @@ def remove_org(request: HttpRequest, object_id: int):
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        is_confirmed_label=_("Do you really want to remove this organization?"),
-        form_title=_(f"Remove organization <strong>{org}</strong>"),
+        is_confirmed_label=_l("Do you really want to remove this organization?"),
+        form_title=_l(f"Remove organization <strong>{org}</strong>"),
         instance=org, )
     return form.process_request(valid_func=form.process_remove_org)
 
@@ -387,7 +421,7 @@ def new_org(request: HttpRequest):
         reverse_lookup='structure:new-organization',
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_(f"Add new organization"), )
+        form_title=_l(f"Add new organization"), )
     return form.process_request(valid_func=form.process_new_org)
 
 
@@ -414,8 +448,8 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
         reverse_args=[org_id, group_id],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        is_confirmed_label=_("Do you really want to remove this publisher?"),
-        form_title=_("Remove publisher <strong>{}</strong>").format(group.name),
+        is_confirmed_label=_l("Do you really want to remove this publisher?"),
+        form_title=_l("Remove publisher <strong>{}</strong>").format(group.name),
         organization=org,
         user=user,
         group=group,
@@ -443,7 +477,7 @@ def publish_request(request: HttpRequest, org_id: int):
         reverse_args=[org_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_(f"Request to become publisher for organization <strong>{org}</strong>"),
+        form_title=_l(f"Request to become publisher for organization <strong>{org}</strong>"),
         organization=org)
     return form.process_request(valid_func=form.process_new_publisher_request)
 
@@ -463,7 +497,7 @@ def new_group(request: HttpRequest):
                      reverse_lookup='structure:new-group',
                      # ToDo: after refactoring of all forms is done, show_modal can be removed
                      show_modal=True,
-                     form_title=_(f"Add new group"), )
+                     form_title=_l(f"Add new group"), )
 
     return form.process_request(valid_func=form.process_new_group)
 
@@ -511,13 +545,13 @@ def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
     if group.created_by == user:
         messages.error(
             request,
-            _("The group creator can not be removed!")
+            _l("The group creator can not be removed!")
         )
     else:
         group.user_set.remove(user)
         messages.success(
             request,
-            _("{} removed from {}").format(user.username, group.name)
+            _l("{} removed from {}").format(user.username, group.name)
         )
     return redirect("structure:detail-group", object_id)
 
@@ -539,7 +573,7 @@ def remove_group(request: HttpRequest, object_id: int):
     if group.is_permission_group or group.is_public_group:
         messages.error(
             request,
-            _("Group {} is an important main group and therefore can not be removed.").format(_(group.name)),
+            _l("Group {} is an important main group and therefore can not be removed.").format(_l(group.name)),
         )
         return redirect("structure:index")
 
@@ -549,8 +583,8 @@ def remove_group(request: HttpRequest, object_id: int):
                            reverse_args=[object_id, ],
                            # ToDo: after refactoring of all forms is done, show_modal can be removed
                            show_modal=True,
-                           is_confirmed_label=_("Do you really want to remove this group?"),
-                           form_title=_(f"Remove group <strong>{group}</strong>"),
+                           is_confirmed_label=_l("Do you really want to remove this group?"),
+                           form_title=_l(f"Remove group <strong>{group}</strong>"),
                            instance=group,)
     return form.process_request(valid_func=form.process_remove_group)
 
@@ -574,7 +608,7 @@ def edit_group(request: HttpRequest, object_id: int):
                      reverse_args=[object_id, ],
                      # ToDo: after refactoring of all forms is done, show_modal can be removed
                      show_modal=True,
-                     form_title=_(f"Edit group <strong>{group}</strong>"),
+                     form_title=_l(f"Edit group <strong>{group}</strong>"),
                      instance=group,)
     return form.process_request(valid_func=form.process_edit_group)
 
@@ -597,8 +631,8 @@ def leave_group(request: HttpRequest, object_id: str):
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        is_confirmed_label=_("Do you really want to leave this group?"),
-        form_title=_("Leave group <strong>{}</strong>").format(group),
+        is_confirmed_label=_l("Do you really want to leave this group?"),
+        form_title=_l("Leave group <strong>{}</strong>").format(group),
         instance=group,
     )
     return form.process_request(valid_func=form.process_leave_group)
@@ -687,7 +721,7 @@ def user_group_invitation(request: HttpRequest, object_id: str, update_params=No
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_("Invite <strong>{}</strong> to a group.".format(invited_user)),
+        form_title=_l("Invite <strong>{}</strong> to a group.".format(invited_user)),
         invited_user=invited_user,
     )
     return form.process_request(valid_func=form.process_invitation_group)
@@ -711,7 +745,7 @@ def toggle_group_invitation(request: HttpRequest, object_id: str, update_params=
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_("{} invites you to group {}.").format(
+        form_title=_l("{} invites you to group {}.").format(
             invitation.created_by,
             invitation.to_group
         ),
@@ -749,7 +783,7 @@ def toggle_publish_request(request: HttpRequest, object_id: str, update_params=N
         reverse_args=[object_id, ],
         # ToDo: after refactoring of all forms is done, show_modal can be removed
         show_modal=True,
-        form_title=_("{} wants to publish for {}.").format(
+        form_title=_l("{} wants to publish for {}.").format(
             pub_request.group,
             pub_request.organization
         ),

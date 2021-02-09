@@ -10,7 +10,8 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django.views.generic import DeleteView, DetailView, UpdateView
+from django.views.generic import DeleteView, DetailView, UpdateView, ListView
+from django.views.generic.detail import SingleObjectMixin
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
@@ -273,15 +274,40 @@ class MrMapGroupDetailView(DetailView):
         context.update({'details_table': details_table})
 
         return context
-    """
+
+
+@method_decorator(login_required, name='dispatch')
+class MrMapGroupMembersTableView(SingleTableMixin, FilterView):
+    model = MrMapUser
+    table_class = MrMapUserTable
+    filterset_class = MrMapUserFilter
+    template_name = 'structure/views/groups/members.html'
+    object = None
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.object = get_object_or_404(klass=MrMapGroup, pk=kwargs.get('pk'))
+
+    def get_queryset(self):
+        return self.object.user_set.all()
+
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        detail_table = GroupDetailTable(data=[self.object, ], request=self.request, )
-        details = render_to_string(template_name='skeletons/django_tables2_render_table.html',
-                                   context={'table': detail_table})
-        context.update({'card_body': details})
+        context = super().get_context_data()
+        context.update({"object": self.object})
         return context
-    """
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Members')
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
+        self.extra_context = DefaultContext(request=request, context={}).get_context()
+        return super().dispatch(request, *args, **kwargs)
+
 
 @login_required
 @ownership_required(MrMapGroup, 'object_id')

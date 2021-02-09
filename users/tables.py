@@ -45,23 +45,8 @@ class SubscriptionTable(tables.Table):
         return format_html(renderd_actions)
 
 
-class MrMapUserTable(MrMapTable):
+class MrMapUserTable(tables.Table):
     caption = _("Shows registered users.")
-
-    username = MrMapColumn(
-        accessor='username',
-        verbose_name=_('Username'),
-        tooltip=_('User`s name'),
-        empty_values=[],
-    )
-
-    organization = MrMapColumn(
-        accessor='organization__organization_name',
-        verbose_name=_('Organization'),
-        tooltip=_('User`s organization'),
-        empty_values=[],
-    )
-
     actions = MrMapColumn(
         verbose_name=_('Actions'),
         tooltip=_('Actions to perform'),
@@ -70,14 +55,14 @@ class MrMapUserTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}}
     )
 
-    def __init__(self, *args, **kwargs):
-        self.group = None if "group" not in kwargs else kwargs.pop("group")
-        super().__init__(query_class=MrMapUser, *args, **kwargs)
-        self.is_group_detail_view = self.group is not None
+    class Meta:
+        model = MrMapUser
+        fields = ('username', 'organization')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
 
     def render_actions(self, record):
         btns = ''
-
+        """
         if not self.is_group_detail_view and record != self.user:
             btns += format_html(self.get_btn(
                 href=reverse('structure:invite-user-to-group', args=(record.id, ))+f"?current-view={self.current_view}",
@@ -98,5 +83,5 @@ class MrMapUserTable(MrMapTable):
                 tooltip=format_html(_("Remove user from group"), ),
                 tooltip_placement='left',
             ))
-
+        """
         return format_html(btns)

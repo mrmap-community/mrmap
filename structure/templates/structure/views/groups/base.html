@@ -15,12 +15,14 @@
             <div class="list-group my-3">
                 {% url 'structure:detail-group' object.pk as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Details' %}</a>
+                {% url 'structure:detail-group-members' object.pk as url %}
+                <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Members' %}</a>
                 {% url 'structure:edit-group' object.pk as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Edit group' %}</a>
-            </div>
+                </div>
         </div>
         <div class="col-md-9">
-            {% block groupcontent %}{% endblock %}
+            {% block content %}{% endblock %}
         </div>
     </div>
 </div>

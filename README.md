@@ -22,6 +22,10 @@ Actually the system provides the following functionalities:
 * CSW interface
 * mapContext configurator (WIP)
 * mapContext API (WIP)
+* OGC API Features Proxy (WIP)
+* Support for the European SDI initiative (WIP)
+* Support for publishing resources in DCAT-AP format   
+* Support for CKAN API (WIP)
 
 Please read [FUNCTIONALITY.md](FUNCTIONALITY.md) for full list of Functions.
   

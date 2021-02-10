@@ -11,7 +11,7 @@ from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import MrMapGroup
+from structure.models import MrMapGroup, Organization, PublishRequest
 from structure.permissionEnums import PermissionEnum
 
 
@@ -71,7 +71,31 @@ class PublisherTable(MrMapTable):
         return format_html(btns)
 
 
-class PublishesForTable(MrMapTable):
+class PublishesForTable(tables.Table):
+    class Meta:
+        model = Organization
+        fields = ('organization_name',)
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'publishers-for-table'
+
+    def render_organization_name(self, record, value):
+        return Link(url=record.detail_view_uri, content=value)
+
+
+class PublishesRequestTable(tables.Table):
+    class Meta:
+        model = PublishRequest
+        fields = ('organization', 'message')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'publishers-for-table'
+
+    def render_organization(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
+
+class PublishesForTableOld(MrMapTable):
     class Meta:
         row_attrs = {
             "class": "text-center"

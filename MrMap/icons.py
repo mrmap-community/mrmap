@@ -29,3 +29,4 @@ class IconEnum(Enum):
     DELETE = "fas fa-trash"
     GROUP = "fas fa-users"
     SIGNOUT = "fas fa-sign-out-alt"
+    PUBLISHERS = "fas fa-address-card"

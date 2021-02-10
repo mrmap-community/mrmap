@@ -103,6 +103,22 @@ class GroupForm(ModelForm):
         return self.instance
 
 
+class PublishRequestForm(forms.ModelForm):
+    class Meta:
+        model = PublishRequest
+        fields = ('group', 'organization', 'message', 'created_by')
+        widgets = {'group': forms.HiddenInput(),
+                   'message': forms.Textarea()}
+
+    def __init__(self, group, user, *args, **kwargs):
+        self.group = group
+        self.user = user
+        super(PublishRequestForm, self).__init__(*args, **kwargs)
+        self.fields['group'].initial = self.group
+        self.fields['created_by'].initial = self.user
+
+
+
 class PublisherForOrganizationForm(MrMapForm):
     action_url = ''
     organization_name = forms.CharField(

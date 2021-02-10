@@ -493,8 +493,13 @@ class BaseInternalRequest(models.Model):
 
 
 class PublishRequest(BaseInternalRequest):
-    group = models.ForeignKey(MrMapGroup, related_name="publish_requests", on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, related_name="publish_requests", on_delete=models.CASCADE)
+    group = models.ForeignKey(MrMapGroup, verbose_name=_('group'), related_name="publish_requests", on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, verbose_name=_('organization'), related_name="publish_requests", on_delete=models.CASCADE)
+
+    class Meta:
+        # It shall be restricted to create multiple requests objects for the same organization per group. This unique
+        # constraint will also raise a form error if a user trays to add duplicates.
+        unique_together = ('group', 'organization',)
 
     def __str__(self):
         return "{} > {}".format(self.group.name, self.organization.organization_name)

@@ -15,8 +15,6 @@
             <div class="list-group my-3">
                 {% url 'structure:detail-group' object.pk as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Details' %}</a>
-                {% url 'structure:detail-group-members' object.pk as url %}
-                <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Members' %}</a>
                 {% if request.user in object.user_set.all and not object.is_permission_group %}
                 {% url 'structure:edit-group' object.pk as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Edit group' %}</a>
@@ -25,6 +23,10 @@
                 {% url 'structure:delete-group' object.pk as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Delete group' %}</a>
                 {% endif %}
+                {% url 'structure:detail-group-members' object.pk as url %}
+                <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Members' %}</a>
+                {% url 'structure:publisher-group' object.pk as url %}
+                <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Publish for' %}</a>
             </div>
         </div>
         <div class="col-md-9">

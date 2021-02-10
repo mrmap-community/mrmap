@@ -27,10 +27,11 @@ from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, \
     RemoveOrganizationForm, RemovePublisherForm, GroupInvitationForm, \
-    GroupInvitationConfirmForm, PublishRequestConfirmForm
+    GroupInvitationConfirmForm, PublishRequestConfirmForm, PublishRequestForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
-from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable
+from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable, \
+    PublishesRequestTable
 from django.urls import reverse_lazy
 
 from users.filters import MrMapUserFilter
@@ -296,7 +297,7 @@ class MrMapGroupMembersTableView(SingleTableMixin, FilterView):
         return self.object.user_set.all()
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data()
+        context = super().get_context_data(**kwargs)
         context.update({"object": self.object})
         return context
 
@@ -381,7 +382,7 @@ class PendingTaskDelete(DeleteView):
     template_name = 'generic_views/generic_confirm.html'
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data()
+        context = super().get_context_data(**kwargs)
         context.update({
             "action_url": self.object.remove_view_uri,
             "action": _l("Delete"),
@@ -566,28 +567,101 @@ class NewMrMapGroup(SuccessMessageMixin, CreateView):
         return context
 
 
-@login_required
-@ownership_required(MrMapGroup, 'group_id')
-def list_publisher_group(request: HttpRequest, group_id: int):
-    """ List all organizations a group can publish for
+@method_decorator(login_required, name='dispatch')
+class MrMapGroupPublishersTableView(SingleTableMixin, FilterView):
+    model = Organization
+    table_class = PublishesForTable
+    filterset_fields = ('organization__organization_name', )
+    template_name = 'structure/views/groups/publishers.html'
+    object = None
 
-    Args:
-        request: The incoming request
-        group_id: The group id
-    Returns:
-        A rendered view
-    """
-    user = user_helper.get_user(request)
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.object = get_object_or_404(klass=MrMapGroup, pk=kwargs.get('pk'))
 
-    template = "index_publish_requests.html"
-    group = get_object_or_404(MrMapGroup, id=group_id)
+    def get_queryset(self):
+        return self.object.publish_for_organizations.all()
 
-    params = {
-        "group": group,
-        "show_registering_for": True,
-    }
-    context = DefaultContext(request, params, user).get_context()
-    return render(request, template, context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"object": self.object})
+        return context
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Publish for list')
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
+        self.extra_context = DefaultContext(request=request, context={}).get_context()
+        return super().dispatch(request, *args, **kwargs)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value), name='dispatch')
+class MrMapGroupPublishersNewView(SuccessMessageMixin, CreateView):
+    model = PublishRequest
+    form_class = PublishRequestForm
+    template_name = 'structure/views/groups/publishers/new.html'
+    group = None
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.group = get_object_or_404(klass=MrMapGroup, pk=kwargs.get('pk'))
+
+    def get_success_message(self, cleaned_data):
+        return _('Request was successfully opened')
+
+    def get_success_url(self):
+        return self.group.detail_view_uri
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"group": self.group,
+                       "user": self.request.user})
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context = DefaultContext(request=self.request, context=context).get_context()
+        context.update({'title': _('Publish request')})
+        return context
+
+
+@method_decorator(login_required, name='dispatch')
+class MrMapGroupPublishRequestTableView(SingleTableMixin, FilterView):
+    model = PublishRequest
+    table_class = PublishesRequestTable
+    filterset_fields = ['organization__organization_name', 'message']
+    template_name = 'structure/views/groups/publishers/pending_requests.html'
+    object = None
+
+    def setup(self, request, *args, **kwargs):
+        super(MrMapGroupPublishRequestTableView, self).setup(request, *args, **kwargs)
+        self.object = get_object_or_404(klass=MrMapGroup, pk=kwargs.get('pk'))
+
+    def get_queryset(self):
+        return PublishRequest.objects.filter(group=self.object)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"object": self.object})
+        return context
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Pending publisher requests')
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
+        self.extra_context = DefaultContext(request=request, context={}).get_context()
+        return super().dispatch(request, *args, **kwargs)
 
 
 @login_required

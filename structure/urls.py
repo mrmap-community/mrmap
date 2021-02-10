@@ -1,5 +1,6 @@
 from django.urls import path
 from structure.views import *
+from django.utils.translation import gettext as _
 
 app_name = 'structure'
 urlpatterns = [
@@ -13,7 +14,9 @@ urlpatterns = [
     # MrMapGroup
     path('groups', MrMapGroupTableView.as_view(), name='groups-index'),
     path('groups/new', NewMrMapGroup.as_view(), name='new-group'),
-    path('groups/<pk>', MrMapGroupDetailView.as_view(), name='detail-group'),
+    # path('groups/<pk>', MrMapGroupDetailView.as_view(), name='detail-group'),
+    path('groups/<pk>', MrMapGroupDetailView.as_view(), name=_('group_detail')),
+
     path('groups/<pk>/members', MrMapGroupMembersTableView.as_view(), name='detail-group-members'),
     path('groups/<pk>/edit', EditGroupView.as_view(), name='edit-group'),
     path('groups/<pk>/remove', DeleteMrMapGroupView.as_view(), name='delete-group'),

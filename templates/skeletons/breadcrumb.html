@@ -8,7 +8,7 @@ Use this sceleton only on detail views. The two last items of the breadcrum are 
       {% for crumb, values in BREADCRUMB_CONFIG.items %}
         <li class="breadcrumb-item {% if forloop.last or not values.is_representative %}active{% endif %}" {% if forloop.last %}aria-current="page"{% endif %}>
             {% if values.is_representative %}
-                <a href="{{values.current_path}}">
+                <a href="{{values.path}}">
                     {{crumb}}
                 </a>
             {% else %}

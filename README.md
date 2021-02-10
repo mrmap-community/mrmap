@@ -1,6 +1,6 @@
 <img src="https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/MrMap/static/images/mr_map.png" width="200">
 
-Mr. Map is a generic registry for geospatial data, metadata and services (e.g. web map services [WMS](https://www.opengeospatial.org/standards/wms), web feature services ([WFS](https://www.opengeospatial.org/standards/wfs)) and all the other [OGC](http://www.opengeospatial.org/) stuff ;-)
+Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services [WMS](https://www.opengeospatial.org/standards/wms), web feature services [WFS](https://www.opengeospatial.org/standards/wfs) and all the other [OGC](http://www.opengeospatial.org/) stuff ;-)
 .
 
 Since most GIS solutions out there are specified on a specific use case or aged without proper support, the need for an free and open source, generic geospatial registry system is high.
@@ -20,6 +20,9 @@ Actually the system provides the following functionalities:
 * Publisher system (orgs/groups/users)
 * Dashboard
 * Catalogue and APIs (REST interfaces for the resources)
+* CSW interface
+* mapContext configurator (WIP)
+* mapContext API (WIP)
 
 Please read [FUNCTIONALITY.md](FUNCTIONALITY.md) for full list of Functions.
   

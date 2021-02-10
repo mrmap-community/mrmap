@@ -1,6 +1,7 @@
 import os
 
 from captcha.fields import CaptchaField
+from dal import autocomplete
 from django import forms
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -29,6 +30,10 @@ from users.helper.user_helper import create_group_activity
 
 
 class GroupForm(ModelForm):
+    user_set = forms.ModelMultipleChoiceField(queryset=MrMapUser.objects.all(),
+                                              label=_('Members'),
+                                              widget=autocomplete.ModelSelect2Multiple(url='editor:users'))
+
     parent_group = forms.ModelChoiceField(
         label=_("Parent group"),
         queryset=MrMapGroup.objects.filter(
@@ -57,6 +62,7 @@ class GroupForm(ModelForm):
 
         if kwargs.get('instance', None):
             groups = self.request.user.get_groups()
+
             instance = kwargs.get('instance')
             exclusions = [instance]
             for group in groups:
@@ -67,6 +73,7 @@ class GroupForm(ModelForm):
                     group_ = group_.parent_group
 
             self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id__in=[o.id for o in exclusions])
+            self.fields['user_set'].initial = instance.user_set.all()
 
     def clean(self):
         cleaned_data = super(GroupForm, self).clean()
@@ -91,6 +98,8 @@ class GroupForm(ModelForm):
 
     def save(self, commit=True):
         self.instance.save(user=self.request.user)
+        self.instance.user_set.clear()
+        self.instance.user_set.add(*self.cleaned_data['user_set'])
         return self.instance
 
 

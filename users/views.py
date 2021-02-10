@@ -48,7 +48,7 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
 
     def form_invalid(self, form):
         users_logger.info(f'User {form.cleaned_data["username"]} trial to login, but the following error occurs. '
-                          f'{form.error}')
+                          f'{form.errors}')
         return super().form_invalid(form=form)
 
     def get_context_data(self, **kwargs):

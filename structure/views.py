@@ -19,10 +19,9 @@ from django_tables2 import SingleTableMixin
 
 from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
-from MrMap.messages import SERVICE_REGISTRATION_ABORTED, RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
+from MrMap.messages import RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
     GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
 from MrMap.responses import DefaultContext
-from MrMap.views import ConfirmView
 from service.views import default_dispatch
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
@@ -32,7 +31,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
 
 from users.filters import MrMapUserFilter
 from users.helper import user_helper
@@ -638,17 +637,15 @@ class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value), name='dispatch')
-# todo: redirecting hell by ownership_required -_-
-@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
+@method_decorator([login_required,
+                   permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:groups-index')],
+                  name='dispatch')
 class EditGroupView(SuccessMessageMixin, UpdateView):
     template_name = 'structure/views/groups/edit.html'
     success_message = _('Group successfully edited.')
     model = MrMapGroup
     form_class = GroupForm
     queryset = MrMapGroup.objects.filter(is_permission_group=False)
-
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -659,31 +656,6 @@ class EditGroupView(SuccessMessageMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit group')})
-        return context
-
-
-@method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value), name='dispatch')
-@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
-class LeaveGroupView(SuccessMessageMixin, ConfirmView):
-    template_name = 'structure/views/groups/leave.html'
-    success_message = _('Group successfully left.')
-    model = MrMapGroup
-    queryset = MrMapGroup.objects.filter(is_public_group=False)
-
-    def form_valid(self, form):
-        self.object.user_set.remove(self.request.user)
-        return super().form_valid(form=form)
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({"is_confirmed_label": _("Do you really want to leave the group?")})
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
-        context.update({'title': _('Leave group')})
         return context
 
 

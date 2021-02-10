@@ -7,7 +7,8 @@ Created on: 09.07.19
 """
 from django.urls import path
 from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
-    ReferenceSystemAutocomplete, ServiceMetadataAutocomplete, OperationsAutocomplete, GroupsAutocomplete
+    ReferenceSystemAutocomplete, ServiceMetadataAutocomplete, OperationsAutocomplete, GroupsAutocomplete, \
+    UsersAutocomplete
 from editor.views import *
 from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_FORMS, AccessEditorWizard, \
     ACCESS_EDITOR_WIZARD_FORMS, MetadataEditorWizard, METADATA_WIZARD_FORMS
@@ -22,6 +23,7 @@ urlpatterns = [
     path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
     path('operations/', OperationsAutocomplete.as_view(), name="operations-autocomplete"),
     path('groups/', GroupsAutocomplete.as_view(), name="groups"),
+    path('users/', UsersAutocomplete.as_view(), name="users"),
 
     path('metadata/<pk>/edit', MetadataEditorWizard.as_view(form_list=METADATA_WIZARD_FORMS), name='edit'),
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),

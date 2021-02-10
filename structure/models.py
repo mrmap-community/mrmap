@@ -275,24 +275,14 @@ class MrMapGroup(Group):
     def remove_view_uri(self):
         return reverse('structure:delete-group', args=[self.pk, ])
 
-    @property
-    def leave_view_uri(self):
-        return reverse('structure:leave-group', args=[self.pk, ])
-
     def get_actions(self, user):
         actions = []
-        if not self.is_public_group and user in self.user_set.all():
-            actions.append(LinkButton(url=self.leave_view_uri,
-                                      content=Tag(tag='i', attrs={"class": [IconEnum.SIGNOUT.value]}).render(),
-                                      color=ButtonColorEnum.WARNING,
-                                      tooltip=_(f"Leave <strong>{self.name}</strong>"),
-                                      needs_perm=PermissionEnum.CAN_DELETE_GROUP.value))
-        actions.append(LinkButton(url=self.edit_view_uri,
-                                  content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
-                                  color=ButtonColorEnum.WARNING,
-                                  tooltip=_(f"Edit <strong>{self.name}</strong>"),
-                                  needs_perm=PermissionEnum.CAN_EDIT_GROUP.value))
         if not self.is_permission_group:
+            actions.append(LinkButton(url=self.edit_view_uri,
+                                      content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_(f"Edit <strong>{self.name}</strong>"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_GROUP.value))
             actions.append(LinkButton(url=self.remove_view_uri,
                                       content=Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render(),
                                       color=ButtonColorEnum.DANGER,

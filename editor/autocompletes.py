@@ -13,7 +13,7 @@ from django.utils.decorators import method_decorator
 
 from service.helper.enums import MetadataEnum
 from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
-from structure.models import MrMapGroup
+from structure.models import MrMapGroup, MrMapUser
 
 from structure.permissionEnums import PermissionEnum
 from users.helper.user_helper import get_user
@@ -229,5 +229,27 @@ class GroupsAutocomplete(autocomplete.Select2QuerySetView):
             query = self.q
         records = records.filter(
             Q(name__icontains=query)
+        )
+        return records
+
+
+@method_decorator(login_required, name='dispatch')
+class UsersAutocomplete(autocomplete.Select2QuerySetView):
+    """ Provides an autocomplete functionality for user records
+
+    """
+    def get_queryset(self):
+        """ Getter for the matching groups
+
+        Returns:
+             records (QuerySet): The matched records
+        """
+        records = MrMapUser.objects.all()
+        query = ""
+        if self.q:
+            # There are filtering parameters!
+            query = self.q
+        records = records.filter(
+            Q(username__icontains=query)
         )
         return records

@@ -1,6 +1,5 @@
 from django.urls import path
 from structure.views import *
-from django.utils.translation import gettext as _
 
 app_name = 'structure'
 urlpatterns = [
@@ -12,17 +11,16 @@ urlpatterns = [
     path('', index, name='index'),
 
     # MrMapGroup
-    path('groups', MrMapGroupTableView.as_view(), name='groups-index'),
-    path('groups/new', NewMrMapGroup.as_view(), name='new-group'),
-    # path('groups/<pk>', MrMapGroupDetailView.as_view(), name='detail-group'),
-    path('groups/<pk>', MrMapGroupDetailView.as_view(), name=_('group_detail')),
+    path('groups', MrMapGroupTableView.as_view(), name='group_overview'),
+    path('groups/new', NewMrMapGroup.as_view(), name='group_new'),
+    path('groups/<pk>', MrMapGroupDetailView.as_view(), name='group_details'),
+    path('groups/<pk>/members', MrMapGroupMembersTableView.as_view(), name='group_members'),
+    path('groups/<pk>/edit', EditGroupView.as_view(), name='group_edit'),
+    path('groups/<pk>/remove', DeleteMrMapGroupView.as_view(), name='group_remove'),
+    path('groups/<pk>/publishers', MrMapGroupPublishersTableView.as_view(), name='group_publisher_overview'),
+    path('groups/<pk>/publishers/new', MrMapGroupPublishersNewView.as_view(), name='group_publisher_new'),
+    path('groups/<pk>/publishers/requests', MrMapGroupPublishRequestTableView.as_view(), name='group_publisher_request_overview'),
 
-    path('groups/<pk>/members', MrMapGroupMembersTableView.as_view(), name='detail-group-members'),
-    path('groups/<pk>/edit', EditGroupView.as_view(), name='edit-group'),
-    path('groups/<pk>/remove', DeleteMrMapGroupView.as_view(), name='delete-group'),
-    path('groups/<pk>/publishers', MrMapGroupPublishersTableView.as_view(), name='publisher-group'),
-    path('groups/<pk>/publishers/new', MrMapGroupPublishersNewView.as_view(), name='group_publishers_new'),
-    path('groups/<pk>/publishers/requests', MrMapGroupPublishRequestTableView.as_view(), name='group_publishers_requests'),
 
 
     path('groups/<object_id>/user/<user_id>', remove_user_from_group, name='remove-user-from-group'),

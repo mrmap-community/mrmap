@@ -152,39 +152,6 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
         return super(MrMapGroupTableView, self).dispatch(request, *args, **kwargs)
 
 
-
-
-
-
-@login_required
-def groups_index(request: HttpRequest, update_params=None, status_code=None):
-    """ Renders an overview of all groups
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    template = "views/groups_index.html"
-    user = user_helper.get_user(request)
-
-    params = {
-        "current_view": "structure:groups-index",
-    }
-    params.update(_prepare_group_table(request=request, user=user, current_view='structure:groups-index'))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=200 if status_code is None else status_code)
-
-
 @login_required
 def organizations_index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all organizations
@@ -265,6 +232,9 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
 @method_decorator(login_required, name='dispatch')
 #@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class MrMapGroupDetailView(DetailView):
+    class Meta:
+        verbose_name = _('Details')
+
     model = MrMapGroup
     template_name = 'structure/views/groups/details.html'
     queryset = MrMapGroup.objects.all()
@@ -712,7 +682,7 @@ class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
 
 
 @method_decorator([login_required,
-                   permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:groups-index')],
+                   permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:group_overview')],
                   name='dispatch')
 class EditGroupView(SuccessMessageMixin, UpdateView):
     template_name = 'structure/views/groups/edit.html'

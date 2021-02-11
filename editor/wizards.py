@@ -12,7 +12,6 @@ from django.utils.html import format_html
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum
 from MrMap.decorators import permission_required, ownership_required
-from MrMap.responses import DefaultContext
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
@@ -87,7 +86,6 @@ class AccessEditorWizard(MrMapWizard):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
-        context = DefaultContext(self.request, context, self.request.user).context
         context.update({'action_url': self.action_url,
                         'APPEND_FORM_LOOKUP_KEY': APPEND_FORM_LOOKUP_KEY})
         return context
@@ -124,7 +122,6 @@ class MetadataEditorWizard(MrMapWizard):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form, **kwargs)
-        context = DefaultContext(self.request, context, self.request.user).context
         context.update({'action_url': self.action_url})
         return context
 

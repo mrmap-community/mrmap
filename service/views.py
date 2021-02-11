@@ -33,7 +33,6 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED
-from MrMap.responses import DefaultContext
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.views import AsyncConfirmView
@@ -69,7 +68,7 @@ def default_dispatch(instance, extra_context=None, with_base: bool = True, is_li
     if extra_context is None:
         extra_context = {}
     # push DefaultContext to the template rendering engine
-    instance.extra_context = DefaultContext(request=instance.request, context=extra_context).get_context()
+    instance.extra_context = extra_context
 
     with_base = instance.request.GET.get('with-base', 'True' if with_base else 'False')
     if with_base == 'True':
@@ -246,7 +245,6 @@ class ResourceIndexView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super(ResourceIndexView, self).get_context_data(**kwargs)
         context.update(kwargs.get('update_params', {}))
-        context = DefaultContext(request=self.request, context=context).get_context()
 
         self.request.GET._mutable = True
         self.request.GET.update({'with-base': False})
@@ -591,8 +589,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         # ToDo: Add html view for CSW!
         pass
 
-    context = DefaultContext(request, params, None)
-    return render(request=request, template_name=base_template, context=context.get_context())
+    return render(request=request, template_name=base_template, context=params)
 
 
 @login_required
@@ -713,10 +710,9 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=status_code)
 
 
@@ -1068,7 +1064,6 @@ class ResourceTreeView(DetailView):
             'card_header_title_right': render_helper.render_list_coherent(items=actions),
             'card_body': card_body
         })
-        context = DefaultContext(request=self.request, context=context).get_context()
         return context
 
 

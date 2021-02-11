@@ -28,7 +28,6 @@ from MrMap.icons import IconEnum
 from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS
-from MrMap.responses import DefaultContext
 from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
 from service.models import Metadata
 from structure.forms import RegistrationForm
@@ -58,7 +57,6 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
             "login_article": _(
                 "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
         })
-        context = DefaultContext(request=self.request, context=context, user=self.request.user).context
         return context
 
 
@@ -104,7 +102,6 @@ class HomeView(TemplateView):
             "organizations": Organization.objects.filter(is_auto_generated=False),
             "current_view": "home",
         })
-        context = DefaultContext(self.request, context, self.request.user).get_context()
         return context
 
 
@@ -119,12 +116,7 @@ class ProfileView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'subscriptions_count': Subscription.objects.filter(user=self.request.user).count()})
-        breadcrumb_config = OrderedDict()
-        breadcrumb_config['accounts'] = False
-        breadcrumb_config['profile'] = True
-        context.update({'breadcrumb_config': breadcrumb_config})
         return context
 
 
@@ -134,7 +126,6 @@ class MrMapPasswordChangeView(SuccessMessageMixin, PasswordChangeView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         return context
 
 
@@ -144,7 +135,6 @@ class MrMapPasswordResetView(SuccessMessageMixin, PasswordResetView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         return context
 
 
@@ -166,7 +156,6 @@ class EditProfileView(SuccessMessageMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit profile')})
         return context
 
@@ -191,7 +180,6 @@ class ActivateUser(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'user': self.object.user})
         return context
 
@@ -205,7 +193,6 @@ class SignUpView(SuccessMessageMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit profile')})
         return context
 
@@ -228,7 +215,6 @@ class SubscriptionTableView(SingleTableMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit profile')})
         return context
 
@@ -252,7 +238,6 @@ class AddSubscriptionView(SuccessMessageMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Add subscription')})
         return context
 
@@ -266,7 +251,6 @@ class UpdateSubscriptionView(SuccessMessageMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': format_html(_(f'Update subscription for <strong>{self.object.metadata}</strong>'))})
         return context
 
@@ -280,6 +264,5 @@ class DeleteSubscriptionView(SuccessMessageMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Delete subscription')})
         return context

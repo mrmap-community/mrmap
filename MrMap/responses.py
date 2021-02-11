@@ -11,6 +11,8 @@ from structure.models import MrMapUser
 from MrMap.utils import get_theme
 
 
+# Todo: Deprecated! This will be done by the default_context() in the MrMap/context_processors.py file
+#  Remove DefaultContext class
 class DefaultContext:
     """ Contains the default values that have to be set on every rendering process!
 

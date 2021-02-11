@@ -6,7 +6,6 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
 from MrMap.decorators import permission_required
-from MrMap.responses import DefaultContext
 from monitoring.filters import HealthReasonFilter
 from monitoring.models import MonitoringRun
 from monitoring.settings import MONITORING_THRESHOLDS
@@ -80,8 +79,7 @@ def monitoring_results(request: HttpRequest, metadata_id, monitoring_run_id = No
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=status_code)

@@ -21,7 +21,6 @@ from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
 from MrMap.messages import RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
     GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
-from MrMap.responses import DefaultContext
 from service.views import default_dispatch
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
@@ -120,10 +119,9 @@ def index(request: HttpRequest, update_params=None, status_code=None):
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=200 if status_code is None else status_code)
 
 
@@ -174,10 +172,9 @@ def organizations_index(request: HttpRequest, update_params=None, status_code=No
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=200 if status_code is None else status_code)
 
 
@@ -222,10 +219,9 @@ def detail_organizations(request: HttpRequest, object_id: int, update_params=Non
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=200 if status_code is None else status_code)
 
 
@@ -241,7 +237,6 @@ class MrMapGroupDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Details')})
 
         details_table = GroupDetailTable(data=[self.object, ],
@@ -280,7 +275,6 @@ class MrMapGroupMembersTableView(SingleTableMixin, FilterView):
     def dispatch(self, request, *args, **kwargs):
         # configure table_pagination dynamically to support per_page switching
         self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
-        self.extra_context = DefaultContext(request=request, context={}).get_context()
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -338,10 +332,9 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=200 if status_code is None else status_code)
 
 
@@ -532,7 +525,6 @@ class NewMrMapGroup(SuccessMessageMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('New group')})
         return context
 
@@ -566,7 +558,6 @@ class MrMapGroupPublishersTableView(SingleTableMixin, FilterView):
     def dispatch(self, request, *args, **kwargs):
         # configure table_pagination dynamically to support per_page switching
         self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
-        self.extra_context = DefaultContext(request=request, context={}).get_context()
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -596,7 +587,6 @@ class MrMapGroupPublishersNewView(SuccessMessageMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Publish request')})
         return context
 
@@ -630,7 +620,6 @@ class MrMapGroupPublishRequestTableView(SingleTableMixin, FilterView):
     def dispatch(self, request, *args, **kwargs):
         # configure table_pagination dynamically to support per_page switching
         self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
-        self.extra_context = DefaultContext(request=request, context={}).get_context()
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -676,7 +665,6 @@ class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Delete group')})
         return context
 
@@ -698,7 +686,6 @@ class EditGroupView(SuccessMessageMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context = DefaultContext(request=self.request, context=context).get_context()
         context.update({'title': _('Edit group')})
         return context
 
@@ -712,11 +699,7 @@ def handler404(request: HttpRequest, exception=None):
     Returns:
          A rendered 404 response
     """
-    params = {
-
-    }
-    context = DefaultContext(request, params)
-    response = render(request=request, template_name="404.html", context=context.get_context())
+    response = render(request=request, template_name="404.html")
     response.status_code = 404
     return response
 
@@ -733,8 +716,7 @@ def handler500(request: HttpRequest, exception=None):
     params = {
 
     }
-    context = DefaultContext(request, params)
-    response = render(request=request, template_name="500.html", context=context.get_context())
+    response = render(request=request, template_name="500.html")
     response.status_code = 500
     return response
 
@@ -760,10 +742,9 @@ def users_index(request: HttpRequest, update_params=None, status_code=None):
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=200 if status_code is None else status_code)
 
 

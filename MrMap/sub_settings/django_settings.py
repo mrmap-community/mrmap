@@ -67,7 +67,8 @@ INSTALLED_APPS = [
     'django_nose',
     'mathfilters',
     'django_bootstrap_swt',
-    'leaflet'
+    'leaflet',
+    'breadcrumb',
 ]
 if DEBUG:
     INSTALLED_APPS.append(
@@ -140,6 +141,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'dealer.contrib.django.context_processor',
+                'breadcrumb.context_processors.breadcrumb_renderer',
             ],
         },
     },

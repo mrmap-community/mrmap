@@ -5,72 +5,10 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.04.19
 
 """
-from collections import OrderedDict
-
 from django.http import JsonResponse, HttpRequest
-from django.urls import resolve, Resolver404, get_resolver, ResolverMatch, URLResolver
-
 from MrMap.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
 from structure.models import MrMapUser
 from MrMap.utils import get_theme
-from django.utils.translation import gettext as _
-
-
-def check_path_exists(path):
-    try:
-        match = resolve(path=path)
-        return match
-    except Resolver404:
-        return None
-
-
-class BreadCrumbItem:
-    def __init__(self, path: str,
-                 resolver_match: ResolverMatch = None,
-                 is_representative: bool = True,
-                 is_specific: bool = False,
-                 is_active_path: bool = False):
-        self.path = path
-        self.resolver_match = resolver_match
-        self.is_representative = is_representative
-        self.is_specific = is_specific
-        self.is_active_path = is_active_path
-
-        self.verbose_name = None
-        if self.resolver_match:
-            url_name = self.resolver_match.url_name
-            self.verbose_name = _(url_name.split('_')[-1])
-
-
-class BreadCrumbBuilder:
-    breadcrumb = None
-
-    def __init__(self, path: str):
-        self.path = path
-        self.build_breadcrumb()
-
-    def build_breadcrumb(self):
-        path_items = self.path.split("/")
-        path_items.pop(0)
-        path_tmp = ""
-
-        self.breadcrumb = OrderedDict()
-        for path_item in path_items:
-            path_tmp += "/" + path_item
-            match = check_path_exists(path_tmp)
-            if match:
-                is_specific = True if 'pk' in match.kwargs and 'pk' in match.route.split("/")[-1] else False
-                is_active_path = True if self.path == path_tmp else False
-                breadcrumb_item = BreadCrumbItem(is_representative=True,
-                                                 resolver_match=match,
-                                                 path=path_tmp,
-                                                 is_specific=is_specific,
-                                                 is_active_path=is_active_path)
-                self.breadcrumb[path_item] = breadcrumb_item
-            else:
-                self.breadcrumb[path_item] = BreadCrumbItem(is_representative=False,
-                                                            path=path_tmp)
-        return self.breadcrumb
 
 
 class DefaultContext:
@@ -84,7 +22,7 @@ class DefaultContext:
         else:
             permissions = []
 
-        breadcrumb_builder = BreadCrumbBuilder(path=request.path)
+        #breadcrumb_builder = BreadCrumbBuilder(path=request.path)
 
         self.context = {
             "ROOT_URL": ROOT_URL,
@@ -96,7 +34,7 @@ class DefaultContext:
             "GIT_REPO_URI": GIT_REPO_URI,
             "GIT_GRAPH_URI": GIT_GRAPH_URI,
             "THEME": get_theme(user),
-            "BREADCRUMB_CONFIG": breadcrumb_builder.breadcrumb,
+            #"BREADCRUMB_CONFIG": breadcrumb_builder.breadcrumb,
         }
         self.add_context(context)
 

@@ -1,8 +1,3 @@
-{% comment %}
-we use BREADCRUMB_CONFIG from the DefaultContext class; see response.py
-for right usage:
-Use this sceleton only on detail views. The two last items of the breadcrum are disabled.
-{% endcomment %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
       {% for crumb, values in BREADCRUMB_CONFIG.items %}

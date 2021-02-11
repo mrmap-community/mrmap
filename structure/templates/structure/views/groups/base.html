@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load i18n %}
+{% load menu %}
+
 {% block head %}
 {% endblock %}
 
@@ -13,20 +15,13 @@
     <div class="row">
         <div class="col-md-3">
             <div class="list-group my-3">
-                {% url 'structure:group_details' object.pk as url %}
-                <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Details' %}</a>
-                {% if request.user in object.user_set.all and not object.is_permission_group %}
-                {% url 'structure:group_edit' object.pk as url %}
-                <a href="{{url}}" class="pl-5 list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Edit group' %}</a>
-                {% endif %}
-                {% if request.user in object.user_set.all and not object.is_public_group and not object.is_permission_group %}
-                {% url 'structure:group_remove' object.pk as url %}
-                <a href="{{url}}" class="pl-5 list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Delete group' %}</a>
-                {% endif %}
-                {% url 'structure:group_members' object.pk as url %}
-                <a href="{{url}}" class="pl-5 list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Members' %}</a>
-                {% url 'structure:group_publisher_overview' object.pk as url %}
-                <a href="{{url}}" class="pl-5 list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Publish for' %}</a>
+                {% generate_menu %}
+                {% for item in menus.group_details %}
+                <a href="{{item.url}}" class="list-group-item list-group-item-action {% if item.selected %}active{% endif %}" {% if item.selected %}aria-current="true"{% endif %}>{{item.title}}</a>
+                {% for child in item.children %}
+                <a href="{{child.url}}" class="pl-5 list-group-item list-group-item-action {% if child.selected %}active{% endif %}" {% if child.selected %}aria-current="true"{% endif %}>{{child.title}}</a>
+                {% endfor %}
+                {% endfor %}
             </div>
         </div>
         <div class="col-md-9">

@@ -89,6 +89,7 @@ GROUP_SUCCESSFULLY_CREATED = _("Group {} successfully created.")
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization '{}' successfully edited.")
+ORGANIZATION_SUCCESSFULLY_CREATED = _("Organization {} successfully created.")
 
 SERVICE_SUCCESSFULLY_DELETED = _("Service '{}' successfully deleted.")
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")

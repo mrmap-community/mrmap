@@ -83,7 +83,7 @@ class EditorAcessTable(tables.Table):
 
     def render_organization(self, record):
         if record.organization:
-            url = reverse('structure:detail-organization', args=(record.organization.id,))
+            url = reverse('structure:organization_details', args=(record.organization.id,))
             tooltip = _('Click to open the detail view of <strong>{}</strong>.'.format(record.organization.organization_name))
             return Link(tooltip=tooltip,
                         url=url,

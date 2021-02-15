@@ -20,8 +20,8 @@ SERVICE_INDEX_LOG = "resource:logs-view"
 STRUCTURE_DETAIL_GROUP = "structure:group_details"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"
 
-STRUCTURE_DETAIL_ORGANIZATION = "structure:detail-organization"
-STRUCTURE_INDEX_ORGANIZATION = "structure:organizations_overview"
+STRUCTURE_DETAIL_ORGANIZATION = "structure:organization_details"
+STRUCTURE_INDEX_ORGANIZATION = "structure:organization_overview"
 
 APP_XML = "application/xml"
 

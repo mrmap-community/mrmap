@@ -17,11 +17,11 @@
 <p class="card-text">
     {% trans 'All known organizations.' %}
 </p>
-<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:organizations_overview' %}" role="button">
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:organization_overview' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% if 'can_create_organization' in user_permissions %}
-<a class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'structure:new-organization' %}?current-view={{current_view}}" role="button">
+<a class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'structure:organizations_new' %}?current-view={{current_view}}" role="button">
     {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
 </a>
 {% endif %}

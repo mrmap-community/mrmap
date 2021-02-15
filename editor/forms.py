@@ -344,13 +344,13 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
             init_organization = Organization.objects.filter(id=metadata.contact.id)
             organizations = Organization.objects.filter(
                 Q(is_auto_generated=False) &
-                Q(can_publish_for__in=user_groups) |
+                Q(publishers=user_groups) |
                 Q(id=user.organization.id)
             ) | init_organization
         else:
             organizations = Organization.objects.filter(
                 Q(is_auto_generated=False) &
-                Q(can_publish_for__in=user_groups) |
+                Q(publishers=user_groups) |
                 Q(id=user.organization.id)
             )
 

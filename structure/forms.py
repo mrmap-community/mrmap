@@ -186,7 +186,7 @@ class PublisherForOrganizationForm(MrMapForm):
         messages.success(self.request, message=PUBLISH_REQUEST_SENT)
 
 
-class OrganizationForm(MrMapModelForm):
+class OrganizationForm(forms.ModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
         label=_('Description'),
@@ -234,16 +234,17 @@ class OrganizationForm(MrMapModelForm):
             "country": _("Country"),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, request, *args, **kwargs):
+        self.request = request
         super(OrganizationForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
             org_ids_of_groups = []
-            for group in self.requesting_user.get_groups():
+            for group in self.request.user.get_groups():
                 org_ids_of_groups.append(group.id)
 
-            all_orgs_of_requesting_user = Organization.objects.filter(created_by=self.requesting_user) | \
-                                          Organization.objects.filter(id=self.requesting_user.organization.id) | \
+            all_orgs_of_requesting_user = Organization.objects.filter(created_by=self.request.user) | \
+                                          Organization.objects.filter(id=self.request.user.organization.id) | \
                                           Organization.objects.filter(id__in=org_ids_of_groups)
 
             instance = kwargs.get('instance')
@@ -260,7 +261,7 @@ class OrganizationForm(MrMapModelForm):
     def clean(self):
         cleaned_data = super(OrganizationForm, self).clean()
 
-        if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
+        if self.instance.created_by is not None and self.instance.created_by != self.request.user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
 
         parent = None if 'parent' not in cleaned_data else cleaned_data['parent']
@@ -278,16 +279,11 @@ class OrganizationForm(MrMapModelForm):
 
         return cleaned_data
 
-    def process_edit_org(self):
-        # save changes of organization
-        self.save()
-        messages.success(self.request, message=ORGANIZATION_SUCCESSFULLY_EDITED.format(self.instance.organization_name))
-
     @transaction.atomic
-    def process_new_org(self):
+    def save(self, commit=True):
         # save changes of group
         org = self.save(commit=False)
-        org.created_by = self.requesting_user
+        org.created_by = self.request.user
         org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
         org.save()
         messages.success(self.request, message=_('Organization {} successfully created.'.format(org.organization_name)))
@@ -297,10 +293,11 @@ class OrganizationForm(MrMapModelForm):
             org_group = MrMapGroup.objects.create(
                 name=_("{} group").format(org.organization_name),
                 organization=org,
-                created_by=self.requesting_user,
+                created_by=self.request.user,
             )
-            org_group.user_set.add(self.requesting_user)
+            org_group.user_set.add(self.request.user)
             org_group.save()
+
             messages.success(self.request, message=_('Group {} successfully created.'.format(org_group.name)))
 
 
@@ -422,7 +419,7 @@ class RemovePublisherForm(MrMapConfirmForm):
         """
         user_groups = self.user.get_groups()
         org = self.organization
-        publishers = org.can_publish_for.all()
+        publishers = org.publishers.all()
         user_is_publisher = (publishers & user_groups).exists()
         user_is_org_member = self.user.organization == org
         if not user_is_publisher and not user_is_org_member:

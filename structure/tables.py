@@ -56,7 +56,7 @@ class PublisherTable(MrMapTable):
         Returns:
 
         """
-        url = reverse('structure:detail-organization', args=(record.id,))
+        url = reverse('structure:organization_details', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     def render_publisher_action(self, record):
@@ -160,7 +160,7 @@ class PublishesForTableOld(MrMapTable):
         Returns:
 
         """
-        url = reverse('structure:detail-organization', args=(record.id,))
+        url = reverse('structure:organization_details', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
@@ -202,7 +202,7 @@ class PublisherRequestTable(MrMapTable):
         Returns:
 
         """
-        url = reverse('structure:detail-organization', args=(record.id,))
+        url = reverse('structure:organization_details', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
@@ -289,6 +289,32 @@ class GroupDetailTable(tables.Table):
         renderd_perms = self.render_helper.render_list_coherent(items=perms)
         self.render_helper.update_attrs = None
         return format_html(renderd_perms)
+
+
+class OrganizationDetailTable(tables.Table):
+    inherited_permissions = tables.Column(verbose_name=_('Inherited Permissions'))
+
+    class Meta:
+        model = Organization
+        fields = ('organization_name',
+                  'parent',
+                  'is_auto_generated',
+                  'person_name',
+                  'email',
+                  'phone',
+                  'facsimile',
+                  'city',
+                  'postal_code',
+                  'address',
+                  'state_or_province',
+                  'country')
+        template_name = "skeletons/django_tables2_vertical_table.html"
+        # todo: set this prefix dynamic
+        prefix = 'organization-detail-table'
+        orderable = False
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
 
 class OrganizationTable(tables.Table):

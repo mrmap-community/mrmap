@@ -201,16 +201,16 @@ class Organization(Contact):
                       content=icon + _(' new organization').__str__()).render()
         return LinkButton(content=st_text + gt_text,
                           color=ButtonColorEnum.SUCCESS,
-                          url=reverse('structure:new-organization'),
+                          url=reverse('structure:organizations_new'),
                           needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
 
     @property
     def detail_view_uri(self):
-        return reverse('structure:detail-organization', args=[self.pk, ])
+        return reverse('structure:organization_details', args=[self.pk, ])
 
     @property
     def add_view_uri(self):
-        return reverse('structure:new-organization', args=[self.pk, ])
+        return reverse('structure:organizations_new', args=[self.pk, ])
 
     @property
     def edit_view_uri(self):
@@ -264,7 +264,7 @@ class MrMapGroup(Group):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
                                      related_name="organization_groups")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
-    publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
+    publish_for_organizations = models.ManyToManyField('Organization', related_name='publishers', blank=True)
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
     is_public_group = models.BooleanField(default=False)
     is_permission_group = models.BooleanField(default=False)

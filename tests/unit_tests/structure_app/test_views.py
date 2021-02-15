@@ -72,7 +72,7 @@ class StructureIndexViewTestCase(TestCase):
 
     def test_get_organization_index(self):
         response = self.client.get(
-            reverse('structure:organizations_overview', ),
+            reverse('structure:organization_overview', ),
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/organizations_index.html")
@@ -142,7 +142,7 @@ class StructureDetailOrganizationViewTestCase(TestCase):
 
     def test_get_detail_organization(self):
         response = self.client.get(
-            reverse('structure:detail-organization',
+            reverse('structure:organization_details',
                     args=(self.orgas[0].id,)),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -319,7 +319,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         self.user.get_groups()[0].role.permissions.add(perm)
 
         response = self.client.get(
-            reverse('structure:new-organization', )+"?current-view=structure:index",
+            reverse('structure:organizations_new', )+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
@@ -332,7 +332,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         post_params = {'organization_name': 'TestOrga', 'person_name': 'TestPerson'}
 
         response = self.client.post(
-            reverse('structure:new-organization', )+"?current-view=structure:index",
+            reverse('structure:organizations_new', )+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -350,7 +350,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
 
         post_params = {'person_name': 'TestPerson'}
         response = self.client.post(
-            reverse('structure:new-organization')+"?current-view=structure:index",
+            reverse('structure:organizations_new')+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -359,7 +359,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
 
     def test_permission_new_organization(self):
         response = self.client.get(
-            reverse('structure:new-organization'),
+            reverse('structure:organizations_new'),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 

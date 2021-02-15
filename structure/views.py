@@ -21,7 +21,8 @@ from django_tables2 import SingleTableMixin
 from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
 from MrMap.messages import RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
-    GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED
+    GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
+    ORGANIZATION_SUCCESSFULLY_CREATED
 from service.views import default_dispatch, format_html
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
@@ -31,7 +32,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable, \
-    PublishesRequestTable
+    PublishesRequestTable, OrganizationDetailTable
 from django.urls import reverse_lazy
 
 from users.filters import MrMapUserFilter
@@ -179,55 +180,53 @@ class OrganizationTableView(SingleTableMixin, FilterView):
         return super(OrganizationTableView, self).dispatch(request, *args, **kwargs)
 
 
-@login_required
-def detail_organizations(request: HttpRequest, object_id: int, update_params=None, status_code=None):
-    """ Renders an overview of a group's details.
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_ORGANIZATION.value), name='dispatch')
+class OrganizationNew(SuccessMessageMixin, CreateView):
+    model = MrMapGroup
+    form_class = OrganizationForm
+    template_name = 'structure/views/organizations/new.html'
 
-    Args:
-        request: The incoming request
-        org_id: The id of the requested group
-        update_params:
-        status_code:
-    Returns:
-         A rendered view
-    """
-    user = user_helper.get_user(request)
-    org = get_object_or_404(Organization, id=object_id)
-    members = MrMapUser.objects.filter(organization=org)
-    sub_orgs = Organization.objects.filter(parent=org)
-    template = "views/organizations_detail_no_base.html" if 'no-base' in request.GET else "views/organizations_detail.html"
+    def get_success_message(self, cleaned_data):
+        return ORGANIZATION_SUCCESSFULLY_CREATED.format(self.object)
 
-    all_publishing_groups = MrMapGroup.objects.filter(publish_for_organizations__id=object_id)
-    publisher_table = PublisherTable(
-        data=all_publishing_groups,
-        request=request,
-        organization=org,
-        current_view="structure:detail-organization",
-    )
+    def get_success_url(self):
+        return self.object.detail_view_uri
 
-    suborganizations = Organization.objects.filter(parent=org)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
 
-    params = {
-        "organization": org,
-        "suborganizations": suborganizations,
-        "members": members,
-        "sub_organizations": sub_orgs,  # ToDo: nicht in template
-        "all_publisher_table": publisher_table,
-        'caption': _l("Shows informations about the organization."),
-        "current_view": "structure:detail-organization",
-    }
-
-    if update_params:
-        params.update(update_params)
-
-    return render(request=request,
-                  template_name=template,
-                  context=params,
-                  status=200 if status_code is None else status_code)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'title': _('New organization')})
+        return context
 
 
 @method_decorator(login_required, name='dispatch')
-#@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class OrganizationDetailView(DetailView):
+    class Meta:
+        verbose_name = _('Details')
+
+    model = Organization
+    template_name = 'structure/views/organizations/details.html'
+    queryset = Organization.objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'title': _('Details')})
+
+        details_table = OrganizationDetailTable(data=[self.object, ],
+                                                request=self.request)
+        context.update({'details_table': details_table,
+                        'members_count': self.object.primary_users.count(),
+                        'publishers_count': self.object.publishers.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(organization=self.object).count()})
+        return context
+
+
+@method_decorator(login_required, name='dispatch')
 class MrMapGroupDetailView(DetailView):
     class Meta:
         verbose_name = _('Details')
@@ -437,25 +436,6 @@ def remove_org(request: HttpRequest, object_id: int):
         form_title=_l(f"Remove organization <strong>{org}</strong>"),
         instance=org, )
     return form.process_request(valid_func=form.process_remove_org)
-
-
-@login_required
-@permission_required(PermissionEnum.CAN_CREATE_ORGANIZATION.value)
-def new_org(request: HttpRequest):
-    """ Renders the new organization form and saves the input
-    Args:
-        request: The incoming request
-    Returns:
-
-    """
-    form = OrganizationForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:new-organization',
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l(f"Add new organization"), )
-    return form.process_request(valid_func=form.process_new_org)
 
 
 @login_required

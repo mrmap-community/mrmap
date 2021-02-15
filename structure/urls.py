@@ -26,17 +26,23 @@ urlpatterns = [
     path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
     # Organization
-    path('organizations', OrganizationTableView.as_view(), name='organizations_overview'),
-    path('organizations/detail/<object_id>', detail_organizations, name='detail-organization'),
+    path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
+    path('organizations/new', OrganizationNew.as_view(), name='organizations_new'),
+    path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_details'),
+    # path('organizations/<pk>/edit'),
+    # path('organizations/<pk>/remove'),
+    # path('organizations/<pk>/publishers', MrMapGroupPublishersTableView.as_view(), name='organization_publisher_overview'),
+
     path('organizations/edit/<object_id>', edit_org, name='edit-organization'),
     path('organizations/delete/<object_id>', remove_org, name='delete-organization'),
-    path('organizations/create-publish-request/<org_id>/', publish_request, name='publish-request'),
+    # path('organizations/create-publish-request/<org_id>/', publish_request, name='publish-request'),
     path('organizations/<org_id>/remove-publisher/<group_id>/', remove_publisher, name='remove-publisher'),
-    path('organizations/new/register-form/', new_org, name='new-organization'),
+    # path('organizations/new/register-form/', new_org, name='organizations_new'),
+
+
 
     path('users/', users_index, name='users-index'),
     path('users/<object_id>/group-invitation/', user_group_invitation, name='invite-user-to-group'),
-
     path('group-invitation/<object_id>/', toggle_group_invitation, name='toggle-user-to-group'),
 ]
 

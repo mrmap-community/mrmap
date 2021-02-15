@@ -25,7 +25,7 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
                     <a class="dropdown-item" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</a>
-                    <a class="dropdown-item" href="{% url 'structure:organizations_overview' %}">
+                    <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">
                         {% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%}
                     </a>
                     <a class="dropdown-item" href="{% url 'structure:users-index' %}">

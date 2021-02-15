@@ -17,7 +17,7 @@ SERVICE_ADD = "resource:add"
 
 SERVICE_INDEX_LOG = "resource:logs-view"
 
-STRUCTURE_DETAIL_GROUP = "structure:detail-group"
+STRUCTURE_DETAIL_GROUP = "structure:group_details"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"
 
 STRUCTURE_DETAIL_ORGANIZATION = "structure:detail-organization"

@@ -13,18 +13,20 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-md-3">
-            <div class="list-group my-3">
-                {% generate_menu %}
-                {% for item in menus.group_details %}
-                <a href="{{item.url}}" class="list-group-item list-group-item-action {% if item.selected %}active{% endif %}" {% if item.selected %}aria-current="true"{% endif %}>{{item.title}}</a>
-                {% for child in item.children %}
-                <a href="{{child.url}}" class="pl-5 list-group-item list-group-item-action {% if child.selected %}active{% endif %}" {% if child.selected %}aria-current="true"{% endif %}>{{child.title}}</a>
-                {% endfor %}
+        <div class="col">
+            {% block page_title %}
+            {% endblock %}
+        </div>
+        <div class="col">
+            <div class="float-right">
+                {% for action in object.get_actions %}
+                {{ action|safe }}
                 {% endfor %}
             </div>
         </div>
-        <div class="col-md-9">
+    </div>
+    <div class="row">
+        <div class="col">
             {% block content %}{% endblock %}
         </div>
     </div>

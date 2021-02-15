@@ -256,39 +256,60 @@ class MrMapGroup(Group):
     def get_add_group_action(cls):
         return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New group').__str__(),
                           color=ButtonColorEnum.SUCCESS,
-                          url=reverse('structure:new-group'),
+                          url=reverse('structure:group_new'),
                           needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
 
     @property
     def detail_view_uri(self):
-        return reverse('structure:detail-group', args=[self.pk, ])
+        return reverse('structure:group_details', args=[self.pk, ])
 
     @property
     def add_view_uri(self):
-        return reverse('structure:new-group')
+        return reverse('structure:group_new')
 
     @property
     def edit_view_uri(self):
-        return reverse('structure:edit-group', args=[self.pk, ])
+        return reverse('structure:group_edit', args=[self.pk, ])
 
     @property
     def remove_view_uri(self):
-        return reverse('structure:delete-group', args=[self.pk, ])
+        return reverse('structure:group_remove', args=[self.pk, ])
 
-    def get_actions(self, user):
+    @property
+    def new_publisher_requesst_uri(self):
+        return reverse('structure:group_publisher_new', args=[self.pk, ])
+
+    def get_actions(self):
         actions = []
         if not self.is_permission_group:
+            edit_icon = Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render()
+            st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=edit_icon).render()
+            gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']}, content=edit_icon + _(' Edit').__str__()).render()
             actions.append(LinkButton(url=self.edit_view_uri,
-                                      content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
+                                      content=st_edit_text + gt_edit_text,
                                       color=ButtonColorEnum.WARNING,
                                       tooltip=_(f"Edit <strong>{self.name}</strong>"),
                                       needs_perm=PermissionEnum.CAN_EDIT_GROUP.value))
+            delete_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+            st_delete_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=delete_icon).render()
+            gt_delete_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']}, content=delete_icon + _(' Delete').__str__()).render()
             actions.append(LinkButton(url=self.remove_view_uri,
-                                      content=Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render(),
+                                      content=st_delete_text + gt_delete_text,
                                       color=ButtonColorEnum.DANGER,
                                       tooltip=_(f"Remove <strong>{self.name}</strong>"),
                                       needs_perm=PermissionEnum.CAN_DELETE_GROUP.value))
         return actions
+
+    @property
+    def new_publisher_request_action(self):
+        add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=add_icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']}, content=add_icon + _(' become publisher').__str__()).render()
+        return LinkButton(url=self.new_publisher_requesst_uri,
+                          content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          tooltip=_("Become publisher"),
+                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 
 
 class Theme(models.Model):

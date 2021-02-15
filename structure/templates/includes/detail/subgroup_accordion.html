@@ -15,7 +15,7 @@
 
         accordionButton.click(function() {
           if ( accordionButton.hasClass('collapsed') ) {
-            $.get( '{% url 'structure:detail-group' subgroup.id %}?no-base', function( data ) {
+            $.get( '{% url 'structure:group_details' subgroup.id %}?no-base', function( data ) {
                 // Insert subelement detail table
                 $( "#id_content_group_{{subgroup.id}}" ).html( data );
                 $(function () {

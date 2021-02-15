@@ -393,7 +393,7 @@ class StructureDetailGroupViewTestCase(TestCase):
 
     def test_get_detail_group(self):
         response = self.client.get(
-            reverse('structure:detail-group',
+            reverse('structure:group_details',
                     args=(self.groups[0].id,)),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )

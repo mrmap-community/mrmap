@@ -21,10 +21,11 @@ urlpatterns = [
     path('groups/<pk>/publishers/new', MrMapGroupPublishersNewView.as_view(), name='group_publisher_new'),
     path('groups/<pk>/publishers/requests', MrMapGroupPublishRequestTableView.as_view(), name='group_publisher_request_overview'),
 
+    # Publishers
+    # todo: delete
 
 
     path('groups/<object_id>/user/<user_id>', remove_user_from_group, name='remove-user-from-group'),
-
     path('publish-request/<object_id>/', toggle_publish_request, name='toggle-publish-request'),
 
     # Organization

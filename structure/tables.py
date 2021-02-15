@@ -43,7 +43,7 @@ class PublisherTable(MrMapTable):
         Returns:
 
         """
-        url = reverse('structure:detail-group', args=(record.id,))
+        url = reverse('structure:group_details', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     def render_publisher_org(self, value, record):
@@ -150,7 +150,7 @@ class PublisherRequestTable(MrMapTable):
         Returns:
 
         """
-        url = reverse('structure:detail-group', args=(record.id,))
+        url = reverse('structure:group_details', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     def render_publisher_org(self, value, record):
@@ -200,7 +200,7 @@ class GroupTable(tables.Table):
 
     def render_actions(self, record):
         self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions(self.request.user))
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
         self.render_helper.update_attrs = None
         return format_html(renderd_actions)
 

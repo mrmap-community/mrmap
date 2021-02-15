@@ -18,7 +18,7 @@
 </tr>
 <tr>
     <th scope="row">{% trans 'Parent' %}</th>
-    <td>{% if group.parent_group %}<a href="{% url 'structure:detail-group' group.parent_group.id %}">{{ group.parent_group }}</a>{% else %} None {% endif %}</td>
+    <td>{% if group.parent_group %}<a href="{% url 'structure:group_details' group.parent_group.id %}">{{ group.parent_group }}</a>{% else %} None {% endif %}</td>
 </tr>
 <tr>
     <th scope="row">{% trans 'Permissions' %}</th>

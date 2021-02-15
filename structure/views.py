@@ -241,8 +241,10 @@ class MrMapGroupDetailView(DetailView):
 
         details_table = GroupDetailTable(data=[self.object, ],
                                          request=self.request)
-        context.update({'details_table': details_table})
-
+        context.update({'details_table': details_table,
+                        'members_count': self.object.user_set.count(),
+                        'publishers_count': self.object.publish_for_organizations.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(group=self.object).count()})
         return context
 
 
@@ -263,7 +265,10 @@ class MrMapGroupMembersTableView(SingleTableMixin, FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({"object": self.object})
+        context.update({"object": self.object,
+                        'members_count': self.object.user_set.count(),
+                        'publishers_count': self.object.publish_for_organizations.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(group=self.object).count()})
         return context
 
     def get_table(self, **kwargs):
@@ -323,10 +328,10 @@ def detail_group(request: HttpRequest, object_id: int, update_params=None, statu
         "show_registering_for": True,
         "all_publisher_table": all_publisher_table,
         "caption": _l("Shows informations about the group."),
-        "current_view": "structure:detail-group",
+        "current_view": "structure:group_details",
     }
     params.update(
-        _prepare_users_table(request=request, group=group, current_view='structure:detail-group')
+        _prepare_users_table(request=request, group=group, current_view='structure:group_details')
     )
 
     if update_params:
@@ -546,7 +551,10 @@ class MrMapGroupPublishersTableView(SingleTableMixin, FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({"object": self.object})
+        context.update({"object": self.object,
+                        'members_count': self.object.user_set.count(),
+                        'publishers_count': self.object.publish_for_organizations.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(group=self.object).count()})
         return context
 
     def get_table(self, **kwargs):
@@ -608,7 +616,10 @@ class MrMapGroupPublishRequestTableView(SingleTableMixin, FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({"object": self.object})
+        context.update({"object": self.object,
+                        'members_count': self.object.user_set.count(),
+                        'publishers_count': self.object.publish_for_organizations.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(group=self.object).count()})
         return context
 
     def get_table(self, **kwargs):
@@ -650,7 +661,7 @@ def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
             request,
             _l("{} removed from {}").format(user.username, group.name)
         )
-    return redirect("structure:detail-group", object_id)
+    return redirect("structure:group_details", object_id)
 
 
 @method_decorator(login_required, name='dispatch')

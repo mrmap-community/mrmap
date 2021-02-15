@@ -69,7 +69,7 @@ class EditorAcessTable(tables.Table):
         super(EditorAcessTable, self).__init__(*args, **kwargs)
 
     def render_name(self, record):
-        url = reverse('structure:detail-group', args=(record.id,))
+        url = reverse('structure:group_details', args=(record.id,))
         icon = ''
         tooltip = _('Click to open the detail view of <strong>{}</strong>'.format(record.name))
         if record.is_public_group:

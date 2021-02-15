@@ -30,3 +30,4 @@ class IconEnum(Enum):
     GROUP = "fas fa-users"
     SIGNOUT = "fas fa-sign-out-alt"
     PUBLISHERS = "fas fa-address-card"
+    ADD = "fas fa-plus-circle"

@@ -1,7 +1,8 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
-from django_bootstrap_swt.components import Link, Tag, Badge
+from django_bootstrap_swt.components import Link, Tag, Badge, LinkButton, Button
+from django_bootstrap_swt.enums import ButtonColorEnum, TooltipPlacementEnum
 from django_bootstrap_swt.utils import RenderHelper
 
 from MrMap.columns import MrMapColumn
@@ -11,7 +12,7 @@ from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import MrMapGroup, Organization, PublishRequest
+from structure.models import MrMapGroup, Organization, PublishRequest, MrMapUser
 from structure.permissionEnums import PermissionEnum
 
 
@@ -80,19 +81,58 @@ class PublishesForTable(tables.Table):
         prefix = 'publishers-for-table'
 
     def render_organization_name(self, record, value):
-        return Link(url=record.detail_view_uri, content=value)
+        return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
 
 class PublishesRequestTable(tables.Table):
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
     class Meta:
         model = PublishRequest
-        fields = ('organization', 'message')
+        fields = ('group', 'organization', 'message')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         # todo: set this prefix dynamic
         prefix = 'publishers-for-table'
 
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
     def render_organization(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
+    def render_group(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
+    def render_actions(self, record):
+        ok_icon = Tag(tag='i', attrs={"class": [IconEnum.OK.value]}).render()
+        st_ok_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=ok_icon).render()
+        gt_ok_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                         content=ok_icon + _(' accept').__str__()).render()
+        nok_icon = Tag(tag='i', attrs={"class": [IconEnum.NOK.value]}).render()
+        st_nok_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=nok_icon).render()
+        gt_nok_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                          content=nok_icon + _(' deny').__str__()).render()
+
+        actions = [
+
+            LinkButton(url=f"{record.accept_publish_request_uri}?is_accepted=True",
+                       content=st_ok_text+gt_ok_text,
+                       color=ButtonColorEnum.SUCCESS),
+            LinkButton(url=f"{record.accept_publish_request_uri}",
+                       content=st_nok_text + gt_nok_text,
+                       color=ButtonColorEnum.DANGER)
+
+        ]
+        self.render_helper.update_attrs = {"class": ["mr-1"]}
+        rendered_items = format_html(self.render_helper.render_list_coherent(items=actions))
+        self.render_helper.update_attrs = None
+        return rendered_items
 
 
 class PublishesForTableOld(MrMapTable):
@@ -332,3 +372,41 @@ class OrganizationTable(MrMapTable):
             permission=PermissionEnum.CAN_DELETE_ORGANIZATION,
         ))
         return format_html(btns)
+
+
+class MrMapUserTable(tables.Table):
+    caption = _("Shows registered users.")
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions to perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
+    class Meta:
+        model = MrMapUser
+        fields = ('username', 'organization')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+
+    def __init__(self, group: MrMapGroup, *args, **kwargs):
+        self.group = group
+        super().__init__(*args, **kwargs)
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
+    def render_actions(self, record):
+        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
+        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                           content=remove_icon + _(' Remove').__str__()).render()
+
+        btns = [
+            LinkButton(url=self.group.remove_member_view_uri(record),
+                       content=st_edit_text + gt_edit_text,
+                       color=ButtonColorEnum.DANGER,
+                       tooltip=_(f"Remove <strong>{record}</strong> from <strong>{self.group}</strong>"),
+                       tooltip_placement=TooltipPlacementEnum.LEFT)
+        ]
+        return format_html(self.render_helper.render_list_coherent(items=btns))

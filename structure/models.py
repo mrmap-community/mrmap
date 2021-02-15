@@ -9,8 +9,8 @@ from django.utils.translation import gettext_lazy as _
 
 import json
 
-from django_bootstrap_swt.components import LinkButton, Tag
-from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum
+from django_bootstrap_swt.components import LinkButton, Tag, Badge
+from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColorEnum
 
 from MrMap.icons import IconEnum
 from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
@@ -275,9 +275,12 @@ class MrMapGroup(Group):
     def remove_view_uri(self):
         return reverse('structure:group_remove', args=[self.pk, ])
 
+    def remove_member_view_uri(self, user):
+        return reverse('structure:group_members_remove', args=[self.pk, user.id])
+
     @property
     def new_publisher_requesst_uri(self):
-        return reverse('structure:group_publisher_new', args=[self.pk, ])
+        return f"{reverse('structure:publish_request_new')}?group={self.pk}"
 
     def get_actions(self):
         actions = []
@@ -309,6 +312,19 @@ class MrMapGroup(Group):
                           content=st_text + gt_text,
                           color=ButtonColorEnum.SUCCESS,
                           tooltip=_("Become publisher"),
+                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
+
+    @property
+    def show_pending_requests(self):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}).render()
+        count = Badge(content=f" {PublishRequest.objects.filter(group=self).count()}", color=BadgeColorEnum.SECONDARY).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon + count).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' pending requests').__str__() + count).render()
+        return LinkButton(url=f"{reverse('structure:publish_request_overview')}?group={self.pk}",
+                          content=f"{st_text}{gt_text}",
+                          color=ButtonColorEnum.INFO,
+                          tooltip=_(f"see pending requests for {self}"),
                           needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 
 
@@ -516,6 +532,7 @@ class BaseInternalRequest(models.Model):
 class PublishRequest(BaseInternalRequest):
     group = models.ForeignKey(MrMapGroup, verbose_name=_('group'), related_name="publish_requests", on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, verbose_name=_('organization'), related_name="publish_requests", on_delete=models.CASCADE)
+    is_accepted = models.BooleanField(verbose_name=_('accepted'), default=False)
 
     class Meta:
         # It shall be restricted to create multiple requests objects for the same organization per group. This unique
@@ -524,6 +541,22 @@ class PublishRequest(BaseInternalRequest):
 
     def __str__(self):
         return "{} > {}".format(self.group.name, self.organization.organization_name)
+
+    def get_absolute_url(self):
+        return f"{reverse('structure:publish_request_overview')}?group={self.group.id}&organization={self.organization.id}"
+
+    @property
+    def accept_publish_request_uri(self):
+        return reverse('structure:publish_request_accept', args=[self.pk])
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if not self._state.adding:
+            if self.is_accepted:
+                self.group.publish_for_organizations.add(self.organization)
+            self.delete()
+        else:
+            super().save(force_insert, force_update, using, update_fields)
 
 
 class GroupInvitationRequest(BaseInternalRequest):

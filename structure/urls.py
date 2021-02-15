@@ -15,18 +15,15 @@ urlpatterns = [
     path('groups/new', NewMrMapGroup.as_view(), name='group_new'),
     path('groups/<pk>', MrMapGroupDetailView.as_view(), name='group_details'),
     path('groups/<pk>/members', MrMapGroupMembersTableView.as_view(), name='group_members'),
+    path('groups/<pk>/members/remove/<user_id>', RemoveUserFromGroupView.as_view(), name='group_members_remove'),
     path('groups/<pk>/edit', EditGroupView.as_view(), name='group_edit'),
     path('groups/<pk>/remove', DeleteMrMapGroupView.as_view(), name='group_remove'),
     path('groups/<pk>/publishers', MrMapGroupPublishersTableView.as_view(), name='group_publisher_overview'),
-    path('groups/<pk>/publishers/new', MrMapGroupPublishersNewView.as_view(), name='group_publisher_new'),
-    path('groups/<pk>/publishers/requests', MrMapGroupPublishRequestTableView.as_view(), name='group_publisher_request_overview'),
 
     # Publishers
-    # todo: delete
-
-
-    path('groups/<object_id>/user/<user_id>', remove_user_from_group, name='remove-user-from-group'),
-    path('publish-request/<object_id>/', toggle_publish_request, name='toggle-publish-request'),
+    path('publish-requests', PublishRequestTableView.as_view(), name='publish_request_overview'),
+    path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
+    path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
     # Organization
     path('organizations/', organizations_index, name='organizations-index'),

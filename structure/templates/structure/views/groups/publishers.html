@@ -1,4 +1,4 @@
-{% extends 'structure/views/groups/base.html' %}
+{% extends 'structure/views/base.html' %}
 {% load static i18n %}
 {% load bootstrap4 %}
 {% load render_table from django_tables2 %}
@@ -27,11 +27,6 @@
                       {% trans 'Publishers' %} <span class="badge badge-secondary">{{publishers_count}}</span>
                   </a>
               </li>
-              <li class="nav-item">
-                  <a class="nav-link" href="{% url 'structure:group_publisher_request_overview' object.pk %}">
-                      {% trans 'Publisher requests' %} <span class="badge badge-secondary">{{publisher_requests_count}}</span>
-                  </a>
-              </li>
           </ul>
       </div>
       <div class="card-body">
@@ -39,6 +34,7 @@
       </div>
       <div class="card-footer">
             <div class="float-right">
+            {{object.show_pending_requests|safe}}
             {{object.new_publisher_request_action|safe}}
             </div>
       </div>

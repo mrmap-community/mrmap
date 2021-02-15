@@ -31,3 +31,6 @@ class IconEnum(Enum):
     SIGNOUT = "fas fa-sign-out-alt"
     PUBLISHERS = "fas fa-address-card"
     ADD = "fas fa-plus-circle"
+    OK = "fas fa-check"
+    NOK = "fas fa-times"
+

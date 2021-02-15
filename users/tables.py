@@ -1,6 +1,7 @@
 from django.urls import reverse
 from django.utils.html import format_html
-from django_bootstrap_swt.components import Link
+from django_bootstrap_swt.components import Link, LinkButton
+from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_tables2 import tables
 from MrMap.columns import MrMapColumn
@@ -47,41 +48,8 @@ class SubscriptionTable(tables.Table):
 
 class MrMapUserTable(tables.Table):
     caption = _("Shows registered users.")
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions to perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
 
     class Meta:
         model = MrMapUser
         fields = ('username', 'organization')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-
-    def render_actions(self, record):
-        btns = ''
-        """
-        if not self.is_group_detail_view and record != self.user:
-            btns += format_html(self.get_btn(
-                href=reverse('structure:invite-user-to-group', args=(record.id, ))+f"?current-view={self.current_view}",
-                btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-                btn_value=get_theme(self.user)["ICONS"]['GROUP'],
-                permission=PermissionEnum.CAN_ADD_USER_TO_GROUP,
-                tooltip=format_html(_("Add user to group"), ),
-                tooltip_placement='left',
-            ))
-
-        if self.is_group_detail_view and record != self.user and self.group.created_by != record:
-            # The user can't remove himself or the group creator!
-            btns += format_html(self.get_btn(
-                href=reverse('structure:remove-user-from-group', args=(self.group.id, record.id, ))+f"?current-view={self.current_view}",
-                btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-                btn_value=get_theme(self.user)["ICONS"]['SIGNOUT'],
-                permission=PermissionEnum.CAN_ADD_USER_TO_GROUP,
-                tooltip=format_html(_("Remove user from group"), ),
-                tooltip_placement='left',
-            ))
-        """
-        return format_html(btns)

@@ -4,9 +4,9 @@ from captcha.fields import CaptchaField
 from dal import autocomplete
 from django import forms
 from django.contrib.auth.hashers import make_password
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError, ObjectDoesNotExist, ImproperlyConfigured
 from django.db import transaction
-from django.forms import ModelForm
+from django.forms import ModelForm, HiddenInput, MultipleHiddenInput
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
@@ -103,20 +103,27 @@ class GroupForm(ModelForm):
         return self.instance
 
 
-class PublishRequestForm(forms.ModelForm):
+class RemoveUserFromGroupForm(ModelForm):
+    user_set = forms.ModelMultipleChoiceField(queryset=MrMapUser.objects.all(),
+                                              label=_('Members'),
+                                              widget=MultipleHiddenInput())
+
     class Meta:
-        model = PublishRequest
-        fields = ('group', 'organization', 'message', 'created_by')
-        widgets = {'group': forms.HiddenInput(),
-                   'message': forms.Textarea()}
+        model = MrMapGroup
+        fields = ()
 
-    def __init__(self, group, user, *args, **kwargs):
-        self.group = group
-        self.user = user
-        super(PublishRequestForm, self).__init__(*args, **kwargs)
-        self.fields['group'].initial = self.group
-        self.fields['created_by'].initial = self.user
+    def __init__(self, user, *args, **kwargs):
+        super(RemoveUserFromGroupForm, self).__init__(*args, **kwargs)
+        instance = kwargs.get('instance')
+        if instance:
+            self.fields['user_set'].initial = instance.user_set.exclude(username=user.username)
+        else:
+            raise ImproperlyConfigured("RemoveUserFromGroupForm without instance kw isn't possible")
 
+    def save(self, commit=True):
+        self.instance.user_set.clear()
+        self.instance.user_set.add(*self.cleaned_data['user_set'])
+        return self.instance
 
 
 class PublisherForOrganizationForm(MrMapForm):

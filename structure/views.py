@@ -143,7 +143,7 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
         table.title = Tag(tag='i', attrs={"class": [IconEnum.GROUP.value]}).render() + _l(' Groups').__str__()
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
-        table.actions = [render_helper.render_item(item=MrMapGroup.get_add_group_action())]
+        table.actions = [render_helper.render_item(item=MrMapGroup.get_add_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -151,32 +151,32 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
         return super(MrMapGroupTableView, self).dispatch(request, *args, **kwargs)
 
 
-@login_required
-def organizations_index(request: HttpRequest, update_params=None, status_code=None):
-    """ Renders an overview of all organizations
+@method_decorator(login_required, name='dispatch')
+class OrganizationTableView(SingleTableMixin, FilterView):
+    model = Organization
+    table_class = OrganizationTable
+    filterset_fields = ('organization_name', 'parent', 'is_auto_generated')
 
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    template = "views/organizations_index.html"
-    user = user_helper.get_user(request)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.order_by(
+            Case(When(id=self.request.user.organization.id if self.request.user.organization is not None else 0, then=0), default=1),
+            'organization_name')
+        return queryset
 
-    params = {
-        "current_view": "structure:organizations-index",
-    }
-    params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:organizations-index'))
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(OrganizationTableView, self).get_table(**kwargs)
 
-    if update_params:
-        params.update(update_params)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.ORGANIZATION.value]}).render() + _l(' Organizations').__str__()
 
-    return render(request=request,
-                  template_name=template,
-                  context=params,
-                  status=200 if status_code is None else status_code)
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
+        table.actions = [render_helper.render_item(item=Organization.get_add_action())]
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self)
+        return super(OrganizationTableView, self).dispatch(request, *args, **kwargs)
 
 
 @login_required

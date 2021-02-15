@@ -72,7 +72,7 @@ class StructureIndexViewTestCase(TestCase):
 
     def test_get_organization_index(self):
         response = self.client.get(
-            reverse('structure:organizations-index', ),
+            reverse('structure:organizations_overview', ),
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/organizations_index.html")

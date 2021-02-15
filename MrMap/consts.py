@@ -21,7 +21,7 @@ STRUCTURE_DETAIL_GROUP = "structure:group_details"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"
 
 STRUCTURE_DETAIL_ORGANIZATION = "structure:detail-organization"
-STRUCTURE_INDEX_ORGANIZATION = "structure:organizations-index"
+STRUCTURE_INDEX_ORGANIZATION = "structure:organizations_overview"
 
 APP_XML = "application/xml"
 

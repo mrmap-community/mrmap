@@ -33,4 +33,4 @@ class IconEnum(Enum):
     ADD = "fas fa-plus-circle"
     OK = "fas fa-check"
     NOK = "fas fa-times"
-
+    ORGANIZATION = "fas fa-building"

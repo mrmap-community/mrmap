@@ -26,7 +26,7 @@ urlpatterns = [
     path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
     # Organization
-    path('organizations/', organizations_index, name='organizations-index'),
+    path('organizations', OrganizationTableView.as_view(), name='organizations_overview'),
     path('organizations/detail/<object_id>', detail_organizations, name='detail-organization'),
     path('organizations/edit/<object_id>', edit_org, name='edit-organization'),
     path('organizations/delete/<object_id>', remove_org, name='delete-organization'),

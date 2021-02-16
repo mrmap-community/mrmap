@@ -14,9 +14,6 @@ urlpatterns = [
     # Dashboard
     path('', HomeView.as_view(), name="home"),
 
-    # accounts
-    path('accounts', AccountTableView.as_view(), name='account_overview'),
-
     path('accounts/login', MrMapLoginView.as_view(), name="login"),
     path('accounts/login', MrMapLoginView.as_view(), name="password_reset_done"),
     path('accounts/login', MrMapLoginView.as_view(), name="password_reset_complete"),

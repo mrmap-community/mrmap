@@ -491,3 +491,29 @@ class OrganizationMemberTable(tables.Table):
 
         ]
         return format_html(self.render_helper.render_list_coherent(items=btns))
+
+
+class MrMapUserTable(tables.Table):
+    caption = _("Shows registered users.")
+
+    class Meta:
+        model = MrMapUser
+        fields = ('username', 'organization', 'groups')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
+    def render_organization(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
+    def render_groups(self, record, value):
+        links = []
+        for group in value.all():
+            link = Link(url=group.mrmapgroup.detail_view_uri, content=group.mrmapgroup)
+            link_with_seperator = Tag(tag='span', content=link + ',')
+            links.append(link_with_seperator)
+        self.render_helper.update_attrs = {"class": ["mr-1"]}
+        renderd_actions = self.render_helper.render_list_coherent(items=links)
+        self.render_helper.update_attrs = None
+        return format_html(renderd_actions)

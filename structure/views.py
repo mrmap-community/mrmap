@@ -32,7 +32,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable, \
-    PublishesRequestTable, OrganizationDetailTable, PublishersTable, OrganizationMemberTable
+    PublishesRequestTable, OrganizationDetailTable, PublishersTable, OrganizationMemberTable, MrMapUserTable
 from django.urls import reverse_lazy
 
 from users.filters import MrMapUserFilter
@@ -555,6 +555,26 @@ class GroupEditView(SuccessMessageMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context.update({'title': _('Edit group')})
         return context
+
+
+@method_decorator(login_required, name='dispatch')
+class UserTableView(SingleTableMixin, FilterView):
+    model = MrMapUser
+    table_class = MrMapUserTable
+    filterset_fields = {'username': ['icontains'],
+                        'organization__organization_name': ['icontains'],
+                        'groups__name': ['icontains']}
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(UserTableView, self).get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.USER.value]}).render() + _(' Users').__str__()
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self)
+        return super(UserTableView, self).dispatch(request, *args, **kwargs)
+
 
 
 def handler404(request: HttpRequest, exception=None):

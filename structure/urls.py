@@ -32,6 +32,9 @@ urlpatterns = [
     path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
     path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
+    # users
+    path('users', UserTableView.as_view(), name='users_overview'),
+
     # todo: move to users app
     path('users/<object_id>/group-invitation/', user_group_invitation, name='invite-user-to-group'),
     path('group-invitation/<object_id>/', toggle_group_invitation, name='toggle-user-to-group'),

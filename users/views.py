@@ -40,7 +40,7 @@ from users.forms import SubscriptionForm
 from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
-from users.tables import SubscriptionTable, MrMapUserTable
+from users.tables import SubscriptionTable
 
 
 class MrMapLoginView(SuccessMessageMixin, LoginView):
@@ -106,25 +106,6 @@ class HomeView(TemplateView):
             "current_view": "home",
         })
         return context
-
-
-@method_decorator(login_required, name='dispatch')
-class AccountTableView(SingleTableMixin, FilterView):
-    model = MrMapUser
-    table_class = MrMapUserTable
-    filterset_fields = {'username': ['icontains'],
-                        'organization__organization_name': ['icontains'],
-                        'groups__name': ['icontains']}
-
-    def get_table(self, **kwargs):
-        # set some custom attributes for template rendering
-        table = super(AccountTableView, self).get_table(**kwargs)
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.USER.value]}).render() + _(' Users').__str__()
-        return table
-
-    def dispatch(self, request, *args, **kwargs):
-        default_dispatch(instance=self)
-        return super(AccountTableView, self).dispatch(request, *args, **kwargs)
 
 
 @method_decorator(login_required, name='dispatch')

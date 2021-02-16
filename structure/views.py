@@ -32,7 +32,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable, \
-    PublishesRequestTable, OrganizationDetailTable
+    PublishesRequestTable, OrganizationDetailTable, PublishersTable
 from django.urls import reverse_lazy
 
 from users.filters import MrMapUserFilter
@@ -263,6 +263,41 @@ class OrganizationDeleteView(SuccessMessageMixin, DeleteView):
         context = super().get_context_data(**kwargs)
         context.update({'title': _('Delete organization')})
         return context
+
+
+@method_decorator(login_required, name='dispatch')
+class OrganizationPublishersTableView(SingleTableMixin, FilterView):
+    model = MrMapGroup
+    table_class = PublishersTable
+    filterset_fields = ('name', )
+    template_name = 'structure/views/groups/publishers.html'
+    object = None
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.object = get_object_or_404(klass=Organization, pk=kwargs.get('pk'))
+
+    def get_queryset(self):
+        return self.object.publishers.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"object": self.object,
+                        'members_count': self.object.primary_users.count(),
+                        'publishers_count': self.object.publishers.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(organization=self.object).count()})
+        return context
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Publish for list')
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
+        return super().dispatch(request, *args, **kwargs)
 
 
 @method_decorator(login_required, name='dispatch')

@@ -75,12 +75,22 @@ class PublisherTable(MrMapTable):
 class PublishesForTable(tables.Table):
     class Meta:
         model = Organization
-        fields = ('organization_name',)
+        fields = ('organization_name', )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        # todo: set this prefix dynamic
         prefix = 'publishers-for-table'
 
     def render_organization_name(self, record, value):
+        return Link(url=record.detail_view_uri, content=value).render(safe=True)
+
+
+class PublishersTable(tables.Table):
+    class Meta:
+        model = MrMapGroup
+        fields = ('name', )
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'publishers-table'
+
+    def render_name(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
 

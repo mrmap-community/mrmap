@@ -17,6 +17,12 @@
                       {% trans 'Details' %}
                   </a>
               </li>
+
+              <li class="nav-item">
+                  <a class="nav-link" href="{% url 'structure:organization_publisher_overview' object.pk %}">
+                      {% trans 'Publishers' %} <span class="badge badge-secondary">{{ publishers_count }}</span>
+                  </a>
+              </li>
           </ul>
       </div>
       <div class="card-body">

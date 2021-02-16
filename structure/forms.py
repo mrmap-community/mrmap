@@ -6,6 +6,7 @@ from django import forms
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError, ObjectDoesNotExist, ImproperlyConfigured
 from django.db import transaction
+from django.db.models import Q
 from django.forms import ModelForm, HiddenInput, MultipleHiddenInput
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -187,10 +188,6 @@ class PublisherForOrganizationForm(MrMapForm):
 
 
 class OrganizationForm(forms.ModelForm):
-    description = forms.CharField(
-        widget=forms.Textarea(),
-        label=_('Description'),
-        required=False, )
     person_name = forms.CharField(
         label=_("Contact person"),
         required=True, )
@@ -220,34 +217,21 @@ class OrganizationForm(forms.ModelForm):
         model = Organization
         fields = '__all__'
         exclude = ["created_by", "address_type", "is_auto_generated"]
-        labels = {
-            "organization_name": _("Organization name"),
-            "description": _("Description"),
-            "parent": _("Parent"),
-            "facsimile": _("Facsimile"),
-            "phone": _("Phone"),
-            "email": _("E-Mail"),
-            "city": _("City"),
-            "postal_code": _("Postal code"),
-            "address": _("Address"),
-            "state_or_province": _("State or province"),
-            "country": _("Country"),
-        }
 
     def __init__(self, request, *args, **kwargs):
         self.request = request
         super(OrganizationForm, self).__init__(*args, **kwargs)
 
-        if 'instance' in kwargs:
+        instance = kwargs.get('instance')
+        if instance:
             org_ids_of_groups = []
             for group in self.request.user.get_groups():
                 org_ids_of_groups.append(group.id)
 
-            all_orgs_of_requesting_user = Organization.objects.filter(created_by=self.request.user) | \
-                                          Organization.objects.filter(id=self.request.user.organization.id) | \
-                                          Organization.objects.filter(id__in=org_ids_of_groups)
-
-            instance = kwargs.get('instance')
+            all_orgs_of_requesting_user = Organization.objects.filter(Q(created_by=self.request.user) |
+                                                                      Q(id=self.request.user.organization.id) |
+                                                                      Q(id__in=org_ids_of_groups))
+            # filter parent queryset to avoid of configuring circular inheritance settings
             exclusions = [instance]
             for org in all_orgs_of_requesting_user:
                 org_ = org
@@ -255,49 +239,30 @@ class OrganizationForm(forms.ModelForm):
                     if org_.parent == instance:
                         exclusions.append(org)
                     org_ = org_.parent
-
             self.fields['parent'].queryset = all_orgs_of_requesting_user.exclude(id__in=[o.id for o in exclusions])
+
+            self.fields.pop('create_group')
 
     def clean(self):
         cleaned_data = super(OrganizationForm, self).clean()
-
-        if self.instance.created_by is not None and self.instance.created_by != self.request.user:
-            self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
-
-        parent = None if 'parent' not in cleaned_data else cleaned_data['parent']
-
-        if parent is not None:
-            if self.instance == parent:
-                self.add_error('parent_group', "Circular configuration of parent organization detected.")
-            else:
-                while parent.parent is not None:
-                    if self.instance == parent.parent:
-                        self.add_error('parent', "Circular configuration of parent organization detected.")
-                        break
-                    else:
-                        parent = parent.parent
-
+        self.instance.check_circular_configuration(self.instance)
         return cleaned_data
 
     @transaction.atomic
     def save(self, commit=True):
         # save changes of group
-        org = self.save(commit=False)
-        org.created_by = self.request.user
-        org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
-        org.save()
-        messages.success(self.request, message=_('Organization {} successfully created.'.format(org.organization_name)))
+        self.instance.created_by = self.request.user
+        self.instance.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
+        self.instance.save()
 
-        create_group = self.cleaned_data.get('create_group', False)
-        if create_group:
+        if self.cleaned_data.get('created_group'):
             org_group = MrMapGroup.objects.create(
-                name=_("{} group").format(org.organization_name),
-                organization=org,
+                name=_("{} group").format(self.instance.organization_name),
+                organization=self.instance,
                 created_by=self.request.user,
             )
             org_group.user_set.add(self.request.user)
             org_group.save()
-
             messages.success(self.request, message=_('Group {} successfully created.'.format(org_group.name)))
 
 

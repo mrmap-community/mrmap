@@ -292,8 +292,6 @@ class GroupDetailTable(tables.Table):
 
 
 class OrganizationDetailTable(tables.Table):
-    inherited_permissions = tables.Column(verbose_name=_('Inherited Permissions'))
-
     class Meta:
         model = Organization
         fields = ('organization_name',
@@ -350,8 +348,7 @@ class OrganizationTable(tables.Table):
         Returns:
 
         """
-        val = not value
-        return get_ok_nok_icon(val)
+        return get_ok_nok_icon(value)
 
     def render_actions(self, record):
         self.render_helper.update_attrs = {"class": ["mr-1"]}

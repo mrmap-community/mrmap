@@ -22,7 +22,7 @@ from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
 from MrMap.messages import RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
     GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
-    ORGANIZATION_SUCCESSFULLY_CREATED
+    ORGANIZATION_SUCCESSFULLY_CREATED, ORGANIZATION_SUCCESSFULLY_DELETED
 from service.views import default_dispatch, format_html
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.permissionEnums import PermissionEnum
@@ -182,10 +182,10 @@ class OrganizationTableView(SingleTableMixin, FilterView):
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_ORGANIZATION.value), name='dispatch')
-class OrganizationNew(SuccessMessageMixin, CreateView):
-    model = MrMapGroup
+class OrganizationNewView(SuccessMessageMixin, CreateView):
+    model = Organization
     form_class = OrganizationForm
-    template_name = 'structure/views/organizations/new.html'
+    template_name = 'structure/views/generic_form.html'
 
     def get_success_message(self, cleaned_data):
         return ORGANIZATION_SUCCESSFULLY_CREATED.format(self.object)
@@ -223,6 +223,45 @@ class OrganizationDetailView(DetailView):
                         'members_count': self.object.primary_users.count(),
                         'publishers_count': self.object.publishers.count(),
                         'publisher_requests_count': PublishRequest.objects.filter(organization=self.object).count()})
+        return context
+
+
+@method_decorator([login_required,
+                   permission_required(perm=PermissionEnum.CAN_EDIT_ORGANIZATION.value,
+                                       login_url='structure:organization_overview')],
+                  name='dispatch')
+class OrganizationEditView(SuccessMessageMixin, UpdateView):
+    template_name = 'structure/views/generic_form.html'
+    success_message = _('Organization successfully edited.')
+    model = Organization
+    form_class = OrganizationForm
+
+    def get_success_url(self):
+        return self.object.detail_view_uri
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'title': _('Edit organization')})
+        return context
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value), name='dispatch')
+class OrganizationDeleteView(SuccessMessageMixin, DeleteView):
+    model = Organization
+    template_name = "structure/views/delete.html"
+    success_url = reverse_lazy('structure:organization_overview')
+    success_message = ORGANIZATION_SUCCESSFULLY_DELETED
+    queryset = Organization.objects.filter(is_auto_generated=False)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'title': _('Delete organization')})
         return context
 
 
@@ -286,66 +325,6 @@ class MrMapGroupMembersTableView(SingleTableMixin, FilterView):
         return super().dispatch(request, *args, **kwargs)
 
 
-@login_required
-@ownership_required(MrMapGroup, 'object_id')
-def detail_group(request: HttpRequest, object_id: int, update_params=None, status_code=None):
-    """ Renders an overview of a group's details.
-
-    Args:
-        request: The incoming request
-        object_id: The id of the requested group
-        update_params:
-        status_code:
-    Returns:
-         A rendered view
-    """
-    user = user_helper.get_user(request)
-
-    group = get_object_or_404(MrMapGroup, id=object_id)
-    template = "views/groups_detail_no_base.html" if 'no-base' in request.GET else "views/groups_detail.html"
-
-    publisher_for = group.publish_for_organizations.all()
-    all_publisher_table = PublishesForTable(
-        data=publisher_for,
-        request=request,
-    )
-
-    subgroups = MrMapGroup.objects.filter(parent_group=group)
-
-    inherited_permission = []
-    parent = group.parent_group
-    while parent is not None:
-        permissions = user.get_permissions(parent)
-        perm_dict = {
-            "group": parent,
-            "permissions": permissions,
-        }
-        inherited_permission.append(perm_dict)
-        parent = parent.parent_group
-
-    params = {
-        "group": group,
-        "subgroups": subgroups,
-        "inherited_permission": inherited_permission,
-        "group_permissions": user.get_permissions(group),
-        "show_registering_for": True,
-        "all_publisher_table": all_publisher_table,
-        "caption": _l("Shows informations about the group."),
-        "current_view": "structure:group_details",
-    }
-    params.update(
-        _prepare_users_table(request=request, group=group, current_view='structure:group_details')
-    )
-
-    if update_params:
-        params.update(update_params)
-
-    return render(request=request,
-                  template_name=template,
-                  context=params,
-                  status=200 if status_code is None else status_code)
-
-
 @method_decorator(login_required, name='dispatch')
 class PendingTaskDelete(DeleteView):
     model = PendingTask
@@ -384,58 +363,6 @@ def generate_error_report(request: HttpRequest, report_id: int):
 
     response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.txt"'
     return response
-
-
-@login_required
-@permission_required(PermissionEnum.CAN_EDIT_ORGANIZATION.value)
-@ownership_required(Organization, 'object_id')
-def edit_org(request: HttpRequest, object_id: int):
-    """ The edit view for changing organization values
-
-    Args:
-        request:
-        org_id:
-    Returns:
-         Rendered view
-    """
-    org = get_object_or_404(Organization, id=object_id)
-
-    form = OrganizationForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:edit-organization',
-        reverse_args=[object_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l(f"Edit organization <strong>{org}</strong>"),
-        instance=org,)
-    return form.process_request(valid_func=form.process_edit_org)
-
-
-@login_required
-@permission_required(PermissionEnum.CAN_DELETE_ORGANIZATION.value)
-@ownership_required(Organization, 'object_id')
-def remove_org(request: HttpRequest, object_id: int):
-    """ Renders the remove form for an organization
-
-    Args:
-        request(HttpRequest): The used request
-        org_id: The id of the organization which will be deleted
-    Returns:
-        A rendered view
-    """
-    org = get_object_or_404(Organization, id=object_id)
-    form = RemoveOrganizationForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:delete-organization',
-        reverse_args=[object_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        is_confirmed_label=_l("Do you really want to remove this organization?"),
-        form_title=_l(f"Remove organization <strong>{org}</strong>"),
-        instance=org, )
-    return form.process_request(valid_func=form.process_remove_org)
 
 
 @login_required
@@ -500,7 +427,7 @@ def publish_request(request: HttpRequest, org_id: int):
 class NewMrMapGroup(SuccessMessageMixin, CreateView):
     model = MrMapGroup
     form_class = GroupForm
-    template_name = 'structure/views/groups/new.html'
+    template_name = 'structure/views/generic_form.html'
 
     def get_success_message(self, cleaned_data):
         return GROUP_SUCCESSFULLY_CREATED.format(self.object)
@@ -559,7 +486,7 @@ class MrMapGroupPublishersTableView(SingleTableMixin, FilterView):
 class PublishRequestNewView(SuccessMessageMixin, CreateView):
     model = PublishRequest
     fields = ('group', 'organization', 'message')
-    template_name = 'structure/views/publish-requests/new.html'
+    template_name = 'structure/views/generic_form.html'
 
     def get_success_message(self, cleaned_data):
         return _('Request was successfully opened')
@@ -614,7 +541,7 @@ class PublishRequestTableView(SingleTableMixin, FilterView):
 @method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value), name='dispatch')
 class PublishRequestAcceptView(SuccessMessageMixin, UpdateView):
     model = PublishRequest
-    template_name = "structure/views/publish-requests/accept.html"
+    template_name = "structure/views/generic_form.html"
     success_url = reverse_lazy('structure:publish_request_overview')
     fields = ('is_accepted', )
     success_message = PUBLISH_REQUEST_ACCEPTED
@@ -634,7 +561,7 @@ class PublishRequestAcceptView(SuccessMessageMixin, UpdateView):
 @method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value), name='dispatch')
 class PublishRequestRemoveView(SuccessMessageMixin, DeleteView):
     model = PublishRequest
-    template_name = "structure/views/publish-requests/delete.html"
+    template_name = "structure/views/delete.html"
     success_url = reverse_lazy('structure:index')
     success_message = PUBLISH_REQUEST_DENIED
 
@@ -649,7 +576,7 @@ class PublishRequestRemoveView(SuccessMessageMixin, DeleteView):
                                        login_url='structure:group_overview')],
                   name='dispatch')
 class RemoveUserFromGroupView(SuccessMessageMixin, UpdateView):
-    template_name = 'structure/views/groups/members/remove.html'
+    template_name = 'structure/views/delete.html'
     success_message = _('Group successfully edited.')
     model = MrMapGroup
     form_class = RemoveUserFromGroupForm
@@ -678,43 +605,13 @@ class RemoveUserFromGroupView(SuccessMessageMixin, UpdateView):
         return context
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_REMOVE_USER_FROM_GROUP.value)
-@ownership_required(MrMapGroup, 'object_id')
-def remove_user_from_group(request: HttpRequest, object_id: str, user_id: str):
-    """ Removes a user from a group
-
-    Args:
-        request: The incoming request
-        object_id: The group id
-        user_id: The user id
-    Returns:
-         A redirect
-    """
-    group = get_object_or_404(MrMapGroup, id=object_id)
-    user = get_object_or_404(MrMapUser, id=user_id)
-
-    if group.created_by == user:
-        messages.error(
-            request,
-            _l("The group creator can not be removed!")
-        )
-    else:
-        group.user_set.remove(user)
-        messages.success(
-            request,
-            _l("{} removed from {}").format(user.username, group.name)
-        )
-    return redirect("structure:group_details", object_id)
-
-
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value), name='dispatch')
 @method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
 class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
     model = MrMapGroup
-    template_name = "structure/views/groups/delete.html"
-    success_url = reverse_lazy('structure:index')
+    template_name = "structure/views/delete.html"
+    success_url = reverse_lazy('structure:group_overview')
     success_message = GROUP_SUCCESSFULLY_DELETED
     queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
 
@@ -728,7 +625,7 @@ class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
                    permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:group_overview')],
                   name='dispatch')
 class EditGroupView(SuccessMessageMixin, UpdateView):
-    template_name = 'structure/views/groups/edit.html'
+    template_name = 'structure/views/generic_form.html'
     success_message = _('Group successfully edited.')
     model = MrMapGroup
     form_class = GroupForm

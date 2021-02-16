@@ -27,18 +27,13 @@ urlpatterns = [
 
     # Organization
     path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
-    path('organizations/new', OrganizationNew.as_view(), name='organizations_new'),
+    path('organizations/new', OrganizationNewView.as_view(), name='organization_new'),
     path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_details'),
-    # path('organizations/<pk>/edit'),
-    # path('organizations/<pk>/remove'),
-    # path('organizations/<pk>/publishers', MrMapGroupPublishersTableView.as_view(), name='organization_publisher_overview'),
+    path('organizations/<pk>/edit', OrganizationEditView.as_view(), name='organization_edit'),
+    path('organizations/<pk>/remove', OrganizationDeleteView.as_view(), name='organization_remove'),
 
-    path('organizations/edit/<object_id>', edit_org, name='edit-organization'),
-    path('organizations/delete/<object_id>', remove_org, name='delete-organization'),
-    # path('organizations/create-publish-request/<org_id>/', publish_request, name='publish-request'),
+
     path('organizations/<org_id>/remove-publisher/<group_id>/', remove_publisher, name='remove-publisher'),
-    # path('organizations/new/register-form/', new_org, name='organizations_new'),
-
 
 
     path('users/', users_index, name='users-index'),

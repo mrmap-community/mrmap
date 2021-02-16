@@ -15,7 +15,7 @@
         <div class="row">
             {% if 'can_edit_organization' in user_permissions %}
                 <div class="col-sm mb-2 text-center">
-                    <a role="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'structure:edit-organization' organization.id %}?current-view={{current_view}}&current-view-arg={{organization.id}}">
+                    <a role="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'structure:organization_edit' organization.id %}?current-view={{current_view}}&current-view-arg={{organization.id}}">
                         {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %}   {% trans 'Edit organization' %}
                     </a>
                 </div>
@@ -31,7 +31,7 @@
 
             {% if 'can_delete_organization' in user_permissions %}
                 <div class="col-sm mb-2 text-center">
-                    <a role="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" href="{% url 'structure:delete-organization' organization.id %}?current-view={{current_view}}&current-view-arg={{organization.id}}">
+                    <a role="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" href="{% url 'structure:organization_remove' organization.id %}?current-view={{current_view}}&current-view-arg={{organization.id}}">
                         {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %}   {% trans 'Delete organization' %}
                     </a>
                 </div>

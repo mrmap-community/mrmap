@@ -184,7 +184,7 @@ class StructureEditOrganizationViewTestCase(TestCase):
 
     def test_permission_edit_organization(self):
         response = self.client.get(
-            reverse('structure:edit-organization',
+            reverse('structure:organization_edit',
                     args=(self.orgas[0].id,)),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -213,7 +213,7 @@ class StructureEditOrganizationViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            reverse('structure:edit-organization',
+            reverse('structure:organization_edit',
                     args=(self.orgas[0].id,))+"?current-view=structure:index",
             data=params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
@@ -255,7 +255,7 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
         self.user.get_groups()[0].role.permissions.add(perm)
 
         response = self.client.get(
-            reverse('structure:delete-organization',
+            reverse('structure:organization_remove',
                     args=(self.orgas[0].id,))+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -266,7 +266,7 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
         perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_DELETE_ORGANIZATION.value)[0]
         self.user.get_groups()[0].role.permissions.add(perm)
         response2 = self.client.post(
-            reverse('structure:delete-organization',
+            reverse('structure:organization_remove',
                     args=(self.orgas[0].id,))+"?current-view=structure:index",
             data={},
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
@@ -281,7 +281,7 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
         org_name = self.orgas[0].organization_name
 
         response = self.client.post(
-            reverse('structure:delete-organization',
+            reverse('structure:organization_remove',
                     args=(self.orgas[0].id,)),
             data={'is_confirmed': 'on', },
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
@@ -293,7 +293,7 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
 
     def test_permission_remove_organization(self):
         response = self.client.get(
-            reverse('structure:delete-organization',
+            reverse('structure:organization_remove',
                     args=(self.orgas[0].id,)),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -319,7 +319,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         self.user.get_groups()[0].role.permissions.add(perm)
 
         response = self.client.get(
-            reverse('structure:organizations_new', )+"?current-view=structure:index",
+            reverse('structure:organization_new', )+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
@@ -332,7 +332,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         post_params = {'organization_name': 'TestOrga', 'person_name': 'TestPerson'}
 
         response = self.client.post(
-            reverse('structure:organizations_new', )+"?current-view=structure:index",
+            reverse('structure:organization_new', )+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -350,7 +350,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
 
         post_params = {'person_name': 'TestPerson'}
         response = self.client.post(
-            reverse('structure:organizations_new')+"?current-view=structure:index",
+            reverse('structure:organization_new')+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -359,7 +359,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
 
     def test_permission_new_organization(self):
         response = self.client.get(
-            reverse('structure:organizations_new'),
+            reverse('structure:organization_new'),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 

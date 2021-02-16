@@ -23,6 +23,8 @@ from django.utils.translation import gettext_lazy as _, gettext
 from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
 from django_bootstrap_swt.components import Tag
+from django_bootstrap_swt.utils import RenderHelper
+from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from MrMap.icons import IconEnum
 from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
@@ -30,6 +32,7 @@ from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVA
     PASSWORD_CHANGE_SUCCESS
 from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
 from service.models import Metadata
+from service.views import default_dispatch
 from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, \
     PublishRequest, GroupInvitationRequest
@@ -37,7 +40,7 @@ from users.forms import SubscriptionForm
 from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
-from users.tables import SubscriptionTable
+from users.tables import SubscriptionTable, MrMapUserTable
 
 
 class MrMapLoginView(SuccessMessageMixin, LoginView):
@@ -103,6 +106,25 @@ class HomeView(TemplateView):
             "current_view": "home",
         })
         return context
+
+
+@method_decorator(login_required, name='dispatch')
+class AccountTableView(SingleTableMixin, FilterView):
+    model = MrMapUser
+    table_class = MrMapUserTable
+    filterset_fields = {'username': ['icontains'],
+                        'organization__organization_name': ['icontains'],
+                        'groups__name': ['icontains']}
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(AccountTableView, self).get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.USER.value]}).render() + _(' Users').__str__()
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self)
+        return super(AccountTableView, self).dispatch(request, *args, **kwargs)
 
 
 @method_decorator(login_required, name='dispatch')

@@ -6,9 +6,8 @@ urlpatterns = [
 
     # PendingTask
     path('tasks/<pk>/remove', PendingTaskDelete.as_view(), name='remove-task'),
+    # todo: refactor as generic view
     path('report/error/<report_id>', generate_error_report, name='generate-error-report'),
-
-    path('', index, name='index'),
 
     # MrMapGroups
     path('groups', GroupTableView.as_view(), name='group_overview'),
@@ -33,8 +32,7 @@ urlpatterns = [
     path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
     path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
-
-    path('users/', users_index, name='users-index'),
+    # todo: move to users app
     path('users/<object_id>/group-invitation/', user_group_invitation, name='invite-user-to-group'),
     path('group-invitation/<object_id>/', toggle_group_invitation, name='toggle-user-to-group'),
 ]

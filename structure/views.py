@@ -42,91 +42,6 @@ from django.utils import timezone
 from structure.tables import GroupMemberTable
 
 
-def _prepare_group_table(request: HttpRequest, user: MrMapUser, current_view: str):
-    user_groups = user.get_groups().order_by(Case(When(name='Public', then=0)), 'name')
-    groups_table = GroupTable(request=request,
-                              queryset=user_groups,
-                              order_by_field='sg',  # sg = sort groups
-                              filter_set_class=GroupFilter,
-                              current_view=current_view,
-                              param_lead='group-t',
-                              )
-
-    return {"groups": groups_table, }
-
-
-def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str):
-    all_orgs = Organization.objects.all()
-
-    all_orgs = all_orgs.order_by(
-        Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),
-        'organization_name')
-
-    all_orgs_table = OrganizationTable(request=request,
-                                       queryset=all_orgs,
-                                       order_by_field='so',  # sg = sort groups
-                                       filter_set_class=OrganizationFilter,
-                                       current_view=current_view,
-                                       param_lead='orgs-t',)
-
-    return {"organizations": all_orgs_table, }
-
-
-def _prepare_users_table(request: HttpRequest, current_view: str, group: MrMapGroup = None):
-    """ Prepares user table.
-
-    By default the user table is empty to prevent the reveal of all registered users. Users can only be shown if
-    the Search field is used.
-
-    Args:
-        request (HttpRequest):
-        user (MrMapUser):
-        current_view (str):
-    Returns:
-         dict
-    """
-    all_users = MrMapUser.objects.none() if group is None else group.user_set.all()
-
-    all_users_table = GroupMemberTable(
-        request=request,
-        queryset=all_users,
-        order_by_field='us',
-        filter_set_class=MrMapUserFilter,
-        current_view=current_view,
-        param_lead='users-t',
-        group=group,
-    )
-
-    return {"users": all_users_table, }
-
-
-@login_required
-def index(request: HttpRequest, update_params=None, status_code=None):
-    """ Renders an overview of all groups and organizations
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    template = "views/structure_index.html"
-    user = user_helper.get_user(request)
-
-    params = {
-        "current_view": 'structure:index',
-    }
-    params.update(_prepare_group_table(request=request, user=user, current_view='structure:index'))
-    params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:index'))
-    params.update(_prepare_users_table(request=request, group=None, current_view='structure:index'))
-
-    if update_params:
-        params.update(update_params)
-
-    return render(request=request,
-                  template_name=template,
-                  context=params,
-                  status=200 if status_code is None else status_code)
-
-
 @method_decorator(login_required, name='dispatch')
 class GroupTableView(SingleTableMixin, FilterView):
     model = MrMapGroup
@@ -451,31 +366,6 @@ def generate_error_report(request: HttpRequest, report_id: int):
     return response
 
 
-@login_required
-@permission_required(PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
-def publish_request(request: HttpRequest, org_id: int):
-    """ Performs creation of a publishing request between a user/group and an organization
-
-    Args:
-        request (HttpRequest): The incoming HttpRequest
-        org_id (int): The organization id
-    Returns:
-         A rendered view
-    """
-    org = get_object_or_404(Organization, id=org_id)
-
-    form = PublisherForOrganizationForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:publish-request',
-        reverse_args=[org_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l(f"Request to become publisher for organization <strong>{org}</strong>"),
-        organization=org)
-    return form.process_request(valid_func=form.process_new_publisher_request)
-
-
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_GROUP.value), name='dispatch')
 class GroupNewView(SuccessMessageMixin, CreateView):
@@ -698,33 +588,6 @@ def handler500(request: HttpRequest, exception=None):
     return response
 
 
-def users_index(request: HttpRequest, update_params=None, status_code=None):
-    """ Renders an overview of all organizations
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    template = "views/users_index.html"
-    user = user_helper.get_user(request)
-
-    params = {
-        "current_view": "structure:users-index",
-    }
-    params.update(_prepare_users_table(request=request, group=None, current_view='structure:users-index'))
-
-    if update_params:
-        params.update(update_params)
-
-    return render(request=request,
-                  template_name=template,
-                  context=params,
-                  status=200 if status_code is None else status_code)
-
-
 @login_required
 @permission_required(PermissionEnum.CAN_ADD_USER_TO_GROUP.value)
 def user_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
@@ -775,41 +638,3 @@ def toggle_group_invitation(request: HttpRequest, object_id: str, update_params=
         invitation=invitation,
     )
     return form.process_request(valid_func=form.process_invitation_group)
-
-
-@login_required
-@permission_required(PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value)
-def toggle_publish_request(request: HttpRequest, object_id: str, update_params=None, status_code=None):
-    """ Renders and processes a form to accepting/declining an invitation
-
-    Args:
-        request (HttpRequest): The incoming request
-        object_id (HttpRequest): The user id for the invited user
-    Returns:
-         A rendered view
-    """
-    try:
-        pub_request = PublishRequest.objects.get(id=object_id)
-        now = timezone.now()
-        if pub_request.activation_until <= now:
-            messages.error(request, REQUEST_ACTIVATION_TIMEOVER)
-            pub_request.delete()
-            return redirect("home")
-    except ObjectDoesNotExist:
-        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
-        return redirect("home")
-
-    form = PublishRequestConfirmForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:toggle-publish-request',
-        reverse_args=[object_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l("{} wants to publish for {}.").format(
-            pub_request.group,
-            pub_request.organization
-        ),
-        publish_request=pub_request,
-    )
-    return form.process_request(valid_func=form.process_publish_request)

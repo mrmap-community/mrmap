@@ -24,24 +24,30 @@
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
                     <h6 class="dropdown-header">{% trans 'Groups' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</a>
+                        <a class="dropdown-item flex-grow-1" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %} <span class="badge badge-secondary">{{mr_map_group_count}}</span></a>
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_new' %}" title="{% trans 'New Group' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%}</a>
+                        <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:organization_new' %}" title="{% trans 'New Organization' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Publish requests' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:publish_request_overview' %}">{% autoescape off %}{{THEME.ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%}</a>
+                        <a class="dropdown-item" href="{% url 'structure:publish_request_overview' %}">{% autoescape off %}{{THEME.ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%} <span class="badge {% if pending_publish_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_publish_requests_count}}</span></a>
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                     <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Group invitations' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'structure:group_invitation_request_overview' %}">{% autoescape off %}{{THEME.ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Group invitations'%} <span class="badge {% if pending_group_invitation_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_group_invitation_requests_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_invitation_request_new' %}" title="{% trans 'New Group invitation request' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Users' %}</h6>
-                    <a class="dropdown-item" href="{% url 'structure:users_overview' %}">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {% trans 'Users'%}</a>
+                    <a class="dropdown-item" href="{% url 'structure:users_overview' %}">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {% trans 'Users'%} <span class="badge badge-secondary">{{mr_map_user_count}}</span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">

@@ -121,7 +121,7 @@ class PublishRequestAdmin(admin.ModelAdmin):
 
 
 class GroupInvitationAdmin(admin.ModelAdmin):
-    list_display = ['invited_user', 'to_group', 'activation_until', 'created_by']
+    list_display = ['user', 'group', 'activation_until', 'created_by']
 
 
 admin.site.register(PublishRequest, PublishRequestAdmin)

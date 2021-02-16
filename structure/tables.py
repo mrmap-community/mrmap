@@ -184,33 +184,53 @@ class PublishesRequestTable(tables.Table):
         return rendered_items
 
 
-class PublishesForTableOld(MrMapTable):
-    class Meta:
-        row_attrs = {
-            "class": "text-center"
-        }
-    publisher_org = tables.Column(accessor='organization_name', verbose_name=_('Organization'))
-    publisher_action = tables.TemplateColumn(
-        template_name="includes/detail/publisher_requests_accept_reject.html",
-        verbose_name=_('Action'),
+class GroupInvitationRequestTable(tables.Table):
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
         orderable=False,
-        extra_context={
-            "remove_publisher": True,
-            "publishes_for": True,
-        }
+        attrs={"td": {"style": "white-space:nowrap;"}}
     )
 
-    def render_publisher_org(self, value, record):
-        """ Renders publisher_org as link to detail view of organization
+    class Meta:
+        model = PublishRequest
+        fields = ('user', 'group', 'message')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'group-invitation-table'
 
-        Args:
-            value:
-            record:
-        Returns:
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
-        """
-        url = reverse('structure:organization_details', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+    def render_group(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
+    """
+    def render_actions(self, record):
+        ok_icon = Tag(tag='i', attrs={"class": [IconEnum.OK.value]}).render()
+        st_ok_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=ok_icon).render()
+        gt_ok_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                         content=ok_icon + _(' accept').__str__()).render()
+        nok_icon = Tag(tag='i', attrs={"class": [IconEnum.NOK.value]}).render()
+        st_nok_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=nok_icon).render()
+        gt_nok_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                          content=nok_icon + _(' deny').__str__()).render()
+
+        actions = [
+
+            LinkButton(url=f"{record.accept_publish_request_uri}?is_accepted=True",
+                       content=st_ok_text+gt_ok_text,
+                       color=ButtonColorEnum.SUCCESS),
+            LinkButton(url=f"{record.accept_publish_request_uri}",
+                       content=st_nok_text + gt_nok_text,
+                       color=ButtonColorEnum.DANGER)
+
+        ]
+        self.render_helper.update_attrs = {"class": ["mr-1"]}
+        rendered_items = format_html(self.render_helper.render_list_coherent(items=actions))
+        self.render_helper.update_attrs = None
+        return rendered_items
+    """
 
 
 class PublisherRequestTable(MrMapTable):
@@ -496,6 +516,14 @@ class OrganizationMemberTable(tables.Table):
 class MrMapUserTable(tables.Table):
     caption = _("Shows registered users.")
 
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions to perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
     class Meta:
         model = MrMapUser
         fields = ('username', 'organization', 'groups')
@@ -517,3 +545,17 @@ class MrMapUserTable(tables.Table):
         renderd_actions = self.render_helper.render_list_coherent(items=links)
         self.render_helper.update_attrs = None
         return format_html(renderd_actions)
+
+    def render_actions(self, record):
+        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_invite_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
+        gt_invite_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                             content=remove_icon + _(' Invite').__str__()).render()
+        btns = [
+            LinkButton(url=f"{record.invite_to_group_url}",
+                       content=st_invite_text + gt_invite_text,
+                       color=ButtonColorEnum.SUCCESS,
+                       tooltip=_(f"Invite <strong>{record}</strong>"),
+                       tooltip_placement=TooltipPlacementEnum.LEFT)
+        ]
+        return format_html(self.render_helper.render_list_coherent(items=btns))

@@ -436,6 +436,10 @@ class MrMapUser(AbstractUser):
     def get_absolute_url(self):
         return reverse('password_change_done')
 
+    @property
+    def invite_to_group_url(self):
+        return f"{reverse('structure:group_invitation_request_new')}?user={self.id}"
+
     def get_services(self, type: OGCServiceEnum = None):
         """ Returns all services which are related to the user
 
@@ -644,9 +648,15 @@ class PublishRequest(BaseInternalRequest):
 
 
 class GroupInvitationRequest(BaseInternalRequest):
-    invited_user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations")
-    to_group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE)
+    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations", verbose_name=_('Invited user'), help_text=_('Invite this user to a selected group.'))
+    group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE, verbose_name=_('to group'), help_text=_('Invite the selected user to this group.'))
 
     def __str__(self):
         return "{} > {}".format(self.invited_user.username, self.to_group)
 
+    def get_absolute_url(self):
+        return f"{reverse('structure:group_invitation_request_overview')}?group={self.group.id}&user={self.user.id}"
+
+    @property
+    def new_invitation_url(self):
+        return reverse('structure:group_invitation_request_new')

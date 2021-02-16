@@ -35,8 +35,11 @@ urlpatterns = [
     # users
     path('users', UserTableView.as_view(), name='users_overview'),
 
-    # todo: move to users app
-    path('users/<object_id>/group-invitation/', user_group_invitation, name='invite-user-to-group'),
+    # GroupInvitationRequests
+    path('group-invitation-request', GroupInvitationRequestTableView.as_view(), name='group_invitation_request_overview'),
+    path('group-invitation-request/new', GroupInvitationRequestNewView.as_view(), name='group_invitation_request_new'),
+
+    # todo: refactor as generic view
     path('group-invitation/<object_id>/', toggle_group_invitation, name='toggle-user-to-group'),
 ]
 

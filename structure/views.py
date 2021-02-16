@@ -112,6 +112,11 @@ class OrganizationNewView(SuccessMessageMixin, CreateView):
     def get_success_url(self):
         return self.object.detail_view_uri
 
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs.update({"request": self.request})
@@ -379,6 +384,11 @@ class GroupNewView(SuccessMessageMixin, CreateView):
     def get_success_url(self):
         return self.object.detail_view_uri
 
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs.update({"request": self.request})
@@ -606,6 +616,64 @@ def handler500(request: HttpRequest, exception=None):
     response = render(request=request, template_name="500.html")
     response.status_code = 500
     return response
+
+
+@method_decorator(login_required, name='dispatch')
+class GroupInvitationRequestTableView(SingleTableMixin, FilterView):
+    model = GroupInvitationRequest
+    table_class = PublishesRequestTable
+    filterset_fields = ['user', 'group', 'message']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if not self.request.user.is_superuser:
+            # show only requests for groups where the user is member of or the user is the requesting user
+            # superuser can see all pending requests
+            queryset.filter(Q(group__in=self.request.user.get_groups()) |
+                            Q(user=self.request.user))
+        return queryset
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Pending group invitations')
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        default_dispatch(instance=self)
+        return super(GroupInvitationRequestTableView, self).dispatch(request, *args, **kwargs)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value), name='dispatch')
+class GroupInvitationRequestNewView(SuccessMessageMixin, CreateView):
+    model = GroupInvitationRequest
+    fields = ('user', 'group', 'message')
+    template_name = 'structure/views/generic_form.html'
+
+    def get_success_message(self, cleaned_data):
+        return _('Invitation was successfully opened')
+
+    def form_valid(self, form):
+        group = form.cleaned_data['group']
+        user = form.cleaned_data['user']
+
+        if group in user.get_groups():
+            form.add_error(None, _(f'{user} is already member of this group.'))
+            return self.form_invalid(form)
+        else:
+            return super().form_valid(form)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'title': _('Group invitation request ')})
+        return context
+
 
 
 @login_required

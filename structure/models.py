@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -11,7 +12,8 @@ from django.utils.translation import gettext_lazy as _
 import json
 
 from django_bootstrap_swt.components import LinkButton, Tag, Badge
-from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColorEnum, TooltipPlacementEnum
+from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColorEnum, TooltipPlacementEnum, \
+    ButtonSizeEnum
 
 from MrMap.icons import IconEnum
 from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
@@ -267,6 +269,7 @@ class Organization(Contact):
             LinkButton(url=f"{reverse('structure:publish_request_new',)}?organization={self.id}",
                        content=st_pub_text + gt_pub_text,
                        color=ButtonColorEnum.SUCCESS,
+                       size=ButtonSizeEnum.SMALL,
                        tooltip=format_html(
                            _(f"Become publisher for organization <strong>{self.organization_name} [{self.id}]</strong>")),
                        tooltip_placement=TooltipPlacementEnum.LEFT,
@@ -274,6 +277,7 @@ class Organization(Contact):
             LinkButton(url=self.edit_view_uri,
                        content=st_edit_text + gt_edit_text,
                        color=ButtonColorEnum.WARNING,
+                       size=ButtonSizeEnum.SMALL,
                        tooltip=format_html(_(f"Edit <strong>{self.organization_name} [{self.id}]</strong> organization")),
                        tooltip_placement=TooltipPlacementEnum.LEFT,
                        needs_perm=PermissionEnum.CAN_EDIT_ORGANIZATION.value),
@@ -287,6 +291,7 @@ class Organization(Contact):
             actions.append(LinkButton(url=self.remove_view_uri,
                                       content=st_remove_text + gt_remove_text,
                                       color=ButtonColorEnum.DANGER,
+                                      size=ButtonSizeEnum.SMALL,
                                       tooltip=format_html(_(f"Remove <strong>{self.organization_name} [{self.id}]</strong> organization")),
                                       tooltip_placement=TooltipPlacementEnum.LEFT,
                                       needs_perm=PermissionEnum.CAN_DELETE_ORGANIZATION.value))
@@ -359,14 +364,11 @@ class MrMapGroup(Group):
     def remove_view_uri(self):
         return reverse('structure:group_remove', args=[self.pk, ])
 
-    def remove_member_view_uri(self, user):
-        return reverse('structure:group_members_remove', args=[self.pk, user.id])
-
     @property
     def new_publisher_requesst_uri(self):
         return f"{reverse('structure:publish_request_new')}?group={self.pk}"
 
-    def get_actions(self):
+    def get_actions(self, request: HttpRequest):
         actions = []
         if not self.is_permission_group:
             edit_icon = Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render()
@@ -385,6 +387,37 @@ class MrMapGroup(Group):
                                       color=ButtonColorEnum.DANGER,
                                       tooltip=_(f"Remove <strong>{self.name}</strong>"),
                                       needs_perm=PermissionEnum.CAN_DELETE_GROUP.value))
+
+            if request.user not in self.user_set.all():
+                add_user_icon = Tag(tag='i', attrs={"class": [IconEnum.USER_ADD.value]}).render()
+                st_add_user_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=add_user_icon).render()
+                gt_add_user_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                                       content=delete_icon + _(' become member').__str__()).render()
+                actions.append(LinkButton(url=f"{reverse('structure:group_invitation_request_new')}?group={self.pk}&user={request.user.id}",
+                                          content=st_add_user_text + gt_add_user_text,
+                                          color=ButtonColorEnum.SUCCESS,
+                                          tooltip=_(f"Become member of  <strong>{self.name}</strong>")))
+            elif self.user_set.count() > 1:
+                from MrMap.utils import signal_last
+                groups_querystring = "groups"
+                groups_excluded_self = request.user.get_groups().exclude(pk=self.pk)
+                if groups_excluded_self:
+                    groups_querystring = ""
+                    for is_last_element, group in signal_last(groups_excluded_self):
+                        if is_last_element:
+                            groups_querystring += f"groups={group.pk}"
+                        else:
+                            groups_querystring += f"groups={group.pk}&"
+
+                leave_icon = Tag(tag='i', attrs={"class": [IconEnum.USER_REMOVE.value]}).render()
+                st_leave_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=leave_icon).render()
+                gt_leave_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                                    content=delete_icon + _(' leave group').__str__()).render()
+                actions.append(LinkButton(
+                    url=f"{reverse('edit_profile')}?{groups_querystring}",
+                    content=st_leave_text + gt_leave_text,
+                    color=ButtonColorEnum.SUCCESS,
+                    tooltip=_(f"Become member of  <strong>{self.name}</strong>")))
         return actions
 
     @property
@@ -633,8 +666,19 @@ class PublishRequest(BaseInternalRequest):
     def get_absolute_url(self):
         return f"{reverse('structure:publish_request_overview')}?group={self.group.id}&organization={self.organization.id}"
 
+    @classmethod
+    def get_add_action(cls):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' new publisher request').__str__()).render()
+        return LinkButton(content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:publish_request_new'),
+                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
+
     @property
-    def accept_publish_request_uri(self):
+    def accept_request_uri(self):
         return reverse('structure:publish_request_accept', args=[self.pk])
 
     def save(self, force_insert=False, force_update=False, using=None,
@@ -650,13 +694,39 @@ class PublishRequest(BaseInternalRequest):
 class GroupInvitationRequest(BaseInternalRequest):
     user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations", verbose_name=_('Invited user'), help_text=_('Invite this user to a selected group.'))
     group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE, verbose_name=_('to group'), help_text=_('Invite the selected user to this group.'))
+    is_accepted = models.BooleanField(verbose_name=_('accepted'), default=False)
+
+    class Meta:
+        # It shall be restricted to create multiple requests objects for the same user per group. This unique
+        # constraint will also raise a form error if a user trays to add duplicates.
+        unique_together = ('group', 'user',)
 
     def __str__(self):
         return "{} > {}".format(self.invited_user.username, self.to_group)
+
+    @classmethod
+    def get_add_action(cls):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' new group invitation').__str__()).render()
+        return LinkButton(content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:group_invitation_request_new'),
+                          needs_perm=PermissionEnum.CAN_ADD_USER_TO_GROUP.value)
 
     def get_absolute_url(self):
         return f"{reverse('structure:group_invitation_request_overview')}?group={self.group.id}&user={self.user.id}"
 
     @property
-    def new_invitation_url(self):
-        return reverse('structure:group_invitation_request_new')
+    def accept_request_uri(self):
+        return reverse('structure:group_invitation_request_accept', args=[self.pk])
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if not self._state.adding:
+            if self.is_accepted:
+                self.group.user_set.add(self.user)
+            self.delete()
+        else:
+            super().save(force_insert, force_update, using, update_fields)

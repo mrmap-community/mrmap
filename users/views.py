@@ -36,7 +36,7 @@ from service.views import default_dispatch
 from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, \
     PublishRequest, GroupInvitationRequest
-from users.forms import SubscriptionForm
+from users.forms import SubscriptionForm, MrMapUserForm
 from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
@@ -91,7 +91,7 @@ class HomeView(TemplateView):
                                                         created_on__gte=activities_since).order_by("-created_on")
 
         pending_requests = PublishRequest.objects.filter(organization=self.request.user.organization)
-        group_invitation_requests = GroupInvitationRequest.objects.filter(invited_user=self.request.user)
+        group_invitation_requests = GroupInvitationRequest.objects.filter(user=self.request.user)
         context.update({
             "wms_count": user_services_wms,
             "wfs_count": user_services_wfs,
@@ -145,17 +145,20 @@ class EditProfileView(SuccessMessageMixin, UpdateView):
     template_name = 'users/views/profile/password_change.html'
     success_message = _('Profile successfully edited.')
     model = MrMapUser
-    fields = [
-        "first_name",
-        "last_name",
-        "email",
-        "confirmed_newsletter",
-        "confirmed_survey",
-        "theme",
-    ]
+    form_class = MrMapUserForm
 
     def get_object(self, queryset=None):
         return get_object_or_404(MrMapUser, username=self.request.user.username)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

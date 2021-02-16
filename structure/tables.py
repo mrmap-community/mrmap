@@ -134,7 +134,7 @@ class PublishersTable(tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
-class PublishesRequestTable(tables.Table):
+class PendingRequestTable(tables.Table):
     actions = MrMapColumn(
         verbose_name=_('Actions'),
         tooltip=_('Actions you can perform'),
@@ -142,12 +142,6 @@ class PublishesRequestTable(tables.Table):
         orderable=False,
         attrs={"td": {"style": "white-space:nowrap;"}}
     )
-
-    class Meta:
-        model = PublishRequest
-        fields = ('group', 'organization', 'message')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        prefix = 'publishers-for-table'
 
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
@@ -169,11 +163,10 @@ class PublishesRequestTable(tables.Table):
                           content=nok_icon + _(' deny').__str__()).render()
 
         actions = [
-
-            LinkButton(url=f"{record.accept_publish_request_uri}?is_accepted=True",
+            LinkButton(url=f"{record.accept_request_uri}?is_accepted=True",
                        content=st_ok_text+gt_ok_text,
                        color=ButtonColorEnum.SUCCESS),
-            LinkButton(url=f"{record.accept_publish_request_uri}",
+            LinkButton(url=f"{record.accept_request_uri}",
                        content=st_nok_text + gt_nok_text,
                        color=ButtonColorEnum.DANGER)
 
@@ -184,95 +177,20 @@ class PublishesRequestTable(tables.Table):
         return rendered_items
 
 
-class GroupInvitationRequestTable(tables.Table):
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions you can perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
+class PublishesRequestTable(PendingRequestTable):
+    class Meta:
+        model = PublishRequest
+        fields = ('group', 'organization', 'message')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'publishers-for-table'
 
+
+class GroupInvitationRequestTable(tables.Table):
     class Meta:
         model = PublishRequest
         fields = ('user', 'group', 'message')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'group-invitation-table'
-
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
-
-    def render_group(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    """
-    def render_actions(self, record):
-        ok_icon = Tag(tag='i', attrs={"class": [IconEnum.OK.value]}).render()
-        st_ok_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=ok_icon).render()
-        gt_ok_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                         content=ok_icon + _(' accept').__str__()).render()
-        nok_icon = Tag(tag='i', attrs={"class": [IconEnum.NOK.value]}).render()
-        st_nok_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=nok_icon).render()
-        gt_nok_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                          content=nok_icon + _(' deny').__str__()).render()
-
-        actions = [
-
-            LinkButton(url=f"{record.accept_publish_request_uri}?is_accepted=True",
-                       content=st_ok_text+gt_ok_text,
-                       color=ButtonColorEnum.SUCCESS),
-            LinkButton(url=f"{record.accept_publish_request_uri}",
-                       content=st_nok_text + gt_nok_text,
-                       color=ButtonColorEnum.DANGER)
-
-        ]
-        self.render_helper.update_attrs = {"class": ["mr-1"]}
-        rendered_items = format_html(self.render_helper.render_list_coherent(items=actions))
-        self.render_helper.update_attrs = None
-        return rendered_items
-    """
-
-
-class PublisherRequestTable(MrMapTable):
-    class Meta:
-        row_attrs = {
-            "class": "text-center"
-        }
-    publisher_group = tables.Column(accessor='group', verbose_name=_('Group'))
-    publisher_org = tables.Column(accessor='group.organization', verbose_name=_('Group organization'))
-    message = tables.Column(accessor='message', verbose_name=_('Message'))
-    activation_until = tables.Column(accessor='activation_until', verbose_name=_('Activation until'))
-    publisher_action = tables.TemplateColumn(
-        template_name="includes/detail/publisher_requests_accept_reject.html",
-        verbose_name=_('Action'),
-        orderable=False,
-        extra_context={
-        }
-    )
-
-    def render_publisher_group(self, value, record):
-        """ Renders publisher_group as link to detail view of group
-
-        Args:
-            value:
-            record:
-        Returns:
-
-        """
-        url = reverse('structure:group_details', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
-
-    def render_publisher_org(self, value, record):
-        """ Renders publisher_org as link to detail view of organization
-
-        Args:
-            value:
-            record:
-        Returns:
-
-        """
-        url = reverse('structure:organization_details', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
 class GroupTable(tables.Table):
@@ -309,7 +227,7 @@ class GroupTable(tables.Table):
 
     def render_actions(self, record):
         self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
+        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions(self.request))
         self.render_helper.update_attrs = None
         return format_html(renderd_actions)
 
@@ -455,28 +373,30 @@ class GroupMemberTable(tables.Table):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_actions(self, record):
-        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
-        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
-        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                           content=remove_icon + _(' Remove').__str__()).render()
+        btns = []
+        if self.group.user_set.count() > 1:
+            remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+            st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
+            gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                               content=remove_icon + _(' Remove').__str__()).render()
 
-        members_querystring = "user_set"
-        members_excluded_record = self.group.user_set.exclude(pk=record.pk)
-        if members_excluded_record:
-            members_querystring = ""
-            for is_last_element, user in signal_last(members_excluded_record):
-                if is_last_element:
-                    members_querystring += f"user_set={user.pk}"
-                else:
-                    members_querystring += f"user_set={user.pk}&"
+            members_querystring = "user_set"
+            members_excluded_record = self.group.user_set.exclude(pk=record.pk)
+            if members_excluded_record:
+                members_querystring = ""
+                for is_last_element, user in signal_last(members_excluded_record):
+                    if is_last_element:
+                        members_querystring += f"user_set={user.pk}"
+                    else:
+                        members_querystring += f"user_set={user.pk}&"
 
-        btns = [
-            LinkButton(url=f"{self.group.edit_view_uri}?{members_querystring}",
-                       content=st_edit_text + gt_edit_text,
-                       color=ButtonColorEnum.DANGER,
-                       tooltip=_(f"Remove <strong>{record}</strong> from <strong>{self.group}</strong>"),
-                       tooltip_placement=TooltipPlacementEnum.LEFT)
-        ]
+            btns.append(
+                LinkButton(url=f"{self.group.edit_view_uri}?{members_querystring}",
+                           content=st_edit_text + gt_edit_text,
+                           color=ButtonColorEnum.DANGER,
+                           tooltip=_(f"Remove <strong>{record}</strong> from <strong>{self.group}</strong>"),
+                           tooltip_placement=TooltipPlacementEnum.LEFT)
+            )
         return format_html(self.render_helper.render_list_coherent(items=btns))
 
 

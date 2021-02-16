@@ -1,18 +1,12 @@
-import json
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Case, When, Q
-from django.forms import HiddenInput, MultipleHiddenInput
-from django.http import HttpRequest, HttpResponseRedirect, HttpResponse, Http404
-from django.shortcuts import render, get_object_or_404, redirect
-from django.template.loader import render_to_string
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django.views.generic import DeleteView, DetailView, UpdateView, ListView, CreateView
-from django.views.generic.detail import SingleObjectMixin
+from django.views.generic import DeleteView, DetailView, UpdateView, CreateView
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
@@ -20,25 +14,19 @@ from django_tables2 import SingleTableMixin
 
 from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
-from MrMap.messages import RESOURCE_NOT_FOUND_OR_NOT_OWNER, REQUEST_ACTIVATION_TIMEOVER, \
-    GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
+from MrMap.messages import GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
     ORGANIZATION_SUCCESSFULLY_CREATED, ORGANIZATION_SUCCESSFULLY_DELETED
-from service.views import default_dispatch, format_html
-from structure.filters import GroupFilter, OrganizationFilter
+from service.views import default_dispatch
 from structure.permissionEnums import PermissionEnum
-from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, \
-    RemoveOrganizationForm, RemovePublisherForm, GroupInvitationForm, \
-    GroupInvitationConfirmForm, PublishRequestConfirmForm, RemoveUserFromGroupForm
+from structure.forms import GroupForm, OrganizationForm, GroupInvitationForm, \
+    GroupInvitationConfirmForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
-from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable, \
-    PublishesRequestTable, OrganizationDetailTable, PublishersTable, OrganizationMemberTable, MrMapUserTable
+from structure.tables import GroupTable, OrganizationTable, PublishesForTable, GroupDetailTable, \
+    OrganizationDetailTable, PublishersTable, OrganizationMemberTable, MrMapUserTable, \
+    PendingRequestTable, PublishesRequestTable, GroupInvitationRequestTable
 from django.urls import reverse_lazy
-
-from users.filters import MrMapUserFilter
-from users.helper import user_helper
 from django.utils import timezone
-
 from structure.tables import GroupMemberTable
 
 
@@ -484,6 +472,8 @@ class PublishRequestTableView(SingleTableMixin, FilterView):
         # set some custom attributes for template rendering
         table = super().get_table(**kwargs)
         table.title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Pending publisher requests')
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
+        table.actions = [render_helper.render_item(item=PublishRequest.get_add_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -541,6 +531,8 @@ class GroupDeleteView(SuccessMessageMixin, DeleteView):
         return context
 
 
+
+
 @method_decorator([login_required,
                    permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:group_overview')],
                   name='dispatch')
@@ -586,42 +578,10 @@ class UserTableView(SingleTableMixin, FilterView):
         return super(UserTableView, self).dispatch(request, *args, **kwargs)
 
 
-
-def handler404(request: HttpRequest, exception=None):
-    """ Handles a general 404 (Page not found) error and renders a custom response page
-
-    Args:
-        request: The incoming request
-        exception: An exception, if one occured
-    Returns:
-         A rendered 404 response
-    """
-    response = render(request=request, template_name="404.html")
-    response.status_code = 404
-    return response
-
-
-def handler500(request: HttpRequest, exception=None):
-    """ Handles a general 500 (Internal Server Error) error and renders a custom response page
-
-    Args:
-        request: The incoming request
-        exception: An exception, if one occured
-    Returns:
-         A rendered 500 response
-    """
-    params = {
-
-    }
-    response = render(request=request, template_name="500.html")
-    response.status_code = 500
-    return response
-
-
 @method_decorator(login_required, name='dispatch')
 class GroupInvitationRequestTableView(SingleTableMixin, FilterView):
     model = GroupInvitationRequest
-    table_class = PublishesRequestTable
+    table_class = GroupInvitationRequestTable
     filterset_fields = ['user', 'group', 'message']
 
     def get_queryset(self):
@@ -637,6 +597,9 @@ class GroupInvitationRequestTableView(SingleTableMixin, FilterView):
         # set some custom attributes for template rendering
         table = super().get_table(**kwargs)
         table.title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Pending group invitations')
+
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
+        table.actions = [render_helper.render_item(item=GroupInvitationRequest.get_add_action())]
         return table
 
     def dispatch(self, request, *args, **kwargs):
@@ -675,54 +638,53 @@ class GroupInvitationRequestNewView(SuccessMessageMixin, CreateView):
         return context
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_ORGANIZATION.value,
+                                      login_url='structure:group_invitation_request_overview'), name='dispatch')
+class GroupInvitationRequestAcceptView(SuccessMessageMixin, UpdateView):
+    model = GroupInvitationRequest
+    template_name = "structure/views/generic_form.html"
+    success_url = reverse_lazy('structure:publish_request_overview')
+    fields = ('is_accepted',)
+    success_message = PUBLISH_REQUEST_ACCEPTED
 
-@login_required
-@permission_required(PermissionEnum.CAN_ADD_USER_TO_GROUP.value)
-def user_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
-    """ Renders and process a form for user-group invitation
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET)
+        return initial
 
-    Args:
-        request (HttpRequest): The incoming request
-        object_id (HttpRequest): The user id for the invited user
-    Returns:
-         A rendered view
-    """
-    invited_user = get_object_or_404(MrMapUser, id=object_id)
-    form = GroupInvitationForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:invite-user-to-group',
-        reverse_args=[object_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l("Invite <strong>{}</strong> to a group.".format(invited_user)),
-        invited_user=invited_user,
-    )
-    return form.process_request(valid_func=form.process_invitation_group)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'title': _('Accept invitation request')})
+        return context
 
 
-@login_required
-def toggle_group_invitation(request: HttpRequest, object_id: str, update_params=None, status_code=None):
-    """ Renders and processes a form to accepting/declining an invitation
+def handler404(request: HttpRequest, exception=None):
+    """ Handles a general 404 (Page not found) error and renders a custom response page
 
     Args:
-        request (HttpRequest): The incoming request
-        object_id (HttpRequest): The user id for the invited user
+        request: The incoming request
+        exception: An exception, if one occured
     Returns:
-         A rendered view
+         A rendered 404 response
     """
-    invitation = get_object_or_404(GroupInvitationRequest, id=object_id)
-    form = GroupInvitationConfirmForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:toggle-user-to-group',
-        reverse_args=[object_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_l("{} invites you to group {}.").format(
-            invitation.created_by,
-            invitation.to_group
-        ),
-        invitation=invitation,
-    )
-    return form.process_request(valid_func=form.process_invitation_group)
+    response = render(request=request, template_name="404.html")
+    response.status_code = 404
+    return response
+
+
+def handler500(request: HttpRequest, exception=None):
+    """ Handles a general 500 (Internal Server Error) error and renders a custom response page
+
+    Args:
+        request: The incoming request
+        exception: An exception, if one occured
+    Returns:
+         A rendered 500 response
+    """
+    params = {
+
+    }
+    response = render(request=request, template_name="500.html")
+    response.status_code = 500
+    return response

@@ -35,3 +35,5 @@ class IconEnum(Enum):
     NOK = "fas fa-times"
     ORGANIZATION = "fas fa-building"
     USER = "fas fa-user"
+    USER_ADD = "fa fa-user-plus"
+    USER_REMOVE = " fa fa-user-times"

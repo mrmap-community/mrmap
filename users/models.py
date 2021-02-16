@@ -10,7 +10,7 @@ import uuid
 from django.db import models
 from django.urls import reverse
 from django_bootstrap_swt.components import LinkButton, Tag
-from django_bootstrap_swt.enums import ButtonColorEnum
+from django_bootstrap_swt.enums import ButtonColorEnum, ButtonSizeEnum
 
 from MrMap.icons import IconEnum
 from service.models import Metadata
@@ -60,10 +60,12 @@ class Subscription(models.Model):
         return [LinkButton(url=self.get_edit_url(),
                            content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
                            color=ButtonColorEnum.WARNING,
+                           size=ButtonSizeEnum.SMALL,
                            tooltip=_l(f"Edit subscription"), ),
                 LinkButton(url=self.get_delete_url(),
                            content=Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render(),
                            color=ButtonColorEnum.DANGER,
+                           size=ButtonSizeEnum.SMALL,
                            tooltip=_l(f"Delete subscription"), )]
 
     def inform_subscriptor(self):

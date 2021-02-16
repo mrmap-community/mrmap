@@ -32,14 +32,12 @@ urlpatterns = [
     path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
     path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
-    # users
-    path('users', UserTableView.as_view(), name='users_overview'),
-
     # GroupInvitationRequests
     path('group-invitation-request', GroupInvitationRequestTableView.as_view(), name='group_invitation_request_overview'),
     path('group-invitation-request/new', GroupInvitationRequestNewView.as_view(), name='group_invitation_request_new'),
+    path('group-invitation-request/<pk>/accept', GroupInvitationRequestAcceptView.as_view(), name='group_invitation_request_accept'),
 
-    # todo: refactor as generic view
-    path('group-invitation/<object_id>/', toggle_group_invitation, name='toggle-user-to-group'),
+    # users
+    path('users', UserTableView.as_view(), name='users_overview'),
 ]
 

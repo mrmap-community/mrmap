@@ -8,7 +8,7 @@ from django_bootstrap_swt.utils import RenderHelper
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum
 from MrMap.tables import MrMapTable
-from MrMap.utils import get_theme, get_ok_nok_icon
+from MrMap.utils import get_theme, get_ok_nok_icon, signal_last
 from MrMap.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
@@ -84,14 +84,54 @@ class PublishesForTable(tables.Table):
 
 
 class PublishersTable(tables.Table):
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
     class Meta:
         model = MrMapGroup
         fields = ('name', )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
 
+    def __init__(self, organization, *args, **kwargs):
+        self.organization = organization
+        super().__init__(*args, **kwargs)
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
     def render_name(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
+
+    def render_actions(self, record):
+        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
+        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                           content=remove_icon + _(' Remove').__str__()).render()
+
+        publishers_querystring = "publishers"
+        publishers_excluded_record = self.organization.publishers.exclude(pk=record.pk)
+        if publishers_excluded_record:
+            publishers_querystring = ""
+            for is_last_element, publisher in signal_last(publishers_excluded_record):
+                if is_last_element:
+                    publishers_querystring += f"publishers={publisher.pk}"
+                else:
+                    publishers_querystring += f"publishers={publisher.pk}&"
+
+        btns = [
+            LinkButton(url=f"{self.organization.edit_view_uri}?{publishers_querystring}",
+                       content=st_edit_text + gt_edit_text,
+                       color=ButtonColorEnum.DANGER,
+                       tooltip=_(f"Remove <strong>{record}</strong> from <strong>{self.organization}</strong>"),
+                       tooltip_placement=TooltipPlacementEnum.LEFT)
+        ]
+        return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
 class PublishesRequestTable(tables.Table):
@@ -107,7 +147,6 @@ class PublishesRequestTable(tables.Table):
         model = PublishRequest
         fields = ('group', 'organization', 'message')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        # todo: set this prefix dynamic
         prefix = 'publishers-for-table'
 
     def before_render(self, request):
@@ -269,6 +308,9 @@ class GroupDetailTable(tables.Table):
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
+    def render_organization(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
     def render_permissions(self, record):
         perms = []
         for perm in self.request.user.get_permissions(record):
@@ -367,8 +409,8 @@ class OrganizationTable(tables.Table):
         return format_html(rendered)
 
 
-class MrMapUserTable(tables.Table):
-    caption = _("Shows registered users.")
+class GroupMemberTable(tables.Table):
+    caption = _("Shows members of group.")
     actions = MrMapColumn(
         verbose_name=_('Actions'),
         tooltip=_('Actions to perform'),
@@ -389,17 +431,63 @@ class MrMapUserTable(tables.Table):
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
+    def render_organization(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
     def render_actions(self, record):
         remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
         st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
         gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
                            content=remove_icon + _(' Remove').__str__()).render()
 
+        members_querystring = "user_set"
+        members_excluded_record = self.group.user_set.exclude(pk=record.pk)
+        if members_excluded_record:
+            members_querystring = ""
+            for is_last_element, user in signal_last(members_excluded_record):
+                if is_last_element:
+                    members_querystring += f"user_set={user.pk}"
+                else:
+                    members_querystring += f"user_set={user.pk}&"
+
         btns = [
-            LinkButton(url=self.group.remove_member_view_uri(record),
+            LinkButton(url=f"{self.group.edit_view_uri}?{members_querystring}",
                        content=st_edit_text + gt_edit_text,
                        color=ButtonColorEnum.DANGER,
                        tooltip=_(f"Remove <strong>{record}</strong> from <strong>{self.group}</strong>"),
                        tooltip_placement=TooltipPlacementEnum.LEFT)
+        ]
+        return format_html(self.render_helper.render_list_coherent(items=btns))
+
+
+class OrganizationMemberTable(tables.Table):
+    caption = _("Shows members of organization.")
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions to perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
+
+    class Meta:
+        model = MrMapUser
+        fields = ('username', )
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+
+    def __init__(self, organization: Organization, *args, **kwargs):
+        self.organization = organization
+        super().__init__(*args, **kwargs)
+
+    def before_render(self, request):
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+
+    def render_actions(self):
+        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
+        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                           content=remove_icon + _(' Remove').__str__()).render()
+        btns = [
+
         ]
         return format_html(self.render_helper.render_list_coherent(items=btns))

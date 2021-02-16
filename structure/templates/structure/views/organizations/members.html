@@ -18,12 +18,12 @@
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link" href="{% url 'structure:organization_members' object.pk %}">
+                  <a class="nav-link active" href="{% url 'structure:organization_members' object.pk %}">
                       {% trans 'Members' %} <span class="badge badge-secondary">{{members_count}}</span>
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link active" href="{% url 'structure:organization_publisher_overview' object.pk %}">
+                  <a class="nav-link" href="{% url 'structure:organization_publisher_overview' object.pk %}">
                       {% trans 'Publishers' %} <span class="badge badge-secondary">{{publishers_count}}</span>
                   </a>
               </li>
@@ -32,11 +32,7 @@
       <div class="card-body">
           {% render_table table %}
       </div>
-      <div class="card-footer">
-            <div class="float-right">
-            {{object.show_pending_requests|safe}}
-            {{object.new_publisher_request_action|safe}}
-            </div>
-      </div>
 </div>
+
+
 {% endblock %}

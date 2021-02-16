@@ -395,7 +395,7 @@ class MrMapGroup(Group):
         return LinkButton(url=self.new_publisher_requesst_uri,
                           content=st_text + gt_text,
                           color=ButtonColorEnum.SUCCESS,
-                          tooltip=_("Become publisher"),
+                          tooltip=_("Become rights to publish"),
                           needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 
     @property

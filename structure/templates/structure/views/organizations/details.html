@@ -17,10 +17,14 @@
                       {% trans 'Details' %}
                   </a>
               </li>
-
+              <li class="nav-item">
+                  <a class="nav-link" href="{% url 'structure:organization_members' object.pk %}">
+                      {% trans 'Members' %} <span class="badge badge-secondary">{{members_count}}</span>
+                  </a>
+              </li>
               <li class="nav-item">
                   <a class="nav-link" href="{% url 'structure:organization_publisher_overview' object.pk %}">
-                      {% trans 'Publishers' %} <span class="badge badge-secondary">{{ publishers_count }}</span>
+                      {% trans 'Publishers' %} <span class="badge badge-secondary">{{publishers_count}}</span>
                   </a>
               </li>
           </ul>

@@ -18,26 +18,35 @@
                 </a>
             </li>
             <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
-                <a class="nav-link dropdown-toggle" href="{% url 'structure:index' %}" id="navbarStructureDropdown"
-                   role="button"
-                    aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{THEME.ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Structure' %}
+                <a class="nav-link dropdown-toggle" href="#" id="navbarStructureDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {% autoescape off %}{{THEME.ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Structure' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
-                    <a class="dropdown-item" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</a>
-                    <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">
-                        {% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%}
-                    </a>
-                    <a class="dropdown-item" href="{% url 'structure:users-index' %}">
-                        {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {% trans 'User search'%}
-                    </a>
+                    <h6 class="dropdown-header">{% trans 'Groups' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item flex-grow-1" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_new' %}" title="{% trans 'New Group' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%}</a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:organization_new' %}" title="{% trans 'New Organization' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Publish requests' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'structure:publish_request_overview' %}">{% autoescape off %}{{THEME.ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%}</a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{% url 'structure:users-index' %}">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {% trans 'User search'%}</a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">
-                <a class="nav-link dropdown-toggle" href="{% url 'resource:index' %}" id="navbarServicesDropdown"
-                   role="button"
-                   aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{THEME.ICONS.RESOURCE}}{% endautoescape %} {% trans 'Resources' %}
+
+                <a class="nav-link dropdown-toggle" href="#" id="navbarServicesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {% autoescape off %}{{THEME.ICONS.RESOURCE}}{% endautoescape %} {% trans 'Resources' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>

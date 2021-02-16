@@ -191,6 +191,12 @@ class OrganizationForm(forms.ModelForm):
     person_name = forms.CharField(
         label=_("Contact person"),
         required=True, )
+
+    publishers = forms.ModelMultipleChoiceField(queryset=MrMapGroup.objects.all(),
+                                                label=_('Publishers'),
+                                                widget=autocomplete.ModelSelect2Multiple(url='editor:groups'),
+                                                required=False)
+
     create_group = forms.BooleanField(
         widget=forms.CheckboxInput(),
         label=_("Create group"),
@@ -240,7 +246,7 @@ class OrganizationForm(forms.ModelForm):
                         exclusions.append(org)
                     org_ = org_.parent
             self.fields['parent'].queryset = all_orgs_of_requesting_user.exclude(id__in=[o.id for o in exclusions])
-
+            self.fields['publishers'].initial = instance.publishers.all()
             self.fields.pop('create_group')
 
     def clean(self):
@@ -253,7 +259,9 @@ class OrganizationForm(forms.ModelForm):
         # save changes of group
         self.instance.created_by = self.request.user
         self.instance.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
-        self.instance.save()
+        self.instance = super().save(commit)
+        self.instance.publishers.clear()
+        self.instance.publishers.add(*self.cleaned_data['publishers'])
 
         if self.cleaned_data.get('created_group'):
             org_group = MrMapGroup.objects.create(
@@ -264,6 +272,7 @@ class OrganizationForm(forms.ModelForm):
             org_group.user_set.add(self.request.user)
             org_group.save()
             messages.success(self.request, message=_('Group {} successfully created.'.format(org_group.name)))
+        return self.instance
 
 
 class RemoveOrganizationForm(MrMapConfirmForm):

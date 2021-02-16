@@ -8,10 +8,6 @@
 
 /* Navbar
 -------------------------------------------------- */
-.nav-item+.dropdown:hover>.dropdown-menu {
-  display: block;
-}
-
 .navbar {
     background-color: var(--primary-color) !important;
 }

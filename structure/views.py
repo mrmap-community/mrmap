@@ -32,14 +32,14 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublishesForTable, GroupDetailTable, \
-    PublishesRequestTable, OrganizationDetailTable, PublishersTable
+    PublishesRequestTable, OrganizationDetailTable, PublishersTable, OrganizationMemberTable
 from django.urls import reverse_lazy
 
 from users.filters import MrMapUserFilter
 from users.helper import user_helper
 from django.utils import timezone
 
-from structure.tables import MrMapUserTable
+from structure.tables import GroupMemberTable
 
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, current_view: str):
@@ -87,7 +87,7 @@ def _prepare_users_table(request: HttpRequest, current_view: str, group: MrMapGr
     """
     all_users = MrMapUser.objects.none() if group is None else group.user_set.all()
 
-    all_users_table = MrMapUserTable(
+    all_users_table = GroupMemberTable(
         request=request,
         queryset=all_users,
         order_by_field='us',
@@ -128,10 +128,12 @@ def index(request: HttpRequest, update_params=None, status_code=None):
 
 
 @method_decorator(login_required, name='dispatch')
-class MrMapGroupTableView(SingleTableMixin, FilterView):
+class GroupTableView(SingleTableMixin, FilterView):
     model = MrMapGroup
     table_class = GroupTable
-    filterset_class = GroupFilter
+    filterset_fields = {'name': ['icontains'],
+                        'description': ['icontains'],
+                        'organization__organization_name': ['icontains']}
     is_public_group = Q(is_public_group=True)
     is_no_permission_group = Q(is_permission_group=False)
     queryset = MrMapGroup.objects.filter(is_no_permission_group | is_public_group).\
@@ -139,7 +141,7 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
-        table = super(MrMapGroupTableView, self).get_table(**kwargs)
+        table = super(GroupTableView, self).get_table(**kwargs)
 
         table.title = Tag(tag='i', attrs={"class": [IconEnum.GROUP.value]}).render() + _l(' Groups').__str__()
 
@@ -149,14 +151,16 @@ class MrMapGroupTableView(SingleTableMixin, FilterView):
 
     def dispatch(self, request, *args, **kwargs):
         default_dispatch(instance=self)
-        return super(MrMapGroupTableView, self).dispatch(request, *args, **kwargs)
+        return super(GroupTableView, self).dispatch(request, *args, **kwargs)
 
 
 @method_decorator(login_required, name='dispatch')
 class OrganizationTableView(SingleTableMixin, FilterView):
     model = Organization
     table_class = OrganizationTable
-    filterset_fields = ('organization_name', 'parent', 'is_auto_generated')
+    filterset_fields = {'organization_name': ['icontains'],
+                        'parent__organization_name': ['icontains'],
+                        'is_auto_generated': ['exact']}
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -239,6 +243,11 @@ class OrganizationEditView(SuccessMessageMixin, UpdateView):
     def get_success_url(self):
         return self.object.detail_view_uri
 
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs.update({"request": self.request})
@@ -266,11 +275,49 @@ class OrganizationDeleteView(SuccessMessageMixin, DeleteView):
 
 
 @method_decorator(login_required, name='dispatch')
+class OrganizationMembersTableView(SingleTableMixin, FilterView):
+    model = MrMapUser
+    table_class = OrganizationMemberTable
+    filterset_fields = {'username': ['icontains']}
+    template_name = 'structure/views/organizations/members.html'
+    object = None
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.object = get_object_or_404(klass=Organization, pk=kwargs.get('pk'))
+
+    def get_queryset(self):
+        return self.object.primary_users.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"object": self.object,
+                        'members_count': self.object.primary_users.count(),
+                        'publishers_count': self.object.publishers.count(),
+                        'publisher_requests_count': PublishRequest.objects.filter(organization=self.object).count()})
+        return context
+
+    def get_table_kwargs(self):
+        return {'organization': self.object}
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super().get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Members')
+        return table
+
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": request.GET.get('per_page', 5), }
+        return super().dispatch(request, *args, **kwargs)
+
+
+@method_decorator(login_required, name='dispatch')
 class OrganizationPublishersTableView(SingleTableMixin, FilterView):
     model = MrMapGroup
     table_class = PublishersTable
-    filterset_fields = ('name', )
-    template_name = 'structure/views/groups/publishers.html'
+    filterset_fields = {'name': ['icontains']}
+    template_name = 'structure/views/organizations/publishers.html'
     object = None
 
     def setup(self, request, *args, **kwargs):
@@ -288,6 +335,9 @@ class OrganizationPublishersTableView(SingleTableMixin, FilterView):
                         'publisher_requests_count': PublishRequest.objects.filter(organization=self.object).count()})
         return context
 
+    def get_table_kwargs(self):
+        return {'organization': self.object}
+
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super().get_table(**kwargs)
@@ -301,7 +351,7 @@ class OrganizationPublishersTableView(SingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-class MrMapGroupDetailView(DetailView):
+class GroupDetailView(DetailView):
     class Meta:
         verbose_name = _('Details')
 
@@ -323,10 +373,11 @@ class MrMapGroupDetailView(DetailView):
 
 
 @method_decorator(login_required, name='dispatch')
-class MrMapGroupMembersTableView(SingleTableMixin, FilterView):
+class GroupMembersTableView(SingleTableMixin, FilterView):
     model = MrMapUser
-    table_class = MrMapUserTable
-    filterset_class = MrMapUserFilter
+    table_class = GroupMemberTable
+    filterset_fields = {'username': ['icontains'],
+                        'organization__organization_name': ['icontains']}
     template_name = 'structure/views/groups/members.html'
     object = None
 
@@ -401,38 +452,6 @@ def generate_error_report(request: HttpRequest, report_id: int):
 
 
 @login_required
-@permission_required(PermissionEnum.CAN_REMOVE_PUBLISHER.value)
-def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
-    """ Removes a publisher for an organization
-
-    Args:
-        request (HttpRequest): The incoming request
-        org_id (int): The organization id
-        group_id (int): The group id (publisher)
-    Returns:
-         A View
-    """
-    user = user_helper.get_user(request)
-    org = get_object_or_404(Organization, id=org_id)
-    group = get_object_or_404(MrMapGroup, id=group_id, publish_for_organizations=org)
-
-    form = RemovePublisherForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='structure:remove-publisher',
-        reverse_args=[org_id, group_id],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        is_confirmed_label=_l("Do you really want to remove this publisher?"),
-        form_title=_l("Remove publisher <strong>{}</strong>").format(group.name),
-        organization=org,
-        user=user,
-        group=group,
-    )
-    return form.process_request(valid_func=form.process_remove_publisher)
-
-
-@login_required
 @permission_required(PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 def publish_request(request: HttpRequest, org_id: int):
     """ Performs creation of a publishing request between a user/group and an organization
@@ -459,7 +478,7 @@ def publish_request(request: HttpRequest, org_id: int):
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_GROUP.value), name='dispatch')
-class NewMrMapGroup(SuccessMessageMixin, CreateView):
+class GroupNewView(SuccessMessageMixin, CreateView):
     model = MrMapGroup
     form_class = GroupForm
     template_name = 'structure/views/generic_form.html'
@@ -482,10 +501,10 @@ class NewMrMapGroup(SuccessMessageMixin, CreateView):
 
 
 @method_decorator(login_required, name='dispatch')
-class MrMapGroupPublishersTableView(SingleTableMixin, FilterView):
+class GroupPublishRightsForTableView(SingleTableMixin, FilterView):
     model = Organization
     table_class = PublishesForTable
-    filterset_fields = ('organization__organization_name', )
+    filterset_fields = {'organization_name': ['icontains']}
     template_name = 'structure/views/groups/publishers.html'
     object = None
 
@@ -606,44 +625,10 @@ class PublishRequestRemoveView(SuccessMessageMixin, DeleteView):
         return context
 
 
-@method_decorator([login_required,
-                   permission_required(perm=PermissionEnum.CAN_REMOVE_USER_FROM_GROUP.value,
-                                       login_url='structure:group_overview')],
-                  name='dispatch')
-class RemoveUserFromGroupView(SuccessMessageMixin, UpdateView):
-    template_name = 'structure/views/delete.html'
-    success_message = _('Group successfully edited.')
-    model = MrMapGroup
-    form_class = RemoveUserFromGroupForm
-    queryset = MrMapGroup.objects.filter(is_permission_group=False)
-    user_who_will_be_removed = None
-
-    def setup(self, request, *args, **kwargs):
-        super(RemoveUserFromGroupView, self).setup(request, *args, **kwargs)
-        self.user_who_will_be_removed = get_object_or_404(klass=MrMapUser, pk=kwargs.get('user_id'))
-
-    def get_object(self, queryset=None):
-        obj = super().get_object(queryset)
-        if obj.user_set.count() <= 1:
-            # The last user can't be removed from the group
-            raise Http404(_("Removing last user from the group isn't possible"))
-        return obj
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({"user": self.user_who_will_be_removed})
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': format_html(_(f'Remove <strong>{self.user_who_will_be_removed}</strong> from <strong>{self.object}</strong>'))})
-        return context
-
-
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value), name='dispatch')
 @method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
-class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
+class GroupDeleteView(SuccessMessageMixin, DeleteView):
     model = MrMapGroup
     template_name = "structure/views/delete.html"
     success_url = reverse_lazy('structure:group_overview')
@@ -659,12 +644,17 @@ class DeleteMrMapGroupView(SuccessMessageMixin, DeleteView):
 @method_decorator([login_required,
                    permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:group_overview')],
                   name='dispatch')
-class EditGroupView(SuccessMessageMixin, UpdateView):
+class GroupEditView(SuccessMessageMixin, UpdateView):
     template_name = 'structure/views/generic_form.html'
     success_message = _('Group successfully edited.')
     model = MrMapGroup
     form_class = GroupForm
     queryset = MrMapGroup.objects.filter(is_permission_group=False)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

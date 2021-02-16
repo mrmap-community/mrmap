@@ -8,7 +8,7 @@ Created on: 17.04.19
 import urllib
 from MrMap.themes import DARK_THEME, LIGHT_THEME
 from django.utils.html import format_html
-
+from typing import Iterable, Any, Tuple
 from structure.models import MrMapUser
 from MrMap.settings import DEBUG
 
@@ -154,3 +154,12 @@ def get_dict_value_insensitive(d: dict, k: str):
         val: The matching value
     """
     return {key.lower(): val for key, val in d.items()}.get(k.lower(), None)
+
+
+def signal_last(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+    iterable = iter(it)
+    ret_var = next(iterable)
+    for val in iterable:
+        yield False, ret_var
+        ret_var = val
+    yield True, ret_var

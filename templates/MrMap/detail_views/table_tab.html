@@ -1,0 +1,27 @@
+{% extends 'MrMap/detail_views/base.html' %}
+{% load render_table from django_tables2 %}
+
+{% block content %}
+<div class="card my-3">
+      <div class="card-header">
+          <ul class="nav nav-tabs card-header-tabs">
+              {% for tab in tab_nav %}
+              <li class="nav-item">
+                    <a class="nav-link {% if request.path == tab.url %}active{% endif %}" href="{{tab.url}}">
+                      {{tab.title|safe}}
+                    </a>
+              </li>
+              {% endfor %}
+        </ul>
+      </div>
+      <div class="card-body">
+          {% render_table table %}
+      </div>
+      <div class="card-footer">
+            <div class="float-right">
+            {{object.show_pending_requests|safe}}
+            {{object.new_publisher_request_action|safe}}
+            </div>
+      </div>
+</div>
+{% endblock %}

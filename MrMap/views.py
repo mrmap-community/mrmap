@@ -1,14 +1,21 @@
 import uuid
+
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 from django.urls import reverse_lazy, resolve, reverse
 from django.views import View
 from django.views.generic import UpdateView, DetailView, TemplateView
+from django.views.generic.base import ContextMixin
 from django.views.generic.edit import FormMixin, FormView
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum, ButtonColorEnum
+from django_bootstrap_swt.utils import RenderHelper
+from django_tables2 import SingleTableMixin
+from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm
 from MrMap.responses import DefaultContext
 from MrMap.wizards import get_class
@@ -193,3 +200,67 @@ class AsyncConfirmView(ConfirmView):
 
         # cause this is a async task which can take longer we response with 'accept' status
         return JsonResponse(status=202, data=content)
+
+
+class InitFormMixin(FormMixin):
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(self.request.GET.copy())
+        return initial
+
+
+class GenericViewContextMixin(ContextMixin):
+    title = None
+
+    def get_title(self):
+        return self.title
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"title": self.get_title})
+        return context
+
+
+class CustomSingleTableMixin(SingleTableMixin):
+    title = None
+    template_extend_base = True
+
+    def get_title(self):
+        return self.title
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(CustomSingleTableMixin, self).get_table(**kwargs)
+        table.title = self.get_title()
+        model = self.model()
+        if hasattr(model, 'get_add_action') and callable(model.get_add_action):
+            render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
+            table.actions = [render_helper.render_item(item=self.model.get_add_action())]
+        return table
+
+    def get_template_extend_base(self):
+        return self.template_extend_base
+
+    def dispatch(self, request, *args, **kwargs):
+        # configure table_pagination dynamically to support per_page switching
+        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+
+        if not self.template_name:
+            self.template_extend_base = bool(self.request.GET.get('with-base', self.get_template_extend_base()))
+            if self.template_extend_base:
+                self.template_name = 'generic_views/generic_list_with_base.html'
+            else:
+                self.template_name = 'generic_views/generic_list_without_base.html'
+        return super(CustomSingleTableMixin, self).dispatch(request, *args, **kwargs)
+
+
+class DependingListView(View):
+    depending_model = None
+    object = None
+
+    def setup(self, request, *args, **kwargs):
+        if not self.depending_model:
+            raise ImproperlyConfigured(_('You need to define a depending model class by setting the depending_model '
+                                         'attribute.'))
+        super().setup(request, *args, **kwargs)
+        self.object = get_object_or_404(klass=self.depending_model, pk=kwargs.get('pk'))

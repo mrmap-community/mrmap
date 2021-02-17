@@ -1,75 +1,13 @@
 import django_tables2 as tables
 from django.utils.html import format_html
-from django.urls import reverse
-from django_bootstrap_swt.components import Link, Tag, Badge, LinkButton, Button
+from django_bootstrap_swt.components import Link, Tag, Badge, LinkButton
 from django_bootstrap_swt.enums import ButtonColorEnum, TooltipPlacementEnum
 from django_bootstrap_swt.utils import RenderHelper
-
-from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum
-from MrMap.tables import MrMapTable
-from MrMap.utils import get_theme, get_ok_nok_icon, signal_last
-from MrMap.consts import URL_PATTERN
+from MrMap.tables import ActionTableMixin
+from MrMap.utils import get_ok_nok_icon, signal_last
 from django.utils.translation import gettext_lazy as _
-
 from structure.models import MrMapGroup, Organization, PublishRequest, MrMapUser
-from structure.permissionEnums import PermissionEnum
-
-
-class PublisherTable(MrMapTable):
-    class Meta:
-        row_attrs = {
-            "class": "text-center"
-        }
-    publisher_group = MrMapColumn(accessor='name', verbose_name=_('Group'))
-    publisher_org = MrMapColumn(accessor='organization', verbose_name=_('Group organization'))
-    publisher_action = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions you can perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
-    def __init__(self, *args, **kwargs):
-        self.organization = None if "organization" not in kwargs else kwargs.pop("organization")
-        super().__init__(*args, **kwargs)
-
-    def render_publisher_group(self, value, record):
-        """ Renders publisher_group as link to detail view of group
-
-        Args:
-            value:
-            record:
-        Returns:
-
-        """
-        url = reverse('structure:group_details', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
-
-    def render_publisher_org(self, value, record):
-        """ Renders publisher_org as link to detail view of organization
-
-        Args:
-            value:
-            record:
-        Returns:
-
-        """
-        url = reverse('structure:organization_details', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
-
-    def render_publisher_action(self, record):
-        btns = ''
-        btns += format_html(self.get_btn(
-            href=reverse('structure:remove-publisher', args=(self.organization.id, record.id,)) + f"?current-view={self.current_view}&current-view-arg={self.organization.id}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
-            tooltip=format_html(_("Remove <strong>{}</strong> as publisher").format(record.name), ),
-            tooltip_placement='left',
-            permission=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS,
-        ))
-        return format_html(btns)
 
 
 class PublishesForTable(tables.Table):
@@ -83,15 +21,7 @@ class PublishesForTable(tables.Table):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
 
-class PublishersTable(tables.Table):
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions you can perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
+class PublishersTable(ActionTableMixin, tables.Table):
     class Meta:
         model = MrMapGroup
         fields = ('name', )
@@ -134,15 +64,7 @@ class PublishersTable(tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
-class PendingRequestTable(tables.Table):
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions you can perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
+class PendingRequestTable(ActionTableMixin, tables.Table):
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
@@ -193,15 +115,7 @@ class GroupInvitationRequestTable(tables.Table):
         prefix = 'group-invitation-table'
 
 
-class GroupTable(tables.Table):
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions you can perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
+class GroupTable(ActionTableMixin, tables.Table):
     class Meta:
         model = MrMapGroup
         fields = ('name', 'description', 'organization', 'actions')
@@ -301,18 +215,8 @@ class OrganizationDetailTable(tables.Table):
         prefix = 'organization-detail-table'
         orderable = False
 
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
-
-class OrganizationTable(tables.Table):
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions you can perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}, )
-
+class OrganizationTable(ActionTableMixin, tables.Table):
     class Meta:
         model = Organization
         fields = ('organization_name', 'description', 'is_auto_generated', 'parent')
@@ -347,16 +251,7 @@ class OrganizationTable(tables.Table):
         return format_html(rendered)
 
 
-class GroupMemberTable(tables.Table):
-    caption = _("Shows members of group.")
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions to perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
+class GroupMemberTable(ActionTableMixin, tables.Table):
     class Meta:
         model = MrMapUser
         fields = ('username', 'organization')
@@ -400,16 +295,7 @@ class GroupMemberTable(tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
-class OrganizationMemberTable(tables.Table):
-    caption = _("Shows members of organization.")
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions to perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
+class OrganizationMemberTable(ActionTableMixin, tables.Table):
     class Meta:
         model = MrMapUser
         fields = ('username', )
@@ -433,17 +319,7 @@ class OrganizationMemberTable(tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
-class MrMapUserTable(tables.Table):
-    caption = _("Shows registered users.")
-
-    actions = MrMapColumn(
-        verbose_name=_('Actions'),
-        tooltip=_('Actions to perform'),
-        empty_values=[],
-        orderable=False,
-        attrs={"td": {"style": "white-space:nowrap;"}}
-    )
-
+class MrMapUserTable(ActionTableMixin, tables.Table):
     class Meta:
         model = MrMapUser
         fields = ('username', 'organization', 'groups')

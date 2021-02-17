@@ -70,9 +70,9 @@ RESOURCE_NOT_FOUND_OR_NOT_OWNER = _("The requested resource does not exist or yo
 
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 
-PUBLISH_REQUEST_SENT = _("Publish request has been sent to the organization!")
-PUBLISH_REQUEST_ACCEPTED = _("Publisher request accepted for group '{}'")
-PUBLISH_REQUEST_DENIED = _("Publisher request denied for group '{}'")
+PUBLISH_REQUEST_SENT = _("Publish request from <strong>%(group)s</strong> has been sent to the organization <strong>%(organization)s</strong>")
+PUBLISH_REQUEST_ACCEPTED = _("Publish request from <strong>%(group)s</strong> has been <strong>accepted</strong> from organization <strong>%(organization)s</strong>")
+PUBLISH_REQUEST_DENIED = _("Publish request from <strong>%(group)s</strong> has been <strong>denied</strong> from organization <strong>%(organization)s</strong>")
 PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER = _("Your group already is a publisher for this organization!")
 PUBLISH_REQUEST_ABORTED_OWN_ORG = _("You cannot be a publisher to your group's own organization! You publish by default like this.")
 PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. Please be patient!")
@@ -83,14 +83,14 @@ PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You 
 GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
 GROUP_IS_OTHERS_PROPERTY = _("This group is owned by another user. Action denied.")
 
-GROUP_SUCCESSFULLY_DELETED = _("Group '{}' successfully deleted.")
-GROUP_SUCCESSFULLY_EDITED = _("Group '{}' successfully edited.")
-GROUP_SUCCESSFULLY_CREATED = _("Group {} successfully created.")
+GROUP_SUCCESSFULLY_DELETED = _("Group <strong>%(name)s</strong> was <strong>deleted</strong> successfully.")
+GROUP_SUCCESSFULLY_EDITED = _("Group <strong>%(name)s</strong> was <strong>edited</strong> successfully.")
+GROUP_SUCCESSFULLY_CREATED = _("Group <strong>%(name)s</strong> was <strong>created</strong> successfully.")
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
-ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization '{}' successfully edited.")
-ORGANIZATION_SUCCESSFULLY_CREATED = _("Organization {} successfully created.")
-ORGANIZATION_SUCCESSFULLY_DELETED = _("Organization {} successfully deleted.")
+ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization <strong>%(organization_name)s</strong> was <strong>edited</strong> successfully.")
+ORGANIZATION_SUCCESSFULLY_CREATED = _("Organization <strong>%(organization_name)s</strong> was <strong>created</strong> successfully.")
+ORGANIZATION_SUCCESSFULLY_DELETED = _("Organization <strong>%(organization_name)s</strong> was <strong>deleted</strong> successfully.")
 
 SERVICE_SUCCESSFULLY_DELETED = _("Service '{}' successfully deleted.")
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
@@ -136,5 +136,5 @@ SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE = _("'{}' already subscribed.")
 SUBSCRIPTION_SUCCESSFULLY_DELETED = _("Subscription successfully deleted.")
 
 
-GROUP_INVITATION_CREATED = _("{} has been invited to {}!")
+GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
 GROUP_INVITATION_EXISTS = _("An invitation already exists. {} can respond until {}!")

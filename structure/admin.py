@@ -2,7 +2,6 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib.auth.admin import UserAdmin
-from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.template.defaultfilters import escape
 

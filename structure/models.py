@@ -16,7 +16,6 @@ from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColo
     ButtonSizeEnum
 
 from MrMap.icons import IconEnum
-from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
@@ -229,6 +228,14 @@ class Organization(Contact):
     def get_absolute_url(self):
         return self.detail_view_uri
 
+    @property
+    def members_view_uri(self):
+        return reverse('structure:organization_members', args=[self.pk, ])
+
+    @property
+    def publishers_uri(self):
+        return reverse('structure:organization_publisher_overview', args=[self.pk, ])
+
     @classmethod
     def get_add_action(cls):
         icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
@@ -255,6 +262,10 @@ class Organization(Contact):
     @property
     def remove_view_uri(self):
         return reverse('structure:organization_remove', args=[self.pk, ])
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.ORGANIZATION.value]}).render()
 
     def get_actions(self):
         add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
@@ -365,8 +376,20 @@ class MrMapGroup(Group):
         return reverse('structure:group_remove', args=[self.pk, ])
 
     @property
+    def members_view_uri(self):
+        return reverse('structure:group_members', args=[self.pk, ])
+
+    @property
+    def publish_rights_for_uri(self):
+        return reverse('structure:group_publish_rights_overview', args=[self.pk, ])
+
+    @property
     def new_publisher_requesst_uri(self):
         return f"{reverse('structure:publish_request_new')}?group={self.pk}"
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.GROUP.value]}).render()
 
     def get_actions(self, request: HttpRequest):
         actions = []
@@ -681,6 +704,10 @@ class PublishRequest(BaseInternalRequest):
     def accept_request_uri(self):
         return reverse('structure:publish_request_accept', args=[self.pk])
 
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}).render()
+
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
         if not self._state.adding:
@@ -721,6 +748,10 @@ class GroupInvitationRequest(BaseInternalRequest):
     @property
     def accept_request_uri(self):
         return reverse('structure:group_invitation_request_accept', args=[self.pk])
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}).render()
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):

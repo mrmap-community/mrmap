@@ -13,16 +13,20 @@
     </div>
     <div class="row">
         <div class="col">
-            {% block page_title %}
-            {% endblock %}
+            {% if object %}
+            <h2 class="card-title">{{object.icon|safe}} {{object}}</h2>
+            <h6 class="card-subtitle mb-2 text-muted">{% trans 'created by' %} {{object.created_by}}</h6>
+            {% endif %}
         </div>
+        {% if actions %}
         <div class="col">
             <div class="float-right">
-                {% for action in object.get_actions %}
+                {% for action in actions %}
                 {{ action|safe }}
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
     </div>
     <div class="row">
         <div class="col">

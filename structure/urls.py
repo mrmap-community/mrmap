@@ -6,8 +6,7 @@ urlpatterns = [
 
     # PendingTask
     path('tasks/<pk>/remove', PendingTaskDelete.as_view(), name='remove-task'),
-    # todo: refactor as generic view
-    path('report/error/<report_id>', generate_error_report, name='generate-error-report'),
+    path('error-reports/<pk>', ErrorReportDetailView.as_view(), name='generate-error-report'),
 
     # MrMapGroups
     path('groups', GroupTableView.as_view(), name='group_overview'),

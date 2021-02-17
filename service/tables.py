@@ -109,8 +109,7 @@ class OgcServiceTable(tables.Table):
         prefix = 'ogc-service-table'
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())),
-                                          update_url_qs={'current-view': request.resolver_match.view_name})
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
 
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)

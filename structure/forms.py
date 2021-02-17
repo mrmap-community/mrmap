@@ -52,9 +52,11 @@ class GroupForm(ModelForm):
             "description",
             "parent_group",
             "organization",
+            "created_by",
         ]
         widgets = {
-            "description": forms.Textarea()
+            "description": forms.Textarea(),
+            "created_by": forms.HiddenInput()
         }
 
     def __init__(self, request, *args, **kwargs):
@@ -76,6 +78,8 @@ class GroupForm(ModelForm):
 
             self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id__in=[o.id for o in exclusions])
             self.fields['user_set'].initial = instance.user_set.all()
+        else:
+            self.fields['created_by'].initial = self.request.user
 
     def clean(self):
         cleaned_data = super(GroupForm, self).clean()
@@ -99,7 +103,7 @@ class GroupForm(ModelForm):
         return cleaned_data
 
     def save(self, commit=True):
-        self.instance.save(user=self.request.user)
+        self.instance.save()
         self.instance.user_set.clear()
         self.instance.user_set.add(*self.cleaned_data['user_set'])
         return self.instance

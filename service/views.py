@@ -110,7 +110,7 @@ class PendingTaskView(SingleTableMixin, ListView):
         return table
 
     def dispatch(self, request, *args, **kwargs):
-        default_dispatch(instance=self, with_base=False)
+        default_dispatch(instance=self)
         return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
 
 
@@ -138,8 +138,7 @@ class WmsIndexView(SingleTableMixin, FilterView):
 
         table.title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + _(' WMS')
 
-        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
-                                     update_url_qs=get_current_view_args(self.request))
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 

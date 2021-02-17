@@ -23,7 +23,7 @@ from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
 from api import view_helper
-from monitoring.models import Monitoring, MonitoringRun
+from monitoring.models import MonitoringResult, MonitoringRun
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
@@ -847,13 +847,13 @@ class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         try:
             monitoring_run = MonitoringRun.objects.latest('start')
-            monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+            monitorings = MonitoringResult.objects.filter(monitoring_run=monitoring_run)
         except ObjectDoesNotExist:
-            return Monitoring.objects.all()
+            return MonitoringResult.objects.all()
         return monitorings
 
     def retrieve(self, request, pk=None, *args, **kwargs):
-        tmp = Monitoring.objects.filter(metadata=pk).order_by('-timestamp')
+        tmp = MonitoringResult.objects.filter(metadata=pk).order_by('-timestamp')
 
         if len(tmp) == 0:
             return Response(status=404)

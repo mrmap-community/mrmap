@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django_bootstrap_swt.components import Alert
@@ -28,6 +28,8 @@ NEW_RESOURCE_WIZARD_FORMS = [
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(PermissionEnum.CAN_REGISTER_RESOURCE.value), name='dispatch')
 class NewResourceWizard(MrMapWizard):
+    success_url = reverse_lazy('resource:pending-tasks')
+
     def __init__(self, *args, **kwargs):
         super().__init__(
             action_url=reverse('resource:add', ),

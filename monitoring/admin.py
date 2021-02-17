@@ -17,7 +17,7 @@ class HealthStateReasonAdmin(admin.ModelAdmin):
 
 
 class HealthStateAdmin(admin.ModelAdmin):
-    list_display = ('id', 'health_state_code', 'health_message', )
+    list_display = ('uuid', 'health_state_code', 'health_message', )
 
 
 class MonitoringSettingAdmin(admin.ModelAdmin):
@@ -46,8 +46,8 @@ class MonitoringCapabilityAdmin(admin.ModelAdmin):
 admin.site.register(HealthStateReason, HealthStateReasonAdmin)
 admin.site.register(HealthState, HealthStateAdmin)
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)
-admin.site.register(Monitoring, MonitoringAdmin)
-admin.site.register(MonitoringCapability, MonitoringCapabilityAdmin)
+admin.site.register(MonitoringResult, MonitoringAdmin)
+admin.site.register(MonitoringResultCapability, MonitoringCapabilityAdmin)
 
 # Should not be visible for daily use
 admin.site.register(MonitoringRun, MonitoringRunAdmin)

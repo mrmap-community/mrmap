@@ -1,14 +1,14 @@
 {% load bootstrap4 %}
 {% load i18n %}
-<div class="modal-header">
-    <h5 class="modal-title" id="{{id_modal}}_title">
-        {{ modal_title }}
-    </h5>
-</div>
-<form action="{{action_url}}" method="post" id="{{id_modal}}_form">
-    {% csrf_token %}
-    <div class="modal-body" style="white-space: normal;"><!-- <modal-body> -->
-        {% if wizard.messages %}
+<div class="container">
+<div class="card text-center">
+  <div class="card-header">
+      <h5 class="card-title">{{ modal_title }}</h5>
+  </div>
+  <form action="{{action_url}}" method="post">
+      {% csrf_token %}
+      <div class="card-body">
+          {% if wizard.messages %}
         {% for key, value in wizard.messages %}
         <div class="alert alert-{{key}} alert-dismissible fade show" role="alert">
           {{value}}
@@ -68,8 +68,9 @@
             {{ wizard.form.media }}
             {% bootstrap_form wizard.form %}
         {% endif %}
-    </div><!-- </modal-body> -->
-    <div class="modal-footer"><!-- <modal-footer> -->
+
+      </div>
+      <div class="card-footer text-muted">
         <div class="container-fluid">
         <div class="row">
             <div class="col-sm">
@@ -124,5 +125,7 @@
             </div>
         </div>
         </div>
-    </div>
-</form>
+      </div>
+  </form>
+</div>
+</div>

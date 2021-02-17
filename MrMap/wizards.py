@@ -26,40 +26,17 @@ def get_class( kls ):
 
 
 class MrMapWizard(SessionWizardView, ABC):
-    template_name = "generic_views/generic_wizard_form.html"
+    template_name = "generic_views/base_extended/wizard.html"
     ignore_uncomitted_forms = False
     instance_id = None
     title = _('Wizard')
     id_wizard = "id_" + str(uuid.uuid4())
     required_forms = None
     action_url = ""
-    current_view_arg = None
-    current_view = None
-    # Todo: move this to settings.py
-    current_view_queryparam = 'current-view'
-    current_view_arg_queryparam = 'current-view-arg'
-    current_view_url = ""
+    success_url = ""
 
-    def dispatch(self, request, *args, **kwargs):
-        self.current_view = request.GET.get(self.current_view_queryparam, None)
-        if not self.current_view:
-            raise ImproperlyConfigured(f"query param '{self.current_view_queryparam}' "
-                                       f"was not found in the url query parameters")
-        self.current_view_arg = request.GET.get(self.current_view_arg_queryparam, None)
-
-        if self.current_view_arg:
-            self.current_view_url = reverse(f"{self.current_view}", args=[self.current_view_arg, ])
-        else:
-            self.current_view_url = reverse(f"{self.current_view}", )
-
-        self.action_url += self.prepare_query_params()
-        return super().dispatch(request, *args, **kwargs)
-
-    def prepare_query_params(self):
-        query_params = f"?{self.current_view_queryparam}={self.current_view}"
-        if self.current_view_arg:
-            query_params += f"&{self.current_view_arg_queryparam}={self.current_view_arg}"
-        return query_params
+    def get_success_url(self):
+        return self.success_url
 
     def get_context_data(self, form, **kwargs):
         context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
@@ -176,30 +153,8 @@ class MrMapWizard(SessionWizardView, ABC):
                 _form.fields[DELETION_FIELD_NAME].widget = HiddenInput()
         return form
 
-    def render(self, form=None, **kwargs):
-        # we implement custom rendering, for that we need the current view were we can inject wizard as string
-        form = form or self.get_form()
-        context = self.get_context_data(form=form, **kwargs)
-
-        rendered_wizard = render_to_string(request=self.request,
-                                           template_name=self.template_name,
-                                           context=context)
-        rendered_modal = render_to_string(template_name="generic_views/generic_modal.html",
-                                          context={'content': rendered_wizard,
-                                                   'id_modal': 'id_' + str(uuid.uuid4()),
-                                                   'show_modal': True})
-        resolver_match = resolve(self.current_view_url)
-        # todo: catch simple non class based views
-        func = resolver_match.func
-        module = func.__module__
-        view_name = func.__name__
-        clss = get_class('{0}.{1}'.format(module, view_name))
-        # tell the view that this was a GET request to provide method not allowed errors
-        self.request.method = 'GET'
-        self.request.POST = {}
-        return clss.as_view(extra_context={'rendered_modal': rendered_modal})(request=self.request)
-
     def done(self, form_list, **kwargs):
-        return redirect(to=self.current_view_url)
-
-
+        if self.success_url:
+            return redirect(to=self.get_success_url())
+        else:
+            raise ImproperlyConfigured('No success_url served.')

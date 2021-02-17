@@ -59,9 +59,8 @@ def run_monitoring(setting_id, *args, **kwargs):
 
 @shared_task(name='run_manual_service_monitoring')
 @transaction.atomic
-def run_manual_monitoring(metadatas, *args, **kwargs):
-    monitoring_run = MonitoringRun.objects.create()
-
+def run_manual_monitoring(monitoring_run, metadatas, *args, **kwargs):
+    monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
     for metadata_id in metadatas:
         try:
             metadata = Metadata.objects.get(id=metadata_id)

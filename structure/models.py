@@ -325,7 +325,7 @@ class MrMapGroup(Group):
         return self.name
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None, user=None):
+             update_fields=None):
         # todo: check if this could be done with the default attribute of the role field
         from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
         if self.role is None:
@@ -335,14 +335,12 @@ class MrMapGroup(Group):
         is_new = False
         if self._state.adding:
             is_new = True
-            if user:
-                self.created_by = user
-            else:
-                raise ValidationError('user must be passed to this save function for new instances')
+            if not self.created_by:
+                raise ValidationError(_('you must define created_by to save new instances'))
 
         super().save(force_insert, force_update, using, update_fields)
         if is_new:
-            self.user_set.add(user)
+            self.user_set.add(self.created_by)
 
     def delete(self, using=None, keep_parents=False, force=False):
         if (self.is_permission_group or self.is_public_group) and not force:

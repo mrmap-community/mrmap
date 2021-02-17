@@ -818,7 +818,7 @@ class Metadata(Resource):
 
     @property
     def run_monitoring_view_uri(self):
-        return reverse('monitoring:run-monitoring', args=[self.pk])
+        return f"{reverse('monitoring:run_new')}?metadatas={self.pk}"
 
     @property
     def capabilities_uri(self):

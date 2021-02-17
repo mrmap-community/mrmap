@@ -1,11 +1,17 @@
 from django.urls import path
 
-from monitoring.views import call_run_monitoring, monitoring_results
+from monitoring.views import MonitoringRunTableView, MonitoringResultTableView, MonitoringRunNewView
 
 app_name = 'monitoring'
 urlpatterns = [
-    path('run-monitoring/<metadata_id>', call_run_monitoring, name='run-monitoring'),
-    path('health-state/<metadata_id>', monitoring_results, name='health-state'),
-    path('health-state/<metadata_id>/<monitoring_run_id>', monitoring_results, name='health-state-specific'),
+    # MonitoringRuns
+    path('runs', MonitoringRunTableView.as_view(), name='run_overview'),
+    path('runs/new', MonitoringRunNewView.as_view(), name='run_new'),
+
+    # MonitoringResults
+    path('results', MonitoringResultTableView.as_view(), name='result_overview'),
+
+    # HealthStates
+    path('health-states', MonitoringRunTableView.as_view(), name='health-state'),
 ]
 

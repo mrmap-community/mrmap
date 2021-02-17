@@ -1,34 +1,40 @@
 from django.utils.html import format_html
+from django_bootstrap_swt.components import Link
+from django_tables2 import tables
 
-from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.utils import get_theme
 from monitoring.enums import HealthStateEnum
+from monitoring.models import HealthState, MonitoringResult, MonitoringRun
 
 
-class HealthStateReasonsTable(MrMapTable):
+class MonitoringRunTable(tables.Table):
+    class Meta:
+        model = MonitoringRun
+        fields = ('start', 'end', 'duration')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'monitoring-result-table'
 
-    type = MrMapColumn(
-        accessor='health_state_code',
-        verbose_name=_('Type'),
-        empty_values=[],
-    )
 
-    reason = MrMapColumn(
-        accessor='reason',
-        verbose_name=_('Reason'),
-        empty_values=[],
-    )
+class MonitoringResultTable(tables.Table):
+    class Meta:
+        model = MonitoringResult
+        fields = ('metadata', 'timestamp', 'error_msg')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'monitoring-result-table'
 
-    exception = MrMapColumn(
-        accessor='monitoring_result__error_msg',
-        verbose_name=_('Remote error message'),
-        empty_values=[],
-    )
+    def render_metadata(self, value):
+        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
-    def render_type(self, value):
+
+class HealthStateTable(MrMapTable):
+    class Meta:
+        model = HealthState
+        fields = ('metadata', 'health_state_code', 'reason', 'monitoring_run__monitoring_results')
+
+    def render_health_state_code(self, value):
         icon = value
         if value == HealthStateEnum.WARNING.value:
             icon = self.get_icon(icon_color='text-warning',

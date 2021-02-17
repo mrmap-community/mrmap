@@ -4,7 +4,10 @@ from django.http import HttpRequest
 from MrMap.settings import GIT_REPO_URI, GIT_GRAPH_URI
 from MrMap.sub_settings.dev_settings import ROOT_URL
 from MrMap.utils import get_theme
-from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization
+from monitoring.models import MonitoringRun
+from service.helper.enums import OGCServiceEnum
+from service.models import Metadata
+from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization, PendingTask
 
 
 def default_context(request: HttpRequest):
@@ -14,7 +17,7 @@ def default_context(request: HttpRequest):
         permissions = []
 
     mr_map_group_count = MrMapGroup.objects.filter(Q(is_permission_group=False) | Q(is_public_group=True)).count()
-    mr_map_organization_count = Organization.objects.filter().count()
+    mr_map_organization_count = Organization.objects.count()
     mr_map_user_count = MrMapUser.objects.count()
 
     if request.user.is_anonymous:
@@ -31,6 +34,23 @@ def default_context(request: HttpRequest):
         pending_group_invitation_requests_count = GroupInvitationRequest.objects.filter(Q(user=request.user)|
                                                                                         Q(group__in=request.user.get_groups())).count()
 
+    pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
+    pending_tasks_count = PendingTask.objects.count()
+
+    wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
+                                        service__is_root=True,
+                                        created_by__in=request.user.get_groups(),
+                                        is_deleted=False,
+                                        service__is_update_candidate_for=None,).count()
+    wfs_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WFS.value,
+                                        created_by__in=request.user.get_groups(),
+                                        is_deleted=False,
+                                        service__is_update_candidate_for=None, ).count()
+    csw_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.CSW.value,
+                                        created_by__in=request.user.get_groups(),
+                                        is_deleted=False,
+                                        service__is_update_candidate_for=None, ).count()
+    dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.get_groups()).count()
     return {
         "ROOT_URL": ROOT_URL,
         "PATH": request.path.split("/")[1],
@@ -45,5 +65,11 @@ def default_context(request: HttpRequest):
         "mr_map_user_count": mr_map_user_count,
         "pending_publish_requests_count": pending_publish_requests_count,
         "pending_group_invitation_requests_count": pending_group_invitation_requests_count,
+        "pending_monitoring_count": pending_monitoring_count,
+        "pending_tasks_count": pending_tasks_count,
+        "wms_count": wms_count,
+        "wfs_count": wfs_count,
+        "csw_count": csw_count,
+        "dataset_count": dataset_count,
 
     }

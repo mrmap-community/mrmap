@@ -1,5 +1,7 @@
 from django.urls import path
 
+from service.autocompletes import MetadataAutocomplete, MetadataServiceAutocomplete, MetadataLayerAutocomplete, \
+    MetadataFeaturetypeAutocomplete
 from service.views import *
 from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 
@@ -44,5 +46,12 @@ urlpatterns = [
     # todo: refactoring as class based detailview. Maybe we could use the ResourceTreeView
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),
     path('preview/<metadata_id>', get_service_preview, name='get-service-metadata-preview'),
+
+    # autocompletes
+    path('autocompletes/metadatas', MetadataAutocomplete.as_view(), name='autocomplete_metadata'),
+    path('autocompletes/service-metadatas', MetadataServiceAutocomplete.as_view(), name='autocomplete_metadata_service'),
+    path('autocompletes/layer-metadatas', MetadataLayerAutocomplete.as_view(), name='autocomplete_metadata_layer'),
+    path('autocompletes/featuretype-metadatas', MetadataFeaturetypeAutocomplete.as_view(), name='autocomplete_metadata_featuretype'),
+
 ]
 

@@ -6,7 +6,7 @@ from django_filters.views import FilterView
 from MrMap.decorators import permission_required
 from MrMap.messages import MONITORING_RUN_SCHEDULED
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
-from monitoring.filters import HealthStateTableFilterForm
+from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter
 from monitoring.forms import MonitoringRunForm
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, HealthStateTable, \
@@ -39,10 +39,7 @@ class MonitoringRunNewView(GenericViewContextMixin, InitFormMixin, SuccessMessag
 class MonitoringResultTableView(CustomSingleTableMixin, FilterView):
     model = MonitoringResult
     table_class = MonitoringResultTable
-    filterset_fields = {'metadata__title': ['icontains'],
-                        'monitoring_run__uuid': ['exact'],
-                        'timestamp': ['range'],
-                        'error_msg': ['icontains']}
+    filterset_class = MonitoringResultTableFilter
 
 
 @method_decorator(login_required, name='dispatch')
@@ -66,11 +63,11 @@ class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
 class HealthStateTableView(CustomSingleTableMixin, FilterView):
     model = HealthState
     table_class = HealthStateTable
-    filterset_class = HealthStateTableFilterForm
+    filterset_class = HealthStateTableFilter
 
 
 @method_decorator(login_required, name='dispatch')
-class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
+class HealthStateDetailView(GenericViewContextMixin, DetailView):
     class Meta:
         verbose_name = _('Details')
 

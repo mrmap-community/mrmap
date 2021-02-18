@@ -1,8 +1,7 @@
 from django.utils.html import format_html
 from django_bootstrap_swt.components import Link, Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
-from django_tables2 import tables
-
+import django_tables2 as tables
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 
@@ -14,9 +13,20 @@ from monitoring.models import HealthState, MonitoringResult, MonitoringRun
 class MonitoringRunTable(tables.Table):
     class Meta:
         model = MonitoringRun
-        fields = ('start', 'end', 'duration')
+        fields = ('uuid', 'start', 'end', 'duration')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
+
+    results = tables.Column(verbose_name=_('Results'), empty_values=[])
+
+    def render_uuid(self, record, value):
+        return Link(url=record.get_absolute_url(), content=value).render(safe=True)
+
+    def render_results(self, record):
+        if record.result_view_uri:
+            return Link(url=record.result_view_uri, content=_('results')).render(safe=True)
+        else:
+            return ''
 
 
 class MonitoringResultTable(tables.Table):

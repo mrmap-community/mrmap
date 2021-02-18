@@ -38,6 +38,7 @@ class MonitoringResultTableView(CustomSingleTableMixin, FilterView):
     model = MonitoringResult
     table_class = MonitoringResultTable
     filterset_fields = {'metadata__title': ['icontains'],
+                        'monitoring_run__uuid': ['exact'],
                         'timestamp': ['range'],
                         'error_msg': ['icontains']}
 

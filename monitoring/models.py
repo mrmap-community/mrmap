@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
+from MrMap.utils import signal_last
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 from structure.permissionEnums import PermissionEnum
@@ -103,6 +104,20 @@ class MonitoringRun(models.Model):
 
     def get_absolute_url(self):
         return f"{reverse('monitoring:run_overview')}?uuid={self.uuid}"
+
+    @property
+    def result_view_uri(self):
+        results = self.monitoring_results.all()
+        if results:
+            querystring = ""
+            for is_last_element, result in signal_last(results):
+                if is_last_element:
+                    querystring += f"monitoring_run_uuid={result.pk}"
+                else:
+                    querystring += f"monitoring_run_uuid={result.pk}&"
+            return f"{reverse('monitoring:result_overview')}?{querystring}"
+        else:
+            return None
 
     @property
     def add_view_uri(self):

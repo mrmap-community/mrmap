@@ -1,5 +1,6 @@
 from django.utils.html import format_html
-from django_bootstrap_swt.components import Link
+from django_bootstrap_swt.components import Link, Badge
+from django_bootstrap_swt.enums import BadgeColorEnum
 from django_tables2 import tables
 
 from MrMap.tables import MrMapTable
@@ -21,12 +22,39 @@ class MonitoringRunTable(tables.Table):
 class MonitoringResultTable(tables.Table):
     class Meta:
         model = MonitoringResult
-        fields = ('metadata', 'timestamp', 'error_msg')
+        fields = ('uuid', 'metadata', 'timestamp', 'available', 'status_code', 'monitored_uri')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
+    def render_uuid(self, record, value):
+        return Link(url=record.get_absolute_url(), content=value).render(safe=True)
+
     def render_metadata(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
+
+    def render_status_code(self, value):
+        if 200 <= value < 300:
+            color = BadgeColorEnum.SUCCESS
+        elif 400 <= value < 500:
+            color = BadgeColorEnum.WARNING
+        elif 500 <= value < 600:
+            color = BadgeColorEnum.DANGER
+        else:
+            color = BadgeColorEnum.SECONDARY
+        return Badge(content=value, color=color).render(safe=True)
+
+    def render_monitored_uri(self, value):
+        return Link(url=value, content=value, open_in_new_tab=True).render(safe=True)
+
+
+class MonitoringResultDetailTable(MonitoringResultTable):
+    class Meta:
+        model = MonitoringResult
+        fields = ('error_msg', )
+        sequence = ("...", "error_msg")
+        template_name = "skeletons/django_tables2_vertical_table.html"
+        prefix = 'monitoring-result-detail-table'
+        orderable = False
 
 
 class HealthStateTable(MrMapTable):

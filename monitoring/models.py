@@ -87,6 +87,12 @@ class MonitoringRun(models.Model):
 
     class Meta:
         ordering = ["-end"]
+        verbose_name = _('Monitoring run')
+        verbose_name_plural = _('Monitoring runs')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING.value]}).render()
 
     @classmethod
     def get_add_action(cls):
@@ -111,8 +117,8 @@ class MonitoringRun(models.Model):
 
 
 class MonitoringResult(models.Model):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name='Resource')
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
+    metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
     timestamp = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(null=True, blank=True)
     status_code = models.IntegerField(null=True, blank=True)
@@ -123,10 +129,15 @@ class MonitoringResult(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
+        verbose_name = _('Monitoring result')
+        verbose_name_plural = _('Monitoring results')
 
     @property
     def icon(self):
         return Tag(tag='i', attrs={"class": [IconEnum.MONITORING.value]}).render()
+
+    def get_absolute_url(self):
+        return reverse('monitoring:result_details', args=[self.uuid, ])
 
 
 class MonitoringResultCapability(MonitoringResult):

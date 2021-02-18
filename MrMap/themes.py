@@ -76,6 +76,7 @@ FONT_AWESOME_ICONS = {
     'LIST': format_html(ICON_PATTERN, 'fas', 'fa-th-list'),
     'PROXY': format_html(ICON_PATTERN, 'fas', 'fa-archway'),
     'LOGGING': format_html(ICON_PATTERN, 'fas', 'fa-file-signature'),
+    'MONITORING': format_html(ICON_PATTERN, 'fas', 'fa-binoculars'),
     'NONE': '',
 }
 

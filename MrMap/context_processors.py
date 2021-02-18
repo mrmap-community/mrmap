@@ -23,6 +23,12 @@ def default_context(request: HttpRequest):
     if request.user.is_anonymous:
         pending_publish_requests_count = None
         pending_group_invitation_requests_count = None
+        pending_monitoring_count = None
+        pending_tasks_count = None
+        wms_count = None
+        wfs_count = None
+        csw_count = None
+        dataset_count = None
     else:
         if not request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
@@ -34,23 +40,23 @@ def default_context(request: HttpRequest):
         pending_group_invitation_requests_count = GroupInvitationRequest.objects.filter(Q(user=request.user)|
                                                                                         Q(group__in=request.user.get_groups())).count()
 
-    pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
-    pending_tasks_count = PendingTask.objects.count()
+        pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
+        pending_tasks_count = PendingTask.objects.count()
 
-    wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
-                                        service__is_root=True,
-                                        created_by__in=request.user.get_groups(),
-                                        is_deleted=False,
-                                        service__is_update_candidate_for=None,).count()
-    wfs_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WFS.value,
-                                        created_by__in=request.user.get_groups(),
-                                        is_deleted=False,
-                                        service__is_update_candidate_for=None, ).count()
-    csw_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.CSW.value,
-                                        created_by__in=request.user.get_groups(),
-                                        is_deleted=False,
-                                        service__is_update_candidate_for=None, ).count()
-    dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.get_groups()).count()
+        wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
+                                            service__is_root=True,
+                                            created_by__in=request.user.get_groups(),
+                                            is_deleted=False,
+                                            service__is_update_candidate_for=None,).count()
+        wfs_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WFS.value,
+                                            created_by__in=request.user.get_groups(),
+                                            is_deleted=False,
+                                            service__is_update_candidate_for=None, ).count()
+        csw_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.CSW.value,
+                                            created_by__in=request.user.get_groups(),
+                                            is_deleted=False,
+                                            service__is_update_candidate_for=None, ).count()
+        dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.get_groups()).count()
     return {
         "ROOT_URL": ROOT_URL,
         "PATH": request.path.split("/")[1],

@@ -1,31 +1,16 @@
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
-from django.db.models import Q
-from django.http import HttpRequest, HttpResponseRedirect, HttpResponseNotFound
-from django.shortcuts import get_object_or_404, render
-from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.generic import CreateView
-from django_bootstrap_swt.components import Tag
+from django.views.generic import CreateView, DetailView
 from django_filters.views import FilterView
-
 from MrMap.decorators import permission_required
-from MrMap.icons import IconEnum
-from MrMap.messages import GROUP_SUCCESSFULLY_CREATED, MONITORING_RUN_SCHEDULED
+from MrMap.messages import MONITORING_RUN_SCHEDULED
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
-from monitoring.filters import HealthReasonFilter
 from monitoring.forms import MonitoringRunForm
-from monitoring.models import MonitoringRun, HealthState, MonitoringResult
-from monitoring.settings import MONITORING_THRESHOLDS
-from monitoring.tables import HealthStateTable, MonitoringResultTable, MonitoringRunTable
-from service.helper.enums import MetadataEnum
-from service.models import Metadata
+from monitoring.models import MonitoringRun, MonitoringResult
+from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable
 from django.utils.translation import gettext_lazy as _
-
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 
 @method_decorator(login_required, name='dispatch')
@@ -36,7 +21,6 @@ class MonitoringRunTableView(CustomSingleTableMixin, FilterView):
                         'start': ['icontains'],
                         'end': ['icontains'],
                         'duration': ['icontains']}
-    title = _('Monitoring runs').__str__()
 
 
 @method_decorator(login_required, name='dispatch')
@@ -56,4 +40,20 @@ class MonitoringResultTableView(CustomSingleTableMixin, FilterView):
     filterset_fields = {'metadata__title': ['icontains'],
                         'timestamp': ['range'],
                         'error_msg': ['icontains']}
-    title = _('Monitoring results').__str__()
+
+
+@method_decorator(login_required, name='dispatch')
+class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
+    class Meta:
+        verbose_name = _('Details')
+
+    model = MonitoringResult
+    template_name = 'MrMap/detail_views/table_tab.html'
+    queryset = MonitoringResult.objects.all()
+    title = _('Details')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        details_table = MonitoringResultDetailTable(data=[self.object, ], request=self.request)
+        context.update({'table': details_table})
+        return context

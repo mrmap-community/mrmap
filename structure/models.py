@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.db.models import Case, When
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
@@ -202,6 +203,13 @@ class Organization(Contact):
             )
         ]
 
+        verbose_name = _('Organization')
+        verbose_name_plural = _('Organizations')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.ORGANIZATION.value]}).render()
+
     def __str__(self):
         if self.organization_name is None:
             return ""
@@ -320,6 +328,15 @@ class MrMapGroup(Group):
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
     is_public_group = models.BooleanField(default=False)
     is_permission_group = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = [Case(When(name='Public', then=0)), 'name']
+        verbose_name = _('Group')
+        verbose_name_plural = _('Groups')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.GROUP.value]}).render()
 
     def __str__(self):
         return self.name
@@ -483,6 +500,14 @@ class MrMapUser(AbstractUser):
     confirmed_dsgvo = models.DateTimeField(auto_now_add=True,
                                            verbose_name=_("I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."))
     theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('User')
+        verbose_name_plural = _('Users')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.USER.value]}).render()
 
     def __str__(self):
         return self.username
@@ -680,6 +705,12 @@ class PublishRequest(BaseInternalRequest):
         # It shall be restricted to create multiple requests objects for the same organization per group. This unique
         # constraint will also raise a form error if a user trays to add duplicates.
         unique_together = ('group', 'organization',)
+        verbose_name = _('Pending publish request')
+        verbose_name_plural = _('Pending publish requests')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}).render()
 
     def __str__(self):
         return "{} > {}".format(self.group.name, self.organization.organization_name)
@@ -725,6 +756,12 @@ class GroupInvitationRequest(BaseInternalRequest):
         # It shall be restricted to create multiple requests objects for the same user per group. This unique
         # constraint will also raise a form error if a user trays to add duplicates.
         unique_together = ('group', 'user',)
+        verbose_name = _('Pending group invitation')
+        verbose_name_plural = _('Pending group invitations')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}).render()
 
     def __str__(self):
         return "{} > {}".format(self.invited_user.username, self.to_group)

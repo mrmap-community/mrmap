@@ -83,9 +83,7 @@ class GroupTableView(CustomSingleTableMixin, FilterView):
                         'organization__organization_name': ['icontains']}
     is_public_group = Q(is_public_group=True)
     is_no_permission_group = Q(is_permission_group=False)
-    queryset = MrMapGroup.objects.filter(is_no_permission_group | is_public_group).\
-        order_by(Case(When(name='Public', then=0)), 'name')
-    title = Tag(tag='i', attrs={"class": [IconEnum.GROUP.value]}).render() + _l(' Groups').__str__()
+    queryset = MrMapGroup.objects.filter(is_no_permission_group | is_public_group)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -95,7 +93,6 @@ class OrganizationTableView(CustomSingleTableMixin, FilterView):
     filterset_fields = {'organization_name': ['icontains'],
                         'parent__organization_name': ['icontains'],
                         'is_auto_generated': ['exact']}
-    title = Tag(tag='i', attrs={"class": [IconEnum.ORGANIZATION.value]}).render() + _l(' Organizations').__str__()
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -316,7 +313,6 @@ class PublishRequestTableView(CustomSingleTableMixin, FilterView):
     model = PublishRequest
     table_class = PublishesRequestTable
     filterset_fields = ['group', 'organization', 'message']
-    title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Pending publisher requests')
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -384,7 +380,6 @@ class UserTableView(CustomSingleTableMixin, FilterView):
     filterset_fields = {'username': ['icontains'],
                         'organization__organization_name': ['icontains'],
                         'groups__name': ['icontains']}
-    title = Tag(tag='i', attrs={"class": [IconEnum.USER.value]}).render() + _(' Users').__str__()
 
 
 @method_decorator(login_required, name='dispatch')
@@ -392,7 +387,6 @@ class GroupInvitationRequestTableView(CustomSingleTableMixin, FilterView):
     model = GroupInvitationRequest
     table_class = GroupInvitationRequestTable
     filterset_fields = ['user', 'group', 'message']
-    title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Pending group invitations')
 
     def get_queryset(self):
         queryset = super().get_queryset()

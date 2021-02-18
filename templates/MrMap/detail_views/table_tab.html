@@ -3,6 +3,7 @@
 
 {% block content %}
 <div class="card my-3">
+      {% if tab_nav %}
       <div class="card-header">
           <ul class="nav nav-tabs card-header-tabs">
               {% for tab in tab_nav %}
@@ -14,14 +15,17 @@
               {% endfor %}
         </ul>
       </div>
+      {% endif %}
       <div class="card-body">
           {% render_table table %}
       </div>
+      {% if object.show_pending_requests or object.new_publisher_request_action %}
       <div class="card-footer">
             <div class="float-right">
             {{object.show_pending_requests|safe}}
             {{object.new_publisher_request_action|safe}}
             </div>
       </div>
+      {% endif %}
 </div>
 {% endblock %}

@@ -226,6 +226,12 @@ class CustomSingleTableMixin(SingleTableMixin):
     template_extend_base = True
 
     def get_title(self):
+        if not self.title:
+            instance = self.model()
+            if hasattr(instance, 'icon'):
+                return instance.icon + ' ' + instance._meta.verbose_name_plural.__str__()
+            else:
+                return instance._meta.verbose_name_plural
         return self.title
 
     def get_table(self, **kwargs):

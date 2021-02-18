@@ -37,4 +37,5 @@ class IconEnum(Enum):
     USER = "fas fa-user"
     USER_ADD = "fa fa-user-plus"
     USER_REMOVE = "fa fa-user-times"
-    MONITORING = "fab fa-watchman-monitoring"
+    MONITORING = "fas fa-binoculars"
+

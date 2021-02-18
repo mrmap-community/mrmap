@@ -7,8 +7,9 @@ from MrMap.decorators import permission_required
 from MrMap.messages import MONITORING_RUN_SCHEDULED
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
 from monitoring.forms import MonitoringRunForm
-from monitoring.models import MonitoringRun, MonitoringResult
-from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable
+from monitoring.models import MonitoringRun, MonitoringResult, HealthState
+from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, HealthStateTable, \
+    HealthStateDetailTable
 from django.utils.translation import gettext_lazy as _
 from structure.permissionEnums import PermissionEnum
 
@@ -56,5 +57,31 @@ class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         details_table = MonitoringResultDetailTable(data=[self.object, ], request=self.request)
+        context.update({'table': details_table})
+        return context
+
+
+@method_decorator(login_required, name='dispatch')
+class HealthStateTableView(CustomSingleTableMixin, FilterView):
+    model = HealthState
+    table_class = HealthStateTable
+    filterset_fields = {'metadata': ['exact'],
+                        'monitoring_run': ['exact'],
+                        }
+
+
+@method_decorator(login_required, name='dispatch')
+class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
+    class Meta:
+        verbose_name = _('Details')
+
+    model = HealthState
+    template_name = 'MrMap/detail_views/table_tab.html'
+    queryset = HealthState.objects.all()
+    title = _('Details')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        details_table = HealthStateDetailTable(data=[self.object, ], request=self.request)
         context.update({'table': details_table})
         return context

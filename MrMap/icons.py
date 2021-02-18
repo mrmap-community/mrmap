@@ -38,4 +38,7 @@ class IconEnum(Enum):
     USER_ADD = "fa fa-user-plus"
     USER_REMOVE = "fa fa-user-times"
     MONITORING = "fas fa-binoculars"
-
+    MONITORING_RUN = "fas fa-running"
+    MONITORING_RESULTS = "fas fa-poll-h"
+    WARNING = 'fas fa-exclamation-triangle'
+    CRITICAL = 'fas fa-bolt'

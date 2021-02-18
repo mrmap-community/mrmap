@@ -28,7 +28,8 @@ from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django_bootstrap_swt.components import LinkButton, Badge, Tag, Dropdown, Link, Modal
-from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum, ButtonSizeEnum
+from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum, ButtonSizeEnum, \
+    TooltipPlacementEnum
 
 from MrMap.cacher import DocumentCacher
 from MrMap.icons import IconEnum
@@ -735,10 +736,11 @@ class Metadata(Resource):
             icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = LinkButton(url=self.health_state_uri,
+            icon = LinkButton(url=self.health_state.get_absolute_url(),
                               content=icon.render(),
                               color=btn_color,
-                              tooltip=tooltip,)
+                              tooltip=tooltip,
+                              tooltip_placement=TooltipPlacementEnum.LEFT)
 
         icons.append(icon)
         if health_state:

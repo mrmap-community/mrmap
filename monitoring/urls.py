@@ -1,7 +1,7 @@
 from django.urls import path
 
 from monitoring.views import MonitoringRunTableView, MonitoringResultTableView, MonitoringRunNewView, \
-    MonitoringResultDetailView
+    MonitoringResultDetailView, HealthStateTableView
 
 app_name = 'monitoring'
 urlpatterns = [
@@ -14,6 +14,7 @@ urlpatterns = [
     path('results/<pk>', MonitoringResultDetailView.as_view(), name='result_details'),
 
     # HealthStates
-    path('health-states', MonitoringRunTableView.as_view(), name='health-state'),
+    path('health-states', HealthStateTableView.as_view(), name='health_state_overview'),
+    path('health-states/<pk>', MonitoringResultDetailView.as_view(), name='health_state_details'),
 ]
 

@@ -80,11 +80,11 @@ class MonitoringSetting(models.Model):
 
 
 class MonitoringRun(models.Model):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Monitoring run'))
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
-    metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_runs')
+    metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_runs', verbose_name=_('Checked resources'))
 
     class Meta:
         ordering = ["-end"]
@@ -93,7 +93,7 @@ class MonitoringRun(models.Model):
 
     @property
     def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING.value]}).render()
+        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RUN.value]}).render()
 
     @classmethod
     def get_add_action(cls):
@@ -107,7 +107,7 @@ class MonitoringRun(models.Model):
 
     @property
     def result_view_uri(self):
-        results = MonitoringResult.objects.filter(monitoring_run=self)
+        results = self.monitoring_results.all()
         if results:
             querystring = ""
             for is_last_element, result in signal_last(results):
@@ -151,7 +151,7 @@ class MonitoringResult(models.Model):
 
     @property
     def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING.value]}).render()
+        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RESULTS.value]}).render()
 
     def get_absolute_url(self):
         return reverse('monitoring:result_details', args=[self.uuid, ])
@@ -163,12 +163,12 @@ class MonitoringResultCapability(MonitoringResult):
 
 
 class HealthState(models.Model):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='health_states',)
-    metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_states', )
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
+    monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
+    metadata = models.OneToOneField('service.Metadata', on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Resource'))
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
-                                         max_length=12)
+                                         max_length=12, verbose_name=_('Health state code'))
     health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
                                       max_length=512, )     # this is the teaser for tooltips
     reliability_1w = models.FloatField(default=0,
@@ -181,6 +181,17 @@ class HealthState(models.Model):
     average_response_time_1w = models.DurationField(null=True, blank=True)
     average_response_time_1m = models.DurationField(null=True, blank=True)
     average_response_time_3m = models.DurationField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Health state')
+        verbose_name_plural = _('Health states')
+
+    @property
+    def icon(self):
+        return Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value]}).render()
+
+    def get_absolute_url(self):
+        return reverse('monitoring:health_state_details', args=[self.pk])
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):

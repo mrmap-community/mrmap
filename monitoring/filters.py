@@ -1,23 +1,20 @@
-import django_filters
+from dal import autocomplete
+from django_filters import FilterSet, ModelMultipleChoiceFilter
+from monitoring.models import HealthState, MonitoringRun
+from service.helper.enums import MetadataEnum
+from service.models import Metadata
 
-from monitoring.enums import HealthStateEnum
-from monitoring.models import HealthStateReason
-from django.utils.translation import gettext_lazy as _
 
-
-class HealthReasonFilter(django_filters.FilterSet):
-    health_state_code = django_filters.ChoiceFilter(field_name='health_state_code',
-                                                    choices=HealthStateEnum.as_choices(drop_empty_choice=True),
-                                                    lookup_expr='icontains',
-                                                    label=_('Select health state code')
-                                                    )
-    reason = django_filters.CharFilter(field_name='reason',
-                                       lookup_expr='icontains',
-                                       label=_('Search for a reason'))
-    exception = django_filters.CharFilter(field_name='monitoring_result__error_msg',
-                                          lookup_expr='icontains',
-                                          label=_('Search for an error message from remote service'))
+class HealthStateTableFilterForm(FilterSet):
+    metadata = ModelMultipleChoiceFilter(
+        queryset=Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value),
+        widget=autocomplete.ModelSelect2Multiple(url='editor:autocomplete_metadata')
+    )
+    monitoring_run = ModelMultipleChoiceFilter(
+        queryset=MonitoringRun.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(url='monitoring:autocomplete_monitoring_run')
+    )
 
     class Meta:
-        model = HealthStateReason
+        model = HealthState
         fields = []

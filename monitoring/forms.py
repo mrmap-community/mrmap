@@ -1,6 +1,5 @@
 from dal import autocomplete
 from django.forms import ModelForm
-
 from monitoring.models import MonitoringRun
 from service.models import Metadata
 

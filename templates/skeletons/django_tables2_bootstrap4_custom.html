@@ -20,6 +20,7 @@
                                 <form action="" method="get" class="form {% if table.filter.inline %} form-inline {% endif %}">
                                     <div class="col">
                                         <div class="row">
+                                            {{table.context.filter.form.media}}
                                             {% for field in table.context.filter.form %}
                                             <div class="col">
                                                 {% bootstrap_field field %}

@@ -107,7 +107,7 @@ METADATA_WIZARD_FORMS = [(_("Metadata"), MetadataEditorForm)]
 
 
 class MetadataEditorWizard(MrMapWizard):
-    template_name = "generic_views/generic_wizard_form.html"
+    #template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
     metadata_object = None
 
@@ -115,9 +115,7 @@ class MetadataEditorWizard(MrMapWizard):
         pk = kwargs.get('pk', None)
         self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
         self.instance_dict = {"Metadata": self.metadata_object}
-
         self.action_url = reverse('editor:edit', args=[self.metadata_object.pk, ])
-
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, form, **kwargs):
@@ -128,7 +126,7 @@ class MetadataEditorWizard(MrMapWizard):
     def done(self, form_list, **kwargs):
         for form in form_list:
             form.save()
-        return HttpResponseRedirect(self.current_view_url)
+        return super().done(form_list, **kwargs)
 
 
 @method_decorator(login_required, name='dispatch')

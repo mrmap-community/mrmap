@@ -257,7 +257,7 @@ class CustomSingleTableMixin(SingleTableMixin):
                 self.template_name = 'generic_views/generic_list_with_base.html'
             else:
                 self.template_name = 'generic_views/generic_list_without_base.html'
-        return super(CustomSingleTableMixin, self).dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
 
 
 class DependingListView(View):

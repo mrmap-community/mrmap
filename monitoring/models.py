@@ -81,7 +81,7 @@ class MonitoringSetting(models.Model):
 
 class MonitoringRun(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    start = models.DateTimeField(auto_now_add=True)
+    start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_runs')
@@ -128,7 +128,7 @@ class MonitoringRun(models.Model):
              update_fields=None):
         super().save(force_insert, force_update, using, update_fields)
         from monitoring.tasks import run_manual_monitoring
-        run_manual_monitoring.delay(monitoring_run=self.pk, metadatas=[metadata.id for metadata in self.metadatas.all()])
+        run_manual_monitoring.delay(monitoring_run=self.pk)
 
 
 class MonitoringResult(models.Model):

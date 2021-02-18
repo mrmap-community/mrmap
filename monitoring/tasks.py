@@ -14,6 +14,7 @@ from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.monitoring import Monitoring as Monitor
 from monitoring.settings import monitoring_logger
 from service.models import Metadata
+from django.utils.translation import gettext_lazy as _
 
 
 @beat_init.connect
@@ -59,15 +60,16 @@ def run_monitoring(setting_id, *args, **kwargs):
 
 @shared_task(name='run_manual_service_monitoring')
 @transaction.atomic
-def run_manual_monitoring(monitoring_run, metadatas, *args, **kwargs):
+def run_manual_monitoring(monitoring_run, *args, **kwargs):
     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
-    for metadata_id in metadatas:
+    monitoring_run.start = timezone.now()
+    for metadata in monitoring_run.metadatas.all():
         try:
-            metadata = Metadata.objects.get(id=metadata_id)
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
             monitoring_logger.debug(f'Health checks completed for {metadata}')
         except Exception as e:
+            monitoring_logger.error(msg=_(f'Something went wrong while monitoring {metadata}'))
             monitoring_logger.exception(e, exc_info=True, stack_info=True, )
 
     end_time = timezone.now()

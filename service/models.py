@@ -810,7 +810,8 @@ class Metadata(Resource):
 
     @property
     def health_state_uri(self):
-        return reverse('monitoring:health-state', args=[self.pk])
+        #Todo
+        return '#'
 
     @property
     def harvest_view_uri(self):

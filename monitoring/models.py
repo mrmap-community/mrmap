@@ -107,7 +107,7 @@ class MonitoringRun(models.Model):
 
     @property
     def result_view_uri(self):
-        results = self.monitoring_results.all()
+        results = MonitoringResult.objects.filter(monitoring_run=self)
         if results:
             querystring = ""
             for is_last_element, result in signal_last(results):
@@ -144,6 +144,8 @@ class MonitoringResult(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
+        # unique_together --> avoids from celery multiple checks bug
+        unique_together = ("metadata", "monitored_uri", "monitoring_run")
         verbose_name = _('Monitoring result')
         verbose_name_plural = _('Monitoring results')
 

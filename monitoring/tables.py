@@ -32,12 +32,15 @@ class MonitoringRunTable(tables.Table):
 class MonitoringResultTable(tables.Table):
     class Meta:
         model = MonitoringResult
-        fields = ('uuid', 'metadata', 'timestamp', 'available', 'status_code', 'monitored_uri')
+        fields = ('uuid', 'monitoring_run', 'metadata', 'timestamp', 'available', 'status_code', 'monitored_uri')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
     def render_uuid(self, record, value):
         return Link(url=record.get_absolute_url(), content=value).render(safe=True)
+
+    def render_monitoring_run(self, value):
+        return Link(url=value.get_absolute_url(), content=value).render(safe=True)
 
     def render_metadata(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)

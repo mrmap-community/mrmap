@@ -5,6 +5,7 @@ from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
@@ -14,7 +15,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, TemplateView, DetailView, DeleteView
+from django.views.generic import ListView, TemplateView, DetailView, DeleteView, UpdateView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
     Badge, Accordion, CardHeader
 from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
@@ -32,10 +33,11 @@ from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED
+    SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
+    PUBLISH_REQUEST_ACCEPTED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.views import AsyncConfirmView
+from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin
 from service import tasks
 from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
@@ -293,45 +295,24 @@ class ResourceDelete(DeleteView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value), name='dispatch')
-class ResourceActivateDeactivate(AsyncConfirmView):
+@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='resource:index'), name='dispatch')
+class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     model = Metadata
+    template_name = "MrMap/detail_views/generic_form.html"
+    fields = ('is_active',)
 
-    def dispatch(self, request, *args, **kwargs):
-        self.async_task_func = tasks.async_activate_service
-        self.async_task_params.update({'user_id': request.user.id})
-        return super().dispatch(request=request, *args, **kwargs)
-
-    def get_object(self, queryset=None):
-        instance = super().get_object(queryset=queryset)
-        self.action_url = instance.activate_view_uri
-        if instance.is_active:
-            self.action = _l("Deactivate")
-            self.async_task_params.update({'is_active': False})
-            self.action_btn_color = ButtonColorEnum.WARNING
-        else:
-            self.action = _l("Activate")
-            self.async_task_params.update({'is_active': True})
-            self.action_btn_color = ButtonColorEnum.SUCCESS
-
-        return instance
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        if self.get_object().is_active:
-            activate_deactivate = _("deactivate")
-        else:
-            activate_deactivate = _("activate")
-        kwargs.update({"is_confirmed_label": _("Do you really want to " + activate_deactivate + " " + self.object.title + "?")})
-        return kwargs
-
-    def form_valid(self, form):
+    def get_title(self):
         if self.object.is_active:
-            activate_deactivate = _("deactivating")
+            return _('Deactivate service')
         else:
-            activate_deactivate = _("activating")
-        self.alert_msg = _(f"Task for {activate_deactivate} {self.object.title} scheduled.")
-        return super().form_valid(form=form)
+            return _('Activate service')
+
+    def get_success_message(self, cleaned_data):
+        if cleaned_data['is_active']:
+            self.success_message = SERVICE_ACTIVATED
+        else:
+            self.success_message = SERVICE_DEACTIVATED
+        return super().get_success_message(cleaned_data)
 
 
 @resolve_metadata_public_id

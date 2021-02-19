@@ -622,6 +622,7 @@ class Metadata(Resource):
                                       content=FONT_AWESOME_ICONS["EDIT"],
                                       color=ButtonColorEnum.WARNING,
                                       tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
+                                      tooltip_placement=TooltipPlacementEnum.LEFT,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             is_mr_map_origin = not MetadataRelation.objects.filter(
                 metadata_to=self
@@ -646,17 +647,20 @@ class Metadata(Resource):
                                           content=FONT_AWESOME_ICONS["HARVEST"],
                                           color=ButtonColorEnum.INFO,
                                           tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
+                                          tooltip_placement=TooltipPlacementEnum.LEFT,
                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
             else:
                 actions.extend([LinkButton(url=self.edit_view_uri,
                                            content=FONT_AWESOME_ICONS["EDIT"],
                                            color=ButtonColorEnum.WARNING,
                                            tooltip=_l("Edit the metadata of this resource"),
+                                           tooltip_placement=TooltipPlacementEnum.LEFT,
                                            needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
                                 LinkButton(url=self.edit_access_view_uri,
                                            content=FONT_AWESOME_ICONS["ACCESS"],
                                            color=ButtonColorEnum.WARNING,
                                            tooltip=_l("Edit the access for resource"),
+                                           tooltip_placement=TooltipPlacementEnum.LEFT,
                                            needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ])
 
                 if self.is_metadata_type(MetadataEnum.SERVICE):
@@ -664,11 +668,13 @@ class Metadata(Resource):
                                                content=FONT_AWESOME_ICONS["UPDATE"],
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Update this resource"),
+                                               tooltip_placement=TooltipPlacementEnum.LEFT,
                                                needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE.value),
                                     LinkButton(url=self.run_monitoring_view_uri,
                                                content=FONT_AWESOME_ICONS["HEARTBEAT"],
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Run health checks for this resource"),
+                                               tooltip_placement=TooltipPlacementEnum.LEFT,
                                                needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
                                     Modal(fetch_url=self.remove_view_uri,
                                           btn_content=FONT_AWESOME_ICONS["REMOVE"],

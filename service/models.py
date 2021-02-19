@@ -2634,7 +2634,7 @@ class Service(Resource):
     def get_subelements(self, include_self=False):
         """ Returns a queryset of Layer or Featuretype records.
 
-        This function
+        This function is needed to get descendants of different related object types.
 
         Returns:
              qs (QuerySet): The queryset of all descendants

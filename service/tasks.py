@@ -286,7 +286,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 
         # after metadata has been persisted, we can auto-generate all metadata public_id's
         sub_metadatas = service.metadata.get_subelements_metadatas()
-        dataset_metadatas = list(filter(None, [md.get_related_dataset_metadata() for md in sub_metadatas]))
+        dataset_metadatas = list(filter(None, [md.get_related_dataset_metadatas() for md in sub_metadatas]))
         metadatas = [service.metadata] + sub_metadatas + dataset_metadatas
         for md in metadatas:
             if md.public_id is None:

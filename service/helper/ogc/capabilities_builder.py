@@ -955,8 +955,8 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = layer.metadata
 
-        dataset_md = md.get_related_dataset_metadata()
-        if dataset_md is None:
+        dataset_mds = md.get_related_dataset_metadatas()
+        if not dataset_mds:
             return
 
         metadata_elem = xml_helper.create_subelement(
@@ -972,15 +972,16 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        uri = dataset_md.metadata_url
-        xml_helper.create_subelement(
-            metadata_elem,
-            "{}OnlineResource".format(self.default_ns),
-            attrib={
-                "{}type".format(self.xlink_ns): "simple",
-                "{}href".format(self.xlink_ns): uri,
-            }
-        )
+        for dataset_md in dataset_mds:
+            uri = dataset_md.metadata_url
+            xml_helper.create_subelement(
+                metadata_elem,
+                "{}OnlineResource".format(self.default_ns),
+                attrib={
+                    "{}type".format(self.xlink_ns): "simple",
+                    "{}href".format(self.xlink_ns): uri,
+                }
+            )
 
     def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
         """ Generate the 'Style' subelement of a layer xml object

@@ -40,7 +40,7 @@ def remove_dataset(request: HttpRequest, metadata_id):
         messages.success(request, message=_("You can't delete metadata record"))
         return HttpResponseRedirect(reverse(request.GET.get('current-view', 'home'), ), status=303)
 
-    relations = MetadataRelation.objects.filter(metadata_to=metadata)
+    relations = metadata.get_metadata_relation()
     is_mr_map_origin = True
     for relation in relations:
         if relation.origin != ResourceOriginEnum.EDITOR.value:

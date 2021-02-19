@@ -455,28 +455,14 @@ class SecuredOperation(models.Model):
 
 class MetadataRelation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE)
+    from_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='from_metadatas')
+    to_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='to_metadatas')
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
-        return "{} {}".format(self.relation_type, self.metadata_to.title)
-
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-        """ Overwrites default save function
-
-        Saves the relation and stores information about relation in both related metadata records
-
-        Args:
-            force_insert: Default save parameter
-            force_update: Default save parameter
-            using: Default save parameter
-            update_fields: Default save parameter
-        Returns:
-
-        """
-        super().save(force_insert, force_update, using, update_fields)
+        return "{} from {} - to {}".format(self.relation_type, self.from_metadata.title, self.to_metadata.title)
 
 
 class ExternalAuthentication(models.Model):
@@ -595,7 +581,7 @@ class Metadata(Resource):
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
-    related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
+    metadata_relations = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to+', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -621,6 +607,29 @@ class Metadata(Resource):
 
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
+
+    def add_metadata_relation(self, metadata, relation_type, internal, origin, symm=True):
+        relation, created = MetadataRelation.objects.get_or_create(
+            from_metadata=self,
+            to_metadata=metadata,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin)
+        if symm:
+            # avoid recursion by passing `symm=False`
+            metadata.add_relationship(self, relation_type, internal, origin, False)
+        return relation
+
+    def remove_metadata_relation(self, metadata, relation_type, internal, origin, symm=True):
+        MetadataRelation.objects.filter(
+            from_metadata=self,
+            to_metadata=metadata,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin).delete()
+        if symm:
+            # avoid recursion by passing `symm=False`
+            metadata.remove_metadata_relation(self, relation_type, internal, origin, False)
 
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
@@ -1004,22 +1013,26 @@ class Metadata(Resource):
             pass
         return ext_auth
 
-    def get_related_dataset_metadata(self):
-        """ Returns a related dataset metadata record.
-
-        If none exists, None is returned
+    def get_related_dataset_metadatas(self):
+        """ Returns all related dataset metadata records.
 
         Returns:
-             dataset_md (Metadata) | None
+             metadatas (QuerySet)
         """
-        try:
-            dataset_md = self.related_metadata.get(
-                metadata_to__metadata_type=OGCServiceEnum.DATASET.value
-            )
-            dataset_md = dataset_md.metadata_to
-            return dataset_md
-        except ObjectDoesNotExist:
-            return None
+        additional_filters = {'to_metadatas__metadata_type': OGCServiceEnum.DATASET.value}
+        return self.get_metadata_relation(relation_type=MetadataRelationEnum.DESCRIBED_BY.value, **additional_filters)
+
+    def get_metadata_relation(self, relation_type, **additional_filters):
+        """ Returns a related metadata record from given relation type, internal flag and origin.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        return self.metadata_relations.filter(
+            to_metadatas__from_metadata=self,
+            to_metadatas__relation_type=relation_type,
+            **additional_filters
+        )
 
     def get_remote_original_capabilities_document(self, version: str):
         """ Fetches the original capabilities document from the remote server.
@@ -1754,6 +1767,8 @@ class Metadata(Resource):
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices
+    # todo: check if this must be a ForeignKey or a OneToOne relation is ok
+    #  if OneToOne relation is ok.. we could prefetch_related document and concatenate them in a second step
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)

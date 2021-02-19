@@ -1,5 +1,5 @@
 # DJANGO
-Django==3.1.2
+Django~=3.1.2
 django-extensions==3.0.9
 django-simple-captcha==0.5.12
 django-celery-beat==2.0.0
@@ -14,7 +14,8 @@ django-autocomplete-light==3.5.1
 django-mathfilters==1.0.0
 django-nose==1.4.7
 django-debug-toolbar==3.1.1
-django-formtools==2.2
+django-formtools~=2.2
+django-mptt~=0.11.0
 
 # OTHER
 certifi==2020.6.20

@@ -32,7 +32,7 @@ from MrMap.icons import IconEnum
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED
+    SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.views import AsyncConfirmView
@@ -371,7 +371,7 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
         user=user,
     )[1]
     if subscription_created:
-        messages.success(request, SUBSCRIPTION_CREATED_TEMPLATE.format(md.title))
+        messages.success(request, SUBSCRIPTION_SUCCESSFULLY_CREATED.format(md.title))
     else:
         messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(md.title))
 

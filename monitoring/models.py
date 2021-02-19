@@ -91,6 +91,9 @@ class MonitoringRun(models.Model):
         verbose_name = _('Monitoring run')
         verbose_name_plural = _('Monitoring runs')
 
+    def __str__(self):
+        return str(self.uuid)
+
     @property
     def icon(self):
         return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RUN.value]}).render()

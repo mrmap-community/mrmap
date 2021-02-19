@@ -1,10 +1,34 @@
 from dal import autocomplete
 from django.db.models import Q
-from django_filters import FilterSet, ModelMultipleChoiceFilter, CharFilter
+import django_filters
+from django_filters import FilterSet, CharFilter, ModelMultipleChoiceFilter
+
+from MrMap.widgets import BootstrapDatePickerRangeWidget, BootstrapDateTimePickerInput
 from monitoring.models import HealthState, MonitoringRun, MonitoringResult
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from django.utils.translation import gettext_lazy as _
+
+
+class MonitoringRunTableFilter(django_filters.FilterSet):
+    metadatas = django_filters.ModelMultipleChoiceFilter(
+        queryset=Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value),
+        widget=autocomplete.ModelSelect2Multiple(url='resource:autocomplete_metadata_service')
+    )
+    monitoring_result = django_filters.ModelMultipleChoiceFilter(
+        label=_('Monitoring result'),
+        queryset=MonitoringResult.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(url='monitoring:autocomplete_monitoring_result')
+    )
+    health_state = django_filters.ModelMultipleChoiceFilter(
+        label=_('Health state'),
+        queryset=MonitoringResult.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(url='monitoring:autocomplete_health_state')
+    )
+
+    class Meta:
+        model = MonitoringRun
+        fields = ['uuid']
 
 
 class MonitoringResultTableFilter(FilterSet):
@@ -28,7 +52,7 @@ class MonitoringResultTableFilter(FilterSet):
 
     class Meta:
         model = MonitoringResult
-        fields = ['available']
+        fields = ['q', 'available']
 
     def search(self, queryset, name, value):
         if not value.strip():

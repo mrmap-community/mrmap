@@ -6,7 +6,7 @@ from django_filters.views import FilterView
 from MrMap.decorators import permission_required
 from MrMap.messages import MONITORING_RUN_SCHEDULED
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
-from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter
+from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
 from monitoring.forms import MonitoringRunForm
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, HealthStateTable, \
@@ -19,10 +19,7 @@ from structure.permissionEnums import PermissionEnum
 class MonitoringRunTableView(CustomSingleTableMixin, FilterView):
     model = MonitoringRun
     table_class = MonitoringRunTable
-    filterset_fields = {'uuid': ['exact'],
-                        'start': ['icontains'],
-                        'end': ['icontains'],
-                        'duration': ['icontains']}
+    filterset_class = MonitoringRunTableFilter
 
 
 @method_decorator(login_required, name='dispatch')

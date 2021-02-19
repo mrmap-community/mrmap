@@ -24,10 +24,10 @@
         <td><a href="{% url 'resource:get-metadata-html' parent_service.metadata.id %}">{{parent_service.metadata.title}}</a>
         </td>
     </tr>
-    {% if parent_layer%}
+    {% if parent%}
     <tr>
         <th scope="row">{% trans 'Parent Layer' %}</th>
-        <td><a href="{% url 'resource:get-metadata-html' parent_layer.metadata.id %}">{{parent_layer.metadata.title}}</a>
+        <td><a href="{% url 'resource:get-metadata-html' parent.metadata.id %}">{{parent.metadata.title}}</a>
         </td>
     </tr>
     {% endif %}

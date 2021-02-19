@@ -20,6 +20,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from mptt.fields import TreeForeignKey
+from mptt.models import MPTTModel
 
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
@@ -422,7 +424,7 @@ class SecuredOperation(models.Model):
                 if md.service.is_root:
                     # find root layer
                     layer = Layer.objects.get(
-                        parent_layer=None,
+                        parent=None,
                         parent_service=md.service
                     )
                 else:
@@ -440,7 +442,7 @@ class SecuredOperation(models.Model):
                 sec_op.delete()
 
                 # remove secured operations of root layer children
-                for child_layer in layer.child_layers.all():
+                for child_layer in layer.get_descendants():
                     sec_ops = SecuredOperation.objects.filter(
                         secured_metadata=child_layer.metadata,
                         operation=operation,
@@ -780,8 +782,7 @@ class Metadata(Resource):
         # Find all upper layers/elements
         layer = Layer.objects.get(metadata=self)
 
-        upper_elements = layer.get_upper_layers()
-        upper_elements_metadatas = [elem.metadata for elem in upper_elements]
+        upper_elements_metadatas = [elem.metadata for elem in layer.get_ancestors()]
 
         if clear_self_too:
             upper_elements_metadatas.append(self)
@@ -834,12 +835,14 @@ class Metadata(Resource):
         Returns:
              ret_list (list)
         """
+
         is_service = self.is_metadata_type(MetadataEnum.SERVICE)
         is_layer = self.is_metadata_type(MetadataEnum.LAYER)
 
         ret_list = []
         if is_service or is_layer:
-            ret_list += [elem.metadata for elem in self.service.subelements]
+            descendants = self.get_described_element().get_subelements().prefetch_related('metadata')
+            ret_list += [elem.metadata for elem in descendants]
         else:
             subelement_metadatas = Metadata.objects.filter(
                 service__parent_service__metadata=self,
@@ -1252,7 +1255,7 @@ class Metadata(Resource):
                 )
         elif self.metadata_type == MetadataEnum.LAYER.value:
             children = Layer.objects.filter(
-                parent_layer__metadata=self
+                parent__metadata=self
             )
         else:
             return DEFAULT_SERVICE_BOUNDING_BOX
@@ -1652,8 +1655,7 @@ class Metadata(Resource):
         self.use_proxy_uri = use_proxy
 
         # If md uris shall be tunneled using the proxy, we need to make sure that all children are aware of this!
-        subelements_mds = [element.metadata for element in self.service.subelements]
-        for subelement_md in subelements_mds:
+        for subelement_md in self.service.get_subelements().select_related('metadata'):
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
                 # If there exists already a capabilities document for a subelement, we need to change the links there as well
@@ -2629,35 +2631,29 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
-    @property
-    def subelements(self):
-        """ Returns a list of Layer or Featuretype records.
+    def get_subelements(self, include_self=False):
+        """ Returns a queryset of Layer or Featuretype records.
+
+        This function
 
         Returns:
-             list (list): The list of subelements
+             qs (QuerySet): The queryset of all descendants
         """
-        ret_list = []
+        qs = Service.objects.none
         if self.is_service_type(OGCServiceEnum.WMS):
-            if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
-                qs = Layer.objects.filter(
-                    parent_service=self
-                ).prefetch_related(
-                    "metadata"
-                )
-                ret_list = list(qs)
+            if isinstance(self, MPTTModel):
+                # this is a layer instance
+                qs = self.get_descendants(include_self=include_self)
             else:
-                self_layer_instance = Layer.objects.get(metadata=self.metadata)
-                ret_list += list(self_layer_instance.child_layers.all())
-                for layer in ret_list:
-                    ret_list += list(layer.child_layers.all())
+                # this is a service instance
+                qs = Layer.objects.filter(
+                    parent_service=self,
+                )
         elif self.is_service_type(OGCServiceEnum.WFS):
-            ret_list += FeatureType.objects.filter(
+            qs = FeatureType.objects.filter(
                 parent_service=self
-            ).prefetch_related(
-                "metadata"
             )
-
-        return ret_list
+        return qs
 
     @property
     def is_wms(self):
@@ -2695,104 +2691,6 @@ class Service(Resource):
              True if the service_types are equal, false otherwise
         """
         return self.service_type.name == enum.value
-
-    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
-        """ Secures a single element
-
-        Args:
-            is_secured (bool): Whether to secure the element or not
-            group (MrMapGroup): The group which is allowed to perform an operation
-            operation (RequestOperation): The operation which can be performed by the groups
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-
-        """
-        if element is None:
-            element = self
-        element.metadata.is_secured = is_secured
-        if is_secured:
-
-            if sec_op is None:
-                sec_op = SecuredOperation()
-                sec_op.operation = operation
-                sec_op.allowed_group = group
-            else:
-                sec_op = SecuredOperation.objects.get(
-                    secured_metadata=element.metadata,
-                    operation=operation,
-                    allowed_group=group
-                )
-
-            poly_list = []
-            for group_polygon in group_polygons:
-                poly_str = group_polygon.get("geometry", group_polygon).get("coordinates", [None])[0]
-                tmp_poly = Polygon(poly_str)
-                poly_list.append(tmp_poly)
-
-            sec_op.bounding_geometry = GeometryCollection(poly_list)
-            sec_op.save()
-            element.metadata.secured_operations.add(sec_op)
-        else:
-            element.metadata.secured_operations.all().delete()
-            element.metadata.secured_operations.clear()
-        element.metadata.save()
-        element.save()
-
-    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_root:
-            # get the first layer in this service
-            start_element = Layer.objects.get(
-                parent_service=self,
-                parent_layer=None,
-            )
-        else:
-            # simply get the layer which is described by the given metadata
-            start_element = Layer.objects.get(
-                metadata=self.metadata
-            )
-        start_element.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
-
-    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_root:
-            elements = self.featuretypes.all()
-            for element in elements:
-                self.secure_access(is_secured, group, operation, group_polygons, secured_operation, element=element)
-
-    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Secures all sub elements of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_service_type(OGCServiceEnum.WMS):
-            self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
     def delete_child_data(self, child):
@@ -2856,53 +2754,6 @@ class Service(Resource):
         self.metadata.delete()
         super().delete()
 
-    def __get_children(self, current, layers: list):
-        """ Recursive appending of all layers
-
-        Args:
-            current (Layer): The current layer instance
-            layers (list): The list of all collected layers so far
-        Returns:
-             nothing
-        """
-        layers.append(current)
-        for layer in current.children_list:
-            layers.append(layer)
-            if len(layer.children_list) > 0:
-                self.__get_children(layer, layers)
-
-    def get_all_layers(self):
-        """ Returns all layers in a list that can be found in this service
-
-        NOTE: THIS IS ONLY USED FOR CHILDREN_LIST, WHICH SHOULD ONLY BE USED FOR NON-PERSISTED OBJECTS!!!
-
-        Returns:
-             layers (list): The layers
-        """
-
-        layers = []
-        self.__get_children(self.root_layer, layers)
-        return layers
-
-    def activate_service(self, is_active: bool):
-        """ Toggles the activity status of a service and it's metadata
-
-        Args:
-            is_active (bool): Whether the service shall be activated or not
-        Returns:
-             nothing
-        """
-        self.is_active = is_active
-        self.metadata.is_active = is_active
-
-        linked_mds = self.metadata.related_metadata.all()
-        for md_relation in linked_mds:
-            md_relation.metadata_to.is_active = is_active
-            md_relation.metadata_to.save(update_last_modified=False)
-
-        self.metadata.save(update_last_modified=False)
-        self.save(update_last_modified=False)
-
     def persist_original_capabilities_doc(self, xml: str):
         """ Persists the capabilities document
 
@@ -2920,15 +2771,12 @@ class Service(Resource):
         )
 
 
-class Layer(Service):
-    class Meta:
-        ordering = ["position"]
+class Layer(Service, MPTTModel):
     identifier = models.CharField(max_length=500, null=True)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)
-    parent_layer = models.ForeignKey("self", on_delete=models.CASCADE, null=True, related_name="child_layers")
-    position = models.IntegerField(default=0)
+    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     is_queryable = models.BooleanField(default=False)
     is_opaque = models.BooleanField(default=False)
     is_cascaded = models.BooleanField(default=False)
@@ -2954,31 +2802,17 @@ class Layer(Service):
     def __str__(self):
         return str(self.identifier)
 
-    def delete(self, using=None, keep_parents=False):
-        """ Deletes layer and all of it's children
-
-        Args:
-            using:
-            keep_parents:
-        Returns:
-
-        """
-        children = self.get_children()
-        for child in children:
-            child.delete(using, keep_parents)
-        super().delete(using, keep_parents)
-
     def get_inherited_reference_systems(self):
         ref_systems = []
         ref_systems += list(self.metadata.reference_system.all())
 
-        parent_layer = self.parent_layer
-        while parent_layer is not None:
-            parent_srs = parent_layer.metadata.reference_system.all()
+        parent = self.parent
+        while parent is not None:
+            parent_srs = parent.metadata.reference_system.all()
             for srs in parent_srs:
                 if srs not in ref_systems:
                     ref_systems.append(srs)
-            parent_layer = parent_layer.parent_layer
+            parent = parent.parent
 
         return ref_systems
 
@@ -2994,69 +2828,16 @@ class Layer(Service):
              bounding_geometry (Polygon): A geometry object
         """
         bounding_geometry = self.metadata.bounding_geometry
-        parent_layer = self.parent_layer
-        while parent_layer is not None:
-            parent_geometry = parent_layer.metadata.bounding_geometry
+        parent = self.parent
+        while parent is not None:
+            parent_geometry = parent.metadata.bounding_geometry
             if bounding_geometry.area > 0:
                 if parent_geometry.covers(bounding_geometry):
                     bounding_geometry = parent_geometry
             else:
                 bounding_geometry = parent_geometry
-            parent_layer = parent_layer.parent_layer
+            parent = parent.parent
         return bounding_geometry
-
-    def get_style(self):
-        """ Simple getter for the style of the current layer
-
-        Returns:
-             styles (QuerySet): A query set containing all styles
-        """
-        return self.style.all()
-
-    def _get_all_children_recursive(self, layer_list: list):
-        """ Returns a list of all children of the current layer
-
-        Args:
-            layer_list (list): The list of collected layers so far
-        Returns:
-            layer_list (list)
-        """
-        children = self.get_children()
-        for child in children:
-            layer_list.append(child)
-            child._get_all_children_recursive(layer_list)
-        return layer_list
-
-    def get_children(self, all=False):
-        """ Simple getter for the direct children of the current layer
-
-        Returns:
-             children (QuerySet): A query set containing all direct children layer of this layer
-        """
-        if all:
-            return self._get_all_children_recursive([])
-        else:
-            return self.child_layers.all()
-
-    def get_upper_layers(self):
-        """ Returns a list of all layers from self to the root layer of the service
-
-        Returns:
-
-        """
-        ret_list = []
-        upper_element = Layer.objects.get(
-            child_layers=self
-        )
-        while upper_element is not None:
-            ret_list.append(upper_element)
-            try:
-                upper_element = Layer.objects.get(
-                    child_layers=upper_element
-                )
-            except ObjectDoesNotExist:
-                upper_element = None
-        return ret_list
 
     def delete_children_secured_operations(self, layer, operation, group):
         """ Walk recursive through all layers of wms and remove their secured operations
@@ -3070,7 +2851,7 @@ class Layer(Service):
         Returns:
 
         """
-        for child_layer in layer.child_layers.all():
+        for child_layer in layer.get_descendants():
             sec_ops = SecuredOperation.objects.filter(
                 secured_metadata=child_layer.metadata,
                 operation=operation,
@@ -3078,97 +2859,6 @@ class Layer(Service):
             )
             sec_ops.delete()
             self.delete_children_secured_operations(child_layer, operation, group)
-
-    def activate_layer_recursive(self, new_status):
-        """ Walk recursive through all layers of a wms and set the activity status new
-
-        Args:
-            root_layer: The root layer, where the recursion begins
-            new_status: The new status that will be persisted
-        Returns:
-             nothing
-        """
-        # check for all related metadata, we need to toggle their active status as well
-        rel_md = self.metadata.related_metadata.all()
-        for md in rel_md:
-            dependencies = MetadataRelation.objects.filter(
-                metadata_to=md.metadata_to,
-            )
-            if dependencies.count() > 1 and new_status is False:
-                # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
-                pass
-            else:
-                # since we have no more dependencies on this metadata, we can set it inactive
-                md.metadata_to.is_active = new_status
-                md.metadata_to.set_documents_active_status(new_status)
-                md.metadata_to.save()
-                md.save()
-
-        self.metadata.is_active = new_status
-        self.metadata.save()
-        self.metadata.set_documents_active_status(new_status)
-        self.is_active = new_status
-        self.save()
-
-        for layer in self.child_layers.all():
-            layer.activate_layer_recursive(new_status)
-
-    def _get_bottom_layers_identifier_iterative(self):
-        """ Runs a iterative search for all leaf layers.
-
-        If a leaf layer is found, it will be added to layer_list
-
-        Returns:
-             leaves (list): List of id sorted leaf layer identifiers
-        """
-        layer_obj_children = self.child_layers.all()
-        leaves = []
-        non_leaves = []
-        for child in layer_obj_children:
-            children = child.child_layers.all()
-            if children.count() == 0:
-                leaves.append(child)
-            else:
-                non_leaves.append(child)
-
-        while len(non_leaves) > 0:
-            layer = non_leaves.pop()
-            children = layer.child_layers.all()
-            if children.count() == 0:
-                leaves.append(layer)
-            else:
-                non_leaves += children
-
-        leaves.sort(key=lambda elem: elem.id)
-        leaves = [leaf.identifier for leaf in leaves]
-        return leaves
-
-    def get_leaf_layers_identifier(self):
-        """ Returns a list of all leaf layer's identifiers.
-
-        Leaf layers are the layers, which have no further children.
-
-        Returns:
-             leaf_layers (list): The leaf layers of a layer
-        """
-        leaf_layers = self._get_bottom_layers_identifier_iterative()
-        return leaf_layers
-
-    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Recursive implementation of securing all sub layers of a current layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        self.secure_access(is_secured, group, operation, group_polygons, secured_operation)
-
-        for layer in self.child_layers.all():
-            layer.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
 
 class Module(Service):

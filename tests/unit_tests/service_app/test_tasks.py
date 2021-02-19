@@ -77,7 +77,7 @@ class ServiceTaskTestCase(TestCase):
 
         # Check if subelements have been changed as well
         root_layer = Layer.objects.get(
-            parent_layer=None,
+            parent=None,
             parent_service=self.metadata.service
         )
         children = []

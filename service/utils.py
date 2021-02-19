@@ -72,19 +72,11 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
         params['fees'] = md.service.parent_service.metadata.fees
         params['licence'] = md.service.parent_service.metadata.licence
 
-    try:
-        # is it a root layer?
-        params['parent_layer'] = Layer.objects.get(
-            child_layers=md.service.layer
-        )
-    except Layer.DoesNotExist:
-        # yes, it's a root layer, no parent available; skip
-        None
+    if md.service.layer.is_root_node():
+        params['parent'] = md.service.layer
 
     # get sublayers
-    child_layers = Layer.objects.filter(
-        parent_layer=md.service
-    )
+    child_layers = md.service.get_descendants()
 
     # if child_layers > 0 collect more data about the child layers
     if child_layers.count() > 0:
@@ -95,10 +87,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
         children = []
         for child in child_layers_filtered.qs:
             # search for sub children
-            child_child_layers = Layer.objects.filter(
-                parent_layer=child
-            )
-
+            child_child_layers = child.get_children()
             children.append({'id': child.metadata.id,
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
@@ -122,7 +111,7 @@ def collect_wms_root_data(md: Metadata, request: HttpRequest):
     # first layer item
     layer = Layer.objects.get(
         parent_service=md.service,
-        parent_layer=None,
+        parent=None,
     )
 
     params['bounding_box'] = md.bounding_geometry
@@ -132,7 +121,7 @@ def collect_wms_root_data(md: Metadata, request: HttpRequest):
 
     # search for sub children
     child_child_layers = Layer.objects.filter(
-        parent_layer=layer
+        parent=layer
     )
     sub_layer = [{'id': layer.metadata.id,
                   'title': layer.metadata.title,

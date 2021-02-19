@@ -12,10 +12,9 @@ from structure.models import MrMapGroup, MrMapUser
 
 
 class OGCLayer:
-    def __init__(self, identifier=None, position=0, parent=None, title=None, queryable=False, opaque=False,
+    def __init__(self, identifier=None, parent=None, title=None, queryable=False, opaque=False,
                  cascaded=False, abstract=None):
         self.identifier = identifier
-        self.position = position
         self.parent = parent
         self.is_queryable = queryable
         self.is_opaque = opaque
@@ -58,7 +57,7 @@ class OGCLayer:
 
         self.iso_metadata = []
 
-    def create_layer_record(self, parent_service: Service, group: MrMapGroup, user: MrMapUser, epsg_api: EpsgApi, parent_layer: Layer=None):
+    def create_layer_record(self, parent_service: Service, group: MrMapGroup, user: MrMapUser, epsg_api: EpsgApi, parent: Layer=None):
         """ Transforms a OGCWebMapLayer object to Layer model (models.py)
 
         Args:
@@ -66,7 +65,7 @@ class OGCLayer:
             group (MrMapGroup): The group that started the registration process
             user (MrMapUser): The performing user
             epsg_api (EpsgApi): A EpsgApi object
-            parent_layer (Layer): The parent layer object to this layer
+            parent (Layer): The parent layer object to this layer
         Returns:
             nothing
         """
@@ -78,7 +77,7 @@ class OGCLayer:
             metadata,
             parent_service,
             group,
-            parent_layer
+            parent
         )
 
         # Additional records
@@ -98,7 +97,7 @@ class OGCLayer:
             child.create_layer_record(
                 parent_service=parent_service,
                 group=group,
-                parent_layer=layer,
+                parent=layer,
                 user=user,
                 epsg_api=epsg_api
             )
@@ -143,14 +142,14 @@ class OGCLayer:
 
         return metadata
     
-    def _create_layer_record(self, metadata: Metadata, parent_service: Service, group: MrMapGroup, parent_layer: Layer):
+    def _create_layer_record(self, metadata: Metadata, parent_service: Service, group: MrMapGroup, parent: Layer):
         """ Creates a Layer record from the OGCLayer object
 
         Args:
             metadata (Metadata): The layer's metadata object
             parent_service (Service): The parent Service object
             group (MrMapGroup): The owner/creator group
-            parent_layer (Layer): The parent layer object
+            parent (Layer): The parent layer object
         Returns:
              layer (Layer): The persisted layer object
         """
@@ -159,8 +158,7 @@ class OGCLayer:
         layer.metadata = metadata
         layer.identifier = self.identifier
         layer.service_type = parent_service.service_type
-        layer.position = self.position
-        layer.parent_layer = parent_layer
+        layer.parent = parent
         layer.parent_service = parent_service
         layer.is_queryable = self.is_queryable
         layer.is_cascaded = self.is_cascaded
@@ -248,8 +246,8 @@ class OGCLayer:
         layer.operation_urls.add(*operation_urls)
 
         # If parent layer is a real layer, we add the current layer as a child to the parent layer
-        if layer.parent_layer is not None:
-            layer.parent_layer.child_layers.add(layer)
+        if layer.parent is not None:
+            layer.parent.children.add(layer)
 
         if self.style is not None:
             self.style.layer = layer

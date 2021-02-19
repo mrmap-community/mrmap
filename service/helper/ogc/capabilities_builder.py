@@ -352,7 +352,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.root_layer = Layer.objects.get(
             parent_service=self.parent_service,
-            parent_layer=None
+            parent=None
         )
 
     def _generate_xml(self):
@@ -795,13 +795,13 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         xml_helper.write_text_to_element(elem, txt="")
 
         # Style
-        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+        self._generate_capability_layer_style_xml(layer_elem, layer.style.all())
 
         # Various
         self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
-        layer_children = layer.get_children()
+        layer_children = layer.get_descendants()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
@@ -1207,13 +1207,13 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         # Style
-        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+        self._generate_capability_layer_style_xml(layer_elem, layer.style.all())
 
         # Various
         self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
-        layer_children = layer.get_children()
+        layer_children = layer.get_descendants()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 

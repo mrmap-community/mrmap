@@ -311,11 +311,9 @@ def remove_service(metadata: Metadata, user: MrMapUser):
     metadata.is_deleted = True
     metadata.save()
 
-    sub_elements = metadata.service.subelements
-    for sub_element in sub_elements:
-        sub_metadata = sub_element.metadata
-        sub_metadata.is_deleted = True
-        sub_metadata.save()
+    for sub_element in metadata.service.get_subelements().select_related('metadata'):
+        sub_element.is_deleted = True
+        sub_element.save()
 
     # call removing as async task
     tasks.async_remove_service_task.delay(metadata.service.id)

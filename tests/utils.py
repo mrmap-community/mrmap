@@ -20,6 +20,26 @@ from MrMap.tables import MrMapTable
 from structure.models import MrMapUser
 
 
+def activate_service(self, is_active: bool):
+    """ Toggles the activity status of a service and it's metadata
+
+    Args:
+        is_active (bool): Whether the service shall be activated or not
+    Returns:
+         nothing
+    """
+    self.is_active = is_active
+    self.metadata.is_active = is_active
+
+    linked_mds = self.metadata.related_metadata.all()
+    for md_relation in linked_mds:
+        md_relation.metadata_to.is_active = is_active
+        md_relation.metadata_to.save(update_last_modified=False)
+
+    self.metadata.save(update_last_modified=False)
+    self.save(update_last_modified=False)
+
+
 def generate_random_string(len: int):
     """ Creates a randomly generated string of uppercase letters
 

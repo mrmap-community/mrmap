@@ -63,8 +63,7 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
     # get service and change status
     service = Service.objects.get(metadata__id=metadata_id)
 
-    elements = service.subelements + [service]
-    for element in elements:
+    for element in service.get_subelements():
         element.is_active = is_active
         element.save(update_last_modified=False)
 

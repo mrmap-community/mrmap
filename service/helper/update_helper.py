@@ -279,7 +279,7 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     created_by = old.created_by
     created_on = old.created
     parent_service = old.parent_service
-    parent_layer = old.parent_layer
+    parent = old.parent
     metadata = old.metadata
     active = old.is_active
 
@@ -291,7 +291,7 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     old.created = created_on
     old.created_by = created_by
     old.parent_service = parent_service
-    old.parent_layer = parent_layer
+    old.parent = parent
     old.metadata = metadata
     old.is_active = active
 
@@ -414,7 +414,7 @@ def _update_wms_layers_recursive(old: Service, new: Service, new_layers: list, l
             # Layer could not be found with the given information.
             # Layer must be new  -> add it!
             new_layer.parent_service = old
-            new_layer.parent_layer = parent
+            new_layer.parent = parent
             new_layer.is_active = old.is_active
             md = new_layer.metadata
             md.is_active = old.is_active

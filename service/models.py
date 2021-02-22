@@ -642,7 +642,7 @@ class Metadata(Resource):
         return self.get_related_metadatas(filters=filters)
 
     def get_related_metadatas(self, filters=None, exclusions=None):
-        """ Return all related metadata records which are points to the self object.
+        """ Return all related metadata records which where self points to.
 
         Returns:
              metadatas (Queryset)
@@ -652,9 +652,18 @@ class Metadata(Resource):
             filter_query &= Q(**filters)
         if exclusions:
             filter_query &= ~Q(**exclusions)
-        return self.related_metadatas.filter(
-            filter_query
-        )
+        return self.related_metadatas.filter(filter_query)
+
+    def get_depending_related_metadatas(self, filters=None, exclusions=None):
+        """ Return all related metadata records which points to self
+
+        """
+        filter_query = Q(to_metadatas__to_metadata=self)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(filter_query)
 
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
@@ -1175,6 +1184,8 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        # todo: check if there are dependencies like a dataset metadata which is pointed by different metadatas
+
         # check for SecuredOperations
         if self.is_secured:
             sec_ops = self.secured_operations.all()
@@ -2726,6 +2737,7 @@ class Service(Resource):
             keep_parents:
         Returns:
         """
+        
         # remove related metadata
         linked_mds = self.metadata.get_related_metadatas()
         for linked_md in linked_mds:
@@ -2804,18 +2816,16 @@ class Layer(Service, MPTTModel):
         return str(self.identifier)
 
     def get_inherited_reference_systems(self):
-        ref_systems = []
-        ref_systems += list(self.metadata.reference_system.all())
+        """ Return all inherited ReferenceSystem objects of the given Layer
 
-        parent = self.parent
-        while parent is not None:
-            parent_srs = parent.metadata.reference_system.all()
-            for srs in parent_srs:
-                if srs not in ref_systems:
-                    ref_systems.append(srs)
-            parent = parent.parent
-
-        return ref_systems
+        Returns:
+            reference_systems (Queryset): The QuerySet which contains all possible ReferenceSystems of the Layer
+        """
+        ancestors = self.get_ancestors(ascending=True, include_self=True).select_related('metadata').prefetch_related('reference_system')
+        reference_systems = ReferenceSystem.objects.none
+        for ancestor in ancestors:
+            reference_systems |= ancestor.refence_system.all()
+        return reference_systems
 
     def get_inherited_bounding_geometry(self):
         """ Returns the biggest bounding geometry of the service.
@@ -2829,37 +2839,15 @@ class Layer(Service, MPTTModel):
              bounding_geometry (Polygon): A geometry object
         """
         bounding_geometry = self.metadata.bounding_geometry
-        parent = self.parent
-        while parent is not None:
-            parent_geometry = parent.metadata.bounding_geometry
-            if bounding_geometry.area > 0:
-                if parent_geometry.covers(bounding_geometry):
-                    bounding_geometry = parent_geometry
+        ancestors = self.get_ancestors(ascending=True).select_related('metadata')
+        # todo: maybe GEOS can get the object with the greatest geometry from the db directly?
+        for ancestor in ancestors:
+            ancestor_geometry = ancestor.bounding_geometry
+            if bounding_geometry.area > 0 and ancestor_geometry.covers(bounding_geometry):
+                bounding_geometry = ancestor_geometry
             else:
-                bounding_geometry = parent_geometry
-            parent = parent.parent
+                bounding_geometry = ancestor_geometry
         return bounding_geometry
-
-    def delete_children_secured_operations(self, layer, operation, group):
-        """ Walk recursive through all layers of wms and remove their secured operations
-
-        The 'layer' will not be affected!
-
-        Args:
-            layer: The layer, which children shall be changed.
-            operation: The RequestOperation of the SecuredOperation
-            group: The group
-        Returns:
-
-        """
-        for child_layer in layer.get_descendants():
-            sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=child_layer.metadata,
-                operation=operation,
-                allowed_group=group,
-            )
-            sec_ops.delete()
-            self.delete_children_secured_operations(child_layer, operation, group)
 
 
 class Module(Service):

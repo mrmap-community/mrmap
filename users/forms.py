@@ -148,7 +148,7 @@ class SubscriptionForm(MrMapModelForm):
             # Prevent user from changing the subscribed metadata itself
             self.fields['metadata'].disabled = True
         self.fields['metadata'].queryset = self.fields['metadata'].queryset.exclude(
-            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+            metadata_relations__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
         )
 
     def process_new_subscription(self):

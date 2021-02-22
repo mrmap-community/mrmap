@@ -15,7 +15,6 @@ from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataF
     RestrictAccessForm, RestrictAccessSpatially
 from editor.tables import EditorAcessTable
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
-from service.models import MetadataRelation
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata
 from structure.models import MrMapGroup
@@ -40,7 +39,7 @@ def remove_dataset(request: HttpRequest, metadata_id):
         messages.success(request, message=_("You can't delete metadata record"))
         return HttpResponseRedirect(reverse(request.GET.get('current-view', 'home'), ), status=303)
 
-    relations = metadata.get_metadata_relation()
+    relations = metadata.get_related_metadatas()
     is_mr_map_origin = True
     for relation in relations:
         if relation.origin != ResourceOriginEnum.EDITOR.value:
@@ -179,7 +178,7 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
         queryset=all_groups,
         filter_set_class=EditorAccessFilter,
         current_view='editor:edit_access',
-        related_metadata=md,
+        metadata_relations=md,
     )
 
     params = {

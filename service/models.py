@@ -462,7 +462,7 @@ class MetadataRelation(models.Model):
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
-        return "{} from {} - to {}".format(self.relation_type, self.from_metadata.title, self.to_metadata.title)
+        return "{} {} {}".format(self.to_metadata.title, self.relation_type, self.from_metadata.title)
 
 
 class ExternalAuthentication(models.Model):
@@ -581,6 +581,9 @@ class Metadata(Resource):
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
+    # By passing the MetadataRelation class as through value, django dose everything we need and gives us here directly
+    # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
+    # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
     metadata_relations = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to+', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
@@ -608,28 +611,43 @@ class Metadata(Resource):
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
 
-    def add_metadata_relation(self, metadata, relation_type, internal, origin, symm=True):
+    def add_metadata_relation(self, to_metadata, relation_type, origin, internal=False):
         relation, created = MetadataRelation.objects.get_or_create(
             from_metadata=self,
-            to_metadata=metadata,
+            to_metadata=to_metadata,
             relation_type=relation_type,
             internal=internal,
             origin=origin)
-        if symm:
-            # avoid recursion by passing `symm=False`
-            metadata.add_relationship(self, relation_type, internal, origin, False)
         return relation
 
-    def remove_metadata_relation(self, metadata, relation_type, internal, origin, symm=True):
+    def remove_metadata_relation(self, to_metadata, relation_type, internal, origin):
         MetadataRelation.objects.filter(
             from_metadata=self,
-            to_metadata=metadata,
+            to_metadata=to_metadata,
             relation_type=relation_type,
             internal=internal,
             origin=origin).delete()
-        if symm:
-            # avoid recursion by passing `symm=False`
-            metadata.remove_metadata_relation(self, relation_type, internal, origin, False)
+
+    def get_related_dataset_metadatas(self):
+        """ Returns all related metadata records from type dataset.
+
+        Returns:
+             metadatas (QuerySet)
+        """
+        additional_filters = {'to_metadatas__metadata_type': OGCServiceEnum.DATASET.value,
+                              'relation_type': MetadataRelationEnum.DESCRIBES.value}
+        return self.get_related_metadatas(**additional_filters)
+
+    def get_related_metadatas(self, **additional_filters):
+        """ Return all related metadata records which are points to the self object.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        return self.metadata_relations.filter(
+            to_metadatas__from_metadata=self,
+            **additional_filters
+        )
 
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
@@ -1013,27 +1031,6 @@ class Metadata(Resource):
             pass
         return ext_auth
 
-    def get_related_dataset_metadatas(self):
-        """ Returns all related dataset metadata records.
-
-        Returns:
-             metadatas (QuerySet)
-        """
-        additional_filters = {'to_metadatas__metadata_type': OGCServiceEnum.DATASET.value}
-        return self.get_metadata_relation(relation_type=MetadataRelationEnum.DESCRIBED_BY.value, **additional_filters)
-
-    def get_metadata_relation(self, relation_type, **additional_filters):
-        """ Returns a related metadata record from given relation type, internal flag and origin.
-
-        Returns:
-             metadatas (Queryset)
-        """
-        return self.metadata_relations.filter(
-            to_metadatas__from_metadata=self,
-            to_metadatas__relation_type=relation_type,
-            **additional_filters
-        )
-
     def get_remote_original_capabilities_document(self, version: str):
         """ Fetches the original capabilities document from the remote server.
 
@@ -1192,21 +1189,7 @@ class Metadata(Resource):
             if not other_dependencies:
                 url.delete()
 
-        # check if there are MetadataRelations to(!) this metadata record
-        # if so, we can not remove it until these relations aren't used anymore
-        dependencies = MetadataRelation.objects.filter(
-            metadata_to=self
-        )
-        if dependencies.count() > 1 and force is False:
-            # if there are more than one dependency, we should not remove it
-            # the one dependency we can expect at least is the relation to the current metadata record
-            return
-        else:
-            # Remove all relations from(!) this metadata as well
-            md_rels = self.related_metadata.all()
-            md_rels.delete()
-            # if we have one or less relations to this metadata record, we can remove it anyway
-            super().delete(using, keep_parents)
+        super().delete(using, keep_parents)
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record
@@ -1317,10 +1300,9 @@ class Metadata(Resource):
             self.keywords.add(keyword)
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
-        for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_to.metadata_url
+        for related_iso in self.get_related_metadatas():
+            md_link = related_iso.metadata_url
             if md_link not in original_iso_links:
-                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -1354,10 +1336,9 @@ class Metadata(Resource):
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
-        for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_to.metadata_url
+        for related_iso in self.get_related_metadatas():
+            md_link = related_iso.metadata_url
             if md_link not in f_t_iso_links:
-                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -1564,10 +1545,10 @@ class Metadata(Resource):
         Returns:
              links (list): A list containing all online links of related metadata
         """
-        rel_mds = self.related_metadata.all()
+        rel_mds = self.get_related_metadatas()
         links = []
         for md in rel_mds:
-            links.append(md.metadata_to.metadata_url)
+            links.append(md.metadata_url)
         return links
 
     def _set_document_secured(self, is_secured: bool):
@@ -1766,9 +1747,13 @@ class Metadata(Resource):
 
 
 class Document(Resource):
+    class Meta:
+        unique_together = ('metadata', 'is_original', 'document_type')
+
     from MrMap.validators import validate_document_enum_choices
-    # todo: check if this must be a ForeignKey or a OneToOne relation is ok
-    #  if OneToOne relation is ok.. we could prefetch_related document and concatenate them in a second step
+    # One Metadata object can be related to multiple Document objects, cause we save the original and the customized
+    # version of a given xml.
+    # But one Metadata object can only have one Document which is original and a unique doc type.
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
@@ -2819,10 +2804,8 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = child.metadata.related_metadata.all()
+        iso_mds = child.metadata.get_related_metadatas()
         for iso_md in iso_mds:
-            md_2 = iso_md.metadata_to
-            md_2.delete()
             iso_md.delete()
         if isinstance(child, FeatureType):
             # no other way to remove feature type metadata on service deleting
@@ -2841,10 +2824,8 @@ class Service(Resource):
         Returns:
         """
         # remove related metadata
-        linked_mds = self.metadata.related_metadata.all()
+        linked_mds = self.metadata.get_related_metadatas()
         for linked_md in linked_mds:
-            md_2 = linked_md.metadata_to
-            md_2.delete()
             linked_md.delete()
 
         # remove subelements
@@ -2910,10 +2891,10 @@ class Service(Resource):
         self.is_active = is_active
         self.metadata.is_active = is_active
 
-        linked_mds = self.metadata.related_metadata.all()
+        linked_mds = self.metadata.get_related_metadatas()
         for md_relation in linked_mds:
-            md_relation.metadata_to.is_active = is_active
-            md_relation.metadata_to.save(update_last_modified=False)
+            md_relation.is_active = is_active
+            md_relation.save(update_last_modified=False)
 
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
@@ -3104,19 +3085,16 @@ class Layer(Service):
              nothing
         """
         # check for all related metadata, we need to toggle their active status as well
-        rel_md = self.metadata.related_metadata.all()
+        rel_md = self.metadata.get_related_metadatas()
         for md in rel_md:
-            dependencies = MetadataRelation.objects.filter(
-                metadata_to=md.metadata_to,
-            )
-            if dependencies.count() > 1 and new_status is False:
+            dependencies = md.get_related_metadatas().count()
+            if dependencies > 1 and new_status is False:
                 # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
                 pass
             else:
                 # since we have no more dependencies on this metadata, we can set it inactive
-                md.metadata_to.is_active = new_status
-                md.metadata_to.set_documents_active_status(new_status)
-                md.metadata_to.save()
+                md.is_active = new_status
+                md.set_documents_active_status(new_status)
                 md.save()
 
         self.metadata.is_active = new_status

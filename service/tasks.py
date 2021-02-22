@@ -25,8 +25,7 @@ from MrMap.settings import EXEC_TIME_PRINT
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
 from service.settings import DEFAULT_SRS
-from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, \
-    MetadataRelation, ProxyLog
+from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import service_helper, task_helper
@@ -74,20 +73,10 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
         md.save(update_last_modified=False)
 
         # activate related metadata (if exists)
-        md_relations = md.related_metadata.all()
-        for relation in md_relations:
-            related_md = relation.metadata_to
-
-            # Check for dependencies before toggling active status
-            # We are only interested in dependencies from activated metadatas
-            relations_from_others = MetadataRelation.objects.filter(
-                metadata_to=related_md,
-            )
-            if relations_from_others.count() > 1 and is_active is False:
-                # If there are more than our relation and we want to deactivate, we do NOT proceed
-                continue
-            else:
-                # If there are no other dependencies OR we just want to activate the resource, we are good to go
+        related_metadatas = md.get_related_metadatas()
+        for related_md in related_metadatas:
+            has_dependencies = related_md.get_related_metadatas().exclude(pk=md.pk).exists()
+            if not has_dependencies:
                 related_md.set_documents_active_status(is_active)
                 related_md.is_active = is_active
                 related_md.save()

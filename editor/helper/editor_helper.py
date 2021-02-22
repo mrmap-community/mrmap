@@ -20,7 +20,7 @@ from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum, \
     MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, SecuredOperation
+from service.models import Metadata, Keyword, FeatureType, Document, SecuredOperation
 from service.helper import xml_helper
 
 
@@ -347,8 +347,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     # if there are links in existing_iso_links that do not show up in md_links -> remove them
     for link in existing_iso_links:
         if link not in md_links:
-            missing_md = metadata.related_metadata.get(metadata_to__metadata_url=link)
-            missing_md = missing_md.metadata_to
+            missing_md = metadata.metadata_relations.get(to_metadata__metadata_url=link)
             missing_md.delete()
             # remove from capabilities
             xml_iso_element = xml_helper.find_element_where_attr(xml_cap_obj, "xlink:href", link)
@@ -381,12 +380,9 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         iso_md = ISOMetadata(link, ResourceOriginEnum.EDITOR.value)
         iso_md = iso_md.to_db_model(created_by=metadata.created_by)
         iso_md.save()
-        md_relation = MetadataRelation()
-        md_relation.metadata_to = iso_md
-        md_relation.origin = iso_md.origin
-        md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
-        md_relation.save()
-        metadata.related_metadata.add(md_relation)
+        metadata.add_metadata_relation(to_metadata=iso_md,
+                                       origin=iso_md.origin,
+                                       relation_type=MetadataRelationEnum.DESCRIBES.value)
 
 
 @transaction.atomic

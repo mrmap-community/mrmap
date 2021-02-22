@@ -31,14 +31,14 @@ class Command(BaseCommand):
                 metadata_type=MetadataEnum.CATALOGUE.value
             ).values_list("id", flat=True)
         mds = Metadata.objects.filter(
-            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+            metadata_relations__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
         )
 
         t_start = time()
         self.stdout.write(self.style.NOTICE("Found {} records in total. Start removing...".format(mds.count())))
         for _id in csw_id:
             mds_id = mds.filter(
-                related_metadata__metadata_to__id=_id
+                metadata_relations__to_metadata__id=_id
             )
             self.stdout.write(self.style.NOTICE("Found {} records for {}. Start removing...".format(mds_id.count(), _id)))
             for md in mds_id:

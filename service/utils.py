@@ -7,8 +7,7 @@ Created on: 21.01.20
 """
 
 from django.http import HttpRequest
-from service.helper.enums import MetadataEnum
-from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation
+from service.models import Metadata, Organization, Layer, FeatureType
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
@@ -190,32 +189,17 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
 def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
     params = {}
 
-    # get all related Metadata objects
-    metadata_relations = md.related_metadata.filter(
-        metadata_to__metadata_type=MetadataEnum.DATASET.value
-    )
-
-    # if no related metadata found, skip
-    if metadata_relations.count() > 0:
-        # convert MetadataRelation Objects to Metadata object
-        metadatas_object_array = [metadata_relation.metadata_to for metadata_relation in metadata_relations]
-
-        metadatas_dict_array = []
-        for metadata in metadatas_object_array:
-            metadatas_dict_array.append({'id': metadata.id, 'title': metadata.title})
-
-        show_header = False
-        if metadata_relations.count() > 1:
-            show_header = True
-
+    # get all related Metadata objects from type dataset
+    metadata_relations = md.get_related_dataset_metadatas()
+    if metadata_relations:
         # build django tables2 table
-        related_metadata_table = CoupledMetadataTable(
-            queryset=metadatas_dict_array,
+        metadata_relations_table = CoupledMetadataTable(
+            queryset=metadata_relations,
             order_by='title',
-            show_header=show_header,
+            show_header=True,
             request=request,
             param_lead='rm-t')
 
-        params['related_metadata'] = related_metadata_table
+        params['metadata_relations'] = metadata_relations_table
 
     return params

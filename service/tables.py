@@ -16,7 +16,6 @@ from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
-from service.models import MetadataRelation, Metadata
 from structure.permissionEnums import PermissionEnum
 
 
@@ -787,11 +786,8 @@ class DatasetTable(MrMapTable):
                              open_in_new_tab=True,)
 
     def render_dataset_related_objects(self, record):
-        related_metadatas = Metadata.objects.filter(
-            related_metadata__metadata_to=record
-        ).prefetch_related(
-            "related_metadata"
-        )
+        related_metadatas = record.get_related_metadatas()
+
         link_list = []
         for metadata in related_metadatas:
             if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
@@ -812,21 +808,16 @@ class DatasetTable(MrMapTable):
         return format_html(', '.join(link_list))
 
     def render_dataset_origins(self, record):
-        related_metadatas = MetadataRelation.objects.filter(
-            metadata_to=record
-        )
         origin_list = []
-        rel_mds = list(record.related_metadata.all())
-        relations = list(related_metadatas) + rel_mds
+        rel_mds = list(record.metadata_relations.all())
+        relations = list(metadata_relations) + rel_mds
         for relation in relations:
             origin_list.append(f"{relation.origin}")
 
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):
-        is_mr_map_origin = not MetadataRelation.objects.filter(
-            metadata_to=record
-        ).exclude(
+        is_mr_map_origin = not record.get_metadata_relations().exclude(
             origin=ResourceOriginEnum.EDITOR.value
         ).exists()
 

@@ -133,7 +133,7 @@ class MetadataRelationSerializer(serializers.Serializer):
 
     """
     relation_type = serializers.CharField(read_only=True)
-    relation_to = MetadataRelationMetadataSerializer(source="metadata_to")
+    relation_to = MetadataRelationMetadataSerializer(source="from_metadata")
 
 
 class MetadataSerializer(serializers.Serializer):
@@ -153,7 +153,7 @@ class MetadataSerializer(serializers.Serializer):
     metadata_url = serializers.CharField()
     service = serializers.PrimaryKeyRelatedField(read_only=True)
     organization = serializers.PrimaryKeyRelatedField(read_only=True, source="contact")
-    related_metadata = MetadataRelationSerializer(many=True)
+    metadata_relations = MetadataRelationSerializer(many=True)
     keywords = serializers.StringRelatedField(read_only=True, many=True)
 
 
@@ -290,7 +290,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     licence = serializers.PrimaryKeyRelatedField(read_only=True)
     parent_service = serializers.IntegerField(read_only=True, source="service.parent_service.metadata.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
-    related_metadata = MetadataRelationSerializer(read_only=True, many=True)
+    metadata_relations = MetadataRelationSerializer(read_only=True, many=True)
     keywords = serializers.StringRelatedField(read_only=True, many=True)
     categories = CategorySerializer(read_only=True, many=True)
     dimensions = DimensionSerializer(read_only=True, many=True)
@@ -325,7 +325,7 @@ class MonitoringSummarySerializer(serializers.Serializer):
 
 
 def serialize_metadata_relation(md: Metadata) -> list:
-    """ Serializes the related_metadata of a metadata element into a list of dict elements
+    """ Serializes the metadata_relations of a metadata element into a list of dict elements
 
     Faster version than using ModelSerializers
 
@@ -335,7 +335,7 @@ def serialize_metadata_relation(md: Metadata) -> list:
          data_list (list): The list containing serialized dict elements
     """
     relations = []
-    md_relations = md.related_metadata.all()
+    md_relations = md.metadata_relations.all()
 
     # Exclude harvested relations for a csw. It would be way too much without giving useful information
     if md.is_catalogue_metadata:
@@ -344,7 +344,7 @@ def serialize_metadata_relation(md: Metadata) -> list:
         )
 
     for rel in md_relations:
-        md_to = rel.metadata_to
+        md_to = rel.to_metadata
 
         rel_obj = OrderedDict()
         rel_obj["relation_type"] = rel.relation_type
@@ -511,7 +511,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["parent_service"] = parent_service
     serialized["keywords"] = [kw.keyword for kw in keywords]
     serialized["organization"] = serialize_contact(md)
-    serialized["related_metadata"] = serialize_metadata_relation(md)
+    serialized["metadata_relations"] = serialize_metadata_relation(md)
     serialized["categories"] = serialize_categories(md)
     serialized["dimensions"] = serialize_dimensions(md)
 

@@ -209,7 +209,7 @@ class MetadataDatasetFilter(django_filters.FilterSet):
     def filter_show_harvested(queryset, name, value):
         """ Filters dataset records for table
 
-        Includes/Excludes harvested results identified by their related_metadata relation_type values
+        Includes/Excludes harvested results identified by their metadata_relations relation_type values
 
         Args:
             queryset: The queryset to be filtered
@@ -223,7 +223,7 @@ class MetadataDatasetFilter(django_filters.FilterSet):
             pass
         else:
             queryset = queryset.exclude(
-                related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value
+                metadata_relations__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value
             )
         return queryset
 

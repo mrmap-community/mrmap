@@ -30,7 +30,7 @@ from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_
     CSW_CACHE_PREFIX, HARVEST_GET_REQUEST_OUTPUT_SCHEMA
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, \
+from service.models import Metadata, Dataset, Keyword, Category, MimeType, \
     GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
@@ -109,8 +109,8 @@ class Harvester:
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
         all_persisted_metadata_identifiers = Metadata.objects.filter(
-            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-            related_metadata__metadata_to=self.metadata
+            metadata_relations__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+            metadata_relations__to_metadata=self.metadata
         ).values_list(
             "identifier", flat=True
         )
@@ -504,13 +504,9 @@ class Harvester:
                 # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
                 # Using get_or_create increases runtime on existing metadata too much!
                 if is_new:
-                    md.related_metadata.add(
-                        MetadataRelation.objects.create(
-                            relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-                            metadata_to=self.metadata,
-                            origin=ResourceOriginEnum.CATALOGUE.value
-                        )
-                    )
+                    md.add_metadata_relation(to_metadata=self.metadata,
+                                             relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+                                             origin=ResourceOriginEnum.CATALOGUE.value)
 
             parent_id = md_data_entry["parent_id"]
             # Add the found parent_id to the parent_child map!
@@ -553,18 +549,15 @@ class Harvester:
                 continue
             for child in children:
                 # Check if relation already exists - again a faster alternative to get_or_create
-                rel_exists = child.related_metadata.filter(
-                    metadata_to=parent_md,
+                rel_exists = child.metadata_relations.filter(
+                    to_metadata=parent_md,
                     relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
                     origin=ResourceOriginEnum.CATALOGUE.value,
                 ).exists()
                 if not rel_exists:
-                    md_relation = MetadataRelation.objects.create(
-                        relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
-                        metadata_to=parent_md,
-                        origin=ResourceOriginEnum.CATALOGUE.value
-                    )
-                    child.related_metadata.add(md_relation)
+                    child.add_metadata_relation(to_metadata=parent_md,
+                                                relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
+                                                origin=ResourceOriginEnum.CATALOGUE.value,)
 
             # clear children list of parent afterwards so we don't work on them again
             self.parent_child_map[parent_id] = []

@@ -57,14 +57,13 @@ class ServiceComparator:
         if self.service_a.is_service_type(OGCServiceEnum.WMS):
             # Check layer metadata against each other
             # Always iterate over service_1 and check against service_2
-            layers = [self.service_a.root_layer] + self.service_a.root_layer.get_descendants()
+            layers = self.service_a.root_layer.get_descendants(include_self=True)
             diff["layers"] = self.compare_layers(layers)
 
         elif self.service_a.is_service_type(OGCServiceEnum.WFS):
             # Check feature services against each other
             # always iterate over service_1 and check against service_2
             diff["feature_types"] = self.compare_feature_types(FeatureType.objects.filter(parent_service=self.service_a))
-
         return diff
 
     def compare_layers(self, layers):

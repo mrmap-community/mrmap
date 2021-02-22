@@ -62,11 +62,7 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
     # get service and change status
     service = Service.objects.get(metadata__id=metadata_id)
 
-    for element in service.get_subelements():
-        element.is_active = is_active
-        element.save(update_last_modified=False)
-
-        md = element.metadata
+    for md in service.get_subelements(include_self=True).select_related('metadata'):
         md.is_active = is_active
         md.set_documents_active_status(is_active)
         md.save(update_last_modified=False)
@@ -74,11 +70,16 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
         # activate related metadata (if exists)
         related_metadatas = md.get_related_metadatas()
         for related_md in related_metadatas:
-            has_dependencies = related_md.get_related_metadatas().exclude(pk=md.pk).exists()
-            if not has_dependencies:
+            if is_active:
+                has_dependencies = related_md.get_related_metadatas().exclude(pk=md.pk).exists()
+                if not has_dependencies:
+                    related_md.set_documents_active_status(is_active)
+                    related_md.is_active = is_active
+                    related_md.save(update_last_modified=False)
+            else:
                 related_md.set_documents_active_status(is_active)
                 related_md.is_active = is_active
-                related_md.save()
+                related_md.save(update_last_modified=False)
 
     # Formating using an empty string here is correct, since these are the messages we show in
     # the group activity list. We reuse a message template, which uses a '{}' placeholder.

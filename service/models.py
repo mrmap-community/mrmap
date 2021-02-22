@@ -2712,6 +2712,7 @@ class Service(Resource):
         """
         if not self.is_root and not keep_parents:
             # call only delete for the parent_service. All related objects will CASCADE
+            self.metadata.delete()
             self.parent_service.delete()
         else:
             # this is the Service object
@@ -3214,6 +3215,10 @@ class FeatureType(Resource):
 
     def __str__(self):
         return self.metadata.identifier
+
+    def delete(self, using=None, keep_parents=False):
+        self.metadata.delete()
+        return super().delete(using=using, keep_parents=keep_parents)
 
     def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation, secured_operation: SecuredOperation):
         """ Secures the feature type or removes the secured constraints

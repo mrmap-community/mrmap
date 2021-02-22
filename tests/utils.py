@@ -31,10 +31,10 @@ def activate_service(self, is_active: bool):
     self.is_active = is_active
     self.metadata.is_active = is_active
 
-    linked_mds = self.metadata.related_metadata.all()
-    for md_relation in linked_mds:
-        md_relation.metadata_to.is_active = is_active
-        md_relation.metadata_to.save(update_last_modified=False)
+    linked_mds = self.metadata.related_metadatas.all()
+    for md in linked_mds:
+        md.is_active = is_active
+        md.save(update_last_modified=False)
 
     self.metadata.save(update_last_modified=False)
     self.save(update_last_modified=False)

@@ -75,8 +75,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
         params['parent'] = md.service.layer
 
     # get sublayers
-    child_layers = md.service.get_descendants()
-
+    child_layers = md.service.get_subelements()
     # if child_layers > 0 collect more data about the child layers
     if child_layers.count() > 0:
         # filter queryset

@@ -43,11 +43,11 @@ class EditorAcessTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}})
 
     def __init__(self,
-                 related_metadata,
+                 metadata_relations,
                  *args,
                  **kwargs):
-        self.related_metadata = related_metadata
-        self.secured_operations = related_metadata.secured_operations.all()
+        self.metadata_relations = metadata_relations
+        self.secured_operations = metadata_relations.secured_operations.all()
         super(EditorAcessTable, self).__init__(*args, **kwargs)
 
     def render_editor_group_name(self, record):
@@ -97,7 +97,7 @@ class EditorAcessTable(MrMapTable):
         btns = ''
         btns += self.get_btn(
             #ToDo: current-view-args should be in the table object passed from the constructor
-            href=reverse('editor:access_geometry_form', args=(self.related_metadata.id, record.id,)) + f"?current-view={self.current_view}&current-view-arg={self.related_metadata.id}",
+            href=reverse('editor:access_geometry_form', args=(self.metadata_relations.id, record.id,)) + f"?current-view={self.current_view}&current-view-arg={self.metadata_relations.id}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
             permission=PermissionEnum.CAN_EDIT_METADATA,

@@ -25,7 +25,7 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum
 from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence, \
+from service.models import Metadata, Keyword, Category, Dataset, ReferenceSystem, Licence, \
     SecuredOperation
 from service.settings import ISO_19115_LANG_CHOICES
 from service.tasks import async_secure_service_task
@@ -205,12 +205,10 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['character_set_code'].initial = dataset.character_set_code
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
-            metadata_relations = MetadataRelation.objects.filter(
-                metadata_to=self.instance_id
-            ).exclude(
-                origin=ResourceOriginEnum.CAPABILITIES.value
-            )
-            self.fields['additional_related_objects'].initial = metadata_relations
+
+            exclusions = {'to_metadatas__origin': ResourceOriginEnum.CAPABILITIES.value}
+            related_metadatas = metadata.get_related_metadatas(exclusions=exclusions)
+            self.fields['additional_related_objects'].initial = related_metadatas
 
 
 class DatasetClassificationForm(MrMapWizardForm):

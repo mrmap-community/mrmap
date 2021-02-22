@@ -6,7 +6,7 @@ from django.db.models import Q
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.helper.enums import OGCServiceEnum, MetadataRelationEnum
-from service.models import Metadata, Layer, FeatureType, ProxyLog, ServiceType
+from service.models import Metadata, Layer, FeatureType, ProxyLog, ServiceType, MetadataRelation
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import MrMapGroup, MrMapUser
@@ -199,33 +199,6 @@ class MetadataDatasetFilter(django_filters.FilterSet):
         method='filter_search_over_all',
         label=_('Search')
     )
-    dsh = django_filters.BooleanFilter(
-        method='filter_show_harvested',
-        widget=forms.CheckboxInput(),
-        label=_('Show harvested'),
-    )
-
-    @staticmethod
-    def filter_show_harvested(queryset, name, value):
-        """ Filters dataset records for table
-
-        Includes/Excludes harvested results identified by their related_metadata relation_type values
-
-        Args:
-            queryset: The queryset to be filtered
-            name: The parameter name
-            value: The parameter value
-        Returns:
-             queryset: The filtered queryset
-        """
-        if value:
-            # include harvested ones - do not filter anything
-            pass
-        else:
-            queryset = queryset.exclude(
-                related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value
-            )
-        return queryset
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected

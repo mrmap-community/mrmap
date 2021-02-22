@@ -718,8 +718,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         prefetches = [
             "keywords",
             "categories",
-            "related_metadata",
-            "related_metadata__metadata_to",
+            "related_metadatas",
             "dimensions",
             "additional_urls",
             "contact",
@@ -742,7 +741,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "service",
             "service__parent_service",
             "contact",
-            "related_metadata",
+            "related_metadatas",
             "categories",
             "dimensions",
             "keywords",

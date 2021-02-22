@@ -955,8 +955,8 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = layer.metadata
 
-        dataset_md = md.get_related_dataset_metadata()
-        if dataset_md is None:
+        dataset_mds = md.get_related_dataset_metadatas()
+        if not dataset_mds:
             return
 
         metadata_elem = xml_helper.create_subelement(
@@ -972,15 +972,16 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        uri = dataset_md.metadata_url
-        xml_helper.create_subelement(
-            metadata_elem,
-            "{}OnlineResource".format(self.default_ns),
-            attrib={
-                "{}type".format(self.xlink_ns): "simple",
-                "{}href".format(self.xlink_ns): uri,
-            }
-        )
+        for dataset_md in dataset_mds:
+            uri = dataset_md.metadata_url
+            xml_helper.create_subelement(
+                metadata_elem,
+                "{}OnlineResource".format(self.default_ns),
+                attrib={
+                    "{}type".format(self.xlink_ns): "simple",
+                    "{}href".format(self.xlink_ns): uri,
+                }
+            )
 
     def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
         """ Generate the 'Style' subelement of a layer xml object
@@ -1823,9 +1824,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        dataset_mds = feature_type_obj.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = feature_type_obj.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(
@@ -1838,7 +1837,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 )
                 xml_helper.write_text_to_element(
                     metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
+                    txt=dataset_md.metadata_url
                 )
             except ObjectDoesNotExist:
                 continue
@@ -2188,9 +2187,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(
@@ -2203,10 +2200,11 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
                 )
                 xml_helper.write_text_to_element(
                     metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
+                    txt=dataset_md.metadata_url
                 )
             except ObjectDoesNotExist:
                 continue
+
 
 class CapabilityWFS200Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
@@ -2263,16 +2261,15 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
-                metadata_url_elem = xml_helper.create_subelement(
+                xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),
                     attrib=OrderedDict({
-                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_url,
                     })
                 )
             except ObjectDoesNotExist:
@@ -2334,16 +2331,14 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
-                metadata_url_elem = xml_helper.create_subelement(
+                xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),
                     attrib=OrderedDict({
-                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_url,
                     })
                 )
             except ObjectDoesNotExist:

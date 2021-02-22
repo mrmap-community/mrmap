@@ -31,7 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    MetadataRelation, Style, ExternalAuthentication, ServiceUrl, RequestOperation
+    Style, ExternalAuthentication, ServiceUrl, RequestOperation
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
 
@@ -933,12 +933,9 @@ class OGCWebMapService(OGCWebService):
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
-            md_relation = MetadataRelation()
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
-            md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
-            md_relation.save()
-            metadata.related_metadata.add(md_relation)
+            metadata.add_metadata_relation(to_metadata=service.linked_service_metadata,
+                                           relation_type=MetadataRelationEnum.VISUALIZES.value,
+                                           origin=ResourceOriginEnum.CAPABILITIES.value)
 
 
 class OGCWebMapServiceLayer(OGCLayer):

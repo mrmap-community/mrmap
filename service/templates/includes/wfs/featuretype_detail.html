@@ -30,17 +30,21 @@
                 </div>
             {% endif %}
             </div><!--</col>-->
-            {% if has_dataset_metadata %}
+            {% if dataset_metadatas %}
                 <div class="col-sm mb-2 text-center">
                     <div class="dropdown">
                 <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_dataset_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
                 </button>
+
                 <div class="dropdown-menu" aria-labelledby="id_dataset_metadata_dropdown">
-                    <a class="dropdown-item" target="_blank" href="{{ has_dataset_metadata.metadata.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{{ has_dataset_metadata.metadata.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
-                    <a class="dropdown-item" href="{% url 'editor:dataset-metadata-wizard-instance' has_dataset_metadata.metadata.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
+                    {% for dataset in dataset_metadatas %}
+                    <a class="dropdown-item" target="_blank" href="{{ dataset.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{{ dataset.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:dataset-metadata-wizard-instance' dataset.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
+                    {% endfor %}
                 </div>
+
             </div>
                 </div><!--</col>-->
             {% endif %}

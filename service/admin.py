@@ -100,7 +100,6 @@ class MetadataAdmin(admin.ModelAdmin):
     ordering = ["-created"]
     readonly_fields = (
         "additional_urls",
-        "related_metadata",
         "formats",
         "reference_system",
         "dimensions",
@@ -110,15 +109,21 @@ class MetadataAdmin(admin.ModelAdmin):
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'relation_type', 'metadata_to_link')
+    list_display = ('id', 'relation_type', 'from_metadata_link', 'to_metadata_link')
     list_filter = ('relation_type',)
-    search_fields = ['metadata_to__title',]
+    search_fields = ['from_metadata__title', 'to_metadata__title',]
 
-    def metadata_to_link(self, obj):
-        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata_to.id,)), escape(obj.metadata_to)))
+    def from_metadata_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.from_metadata.id,)), escape(obj.from_metadata)))
 
-    metadata_to_link.allow_tags = True
-    metadata_to_link.short_description = "metadata_to"
+    from_metadata_link.allow_tags = True
+    from_metadata_link.short_description = "from_metadata"
+
+    def to_metadata_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.to_metadata.id,)), escape(obj.to_metadata)))
+
+    to_metadata_link.allow_tags = True
+    to_metadata_link.short_description = "from_metadata"
 
 
 class MetadataTypeAdmin(admin.ModelAdmin):

@@ -16,6 +16,7 @@ from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -457,28 +458,14 @@ class SecuredOperation(models.Model):
 
 class MetadataRelation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE)
+    from_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='from_metadatas')
+    to_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='to_metadatas')
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
-        return "{} {}".format(self.relation_type, self.metadata_to.title)
-
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-        """ Overwrites default save function
-
-        Saves the relation and stores information about relation in both related metadata records
-
-        Args:
-            force_insert: Default save parameter
-            force_update: Default save parameter
-            using: Default save parameter
-            update_fields: Default save parameter
-        Returns:
-
-        """
-        super().save(force_insert, force_update, using, update_fields)
+        return "{} {} {}".format(self.to_metadata.title, self.relation_type, self.from_metadata.title)
 
 
 class ExternalAuthentication(models.Model):
@@ -597,7 +584,10 @@ class Metadata(Resource):
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
-    related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
+    # By passing the MetadataRelation class as through value, django dose everything we need and gives us here directly
+    # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
+    # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
+    related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to+', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -623,6 +613,48 @@ class Metadata(Resource):
 
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
+
+    def add_metadata_relation(self, to_metadata, relation_type, origin, internal=False):
+        relation, created = MetadataRelation.objects.get_or_create(
+            from_metadata=self,
+            to_metadata=to_metadata,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin)
+        return relation
+
+    def remove_metadata_relation(self, to_metadata, relation_type, internal, origin):
+        MetadataRelation.objects.filter(
+            from_metadata=self,
+            to_metadata=to_metadata,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin).delete()
+
+    def get_related_dataset_metadatas(self):
+        """ Returns all related metadata records from type dataset.
+
+        Returns:
+             metadatas (QuerySet)
+        """
+        filters = {'to_metadatas__from_metadata__metadata_type': OGCServiceEnum.DATASET.value,
+                   'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
+        return self.get_related_metadatas(filters=filters)
+
+    def get_related_metadatas(self, filters=None, exclusions=None):
+        """ Return all related metadata records which are points to the self object.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        filter_query = Q(to_metadatas__from_metadata=self)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(
+            filter_query
+        )
 
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
@@ -1007,23 +1039,6 @@ class Metadata(Resource):
             pass
         return ext_auth
 
-    def get_related_dataset_metadata(self):
-        """ Returns a related dataset metadata record.
-
-        If none exists, None is returned
-
-        Returns:
-             dataset_md (Metadata) | None
-        """
-        try:
-            dataset_md = self.related_metadata.get(
-                metadata_to__metadata_type=OGCServiceEnum.DATASET.value
-            )
-            dataset_md = dataset_md.metadata_to
-            return dataset_md
-        except ObjectDoesNotExist:
-            return None
-
     def get_remote_original_capabilities_document(self, version: str):
         """ Fetches the original capabilities document from the remote server.
 
@@ -1182,21 +1197,7 @@ class Metadata(Resource):
             if not other_dependencies:
                 url.delete()
 
-        # check if there are MetadataRelations to(!) this metadata record
-        # if so, we can not remove it until these relations aren't used anymore
-        dependencies = MetadataRelation.objects.filter(
-            metadata_to=self
-        )
-        if dependencies.count() > 1 and force is False:
-            # if there are more than one dependency, we should not remove it
-            # the one dependency we can expect at least is the relation to the current metadata record
-            return
-        else:
-            # Remove all relations from(!) this metadata as well
-            md_rels = self.related_metadata.all()
-            md_rels.delete()
-            # if we have one or less relations to this metadata record, we can remove it anyway
-            super().delete(using, keep_parents)
+        super().delete(using, keep_parents)
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record
@@ -1307,10 +1308,9 @@ class Metadata(Resource):
             self.keywords.add(keyword)
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
-        for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_to.metadata_url
+        for related_iso in self.get_related_metadatas():
+            md_link = related_iso.metadata_url
             if md_link not in original_iso_links:
-                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -1344,10 +1344,9 @@ class Metadata(Resource):
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
-        for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_to.metadata_url
+        for related_iso in self.get_related_metadatas():
+            md_link = related_iso.metadata_url
             if md_link not in f_t_iso_links:
-                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -1554,10 +1553,10 @@ class Metadata(Resource):
         Returns:
              links (list): A list containing all online links of related metadata
         """
-        rel_mds = self.related_metadata.all()
+        rel_mds = self.get_related_metadatas()
         links = []
         for md in rel_mds:
-            links.append(md.metadata_to.metadata_url)
+            links.append(md.metadata_url)
         return links
 
     def _set_document_secured(self, is_secured: bool):
@@ -1755,7 +1754,13 @@ class Metadata(Resource):
 
 
 class Document(Resource):
+    class Meta:
+        unique_together = ('metadata', 'is_original', 'document_type')
+
     from MrMap.validators import validate_document_enum_choices
+    # One Metadata object can be related to multiple Document objects, cause we save the original and the customized
+    # version of a given xml.
+    # But one Metadata object can only have one Document which is original and a unique doc type.
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
@@ -2702,10 +2707,8 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = child.metadata.related_metadata.all()
+        iso_mds = child.metadata.get_related_metadatas()
         for iso_md in iso_mds:
-            md_2 = iso_md.metadata_to
-            md_2.delete()
             iso_md.delete()
         if isinstance(child, FeatureType):
             # no other way to remove feature type metadata on service deleting
@@ -2724,10 +2727,8 @@ class Service(Resource):
         Returns:
         """
         # remove related metadata
-        linked_mds = self.metadata.related_metadata.all()
+        linked_mds = self.metadata.get_related_metadatas()
         for linked_md in linked_mds:
-            md_2 = linked_md.metadata_to
-            md_2.delete()
             linked_md.delete()
 
         # remove subelements

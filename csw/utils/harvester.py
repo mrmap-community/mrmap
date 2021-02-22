@@ -108,10 +108,9 @@ class Harvester:
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
-        all_persisted_metadata_identifiers = Metadata.objects.filter(
-            metadata_relations__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-            metadata_relations__to_metadata=self.metadata
-        ).values_list(
+
+        all_persisted_metadata_identifiers = self.metadata.get_related_metadatas(
+            filters={'to_metadatas__relation_type': MetadataRelationEnum.HARVESTED_THROUGH.value}).values_list(
             "identifier", flat=True
         )
         # Use a set instead of list to increase lookup afterwards
@@ -549,11 +548,8 @@ class Harvester:
                 continue
             for child in children:
                 # Check if relation already exists - again a faster alternative to get_or_create
-                rel_exists = child.metadata_relations.filter(
-                    to_metadata=parent_md,
-                    relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
-                    origin=ResourceOriginEnum.CATALOGUE.value,
-                ).exists()
+                rel_exists = child.get_related_metadatas(filters={'to_metadatas__relation_type': MetadataRelationEnum.HARVESTED_PARENT.value,
+                                                                  'to_metadatas__origin': ResourceOriginEnum.CATALOGUE.value, }).exists()
                 if not rel_exists:
                     child.add_metadata_relation(to_metadata=parent_md,
                                                 relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,

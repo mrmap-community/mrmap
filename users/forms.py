@@ -9,6 +9,7 @@ from dal import autocomplete
 from django import forms
 from django.contrib.auth import login
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
@@ -19,7 +20,7 @@ from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG,
 from MrMap.settings import MIN_PASSWORD_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS
 from editor.forms import MetadataModelMultipleChoiceField
-from service.helper.enums import MetadataEnum
+from service.helper.enums import MetadataEnum, MetadataRelationEnum
 from service.models import Metadata
 from structure.models import MrMapUser, Theme
 from users.models import Subscription
@@ -108,12 +109,14 @@ class UserForm(MrMapModelForm):
 
 
 class SubscriptionForm(MrMapModelForm):
+    not_harvested_trough = ~Q(related_metadatas__to_metadatas__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value) |\
+                           ~Q(related_metadatas__from_metadatas__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value)
+
     metadata = forms.ModelChoiceField(
         label=_("Service"),
         help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),
         queryset=Metadata.objects.filter(
-            metadata_type=MetadataEnum.SERVICE.value,
-            is_active=True,
+            Q(metadata_type=MetadataEnum.SERVICE.value, is_active=True) & not_harvested_trough
         ),
         widget=autocomplete.ModelSelect2(
             url='editor:service-autocomplete',
@@ -147,9 +150,6 @@ class SubscriptionForm(MrMapModelForm):
         if is_edit:
             # Prevent user from changing the subscribed metadata itself
             self.fields['metadata'].disabled = True
-        self.fields['metadata'].queryset = self.fields['metadata'].queryset.exclude(
-            metadata_relations__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-        )
 
     def process_new_subscription(self):
         subscription = self.save(commit=False)

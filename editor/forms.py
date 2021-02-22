@@ -205,7 +205,9 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['character_set_code'].initial = dataset.character_set_code
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
-            related_metadatas = metadata.get_related_metadatas().exclude(origin=ResourceOriginEnum.CAPABILITIES.value)
+
+            exclusions = {'to_metadatas__origin': ResourceOriginEnum.CAPABILITIES.value}
+            related_metadatas = metadata.get_related_metadatas(exclusions=exclusions)
             self.fields['additional_related_objects'].initial = related_metadatas
 
 

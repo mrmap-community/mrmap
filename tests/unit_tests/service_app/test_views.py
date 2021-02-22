@@ -584,12 +584,6 @@ class GetDatasetMetadataViewTestCase(TestCase):
         # Activate metadata
         async_activate_service(self.wms_metadata.id, self.user.id, True)
 
-    def test_get_dataset_metadata_redirect_to_dataset(self):
-        response = self.client.get(
-            reverse('resource:get-dataset-metadata', args=(self.wms_metadata.id,))
-        )
-        self.assertEqual(response.status_code, 302)
-
     def test_get_dataset_metadata(self):
         dataset_mds = self.wms_metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:

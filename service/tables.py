@@ -9,13 +9,14 @@ import json
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils.translation import gettext_lazy as _
 
 from csw.models import HarvestResult
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from service.helper.enums import ResourceOriginEnum, PendingTaskEnum, MetadataEnum
+from service.models import MetadataRelation
 from structure.permissionEnums import PermissionEnum
 
 
@@ -808,18 +809,20 @@ class DatasetTable(MrMapTable):
         return format_html(', '.join(link_list))
 
     def render_dataset_origins(self, record):
+        to_record = Q(to_metadata=record)
+        from_record = Q(from_metadata=record)
+        relations = MetadataRelation.objects.filter(
+            to_record | from_record
+        )
         origin_list = []
-        rel_mds = list(record.metadata_relations.all())
-        relations = list(metadata_relations) + rel_mds
         for relation in relations:
             origin_list.append(f"{relation.origin}")
 
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):
-        is_mr_map_origin = not record.get_metadata_relations().exclude(
-            origin=ResourceOriginEnum.EDITOR.value
-        ).exists()
+        filters = {'to_metadatas__origin': ResourceOriginEnum.EDITOR.value}
+        is_mr_map_origin = record.get_related_metadatas(filters=filters).exists()
 
         btns = ''
         btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",
@@ -835,7 +838,7 @@ class DatasetTable(MrMapTable):
                              tooltip_placement='left',
                              btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
                              btn_value=get_theme(self.user)["ICONS"]['UNDO'],
-                             ) if not is_mr_map_origin else ''
+                             ) if not is_mr_map_origin and record.is_custom else ''
 
         btns += self.get_btn(href=reverse('editor:remove-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
                              permission=PermissionEnum.CAN_REMOVE_DATASET_METADATA,

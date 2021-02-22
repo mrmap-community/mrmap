@@ -34,7 +34,7 @@ def _create_permissions():
         pass
 
 
-def create_testuser():
+def create_testuser(groups=None):
     # Check if testuser already exists
     try:
         testuser = MrMapUser.objects.get(
@@ -44,7 +44,12 @@ def create_testuser():
         return testuser
     except ObjectDoesNotExist:
         pass
-    return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
+
+    if groups is not None:
+        return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser',
+                                 groups=groups)
+    else:
+        return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
 
 
 def create_superadminuser(groups: QuerySet = None, ):

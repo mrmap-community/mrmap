@@ -245,9 +245,6 @@ class MrMapUser(AbstractUser):
             md_list = Metadata.objects.filter(
                 metadata_type=MetadataEnum.DATASET.value,
                 created_by__in=user_groups,
-            ).prefetch_related(
-                "metadata_relations",
-                "metadata_relations__to_metadata",
             ).order_by("title")
         return md_list
 

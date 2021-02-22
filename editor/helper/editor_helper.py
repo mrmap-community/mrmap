@@ -347,7 +347,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     # if there are links in existing_iso_links that do not show up in md_links -> remove them
     for link in existing_iso_links:
         if link not in md_links:
-            missing_md = metadata.metadata_relations.get(to_metadata__metadata_url=link)
+            missing_md = metadata.get_related_metadatas(filters={'to_metadatas__to_metadata__metadata_url': link})
             missing_md.delete()
             # remove from capabilities
             xml_iso_element = xml_helper.find_element_where_attr(xml_cap_obj, "xlink:href", link)

@@ -1824,7 +1824,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        dataset_mds = feature_type_obj.metadata.get_related_metadatas({'to_metadatas__metadata_type': MetadataEnum.DATASET.value})
+        dataset_mds = feature_type_obj.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(

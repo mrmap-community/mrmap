@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, Document
+from service.models import Dataset, Metadata, Document, MetadataRelation
 from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from users.helper import user_helper
@@ -155,7 +155,7 @@ class DatasetWizard(MrMapWizard):
             metadata.reference_system.add(ref_system)
 
         additional_related_objects = data.get("additional_related_objects", [])
-        metadata.metadata_relations.filter(origin=ResourceOriginEnum.EDITOR.value).delete()
+        MetadataRelation.objects.filter(to_metadata=metadata, origin=ResourceOriginEnum.EDITOR.value).delete()
         for additional_object in additional_related_objects:
             additional_object.add_metadata_relation(to_metadata=metadata,
                                                     relation_type=MetadataRelationEnum.DESCRIBES.value,

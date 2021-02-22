@@ -190,16 +190,16 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
     params = {}
 
     # get all related Metadata objects from type dataset
-    metadata_relations = md.get_related_dataset_metadatas()
-    if metadata_relations:
+    related_metadatas = md.get_related_dataset_metadatas()
+    if related_metadatas:
         # build django tables2 table
-        metadata_relations_table = CoupledMetadataTable(
-            queryset=metadata_relations,
+        related_metadatas_table = CoupledMetadataTable(
+            queryset=related_metadatas,
             order_by='title',
             show_header=True,
             request=request,
             param_lead='rm-t')
 
-        params['metadata_relations'] = metadata_relations_table
+        params['related_metadatas'] = related_metadatas
 
     return params

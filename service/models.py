@@ -16,6 +16,7 @@ from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -584,7 +585,7 @@ class Metadata(Resource):
     # By passing the MetadataRelation class as through value, django dose everything we need and gives us here directly
     # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
     # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
-    metadata_relations = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to+', blank=True)
+    related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to+', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -634,19 +635,23 @@ class Metadata(Resource):
         Returns:
              metadatas (QuerySet)
         """
-        additional_filters = {'to_metadatas__metadata_type': OGCServiceEnum.DATASET.value,
-                              'relation_type': MetadataRelationEnum.DESCRIBES.value}
-        return self.get_related_metadatas(**additional_filters)
+        filters = {'to_metadatas__from_metadata__metadata_type': OGCServiceEnum.DATASET.value,
+                   'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
+        return self.get_related_metadatas(filters=filters)
 
-    def get_related_metadatas(self, **additional_filters):
+    def get_related_metadatas(self, filters=None, exclusions=None):
         """ Return all related metadata records which are points to the self object.
 
         Returns:
              metadatas (Queryset)
         """
-        return self.metadata_relations.filter(
-            to_metadatas__from_metadata=self,
-            **additional_filters
+        filter_query = Q(to_metadatas__from_metadata=self)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(
+            filter_query
         )
 
     def get_formats(self, filter: dict = {}):

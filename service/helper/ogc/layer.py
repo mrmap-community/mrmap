@@ -1,13 +1,8 @@
-import uuid
-
 from django.contrib.gis.geos import Polygon
-
 from service.helper.enums import MetadataEnum, OGCOperationEnum, MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, MetadataRelation, Dimension, MimeType, \
-    ServiceUrl
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, \
-    ALLOWED_SRS
+from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, Dimension, ServiceUrl
+from service.settings import ALLOWED_SRS
 from structure.models import MrMapGroup, MrMapUser
 
 
@@ -291,12 +286,9 @@ class OGCLayer:
 
         for iso_md in self.iso_metadata:
             iso_md = iso_md.to_db_model(created_by=group)
-            metadata_relation = MetadataRelation()
-            metadata_relation.metadata_to = iso_md
-            metadata_relation.origin = iso_md.origin
-            metadata_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
-            metadata_relation.save()
-            metadata.related_metadata.add(metadata_relation)
+            metadata.add_metadata_relation(to_metadata=iso_md,
+                                           relation_type=MetadataRelationEnum.DESCRIBES.value,
+                                           origin=iso_md.origin)
 
         # Dimensions
         for dimension in self.dimension_list:

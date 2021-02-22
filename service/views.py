@@ -554,11 +554,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id):
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
         if md.metadata_type != OGCServiceEnum.DATASET.value:
-            # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-            md = md.get_related_dataset_metadata()
-            if md is None:
-                raise ObjectDoesNotExist
-            return redirect("resource:get-dataset-metadata", metadata_id=md.id)
+            raise ObjectDoesNotExist
         documents = Document.objects.filter(
             metadata=md,
             document_type=DocumentEnum.METADATA.value,
@@ -1163,23 +1159,6 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
                   status=200 if status_code is None else status_code)
 
 
-def _check_for_dataset_metadata(metadata: Metadata, ):
-    """ Checks whether a metadata object has a dataset metadata record.
-
-    Args:
-        metadata:
-    Returns:
-         The document or none
-    """
-    try:
-        md_2 = metadata.get_related_dataset_metadata()
-        return Document.objects.get(
-            metadata=md_2,
-            document_type=DocumentEnum.METADATA.value,
-        )
-    except ObjectDoesNotExist:
-        return None
-
 # Todo: index view
 @login_required
 @check_ownership(Metadata, 'object_id')
@@ -1209,7 +1188,7 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
-        params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
+        params.update({'dataset_metadatas': service.metadata.get_related_dataset_metadatas()})
     else:
         if service_md.service.is_root:
             params.update({'caption': _("Shows informations about the service.")})
@@ -1226,7 +1205,7 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
             layers_md_list = Layer.objects.filter(
                 parent_layer=service_md.service
             )
-            params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
+            params.update({'dataset_metadatas': service.metadata.get_related_dataset_metadatas()})
 
     mime_types = {}
 

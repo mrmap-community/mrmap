@@ -6,8 +6,8 @@ from model_bakery import baker, seq
 from monitoring.models import MonitoringRun
 from monitoring.settings import WARNING_RESPONSE_TIME
 from structure.models import MrMapUser, Organization, Permission, Role
-from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum
-from service.models import Service, MetadataRelation, Metadata
+from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
+from service.models import Service, Metadata
 from structure.models import MrMapGroup
 from structure.permissionEnums import PermissionEnum
 from tests.utils import generate_random_string
@@ -34,7 +34,7 @@ def _create_permissions():
         pass
 
 
-def create_testuser():
+def create_testuser(groups=None):
     # Check if testuser already exists
     try:
         testuser = MrMapUser.objects.get(
@@ -44,7 +44,12 @@ def create_testuser():
         return testuser
     except ObjectDoesNotExist:
         pass
-    return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
+
+    if groups is not None:
+        return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser',
+                                 groups=groups)
+    else:
+        return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
 
 
 def create_superadminuser(groups: QuerySet = None, ):
@@ -119,11 +124,9 @@ def create_wms_service(group: MrMapGroup,
         else:
             md_origin = ResourceOriginEnum.CAPABILITIES.value
 
-        md_relation = MetadataRelation()
-        md_relation.metadata_to = dataset_metadata
-        md_relation.origin = md_origin
-        md_relation.save()
-        root_service_metadata.related_metadata.add(md_relation)
+        root_service_metadata.add_metadata_relation(to_metadata=dataset_metadata,
+                                                    origin=md_origin,
+                                                    relation_type=MetadataRelationEnum.DESCRIBES.value)
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.capability_document',
@@ -226,11 +229,9 @@ def create_wfs_service(group: MrMapGroup,
         else:
             md_origin = ResourceOriginEnum.CAPABILITIES.value
 
-        md_relation = MetadataRelation()
-        md_relation.metadata_to = dataset_metadata
-        md_relation.origin = md_origin
-        md_relation.save()
-        root_service_metadata.related_metadata.add(md_relation)
+        root_service_metadata.add_metadata_relation(to_metadata=dataset_metadata,
+                                                    relation_type=MetadataRelationEnum.DESCRIBES.value,
+                                                    origin=md_origin)
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.capability_document',

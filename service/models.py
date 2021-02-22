@@ -12,7 +12,7 @@ from json import JSONDecodeError
 
 from PIL import Image
 from dateutil.parser import parse
-from django.contrib.gis.geos import Polygon, GeometryCollection
+from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
@@ -472,7 +472,7 @@ class ExternalAuthentication(models.Model):
     username = models.CharField(max_length=255)
     password = models.CharField(max_length=500)
     auth_type = models.CharField(max_length=100)
-    metadata = models.OneToOneField('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True, related_name="external_authentication")
+    metadata = models.OneToOneField('Metadata', on_delete=models.CASCADE, null=True, blank=True, related_name="external_authentication")
 
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete function
@@ -587,7 +587,7 @@ class Metadata(Resource):
     # By passing the MetadataRelation class as through value, django dose everything we need and gives us here directly
     # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
     # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
-    related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to+', blank=True)
+    related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -654,16 +654,14 @@ class Metadata(Resource):
             filter_query &= ~Q(**exclusions)
         return self.related_metadatas.filter(filter_query)
 
-    def get_depending_related_metadatas(self, filters=None, exclusions=None):
-        """ Return all related metadata records which points to self
-
-        """
-        filter_query = Q(to_metadatas__to_metadata=self)
+    def get_related_to(self, filters=None, exclusions=None):
+        """ Return all related metadata records which points to self """
+        filter_query = Q(from_metadatas__to_metadata=self)
         if filters:
             filter_query &= Q(**filters)
         if exclusions:
             filter_query &= ~Q(**exclusions)
-        return self.related_metadatas.filter(filter_query)
+        return self.related_to.filter(filter_query)
 
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
@@ -1180,35 +1178,28 @@ class Metadata(Resource):
         Args:
             using: The regular 'using' parameter
             keep_parents: The regular 'keep_parents' parameter
-            force: Forces the deletion in any case
+            force: Forces the deletion of dataset metadatas in any case
         Returns:
             nothing
         """
-        # todo: check if there are dependencies like a dataset metadata which is pointed by different metadatas
+        if self.get_related_to().count() <= 1 or force:
+            # this metadata is save to delete, cause there are no dependencies or force was passed
 
-        # check for SecuredOperations
-        if self.is_secured:
-            sec_ops = self.secured_operations.all()
-            sec_ops.delete()
+            # delete related metadatas
+            self.get_related_metadatas().delete()
 
-        # remove externalAuthentication object if it exists
-        try:
-            self.external_authentication.delete()
-        except ObjectDoesNotExist:
-            pass
+            # Remove GenericUrls if they are not used anywhere else!
+            urls = self.additional_urls.all()
+            for url in urls:
+                other_dependencies = Metadata.objects.filter(
+                    additional_urls=url
+                ).exclude(
+                    id=self.id
+                ).exists()
+                if not other_dependencies:
+                    url.delete()
 
-        # Remove GenricUrls if they are not used anywhere else!
-        urls = self.additional_urls.all()
-        for url in urls:
-            other_dependencies = Metadata.objects.filter(
-                additional_urls=url
-            ).exclude(
-                id=self.id
-            ).exists()
-            if not other_dependencies:
-                url.delete()
-
-        super().delete(using, keep_parents)
+            return super().delete(using, keep_parents)
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record
@@ -2709,24 +2700,6 @@ class Service(Resource):
         return self.service_type.name == enum.value
 
     @transaction.atomic
-    def delete_child_data(self, child):
-        """ Delete all layer data like related iso metadata
-
-        Args:
-            layer (Layer): The current layer object
-        Returns:
-            nothing
-        """
-        # remove related metadata
-        iso_mds = child.metadata.get_related_metadatas()
-        for iso_md in iso_mds:
-            iso_md.delete()
-        if isinstance(child, FeatureType):
-            # no other way to remove feature type metadata on service deleting
-            child.metadata.delete()
-        child.delete()
-
-    @transaction.atomic
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete method
 
@@ -2737,35 +2710,25 @@ class Service(Resource):
             keep_parents:
         Returns:
         """
-        
-        # remove related metadata
-        linked_mds = self.metadata.get_related_metadatas()
-        for linked_md in linked_mds:
-            linked_md.delete()
+        if not self.is_root and not keep_parents:
+            # call only delete for the parent_service. All related objects will CASCADE
+            self.parent_service.delete()
+        else:
+            # this is the Service object
 
-        # remove subelements
-        if self.is_service_type(OGCServiceEnum.WMS):
-            layers = self.child_service.all()
-            for layer in layers:
-                self.delete_child_data(layer)
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            feature_types = self.featuretypes.all()
-            for f_t in feature_types:
-                self.delete_child_data(f_t)
+            # Remove ServiceURL entries if they are not used by other services
+            operation_urls = self.operation_urls.all()
+            for url in operation_urls:
+                other_services_exists = Service.objects.filter(
+                    operation_urls=url
+                ).exclude(
+                    id=self.id
+                ).exists()
+                if not other_services_exists:
+                    url.delete()
 
-        # Remove ServiceURL entries if they are not used by other services
-        operation_urls = self.operation_urls.all()
-        for url in operation_urls:
-            other_services_exists = Service.objects.filter(
-                operation_urls=url
-            ).exclude(
-                id=self.id
-            ).exists()
-            if not other_services_exists:
-                url.delete()
-
-        self.metadata.delete()
-        super().delete()
+            self.metadata.delete()
+            return super().delete()
 
     def persist_original_capabilities_doc(self, xml: str):
         """ Persists the capabilities document

@@ -175,7 +175,7 @@ def create_wms_service(group: MrMapGroup,
                 created_by=group,
                 parent_service=root_service,
                 metadata=sublayer_metadata,
-                parent_layer=root_layer,
+                parent=root_layer,
                 identifier=sublayer_metadata.identifier,
             )
 

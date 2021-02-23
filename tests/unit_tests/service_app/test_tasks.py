@@ -77,18 +77,11 @@ class ServiceTaskTestCase(TestCase):
 
         # Check if subelements have been changed as well
         root_layer = Layer.objects.get(
-            parent_layer=None,
+            parent=None,
             parent_service=self.metadata.service
         )
-        children = []
-        children += list(root_layer.child_layers.all())
-
-        while len(children) > 0:
-            # Get child
-            child = children.pop()
-
-            # Store child's children in children list
-            children += list(child.child_layers.all())
+        children = root_layer.get_descendants(include_self=True)
+        for child in children:
             self.assertNotEqual(curr_state, child.metadata.is_active, msg="Async activation did not work for layer level.")
             self.assertEqual(new_state, child.metadata.is_active, msg="Async activation did not work for layer level.")
 

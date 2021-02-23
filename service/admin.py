@@ -88,7 +88,7 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class LayerAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'identifier', 'parent_service', 'parent_layer', 'created', 'created_by', 'last_modified')
+    list_display = ('id', 'metadata', 'identifier', 'parent_service', 'parent', 'created', 'created_by', 'last_modified')
     list_filter = ('created_by',)
     search_fields = ['id', 'metadata__title', 'identifier', 'created', 'created_by__name', 'last_modified',]
 
@@ -204,7 +204,7 @@ class ServiceTypeAdmin(admin.ModelAdmin):
 
 class ServiceAdmin(admin.ModelAdmin):
     list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata_link', 'parent_service_link', 'published_for', 'created_by')
-    list_filter = ('is_active', 'is_deleted', 'service_type', 'published_for')
+    list_filter = ('is_root', 'is_active', 'is_deleted', 'service_type', 'published_for')
     search_fields = ['id', 'metadata__title']
     readonly_fields = ("operation_urls",)
     ordering = ["-created"]

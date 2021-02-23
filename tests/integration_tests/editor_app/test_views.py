@@ -13,7 +13,7 @@ from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
-
+from tests.utils import activate_service
 
 OPERATION_BASE_URI_TEMPLATE = "/resource/metadata/{}/operation"
 EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}?current-view=resource:index"
@@ -66,7 +66,7 @@ class EditorTestCase(TestCase):
             cls.user,
             cls.group
         )
-        service.activate_service(True)
+        activate_service(service, True)
         cls.service_wms = service
 
         ## Creating a new wfs service model instance
@@ -77,7 +77,7 @@ class EditorTestCase(TestCase):
             cls.user,
             cls.group
         )
-        service.activate_service(True)
+        activate_service(service, True)
         cls.service_wfs = service
 
         cls.cap_doc_wms = Document.objects.get(
@@ -443,7 +443,7 @@ class EditorTestCase(TestCase):
         # Run regular /operation request for WMS
         root_layer = Layer.objects.get(
             parent_service=self.service_wms,
-            parent_layer=None
+            parent=None
         )
         client = self._get_logged_in_client()
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
@@ -476,7 +476,7 @@ class EditorTestCase(TestCase):
         proxy_log_wms.refresh_from_db()
 
         # Run regular /operation request for WFS
-        feature = self.service_wfs.subelements[0]
+        feature = self.service_wfs.get_subelements()[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
         params = {
             "request": "GetFeature",
@@ -549,9 +549,12 @@ class EditorTestCase(TestCase):
         )
 
         # Assert existing securedoperations for service and all subelements
-        wms_elements = [self.service_wms.metadata] + [elem.metadata for elem in self.service_wms.subelements]
+
         secured_operations_wms = SecuredOperation.objects.filter(
-            secured_metadata__in=wms_elements
+            secured_metadata=self.service_wms.metadata
+        )
+        secured_operations_wms |= SecuredOperation.objects.filter(
+            secured_metadata__in=[element.metadata for element in self.service_wms.get_subelements().select_related('metadata')]
         )
 
         wms_operations = ["GetMap", "GetFeatureInfo"]
@@ -564,7 +567,7 @@ class EditorTestCase(TestCase):
         # Run regular /operation request for WMS
         root_layer = Layer.objects.get(
             parent_service=self.service_wms,
-            parent_layer=None
+            parent=None
         )
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
         param_width = 1000
@@ -584,6 +587,7 @@ class EditorTestCase(TestCase):
         proxy_log = ProxyLog.objects.get(
             metadata=self.service_wms.metadata
         )
+
         async_log_response(
             proxy_log.id,
             base64.b64encode(response.content).decode("UTF-8"),
@@ -606,7 +610,7 @@ class EditorTestCase(TestCase):
             restrict_access=False,
         )
         # First run an unsecured request, to get the amount of unsecured features that are returned!
-        feature = self.service_wfs.subelements[0]
+        feature = self.service_wfs.get_subelements()[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
         params = {
             "request": "GetFeature",
@@ -645,9 +649,8 @@ class EditorTestCase(TestCase):
             '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[7.223511,50.312919],[7.223511,50.461826],[7.616272,50.461826],[7.616272,50.312919],[7.223511,50.312919]]]}}]}',
         )
 
-        wfs_elements = [self.service_wfs.metadata] + [elem.metadata for elem in self.service_wfs.subelements]
         secured_operations_wfs = SecuredOperation.objects.filter(
-            secured_metadata__in=wfs_elements
+            secured_metadata__in=[element.metadata for element in self.service_wfs.get_subelements().select_related('metadata')]
         )
         for op in secured_operations_wfs:
             self.assertEqual(op.operation, "GetFeature", msg="Wrong operation stored in secured operation!")
@@ -655,7 +658,11 @@ class EditorTestCase(TestCase):
             self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
 
         # Rerun request
+        print(params)
+        print(url)
         response = self._run_request(params, url, "get", client)
+        print(response.status_code)
+        print(response.content)
         self.assertEqual(response.status_code, 200, msg="Wrong status code returned: {}".format(response.status_code))
 
         # Get the new logged record for the WFS

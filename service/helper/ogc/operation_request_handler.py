@@ -1386,18 +1386,18 @@ class OGCOperationRequestHandler:
         )
 
         # Case 1: Only root layer is requested -> fast solution
-        if layer_objs.count() == 1 and layer_objs[0].parent_layer is None:
+        if layer_objs.count() == 1 and layer_objs[0].parent is None:
             # Yes, only the root layer has been requested
             # Order the sublayers by creation timestamp so the order of the layers in the request is correct (Top-Down)
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
-                child_layers=None
+                children=None
             ).order_by("created")
             leaf_layers += layers.values_list("identifier", flat=True)
         else:
             # Multiple layers have been requested -> slower solution
             for layer in layer_objs:
-                leaf_layers += layer.get_leaf_layers_identifier()
+                leaf_layers += [leaf.identifier for leaf in layer.get_leafnodes()]
 
         if len(leaf_layers) > 0:
             self.layers_param = ",".join(leaf_layers)

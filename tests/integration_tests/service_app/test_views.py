@@ -121,7 +121,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
         cap_xml = xml_helper.parse_xml(self.cap_doc_wms.content)
 
         num_layers_xml = self._get_num_of_layers(cap_xml)
@@ -136,7 +136,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         self.assertIsNotNone(service.metadata, msg="Service metadata does not exist!")
         for layer in layers:
@@ -154,7 +154,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         cap_doc = self.cap_doc_wms.content
         cap_uri = service.metadata.capabilities_original_uri
@@ -186,7 +186,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
         cap_xml = xml_helper.parse_xml(self.cap_doc_wms.content)
 
         xml_title = xml_helper.try_get_text_from_xml_element(cap_xml, "//Service/Title")
@@ -217,11 +217,11 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements().select_related('metadata')
 
         self.assertFalse(service.is_active)
         for layer in layers:
-            self.assertFalse(layer.is_active)
+            self.assertFalse(layer.metadata.is_active)
 
     def test_new_service_check_register_dependencies(self):
         """ Tests whether the registered_by and register_for attributes are correctly set.
@@ -233,7 +233,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         self.assertEqual(service.created_by, self.group)
         for layer in layers:
@@ -249,7 +249,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         self.assertEqual(service.service_type.name, self.test_wms.get("type").value)
         self.assertEqual(service.service_type.version, self.test_wms.get("version").value)
@@ -265,7 +265,7 @@ class ServiceTestCase(TestCase):
         Returns:
 
         """
-        layers = self.service_wms.subelements
+        layers = self.service_wms.get_subelements().select_related('metadata').prefetch_related('metadata__reference_system')
         cap_xml = self.cap_doc_wms.content
 
         for layer in layers:

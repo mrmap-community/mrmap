@@ -587,6 +587,7 @@ class EditorTestCase(TestCase):
         proxy_log = ProxyLog.objects.get(
             metadata=self.service_wms.metadata
         )
+
         async_log_response(
             proxy_log.id,
             base64.b64encode(response.content).decode("UTF-8"),
@@ -609,7 +610,7 @@ class EditorTestCase(TestCase):
             restrict_access=False,
         )
         # First run an unsecured request, to get the amount of unsecured features that are returned!
-        feature = self.service_wfs.get_subelements[0]
+        feature = self.service_wfs.get_subelements()[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
         params = {
             "request": "GetFeature",
@@ -657,7 +658,11 @@ class EditorTestCase(TestCase):
             self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
 
         # Rerun request
+        print(params)
+        print(url)
         response = self._run_request(params, url, "get", client)
+        print(response.status_code)
+        print(response.content)
         self.assertEqual(response.status_code, 200, msg="Wrong status code returned: {}".format(response.status_code))
 
         # Get the new logged record for the WFS

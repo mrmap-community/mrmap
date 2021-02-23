@@ -1391,7 +1391,7 @@ class OGCOperationRequestHandler:
             # Order the sublayers by creation timestamp so the order of the layers in the request is correct (Top-Down)
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
-                child_layers=None
+                children=None
             ).order_by("created")
             leaf_layers += layers.values_list("identifier", flat=True)
         else:

@@ -476,7 +476,7 @@ class EditorTestCase(TestCase):
         proxy_log_wms.refresh_from_db()
 
         # Run regular /operation request for WFS
-        feature = self.service_wfs.get_subelements[0]
+        feature = self.service_wfs.get_subelements()[0]
         url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
         params = {
             "request": "GetFeature",
@@ -549,8 +549,12 @@ class EditorTestCase(TestCase):
         )
 
         # Assert existing securedoperations for service and all subelements
+
         secured_operations_wms = SecuredOperation.objects.filter(
-            secured_metadata__in=self.service_wms.get_descendants(include_self=True)
+            secured_metadata=self.service_wms.metadata
+        )
+        secured_operations_wms |= SecuredOperation.objects.filter(
+            secured_metadata__in=[element.metadata for element in self.service_wms.get_subelements().select_related('metadata')]
         )
 
         wms_operations = ["GetMap", "GetFeatureInfo"]
@@ -645,7 +649,7 @@ class EditorTestCase(TestCase):
         )
 
         secured_operations_wfs = SecuredOperation.objects.filter(
-            secured_metadata__in=self.service_wfs.get_subelements().select_related('metadata')
+            secured_metadata__in=[element.metadata for element in self.service_wfs.get_subelements().select_related('metadata')]
         )
         for op in secured_operations_wfs:
             self.assertEqual(op.operation, "GetFeature", msg="Wrong operation stored in secured operation!")

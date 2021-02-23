@@ -117,7 +117,7 @@ class ServiceRemoveViewTestCase(TestCase):
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
 
         for sub_element in metadata.service.get_subelements().select_related('metadata'):
-            self.assertTrue(sub_element.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+            self.assertTrue(sub_element.metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
         self.assertEqual(GroupActivity.objects.all().count(), 1)
 
@@ -133,7 +133,7 @@ class ServiceRemoveViewTestCase(TestCase):
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
 
         for sub_element in metadata.service.get_subelements().select_related('metadata'):
-            self.assertTrue(sub_element.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+            self.assertTrue(sub_element.metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
         self.assertEqual(GroupActivity.objects.all().count(), 1)
 

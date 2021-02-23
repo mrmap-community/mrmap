@@ -1654,15 +1654,13 @@ class Metadata(Resource):
         self.use_proxy_uri = use_proxy
 
         # If md uris shall be tunneled using the proxy, we need to make sure that all children are aware of this!
-        for subelement_md in self.service.get_subelements().select_related('metadata'):
+        for subelement in self.service.get_subelements().select_related('metadata').prefetch_related('metadata__documents'):
+            subelement_md = subelement.metadata
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
                 # If there exists already a capabilities document for a subelement, we need to change the links there as well
-                subelement_md_doc = Document.objects.get(
-                    metadata=subelement_md,
-                    document_type=DocumentEnum.CAPABILITY.value,
-                    is_original=False
-                )
+                subelement_md_doc = subelement_md.documents.get(document_type=DocumentEnum.CAPABILITY.value,
+                                                                is_original=False)
                 if subelement_md_doc.content is not None:
                     subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:
@@ -2647,7 +2645,7 @@ class Service(Resource):
         Returns:
              qs (QuerySet): The queryset of all descendants
         """
-        qs = Service.objects.none
+        qs = Service.objects.none()
         if self.is_service_type(OGCServiceEnum.WMS):
             if isinstance(self, MPTTModel):
                 # this is a layer instance
@@ -2786,10 +2784,10 @@ class Layer(Service, MPTTModel):
         Returns:
             reference_systems (Queryset): The QuerySet which contains all possible ReferenceSystems of the Layer
         """
-        ancestors = self.get_ancestors(ascending=True, include_self=True).select_related('metadata').prefetch_related('reference_system')
-        reference_systems = ReferenceSystem.objects.none
+        ancestors = self.get_ancestors(ascending=True, include_self=True).select_related('metadata').prefetch_related('metadata__reference_system')
+        reference_systems = ReferenceSystem.objects.none()
         for ancestor in ancestors:
-            reference_systems |= ancestor.refence_system.all()
+            reference_systems |= ancestor.metadata.reference_system.all()
         return reference_systems
 
     def get_inherited_bounding_geometry(self):
@@ -2807,7 +2805,7 @@ class Layer(Service, MPTTModel):
         ancestors = self.get_ancestors(ascending=True).select_related('metadata')
         # todo: maybe GEOS can get the object with the greatest geometry from the db directly?
         for ancestor in ancestors:
-            ancestor_geometry = ancestor.bounding_geometry
+            ancestor_geometry = ancestor.metadata.bounding_geometry
             if bounding_geometry.area > 0 and ancestor_geometry.covers(bounding_geometry):
                 bounding_geometry = ancestor_geometry
             else:

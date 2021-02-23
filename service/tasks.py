@@ -60,9 +60,11 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
     user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
-    service = Service.objects.get(metadata__id=metadata_id)
-
-    for md in service.get_subelements(include_self=True).select_related('metadata'):
+    service = Service.objects.select_related('metadata').get(metadata__id=metadata_id)
+    service.metadata.is_active = is_active
+    service.metadata.save()
+    for element in service.get_subelements(include_self=True).select_related('metadata').prefetch_related('metadata__documents'):
+        md = element.metadata
         md.is_active = is_active
         md.set_documents_active_status(is_active)
         md.save(update_last_modified=False)

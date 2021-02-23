@@ -35,22 +35,18 @@ def transform_lists_to_m2m_collections(element):
     """
     if isinstance(element, FeatureType):
         # elements
-        for e in element.elements_list:
-            element.elements.add(e)
+        element.elements.add(*element.elements_list)
 
         # namespaces
-        for ns in element.namespaces_list:
-            element.namespaces.add(ns)
+        element.namespaces.add(*element.namespaces_list)
 
         # additional srs
-        for srs in element.additional_srs_list:
-            element.metadata.reference_system.add(srs)
+        element.metadata.reference_system.add(*element.additional_srs_list)
 
     elif isinstance(element, Metadata):
         # metadata transforming of lists
         # keywords
-        for kw in element.keywords_list:
-            element.keywords.add(kw)
+        element.keywords.add(*element.keywords_list)
 
         # Reference systems
         for srs in element.reference_system_list:
@@ -66,8 +62,7 @@ def transform_lists_to_m2m_collections(element):
             element.formats.add(_format)
 
         # categories
-        for category in element.categories_list:
-            element.categories.add(category)
+        element.categories.add(*element.categories_list)
 
     elif isinstance(element, Service):
         # service transforming of lists
@@ -87,11 +82,7 @@ def update_capability_document(current_service: Service, new_capabilities: str):
     Returns:
          nothing
     """
-    cap_document = Document.objects.get(
-        metadata=current_service.metadata,
-        is_original=True,
-        document_type=DocumentEnum.CAPABILITY.value
-    )
+    cap_document = current_service.metadata.documents.get(is_original=True, document_type=DocumentEnum.CAPABILITY.value)
     cap_document.content = new_capabilities
     cap_document.save()
 
@@ -149,21 +140,15 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
 
     # reference systems
     old.reference_system.clear()
-    new_ref_systems = new.reference_system.all()
-    for srs in new_ref_systems:
-        old.reference_system.add(srs)
+    old.reference_system.add(*new.reference_system.all())
 
     # Dimensions
     old.dimensions.clear()
-    new_dimensions = new.dimensions.all()
-    for dim in new_dimensions:
-        dim.save()
-        old.dimensions.add(dim)
+    old.dimensions.add(*new.dimensions.all())
 
     # formats
     old.formats.clear()
-    for _format in new.formats_list:
-        old.formats.add(_format)
+    old.formats.add(*new.formats_list)
 
     # Restore custom metadata if needed
     if keep_custom_md:
@@ -185,9 +170,7 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     else:
         # Keywords updating without keeping custom md
         old.keywords.clear()
-        new_keywords = new.keywords.all()
-        for kw in new_keywords:
-            old.keywords.add(kw)
+        old.keywords.add(*new.keywords.all())
 
     old.last_modified = timezone.now()
     return old
@@ -367,8 +350,69 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
             pers_feature_type.delete()
         except ObjectDoesNotExist:
             pass
-
     return old
+
+
+@transaction.atomic
+def _update_wms_layers(old: Service, root_layer: Layer, links: dict,
+                       keep_custom_metadata: bool = False):
+    """ Updates wms layers
+
+    Iterates over all children on level 1, adds new layers, updates existing ones, removes old ones, then proceeds
+    on the children of each layer on the next level and so on.
+
+    Args:
+        old (Service): The existing service that needs to be updated
+        root_layer (Layer): The root layer where we start searching for descendants
+        keep_custom_metadata (bool): Whether the metadata should be overwritten or not
+    Returns:
+         old (Service): The updated existing service
+    """
+    descendants = root_layer.get_descendants(include_self=True)
+    parent = None
+    for new_layer in descendants:
+        keys = links.keys()
+        existing_layer = None
+        id = None
+
+        # Update layer
+        try:
+            if new_layer.identifier in keys:
+                # Get the id, from the layer that already exist
+                id = links[new_layer.identifier]
+            else:
+                # if the layer is not new, we just want to update it
+                existing_layer = Layer.objects.get(
+                    parent_service=old,
+                    identifier=new_layer.identifier
+                )
+            # If no existing_layer could be found until now, we assume the id variable to be set. This means, that
+            # the user knows, that an existing layer has been renamed to the new one. We fetch the "old" layer now...
+            if existing_layer is None:
+                existing_layer = Layer.objects.get(metadata__id=id)
+
+            # ... and perform the update on it.
+            update_single_layer(existing_layer, new_layer, keep_custom_metadata)
+
+        except ObjectDoesNotExist:
+            # Layer could not be found with the given information.
+            # Layer must be new  -> add it!
+            new_layer.parent_service = old
+            new_layer.parent = parent
+            new_layer.is_active = old.is_active
+            md = new_layer.metadata
+            md.is_active = old.is_active
+            md.metadata_type = md.metadata_type
+            md.save()
+
+            transform_lists_to_m2m_collections(md)
+            new_layer.metadata = md
+            new_layer.save()
+            new_layer = transform_lists_to_m2m_collections(new_layer)
+            new_layer.save()
+
+        finally:
+            parent = new_layer
 
 
 @transaction.atomic
@@ -446,7 +490,9 @@ def update_wms_elements(old: Service, new: Service, diff: dict, links: dict, kee
     Returns:
          old (Service): The updated existing service
     """
-    _update_wms_layers_recursive(old, new, [new.root_layer], links=links, keep_custom_metadata=keep_custom_metadata)
+    # _update_wms_layers_recursive(old, new, [new.root_layer], links=links, keep_custom_metadata=keep_custom_metadata)
+    _update_wms_layers(old, new.root_layer, links=links, keep_custom_metadata=keep_custom_metadata)
+
     # remove unused layers
     for layer in diff["layers"]["removed"]:
         # find persisted layer at first

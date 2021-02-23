@@ -1031,14 +1031,9 @@ def run_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
 
     if request.method == 'POST':
-        current_service = get_object_or_404(Service, metadata__id=metadata_id)
-        new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
-        new_document = get_object_or_404(
-            Document,
-            metadata=new_service.metadata,
-            document_type=DocumentEnum.CAPABILITY.value,
-            is_original=True,
-        )
+        current_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), metadata__id=metadata_id)
+        new_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), is_update_candidate_for=current_service)
+        new_document = get_object_or_404(new_service.metadata.documents.all(), document_type=DocumentEnum.CAPABILITY.value, is_original=True)
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent=None)
@@ -1088,7 +1083,7 @@ def run_update_service(request: HttpRequest, metadata_id):
                     new_service.keep_custom_md
                 )
             elif new_service.is_service_type(OGCServiceEnum.WMS):
-                # dauer lange
+                # takes long time | todo proof again after using django-mptt
                 current_service = update_helper.update_wms_elements(
                     current_service,
                     new_service,

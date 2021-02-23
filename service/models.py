@@ -1587,9 +1587,7 @@ class Metadata(Resource):
         Returns:
 
         """
-        docs = Document.objects.filter(
-            metadata=self
-        )
+        docs = self.documents.all()
         for doc in docs:
             doc.is_active = is_active
             doc.save()

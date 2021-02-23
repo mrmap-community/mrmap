@@ -1067,6 +1067,7 @@ def run_update_service(request: HttpRequest, metadata_id):
                 new_service.metadata,
                 new_service.keep_custom_md
             )
+
             md.save()
             current_service.metadata = md
 
@@ -1093,6 +1094,8 @@ def run_update_service(request: HttpRequest, metadata_id):
                 )
 
             update_helper.update_capability_document(current_service, new_document.content)
+
+            return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
 
             current_service.save()
             user_helper.create_group_activity(

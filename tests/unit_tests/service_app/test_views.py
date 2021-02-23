@@ -457,6 +457,7 @@ class RunUpdateServiceViewTestCase(TestCase):
         self.assertEqual(response.url, reverse('resource:pending-update', args=(self.wfs_metadata.id,)))
 
     def test_post_run_update_wms_service_view(self):
+
         comparator = ServiceComparator(service_a=self.wms_update_candidate[0].service, service_b=self.wms_metadata.service)
         diff = comparator.compare_services()
         diff_elements = diff.get("layers")

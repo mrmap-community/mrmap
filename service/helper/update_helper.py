@@ -82,9 +82,13 @@ def update_capability_document(current_service: Service, new_capabilities: str):
     Returns:
          nothing
     """
+
     cap_document = current_service.metadata.documents.get(is_original=True, document_type=DocumentEnum.CAPABILITY.value)
     cap_document.content = new_capabilities
+    return
+
     cap_document.save()
+
 
     # Remove cached document
     current_service.metadata.clear_cached_documents()

@@ -84,7 +84,6 @@ class ServiceComparator:
         }
 
         for layer_of_a in layers:
-            found = False
             identifier = layer_of_a.identifier
             filtered_b_layers = layers_of_b.filter(
                 identifier=identifier

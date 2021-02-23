@@ -1754,8 +1754,6 @@ class Metadata(Resource):
 
 
 class Document(Resource):
-    class Meta:
-        unique_together = ('metadata', 'is_original', 'document_type')
 
     from MrMap.validators import validate_document_enum_choices
     # One Metadata object can be related to multiple Document objects, cause we save the original and the customized
@@ -1765,6 +1763,11 @@ class Document(Resource):
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
     is_original = models.BooleanField(default=False)
+
+    """ todo: let the update_capability_document() function crash
+    class Meta:
+        unique_together = ('metadata', 'is_original', 'document_type')
+    """
 
     def __str__(self):
         return self.metadata.title

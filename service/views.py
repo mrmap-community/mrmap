@@ -1028,12 +1028,9 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
-    user = user_helper.get_user(request)
-
     if request.method == 'POST':
         current_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), metadata__id=metadata_id)
         new_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), is_update_candidate_for=current_service)
-        new_document = get_object_or_404(new_service.metadata.documents.all(), document_type=DocumentEnum.CAPABILITY.value, is_original=True)
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent=None)
@@ -1067,12 +1064,13 @@ def run_update_service(request: HttpRequest, metadata_id):
                 new_service.metadata,
                 new_service.keep_custom_md
             )
-
             md.save()
             current_service.metadata = md
+            current_service.save()
 
             # Then update the service object
             current_service = update_helper.update_service(current_service, new_service)
+            current_service.save()
 
             # Update the subelements
             if new_service.is_service_type(OGCServiceEnum.WFS):
@@ -1093,14 +1091,15 @@ def run_update_service(request: HttpRequest, metadata_id):
                     new_service.keep_custom_md
                 )
 
-            update_helper.update_capability_document(current_service, new_document.content)
+            current_service.save()
 
-            return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
+            update_helper.update_capability_document(current_service, new_service)
 
             current_service.save()
+
             user_helper.create_group_activity(
                 current_service.metadata.created_by,
-                user,
+                request.user,
                 SERVICE_UPDATED,
                 current_service.metadata.title
             )

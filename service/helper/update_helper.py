@@ -73,22 +73,18 @@ def transform_lists_to_m2m_collections(element):
     return element
 
 
-def update_capability_document(current_service: Service, new_capabilities: str):
+def update_capability_document(current_service: Service, new_service: Service):
     """ Updates the Document object, related to the resource/metadata
 
     Args:
         current_service (Service):
-        new_capabilities (str):
+        new_service (Service):
     Returns:
          nothing
     """
-
     cap_document = current_service.metadata.documents.get(is_original=True, document_type=DocumentEnum.CAPABILITY.value)
-    cap_document.content = new_capabilities
-    return
-
+    cap_document.content = new_service.metadata.documents.get(is_original=True, document_type=DocumentEnum.CAPABILITY.value).content
     cap_document.save()
-
 
     # Remove cached document
     current_service.metadata.clear_cached_documents()
@@ -406,14 +402,12 @@ def _update_wms_layers(old: Service, root_layer: Layer, links: dict,
             new_layer.is_active = old.is_active
             md = new_layer.metadata
             md.is_active = old.is_active
-            md.metadata_type = md.metadata_type
             md.save()
 
             transform_lists_to_m2m_collections(md)
             new_layer.metadata = md
             new_layer.save()
             new_layer = transform_lists_to_m2m_collections(new_layer)
-            new_layer.save()
 
         finally:
             parent = new_layer
@@ -498,13 +492,6 @@ def update_wms_elements(old: Service, new: Service, diff: dict, links: dict, kee
     _update_wms_layers(old, new.root_layer, links=links, keep_custom_metadata=keep_custom_metadata)
 
     # remove unused layers
-    for layer in diff["layers"]["removed"]:
-        # find persisted layer at first
-        try:
-            pers_layer = Layer.objects.get(parent_service=old, identifier=layer.identifier)
-            pers_layer.delete()
-        except ObjectDoesNotExist:
-            # This will happen if a layer is deleted which has child layers. The parent will kill it's children instantly.
-            # Therefore the children won't be found when the ORM tries to fetch them from the database...
-            pass
+    identifieres = [layer.identifier for layer in diff["layers"]["removed"]]
+    Layer.objects.filter(parent_service=old, identifier__in=identifieres).delete()
     return old

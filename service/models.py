@@ -579,15 +579,17 @@ class Metadata(Resource):
             internal=internal,
             origin=origin).delete()
 
-    def get_related_dataset_metadatas(self):
+    def get_related_dataset_metadatas(self, filters=None, exclusions=None):
         """ Returns all related metadata records from type dataset.
 
         Returns:
              metadatas (QuerySet)
         """
-        filters = {'to_metadatas__from_metadata__metadata_type': OGCServiceEnum.DATASET.value,
+        _filters = {'to_metadatas__from_metadata__metadata_type': OGCServiceEnum.DATASET.value,
                    'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
-        return self.get_related_metadatas(filters=filters)
+        if filters:
+            _filters.update(filters)
+        return self.get_related_metadatas(filters=_filters, exclusions=exclusions)
 
     def get_related_metadatas(self, filters=None, exclusions=None):
         """ Return all related metadata records which where self points to.

@@ -34,9 +34,9 @@ class DatasetDelete(DeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:index')
     template_name = 'generic_views/generic_confirm.html'
-    # todo: filter isn't working as expected. See issue #519
-    #  what's about dataset metadatas without any relations?
-    queryset = Metadata.objects.filter(metadata_type=MetadataEnum.DATASET.value, related_metadata__origin=ResourceOriginEnum.EDITOR.value)
+
+    def get_queryset(self):
+        return self.get_object().get_related_dataset_metadatas(filters={'to_metadatas__origin': ResourceOriginEnum.EDITOR.value})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()

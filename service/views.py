@@ -373,11 +373,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id):
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
         if md.metadata_type != OGCServiceEnum.DATASET.value:
-            # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-            md = md.get_related_dataset_metadata()
-            if md is None:
-                raise ObjectDoesNotExist
-            return redirect("resource:get-dataset-metadata", metadata_id=md.id)
+            raise ObjectDoesNotExist
         documents = Document.objects.filter(
             metadata=md,
             document_type=DocumentEnum.METADATA.value,
@@ -411,7 +407,7 @@ def get_service_preview(request: HttpRequest, metadata_id):
 
     if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
-        layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
+        layer = get_object_or_404(Layer, parent_service=service, parent=None, )
         # Fake the preview image for the whole service by using the root layer instead
         md = layer.metadata
     elif md.service.is_service_type(OGCServiceEnum.WMS) and not md.service.is_root:
@@ -643,8 +639,8 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
         return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
 
     if current_service.is_service_type(OGCServiceEnum.WMS):
-        current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
-        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+        current_service.root_layer = Layer.objects.get(parent_service=current_service, parent=None)
+        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent=None)
 
     # Collect differences
     comparator = ServiceComparator(service_a=new_service, service_b=current_service)
@@ -722,21 +718,13 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 @ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
-    user = user_helper.get_user(request)
-
     if request.method == 'POST':
-        current_service = get_object_or_404(Service, metadata__id=metadata_id)
-        new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
-        new_document = get_object_or_404(
-            Document,
-            metadata=new_service.metadata,
-            document_type=DocumentEnum.CAPABILITY.value,
-            is_original=True,
-        )
+        current_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), metadata__id=metadata_id)
+        new_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), is_update_candidate_for=current_service)
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
-            new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
-            current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
+            new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent=None)
+            current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent=None)
 
         comparator = ServiceComparator(service_a=new_service, service_b=current_service)
         diff = comparator.compare_services()
@@ -768,9 +756,11 @@ def run_update_service(request: HttpRequest, metadata_id):
             )
             md.save()
             current_service.metadata = md
+            current_service.save()
 
             # Then update the service object
             current_service = update_helper.update_service(current_service, new_service)
+            current_service.save()
 
             # Update the subelements
             if new_service.is_service_type(OGCServiceEnum.WFS):
@@ -782,7 +772,7 @@ def run_update_service(request: HttpRequest, metadata_id):
                     new_service.keep_custom_md
                 )
             elif new_service.is_service_type(OGCServiceEnum.WMS):
-                # dauer lange
+                # takes long time | todo proof again after using django-mptt
                 current_service = update_helper.update_wms_elements(
                     current_service,
                     new_service,
@@ -791,12 +781,15 @@ def run_update_service(request: HttpRequest, metadata_id):
                     new_service.keep_custom_md
                 )
 
-            update_helper.update_capability_document(current_service, new_document.content)
+            current_service.save()
+
+            update_helper.update_capability_document(current_service, new_service)
 
             current_service.save()
+
             user_helper.create_group_activity(
                 current_service.metadata.created_by,
-                user,
+                request.user,
                 SERVICE_UPDATED,
                 current_service.metadata.title
             )

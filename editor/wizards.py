@@ -235,15 +235,12 @@ class DatasetWizard(MrMapWizard):
             metadata.reference_system.add(ref_system)
 
         additional_related_objects = data.get("additional_related_objects", [])
-        metadata.related_metadata.filter(origin=ResourceOriginEnum.EDITOR.value).delete()
+        MetadataRelation.objects.filter(to_metadata=metadata, origin=ResourceOriginEnum.EDITOR.value).delete()
         for additional_object in additional_related_objects:
-            md_relation = MetadataRelation()
-            md_relation.metadata_to = metadata
-            md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
-            md_relation.internal = True
-            md_relation.origin = ResourceOriginEnum.EDITOR.value
-            md_relation.save()
-            additional_object.related_metadata.add(md_relation)
+            additional_object.add_metadata_relation(to_metadata=metadata,
+                                                    relation_type=MetadataRelationEnum.DESCRIBES.value,
+                                                    internal=True,
+                                                    origin=ResourceOriginEnum.EDITOR.value)
 
     @staticmethod
     def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):

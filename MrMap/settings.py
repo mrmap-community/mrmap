@@ -49,3 +49,7 @@ PROXIES = {
     "http": HTTP_PROXY,
     "https": HTTP_PROXY,
 }
+
+# configure if you want to validate ssl certificates
+# it is highly recommend keeping this to true
+VERIFY_SSL_CERTIFICATES = True

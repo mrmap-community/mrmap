@@ -116,10 +116,8 @@ class ServiceRemoveViewTestCase(TestCase):
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
 
-        sub_elements = metadata.service.subelements
-        for sub_element in sub_elements:
-            sub_metadata = sub_element.metadata
-            self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+        for sub_element in metadata.service.get_subelements().select_related('metadata'):
+            self.assertTrue(sub_element.metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
         self.assertEqual(GroupActivity.objects.all().count(), 1)
 
@@ -134,10 +132,8 @@ class ServiceRemoveViewTestCase(TestCase):
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
 
-        sub_elements = metadata.service.subelements
-        for sub_element in sub_elements:
-            sub_metadata = sub_element.metadata
-            self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+        for sub_element in metadata.service.get_subelements().select_related('metadata'):
+            self.assertTrue(sub_element.metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
         self.assertEqual(GroupActivity.objects.all().count(), 1)
 
@@ -572,22 +568,13 @@ class GetDatasetMetadataViewTestCase(TestCase):
         # Activate metadata
         async_activate_service(self.wms_metadata.id, self.user.id, True)
 
-    def test_get_dataset_metadata_redirect_to_dataset(self):
-        response = self.client.get(
-            reverse('resource:get-dataset-metadata', args=(self.wms_metadata.id,))
-        )
-        self.assertEqual(response.status_code, 302)
-
     def test_get_dataset_metadata(self):
-        dataset_md = self.wms_metadata.related_metadata.get(
-            metadata_to__metadata_type=OGCServiceEnum.DATASET.value
-        )
-        dataset_md = dataset_md.metadata_to
-
-        response = self.client.get(
-            reverse('resource:get-dataset-metadata', args=(dataset_md.id,))
-        )
-        self.assertEqual(response.status_code, 200)
+        dataset_mds = self.wms_metadata.get_related_dataset_metadatas()
+        for dataset_md in dataset_mds:
+            response = self.client.get(
+                reverse('resource:get-dataset-metadata', args=(dataset_md.id,))
+            )
+            self.assertEqual(response.status_code, 200)
 
 
 class GetServiceMetadataViewTestCase(TestCase):

@@ -352,7 +352,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.root_layer = Layer.objects.get(
             parent_service=self.parent_service,
-            parent_layer=None
+            parent=None
         )
 
     def _generate_xml(self):
@@ -795,13 +795,13 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         xml_helper.write_text_to_element(elem, txt="")
 
         # Style
-        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+        self._generate_capability_layer_style_xml(layer_elem, layer.style.all())
 
         # Various
         self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
-        layer_children = layer.get_children()
+        layer_children = layer.get_descendants()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
@@ -955,7 +955,9 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = layer.metadata
 
-        datasets = md.get_related_dataset_metadata()
+        dataset_mds = md.get_related_dataset_metadatas()
+        if not dataset_mds:
+            return
 
         for dataset in datasets:
             metadata_elem = xml_helper.create_subelement(
@@ -971,7 +973,8 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             )
             xml_helper.write_text_to_element(elem, txt="text/xml")
 
-            uri = dataset.metadata_url
+        for dataset_md in dataset_mds:
+            uri = dataset_md.metadata_url
             xml_helper.create_subelement(
                 metadata_elem,
                 "{}OnlineResource".format(self.default_ns),
@@ -1206,13 +1209,13 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         # Style
-        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+        self._generate_capability_layer_style_xml(layer_elem, layer.style.all())
 
         # Various
         self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
-        layer_children = layer.get_children()
+        layer_children = layer.get_descendants()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
@@ -1822,9 +1825,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        dataset_mds = feature_type_obj.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = feature_type_obj.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(
@@ -1837,7 +1838,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 )
                 xml_helper.write_text_to_element(
                     metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
+                    txt=dataset_md.metadata_url
                 )
             except ObjectDoesNotExist:
                 continue
@@ -2187,9 +2188,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(
@@ -2202,10 +2201,11 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
                 )
                 xml_helper.write_text_to_element(
                     metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
+                    txt=dataset_md.metadata_url
                 )
             except ObjectDoesNotExist:
                 continue
+
 
 class CapabilityWFS200Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
@@ -2262,16 +2262,15 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
-                metadata_url_elem = xml_helper.create_subelement(
+                xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),
                     attrib=OrderedDict({
-                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_url,
                     })
                 )
             except ObjectDoesNotExist:
@@ -2333,16 +2332,14 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
-                metadata_url_elem = xml_helper.create_subelement(
+                xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),
                     attrib=OrderedDict({
-                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_url,
                     })
                 )
             except ObjectDoesNotExist:

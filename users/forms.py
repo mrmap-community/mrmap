@@ -9,7 +9,13 @@ from dal import autocomplete
 from django import forms
 from django.forms import HiddenInput
 from django.http import HttpRequest
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
+from MrMap.forms import MrMapModelForm
+from MrMap.messages import ACCOUNT_UPDATE_SUCCESS
+from service.helper.enums import MetadataEnum, MetadataRelationEnum
+from service.models import Metadata
 from structure.models import MrMapUser
 from users.models import Subscription
 
@@ -30,6 +36,42 @@ class MrMapUserForm(forms.ModelForm):
             'groups': autocomplete.ModelSelect2Multiple(
                 url='editor:groups',
             )
+        }
+
+    def process_account_change(self):
+        # save changes
+        user = self.save()
+        user.save()
+        messages.add_message(self.request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
+
+
+class SubscriptionForm(MrMapModelForm):
+    not_harvested_trough = ~Q(related_metadatas__to_metadatas__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value) |\
+                           ~Q(related_metadatas__from_metadatas__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value)
+
+    metadata = forms.ModelChoiceField(
+        label=_("Service"),
+        help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),
+        queryset=Metadata.objects.filter(
+            Q(metadata_type=MetadataEnum.SERVICE.value, is_active=True) & not_harvested_trough
+        ),
+        widget=autocomplete.ModelSelect2(
+            url='editor:service-autocomplete',
+        ),
+    )
+
+    class Meta:
+        model = Subscription
+        fields = [
+            "metadata",
+            "notify_on_update",
+            "notify_on_metadata_edit",
+            "notify_on_access_edit",
+        ]
+        help_texts = {
+            "notify_on_update": _("Sends an e-mai if the service has been updated."),
+            "notify_on_access_edit": _("Sends an e-mai if the service's access has been changed."),
+            "notify_on_metadata_edit": _("Sends an e-mai if the service's metadata has been changed."),
         }
 
     def __init__(self, request: HttpRequest, *args, **kwargs):

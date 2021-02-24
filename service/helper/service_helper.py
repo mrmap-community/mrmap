@@ -311,11 +311,10 @@ def remove_service(metadata: Metadata, user: MrMapUser):
     metadata.is_deleted = True
     metadata.save()
 
-    sub_elements = metadata.service.subelements
-    for sub_element in sub_elements:
-        sub_metadata = sub_element.metadata
-        sub_metadata.is_deleted = True
-        sub_metadata.save()
+    for sub_element in metadata.service.get_subelements().select_related('metadata'):
+        md = sub_element.metadata
+        md.is_deleted = True
+        md.save()
 
     # call removing as async task
     # todo: maybe django singls can help us to call this function on post_delete

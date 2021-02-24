@@ -9,14 +9,13 @@ import base64
 import json
 import time
 import traceback
+from requests.exceptions import InvalidURL
 
 import requests
 from celery import shared_task
-from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection, MultiPolygon
+from django.contrib.gis.geos import MultiPolygon
 from django.db import transaction
-
 from lxml.etree import XMLSyntaxError, XPathEvalError
-from requests.exceptions import InvalidURL
 
 from MrMap import utils
 from MrMap.cacher import PageCacher
@@ -24,9 +23,7 @@ from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTI
 from MrMap.settings import EXEC_TIME_PRINT
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
-from service.settings import DEFAULT_SRS
-from service.models import Service, Metadata, AllowedOperation, ExternalAuthentication, \
-    MetadataRelation, ProxyLog, OGCOperation
+from service.models import Service, Metadata, ExternalAuthentication, ProxyLog, AllowedOperation, OGCOperation
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import service_helper, task_helper
@@ -65,36 +62,28 @@ def async_activate_service(object_id: int, additional_params: dict):
     user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
-    service = Service.objects.get(metadata__id=object_id)
-
-    elements = service.subelements + [service]
-    for element in elements:
-        element.is_active = is_active
-        element.save(update_last_modified=False)
-
+    service = Service.objects.select_related('metadata').get(metadata__id=object_id)
+    service.metadata.is_active = is_active
+    service.metadata.save()
+    for element in service.get_subelements(include_self=True).select_related('metadata').prefetch_related('metadata__documents'):
         md = element.metadata
         md.is_active = is_active
         md.set_documents_active_status(is_active)
         md.save(update_last_modified=False)
 
         # activate related metadata (if exists)
-        md_relations = md.related_metadata.all()
-        for relation in md_relations:
-            related_md = relation.metadata_to
-
-            # Check for dependencies before toggling active status
-            # We are only interested in dependencies from activated metadatas
-            relations_from_others = MetadataRelation.objects.filter(
-                metadata_to=related_md,
-            )
-            if relations_from_others.count() > 1 and is_active is False:
-                # If there are more than our relation and we want to deactivate, we do NOT proceed
-                continue
+        related_metadatas = md.get_related_metadatas()
+        for related_md in related_metadatas:
+            if is_active:
+                has_dependencies = related_md.get_related_metadatas().exclude(pk=md.pk).exists()
+                if not has_dependencies:
+                    related_md.set_documents_active_status(is_active)
+                    related_md.is_active = is_active
+                    related_md.save(update_last_modified=False)
             else:
-                # If there are no other dependencies OR we just want to activate the resource, we are good to go
                 related_md.set_documents_active_status(is_active)
                 related_md.is_active = is_active
-                related_md.save()
+                related_md.save(update_last_modified=False)
 
     # Formating using an empty string here is correct, since these are the messages we show in
     # the group activity list. We reuse a message template, which uses a '{}' placeholder.
@@ -245,11 +234,12 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             service.metadata.set_proxy(True)
 
         # after metadata has been persisted, we can auto-generate all metadata public_id's
-        sub_metadatas = service.metadata.get_subelements_metadatas()
-        metadatas = [service.metadata] + sub_metadatas
-        for sub_metadata in sub_metadatas:
-            # append all related dataset metadatas
-            metadatas += sub_metadata.get_related_dataset_metadata()
+        metadatas = Metadata.objects.filter(pk=service.metadata.pk)
+        sub_elements = service.get_subelements().select_related('metadata')
+        for sub_element in sub_elements:
+            metadatas |= Metadata.objects.filter(pk=sub_element.metadata.pk)
+            metadatas |= sub_element.metadata.get_related_dataset_metadatas()
+
         for md in metadatas:
             if md.public_id is None:
                 md.public_id = md.generate_public_id()

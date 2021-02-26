@@ -11,7 +11,7 @@
     <div class="row">
     <div class="col-7 col-md text-left">
       <h5 class="mb-0">
-        {% if not object.service.is_leaf_node and object.service != root_node%}
+        {% if not object.service.is_leaf_node and object.service != root_node %}
             <button class="btn btn-link" data-toggle="collapse" data-target="#id_accordion_collapse_{{object.service.pk}}" aria-expanded="true" aria-controls="id_accordion_collapse_{{object.service.pk}}">
               {{ object.service.icon|safe }} {{ object.title }} <span class="badge badge-secondary">{{ object.service.get_descendant_count }}</span>
             </button>

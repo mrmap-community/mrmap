@@ -75,7 +75,7 @@ class PendingTaskTable(tables.Table):
 
 class OgcServiceTable(tables.Table):
     bs4helper = None
-    layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_service__count')
+    layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_services__count')
     featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], accessor='service__featuretypes__count')
     parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[],
                                    accessor='service__parent_service__metadata')
@@ -161,7 +161,7 @@ class OgcServiceTable(tables.Table):
 
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(
-            count=Count("service__child_service")
+            count=Count("service__child_services")
         ).order_by(("-" if is_descending else "") + "count")
         return queryset, True
 

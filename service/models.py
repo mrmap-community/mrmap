@@ -1131,23 +1131,6 @@ class Metadata(Resource):
 
         return ret_list
 
-    def get_subelements_metadatas_as_qs(self, include_self=True):
-        """ Returns a QuerySet containing all subelement metadata records
-
-        Returns:
-             qs (QuerySet)
-        """
-        is_service = self.is_metadata_type(MetadataEnum.SERVICE)
-        is_layer = self.is_metadata_type(MetadataEnum.LAYER)
-        if is_service or is_layer:
-            qs = Metadata.objects.filter(service__in=self.service.subelements_as_qs)
-        else:
-            qs = Metadata.objects.filter(
-                service__parent_service__metadata=self,
-            )
-        if include_self:
-            qs = qs | Metadata.objects.filter(id=self.id)
-        return qs
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -1345,7 +1328,7 @@ class Metadata(Resource):
 
             # wms children
             if self.service.is_service_type(OGCServiceEnum.WMS):
-                children = self.service.child_service.all()
+                children = self.service.child_services.all()
                 for child in children:
                     child.metadata.hits += 1
                     child.metadata.save()
@@ -2914,7 +2897,7 @@ class ServiceUrl(GenericUrl):
 
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
-    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
+    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True, verbose_name=_l('Published for'))
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
@@ -2965,42 +2948,9 @@ class Service(Resource):
                 qs = self.get_descendants(include_self=include_self)
             else:
                 # this is a service instance
-                qs = Layer.objects.get(
-                    parent_service=self,
-                    parent=None,
-                ).get_descendants(include_self=include_self)
+                qs = self.child_services.get(parent=None).get_descendants(include_self=include_self)
         elif self.is_service_type(OGCServiceEnum.WFS):
-            qs = FeatureType.objects.filter(
-                parent_service=self
-            )
-        return qs
-
-    @property
-    def subelements_as_qs(self):
-        """ Returns a QuerySet of Layer or Featuretype records.
-
-        Returns:
-             qs (QuerySet): The list of subelements
-        """
-        if self.is_service_type(OGCServiceEnum.WMS):
-            if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
-                qs = Layer.objects.filter(
-                    parent_service=self
-                ).prefetch_related(
-                    "metadata"
-                )
-            else:
-                self_layer_instance = Layer.objects.get(metadata=self.metadata)
-                qs = self_layer_instance.child_layers.all()
-                for layer in qs:
-                    qs += qs | layer.child_layers.all()
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            qs = FeatureType.objects.filter(
-                parent_service=self
-            ).prefetch_related(
-                "metadata"
-            )
-
+            qs = self.featuretypes.all()
         return qs
 
     @property

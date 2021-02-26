@@ -52,7 +52,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
-    FeatureTypeElementTable, ProxyLogTable
+    ProxyLogTable
 from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog, FeatureTypeElement
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -881,7 +881,7 @@ class ResourceTreeView(DetailView):
     template_name = 'generic_views/resource.html'
     queryset = Metadata.objects.\
         select_related('service', 'service__service_type', 'featuretype', 'created_by').\
-        prefetch_related('featuretype__elements').\
+        prefetch_related('service__featuretypes', 'service__child_services', 'featuretype__elements').\
         filter(service__is_update_candidate_for=None)
     render_helper = None
 
@@ -898,59 +898,17 @@ class ResourceTreeView(DetailView):
         context = super().get_context_data(**kwargs)
         context.update({'tree_style': True})
 
-        sub_elements = None
-        if self.object.is_metadata_type(MetadataEnum.SERVICE):
-            sub_elements = self.object.service.get_subelements().select_related('metadata')
-            if self.object.is_service_type(enum=OGCServiceEnum.WFS):
-                sub_elements = sub_elements.prefetch_related('elements')
-        elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
-            sub_elements = self.object.featuretype.elements.all()
-        elif self.object.is_metadata_type(MetadataEnum.LAYER):
+        if self.object.is_featuretype_metadata:
+            self.template_name = 'service/views/featuretype.html'
+        elif self.object.is_service_type(enum=OGCServiceEnum.WFS):
+            self.template_name = 'service/views/wfs_tree.html'
+            sub_elements = self.object.get_described_element().get_subelements().select_related('metadata').prefetch_related('elements')
+            context.update({'featuretypes': sub_elements})
+        elif self.object.is_layer_metadata or self.object.is_service_type(enum=OGCServiceEnum.WMS):
             sub_elements = self.object.get_described_element().get_subelements().select_related('metadata')
-
-        if sub_elements:
-            sub_element_accordions = ''
-            if isinstance(sub_elements.first(), FeatureTypeElement):
-                elements_table = FeatureTypeElementTable(data=sub_elements, orderable=False)
-                sub_element_accordions += render_to_string(template_name='skeletons/django_tables2_bootstrap4_custom.html',
-                                                           context={'table': elements_table})
-            else:
-                self.template_name = 'service/views/layer_tree.html'
-                context.update({'nodes': sub_elements,
-                                'root_node': self.object.service})
-
-                """
-                for sub_element in sub_elements:
-
-
-                    related_datasets = sub_element.metadata.get_related_dataset_metadata(count=True)
-                    if related_datasets > 0:
-                        dataset_modal = Modal(title=_l('Related datasets of ') + sub_element.metadata.title, body='',
-                                              fetch_url=sub_element.metadata.detail_related_datasets_view_uri,
-                                              btn_content=Tag(tag='i', attrs={"class": [IconEnum.METADATA.value]}) + _(' Datasets ') + Badge(content=related_datasets),
-                                              btn_attrs={"class": [ButtonColorEnum.SECONDARY.value]},
-                                              size=ModalSizeEnum.LARGE)
-                        accordion_title_center += dataset_modal.button + dataset_modal
-
-                    if sub_sub_elements_count > 0:
-                        sub_element_accordions += Accordion(btn_value=accordion_title,
-                                                            header_center_content=accordion_title_center,
-                                                            header_right_content=self.render_helper.render_list_coherent(items=sub_element.metadata.get_actions()),
-                                                            fetch_url=sub_element.metadata.detail_view_uri + '?with-base=False',
-                                                            card_attrs={"style": ["overflow: inherit;"],
-                                                                        "class": ["mb-1"]})
-                    else:
-                        content = DefaultHeaderRow(content_left=accordion_title,
-                                                   content_center=accordion_title_center,
-                                                   content_right=self.render_helper.render_list_coherent(items=sub_element.metadata.get_actions()))
-                        card_header = CardHeader(content=content.render())
-                        card_header.update_attributes(update_attrs={"class": ["mb-1"]})
-                        sub_element_accordions += card_header
-                """
-
-        context.update({
-            #'card_header_title_right': self.render_helper.render_list_coherent(items=self.object.get_actions(), safe=True),
-        })
+            self.template_name = 'service/views/wms_tree.html'
+            context.update({'nodes': sub_elements,
+                            'root_node': self.object.service})
         return context
 
 

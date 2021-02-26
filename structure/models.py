@@ -7,6 +7,7 @@ from django.db.models import Case, When
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -608,6 +609,15 @@ class MrMapUser(AbstractUser):
         )
         return groups
 
+    @cached_property
+    def all_permissions(self) -> set:
+        """Returns a set containing all permission identifiers as strings in a list.
+
+        Returns:
+             A set of permission strings
+        """
+        return self.get_all_permissions()
+
     def get_all_permissions(self, group: MrMapGroup = None) -> set:
         """Returns a set containing all permission identifiers as strings in a list.
 
@@ -619,15 +629,11 @@ class MrMapUser(AbstractUser):
         Returns:
              A set of permission strings
         """
-        if self.is_anonymous:
-            return {}
         if group is not None:
             groups = MrMapGroup.objects.filter(id=group.id)
         else:
             groups = self.get_groups().prefetch_related("role__permissions")
-
         all_perm = set(groups.values_list("role__permissions__name", flat=True))
-
         return all_perm
 
     def has_perm(self, perm, obj=None) -> bool:

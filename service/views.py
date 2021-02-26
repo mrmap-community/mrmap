@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -82,21 +83,24 @@ def default_dispatch(instance, extra_context=None, with_base: bool = True, is_li
         instance.template_name = 'generic_views/generic_list_without_base.html' if is_list_view else 'generic_views/generic_detail_without_base.html'
 
 
-def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum):
+def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
     return Metadata.objects.filter(
         service__service_type__name=service_type.value,
         created_by__in=instance.request.user.get_groups(),
         is_deleted=False,
         service__is_update_candidate_for=None,
-    ).prefetch_related(
-        "contact",
+    ).select_related(
         "service",
         "service__created_by",
         "service__published_for",
         "service__service_type",
-        "external_authentication",
         "service__parent_service__metadata",
         "service__parent_service__metadata__external_authentication",
+        "contact",
+        "external_authentication",
+    ).prefetch_related(
+        "service__featuretypes",
+        "service__child_services",
     ).order_by("title")
 
 
@@ -143,7 +147,7 @@ class WmsIndexView(SingleTableMixin, FilterView):
 
         table.title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + _(' WMS')
 
-        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.all_permissions)))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 

@@ -72,34 +72,6 @@ class Resource(models.Model):
     def get_absolute_url(self):
         return reverse('resource:details', args=[self.pk])
 
-    @property
-    def is_metadata(self):
-        if isinstance(self, Metadata):
-            return True
-        else:
-            return False
-
-    @property
-    def is_service(self):
-        if isinstance(self, Service):
-            return True
-        else:
-            return False
-
-    @property
-    def is_layer(self):
-        if isinstance(self, Layer):
-            return True
-        else:
-            return False
-
-    @property
-    def is_featuretype(self):
-        if isinstance(self, FeatureType):
-            return True
-        else:
-            return False
-
 
 class Keyword(models.Model):
     keyword = models.CharField(max_length=255, unique=True)
@@ -2943,12 +2915,12 @@ class Service(Resource):
         """
         qs = Service.objects.none()
         if self.is_service_type(OGCServiceEnum.WMS):
-            if isinstance(self, Layer):
+            if self.metadata.is_layer_metadata:
                 # this is a layer instance
                 qs = self.get_descendants(include_self=include_self)
             else:
                 # this is a service instance
-                qs = self.child_services.get(parent=None).get_descendants(include_self=include_self)
+                qs = Layer.objects.get(parent_service=self, parent=None).get_descendants(include_self=include_self)
         elif self.is_service_type(OGCServiceEnum.WFS):
             qs = self.featuretypes.all()
         return qs

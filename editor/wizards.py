@@ -53,6 +53,7 @@ def show_restrict_spatially_form_condition(wizard):
 
 
 @method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_METADATA.value, login_url='resource:index'), name='dispatch')
 class AccessEditorWizard(MrMapWizard):
     template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
@@ -106,6 +107,8 @@ class AccessEditorWizard(MrMapWizard):
 METADATA_WIZARD_FORMS = [(_("Metadata"), MetadataEditorForm)]
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_METADATA.value, login_url='resource:index'), name='dispatch')
 class MetadataEditorWizard(MrMapWizard):
     #template_name = "generic_views/generic_wizard_form.html"
     action_url = ""

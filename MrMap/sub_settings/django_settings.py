@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'django_bootstrap_swt',
     'leaflet',
     'breadcrumb',
+    'mptt',
 ]
 if DEBUG:
     INSTALLED_APPS.append(

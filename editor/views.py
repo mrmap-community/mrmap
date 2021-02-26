@@ -136,7 +136,7 @@ class AllowedOperationTableView(SingleTableMixin, FilterView):
 
         table.title = Tag(tag='i', attrs={"class": [IconEnum.ACCESS.value]}).render() + f' Allowed Operations for {self.root_metadata}'
 
-        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())),
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         #table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table

@@ -123,7 +123,7 @@ class MetadataRelationAdmin(admin.ModelAdmin):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.to_metadata.id,)), escape(obj.to_metadata)))
 
     to_metadata_link.allow_tags = True
-    to_metadata_link.short_description = "from_metadata"
+    to_metadata_link.short_description = "to_metadata"
 
 
 class MetadataTypeAdmin(admin.ModelAdmin):

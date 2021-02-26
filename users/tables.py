@@ -27,7 +27,7 @@ class SubscriptionTable(tables.Table):
         prefix = 'subscription-table'
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_metadata(self, value):
         return Link(url=value.get_absolute_url(), content=value).render(safe=True)

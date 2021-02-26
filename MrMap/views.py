@@ -240,7 +240,7 @@ class CustomSingleTableMixin(SingleTableMixin):
         table.title = self.get_title()
         model = self.model()
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):
-            render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_permissions())))
+            render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
             table.actions = [render_helper.render_item(item=self.model.get_add_action())]
         return table
 

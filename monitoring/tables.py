@@ -24,7 +24,7 @@ class MonitoringRunTable(tables.Table):
     results = tables.Column(verbose_name=_('Related results'), empty_values=[])
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_uuid(self, record, value):
         return Link(url=record.get_absolute_url(), content=value).render(safe=True)
@@ -110,7 +110,7 @@ class HealthStateTable(tables.Table):
         prefix = 'health-state-table'
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_uuid(self, record, value):
         return Link(url=record.get_absolute_url, content=value).render(safe=True)

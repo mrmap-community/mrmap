@@ -1,7 +1,12 @@
 from enum import Enum
 
+from django.utils.html import format_html
+from django.utils.safestring import SafeString
 
-class IconEnum(Enum):
+from MrMap.enums import EnumChoice
+
+
+class IconEnum(EnumChoice):
     POWER_OFF = "fas fa-power-off"
     PROXY = "fas fa-archway"
     LOGGING = "fas fa-file-signature"
@@ -42,3 +47,15 @@ class IconEnum(Enum):
     MONITORING_RESULTS = "fas fa-poll-h"
     WARNING = 'fas fa-exclamation-triangle'
     CRITICAL = 'fas fa-bolt'
+
+
+def get_icon(enum: IconEnum) -> SafeString:
+    pattern = "<i class=\'{}\'></i>"
+    return format_html(pattern, enum.value)
+
+
+def get_all_icons() -> dict:
+    icons = {}
+    for enum in IconEnum:
+        icons.update({enum.name: get_icon(enum)})
+    return icons

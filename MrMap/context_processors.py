@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.http import HttpRequest
 
+from MrMap.icons import get_all_icons
 from MrMap.settings import GIT_REPO_URI, GIT_GRAPH_URI
 from MrMap.sub_settings.dev_settings import ROOT_URL
 from MrMap.utils import get_theme
@@ -8,11 +9,12 @@ from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
 from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization, PendingTask
+from structure.permissionEnums import PermissionEnum
 
 
 def default_context(request: HttpRequest):
     if request.user is not None and not request.user.is_anonymous:
-        permissions = request.user.get_permissions()
+        permissions = request.user.get_all_permissions()
     else:
         permissions = []
 
@@ -57,6 +59,7 @@ def default_context(request: HttpRequest):
                                             is_deleted=False,
                                             service__is_update_candidate_for=None, ).count()
         dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.get_groups()).count()
+
     return {
         "ROOT_URL": ROOT_URL,
         "PATH": request.path.split("/")[1],
@@ -66,6 +69,7 @@ def default_context(request: HttpRequest):
         "GIT_REPO_URI": GIT_REPO_URI,
         "GIT_GRAPH_URI": GIT_GRAPH_URI,
         "THEME": get_theme(request.user),
+        "ICONS": get_all_icons(),
         "mr_map_group_count": mr_map_group_count,
         "mr_map_organization_count": mr_map_organization_count,
         "mr_map_user_count": mr_map_user_count,

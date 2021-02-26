@@ -14,7 +14,7 @@ from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -27,7 +27,7 @@ from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 from MrMap.cacher import DocumentCacher
-from MrMap.icons import IconEnum
+from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
@@ -68,6 +68,37 @@ class Resource(models.Model):
 
     class Meta:
         abstract = True
+
+    def get_absolute_url(self):
+        return reverse('resource:details', args=[self.pk])
+
+    @property
+    def is_metadata(self):
+        if isinstance(self, Metadata):
+            return True
+        else:
+            return False
+
+    @property
+    def is_service(self):
+        if isinstance(self, Service):
+            return True
+        else:
+            return False
+
+    @property
+    def is_layer(self):
+        if isinstance(self, Layer):
+            return True
+        else:
+            return False
+
+    @property
+    def is_featuretype(self):
+        if isinstance(self, FeatureType):
+            return True
+        else:
+            return False
 
 
 class Keyword(models.Model):
@@ -392,6 +423,20 @@ class MetadataRelation(models.Model):
     def __str__(self):
         return "{} {} {}".format(self.to_metadata.title, self.relation_type, self.from_metadata.title)
 
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save(force_insert, force_update, using, update_fields)
+        if self.to_metadata.metadata_type is OGCServiceEnum.DATASET.value:
+            self.from_metadata.has_dataset_metadatas = True
+            self.from_metadata.save()
+
+    def delete(self,  using=None, keep_parents=False):
+        collector = super().delete(using, keep_parents)
+        if self.from_metadata.get_related_dataset_metadatas().count() == 0:
+            self.from_metadata.has_dataset_metadatas = False
+            self.from_metadata.save()
+        return collector
+
 
 class ExternalAuthentication(models.Model):
     username = models.CharField(max_length=255)
@@ -517,6 +562,7 @@ class Metadata(Resource):
     # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
     related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
+    has_dataset_metadatas = models.BooleanField(default=False)
     origin = None
 
     class Meta:
@@ -560,7 +606,7 @@ class Metadata(Resource):
         return False
 
     def get_absolute_url(self):
-        return reverse('resource:detail', kwargs={'pk': self.pk})
+        return reverse('resource:detail', kwargs={'pk': self.get_described_element().pk})
 
     def add_metadata_relation(self, to_metadata, relation_type, origin, internal=False):
         relation, created = MetadataRelation.objects.get_or_create(
@@ -579,19 +625,19 @@ class Metadata(Resource):
             internal=internal,
             origin=origin).delete()
 
-    def get_related_dataset_metadatas(self, filters=None, exclusions=None):
+    def get_related_dataset_metadatas(self, filters=None, exclusions=None) -> QuerySet:
         """ Returns all related metadata records from type dataset.
 
         Returns:
              metadatas (QuerySet)
         """
-        _filters = {'to_metadatas__from_metadata__metadata_type': OGCServiceEnum.DATASET.value,
+        _filters = {'to_metadatas__to_metadata__metadata_type': OGCServiceEnum.DATASET.value,
                    'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
         if filters:
             _filters.update(filters)
         return self.get_related_metadatas(filters=_filters, exclusions=exclusions)
 
-    def get_related_metadatas(self, filters=None, exclusions=None):
+    def get_related_metadatas(self, filters=None, exclusions=None) -> QuerySet:
         """ Return all related metadata records which where self points to.
 
         Returns:
@@ -604,7 +650,7 @@ class Metadata(Resource):
             filter_query &= ~Q(**exclusions)
         return self.related_metadatas.filter(filter_query)
 
-    def get_related_to(self, filters=None, exclusions=None):
+    def get_related_to(self, filters=None, exclusions=None) -> QuerySet:
         """ Return all related metadata records which points to self """
         filter_query = Q(from_metadatas__to_metadata=self)
         if filters:
@@ -634,14 +680,14 @@ class Metadata(Resource):
 
     @classmethod
     def get_add_resource_action(cls):
-        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource'),
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource').__str__(),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('resource:add'),
                           needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     @classmethod
     def get_add_dataset_action(cls):
-        return Modal(btn_content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset'),
+        return Modal(btn_content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset').__str__(),
                      btn_attrs={"class": [ButtonColorEnum.SUCCESS.value]},
                      fetch_url=reverse('editor:dataset-metadata-wizard-new'),
                      size=ModalSizeEnum.LARGE,
@@ -659,24 +705,20 @@ class Metadata(Resource):
                                       tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
                                       tooltip_placement=TooltipPlacementEnum.LEFT,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
-            is_mr_map_origin = not MetadataRelation.objects.filter(
-                metadata_to=self
-            ).exclude(
-                origin=ResourceOriginEnum.EDITOR.value
-            ).exists()
-            if is_mr_map_origin:
-                actions.append(Modal(fetch_url=self.remove_view_uri,
-                                     btn_content=FONT_AWESOME_ICONS["REMOVE"],
-                                     btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
-                                     btn_tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
-                                     needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+            # todo: if this dataset is in the given from_metadata context origin editor, then we can show this
+            actions.append(Modal(fetch_url=self.remove_view_uri,
+                                 btn_content=FONT_AWESOME_ICONS["REMOVE"],
+                                 btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
+                                 btn_tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
+                                 needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
-            actions.append(Modal(fetch_url=self.activate_view_uri,
-                                 btn_content=FONT_AWESOME_ICONS["POWER_OFF"],
-                                 btn_attrs={"class": [ButtonColorEnum.WARNING.value if self.is_active else ButtonColorEnum.SUCCESS.value]},
-                                 btn_tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
-                                 needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
+            actions.append(LinkButton(url=self.activate_view_uri,
+                                      content=FONT_AWESOME_ICONS["POWER_OFF"],
+                                      color=ButtonColorEnum.WARNING if self.is_active else ButtonColorEnum.SUCCESS,
+                                      tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
+                                      tooltip_placement=TooltipPlacementEnum.LEFT,
+                                      needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
             if self.is_service_type(OGCServiceEnum.CSW):
                 actions.append(LinkButton(url=self.harvest_view_uri,
                                           content=FONT_AWESOME_ICONS["HARVEST"],
@@ -711,11 +753,12 @@ class Metadata(Resource):
                                                tooltip=_l("Run health checks for this resource"),
                                                tooltip_placement=TooltipPlacementEnum.LEFT,
                                                needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
-                                    Modal(fetch_url=self.remove_view_uri,
-                                          btn_content=FONT_AWESOME_ICONS["REMOVE"],
-                                          btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
-                                          btn_tooltip=_l("Remove this resource"),
-                                          needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), ])
+                                    LinkButton(url=self.remove_view_uri,
+                                               content=FONT_AWESOME_ICONS["REMOVE"],
+                                               color=ButtonColorEnum.DANGER,
+                                               tooltip=_l("Remove this resource"),
+                                               tooltip_placement=TooltipPlacementEnum.LEFT,
+                                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value)])
 
         if self.is_custom:
             actions.append(Modal(fetch_url=self.restore_view_uri,
@@ -968,7 +1011,7 @@ class Metadata(Resource):
         """
         return self.service_type == enum
 
-    def get_described_element(self):
+    def get_described_element(self) -> Resource:
         """ Simple getter to return the 'real' described element.
 
         Described elements are .service, .layer or .featuretype. Instead of doing these if-else checks
@@ -1245,39 +1288,6 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
         return ext_auth
-
-    def get_related_dataset_metadata(self, count: bool = False) -> Iterator['Metadata']:
-        """ Returns a related dataset metadata record.
-
-        If none exists, None is returned
-
-        Returns:
-             dataset_md (Metadata)
-        """
-        if count:
-            return self.related_metadata.filter(metadata_to__metadata_type=OGCServiceEnum.DATASET.value).count()
-
-        dataset_relations = self.related_metadata.filter(metadata_to__metadata_type=OGCServiceEnum.DATASET.value)\
-                                                 .prefetch_related('metadata_to')
-        datasets = [dataset_relation.metadata_to for dataset_relation in dataset_relations]
-        return datasets
-
-    def dataset_document_exists(self):
-        """ Checks whether a metadata object has a dataset metadata record.
-
-        Args:
-            metadata:
-        Returns:
-             The document or none
-        """
-        try:
-            md_2 = self.get_related_dataset_metadata()
-            return Document.objects.get(
-                metadata=md_2,
-                document_type=DocumentEnum.METADATA.value,
-            )
-        except ObjectDoesNotExist:
-            return None
 
     def get_remote_original_capabilities_document(self, version: str):
         """ Fetches the original capabilities document from the remote server.
@@ -2929,6 +2939,17 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+    @property
+    def icon(self):
+        icon = ''
+        if self.is_wms:
+            icon = get_icon(IconEnum.WMS)
+        elif self.is_wfs:
+            icon = get_icon(IconEnum.WFS)
+        elif self.is_csw:
+            icon = get_icon(IconEnum.CSW)
+        return icon
+
     def get_subelements(self, include_self=False):
         """ Returns a queryset of Layer or Featuretype records.
 
@@ -2939,14 +2960,15 @@ class Service(Resource):
         """
         qs = Service.objects.none()
         if self.is_service_type(OGCServiceEnum.WMS):
-            if isinstance(self, MPTTModel):
+            if isinstance(self, Layer):
                 # this is a layer instance
                 qs = self.get_descendants(include_self=include_self)
             else:
                 # this is a service instance
-                qs = Layer.objects.filter(
+                qs = Layer.objects.get(
                     parent_service=self,
-                )
+                    parent=None,
+                ).get_descendants(include_self=include_self)
         elif self.is_service_type(OGCServiceEnum.WFS):
             qs = FeatureType.objects.filter(
                 parent_service=self
@@ -3097,6 +3119,10 @@ class Layer(Service, MPTTModel):
 
     def __str__(self):
         return str(self.identifier)
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.LAYER)
 
     def get_inherited_reference_systems(self):
         """ Return all inherited ReferenceSystem objects of the given Layer
@@ -3533,6 +3559,10 @@ class FeatureType(Resource):
 
     def __str__(self):
         return self.metadata.identifier
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.FEATURETYPE)
 
     def delete(self, using=None, keep_parents=False):
         self.metadata.delete()

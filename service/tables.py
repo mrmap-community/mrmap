@@ -1,12 +1,10 @@
 import csv
 
 import django_tables2 as tables
-from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
 from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
 from django_bootstrap_swt.utils import RenderHelper
-from django_tables2.export import TableExport
 
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum
@@ -59,7 +57,7 @@ class PendingTaskTable(tables.Table):
         orderable = False
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_status(self, value):
         return format_html(self.render_helper.render_list_coherent(value))
@@ -109,7 +107,7 @@ class OgcServiceTable(tables.Table):
         prefix = 'ogc-service-table'
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
@@ -204,7 +202,7 @@ class DatasetTable(tables.Table):
         prefix = 'wms-table'
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_title(self, value, record):
         return Link(url=record.detail_html_view_uri, content=value, open_in_new_tab=True).render(safe=True)
@@ -213,7 +211,7 @@ class DatasetTable(tables.Table):
         related_metadatas = Metadata.objects.filter(
             related_metadata__metadata_to=record
         ).prefetch_related(
-            "related_metadata"
+            "related_metadatas"
         )
         link_list = []
         for metadata in related_metadatas:

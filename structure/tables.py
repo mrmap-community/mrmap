@@ -33,7 +33,7 @@ class PublishersTable(ActionTableMixin, tables.Table):
         super().__init__(*args, **kwargs)
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_name(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
@@ -66,7 +66,7 @@ class PublishersTable(ActionTableMixin, tables.Table):
 
 class PendingRequestTable(ActionTableMixin, tables.Table):
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_organization(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
@@ -126,7 +126,7 @@ class GroupTable(ActionTableMixin, tables.Table):
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_name(self, record, value):
         content = Tag(tag='i', attrs={"class": [IconEnum.PUBLIC.value]}) + ' ' + value if record.is_public_group else value
@@ -158,14 +158,14 @@ class GroupDetailTable(tables.Table):
         orderable = False
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_organization(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_permissions(self, record):
         perms = []
-        for perm in self.request.user.get_permissions(record):
+        for perm in self.request.user.get_all_permissions(record):
             perms.append(Badge(content=perm if perm else _('None'), pill=True))
 
         self.render_helper.update_attrs = {"class": ["mr-1"]}
@@ -177,7 +177,7 @@ class GroupDetailTable(tables.Table):
         inherited_permission = []
         parent = record.parent_group
         while parent is not None:
-            permissions = self.request.user.get_permissions(parent)
+            permissions = self.request.user.get_all_permissions(parent)
             perm_dict = {
                 "group": parent,
                 "permissions": permissions,
@@ -226,7 +226,7 @@ class OrganizationTable(ActionTableMixin, tables.Table):
     caption = _("Shows all organizations which are configured in your Mr. Map environment.")
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_organization_name(self, value, record):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
@@ -262,7 +262,7 @@ class GroupMemberTable(ActionTableMixin, tables.Table):
         super().__init__(*args, **kwargs)
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_organization(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
@@ -306,7 +306,7 @@ class OrganizationMemberTable(ActionTableMixin, tables.Table):
         super().__init__(*args, **kwargs)
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_actions(self):
         remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
@@ -326,7 +326,7 @@ class MrMapUserTable(ActionTableMixin, tables.Table):
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_permissions())))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_organization(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)

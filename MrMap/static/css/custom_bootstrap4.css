@@ -64,3 +64,9 @@
 .accordion.collapsed .fa:before {
   content: "\f13a";
 }
+
+
+
+.dropdown-toggle {
+   white-space: nowrap;
+}

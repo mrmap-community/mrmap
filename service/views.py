@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -141,7 +141,7 @@ class WmsIndexView(SingleTableMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records', )
+            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
         else:
             table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
 
@@ -268,7 +268,7 @@ class ResourceIndexView(TemplateView):
                                         rendered_wms_view.rendered_content,
                                         rendered_wfs_view.rendered_content,
                                         rendered_csw_view.rendered_content,
-                                        rendered_dataset_view.rendered_content,]
+                                        rendered_dataset_view.rendered_content, ]
         return context
 
 
@@ -302,7 +302,8 @@ class ResourceDelete(DeleteView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='resource:index'), name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='resource:index'),
+                  name='dispatch')
 class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     model = Metadata
     template_name = "MrMap/detail_views/generic_form.html"
@@ -387,7 +388,8 @@ def get_dataset_metadata(request: HttpRequest, metadata_id):
             is_active=True,
         )
         # prefer current metadata document (is_original=false), otherwise take the original one
-        document = documents.get(is_original=False) if documents.filter(is_original=False).exists() else documents.get(is_original=True)
+        document = documents.get(is_original=False) if documents.filter(is_original=False).exists() else documents.get(
+            is_original=True)
         document = document.content
     except ObjectDoesNotExist:
         # ToDo: a datasetmetadata without a document is broken
@@ -576,8 +578,8 @@ def get_metadata_html(request: HttpRequest, metadata_id):
 
 
 @login_required
-#@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
-#@ownership_required(Metadata, 'metadata_id')
+# @permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
+# @ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def new_pending_update_service(request: HttpRequest, metadata_id):
     """ Compare old service with new service and collect differences
@@ -599,7 +601,8 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
                                   show_modal=True,
                                   current_service=current_service,
                                   requesting_user=user,
-                                  form_title=_l(f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
+                                  form_title=_l(
+                                      f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
     if request.method == 'GET':
         return form.render_view()
 
@@ -627,9 +630,10 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
     return HttpResponseRedirect(reverse(request.GET.get('current-view', None), args=(metadata_id,)), status=303)
 
+
 # Todo: wizard/form view?
 @login_required
-#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
 @ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
@@ -672,7 +676,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
     updated_elements_table = UpdateServiceElements(request=request,
                                                    queryset=updated_elements_md,
                                                    current_view="resource:dismiss-pending-update",
-                                                   order_by_field='updated',)
+                                                   order_by_field='updated', )
 
     removed_elements_table = UpdateServiceElements(request=request,
                                                    queryset=removed_elements_md,
@@ -700,7 +704,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 
 
 @login_required
-#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
 @ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
@@ -721,13 +725,17 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 
 
 @login_required
-#@check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
 @ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
     if request.method == 'POST':
-        current_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), metadata__id=metadata_id)
-        new_service = get_object_or_404(Service.objects.select_related('metadata').prefetch_related('metadata__documents'), is_update_candidate_for=current_service)
+        current_service = get_object_or_404(
+            Service.objects.select_related('metadata').prefetch_related('metadata__documents'),
+            metadata__id=metadata_id)
+        new_service = get_object_or_404(
+            Service.objects.select_related('metadata').prefetch_related('metadata__documents'),
+            is_update_candidate_for=current_service)
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent=None)
@@ -835,7 +843,7 @@ class ResourceDetailTableView(DetailView):
 class ResourceRelatedDatasetView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
-    queryset = Metadata.objects.all().prefetch_related('related_metadatas',)
+    queryset = Metadata.objects.all().prefetch_related('related_metadatas', )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -883,10 +891,15 @@ def render_actions(element, render_helper):
 class ResourceTreeView(DetailView):
     model = Metadata
     template_name = 'generic_views/resource.html'
-    queryset = Metadata.objects.\
-        select_related('service', 'service__service_type', 'featuretype', 'created_by').\
-        prefetch_related('service__featuretypes', 'service__child_services', 'featuretype__elements').\
-        filter(service__is_update_candidate_for=None)
+    available_resources = Q(metadata_type='layer') | \
+                          Q(metadata_type='featureType') | \
+                          Q(service__service_type__name='wms') | \
+                          Q(service__service_type__name='wfs') & \
+                          Q(service__is_update_candidate_for=None)
+    queryset = Metadata.objects. \
+        select_related('service', 'service__service_type', 'featuretype', 'created_by'). \
+        prefetch_related('service__featuretypes', 'service__child_services', 'featuretype__elements'). \
+        filter(available_resources)
     render_helper = None
 
     def dispatch(self, request, *args, **kwargs):
@@ -906,7 +919,8 @@ class ResourceTreeView(DetailView):
             self.template_name = 'service/views/featuretype.html'
         elif self.object.is_service_type(enum=OGCServiceEnum.WFS):
             self.template_name = 'service/views/wfs_tree.html'
-            sub_elements = self.object.get_described_element().get_subelements().select_related('metadata').prefetch_related('elements')
+            sub_elements = self.object.get_described_element().get_subelements().select_related(
+                'metadata').prefetch_related('elements')
             context.update({'featuretypes': sub_elements})
         elif self.object.is_layer_metadata or self.object.is_service_type(enum=OGCServiceEnum.WMS):
             sub_elements = self.object.get_described_element().get_subelements().select_related('metadata')
@@ -1050,7 +1064,8 @@ class LogsIndexView(ExportMixin, SingleTableMixin, FilterView):
         if self.request.GET:
             query_trailer_sign = "&"
         csv_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=csv", content=".csv")
-        json_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=json", content=".json")
+        json_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=json",
+                                  content=".json")
 
         dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.DOWNLOAD.value]}) + _(" Export as"),
                             items=[csv_download_link, json_download_link],

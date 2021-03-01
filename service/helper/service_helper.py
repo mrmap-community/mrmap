@@ -289,37 +289,6 @@ def create_new_service(form, user: MrMapUser):
     pending_task_db.save()
     return pending_task_db
 
-# todo: move this function to model Metadata as delete_async() function
-@transaction.atomic
-def remove_service(metadata: Metadata, user: MrMapUser):
-    """ Removes a service, referenced by its metadata object
-
-    Args:
-        metadata (Metadata): The metadata object related to the service
-        user (MrMapUser): The performing user
-    Returns:
-         Nothing
-    """
-    # Make sure performing user is part of the group which added the service once
-    user_groups = user.get_groups()
-    if metadata.created_by not in user_groups:
-        raise PermissionError()
-    # remove service and all of the related content
-    user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
-
-    # set service as deleted, so it won't be listed anymore in the index view until completely removed
-    metadata.is_deleted = True
-    metadata.save()
-
-    for sub_element in metadata.service.get_subelements().select_related('metadata'):
-        md = sub_element.metadata
-        md.is_deleted = True
-        md.save()
-
-    # call removing as async task
-    # todo: maybe django singls can help us to call this function on post_delete
-    tasks.async_remove_service_task.delay(metadata.service.id)
-
 
 def get_resource_capabilities(request: HttpRequest, md: Metadata):
     """ Logic for retrieving a capabilities document.

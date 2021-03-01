@@ -272,33 +272,21 @@ class ResourceIndexView(TemplateView):
         return context
 
 
+def test(request, pk):
+    md = Metadata.objects.select_related('service', 'featuretype').prefetch_related('service__child_services', 'service__parent_service__child_services', 'service__featuretypes', 'service__parent_service__featuretypes').get(pk=pk)
+    family_metadatas = md.get_family_metadatas()
+    i=0
+    return
+
+
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class ResourceDelete(DeleteView):
+class ResourceDelete(SuccessMessageMixin, DeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:index')
-    template_name = 'generic_views/generic_confirm.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data()
-        context.update({
-            "action_url": self.object.remove_view_uri,
-            "action": _("Delete"),
-            "msg": _("Are you sure you want to delete " + self.object.__str__()) + "?"
-        })
-        return context
-
-    def delete(self, request, *args, **kwargs):
-        """
-            Creates an async task job which will do the deletion on the fetched object and then redirect to the
-            success URL.
-        """
-        self.object = self.get_object()
-        success_url = self.get_success_url()
-        service_helper.remove_service(self.object, self.request.user)
-        messages.success(request, SERVICE_SUCCESSFULLY_DELETED.format(self.object.title))
-        return HttpResponseRedirect(success_url)
+    template_name = "MrMap/detail_views/delete.html"
+    success_message = SERVICE_SUCCESSFULLY_DELETED
 
 
 @method_decorator(login_required, name='dispatch')

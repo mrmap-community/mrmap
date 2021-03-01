@@ -14,7 +14,7 @@ from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, F
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -1261,6 +1261,33 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             return False
 
+    def get_family_metadatas(self):
+        """ Return all Metadata objects which are akin to the service of this Metadata.
+
+            If the given Metadata object describes a Service,
+            the service Metadata it self and all subelement metadatas are included.
+            If the given Metadata object describes a Layer,
+            the service Metadata and all Metadata objects of the family of the given Layer objects are included.
+            If the given Metadata objects describes a FeatureType,
+            the service Metadata and all Metadata objects of the family of the given FeatureType objects are included.
+
+            Returns:
+                qs (QuerySet): the QuerySet of all akin metadata objects
+        """
+        # todo: maybe we could use F() expressions to select the manytomany fields like service.child_services.all()
+        family_query = None
+        if self.is_service_metadata:
+            if self.service_type is OGCServiceEnum.WMS:
+                family_query = Q(service=self.service) | Q(service__in=self.service.child_services.all())
+            elif self.service_type is OGCServiceEnum.WFS:
+                family_query = Q(service=self.service) | Q(featuretype__in=self.service.featuretypes.all())
+        elif self.is_layer_metadata:
+            family_query = Q(service=self.service.parent_service) | Q(service__in=self.service.parent_service.child_services.all())
+        elif self.is_featuretype_metadata:
+            family_query = Q(service=self.featuretype.parent_service) | Q(featuretype__in=self.service.parent_service.featuretypes.all())
+        qs = Metadata.objects.filter(family_query) if family_query else Metadata.objects.none()
+        return qs
+
     @transaction.atomic
     def increase_hits(self):
         """ Increases the hit counter of the metadata
@@ -1268,26 +1295,9 @@ class Metadata(Resource):
         Returns:
              Nothing
         """
-        # increase itself
-        self.hits += 1
-
         # Only if whole service was called, increase the children hits as well
         if self.is_metadata_type(MetadataEnum.SERVICE):
-
-            # wms children
-            if self.service.is_service_type(OGCServiceEnum.WMS):
-                children = self.service.child_services.all()
-                for child in children:
-                    child.metadata.hits += 1
-                    child.metadata.save()
-
-            elif self.service.is_service_type(OGCServiceEnum.WFS):
-                featuretypes = self.service.featuretypes.all()
-                for f_t in featuretypes:
-                    f_t.metadata.hits += 1
-                    f_t.metadata.save()
-
-        self.save()
+            self.get_family_metadatas().update(hits=F('hits') + 1)
 
     def generate_public_id(self, stump: str = None):
         """ Generates a public_id for a Metadata entry.

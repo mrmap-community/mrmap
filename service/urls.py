@@ -19,6 +19,7 @@ urlpatterns = [
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
+    path('<pk>/test', test, name='test'),
     path('<pk>/activate', ResourceActivateDeactivateView.as_view(), name='activate'),
     # todo: refactor as generic view
     path('metadata/<metadata_id>/subscribe', metadata_subscription_new, name='subscription-new'),

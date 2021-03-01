@@ -348,8 +348,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
         response = APIResponse()
         try:
             md = Metadata.objects.get(id=pk)
-            user = user_helper.get_user(request)
-            service_helper.remove_service(md, user)
+            md.delete()
             response.data["success"] = True
             response.data["msg"] = SERVICE_REMOVED
         except ObjectDoesNotExist:

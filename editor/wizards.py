@@ -55,7 +55,7 @@ def show_restrict_spatially_form_condition(wizard):
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_METADATA.value, login_url='resource:index'), name='dispatch')
 class AccessEditorWizard(MrMapWizard):
-    template_name = "generic_views/generic_wizard_form.html"
+    # template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
     metadata_object = None
     condition_dict = {ACCESS_EDITOR_STEP_2_NAME: show_restrict_spatially_form_condition}
@@ -101,7 +101,7 @@ class AccessEditorWizard(MrMapWizard):
     def done(self, form_list, **kwargs):
         for form in form_list:
             form.save()
-        return HttpResponseRedirect(self.current_view_url)
+        return super().done(form_list, **kwargs)
 
 
 METADATA_WIZARD_FORMS = [(_("Metadata"), MetadataEditorForm)]

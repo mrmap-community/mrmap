@@ -1080,30 +1080,6 @@ class Metadata(Resource):
             cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
             cacher.remove(str(self.id))
 
-    def get_subelements_metadatas(self):
-        """ Returns a list containing all subelement metadata records
-
-
-        Returns:
-             ret_list (list)
-        """
-
-        is_service = self.is_metadata_type(MetadataEnum.SERVICE)
-        is_layer = self.is_metadata_type(MetadataEnum.LAYER)
-
-        ret_list = []
-        if is_service or is_layer:
-            descendants = self.get_described_element().get_subelements().prefetch_related('metadata')
-            ret_list += [elem.metadata for elem in descendants]
-        else:
-            subelement_metadatas = Metadata.objects.filter(
-                service__parent_service__metadata=self,
-            )
-            ret_list += list(subelement_metadatas)
-
-        return ret_list
-
-
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
 
@@ -1990,9 +1966,11 @@ class AllowedOperation(models.Model):
         return str(self.id)
 
     def setup_secured_metadata(self):
-        child_nodes = self.root_metadata.get_subelements_metadatas_as_qs()
+        child_nodes = self.root_metadata.get_described_element().get_subelements().select_related('metadata')
+        metadatas = [element.metadata for element in child_nodes]
+        metadatas.append(self.root_metadata)
         self.secured_metadata.clear()
-        self.secured_metadata.add(*child_nodes)
+        self.secured_metadata.add(*metadatas)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -3522,6 +3500,14 @@ class FeatureType(Resource):
             self.metadata.keywords.add(keyword)
         self.is_custom = False
 
+    def get_subelements(self):
+        """ This is a helper function to match the get_subelements() from Service(Resource),
+        to avoid special handling for FeatureType
+
+        Returns:
+             self as (QuerySet)
+        """
+        return FeatureType.objects.filter(pk=self.pk)
 
 class FeatureTypeElement(Resource):
     name = models.CharField(max_length=255)

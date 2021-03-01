@@ -448,11 +448,11 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         pass
 
     # Categories are inherited by subelements
-    subelement_mds = original_md.get_subelements_metadatas()
-    for subelement_md in subelement_mds:
-        subelement_md.categories.clear()
+    subelements = original_md.get_described_element().get_subelements().select_related('metadata')
+    for subelement in subelements:
+        subelement.metadata.categories.clear()
         for category in categories:
-            subelement_md.categories.add(category)
+            subelement.metadata.categories.add(category)
 
     # change capabilities document so that all sensitive elements (links) are proxied
     if original_md.use_proxy_uri != custom_md.use_proxy_uri:

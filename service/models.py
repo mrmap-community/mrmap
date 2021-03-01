@@ -1290,7 +1290,7 @@ class Metadata(Resource):
 
     @transaction.atomic
     def increase_hits(self):
-        """ Increases the hit counter of the metadata
+        """ Increases the hit counter of all metadata objects the service has
 
         Returns:
              Nothing

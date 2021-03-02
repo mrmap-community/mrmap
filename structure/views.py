@@ -319,7 +319,7 @@ class PublishRequestTableView(CustomSingleTableMixin, FilterView):
         if not self.request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
             # superuser can see all pending requests
-            queryset.filter(Q(group__in=self.request.user.get_groups()) |
+            queryset.filter(Q(group__in=self.request.user.get_groups) |
                             Q(organization=self.request.user.organization))
         return queryset
 
@@ -393,7 +393,7 @@ class GroupInvitationRequestTableView(CustomSingleTableMixin, FilterView):
         if not self.request.user.is_superuser:
             # show only requests for groups where the user is member of or the user is the requesting user
             # superuser can see all pending requests
-            queryset.filter(Q(group__in=self.request.user.get_groups()) |
+            queryset.filter(Q(group__in=self.request.user.get_groups) |
                             Q(user=self.request.user))
         return queryset
 
@@ -411,7 +411,7 @@ class GroupInvitationRequestNewView(GenericViewContextMixin, InitFormMixin, Succ
         group = form.cleaned_data['group']
         user = form.cleaned_data['user']
 
-        if group in user.get_groups():
+        if group in user.get_groups:
             form.add_error(None, _(f'{user} is already member of this group.'))
             return self.form_invalid(form)
         else:

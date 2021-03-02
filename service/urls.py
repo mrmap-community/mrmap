@@ -1,5 +1,6 @@
 from django.urls import path
 
+from editor.views import EditMetadata
 from service.autocompletes import MetadataAutocomplete, MetadataServiceAutocomplete, MetadataLayerAutocomplete, \
     MetadataFeaturetypeAutocomplete
 from service.views import *
@@ -20,6 +21,7 @@ urlpatterns = [
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
+    path('<pk>/edit', EditMetadata.as_view(), name='edit'),
     path('<pk>/activate', ResourceActivateDeactivateView.as_view(), name='activate'),
     # todo: refactor as generic view
     path('metadata/<metadata_id>/subscribe', metadata_subscription_new, name='subscription-new'),

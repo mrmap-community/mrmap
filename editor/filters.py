@@ -46,7 +46,7 @@ class EditorAccessFilter(django_filters.FilterSet):
         """
         if value:
             user = user_helper.get_user(self.request)
-            user_groups = user.get_groups()
+            user_groups = user.get_groups
             queryset = queryset & user_groups
 
         return queryset

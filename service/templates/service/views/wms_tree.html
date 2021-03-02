@@ -62,7 +62,7 @@
       </a>
       {% endif %}
       {% if 'can_edit_metadata' in user_permissions %}
-      <a class="btn btn-sm btn-warning" href="{% url 'editor:edit' object.pk %}" role="button">
+      <a class="btn btn-sm btn-warning" href="{% url 'resource:edit' object.pk %}" role="button">
         {{ ICONS.EDIT|safe }}
       </a>
       <a class="btn btn-sm btn-warning" href="{% url 'editor:access-editor-wizard' object.pk %}" role="button">

@@ -14,9 +14,10 @@ from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
-from django.db.models import Q, QuerySet, F
+from django.db.models import Q, QuerySet, F, Count
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
@@ -26,13 +27,15 @@ from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColo
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
-from MrMap.cacher import DocumentCacher
+from MrMap.cacher import DocumentCacher, PageCacher
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import not_uuid, geometry_is_empty
+from api.settings import API_CACHE_KEY_PREFIX
+from csw.settings import CSW_CACHE_PREFIX
 from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
@@ -55,6 +58,7 @@ class Resource(models.Model):
     created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
+    # todo: check if we still need this two boolean flags
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
 
@@ -557,6 +561,9 @@ class Metadata(Resource):
         self.formats_list = []
         self.categories_list = []
 
+        # memories some values to check has_changed in the save function
+        self.__is_active = self.is_active
+
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
 
@@ -578,7 +585,7 @@ class Metadata(Resource):
         return False
 
     def get_absolute_url(self):
-        return reverse('resource:detail', kwargs={'pk': self.get_described_element().pk})
+        return reverse('resource:detail', kwargs={'pk': self.pk})
 
     def add_metadata_relation(self, to_metadata, relation_type, origin, internal=False):
         relation, created = MetadataRelation.objects.get_or_create(
@@ -622,9 +629,31 @@ class Metadata(Resource):
             filter_query &= ~Q(**exclusions)
         return self.related_metadatas.filter(filter_query)
 
-    @property
-    def related_to(self):
-        self.get_related_to()
+    def get_family_related_metadatas(self, filters=None, exclusions=None) -> QuerySet:
+        """ Return all related metadata records which points to any akin of the current.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        filter_query = Q(to_metadatas__from_metadata__in=self.get_family_metadatas)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(filter_query)
+
+    def get_descendant_related_metadatas(self, filters=None, exclusions=None, include_self=False) -> QuerySet:
+        """ Return all related metadata records which points to any akin of the current.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        filter_query = Q(to_metadatas__from_metadata__in=self.get_descendant_metadatas(include_self=True))
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(filter_query)
 
     def get_related_to(self, filters=None, exclusions=None) -> QuerySet:
         """ Return all related metadata records which points to self """
@@ -841,7 +870,7 @@ class Metadata(Resource):
     def edit_view_uri(self):
         if self.metadata_type == MetadataEnum.DATASET.value:
             return reverse('editor:dataset-metadata-wizard-instance', args=[self.pk, ])
-        return reverse('editor:edit', args=[self.pk, ])
+        return reverse('resource:edit', args=[self.pk, ])
 
     @property
     def edit_access_view_uri(self):
@@ -999,6 +1028,7 @@ class Metadata(Resource):
         if self.is_service_metadata:
             ret_val = self.service
         elif self.is_layer_metadata:
+            # todo: this slows down... think about to set up a related_name called 'layer' to get the layer with self.layer
             ret_val = Layer.objects.get(
                 metadata=self
             )
@@ -1006,21 +1036,7 @@ class Metadata(Resource):
             ret_val = self.featuretype
         return ret_val
 
-    def get_root_metadata(self):
-        """ returns the root metadata object of the current metadata object. If the current one is the root node,
-            it returns it self.
-        """
-        if self.is_root():
-            parent_metadata = self
-        else:
-            if self.is_service_type(OGCServiceEnum.WMS):
-                parent_metadata = self.service.parent_service.metadata
-            elif self.is_service_type(OGCServiceEnum.WFS):
-                parent_metadata = self.featuretype.parent_service.metadata
-            else:
-                # This case is not important now
-                parent_metadata = None
-        return parent_metadata
+
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -1264,7 +1280,24 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             return False
 
-    def get_family_metadatas(self):
+    def get_root_metadata(self):
+        """ returns the root metadata object of the current metadata object. If the current one is the root node,
+            it returns it self.
+        """
+        if self.is_root():
+            parent_metadata = self
+        else:
+            if self.is_service_type(OGCServiceEnum.WMS):
+                parent_metadata = self.service.parent_service.metadata
+            elif self.is_service_type(OGCServiceEnum.WFS):
+                parent_metadata = self.featuretype.parent_service.metadata
+            else:
+                # This case is not important now
+                parent_metadata = None
+        return parent_metadata
+
+    @cached_property
+    def get_all_service_metadatas(self) -> QuerySet:
         """ Return all Metadata objects which are akin to the service of this Metadata.
 
             If the given Metadata object describes a Service,
@@ -1278,19 +1311,55 @@ class Metadata(Resource):
                 qs (QuerySet): the QuerySet of all akin metadata objects
         """
         # todo: maybe we could use F() expressions to select the manytomany fields like service.child_services.all()
-        family_query = None
+        filter_query = None
         if self.is_service_metadata:
             if self.service_type is OGCServiceEnum.WMS:
-                family_query = Q(service=self.service) | Q(service__in=self.service.child_services.all())
+                filter_query = Q(service=self.service) | Q(service__in=self.service.child_services.all())
             elif self.service_type is OGCServiceEnum.WFS:
-                family_query = Q(service=self.service) | Q(featuretype__in=self.service.featuretypes.all())
+                filter_query = Q(service=self.service) | Q(featuretype__in=self.service.featuretypes.all())
         elif self.is_layer_metadata:
-            family_query = Q(service=self.service.parent_service) | Q(service__in=self.service.parent_service.child_services.all())
+            filter_query = Q(service=self.service.parent_service) | Q(service__in=self.service.parent_service.child_services.all())
         elif self.is_featuretype_metadata:
-            family_query = Q(service=self.featuretype.parent_service) | Q(featuretype__in=self.service.parent_service.featuretypes.all())
-        qs = Metadata.objects.filter(family_query) if family_query else Metadata.objects.none()
+            filter_query = Q(service=self.featuretype.parent_service) | Q(featuretype__in=self.service.parent_service.featuretypes.all())
+        qs = Metadata.objects.filter(filter_query) if filter_query else Metadata.objects.none()
         return qs
 
+    @cached_property
+    def get_family_metadatas(self) -> QuerySet:
+        """ Returns a QuerySet containing the ancestors, the model itself and the descendants,
+            in tree order if it's a WMS and in various order else.
+            Returns:
+                qs (QuerySet): the QuerySet of all family metadata objects
+        """
+        filter_query = None
+        if self.is_service_metadata:
+            if self.service_type is OGCServiceEnum.WMS:
+                filter_query = Q(service__in=self.service.get_subelements()) | Q(service=self.service)
+        elif self.is_layer_metadata:
+            filter_query = Q(service__in=self.get_described_element().get_family()) | Q(service=self.service.parent_service)
+        # todo: filter for wfs services
+
+        qs = Metadata.objects.filter(filter_query) if filter_query else Metadata.objects.none()
+        return qs
+
+    def get_descendant_metadatas(self, include_self=False) -> QuerySet:
+        """ Return all Metadata objects which are descendant to the given Metadata.
+
+            Returns:
+                qs (QuerySet): the QuerySet of all descendant metadata objects
+        """
+        filter_query = None
+        if self.is_service_metadata:
+            if self.service_type is OGCServiceEnum.WMS:
+                filter_query = Q(service__in=self.self.service.get_subelements())
+                if include_self:
+                    filter_query |= Q(service=self.service)
+        elif self.is_layer_metadata:
+            filter_query = Q(service__in=self.get_described_element().get_descendants(include_self=include_self))
+        # todo: filter for wfs services
+
+        qs = Metadata.objects.filter(filter_query) if filter_query else Metadata.objects.none()
+        return qs
 
     @transaction.atomic
     def increase_hits(self):
@@ -1301,7 +1370,7 @@ class Metadata(Resource):
         """
         # Only if whole service was called, increase the children hits as well
         if self.is_metadata_type(MetadataEnum.SERVICE):
-            self.get_family_metadatas().update(hits=F('hits') + 1)
+            self.get_all_service_metadatas.update(hits=F('hits') + 1)
         else:
             # todo
             pass
@@ -1350,14 +1419,37 @@ class Metadata(Resource):
         """
         super().save(*args, **kwargs)
 
-        # Add created/updated object to the MonitoringSettings. Django does not add
-        # the same instance twice, so we do not have to check for updating specifically.
-        # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
-        if add_monitoring:
-            monitoring_setting = MonitoringSetting.objects.first()
-            if monitoring_setting is not None:
-                monitoring_setting.metadatas.add(self)
-                monitoring_setting.save()
+        if not self._state.adding:
+            if self.__is_active != self.is_active:
+                # the active sate of this and all descendant metadatas shall be changed to the new value. Bulk update
+                # is the most efficient way to do it.
+                if self.is_active:
+                    self.get_family_metadatas.prefetch_related('related_metadatas') \
+                        .update(is_active=self.is_active)
+                    self.get_family_related_metadatas() \
+                        .update(is_active=self.is_active)
+                else:
+                    self.get_descendant_metadatas(include_self=True).prefetch_related('related_metadatas') \
+                        .update(is_active=self.is_active)
+                    # updating only related metadatas without dependencies
+                    self.get_descendant_related_metadatas(include_self=True) \
+                        .annotate(num_dependencies=Count('from_metadatas')) \
+                        .filter(num_dependencies__lte=1) \
+                        .update(is_active=self.is_active)
+
+                # clear page cacher for API and csw
+                page_cacher = PageCacher()
+                page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+                page_cacher.remove_pages(CSW_CACHE_PREFIX)
+        else:
+            # Add created/updated object to the MonitoringSettings.
+            # todo: NOTE: Since we do not have a clear handling for which setting to use, always use first (default)
+            #  setting.
+            if add_monitoring:
+                monitoring_setting = MonitoringSetting.objects.first()
+                if monitoring_setting is not None:
+                    monitoring_setting.metadatas.add(self)
+                    monitoring_setting.save()
 
     def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
@@ -1771,8 +1863,7 @@ class Metadata(Resource):
             nothing
         """
         try:
-            cap_doc = Document.objects.get(
-                metadata=self,
+            cap_doc = self.docuents.get(
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
             )
@@ -1780,6 +1871,8 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
 
+    # todo: since all active state checks are based on the metadata object, we don't need document active state also
+    #  So we can drop this function
     def set_documents_active_status(self, is_active: bool):
         """ Sets the active status for related documents
 
@@ -1788,10 +1881,7 @@ class Metadata(Resource):
         Returns:
 
         """
-        docs = self.documents.all()
-        for doc in docs:
-            doc.is_active = is_active
-            doc.save()
+        self.documents.all().update(is_active=is_active)
 
     def set_logging(self, logging: bool):
         """ Set the metadata logging flag to a new value
@@ -1802,15 +1892,8 @@ class Metadata(Resource):
         """
         # Only change if the proxy setting is activated or the logging shall be deactivated anyway
         if self.use_proxy_uri or not logging:
-            self.log_proxy_access = logging
-
             # If the metadata shall be logged, all of it's subelements shall be logged as well!
-            child_mds = Metadata.objects.filter(service__parent_service=self.service)
-            for child_md in child_mds:
-                child_md.log_proxy_access = logging
-                child_md.save()
-
-            self.save()
+            self.get_descendant_metadatas().update(log_proxy_acces=F('log_proxy_access'))
 
     def set_proxy(self, use_proxy: bool):
         """ Set the metadata proxy to a new value.

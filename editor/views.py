@@ -1,3 +1,4 @@
+from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
@@ -6,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.db.models import Q
-from django.views.generic import DeleteView, DetailView
+from django.views.generic import DeleteView, DetailView, UpdateView
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
@@ -15,8 +16,8 @@ from django_tables2 import SingleTableMixin
 from MrMap.decorators import permission_required, ownership_required
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
-from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
-from MrMap.views import GenericUpdateView, ConfirmView
+from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, RESOURCE_EDITED
+from MrMap.views import GenericUpdateView, ConfirmView, GenericViewContextMixin, InitFormMixin
 from editor.filters import AllowedOperationFilter
 from editor.forms import MetadataEditorForm
 from editor.tables import AllowedOperationTable
@@ -62,16 +63,15 @@ class DatasetDelete(DeleteView):
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class EditMetadata(GenericUpdateView):
+class EditMetadata(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+    template_name = 'MrMap/detail_views/generic_form.html'
+    success_message = RESOURCE_EDITED
     model = Metadata
     form_class = MetadataEditorForm
     queryset = Metadata.objects.all().exclude(metadata_type=MetadataEnum.CATALOGUE.value)
 
-    def get_object(self, queryset=None):
-        instance = super().get_object(queryset=queryset)
-        self.action_url = instance.edit_view_uri
-        self.action = _("Edit " + instance.__str__())
-        return instance
+    def get_title(self):
+        return _("Edit " + self.get_object().__str__())
 
 
 @method_decorator(login_required, name='dispatch')

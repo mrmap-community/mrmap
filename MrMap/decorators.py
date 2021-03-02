@@ -89,7 +89,7 @@ def ownership_required(klass, id_name: str, login_url=None):
     """
     def check_ownership(request, user):
         resource = get_object_or_404(klass, id=request.resolver_match.kwargs.get(id_name), )
-        user_groups = user.get_groups()
+        user_groups = user.get_groups
 
         if isinstance(resource, MrMapGroup):
             if resource in user_groups:

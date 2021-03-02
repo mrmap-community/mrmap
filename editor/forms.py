@@ -192,7 +192,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
         user = user_helper.get_user(request=kwargs.pop("request"))
-        user_groups = user.get_groups({"is_public_group": False})
+        user_groups = user.get_groups.filter(is_public_group=False)
         self.fields["created_by"].queryset = user_groups
         self.fields["created_by"].initial = user_groups.first()
 
@@ -335,7 +335,7 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
 
     def __init__(self, *args, **kwargs):
         user = user_helper.get_user(kwargs.get("request"))
-        user_groups = user.get_groups()
+        user_groups = user.get_groups
         if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
             init_organization = Organization.objects.filter(id=metadata.contact.id)

@@ -43,64 +43,6 @@ def async_increase_hits(metadata_id: int):
     md.increase_hits()
 
 
-@shared_task(name="async_activate_service")
-@transaction.atomic
-# do not add other kwargs, cause generic AsyncUpdateView class uses always this params
-def async_activate_service(object_id: int, additional_params: dict):
-    """ Async call for activating a service, its subelements and all of their related metadata
-
-    Args:
-        object_id : The id of the object for that actions will run
-        additional_params (int): The generic dict with additional params
-    Returns:
-        nothing
-    """
-    # user_id: int, is_active: bool
-    user_id = additional_params.get('user_id')
-    is_active = additional_params.get('is_active')
-
-    user = MrMapUser.objects.get(id=user_id)
-
-    # get service and change status
-    service = Service.objects.select_related('metadata').get(metadata__id=object_id)
-    service.metadata.is_active = is_active
-    service.metadata.save()
-    for element in service.get_subelements(include_self=True).select_related('metadata').prefetch_related('metadata__documents'):
-        md = element.metadata
-        md.is_active = is_active
-        md.set_documents_active_status(is_active)
-        md.save(update_last_modified=False)
-
-        # activate related metadata (if exists)
-        related_metadatas = md.get_related_metadatas()
-        for related_md in related_metadatas:
-            if is_active:
-                has_dependencies = related_md.get_related_metadatas().exclude(pk=md.pk).exists()
-                if not has_dependencies:
-                    related_md.set_documents_active_status(is_active)
-                    related_md.is_active = is_active
-                    related_md.save(update_last_modified=False)
-            else:
-                related_md.set_documents_active_status(is_active)
-                related_md.is_active = is_active
-                related_md.save(update_last_modified=False)
-
-    # Formating using an empty string here is correct, since these are the messages we show in
-    # the group activity list. We reuse a message template, which uses a '{}' placeholder.
-    # Since we do not show the title in here, we remove the placeholder with an empty string.
-    if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED
-    else:
-        msg = SERVICE_DEACTIVATED
-
-    # clear page cacher for API and csw
-    page_cacher = PageCacher()
-    page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
-    page_cacher.remove_pages(CSW_CACHE_PREFIX)
-
-    user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
-
-
 # todo: maybe we don't need this function after SecuredOperation is refactored
 #  tag: delete
 @shared_task(name="async_secure_service_task")

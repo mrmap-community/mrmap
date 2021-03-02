@@ -104,34 +104,6 @@ class AccessEditorWizard(MrMapWizard):
         return super().done(form_list, **kwargs)
 
 
-METADATA_WIZARD_FORMS = [(_("Metadata"), MetadataEditorForm)]
-
-
-@method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_METADATA.value, login_url='home'), name='dispatch')
-class MetadataEditorWizard(MrMapWizard):
-    #template_name = "generic_views/generic_wizard_form.html"
-    action_url = ""
-    metadata_object = None
-
-    def dispatch(self, request, *args, **kwargs):
-        pk = kwargs.get('pk', None)
-        self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
-        self.instance_dict = {"Metadata": self.metadata_object}
-        self.action_url = reverse('editor:edit', args=[self.metadata_object.pk, ])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form, **kwargs)
-        context.update({'action_url': self.action_url})
-        return context
-
-    def done(self, form_list, **kwargs):
-        for form in form_list:
-            form.save()
-        return super().done(form_list, **kwargs)
-
-
 @method_decorator(login_required, name='dispatch')
 class DatasetWizard(MrMapWizard):
     metadata = None

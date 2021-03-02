@@ -70,7 +70,7 @@ class HomeView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        user_groups = self.request.user.get_groups()
+        user_groups = self.request.user.get_groups
         user_services_wms = Metadata.objects.filter(
             service__service_type__name="wms",
             service__is_root=True,

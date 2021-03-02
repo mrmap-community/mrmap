@@ -11,7 +11,6 @@ from service.helper.service_comparator import ServiceComparator
 from service.models import FeatureType, Metadata
 from service.settings import NONE_UUID
 from service.tables import PendingTaskTable, OgcServiceTable
-from service.tasks import async_activate_service
 from structure.models import GroupActivity
 from tests.baker_recipes.db_setup import *
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD

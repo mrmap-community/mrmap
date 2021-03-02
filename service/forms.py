@@ -90,7 +90,7 @@ class RegisterNewResourceWizardPage2(forms.Form):
 
         # initial the fields if the values are transfered
         if self.request.user is not None:
-            user_groups = self.request.user.get_groups({"is_public_group": False, "is_permission_group": False})
+            user_groups = self.request.user.get_groups.filter(is_public_group=False, is_permission_group=False)
             self.fields["registering_with_group"].queryset = user_groups.all()
             self.fields["registering_with_group"].initial = user_groups.first()
         if selected_group is not None:

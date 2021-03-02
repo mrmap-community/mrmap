@@ -11,7 +11,7 @@ from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, Data
     UsersAutocomplete, MetadataAutocomplete
 from editor.views import *
 from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_FORMS, AccessEditorWizard, \
-    ACCESS_EDITOR_WIZARD_FORMS, MetadataEditorWizard, METADATA_WIZARD_FORMS
+    ACCESS_EDITOR_WIZARD_FORMS
 
 app_name = 'editor'
 urlpatterns = [
@@ -26,7 +26,8 @@ urlpatterns = [
     path('groups/', GroupsAutocomplete.as_view(), name="groups"),
     path('users/', UsersAutocomplete.as_view(), name="users"),
 
-    path('metadata/<pk>/edit', MetadataEditorWizard.as_view(form_list=METADATA_WIZARD_FORMS), name='edit'),
+    # was moved to the service app
+    # path('metadata/<pk>/edit', EditMetadata.as_view(), name='edit'),
     path('dataset/<pk>/delete', DatasetDelete.as_view(), name='remove-dataset-metadata'),
     path('metadata/<pk>/restore', RestoreMetadata.as_view(), name='restore'),
 

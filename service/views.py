@@ -86,7 +86,7 @@ def default_dispatch(instance, extra_context=None, with_base: bool = True, is_li
 def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
     return Metadata.objects.filter(
         service__service_type__name=service_type.value,
-        created_by__in=instance.request.user.get_groups(),
+        created_by__in=instance.request.user.get_groups,
         is_deleted=False,
         service__is_update_candidate_for=None,
     ).select_related(
@@ -202,7 +202,7 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups())
+        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -234,6 +234,7 @@ class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, Suc
             self.success_message = SERVICE_ACTIVATED
         else:
             self.success_message = SERVICE_DEACTIVATED
+        cleaned_data.update({'title': self.object.title})
         return super().get_success_message(cleaned_data)
 
 
@@ -993,7 +994,7 @@ class LogsIndexView(ExportMixin, SingleTableMixin, FilterView):
         return super(LogsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups())
+        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups)
 
         return ProxyLog.objects.filter(
             metadata__in=group_metadatas

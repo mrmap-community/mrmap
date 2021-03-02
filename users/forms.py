@@ -78,12 +78,12 @@ class SubscriptionForm(MrMapModelForm):
         self.request = request
         super().__init__(*args, **kwargs)
         # don't touch this. User shall not be able to append groups here. For that, the request system is recommended.
-        self.fields['groups'].queryset = self.request.user.get_groups()
+        self.fields['groups'].queryset = self.request.user.get_groups
 
     def clean(self):
         cleaned_data = super().clean()
         committed_groups = cleaned_data.get('groups')
-        current_groups = self.request.user.get_groups()
+        current_groups = self.request.user.get_groups
 
         # cause the queryset limits the user in only leave groups, we only need to iterate over the diff.
         # the diff contains all groups the user want to leave

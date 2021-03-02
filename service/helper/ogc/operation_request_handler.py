@@ -107,7 +107,7 @@ class OGCOperationRequestHandler:
 
         # If user is AnonymousUser, we need to get the public groups
         if self.user.is_authenticated:
-            self.user_groups = self.user.get_groups()
+            self.user_groups = self.user.get_groups
         else:
             self.user_groups = user_helper.get_public_groups()
 

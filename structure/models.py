@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Case, When
+from django.db.models import Case, When, QuerySet
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
@@ -443,7 +443,7 @@ class MrMapGroup(Group):
             elif self.user_set.count() > 1:
                 from MrMap.utils import signal_last
                 groups_querystring = "groups"
-                groups_excluded_self = request.user.get_groups().exclude(pk=self.pk)
+                groups_excluded_self = request.user.get_groups.exclude(pk=self.pk)
                 if groups_excluded_self:
                     groups_querystring = ""
                     for is_last_element, group in signal_last(groups_excluded_self):
@@ -541,7 +541,7 @@ class MrMapUser(AbstractUser):
         from service.models import Metadata
         md_list = Metadata.objects.filter(
             service__is_root=True,
-            created_by__in=self.get_groups(),
+            created_by__in=self.get_groups,
             service__is_deleted=False,
         ).order_by("title")
         if type is not None:
@@ -557,7 +557,7 @@ class MrMapUser(AbstractUser):
         from service.models import Metadata
 
         md_list = Metadata.objects.filter(
-            created_by__in=self.get_groups(),
+            created_by__in=self.get_groups,
         ).order_by("title")
         if type is not None:
             if inverse_match:
@@ -574,7 +574,7 @@ class MrMapUser(AbstractUser):
         """
         from service.models import Metadata
         if user_groups is None:
-            user_groups = self.get_groups()
+            user_groups = self.get_groups
 
         if count:
             md_list = Metadata.objects.filter(
@@ -588,26 +588,15 @@ class MrMapUser(AbstractUser):
             ).order_by("title")
         return md_list
 
-    def get_groups(self, filter_by: dict = {}):
+    @cached_property
+    def get_groups(self) -> QuerySet:
         """ Returns a queryset of all MrMapGroups related to the user
 
-        filter_by takes the same attributes and properties as a regular queryset filter call.
-        So 'name__icontains=test' becomes 'name__icontains: test'
-
-        Example filter_by:
-            filter_by = {
-                "name__icontains": "test",
-            }
-
-        Args:
-            filter_by (dict): Accepts a dict for pre-filtering before returning a queryset
         Returns:
              queryset
         """
         groups = MrMapGroup.objects.filter(
             id__in=self.groups.all().values('id')
-        ).filter(
-            **filter_by
         ).prefetch_related(
             "role__permissions",
         )
@@ -636,7 +625,7 @@ class MrMapUser(AbstractUser):
         if group is not None:
             groups = MrMapGroup.objects.filter(id=group.id)
         else:
-            groups = self.get_groups().prefetch_related("role__permissions")
+            groups = self.get_groups
         all_perm = set(groups.values_list("role__permissions__name", flat=True))
         return all_perm
 
@@ -645,14 +634,14 @@ class MrMapUser(AbstractUser):
         if self.is_active and self.is_superuser:
             return True
 
-        has_perm = self.get_groups().filter(
+        has_perm = self.get_groups.filter(
             role__permissions__name=perm
         )
         has_perm = has_perm.exists()
         return has_perm
 
     def has_perms(self, perm_list, obj=None) -> bool:
-        has_perm = self.get_groups().filter(
+        has_perm = self.get_groups.filter(
             role__permissions__name__in=perm_list
         )
         has_perm = has_perm.exists()

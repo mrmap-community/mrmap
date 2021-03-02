@@ -317,9 +317,6 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
             md.is_active = new_status
             md.save()
-            # run activation async!
-            tasks.async_activate_service.delay(pk, {'user_id': user.id,
-                                                    'is_active': new_status,})
             response.data["newStatus"] = md.is_active
             response.data["success"] = True
             return Response(data=response.data, status=200)

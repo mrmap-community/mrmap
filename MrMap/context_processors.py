@@ -35,30 +35,30 @@ def default_context(request: HttpRequest):
         if not request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
             # superuser can see all pending requests
-            pending_publish_requests_count = PublishRequest.objects.filter(Q(group__in=request.user.get_groups()) |
+            pending_publish_requests_count = PublishRequest.objects.filter(Q(group__in=request.user.get_groups) |
                                                                            Q(organization=request.user.organization)).count
         else:
             pending_publish_requests_count = PublishRequest.objects.count()
         pending_group_invitation_requests_count = GroupInvitationRequest.objects.filter(Q(user=request.user)|
-                                                                                        Q(group__in=request.user.get_groups())).count()
+                                                                                        Q(group__in=request.user.get_groups)).count()
 
         pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
         pending_tasks_count = PendingTask.objects.count()
 
         wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
                                             service__is_root=True,
-                                            created_by__in=request.user.get_groups(),
+                                            created_by__in=request.user.get_groups,
                                             is_deleted=False,
                                             service__is_update_candidate_for=None,).count()
         wfs_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WFS.value,
-                                            created_by__in=request.user.get_groups(),
+                                            created_by__in=request.user.get_groups,
                                             is_deleted=False,
                                             service__is_update_candidate_for=None, ).count()
         csw_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.CSW.value,
-                                            created_by__in=request.user.get_groups(),
+                                            created_by__in=request.user.get_groups,
                                             is_deleted=False,
                                             service__is_update_candidate_for=None, ).count()
-        dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.get_groups()).count()
+        dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.get_groups).count()
 
     return {
         "ROOT_URL": ROOT_URL,

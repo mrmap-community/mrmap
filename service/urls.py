@@ -8,7 +8,6 @@ from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 app_name = 'resource'
 urlpatterns = [
     # index views
-    path('', ResourceIndexView.as_view(), name='index'),
     path('wms/', WmsIndexView.as_view(), name='wms-index'),
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
     path('csw/', CswIndexView.as_view(), name='csw-index'),
@@ -21,7 +20,6 @@ urlpatterns = [
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
-    path('<pk>/test', test, name='test'),
     path('<pk>/activate', ResourceActivateDeactivateView.as_view(), name='activate'),
     # todo: refactor as generic view
     path('metadata/<metadata_id>/subscribe', metadata_subscription_new, name='subscription-new'),

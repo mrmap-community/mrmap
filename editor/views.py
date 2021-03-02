@@ -32,7 +32,7 @@ from users.helper import user_helper
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class DatasetDelete(DeleteView):
     model = Metadata
-    success_url = reverse_lazy('resource:index')
+    success_url = reverse_lazy('resource:dataset-index')
     template_name = 'generic_views/generic_confirm.html'
 
     def get_queryset(self):

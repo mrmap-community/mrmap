@@ -11,7 +11,6 @@ from django.utils.html import format_html
 
 DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
 
-SERVICE_INDEX = "resource:index"
 SERVICE_DETAIL = "resource:detail"
 SERVICE_ADD = "resource:add"
 

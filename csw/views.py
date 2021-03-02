@@ -62,7 +62,7 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
     metadata = get_object_or_404(Metadata, id=metadata_id)
     if not metadata.is_active:
         messages.error(request, SERVICE_DISABLED)
-        return redirect("resource:index")
+        return redirect("resource:csw-index")
     form = HarvestGroupForm(data=request.POST or None,
                             request=request,
                             reverse_lookup='csw:harvest-catalogue',

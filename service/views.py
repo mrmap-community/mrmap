@@ -206,54 +206,17 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-class ResourceIndexView(TemplateView):
-    """
-    This is the wrapper view, you include the inline view inside the
-    wrapper view get_context_data.
-    """
-    template_name = "generic_views/wrapper_template_with_base.html"
-
-    def get_context_data(self, **kwargs):
-        context = super(ResourceIndexView, self).get_context_data(**kwargs)
-        context.update(kwargs.get('update_params', {}))
-
-        self.request.GET._mutable = True
-        self.request.GET.update({'with-base': False})
-        self.request.GET._mutable = False
-
-        rendered_wms_view = WmsIndexView.as_view()(request=self.request)
-        rendered_wfs_view = WfsIndexView.as_view()(request=self.request)
-        rendered_csw_view = CswIndexView.as_view()(request=self.request)
-        rendered_dataset_view = DatasetIndexView.as_view()(request=self.request)
-        rendered_pending_task_ajax = render_to_string(template_name='pending_task_list_ajax.html')
-
-        context['inline_html_items'] = [rendered_pending_task_ajax,
-                                        rendered_wms_view.rendered_content,
-                                        rendered_wfs_view.rendered_content,
-                                        rendered_csw_view.rendered_content,
-                                        rendered_dataset_view.rendered_content, ]
-        return context
-
-
-def test(request, pk):
-    md = Metadata.objects.select_related('service', 'featuretype').prefetch_related('service__child_services', 'service__parent_service__child_services', 'service__featuretypes', 'service__parent_service__featuretypes').get(pk=pk)
-    family_metadatas = md.get_family_metadatas()
-    i=0
-    return
-
-
-@method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceDelete(SuccessMessageMixin, DeleteView):
     model = Metadata
-    success_url = reverse_lazy('resource:index')
+    success_url = reverse_lazy('home')
     template_name = "MrMap/detail_views/delete.html"
     success_message = SERVICE_SUCCESSFULLY_DELETED
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='resource:index'),
+@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='home'),
                   name='dispatch')
 class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     model = Metadata

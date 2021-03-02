@@ -235,7 +235,7 @@ class GroupMembersTableView(DependingListView, GroupDetailContextMixin, CustomSi
 @method_decorator(login_required, name='dispatch')
 class PendingTaskDelete(DeleteView):
     model = PendingTask
-    success_url = reverse_lazy('resource:index')
+    success_url = reverse_lazy('resource:pending-tasks')
     template_name = 'generic_views/generic_confirm.html'
 
     def get_context_data(self, **kwargs):

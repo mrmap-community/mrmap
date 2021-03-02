@@ -1288,6 +1288,7 @@ class Metadata(Resource):
         qs = Metadata.objects.filter(family_query) if family_query else Metadata.objects.none()
         return qs
 
+
     @transaction.atomic
     def increase_hits(self):
         """ Increases the hit counter of all metadata objects the service has
@@ -1298,6 +1299,9 @@ class Metadata(Resource):
         # Only if whole service was called, increase the children hits as well
         if self.is_metadata_type(MetadataEnum.SERVICE):
             self.get_family_metadatas().update(hits=F('hits') + 1)
+        else:
+            # todo
+            pass
 
     def generate_public_id(self, stump: str = None):
         """ Generates a public_id for a Metadata entry.

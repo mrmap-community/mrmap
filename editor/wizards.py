@@ -143,6 +143,9 @@ class DatasetWizard(MrMapWizard):
             *args,
             **kwargs)
 
+    def get_form_kwargs(self, step=None):
+        return {'request': self.request}
+
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})
         if step == "responsible party" and self.instance_id:
@@ -402,6 +405,9 @@ class NewDatasetWizard(DatasetWizard):
             title=_(format_html('<b>Add New Dataset</b>')),
             *args,
             **kwargs)
+
+    def get_form_kwargs(self, step=None):
+        return {'request': self.request}
 
     def done(self, form_list, **kwargs):
         """ Iterates over all forms and fills the Metadata/Dataset records accordingly

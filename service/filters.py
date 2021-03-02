@@ -1,4 +1,5 @@
 import django_filters
+from dal import autocomplete
 from django import forms
 from django.db.models import Q
 
@@ -49,7 +50,13 @@ class OgcCswFilter(django_filters.FilterSet):
 class DatasetFilter(django_filters.FilterSet):
     class Meta:
         model = Metadata
-        fields = {'title': ['icontains'], }
+        fields = {'title': ['icontains']}
+
+    related_to = django_filters.ModelMultipleChoiceFilter(
+        label=_('Related objects'),
+        queryset=Metadata.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(url='resource:autocomplete_metadata')
+    )
 
     def __init__(self, *args, **kwargs):
         super(DatasetFilter, self).__init__(prefix='dataset-filter', *args, **kwargs)

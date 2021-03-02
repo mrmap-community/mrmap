@@ -65,13 +65,25 @@
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <h6 class="dropdown-header">{% trans 'Pending tasks' %}</h6>
                     <a class="dropdown-item" href="{% url 'resource:pending-tasks' %}">{% autoescape off %}{{THEME.ICONS.PENDING_TASKS}}{% endautoescape %} {% trans 'Pending tasks'%} <span class="badge {% if pending_tasks_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}">{{pending_tasks_count}}</span></a>
-                    <h6 class="dropdown-header">{% trans 'Resources' %}</h6>
-                    <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
-                    <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
-                    <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{THEME.ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span class="badge badge-secondary">{{csw_count}}</span></a>
+                    <h6 class="dropdown-header">{% trans 'Services' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{THEME.ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span class="badge badge-secondary">{{csw_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Datasets' %}</h6>
-                    <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %} <span class="badge badge-secondary">{{dataset_count}}</span></a>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %} <span class="badge badge-secondary">{{dataset_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'monitoring' %}active{% endif %}">

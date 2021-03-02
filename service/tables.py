@@ -185,15 +185,14 @@ class OgcServiceTable(tables.Table):
 
 class DatasetTable(tables.Table):
     bs4helper = None
-    related_objects = MrMapColumn(verbose_name=_('Related objects'), empty_values=[])
+    related_objects = MrMapColumn(verbose_name=_('Related objects'), accessor='related_to__all', empty_values=[])
     origins = MrMapColumn(verbose_name=_('Origins'), empty_values=[])
     actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
                             attrs={"td": {"style": "white-space:nowrap;"}})
 
     class Meta:
         model = Metadata
-        fields = (
-                  'title',
+        fields = ('title',
                   'related_objects',
                   'origins',
                   'actions')
@@ -207,11 +206,9 @@ class DatasetTable(tables.Table):
     def render_title(self, value, record):
         return Link(url=record.detail_html_view_uri, content=value, open_in_new_tab=True).render(safe=True)
 
-    def render_related_objects(self, record):
-        related_metadatas = record.get_related_to()
-
+    def render_related_objects(self, value):
         link_list = []
-        for metadata in related_metadatas:
+        for metadata in value:
             if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
                 kind_of_resource_icon = IconEnum.FEATURETYPE.value
                 kind_of_resource = "Featuretype"

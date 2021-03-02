@@ -622,6 +622,10 @@ class Metadata(Resource):
             filter_query &= ~Q(**exclusions)
         return self.related_metadatas.filter(filter_query)
 
+    @property
+    def related_to(self):
+        self.get_related_to()
+
     def get_related_to(self, filters=None, exclusions=None) -> QuerySet:
         """ Return all related metadata records which points to self """
         filter_query = Q(from_metadatas__to_metadata=self)
@@ -659,11 +663,10 @@ class Metadata(Resource):
 
     @classmethod
     def get_add_dataset_action(cls):
-        return Modal(btn_content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset').__str__(),
-                     btn_attrs={"class": [ButtonColorEnum.SUCCESS.value]},
-                     fetch_url=reverse('editor:dataset-metadata-wizard-new'),
-                     size=ModalSizeEnum.LARGE,
-                     needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('editor:dataset-metadata-wizard-new'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     def get_actions(self):
         actions = []
@@ -678,11 +681,11 @@ class Metadata(Resource):
                                       tooltip_placement=TooltipPlacementEnum.LEFT,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             # todo: if this dataset is in the given from_metadata context origin editor, then we can show this
-            actions.append(Modal(fetch_url=self.remove_view_uri,
-                                 btn_content=FONT_AWESOME_ICONS["REMOVE"],
-                                 btn_attrs={"class": [ButtonColorEnum.WARNING.value]},
-                                 btn_tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
-                                 needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+            actions.append(LinkButton(url=self.remove_view_uri,
+                                      content=FONT_AWESOME_ICONS["REMOVE"],
+                                      color=ButtonColorEnum.DANGER,
+                                      tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
             actions.append(LinkButton(url=self.activate_view_uri,
@@ -733,11 +736,11 @@ class Metadata(Resource):
                                                needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value)])
 
         if self.is_custom:
-            actions.append(Modal(fetch_url=self.restore_view_uri,
-                                 btn_content=FONT_AWESOME_ICONS["UNDO"],
-                                 btn_attrs={"class": [ButtonColorEnum.DANGER.value]},
-                                 btn_tooltip=_l("Restore the metadata for resource"),
-                                 needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
+            actions.append(LinkButton(url=self.restore_view_uri,
+                                      content=FONT_AWESOME_ICONS["UNDO"],
+                                      color=ButtonColorEnum.DANGER,
+                                      tooltip=_l("Restore the metadata for resource"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
 
         return actions
 

@@ -9,12 +9,14 @@ app_name = 'resource'
 urlpatterns = [
     # index views
     path('', ResourceIndexView.as_view(), name='index'),
-    path('pending-tasks/', PendingTaskView.as_view(), name="pending-tasks"),
     path('wms/', WmsIndexView.as_view(), name='wms-index'),
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
     path('csw/', CswIndexView.as_view(), name='csw-index'),
     path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
     path('logs/', LogsIndexView.as_view(), name='logs-view'),
+
+    # PendingTasks
+    path('pending-tasks/', PendingTaskView.as_view(), name="pending-tasks"),
 
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),

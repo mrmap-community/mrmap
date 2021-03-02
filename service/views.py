@@ -33,7 +33,7 @@ from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorators import log_proxy, ownership_required, resolve_metadata_public_id, permission_required
 from MrMap.forms import get_current_view_args
-from MrMap.icons import IconEnum
+from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
@@ -41,7 +41,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     PUBLISH_REQUEST_ACCEPTED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin
+from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
 from service import tasks
 from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
@@ -105,29 +105,19 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) 
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskView(SingleTableMixin, ListView):
+class PendingTaskView(CustomSingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTable
-
-    def get_table(self, **kwargs):
-        # set some custom attributes for template rendering
-        table = super(PendingTaskView, self).get_table(**kwargs)
-        if table.data.data:
-            table.title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Pending tasks')
-        else:
-            self.template_name = 'generic_views/empty.html'
-        return table
-
-    def dispatch(self, request, *args, **kwargs):
-        default_dispatch(instance=self)
-        return super(PendingTaskView, self).dispatch(request, *args, **kwargs)
+    title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
 
 
 @method_decorator(login_required, name='dispatch')
-class WmsIndexView(SingleTableMixin, FilterView):
+class WmsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
+    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+    title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
 
     def get_filterset_kwargs(self, *args):
         kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
@@ -145,98 +135,71 @@ class WmsIndexView(SingleTableMixin, FilterView):
         else:
             table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
 
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.WMS.value]}) + _(' WMS')
-
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.all_permissions)))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
-
-    def dispatch(self, request, *args, **kwargs):
-        # we inject the pending task ajax template above the default content to support polling the dynamic content
-        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
-        extra_context.update(kwargs.get('update_params', {}))
-        default_dispatch(instance=self, extra_context=extra_context)
-        return super(WmsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
 
 
 @method_decorator(login_required, name='dispatch')
-class WfsIndexView(SingleTableMixin, FilterView):
+class WfsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWfsFilter
+    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+    title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
         table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.WFS.value]}) + _(' WFS')
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
-
-    def dispatch(self, request, *args, **kwargs):
-        # we inject the pending task ajax template above the default content to support polling the dynamic content
-        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
-        extra_context.update(kwargs.get('update_params', {}))
-        default_dispatch(instance=self, extra_context=extra_context)
-        return super(WfsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WFS)
 
 
 @method_decorator(login_required, name='dispatch')
-class CswIndexView(SingleTableMixin, FilterView):
+class CswIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcCswFilter
+    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+    title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(CswIndexView, self).get_table(**kwargs)
         table.exclude = ('parent_service', 'layers', 'featuretypes', 'health', 'service__published_for')
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.CSW.value]}) + _(' CSW')
-
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
-
-    def dispatch(self, request, *args, **kwargs):
-        # we inject the pending task ajax template above the default content to support polling the dynamic content
-        extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
-        extra_context.update(kwargs.get('update_params', {}))
-        default_dispatch(instance=self, extra_context=extra_context)
-        return super(CswIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.CSW)
 
 
 @method_decorator(login_required, name='dispatch')
-class DatasetIndexView(SingleTableMixin, FilterView):
+class DatasetIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = DatasetTable
     filterset_class = DatasetFilter
+    title = get_icon(IconEnum.DATASET) + _(' Dataset').__str__()
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(DatasetIndexView, self).get_table(**kwargs)
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.DATASET.value]}) + _(' Dataset')
-
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
         return table
-
-    def dispatch(self, request, *args, **kwargs):
-        default_dispatch(instance=self, extra_context=kwargs.get('update_params', {}))
-        return super(DatasetIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups())

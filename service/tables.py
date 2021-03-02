@@ -208,11 +208,8 @@ class DatasetTable(tables.Table):
         return Link(url=record.detail_html_view_uri, content=value, open_in_new_tab=True).render(safe=True)
 
     def render_related_objects(self, record):
-        related_metadatas = Metadata.objects.filter(
-            related_metadata__metadata_to=record
-        ).prefetch_related(
-            "related_metadatas"
-        )
+        related_metadatas = record.get_related_to()
+
         link_list = []
         for metadata in related_metadatas:
             if metadata.metadata_type == MetadataEnum.FEATURETYPE.value:
@@ -233,10 +230,10 @@ class DatasetTable(tables.Table):
 
     def render_origins(self, record):
         related_metadatas = MetadataRelation.objects.filter(
-            metadata_to=record
+            to_metadata=record
         )
         origin_list = []
-        rel_mds = list(record.related_metadata.all())
+        rel_mds = list(record.related_metadatas.all())
         relations = list(related_metadatas) + rel_mds
         for relation in relations:
             origin_list.append(f"{relation.origin}")

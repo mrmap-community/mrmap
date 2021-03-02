@@ -63,6 +63,10 @@ class PendingTask(models.Model):
         return self.task_id
 
     @property
+    def icon(self):
+        return get_icon(IconEnum.PENDING_TASKS)
+
+    @property
     def service_uri(self):
         return str(json.loads(self.description).get('service', "resource_name_missing")) if 'service' in json.loads(self.description) else _('unknown')
 

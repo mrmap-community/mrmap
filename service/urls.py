@@ -1,7 +1,7 @@
 from django.urls import path
 
-from editor.views import EditMetadata, RestoreMetadata
-from editor.wizards import ACCESS_EDITOR_WIZARD_FORMS, AccessEditorWizard
+from editor.views import EditMetadata, RestoreMetadata, DatasetDelete
+from editor.wizards import ACCESS_EDITOR_WIZARD_FORMS, AccessEditorWizard, EditDatasetWizard, DATASET_WIZARD_FORMS
 from service.autocompletes import MetadataAutocomplete, MetadataServiceAutocomplete, MetadataLayerAutocomplete, \
     MetadataFeaturetypeAutocomplete
 from service.views import *
@@ -22,7 +22,9 @@ urlpatterns = [
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
-    path('<pk>/edit', EditMetadata.as_view(), name='edit'),
+    path('<pk>/remove-dataset', DatasetDelete.as_view(), name='remove-dataset-metadata'),
+    path('<pk>/edit-metadata', EditMetadata.as_view(), name='edit'),
+    path('<pk>/edit-dataset-metadata', EditDatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True), name="dataset-metadata-wizard-instance"),
     path('<pk>/restore', RestoreMetadata.as_view(), name='restore'),
     path('<pk>/activate', ResourceActivateDeactivateView.as_view(), name='activate'),
     path('<pk>/access-edit', AccessEditorWizard.as_view(form_list=ACCESS_EDITOR_WIZARD_FORMS), name='access-editor-wizard'),

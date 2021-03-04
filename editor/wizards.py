@@ -422,7 +422,7 @@ class EditDatasetWizard(DatasetWizard):
 
     def dispatch(self, request, *args, **kwargs):
         self.instance_id = request.resolver_match.kwargs.get('pk')
-        self.action_url = reverse('editor:dataset-metadata-wizard-instance', args=(self.instance_id,))
+        self.action_url = reverse('resource:dataset-metadata-wizard-instance', args=(self.instance_id,))
         return super().dispatch(request=request, args=args, kwargs=kwargs)
 
     def done(self, form_list, **kwargs):

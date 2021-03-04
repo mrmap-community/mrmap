@@ -28,8 +28,8 @@ EDITOR_ACCESS_GEOMETRY_EDITOR_NAME = 'editor:access_geometry_form'
 
 EDITOR_DATASET_INDEX_NAME = 'editor:datasets-index'
 EDITOR_DATASET_WIZARD_NEW = 'editor:dataset-metadata-wizard-new'
-EDITOR_DATASET_WIZARD_EDIT = 'editor:dataset-metadata-wizard-instance'
-EDITOR_REMOVE_DATASET = 'editor:remove-dataset-metadata'
+EDITOR_DATASET_WIZARD_EDIT = 'resource:dataset-metadata-wizard-instance'
+EDITOR_REMOVE_DATASET = 'resource:remove-dataset-metadata'
 
 
 class EditorMetadataEditViewTestCase(TestCase):
@@ -183,7 +183,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         self.assertTrue('name="dataset_wizard-current_step" value="responsible party"' in step_response.context['rendered_modal'], msg='The current step was not responsible party ')
         self.assertTemplateUsed(response=step_response, template_name="views/datasets_index.html")
 
-        step2_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
+        step2_response = self.client.post(reverse('resource:dataset-metadata-wizard-instance',
                                                   args=(datasets[0].id,))+"?current-view=resource:datasets-index",
                                           HTTP_REFERER=reverse('resource:datasets-index'),
                                           data=step2_post_params,)
@@ -192,7 +192,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         self.assertTrue('name="dataset_wizard-current_step" value="classification"' in step2_response.context['rendered_modal'], msg='The current step was not classification ')
         self.assertTemplateUsed(response=step2_response, template_name="views/datasets_index.html")
 
-        save_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
+        save_response = self.client.post(reverse('resource:dataset-metadata-wizard-instance',
                                                  args=(datasets[0].id,))+"?current-view=resource:datasets-index",
                                          HTTP_REFERER=reverse('resource:datasets-index'),
                                          data=save_post_params,)
@@ -223,7 +223,7 @@ class EditorDatasetRemoveInstanceViewTestCase(TestCase):
         post_data = {'is_confirmed': 'True'}
 
         response = self.client.post(
-            reverse('editor:remove-dataset-metadata', args=(datasets[0].id, ))+"?current-view=resource:index",
+            reverse('resource:remove-dataset-metadata', args=(datasets[0].id, ))+"?current-view=resource:index",
             data=post_data
         )
 

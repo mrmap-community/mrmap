@@ -31,33 +31,15 @@ from users.helper import user_helper
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(PermissionEnum.CAN_REMOVE_DATASET_METADATA.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class DatasetDelete(DeleteView):
+class DatasetDelete(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:dataset-index')
-    template_name = 'generic_views/generic_confirm.html'
+    template_name = 'MrMap/detail_views/delete.html'
+    queryset = Metadata.objects.filter(metadata_type=MetadataEnum.DATASET.value)
+    success_message = _("Dataset successfully deleted.")
 
-    def get_queryset(self):
-        return self.get_object().get_related_dataset_metadatas(filters={'to_metadatas__origin': ResourceOriginEnum.EDITOR.value})
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data()
-        context.update({
-            "action_url": self.object.remove_view_uri,
-            "action": _("Delete"),
-            "msg": _("Are you sure you want to delete " + self.object.__str__()) + "?"
-        })
-        return context
-
-    def delete(self, request, *args, **kwargs):
-        """
-            Creates an async task job which will do the deletion on the fetched object and then redirect to the
-            success URL.
-        """
-        self.object = self.get_object()
-        success_url = self.get_success_url()
-        self.object.delete(force=True)
-        messages.success(self.request, message=_("Dataset successfully deleted."))
-        return HttpResponseRedirect(success_url)
+    def get_title(self):
+        return _("Remove " + self.get_object().__str__())
 
 
 @method_decorator(login_required, name='dispatch')
@@ -68,7 +50,8 @@ class EditMetadata(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, 
     success_message = RESOURCE_EDITED
     model = Metadata
     form_class = MetadataEditorForm
-    queryset = Metadata.objects.all().exclude(metadata_type=MetadataEnum.CATALOGUE.value)
+    queryset = Metadata.objects.filter(~Q(metadata_type=MetadataEnum.CATALOGUE.value) |
+                                       ~Q(metadata_type=MetadataEnum.DATASET.value))
 
     def get_title(self):
         return _("Edit " + self.get_object().__str__())

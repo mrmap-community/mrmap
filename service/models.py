@@ -869,7 +869,7 @@ class Metadata(Resource):
     @property
     def edit_view_uri(self):
         if self.metadata_type == MetadataEnum.DATASET.value:
-            return reverse('editor:dataset-metadata-wizard-instance', args=[self.pk, ])
+            return reverse('resource:dataset-metadata-wizard-instance', args=[self.pk, ])
         return reverse('resource:edit', args=[self.pk, ])
 
     @property
@@ -884,7 +884,7 @@ class Metadata(Resource):
     @property
     def remove_view_uri(self):
         if self.metadata_type == MetadataEnum.DATASET.value:
-            return reverse('editor:remove-dataset-metadata', args=[self.pk, ])
+            return reverse('resource:remove-dataset-metadata', args=[self.pk, ])
         return reverse('resource:remove', args=[self.pk, ])
 
     @property
@@ -1482,6 +1482,9 @@ class Metadata(Resource):
                 ).exists()
                 if not other_dependencies:
                     url.delete()
+        else:
+            # todo: maybe an exception should be raised to signal that it isn't possible to delete this record
+            pass
 
             return super().delete(using, keep_parents)
 

@@ -58,17 +58,17 @@
     <div class="col-7 col-md text-left text-md-right">
       <div class="d-inline-flex">
         {% if 'can_activate_resource' in user_permissions %}
-        <form class="mr-1" action="{% url 'resource:activate' object.pk %}" method="post">
+        <form class="mr-1" action="{{object.activate_view_uri}}" method="post">
           {% csrf_token %}
           <input type="hidden"  name="is_active" {% if not object.is_active %}value="on"{% endif %}>
           <button type="submit" class="btn btn-sm {% if object.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if object.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
         </form>
         {% endif %}
         {% if 'can_edit_metadata' in user_permissions %}
-        <a class="btn btn-sm btn-warning mr-1" href="{% url 'resource:edit' object.pk %}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the metadata file' %}">
+        <a class="btn btn-sm btn-warning mr-1" href="{{object.edit_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the metadata file' %}">
           {{ ICONS.EDIT|safe }}
         </a>
-        <a class="btn btn-sm btn-warning" href="{% url 'editor:access-editor-wizard' object.pk %}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the security access of the resource' %}">
+        <a class="btn btn-sm btn-warning" href="{{object.edit_access_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the security access of the resource' %}">
           {{ ICONS.ACCESS|safe }}
         </a>
         {% endif %}

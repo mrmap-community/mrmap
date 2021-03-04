@@ -210,6 +210,8 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceDelete(SuccessMessageMixin, DeleteView):
     model = Metadata
+    queryset = Metadata.objects.filter(Q(metadata_type=MetadataEnum.SERVICE.value) |
+                                       Q(metadata_type=MetadataEnum.CATALOGUE.value))
     success_url = reverse_lazy('home')
     template_name = "MrMap/detail_views/delete.html"
     success_message = SERVICE_SUCCESSFULLY_DELETED

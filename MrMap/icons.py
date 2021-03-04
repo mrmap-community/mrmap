@@ -47,6 +47,7 @@ class IconEnum(EnumChoice):
     MONITORING_RESULTS = "fas fa-poll-h"
     WARNING = 'fas fa-exclamation-triangle'
     CRITICAL = 'fas fa-bolt'
+    UPDATE = 'fas fa-spinner'
 
 
 def get_icon(enum: IconEnum) -> SafeString:

@@ -46,7 +46,7 @@
       <a class="btn btn-sm btn-warning" href="{% url 'resource:edit' featuretype.metadata.pk %}" role="button">
         {{ ICONS.EDIT|safe }}
       </a>
-      <a class="btn btn-sm btn-warning" href="{% url 'editor:access-editor-wizard' featuretype.metadata.pk %}" role="button">
+      <a class="btn btn-sm btn-warning" href="{% url 'resource:access-editor-wizard' featuretype.metadata.pk %}" role="button">
         {{ ICONS.ACCESS|safe }}
       </a>
       {% endif %}

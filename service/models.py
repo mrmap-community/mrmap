@@ -874,9 +874,10 @@ class Metadata(Resource):
 
     @property
     def edit_access_view_uri(self):
-        return reverse('editor:access-editor-wizard', args=(self.pk,))
+        return reverse('resource:access-editor-wizard', args=(self.pk,))
 
     @property
+    # todo: move to security app
     def security_overview_uri(self):
         return reverse('editor:allowed-operations', args=(self.pk,))
 

@@ -57,7 +57,7 @@
       <a class="btn btn-sm btn-warning" href="{% url 'editor:edit' object.pk %}" role="button">
         <div class="d-xl-none">{{ ICONS.EDIT|safe }}</div><div class="d-none d-xl-block">{{ ICONS.EDIT|safe }} {% trans 'Edit Metadata' %}</div>
       </a>
-      <a class="btn btn-sm btn-warning" href="{% url 'editor:access-editor-wizard' object.pk %}" role="button">
+      <a class="btn btn-sm btn-warning" href="{% url 'resource:access-editor-wizard' object.pk %}" role="button">
         <div class="d-xl-none">{{ ICONS.ACCESS|safe }}</div><div class="d-none d-xl-block">{{ ICONS.ACCESS|safe }} {% trans 'Edit Access' %}</div>
       </a>
       {% endif %}

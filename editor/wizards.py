@@ -81,7 +81,7 @@ class AccessEditorWizard(MrMapWizard):
                                                                          form=AllowedOperationForm,
                                                                          extra=extra)
 
-        self.action_url = reverse('editor:access-editor-wizard', args=[self.metadata_object.pk, ])
+        self.action_url = reverse('resource:access-editor-wizard', args=[self.metadata_object.pk, ])
 
         return super().dispatch(request, *args, **kwargs)
 

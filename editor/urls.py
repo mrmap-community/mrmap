@@ -33,9 +33,9 @@ urlpatterns = [
 
     path('access/<pk>/table', AllowedOperationTableView.as_view(), name='allowed-operations'),
 
-    # access editor wizard
-    path('access/<pk>/edit', AccessEditorWizard.as_view(form_list=ACCESS_EDITOR_WIZARD_FORMS),
-         name='access-editor-wizard'),
+    # access editor wizard moved to the service app
+    # path('access/<pk>/edit', AccessEditorWizard.as_view(form_list=ACCESS_EDITOR_WIZARD_FORMS),
+    #     name='access-editor-wizard'),
 
     # dataset wizard
     path('dataset/add',

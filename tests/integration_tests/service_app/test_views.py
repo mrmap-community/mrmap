@@ -32,7 +32,7 @@ class ServiceTestCase(TestCase):
         """
         cls.user = create_superadminuser()
 
-        cls.group = cls.user.get_groups().first()
+        cls.group = cls.user.get_groups.first()
 
         cls.test_wms = {
             "title": "Karte RP",

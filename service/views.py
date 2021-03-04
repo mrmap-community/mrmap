@@ -43,7 +43,7 @@ from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
 from service import tasks
-from service.filters import OgcWmsFilter, OgcWfsFilter, OgcCswFilter, DatasetFilter, ProxyLogTableFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
@@ -147,7 +147,7 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
 class WfsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
-    filterset_class = OgcWfsFilter
+    filterset_fields = {'title': ['icontains'], }
     #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
 
@@ -169,7 +169,7 @@ class WfsIndexView(CustomSingleTableMixin, FilterView):
 class CswIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
-    filterset_class = OgcCswFilter
+    filterset_fields = {'title': ['icontains'], }
     #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
 

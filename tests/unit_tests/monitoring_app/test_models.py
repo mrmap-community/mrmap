@@ -19,7 +19,7 @@ class ServiceFiltersTestCase(TestCase):
     def setUp(self):
         self.user_password = PASSWORD
         self.user = create_superadminuser()
-        self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
+        self.wms_services = create_wms_service(group=self.user.get_groups.first(), how_much_services=1)
         self.monitoring_run = create_monitoring_run()[0]
 
     def test_run_health_state(self):

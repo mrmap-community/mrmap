@@ -35,7 +35,7 @@ class EditorTestCase(TestCase):
         # create superuser
         cls.user = create_superadminuser()
 
-        cls.group = cls.user.get_groups().first()
+        cls.group = cls.user.get_groups.first()
 
         cls.perms = cls.group.role.permissions
 

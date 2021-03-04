@@ -55,9 +55,9 @@ def get_contact_data():
         "city": "Testcity",
         "address": "Teststreet 2",
         "postal_code": "442211",
-        "newsletter": True,
-        "survey": True,
-        "dsgvo": True,
+        "confirmed_newsletter": True,
+        "confirmed_survey": True,
+        "confirmed_dsgvo": True,
         "captcha_0": "dummy",
         "captcha_1": "PASSED",
     }

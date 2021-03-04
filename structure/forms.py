@@ -65,7 +65,7 @@ class GroupForm(ModelForm):
         super(GroupForm, self).__init__(*args, **kwargs)
 
         if kwargs.get('instance', None):
-            groups = self.request.user.get_groups()
+            groups = self.request.user.get_groups
 
             instance = kwargs.get('instance')
             exclusions = [instance]
@@ -236,7 +236,7 @@ class OrganizationForm(forms.ModelForm):
         instance = kwargs.get('instance')
         if instance:
             org_ids_of_groups = []
-            for group in self.request.user.get_groups():
+            for group in self.request.user.get_groups:
                 org_ids_of_groups.append(group.id)
 
             all_orgs_of_requesting_user = Organization.objects.filter(Q(created_by=self.request.user) |
@@ -321,6 +321,8 @@ class RegistrationForm(forms.ModelForm):
         widget=forms.PasswordInput,
         required=True
     )
+
+    email = forms.EmailField(required=True)
 
     dsgvo = forms.BooleanField(
         initial=False,

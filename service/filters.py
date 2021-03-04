@@ -29,24 +29,6 @@ class OgcWmsFilter(django_filters.FilterSet):
         super(OgcWmsFilter, self).__init__(prefix='wms-filter', *args, **kwargs)
 
 
-class OgcWfsFilter(django_filters.FilterSet):
-    class Meta:
-        model = Metadata
-        fields = {'title': ['icontains'], }
-
-    def __init__(self, *args, **kwargs):
-        super(OgcWfsFilter, self).__init__(prefix='wfs-filter', *args, **kwargs)
-
-
-class OgcCswFilter(django_filters.FilterSet):
-    class Meta:
-        model = Metadata
-        fields = {'title': ['icontains'], }
-
-    def __init__(self, *args, **kwargs):
-        super(OgcCswFilter, self).__init__(prefix='csw-filter', *args, **kwargs)
-
-
 class DatasetFilter(django_filters.FilterSet):
     class Meta:
         model = Metadata
@@ -79,71 +61,6 @@ class FeatureTypeFilter(django_filters.FilterSet):
 
     class Meta:
         model = FeatureType
-        fields = []
-
-
-class MetadataWmsFilter(django_filters.FilterSet):
-    wms_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label=_('Search'))
-    show_layers = django_filters.BooleanFilter(
-        widget=forms.CheckboxInput(),
-        label=_("Show layers"),
-        method='filter_layers',
-        required=False,
-        initial=False,
-    )
-
-    @staticmethod
-    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
-
-        return queryset.filter(title__icontains=value) | \
-               queryset.filter(contact__organization_name__icontains=value) | \
-               queryset.filter(service__created_by__name__icontains=value) | \
-               queryset.filter(service__published_for__organization_name__icontains=value) | \
-               queryset.filter(created__icontains=value)
-
-    @staticmethod
-    def filter_layers(queryset, name, value):
-        queryset = queryset.filter(
-            service__is_root=not value
-        )
-        return queryset
-
-    class Meta:
-        model = Metadata
-        fields = []
-
-
-class MetadataWfsFilter(django_filters.FilterSet):
-    wfs_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label=_('Search'))
-
-    @staticmethod
-    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
-
-        return queryset.filter(title__icontains=value) | \
-               queryset.filter(contact__organization_name__icontains=value) | \
-               queryset.filter(service__created_by__name__icontains=value) | \
-               queryset.filter(service__published_for__organization_name__icontains=value) | \
-               queryset.filter(created__icontains=value)
-
-    class Meta:
-        model = Metadata
-        fields = []
-
-
-class MetadataCswFilter(django_filters.FilterSet):
-    wfs_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label=_('Search'))
-
-    @staticmethod
-    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
-
-        return queryset.filter(title__icontains=value) | \
-               queryset.filter(service__created_by__name__icontains=value)
-
-    class Meta:
-        model = Metadata
         fields = []
 
 
@@ -189,19 +106,3 @@ class ProxyLogTableFilter(MrMapFilterSet):
         elif value:
             queryset = queryset.filter(user__groups__in=value)
         return queryset
-
-
-class MetadataDatasetFilter(django_filters.FilterSet):
-    ds = django_filters.CharFilter(
-        method='filter_search_over_all',
-        label=_('Search')
-    )
-
-    @staticmethod
-    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
-
-        return queryset.filter(title__icontains=value)
-
-    class Meta:
-        model = Metadata
-        fields = []

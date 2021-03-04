@@ -124,18 +124,6 @@ class RegistrationFormTest(TestCase):
         form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Email field was empty but the form is valid.")
 
-    def test_required_field_first_name_is_empty(self):
-        # first_name
-        self.contact_data.pop('first_name')
-        form = RegistrationForm(data=self.contact_data)
-        self.assertFalse(form.is_valid(), msg="First name field was empty but the form is valid.")
-
-    def test_required_field_last_name_is_empty(self):
-        # last_name
-        self.contact_data.pop('last_name')
-        form = RegistrationForm(data=self.contact_data)
-        self.assertFalse(form.is_valid(), msg="Last name field was empty but the form is valid.")
-
     def test_required_field_password_is_empty(self):
         # password
         self.contact_data.pop('password')

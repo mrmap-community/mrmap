@@ -1482,11 +1482,11 @@ class Metadata(Resource):
                 ).exists()
                 if not other_dependencies:
                     url.delete()
+
+            return super().delete(using, keep_parents)
         else:
             # todo: maybe an exception should be raised to signal that it isn't possible to delete this record
             pass
-
-            return super().delete(using, keep_parents)
 
     @property
     def service_type(self):

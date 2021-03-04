@@ -1,5 +1,3 @@
-import logging
-
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
@@ -15,7 +13,6 @@ from tests.test_data import get_contact_data, get_password_data, get_username_da
 from django.utils import timezone
 from django.contrib.messages import get_messages
 
-from users.forms import PasswordChangeForm
 from users.models import Subscription
 
 REDIRECT_WRONG = "Redirect wrong"
@@ -25,19 +22,15 @@ class PasswordResetTestCase(TestCase):
     def setUp(self):
         self.user_password = PASSWORD
         self.active_user = create_superadminuser()
-        self.logger = logging.getLogger('PasswordResetTestCase')
         client = Client()
         client.login(username=self.active_user.username, password=self.user_password)
 
     def test_success_password_reset(self):
         response = self.client.post(reverse('password-reset', ), data={"email": 'test@example.com'})
-        self.logger.debug(response.__dict__)
-
         self.assertEqual(response.status_code, 302, msg="No Http-302 was returned.")
         self.assertEqual(response.url, reverse('login', ), msg=REDIRECT_WRONG)
 
         messages = list(get_messages(response.wsgi_request))
-        self.logger.debug(messages)
         self.assertEqual(len(messages), 1)
         self.assertEqual(str(messages[0]), PASSWORD_SENT)
 
@@ -53,7 +46,6 @@ class PasswordResetTestCase(TestCase):
 
 class RegisterNewUserTestCase(TestCase):
     def setUp(self):
-        self.logger = logging.getLogger('RegisterNewUserTestCase')
         self.contact_data = get_contact_data()
         # creates user object in db
         self.user_password = PASSWORD
@@ -70,9 +62,7 @@ class RegisterNewUserTestCase(TestCase):
 
         # case: Normal behaviour, user will be created
         response = client.post(reverse('signup'), data=self.contact_data)
-
-        # we should redirected to the root path /
-        self.assertEqual(response.status_code, 302, msg="No redirect after posting user registration form.")
+        self.assertEqual(response.status_code, 200, msg="Signup goes wrong")
 
         # test all user attributes are correctly inserted
         user = MrMapUser.objects.get(
@@ -137,7 +127,6 @@ class RegisterNewUserTestCase(TestCase):
 
 class ActivateUserTestCase(TestCase):
     def setUp(self):
-        self.logger = logging.getLogger('ActivateUserTestCase')
         # creates user object in db
         self.user_password = PASSWORD
         self.user = create_superadminuser()
@@ -183,7 +172,6 @@ class ActivateUserTestCase(TestCase):
 
 class LoginLogoutTestCase(TestCase):
     def setUp(self):
-        self.logger = logging.getLogger('LoginLogoutTestCase')
         # creates user object in db
         self.user_password = PASSWORD
         self.user = create_superadminuser()
@@ -221,14 +209,11 @@ class LoginLogoutTestCase(TestCase):
         self.user.is_active = False
         self.user.save()
         response = client.post(reverse('login',), data={"username": self.user.username, "password": self.user_password})
-        self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
         self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
 
 
 class PasswordChangeTestCase(TestCase):
     def setUp(self):
-        self.logger = logging.getLogger('PasswordChangeTestCase')
         # creates user object in db
         self.user_password = PASSWORD
         self.user = create_superadminuser()
@@ -268,7 +253,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_invalid_password_again(self):
         response = self.client.post(
-            reverse('password-change', )+"?current-view=account",
+            reverse('password-change', ),
             data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
@@ -276,7 +261,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_invalid_old_password(self):
         response = self.client.post(
-            reverse('password-change', )+"?current-view=account",
+            reverse('password-change', ),
             data={"old_password": "qwertzuiopoiuztrewq", "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
@@ -285,7 +270,6 @@ class PasswordChangeTestCase(TestCase):
 
 class AccountEditTestCase(TestCase):
     def setUp(self):
-        self.logger = logging.getLogger('AccountEditTestCase')
         # creates user object in db
         self.user_password = PASSWORD
         self.user = create_superadminuser()
@@ -298,7 +282,7 @@ class AccountEditTestCase(TestCase):
         # case 1: User logged in -> effect!
         # assert as expected
         response = self.client.get(
-            reverse('account-edit', )+"?current-view=account",
+            reverse('account-edit', ),
         )
         self.assertEqual(response.status_code, 200, msg="We dosn't get the account edit view")
         self.assertTemplateUsed("views/account.html")
@@ -412,7 +396,6 @@ class AccountEditTestCase(TestCase):
 class HomeViewTestCase(TestCase):
 
     def setUp(self):
-        self.logger = logging.getLogger('HomeViewTestCase')
         # creates user object in db
         self.user_password = PASSWORD
         self.user = create_superadminuser()
@@ -424,9 +407,8 @@ class HomeViewTestCase(TestCase):
         response = self.client.get(
             reverse('home', ),
         )
-        self.logger.debug(response.__dict__)
         self.assertEqual(response.status_code, 200,)
-        self.assertTemplateUsed(response=response, template_name="views/dashboard.html")
+        self.assertTemplateUsed(response=response, template_name="users/views/home/dashboard.html")
 
 
 class SubscriptionTestCase(TestCase):
@@ -436,7 +418,7 @@ class SubscriptionTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=self.user_password)
-        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
         self.service_md = Metadata.objects.filter(
             metadata_type=MetadataEnum.SERVICE.value
         ).first()
@@ -448,7 +430,7 @@ class SubscriptionTestCase(TestCase):
 
         """
         pre_count_subscriptions = Subscription.objects.all().count()
-        new_sub_path = reverse("subscription-new", )+"?current-view=account"
+        new_sub_path = reverse("subscription-new", )
         post_params = {
             "metadata": self.service_md.id,
             "notify_on_update": True,
@@ -494,7 +476,7 @@ class SubscriptionTestCase(TestCase):
             notify_on_metadata_edit=True,
             notify_on_access_edit=True,
         )
-        edit_sub_route = reverse("subscription-edit", args=(sub.id, ))+"?current-view=account"
+        edit_sub_route = reverse("subscription-edit", args=(sub.id, ))
         post_params = {
             "metadata": self.service_md.id,
             "notify_on_update": "False",
@@ -545,7 +527,7 @@ class SubscriptionTestCase(TestCase):
             notify_on_access_edit=True,
         )
         pre_sub_count = Subscription.objects.all().count()
-        remove_sub_rote = reverse("subscription-remove", args=(sub.id,))+"?current-view=account"
+        remove_sub_rote = reverse("subscription-remove", args=(sub.id,))
         response = self.client.post(
             path=remove_sub_rote,
             data={'is_confirmed': 'True'}

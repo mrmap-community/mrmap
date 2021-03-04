@@ -1,8 +1,8 @@
 from django.contrib.gis.geos import MultiPolygon, Polygon
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.test import TestCase
 
-from service.models import AllowedOperation
+from service.models import AllowedOperation, Metadata, Service, Layer, FeatureType
 from tests.baker_recipes.db_setup import create_wms_service, create_superadminuser, create_wfs_service
 
 
@@ -10,7 +10,7 @@ class AllowedOperationTestCase(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
-        self.root_metadata = create_wms_service(group=self.user.get_groups().first(),
+        self.root_metadata = create_wms_service(group=self.user.get_groups.first(),
                                                 how_much_sublayers=100,
                                                 how_much_services=1)[0]
 
@@ -58,16 +58,83 @@ class MetadataTestCase(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
-        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(),
+        self.wms_metadata = create_wms_service(group=self.user.get_groups.first(),
                                                how_much_sublayers=10,
                                                how_much_services=2)
-        self.wfs_metadata = create_wfs_service(group=self.user.get_groups().first(),
+        self.wfs_metadata = create_wfs_service(group=self.user.get_groups.first(),
                                                how_much_featuretypes=10,
                                                how_much_services=2)
 
-    def test_get_subelements_metadatas_as_qs(self):
-        qs = self.wms_metadata[0].get_subelements_metadatas_as_qs()
+    def test_wms_delete(self):
+        """
+            If the delete of a given Metadata without dependencies is called, the related Service, all Layer, and Layer Metdata objects shall be deleted.
 
-        # 12 cause root layer is also added in addition to the how_much_sublayers attribute
-        self.assertEqual(12, qs.count())
+            Dependencies in this context are multiple relations from Metadata objects to one Dataset Metadata object.
+            The Dataset Metadata object with more than one reverse pointed relations will not be deleted.
+        """
+        metadata = self.wms_metadata[0]
+        service = metadata.service
+        sub_elements = metadata.service.get_subelements().select_related('metadata')
 
+        metadata.delete()
+
+        try:
+            Metadata.objects.get(pk=metadata.pk)
+            raise AssertionError('Metadata still exist')
+        except ObjectDoesNotExist:
+            pass
+
+        try:
+            Service.objects.get(pk=service.pk)
+            raise AssertionError('Service still exist')
+        except ObjectDoesNotExist:
+            pass
+
+        for sub_element in sub_elements:
+            try:
+                Metadata.objects.get(pk=sub_element.metadata.pk)
+                raise AssertionError('Metadata of sub element still exist')
+            except ObjectDoesNotExist:
+                pass
+            try:
+                Layer.objects.get(pk=sub_element.pk)
+                raise AssertionError('Layer still exist')
+            except ObjectDoesNotExist:
+                pass
+
+    def test_wfs_delete(self):
+        """
+            If the delete of a given Metadata without dependencies is called, the related Service, all FeatureType, and FeatureType Metdata objects shall be deleted.
+
+            Dependencies in this context are multiple relations from Metadata objects to one Dataset Metadata object.
+            The Dataset Metadata object with more than one reverse pointed relations will not be deleted.
+        """
+        metadata = self.wfs_metadata[0]
+        service = metadata.service
+        sub_elements = metadata.service.get_subelements().select_related('metadata')
+
+        metadata.delete()
+
+        try:
+            Metadata.objects.get(pk=metadata.pk)
+            raise AssertionError('Metadata still exist')
+        except ObjectDoesNotExist:
+            pass
+
+        try:
+            Service.objects.get(pk=service.pk)
+            raise AssertionError('Service still exist')
+        except ObjectDoesNotExist:
+            pass
+
+        for sub_element in sub_elements:
+            try:
+                Metadata.objects.get(pk=sub_element.metadata.pk)
+                raise AssertionError('Metadata of sub element still exist')
+            except ObjectDoesNotExist:
+                pass
+            try:
+                FeatureType.objects.get(pk=sub_element.pk)
+                raise AssertionError('FeatureType still exist')
+            except ObjectDoesNotExist:
+                pass

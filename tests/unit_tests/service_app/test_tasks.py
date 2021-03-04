@@ -29,7 +29,7 @@ class ServiceTaskTestCase(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
-        self.group = self.user.get_groups().first()
+        self.group = self.user.get_groups.first()
         self.metadata = create_wms_service(self.group, how_much_services=10)[0]
 
         # Declare timeout span
@@ -61,29 +61,6 @@ class ServiceTaskTestCase(TestCase):
         fail_msg = "Asynchronous implemented increasing of hits did not work!"
         self.assertNotEqual(pre_hit_count, post_hit_count, fail_msg)
         self.assertEqual(pre_hit_count + 1, post_hit_count, fail_msg)
-
-    def test_async_activate_service(self):
-        """ Tests the functionality of the asynchronous activation
-
-        Returns:
-        """
-        curr_state = self.metadata.is_active
-        new_state = not curr_state
-        async_activate_service(str(self.metadata.id), self.user.id, new_state)
-
-        self.metadata.refresh_from_db()
-        self.assertNotEqual(curr_state, self.metadata.is_active, msg="Async activation did not work for service level.")
-        self.assertEqual(new_state, self.metadata.is_active, msg="Async activation did not work for service level.")
-
-        # Check if subelements have been changed as well
-        root_layer = Layer.objects.get(
-            parent=None,
-            parent_service=self.metadata.service
-        )
-        children = root_layer.get_descendants(include_self=True)
-        for child in children:
-            self.assertNotEqual(curr_state, child.metadata.is_active, msg="Async activation did not work for layer level.")
-            self.assertEqual(new_state, child.metadata.is_active, msg="Async activation did not work for layer level.")
 
     def test_async_new_service(self):
         """ Tests the functionality of the asynchronous new service implementation

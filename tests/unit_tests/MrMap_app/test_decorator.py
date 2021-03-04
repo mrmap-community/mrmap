@@ -38,7 +38,7 @@ class DecoratorTestCase(TestCase):
         self.request_factory = RequestFactory()
 
         self.wms_services = create_wms_service(
-            group=self.user.get_groups().first(),
+            group=self.user.get_groups.first(),
             how_much_services=1
         )
 
@@ -82,7 +82,7 @@ class DecoratorTestCase(TestCase):
         self.assertEqual(response.status_code, 302, msg=MSG_PERMISSION_CHECK_FALSE_POSITIVE)
 
         # Give Testuser group permission
-        user_groups = self.default_user.get_groups()
+        user_groups = self.default_user.get_groups
         first_group = user_groups.first()
         create_org_perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_CREATE_ORGANIZATION.value)[0]
         first_group.role.permissions.add(create_org_perm)
@@ -151,7 +151,7 @@ class DecoratorTestCase(TestCase):
         def test_function(request, group_id, *args, **kwargs):
             return HttpResponse()
 
-        requested_group = self.user.get_groups()[0]
+        requested_group = self.user.get_groups[0]
 
         # Testuser permission check without any permissions must fail
         # Mock the request

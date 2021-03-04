@@ -3,7 +3,7 @@
 mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw
 hostname=127.0.0.1
-proxy="" # format: proxy = "192.168.56.1:8080"
+proxy="" # format: proxy = "http://192.168.56.1:8080"
 
 # install required packages
 apt-get update
@@ -32,9 +32,9 @@ sed -i s/"host    all             all             127.0.0.1\/32            md5"/
 # MrMap setup, has to be done as postgres because of postgis extension
 
 git clone https://git.osgeo.org/gitea/GDI-RP/MrMap /opt/MrMap
-python -m pip install --upgrade pip
+#python -m pip install --upgrade pip
 python -m pip install uwsgi flower
-python -m pip install -r /opt/MrMap/requirements.txt --use-feature=2020-resolver
+python -m pip install -r /opt/MrMap/requirements.txt
 python /opt/MrMap/manage.py makemigrations service
 python /opt/MrMap/manage.py makemigrations structure
 python /opt/MrMap/manage.py makemigrations users
@@ -47,7 +47,7 @@ python /opt/MrMap/manage.py collectstatic
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MrMap/MrMap/sub_settings/django_settings.py
 sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MrMap/MrMap/sub_settings/dev_settings.py
 sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MrMap/MrMap/sub_settings/dev_settings.py
-sed -i s/"HTTP_PROXY = \"\""/"HTTP_PROXY = \"http:\/\/$proxy\""/g /opt/MrMap/MrMap/settings.py
+sed -i s-"HTTP_PROXY = \"\""-"HTTP_PROXY = \"$proxy\""-g /opt/MrMap/MrMap/settings.py
 # generate new secret key
 skey=`python /opt/MrMap/manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
 sed -i '/^SECRET_KEY/d' /opt/MrMap/MrMap/sub_settings/django_settings.py

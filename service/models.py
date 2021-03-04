@@ -1351,7 +1351,7 @@ class Metadata(Resource):
         filter_query = None
         if self.is_service_metadata:
             if self.service_type is OGCServiceEnum.WMS:
-                filter_query = Q(service__in=self.self.service.get_subelements())
+                filter_query = Q(service__in=self.service.get_subelements())
                 if include_self:
                     filter_query |= Q(service=self.service)
         elif self.is_layer_metadata:

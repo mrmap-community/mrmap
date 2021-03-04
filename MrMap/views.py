@@ -151,7 +151,7 @@ class ModelFormView(FormMixin, DetailView):
 
 
 class ConfirmView(FormMixin, DetailView):
-    template_name = 'generic_views/generic_confirm_form.html'
+    template_name = 'MrMap/detail_views/generic_form.html'
     success_url = reverse_lazy('home')
     form_class = ConfirmForm
     action = ""

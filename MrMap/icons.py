@@ -48,6 +48,7 @@ class IconEnum(EnumChoice):
     WARNING = 'fas fa-exclamation-triangle'
     CRITICAL = 'fas fa-bolt'
     UPDATE = 'fas fa-spinner'
+    RESTORE = 'fas fa-undo'
 
 
 def get_icon(enum: IconEnum) -> SafeString:

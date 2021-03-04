@@ -1,6 +1,6 @@
 from django.urls import path
 
-from editor.views import EditMetadata
+from editor.views import EditMetadata, RestoreMetadata
 from editor.wizards import ACCESS_EDITOR_WIZARD_FORMS, AccessEditorWizard
 from service.autocompletes import MetadataAutocomplete, MetadataServiceAutocomplete, MetadataLayerAutocomplete, \
     MetadataFeaturetypeAutocomplete
@@ -23,6 +23,7 @@ urlpatterns = [
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
     path('<pk>/edit', EditMetadata.as_view(), name='edit'),
+    path('<pk>/restore', RestoreMetadata.as_view(), name='restore'),
     path('<pk>/activate', ResourceActivateDeactivateView.as_view(), name='activate'),
     path('<pk>/access-edit', AccessEditorWizard.as_view(form_list=ACCESS_EDITOR_WIZARD_FORMS), name='access-editor-wizard'),
     # todo: refactor as generic view

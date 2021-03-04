@@ -77,12 +77,15 @@ class EditMetadata(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
 @method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class RestoreMetadata(ConfirmView):
+class RestoreMetadata(GenericViewContextMixin, SuccessMessageMixin, ConfirmView):
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
     is_custom = Q(is_custom=True)
     queryset = Metadata.objects.filter(is_custom | no_cataloge_type)
-    action = _("Restore")
+    success_message = METADATA_RESTORING_SUCCESS
+
+    def get_title(self):
+        return _("Restore ").__str__() + self.object.__str__()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -98,9 +101,7 @@ class RestoreMetadata(ConfirmView):
 
     def form_valid(self, form):
         self.object = self.get_object()
-
         ext_auth = self.object.get_external_authentication_object()
-
         self.object.restore(self.object.identifier, external_auth=ext_auth)
 
         # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
@@ -113,7 +114,6 @@ class RestoreMetadata(ConfirmView):
                                                               self.object.title))
 
         success_url = self.get_success_url()
-        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
         return HttpResponseRedirect(success_url)
 
 

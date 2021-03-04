@@ -83,6 +83,11 @@
           {{ ICONS.MONITORING|safe }}
         </a>
         {% endif %}
+        {% if object.is_custom and 'can_edit_metadata' in user_permissions %}
+        <a class="btn btn-sm btn-danger mr-1" href="{{object.restore_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Restore the metadata of this resource' %}">
+          {{ ICONS.RESTORE|safe }}
+        </a>
+        {% endif %}
         {% if 'can_remove_resource' in user_permissions %}
         <a class="btn btn-sm btn-danger" href="{{object.remove_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Remove this resource' %}">
           {{ ICONS.DELETE|safe }}

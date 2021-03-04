@@ -889,7 +889,7 @@ class Metadata(Resource):
 
     @property
     def restore_view_uri(self):
-        return reverse('editor:restore', args=[self.pk, ])
+        return reverse('resource:restore', args=[self.pk, ])
 
     @property
     def activate_view_uri(self):

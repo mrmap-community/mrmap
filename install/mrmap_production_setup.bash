@@ -173,6 +173,7 @@ chown -R www-data /opt/MrMap/logs
 
 /etc/init.d/nginx restart
 systemctl restart uwsgi
+systemctl restart celery
 
 echo '
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM

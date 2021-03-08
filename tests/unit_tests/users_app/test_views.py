@@ -26,7 +26,7 @@ class PasswordResetTestCase(TestCase):
         client.login(username=self.active_user.username, password=self.user_password)
 
     def test_success_password_reset(self):
-        response = self.client.post(reverse('password-reset', ), data={"email": 'test@example.com'})
+        response = self.client.post(reverse('password_reset', ), data={"email": 'test@example.com'})
         self.assertEqual(response.status_code, 302, msg="No Http-302 was returned.")
         self.assertEqual(response.url, reverse('login', ), msg=REDIRECT_WRONG)
 
@@ -35,12 +35,12 @@ class PasswordResetTestCase(TestCase):
         self.assertEqual(str(messages[0]), PASSWORD_SENT)
 
     def test_failed_password_reset(self):
-        response = self.client.post(reverse('password-reset', ), data={"email": 'test1@example.com'})
+        response = self.client.post(reverse('password_reset', ), data={"email": 'test1@example.com'})
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'email', EMAIL_IS_UNKNOWN)
 
     def test_get_password_reset_view(self):
-        response = self.client.get(reverse('password-reset', ))
+        response = self.client.get(reverse('password_reset', ))
         self.assertEqual(response.status_code, 200, msg="We should get the view.")
 
 
@@ -102,7 +102,7 @@ class RegisterNewUserTestCase(TestCase):
         client = Client()
         # case: Error behaviour, user will not be created
         self.contact_data.update({'username': '!qwertzui123'})
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = client.post(reverse('signup'), data=self.contact_data)
 
         self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
         self.assertFormError(response, 'form', 'username', 'Special or non printable characters are not allowed')
@@ -118,8 +118,7 @@ class RegisterNewUserTestCase(TestCase):
 
     def test_get_user_register_view(self):
         client = Client()
-        # case: Error behaviour, user will not be created
-        response = client.get(reverse('register'))
+        response = client.get(reverse('signup'))
 
         self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
         self.assertTemplateUsed(response, template_name='views/sign_up.html')
@@ -237,7 +236,7 @@ class PasswordChangeTestCase(TestCase):
         ## case 0: User is not logged in -> action has no effect
         # assert action has no effect
         Client().post(
-            reverse('password-change', ),
+            reverse('password_change', ),
             data={"password": new_pw, "password_again": new_pw, "user": self.user}
         )
         self.user.refresh_from_db()
@@ -245,7 +244,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_with_logged_in_user(self):
         response = self.client.post(
-            reverse('password-change', ),
+            reverse('password_change', ),
             data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password}
         )
         self.assertEqual(response.status_code, 303)
@@ -253,7 +252,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_invalid_password_again(self):
         response = self.client.post(
-            reverse('password-change', ),
+            reverse('password_change', ),
             data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
@@ -261,7 +260,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_invalid_old_password(self):
         response = self.client.post(
-            reverse('password-change', ),
+            reverse('password_change', ),
             data={"old_password": "qwertzuiopoiuztrewq", "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
@@ -282,7 +281,7 @@ class AccountEditTestCase(TestCase):
         # case 1: User logged in -> effect!
         # assert as expected
         response = self.client.get(
-            reverse('account-edit', ),
+            reverse('edit_profile', ),
         )
         self.assertEqual(response.status_code, 200, msg="We dosn't get the account edit view")
         self.assertTemplateUsed("views/account.html")
@@ -309,7 +308,7 @@ class AccountEditTestCase(TestCase):
         # case 0: User not logged in -> no effect!
         # assert as expected
         Client().post(
-            reverse('password-change', ),
+            reverse('password_change', ),
             data=params
         )
         self.user.refresh_from_db()
@@ -326,7 +325,7 @@ class AccountEditTestCase(TestCase):
         # case 1: User logged in -> effect!
         # assert as expected
         self.client.post(
-            reverse('account-edit', ),
+            reverse('edit_profile', ),
             data=params
         )
         self.user.refresh_from_db()
@@ -346,7 +345,7 @@ class AccountEditTestCase(TestCase):
             'password': get_password_data().get('invalid_without_upper'),
             'password_check': get_password_data().get('invalid_without_upper')
         })
-        response = Client().post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('signup'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Password must have at least one Uppercase letter')
 
@@ -357,7 +356,7 @@ class AccountEditTestCase(TestCase):
             'password': get_password_data().get('invalid_without_lower'),
             'password_check': get_password_data().get('invalid_without_lower')
         })
-        response = Client().post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('signup'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Password must have at least one lowercase letter')
 
@@ -368,7 +367,7 @@ class AccountEditTestCase(TestCase):
             'password': get_password_data().get('invalid_without_digit'),
             'password_check': get_password_data().get('invalid_without_digit')
         })
-        response = Client().post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('signup'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Password must have at least one digit')
 
@@ -378,7 +377,7 @@ class AccountEditTestCase(TestCase):
             'password': get_password_data().get('invalid_at_most_8'),
             'password_check': get_password_data().get('invalid_at_most_8')
         })
-        response = Client().post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('signup'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Ensure this value has at least 9 characters (it has 8).')
 
@@ -388,7 +387,7 @@ class AccountEditTestCase(TestCase):
             'password': get_password_data().get('invalid_more_than_255'),
             'password_check': get_password_data().get('invalid_more_than_255')
         })
-        response = Client().post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('signup'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Ensure this value has at most 255 characters (it has 300).')
 
@@ -411,7 +410,7 @@ class HomeViewTestCase(TestCase):
         self.assertTemplateUsed(response=response, template_name="users/views/home/dashboard.html")
 
 
-class SubscriptionTestCase(TestCase):
+class SubscriptionViewsTestCases(TestCase):
     def setUp(self):
         # creates user object in db
         self.user_password = PASSWORD
@@ -430,19 +429,19 @@ class SubscriptionTestCase(TestCase):
 
         """
         pre_count_subscriptions = Subscription.objects.all().count()
-        new_sub_path = reverse("subscription-new", )
         post_params = {
             "metadata": self.service_md.id,
+            "user": self.user.id,
             "notify_on_update": True,
             "notify_on_metadata_edit": True,
             "notify_on_access_edit": True,
         }
         response = self.client.post(
-            path=new_sub_path,
+            path=Subscription.get_add_view_url(),
             data=post_params
         )
         post_count_subscriptions = Subscription.objects.all().count()
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(pre_count_subscriptions + 1, post_count_subscriptions)
         try:
             new_subscription = Subscription.objects.get(
@@ -457,7 +456,7 @@ class SubscriptionTestCase(TestCase):
 
         # Check that no duplicates can be created
         self.client.post(
-            path=new_sub_path,
+            path=Subscription.get_add_view_url(),
             data=post_params
         )
         post_count_subscriptions = Subscription.objects.all().count()
@@ -476,42 +475,24 @@ class SubscriptionTestCase(TestCase):
             notify_on_metadata_edit=True,
             notify_on_access_edit=True,
         )
-        edit_sub_route = reverse("subscription-edit", args=(sub.id, ))
         post_params = {
             "metadata": self.service_md.id,
+            "user": self.user.id,
             "notify_on_update": "False",
             "notify_on_metadata_edit": "False",
             "notify_on_access_edit": "False",
         }
         response = self.client.post(
-            path=edit_sub_route,
+            path=sub.get_edit_view_url(),
             data=post_params
         )
         sub.refresh_from_db()
 
         # Assert redirect
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, 302)
         self.assertFalse(sub.notify_on_update)
         self.assertFalse(sub.notify_on_metadata_edit)
         self.assertFalse(sub.notify_on_access_edit)
-
-        # Check that a subscription's metadata can not be changed
-        # Regular changes of notifications will be persisted
-        post_params = {
-            "metadata": Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value).exclude(id=self.service_md.id).first().id,
-            "notify_on_update": "True",
-            "notify_on_metadata_edit": "True",
-            "notify_on_access_edit": "True",
-        }
-        response = self.client.post(
-            path=edit_sub_route,
-            data=post_params
-        )
-        sub.refresh_from_db()
-
-        # Assert redirect and same conditions as before
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(sub.metadata, self.service_md, msg="Subscription metadata could be changed!")
 
     def test_remove_subscription(self):
         """ Tests whether the remove logic is working
@@ -527,11 +508,12 @@ class SubscriptionTestCase(TestCase):
             notify_on_access_edit=True,
         )
         pre_sub_count = Subscription.objects.all().count()
-        remove_sub_rote = reverse("subscription-remove", args=(sub.id,))
         response = self.client.post(
-            path=remove_sub_rote,
-            data={'is_confirmed': 'True'}
+            path=sub.get_delete_view_url(),
         )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('manage_subscriptions'))
+
         post_sub_count = Subscription.objects.all().count()
         try:
             sub.refresh_from_db()

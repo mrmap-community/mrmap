@@ -50,19 +50,23 @@ class Subscription(models.Model):
     def get_absolute_url(self):
         return reverse('manage_subscriptions')
 
-    def get_edit_url(self):
+    @classmethod
+    def get_add_view_url(cls):
+        return reverse('add_subscription')
+
+    def get_edit_view_url(self):
         return reverse('edit_subscription', args=[self.id])
 
-    def get_delete_url(self):
+    def get_delete_view_url(self):
         return reverse('delete_subscription', args=[self.id])
 
     def get_actions(self):
-        return [LinkButton(url=self.get_edit_url(),
+        return [LinkButton(url=self.get_edit_view_url(),
                            content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
                            color=ButtonColorEnum.WARNING,
                            size=ButtonSizeEnum.SMALL,
                            tooltip=_l(f"Edit subscription"), ),
-                LinkButton(url=self.get_delete_url(),
+                LinkButton(url=self.get_delete_view_url(),
                            content=Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render(),
                            color=ButtonColorEnum.DANGER,
                            size=ButtonSizeEnum.SMALL,

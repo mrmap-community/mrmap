@@ -1,5 +1,8 @@
 import uuid
+
+import six
 from django.contrib.auth.models import AbstractUser, Group
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -24,6 +27,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
 from structure.permissionEnums import PermissionEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
+from users.settings import default_activation_time
 
 
 class ErrorReport(models.Model):
@@ -520,6 +524,9 @@ class MrMapUser(AbstractUser):
     def get_absolute_url(self):
         return reverse('password_change_done')
 
+    def get_edit_view_url(self):
+        return reverse('edit_profile')
+
     @property
     def invite_to_group_url(self):
         return f"{reverse('structure:group_invitation_request_new')}?user={self.id}"
@@ -663,13 +670,25 @@ class MrMapUser(AbstractUser):
         user_activation.save()
 
 
-class UserActivation(models.Model):
-    user = models.ForeignKey(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
-    activation_until = models.DateTimeField(null=True)
-    activation_hash = models.CharField(primary_key=True, max_length=500, null=False, blank=False)
+class UserActivation(models.Model, PasswordResetTokenGenerator):
+    user = models.OneToOneField(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
+    activation_until = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=default_activation_time))
+    activation_hash = models.CharField(primary_key=True, max_length=500)
 
     def __str__(self):
         return self.user.username
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self._state.adding:
+            self.activation_hash = self.make_token(self.user)
+        super().save(force_insert, force_update, using, update_fields)
+
+    def _make_hash_value(self, user, timestamp):
+        return (
+                six.text_type(user.pk) + six.text_type(timestamp) +
+                six.text_type(user.email)
+        )
 
 
 class GroupActivity(models.Model):

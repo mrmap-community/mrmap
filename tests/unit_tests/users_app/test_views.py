@@ -34,11 +34,6 @@ class PasswordResetTestCase(TestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(str(messages[0]), PASSWORD_SENT)
 
-    def test_failed_password_reset(self):
-        response = self.client.post(reverse('password_reset', ), data={"email": 'test1@example.com'})
-        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
-        self.assertFormError(response, 'form', 'email', EMAIL_IS_UNKNOWN)
-
     def test_get_password_reset_view(self):
         response = self.client.get(reverse('password_reset', ))
         self.assertEqual(response.status_code, 200, msg="We should get the view.")
@@ -62,7 +57,7 @@ class RegisterNewUserTestCase(TestCase):
 
         # case: Normal behaviour, user will be created
         response = client.post(reverse('signup'), data=self.contact_data)
-        self.assertEqual(response.status_code, 200, msg="Signup goes wrong")
+        self.assertEqual(response.status_code, 302, msg="Signup goes wrong")
 
         # test all user attributes are correctly inserted
         user = MrMapUser.objects.get(
@@ -84,8 +79,8 @@ class RegisterNewUserTestCase(TestCase):
         # self.assertEqual(user.address, self.contact_data.get('address'), msg="Address is incorrect")
         # ToDo: since #148 is implemented, postal_code is not longer available
         # self.assertEqual(user.postal_code, self.contact_data.get('postal_code'), msg="Postal code is incorrect")
-        self.assertEqual(user.confirmed_newsletter, self.contact_data.get('newsletter'), msg="Newsletter is incorrect")
-        self.assertEqual(user.confirmed_survey, self.contact_data.get('survey'), msg="Survey is incorrect")
+        self.assertEqual(user.confirmed_newsletter, self.contact_data.get('confirmed_newsletter'), msg="Newsletter is incorrect")
+        self.assertEqual(user.confirmed_survey, self.contact_data.get('confirmed_survey'), msg="Survey is incorrect")
 
         # test user activation object
         exists = True
@@ -98,30 +93,12 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(exists, True, msg="No user activation created")
         self.assertNotEqual(user_activation.activation_hash, None, msg="User activation hash does not exist")
 
-    def test_failed_user_register(self):
-        client = Client()
-        # case: Error behaviour, user will not be created
-        self.contact_data.update({'username': '!qwertzui123'})
-        response = client.post(reverse('signup'), data=self.contact_data)
-
-        self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
-        self.assertFormError(response, 'form', 'username', 'Special or non printable characters are not allowed')
-        user = None
-        try:
-            user = MrMapUser.objects.get(
-                username=self.contact_data.get('!qwertzui123'),
-            )
-        except ObjectDoesNotExist as e:
-            pass
-
-        self.assertIsNone(user, msg="User is created.")
-
     def test_get_user_register_view(self):
         client = Client()
         response = client.get(reverse('signup'))
 
         self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
-        self.assertTemplateUsed(response, template_name='views/sign_up.html')
+        self.assertTemplateUsed(response, template_name='users/views/logged_out/sign_up.html')
 
 
 class ActivateUserTestCase(TestCase):
@@ -156,7 +133,7 @@ class ActivateUserTestCase(TestCase):
 
         # activate user
         # assert 200 status code, assert user is active, assert UserActivation object does not exist anymore
-        client.get(reverse('activate-user', args=(user_activation.activation_hash,)))
+        client.post(reverse('activate-user', args=(user_activation.activation_hash,)))
         self.user.refresh_from_db()
         self.assertEqual(self.user.is_active, True, msg="User could not be activated")
         obj_found = True
@@ -208,7 +185,7 @@ class LoginLogoutTestCase(TestCase):
         self.user.is_active = False
         self.user.save()
         response = client.post(reverse('login',), data={"username": self.user.username, "password": self.user_password})
-        self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
+        self.assertEqual(response.status_code, 200, msg="User is logged in with wrong credentials")
 
 
 class PasswordChangeTestCase(TestCase):
@@ -245,26 +222,26 @@ class PasswordChangeTestCase(TestCase):
     def test_user_password_change_with_logged_in_user(self):
         response = self.client.post(
             reverse('password_change', ),
-            data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password}
+            data={"old_password": PASSWORD, "new_password1": self.new_password, "new_password2": self.new_password}
         )
-        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.status_code, 302)
         self.assertTrue(Client().login(username=self.user.username, password=self.new_password), msg="New password doesn't work.")
 
     def test_user_password_change_invalid_password_again(self):
         response = self.client.post(
             reverse('password_change', ),
-            data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
+            data={"old_password": PASSWORD, "new_password1": self.new_password, "new_password2": self.new_password[::-1]}
         )
 
-        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.status_code, 200)
 
     def test_user_password_change_invalid_old_password(self):
         response = self.client.post(
             reverse('password_change', ),
-            data={"old_password": "qwertzuiopoiuztrewq", "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
+            data={"old_password": "qwertzuiopoiuztrewq", "new_password1": self.new_password, "new_password2": self.new_password[::-1]}
         )
 
-        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.status_code, 200)
 
 
 class AccountEditTestCase(TestCase):
@@ -285,8 +262,6 @@ class AccountEditTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200, msg="We dosn't get the account edit view")
         self.assertTemplateUsed("views/account.html")
-
-        #self.assertEqual(response.url, ROOT_URL + reverse('account-edit'))
 
     def test_user_profile_edit_with_logged_out_user(self):
         """ Tests the profile edit functionality
@@ -319,7 +294,7 @@ class AccountEditTestCase(TestCase):
             "first_name": "admin",
             "last_name": "frontend",
             "email": get_email_data().get('valid'),
-            "theme": "LIGHT1",
+            "theme": self.user.theme.id,
         }
 
         # case 1: User logged in -> effect!

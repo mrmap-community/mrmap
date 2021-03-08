@@ -38,12 +38,6 @@ class MrMapUserForm(forms.ModelForm):
             )
         }
 
-    def process_account_change(self):
-        # save changes
-        user = self.save()
-        user.save()
-        messages.add_message(self.request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
-
 
 class SubscriptionForm(forms.ModelForm):
     class Meta:

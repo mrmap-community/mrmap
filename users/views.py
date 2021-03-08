@@ -11,14 +11,18 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
+from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_bytes
 from django.utils.html import format_html
+from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _, gettext
 from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
@@ -29,8 +33,9 @@ from django_tables2 import SingleTableMixin
 from MrMap.icons import IconEnum
 from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    PASSWORD_CHANGE_SUCCESS
+    PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
 from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
+from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
 from service.models import Metadata
 from service.views import default_dispatch
 from structure.forms import RegistrationForm
@@ -48,6 +53,7 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
     redirect_authenticated_user = True
     success_message = _('Successfully signed in.')
 
+    # Add logging if form is invalid to check logs against security policy
     def form_invalid(self, form):
         users_logger.info(f'User {form.cleaned_data["username"]} trial to login, but the following error occurs. '
                           f'{form.errors}')
@@ -127,51 +133,32 @@ class MrMapPasswordChangeView(SuccessMessageMixin, PasswordChangeView):
     template_name = 'users/views/profile/password_change.html'
     success_message = PASSWORD_CHANGE_SUCCESS
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        return context
-
 
 class MrMapPasswordResetView(SuccessMessageMixin, PasswordResetView):
     template_name = 'users/views/logged_out/password_reset_or_confirm.html'
-    success_message = ACTIVATION_LINK_SENT
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        return context
+    success_message = PASSWORD_SENT
 
 
-class EditProfileView(SuccessMessageMixin, UpdateView):
+class EditProfileView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     template_name = 'users/views/profile/password_change.html'
     success_message = _('Profile successfully edited.')
     model = MrMapUser
     form_class = MrMapUserForm
+    title = _('Edit profile')
 
+    # cause this view is callable without primary key. The object will be always the logged in user.
     def get_object(self, queryset=None):
         return get_object_or_404(MrMapUser, username=self.request.user.username)
 
-    def get_initial(self):
-        initial = super().get_initial()
-        initial.update(self.request.GET.copy())
-        return initial
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({"request": self.request})
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': _('Edit profile')})
-        return context
-
-
-class ActivateUser(DetailView):
+class ActivateUser(DeleteView):
     template_name = "views/user_activation.html"
     model = UserActivation
+    success_url = reverse_lazy('login')
 
-    @transaction.atomic
-    def dispatch(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
         if self.object.activation_until < timezone.now():
             # The activation was confirmed too late!
             messages.add_message(request, messages.ERROR, ACTIVATION_LINK_EXPIRED)
@@ -181,8 +168,7 @@ class ActivateUser(DetailView):
 
         self.object.user.is_active = True
         self.object.user.save()
-        self.object.delete()
-        return super().dispatch(request=request, *args, **kwargs)
+        return self.delete(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -190,21 +176,33 @@ class ActivateUser(DetailView):
         return context
 
 
-class SignUpView(SuccessMessageMixin, CreateView):
+class SignUpView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
     template_name = 'users/views/logged_out/sign_up.html'
     success_url = reverse_lazy('login')
     model = MrMapUser
     form_class = RegistrationForm
     success_message = "Your profile was created successfully"
+    title = _("Signup")
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': _('Edit profile')})
-        return context
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # create UserActivation and send mail to user
+        user = self.object
+        user_activation = UserActivation.objects.create(user=user)
+
+        current_site = get_current_site(self.request)
+        subject = 'Activate Your MrMap Account'
+        message = render_to_string('users/email/signup.html', {
+            'user': user,
+            'domain': current_site.domain,
+            'token': user_activation.activation_hash,
+        })
+        user.email_user(subject, message)
+        return response
 
 
 @method_decorator(login_required, name='dispatch')
-class SubscriptionTableView(SingleTableMixin, ListView):
+class SubscriptionTableView(CustomSingleTableMixin, ListView):
     model = Subscription
     table_class = SubscriptionTable
     template_name = 'users/views/profile/manage_subscriptions.html'
@@ -213,62 +211,36 @@ class SubscriptionTableView(SingleTableMixin, ListView):
         queryset = super().get_queryset()
         return queryset.filter(user=self.request.user)
 
-    def get_table(self, **kwargs):
-        # set some custom attributes for template rendering
-        table = super(SubscriptionTableView, self).get_table(**kwargs)
-        table.title = Tag(tag='i', attrs={"class": [IconEnum.SUBSCRIPTION.value]}) + gettext(' Subscriptions')
-        return table
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': _('Edit profile')})
-        return context
-
-    def dispatch(self, request, *args, **kwargs):
-        # configure table_pagination dynamically to support per_page switching
-        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
-        return super(SubscriptionTableView, self).dispatch(request, *args, **kwargs)
-
 
 @method_decorator(login_required, name='dispatch')
-class AddSubscriptionView(SuccessMessageMixin, CreateView):
+class AddSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
     model = Subscription
     template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
     success_message = SUBSCRIPTION_SUCCESSFULLY_CREATED
+    title = _('Add subscription')
 
     def get_initial(self):
         initial = super().get_initial()
         initial.update({'user': self.request.user})
         return initial
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': _('Add subscription')})
-        return context
-
 
 @method_decorator(login_required, name='dispatch')
-class UpdateSubscriptionView(SuccessMessageMixin, UpdateView):
+class UpdateSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, UpdateView):
     model = Subscription
     template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
     success_message = SUBSCRIPTION_EDITING_SUCCESSFULL
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': format_html(_(f'Update subscription for <strong>{self.object.metadata}</strong>'))})
-        return context
+    def get_title(self):
+        return format_html(_(f'Update subscription for <strong>{self.object.metadata}</strong>'))
 
 
 @method_decorator(login_required, name='dispatch')
-class DeleteSubscriptionView(SuccessMessageMixin, DeleteView):
+class DeleteSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = Subscription
     template_name = "users/views/profile/delete_subscription.html"
     success_url = reverse_lazy('manage_subscriptions')
     success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({'title': _('Delete subscription')})
-        return context
+    title = _('Delete subscription')

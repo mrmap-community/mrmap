@@ -57,7 +57,7 @@ def get_contact_data():
         "postal_code": "442211",
         "confirmed_newsletter": True,
         "confirmed_survey": True,
-        "confirmed_dsgvo": True,
+        "dsgvo": True,
         "captcha_0": "dummy",
         "captcha_1": "PASSED",
     }

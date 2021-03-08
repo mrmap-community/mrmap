@@ -12,7 +12,7 @@ from django.urls import reverse
 from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum, ButtonSizeEnum
 
-from MrMap.icons import IconEnum
+from MrMap.icons import IconEnum, get_icon
 from service.models import Metadata
 from structure.models import MrMapUser
 from django.utils.translation import gettext as _
@@ -46,6 +46,10 @@ class Subscription(models.Model):
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
         unique_together = ('metadata', 'user',)
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.SUBSCRIPTION)
 
     def get_absolute_url(self):
         return reverse('manage_subscriptions')

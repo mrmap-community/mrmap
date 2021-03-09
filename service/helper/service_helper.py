@@ -304,6 +304,7 @@ def get_resource_capabilities(request: HttpRequest, md: Metadata):
     from service.tasks import async_increase_hits
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
+    # todo: after refactoring of md.increase_hits() maybe we don't need to start async tasks... test it!!!
     async_increase_hits.delay(md.id)
 
     if not md.is_active:

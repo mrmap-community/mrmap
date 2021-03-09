@@ -21,7 +21,7 @@ urlpatterns = [
 
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
-    path('<pk>/remove', ResourceDelete.as_view(), name='remove'),
+    path('<pk>/remove', ResourceDeleteView.as_view(), name='remove'),
     path('<pk>/remove-dataset', DatasetDelete.as_view(), name='remove-dataset-metadata'),
     path('<pk>/edit-metadata', EditMetadata.as_view(), name='edit'),
     path('<pk>/edit-dataset-metadata', EditDatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS, ignore_uncomitted_forms=True), name="dataset-metadata-wizard-instance"),
@@ -40,7 +40,7 @@ urlpatterns = [
     # serivce urls
     # todo: refactoring this as a generic view
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),
-    path('metadata/dataset/<metadata_id>', get_dataset_metadata, name='get-dataset-metadata'),
+    path('metadata/dataset/<pk>', DatasetMetadataXmlView.as_view(), name='get-dataset-metadata'),
     path('metadata/<metadata_id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<metadata_id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
@@ -52,7 +52,7 @@ urlpatterns = [
 
     # html metadata detail view
     # todo: refactoring as class based detailview. Maybe we could use the ResourceTreeView
-    path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),
+    path('metadata/html/<pk>', MetadataHtml.as_view(), name='get-metadata-html'),
     path('preview/<metadata_id>', get_service_preview, name='get-service-metadata-preview'),
 
     # autocompletes

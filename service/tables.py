@@ -466,30 +466,3 @@ class ProxyLogTable(tables.Table):
         sequence = ('metadata__id', 'metadata__title', 'user', '...')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'proxy-log-table'
-
-    def fill_csv_response(self, stream):
-        csv_writer = csv.writer(stream)
-        csv_writer.writerow([
-            _("ID"),
-            _("Title"),
-            _("User"),
-            _("Operation"),
-            _("Delivered Features (WFS)"),
-            _("Delivered Megapixel (WMS)"),
-            _("Timestamp"),
-        ])
-        for log in self.data.data:
-            csv_writer.writerow(
-                [
-                    log.metadata.id,
-                    log.metadata.title,
-                    log.user,
-                    log.operation,
-                    log.response_wfs_num_features,
-                    log.response_wms_megapixel,
-                    log.timestamp,
-                ]
-            )
-        return stream.getvalue()
-
-

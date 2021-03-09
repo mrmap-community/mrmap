@@ -43,61 +43,6 @@ def async_increase_hits(metadata_id: int):
     md.increase_hits()
 
 
-# todo: maybe we don't need this function after SecuredOperation is refactored
-#  tag: delete
-@shared_task(name="async_secure_service_task")
-def async_secure_service_task(root_metadata_id: int,
-                              groups_id_list: list,
-                              operations_id_list: list,
-                              allowed_area: str):
-    """ Async call for securing a service
-
-    Since this is something that can happen in the background, we should push it to the background!
-
-    Args;
-        metadata_id (int): The service that shall be secured
-        is_secured (bool): Whether to secure the service or not
-        groups (list): The groups which are allowed to perform the RequestOperation
-        operation (RequestOperation): The operation that shall be secured or not
-    Returns:
-         nothing
-    """
-    root_metadata = Metadata.objects.get(id=root_metadata_id)
-    allowed_groups = MrMapGroup.objects.filter(
-        id__in=groups_id_list
-    )
-    operations = OGCOperation.objects.filter(
-        id__in=operations_id_list
-    )
-    allowed_area = MultiPolygon(allowed_area)
-
-    obj, created = AllowedOperation.objects.get_or_create(
-        root_metadata=root_metadata,
-    )
-    obj.allowed_groups.clear()
-    obj.operations.clear()
-    obj.allowed_groups.add(*allowed_groups)
-    obj.operations.add(*operations)
-    obj.allowed_area = allowed_area
-
-    obj.save()
-
-
-@shared_task(name="async_remove_service_task")
-def async_remove_service_task(service_id: int):
-    """ Async call for removing of services
-
-    Since this is something that can happen in the background, we should push it to the background!
-
-    Args;
-        service_id (int): The id of the service which shall be removed
-    Returns:
-         nothing
-    """
-    service = Service.objects.get(id=service_id)
-    service.delete()
-
-
 @shared_task(name="async_new_service_task")
 def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
                       external_auth: dict):

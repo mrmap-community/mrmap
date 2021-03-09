@@ -19,6 +19,7 @@ from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, TemplateView, DetailView, DeleteView, UpdateView
+from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
     Badge, Accordion, CardHeader
 from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
@@ -41,7 +42,8 @@ from MrMap.messages import SERVICE_UPDATED, \
     PUBLISH_REQUEST_ACCEPTED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
+from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
+    SuccessMessageDeleteMixin
 from service import tasks
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
@@ -206,15 +208,18 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value), name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class ResourceDelete(SuccessMessageMixin, DeleteView):
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value, login_url='home'), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk', login_url='home'), name='dispatch')
+class ResourceDeleteView(SuccessMessageDeleteMixin, DeleteView):
     model = Metadata
     queryset = Metadata.objects.filter(Q(metadata_type=MetadataEnum.SERVICE.value) |
                                        Q(metadata_type=MetadataEnum.CATALOGUE.value))
     success_url = reverse_lazy('home')
     template_name = "MrMap/detail_views/delete.html"
     success_message = SERVICE_SUCCESSFULLY_DELETED
+
+    def get_msg_dict(self):
+        return {'name': self.get_object()}
 
 
 @method_decorator(login_required, name='dispatch')
@@ -282,6 +287,28 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
         messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(md.title))
 
     return redirect("subscription-index")
+
+
+class DatasetMetadataXmlView(BaseDetailView):
+    model = Metadata
+    # a dataset metadata without a document is broken
+    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents=None)\
+                               .prefetch_related('documents')
+    content_type = 'application/xml'
+    object = None
+
+    def get(self, request, *args, **kwargs):
+        print(self.object.documents)
+        document = self.object.documents.get(is_original=False) if self.object.documents.filter(is_original=False).exists() else self.object.documents.get(
+            is_original=True)
+        return HttpResponse(document.content, content_type=self.content_type)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not self.object.is_active:
+            return HttpResponse(content=SERVICE_DISABLED, status=423)
+        else:
+            return super().dispatch(request, *args, **kwargs)
 
 
 @resolve_metadata_public_id
@@ -429,70 +456,72 @@ def _get_capabilities(request: HttpRequest, metadata_id):
     return HttpResponse(doc, content_type='application/xml')
 
 
-@resolve_metadata_public_id
-def get_metadata_html(request: HttpRequest, metadata_id):
-    """ Returns the metadata as html rendered view
-        Args:
-            request (HttpRequest): The incoming request
-            metadata_id : The metadata id
-        Returns:
-             A HttpResponse containing the html formated metadata
-    """
-    # ---- constant values
-    base_template = '404.html'
-    # ----
-    md = get_object_or_404(Metadata, id=metadata_id)
-    if md.is_updatecandidate:
-        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+class MetadataHtml(DetailView):
+    model = Metadata
+    queryset = Metadata.objects.select_related('service').filter(service__is_update_candidate_for=None)
+    extra_context = {"SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION}
 
-    # collect global data for all cases
-    params = {
-        'md_id': md.id,
-        'title': md.title,
-        'abstract': md.abstract,
-        'access_constraints': md.access_constraints,
-        'capabilities_original_uri': md.capabilities_original_uri,
-        'capabilities_uri': md.capabilities_uri,
-        'contact': collect_contact_data(md.contact),
-        "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
-    }
+    def get_template_names(self):
+        if self.object.is_metadata_type(MetadataEnum.DATASET):
+            self.template_name = 'metadata/base/dataset/dataset_metadata_as_html.html'
+        elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
+            self.template_name = 'metadata/base/wfs/featuretype_metadata_as_html.html'
+        elif self.object.is_metadata_type(MetadataEnum.LAYER):
+            self.template_name = 'metadata/base/wms/layer_metadata_as_html.html'
+        elif self.object.service.is_service_type(OGCServiceEnum.WMS):
+            # wms root object
+            self.template_name = 'metadata/base/wms/root_metadata_as_html.html'
+        elif self.object.service.is_service_type(OGCServiceEnum.WFS):
+            # wfs root object
+            self.template_name = 'metadata/base/wfs/root_metadata_as_html.html'
+        elif self.object.is_catalogue_metadata:
+            # ToDo: Add html view for CSW!
+            pass
+        return super().get_template_names()
 
-    params.update(collect_metadata_related_objects(md, request, ))
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # todo: refactor this messy context by using just the self.object from default context....
+        context.update({
+            'md_id': self.object.id,
+            'title': self.object.title,
+            'abstract': self.object.abstract,
+            'access_constraints': self.object.access_constraints,
+            'capabilities_original_uri': self.object.capabilities_original_uri,
+            'capabilities_uri': self.object.capabilities_uri,
+            'contact': collect_contact_data(self.object.contact),
+            "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
+        })
 
-    # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
-    if md.is_metadata_type(MetadataEnum.DATASET):
-        base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
-        params['contact'] = collect_contact_data(md.contact)
-        params['bounding_box'] = md.allowed_area
-        params['dataset_metadata'] = md
-        params['fees'] = md.fees
-        params['licence'] = md.licence
-        params.update({'capabilities_uri': md.service_metadata_uri})
+        context.update(collect_metadata_related_objects(self.object, self.request, ))
 
-    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
-        params.update(collect_featuretype_data(md))
+        if self.object.is_metadata_type(MetadataEnum.DATASET):
+            context['contact'] = collect_contact_data(self.object.contact)
+            context['bounding_box'] = self.object.allowed_area
+            context['dataset_metadata'] = self.object
+            context['fees'] = self.object.fees
+            context['licence'] = self.object.licence
+            context.update({'capabilities_uri': self.object.service_metadata_uri})
 
-    elif md.is_metadata_type(MetadataEnum.LAYER):
-        base_template = 'metadata/base/wms/layer_metadata_as_html.html'
-        params.update(collect_layer_data(md, request))
+        elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
+            context.update(collect_featuretype_data(self.object))
 
-    elif md.service.is_service_type(OGCServiceEnum.WMS):
-        # wms root object
-        base_template = 'metadata/base/wms/root_metadata_as_html.html'
-        params.update(collect_wms_root_data(md, request))
+        elif self.object.is_metadata_type(MetadataEnum.LAYER):
+            context.update(collect_layer_data(self.object, self.request))
 
-    elif md.service.is_service_type(OGCServiceEnum.WFS):
-        # wfs root object
-        base_template = 'metadata/base/wfs/root_metadata_as_html.html'
-        params.update(collect_wfs_root_data(md, request))
+        elif self.object.service.is_service_type(OGCServiceEnum.WMS):
+            # wms root object
+            context.update(collect_wms_root_data(self.object, self.request))
 
-    elif md.is_catalogue_metadata:
-        # ToDo: Add html view for CSW!
-        pass
+        elif self.object.service.is_service_type(OGCServiceEnum.WFS):
+            # wfs root object
+            context.update(collect_wfs_root_data(self.object, self.request))
 
-    return render(request=request, template_name=base_template, context=params)
+        elif self.object.is_catalogue_metadata:
+            # ToDo: Add html view for CSW!
+            pass
 
+        return context
 
 @login_required
 # @permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)

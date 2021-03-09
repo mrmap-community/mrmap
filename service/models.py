@@ -92,7 +92,7 @@ class Keyword(models.Model):
 
 class ProxyLog(models.Model):
     from structure.models import MrMapUser
-    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, null=True, blank=True)
+    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE)
     user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
     operation = models.CharField(max_length=100, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
@@ -102,9 +102,7 @@ class ProxyLog(models.Model):
     response_wms_megapixel = models.FloatField(null=True, blank=True)
 
     class Meta:
-        ordering = [
-            "-timestamp"
-        ]
+        ordering = ["-timestamp"]
 
     def __str__(self):
         return str(self.id)
@@ -569,13 +567,15 @@ class Metadata(Resource):
 
     def is_updatecandidate(self):
         # get service object
+
+        self.get_described_element()
         if self.is_metadata_type(MetadataEnum.FEATURETYPE):
             service = self.featuretype.parent_service
         elif self.is_metadata_type(MetadataEnum.DATASET):
             return False
         else:
             service = self.service
-        # proof if the requested metadata is a update_candidate --> 404
+        # proof if the requested metadata is a update_candidate
         if service.is_root:
             if service.is_update_candidate_for is not None:
                 return True
@@ -611,7 +611,7 @@ class Metadata(Resource):
              metadatas (QuerySet)
         """
         _filters = {'to_metadatas__to_metadata__metadata_type': OGCServiceEnum.DATASET.value,
-                   'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
+                    'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
         if filters:
             _filters.update(filters)
         return self.get_related_metadatas(filters=_filters, exclusions=exclusions)
@@ -2079,9 +2079,9 @@ class AllowedOperation(models.Model):
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
         """
-        In the `OGCOperationRequestHandler` we have some query's against the `SecuredOperation` object filtered by
-        an empty `GEOSGeometry` looked up in the `bounding_geometry` field. The lookup is implemented with
-        `bounding_geometry=None`. So we have to prevent saving empty GEOSGeometry objects by adding a validator.
+        In the `OGCOperationRequestHandler` we have some query's against the `AllowedOperation` object filtered by
+        an empty `GEOSGeometry` looked up in the `allowed_area` field. The lookup is implemented with
+        `allowed_area<=None`. So we have to prevent saving empty GEOSGeometry objects by adding a validator.
         However, this is security component, which shall work always as expected. So we have to make sure, that
         inconsistent data is never saved to the database. Cause the full_clean() method will only called in ModelForm
         classes, we need to add this again at this point, if the AllowedOperation will be used in other ways as

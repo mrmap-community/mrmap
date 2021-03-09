@@ -115,7 +115,7 @@ def create_wms_service(group: MrMapGroup,
             metadata=dataset_metadata,
         )
 
-        baker.make_recipe(
+        obj = baker.make_recipe(
             'tests.baker_recipes.service_app.metadata_document',
             metadata=dataset_metadata,
             created_by=group,
@@ -169,6 +169,7 @@ def create_wms_service(group: MrMapGroup,
             _quantity=how_much_sublayers,
             metadata_type=layer_md_type,
             contact=contact,
+
         )
 
         for sublayer_metadata in sublayer_metadatas:

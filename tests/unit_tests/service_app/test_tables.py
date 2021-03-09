@@ -7,6 +7,7 @@ from MrMap.consts import SERVICE_INDEX_LOG
 from service.models import Metadata, ProxyLog
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable, ProxyLogTable, OgcServiceTable, \
     PendingTaskTable
+from structure.models import PendingTask
 from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs, create_testuser
 from tests.utils import check_table_sorting
 
@@ -91,29 +92,6 @@ class ServiceTestCase(TestCase):
             self.assertEqual(exception, None,
                              msg="Field Error for field {} raised. Check your custom order function of table {}".format(
                                  column, "WfsServiceTable"))
-
-    def test_pending_tasks_table_sorting(self):
-        # we just need an empty queryset
-        md_list = Metadata.objects.all()
-
-        table = PendingTaskTable(data=md_list,
-                                 order_by_field='sort',  # swms = sort wms
-                                 request=self.request, )
-
-        for column in table.columns.columns:
-            request = self.factory.get(reverse("resource:pending-tasks") + '?{}={}'.format("sort", column))
-            RequestConfig(request).configure(table)
-
-            exception = None
-            try:
-                # this line will raise a filederror exception if (i dont know why but it does)
-                # custom rendered field without accessor has no custom order function
-                list(table.rows)
-            except FieldError as e:
-                exception = e
-            self.assertEqual(exception, None,
-                             msg="Field Error for field {} raised. Check your custom order function of table {}".format(
-                                 column, "PendingTasksTable"))
 
     def test_child_layer_table_sorting(self):
         # we just need an empty queryset

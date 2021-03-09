@@ -50,7 +50,7 @@ class AllowedOperationTestCase(TestCase):
         allowed_operation.refresh_from_db()
 
         self.assertEqual(list(allowed_operation.secured_metadata.all().order_by('id')),
-                         list(allowed_operation.root_metadata.get_subelements_metadatas_as_qs().order_by('id')),
+                         list(allowed_operation.root_metadata.get_descendant_metadatas(include_self=True).order_by('id')),
                          msg='The secured_metadata field shall contains all children of the root_metadata field.')
 
 

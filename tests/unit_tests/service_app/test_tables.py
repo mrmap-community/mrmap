@@ -215,7 +215,6 @@ class ServiceTestCase(TestCase):
         sorting_implementation_failed, sorting_results = check_table_sorting(
             table=table,
             url_path_name=SERVICE_INDEX_LOG,
-            sorting_parameter=sorting_param,
         )
 
         for key, val in sorting_results.items():

@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
@@ -219,6 +220,29 @@ class GenericViewContextMixin(ContextMixin):
         context = super().get_context_data(**kwargs)
         context.update({"title": self.get_title})
         return context
+
+
+class SuccessMessageDeleteMixin:
+    """
+    Add a success message on successful delete object.
+    """
+    success_message = ''
+    msg_dict = {}
+
+    def delete(self, request, *args, **kwargs):
+        success_message = self.get_success_message()
+
+        response = super().delete(request, *args, **kwargs)
+
+        if success_message:
+            messages.success(self.request, success_message)
+        return response
+
+    def get_success_message(self):
+        return self.success_message % self.get_msg_dict()
+
+    def get_msg_dict(self):
+        return self.msg_dict
 
 
 class CustomSingleTableMixin(SingleTableMixin):

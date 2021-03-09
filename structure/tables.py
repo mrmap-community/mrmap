@@ -120,8 +120,7 @@ class GroupTable(ActionTableMixin, tables.Table):
         model = MrMapGroup
         fields = ('name', 'description', 'organization', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        # todo: set this prefix dynamic
-        prefix = 'mrmapgroup-table'
+        prefix = 'group-table'
 
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
@@ -153,7 +152,6 @@ class GroupDetailTable(tables.Table):
         model = MrMapGroup
         fields = ('name', 'description', 'organization', 'permissions', 'inherited_permissions')
         template_name = "skeletons/django_tables2_vertical_table.html"
-        # todo: set this prefix dynamic
         prefix = 'mrmapgroup-detail-table'
         orderable = False
 
@@ -211,7 +209,6 @@ class OrganizationDetailTable(tables.Table):
                   'state_or_province',
                   'country')
         template_name = "skeletons/django_tables2_vertical_table.html"
-        # todo: set this prefix dynamic
         prefix = 'organization-detail-table'
         orderable = False
 

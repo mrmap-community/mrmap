@@ -88,6 +88,9 @@ def ownership_required(klass, id_name: str, login_url=None):
         The function
     """
     def check_ownership(request, user):
+        if user.is_superuser:
+            return True
+
         resource = get_object_or_404(klass, id=request.resolver_match.kwargs.get(id_name), )
         user_groups = user.get_groups
 

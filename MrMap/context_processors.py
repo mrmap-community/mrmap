@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.http import HttpRequest
 
@@ -35,8 +36,11 @@ def default_context(request: HttpRequest):
         if not request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
             # superuser can see all pending requests
-            pending_publish_requests_count = PublishRequest.objects.filter(Q(group__in=request.user.get_groups) |
-                                                                           Q(organization=request.user.organization)).count
+            try:
+                pending_publish_requests_count = PublishRequest.objects.filter(Q(group__in=request.user.get_groups) |
+                                                                               Q(organization=request.user.organization)).count
+            except ObjectDoesNotExist:
+                pending_publish_requests_count = None
         else:
             pending_publish_requests_count = PublishRequest.objects.count()
         pending_group_invitation_requests_count = GroupInvitationRequest.objects.filter(Q(user=request.user)|

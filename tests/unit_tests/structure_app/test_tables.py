@@ -64,7 +64,7 @@ class StructureTablesTestCase(TestCase):
         """
         # Get all groups, make sure the initial set is ordered by random
         groups = MrMapGroup.objects.all().order_by("?")
-        sorting_param = "sg"
+        sorting_param = "sort"
         table = GroupTable(
             data=groups,
             order_by_field=sorting_param,
@@ -74,7 +74,6 @@ class StructureTablesTestCase(TestCase):
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
             table=table,
             url_path_name=self.groups_url_path_name,
-            sorting_parameter=sorting_param
         )
 
         for key, val in sorting_results.items():
@@ -90,7 +89,7 @@ class StructureTablesTestCase(TestCase):
         """
         # Get all groups, make sure the initial set is ordered by random
         orgs = Organization.objects.all().order_by("?")
-        sorting_param = "so"
+        sorting_param = "sort"
         table = OrganizationTable(
             data=orgs,
             order_by_field=sorting_param,
@@ -100,7 +99,6 @@ class StructureTablesTestCase(TestCase):
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
             table=table,
             url_path_name=self.orgs_url_path_name,
-            sorting_parameter=sorting_param
         )
 
         for key, val in sorting_results.items():

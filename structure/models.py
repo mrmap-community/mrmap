@@ -21,13 +21,14 @@ from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColo
     ButtonSizeEnum
 
 from MrMap.icons import IconEnum, get_icon
+from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
 from structure.permissionEnums import PermissionEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
-from users.settings import default_activation_time
+from users.settings import default_activation_time, default_request_activation_time
 
 
 class ErrorReport(models.Model):
@@ -211,6 +212,10 @@ class Organization(Contact):
                 name="unique organizations"
             )
         ]
+        # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
+        # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
+        # the right default way here...
+        ordering = ['organization_name']
 
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
@@ -279,10 +284,6 @@ class Organization(Contact):
     @property
     def remove_view_uri(self):
         return reverse('structure:organization_remove', args=[self.pk, ])
-
-    @property
-    def icon(self):
-        return get_icon(IconEnum.ORGANIZATION)
 
     def get_actions(self):
         add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
@@ -355,8 +356,8 @@ class MrMapGroup(Group):
         # todo: check if this could be done with the default attribute of the role field
         from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
         if self.role is None:
-            default_role = Role.objects.get(name=DEFAULT_ROLE_NAME)
-            self.role = default_role
+            obj, created = Role.objects.get_or_create(name=DEFAULT_ROLE_NAME)
+            self.role = obj
 
         is_new = False
         if self._state.adding:
@@ -375,6 +376,10 @@ class MrMapGroup(Group):
 
     def get_absolute_url(self):
         return self.detail_view_uri
+
+    @classmethod
+    def get_add_view_url(self):
+        return reverse('structure:group_new')
 
     @classmethod
     def get_add_action(cls):
@@ -705,12 +710,20 @@ class GroupActivity(models.Model):
 class BaseInternalRequest(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     message = models.TextField(null=True, blank=True)
-    activation_until = models.DateTimeField(null=True)
+    activation_until = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=default_request_activation_time))
     created_on = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True)
 
     class Meta:
         abstract = True
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if not self._state.adding:
+            if timezone.now() > self.activation_until:
+                self.delete()
+                raise ValidationError(REQUEST_ACTIVATION_TIMEOVER)
+        super().save(force_insert, force_update, using, update_fields)
 
 
 class PublishRequest(BaseInternalRequest):
@@ -735,6 +748,9 @@ class PublishRequest(BaseInternalRequest):
     def get_absolute_url(self):
         return f"{reverse('structure:publish_request_overview')}?group={self.group.id}&organization={self.organization.id}"
 
+    def get_accept_view_url(self):
+        return reverse('structure:publish_request_accept', args=[self.pk])
+
     @classmethod
     def get_add_action(cls):
         icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
@@ -750,18 +766,14 @@ class PublishRequest(BaseInternalRequest):
     def accept_request_uri(self):
         return reverse('structure:publish_request_accept', args=[self.pk])
 
-    @property
-    def icon(self):
-        return get_icon(IconEnum.PUBLISHERS)
-
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
+        super().save(force_insert, force_update, using, update_fields)
         if not self._state.adding:
             if self.is_accepted:
                 self.group.publish_for_organizations.add(self.organization)
-            self.delete()
-        else:
-            super().save(force_insert, force_update, using, update_fields)
+                self.delete()
+
 
 
 class GroupInvitationRequest(BaseInternalRequest):

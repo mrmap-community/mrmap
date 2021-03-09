@@ -1,7 +1,9 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.exceptions import ValidationError
 from django.db.models import Case, When, Q
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
@@ -17,7 +19,8 @@ from MrMap.messages import GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATE
     PUBLISH_REQUEST_ACCEPTED, \
     ORGANIZATION_SUCCESSFULLY_CREATED, ORGANIZATION_SUCCESSFULLY_DELETED, PUBLISH_REQUEST_SENT, \
     GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_CREATED, ORGANIZATION_SUCCESSFULLY_EDITED
-from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, DependingListView
+from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, DependingListView, \
+    SuccessMessageDeleteMixin
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm
 from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
@@ -103,7 +106,7 @@ class OrganizationTableView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_ORGANIZATION.value), name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_ORGANIZATION.value, login_url='structure:organization_overview'), name='dispatch')
 class OrganizationNewView(InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, CreateView):
     model = Organization
     form_class = OrganizationForm
@@ -152,14 +155,17 @@ class OrganizationEditView(InitFormMixin, GenericViewContextMixin, SuccessMessag
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value), name='dispatch')
-class OrganizationDeleteView(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_ORGANIZATION.value, login_url='structure:organization_overview'), name='dispatch')
+class OrganizationDeleteView(GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
     model = Organization
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:organization_overview')
     success_message = ORGANIZATION_SUCCESSFULLY_DELETED
     queryset = Organization.objects.filter(is_auto_generated=False)
     title = _('Delete organization')
+
+    def get_msg_dict(self):
+        return {'organization_name': self.get_object().organization_name}
 
 
 @method_decorator(login_required, name='dispatch')
@@ -261,7 +267,7 @@ class ErrorReportDetailView(DetailView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_GROUP.value), name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_GROUP.value, login_url='structure:group_overview'), name='dispatch')
 class GroupNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = MrMapGroup
     form_class = GroupForm
@@ -290,7 +296,7 @@ class GroupPublishRightsForTableView(DependingListView, GroupDetailContextMixin,
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value), name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value, login_url='structure:publish_request_overview'), name='dispatch')
 class PublishRequestNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = PublishRequest
     fields = ('group', 'organization', 'message')
@@ -325,8 +331,8 @@ class PublishRequestTableView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value), name='dispatch')
-class PublishRequestAcceptView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+@method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value, login_url='structure:publish_request_overview'), name='dispatch')
+class PublishRequestAcceptView(GenericViewContextMixin, SuccessMessageMixin, InitFormMixin, UpdateView):
     model = PublishRequest
     template_name = "MrMap/detail_views/generic_form.html"
     success_url = reverse_lazy('structure:publish_request_overview')
@@ -334,9 +340,17 @@ class PublishRequestAcceptView(GenericViewContextMixin, InitFormMixin, SuccessMe
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept request')
 
+    def form_valid(self, form):
+        try:
+            response = super().form_valid(form)
+        except ValidationError as e:
+            messages.error(self.request, e.message)
+            response = HttpResponseRedirect(self.get_success_url())
+        return response
+
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value), name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value, login_url='structure:publish_request_overview'), name='dispatch')
 class PublishRequestRemoveView(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = PublishRequest
     template_name = "MrMap/detail_views/delete.html"
@@ -346,15 +360,18 @@ class PublishRequestRemoveView(GenericViewContextMixin, SuccessMessageMixin, Del
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value), name='dispatch')
-@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk'), name='dispatch')
-class GroupDeleteView(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value, login_url='structure:group_overview'), name='dispatch')
+@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk', login_url='structure:group_overview'), name='dispatch')
+class GroupDeleteView(GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
     model = MrMapGroup
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:group_overview')
     success_message = GROUP_SUCCESSFULLY_DELETED
     queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
     title = _('Delete group')
+
+    def get_msg_dict(self):
+        return {'name': self.get_object().name}
 
 
 @method_decorator(login_required, name='dispatch')
@@ -399,7 +416,7 @@ class GroupInvitationRequestTableView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value), name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_ADD_USER_TO_GROUP.value), name='dispatch')
 class GroupInvitationRequestNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = GroupInvitationRequest
     fields = ('user', 'group', 'message')

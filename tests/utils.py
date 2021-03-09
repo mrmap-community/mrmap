@@ -13,7 +13,7 @@ from django.db.models import QuerySet
 from django.test import RequestFactory, Client
 from django.urls import reverse
 from django_filters import FilterSet
-from django_tables2 import RequestConfig
+from django_tables2 import RequestConfig, tables
 
 from MrMap import utils
 from MrMap.tables import MrMapTable
@@ -51,7 +51,7 @@ def generate_random_string(len: int):
     return ''.join(random.choices(string.ascii_uppercase, k=len))
 
 
-def check_table_sorting(table, url_path_name: str, sorting_parameter: str):
+def check_table_sorting(table: tables.Table, url_path_name: str):
     """ Checks the sorting of a MrMapTable object.
 
     This function returns two elements, so call it like
@@ -60,9 +60,8 @@ def check_table_sorting(table, url_path_name: str, sorting_parameter: str):
     ```
 
     Args:
-        table: An instance of a MrMapTable (or inherited)
+        table: (tables.Table)
         url_path_name (str): Identifies the url path name like `structure:groups-index` where the table would be rendered
-        sorting_parameter (str): Identifies the GET parameter name, that holds the ordering column name
     Returns:
         sorting_implementation_failed (dict): Contains results if the sorting created an exception
                                               (maybe due to a custom sorting functionality)
@@ -77,12 +76,11 @@ def check_table_sorting(table, url_path_name: str, sorting_parameter: str):
         for column in table.columns:
             request = request_factory.get(
                 reverse(url_path_name) + '?{}={}{}'.format(
-                    sorting_parameter,
+                    table.prefixed_order_by_field,
                     sorting,
                     column.name
                 )
             )
-
             RequestConfig(request).configure(table)
 
             try:

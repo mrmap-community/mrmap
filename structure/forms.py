@@ -4,31 +4,25 @@ from captcha.fields import CaptchaField
 from dal import autocomplete
 from django import forms
 from django.contrib.auth.hashers import make_password
-from django.core.exceptions import ValidationError, ObjectDoesNotExist, ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models import Q
-from django.forms import ModelForm, HiddenInput, MultipleHiddenInput
-from django.http import Http404
+from django.forms import ModelForm, MultipleHiddenInput
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
-from MrMap import utils
-from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
-from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
+from MrMap.forms import MrMapForm, MrMapConfirmForm
 from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
-    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
-    ORGANIZATION_SUCCESSFULLY_EDITED, PUBLISH_REQUEST_SENT, GROUP_SUCCESSFULLY_CREATED, GROUP_SUCCESSFULLY_DELETED, \
-    GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_EXISTS, GROUP_INVITATION_CREATED, PUBLISH_REQUEST_ACCEPTED, \
-    PUBLISH_REQUEST_DENIED, PUBLISH_PERMISSION_REMOVED
-from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
-from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role, MrMapUser, PublishRequest, GroupInvitationRequest
-from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, GROUP_INVITATION_REQUEST_ACTIVATION_TIME_WINDOW
+    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, \
+    PUBLISH_REQUEST_SENT
+from MrMap.settings import MIN_PASSWORD_LENGTH
+from MrMap.validators import PASSWORD_VALIDATORS
+from structure.models import MrMapGroup, Organization, MrMapUser, PublishRequest
+from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
 from django.contrib import messages
 
 from users.helper import user_helper
-from users.helper.user_helper import create_group_activity
 
 
 class GroupForm(ModelForm):

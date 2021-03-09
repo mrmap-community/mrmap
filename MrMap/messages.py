@@ -71,8 +71,8 @@ RESOURCE_NOT_FOUND_OR_NOT_OWNER = _("The requested resource does not exist or yo
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 
 PUBLISH_REQUEST_SENT = _("Publish request from <strong>%(group)s</strong> has been sent to the organization <strong>%(organization)s</strong>")
-PUBLISH_REQUEST_ACCEPTED = _("Publish request from <strong>%(group)s</strong> has been <strong>accepted</strong> from organization <strong>%(organization)s</strong>")
-PUBLISH_REQUEST_DENIED = _("Publish request from <strong>%(group)s</strong> has been <strong>denied</strong> from organization <strong>%(organization)s</strong>")
+PUBLISH_REQUEST_ACCEPTED = _("Publish request has been <strong>accepted</strong>.")
+PUBLISH_REQUEST_DENIED = _("Publish request has been <strong>denied</strong>.")
 PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER = _("Your group already is a publisher for this organization!")
 PUBLISH_REQUEST_ABORTED_OWN_ORG = _("You cannot be a publisher to your group's own organization! You publish by default like this.")
 PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. Please be patient!")
@@ -137,6 +137,5 @@ SUBSCRIPTION_SUCCESSFULLY_DELETED = _("Subscription successfully deleted.")
 
 
 GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
-GROUP_INVITATION_EXISTS = _("An invitation already exists. {} can respond until {}!")
 
 MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")

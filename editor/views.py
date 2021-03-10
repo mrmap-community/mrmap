@@ -29,11 +29,11 @@ from users.helper import user_helper
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(PermissionEnum.CAN_REMOVE_DATASET_METADATA.value), name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_REMOVE_DATASET_METADATA.value, login_url='resource:dataset-index'), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk', login_url='resource:dataset-index'), name='dispatch')
 class DatasetDelete(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = Metadata
-    success_url = reverse_lazy('resource:dataset-index')
+    success_url = reverse_lazy('resource:datasets-index')
     template_name = 'MrMap/detail_views/delete.html'
     queryset = Metadata.objects.filter(metadata_type=MetadataEnum.DATASET.value)
     success_message = _("Dataset successfully deleted.")
@@ -97,6 +97,7 @@ class RestoreMetadata(GenericViewContextMixin, SuccessMessageMixin, ConfirmView)
                                                               self.object.title))
 
         success_url = self.get_success_url()
+
         return HttpResponseRedirect(success_url)
 
 

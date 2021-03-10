@@ -1756,6 +1756,7 @@ class Metadata(Resource):
              nothing, it changes the Metadata object itself
         """
         from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
+        # todo: refactor this by using the content from the original `Document`
         original_metadata_document = ISOMetadata(uri=str(self.metadata_url), origin=ResourceOriginEnum.CAPABILITIES.value)
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title

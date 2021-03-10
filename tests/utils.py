@@ -87,7 +87,7 @@ def check_table_sorting(table: tables.Table, url_path_name: str):
                 if "actions" in column.accessor:
                     break
                 # Check if correctly sorted
-                post_sorting = [utils.get_nested_attribute(row.record, column.accessor).__str__() for row in table.rows]
+                post_sorting = [row.get_cell_value(column.name).__str__() for row in table.rows]
                 try:
                     # For numerical sorting, the strings have to be casted to Integer - if possible
                     post_sorting = [int(p) for p in post_sorting]

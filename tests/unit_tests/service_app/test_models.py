@@ -30,12 +30,10 @@ class AllowedOperationTestModel(TestCase):
     def test_object_with_validation_errors_shall_not_be_stored(self):
         """IF a AllowedOperation object with an empty geometry should be saved, THEN the AllowedOperation object shall not be stored to the database."""
         allowed_operation = AllowedOperation(allowed_area=MultiPolygon(), root_metadata=self.root_metadata)
-        print(allowed_operation.allowed_area)
-        print(allowed_operation.allowed_area.empty)
         try:
             allowed_operation.save()
             print('saved')
-        except:
+        except ValidationError:
             pass
         finally:
             self.assertFalse(AllowedOperation.objects.all().exists(),

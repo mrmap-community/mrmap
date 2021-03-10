@@ -10,8 +10,8 @@ from json import JSONDecodeError
 from typing import Iterator
 from PIL import Image
 from dateutil.parser import parse
-from django.contrib.gis.geos import Polygon
-from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.db.models import Q, QuerySet, F, Count
@@ -2066,8 +2066,6 @@ class AllowedOperation(models.Model):
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")
 
-    
-
     def __str__(self):
         return str(self.id)
 
@@ -2089,6 +2087,8 @@ class AllowedOperation(models.Model):
         classes, we need to add this again at this point, if the AllowedOperation will be used in other ways as
         ModelForm. For that we need to call the full_clean() method ALWAYS before saving.
         """
+        if self.allowed_area.empty:
+            raise ValidationError('Empty MultiPolygon is not allowed')
         super().save(force_insert=False, force_update=force_update, using=using, update_fields=update_fields)
         self.setup_secured_metadata()
 

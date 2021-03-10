@@ -129,7 +129,7 @@ class DecoratorTestCase(TestCase):
         setattr(request, '_messages', messages)
 
         response = test_function(request, service_id=requested_service.id)
-        self.assertEqual(response.status_code, 303, msg="")
+        self.assertEqual(response.status_code, 302, msg="")
 
         request.user = self.user
 
@@ -171,7 +171,7 @@ class DecoratorTestCase(TestCase):
         setattr(request, '_messages', messages)
 
         response = test_function(request, group_id=requested_group.id)
-        self.assertEqual(response.status_code, 303, msg="")
+        self.assertEqual(response.status_code, 302, msg="")
 
         request.user = self.user
 
@@ -213,7 +213,7 @@ class DecoratorTestCase(TestCase):
         setattr(request, '_messages', messages)
 
         response = test_function(request, org_id=requested_organization.id)
-        self.assertEqual(response.status_code, 303, msg="")
+        self.assertEqual(response.status_code, 302, msg="")
 
         request.user = self.user
 

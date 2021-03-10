@@ -68,7 +68,7 @@ def permission_required(perm, login_url=None):
         else:
             perms = perm
         # First check if the user has the permission (even anon users)
-        if user.has_perms(perms):
+        if user.has_permissions(perms):
             return True
         else:
             messages.add_message(request, messages.ERROR, NO_PERMISSION)

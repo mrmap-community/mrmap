@@ -27,29 +27,27 @@ from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
 from django_tables2.export import ExportMixin
-from mptt.utils import previous_current_next, tree_item_iterator, get_cached_trees
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorators import log_proxy, ownership_required, resolve_metadata_public_id, permission_required
+from MrMap.decorators import log_proxy, ownership_required, permission_required
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    PUBLISH_REQUEST_ACCEPTED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.themes import FONT_AWESOME_ICONS
-from MrMap.views import AsyncConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
+from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service import tasks
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
@@ -57,7 +55,7 @@ from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLAC
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
     ProxyLogTable
 from service.tasks import async_log_response
-from service.models import Metadata, Layer, Service, Document, Style, ProxyLog, FeatureTypeElement
+from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import PendingTask
@@ -245,7 +243,6 @@ class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, Suc
         return super().get_success_message(cleaned_data)
 
 
-@resolve_metadata_public_id
 def get_service_metadata(request: HttpRequest, metadata_id):
     """ Returns the service metadata xml file for a given metadata id
 
@@ -310,7 +307,6 @@ class DatasetMetadataXmlView(BaseDetailView):
             return super().dispatch(request, *args, **kwargs)
 
 
-@resolve_metadata_public_id
 def get_service_preview(request: HttpRequest, metadata_id):
     """ Returns the service metadata preview as png for a given metadata id
 
@@ -405,7 +401,6 @@ def get_service_preview(request: HttpRequest, metadata_id):
     return HttpResponse(response, content_type=content_type)
 
 
-@resolve_metadata_public_id
 def _get_capabilities(request: HttpRequest, metadata_id):
     """ Returns the current capabilities xml file
 
@@ -846,7 +841,6 @@ class ResourceTreeView(DetailView):
 
 
 @csrf_exempt
-@resolve_metadata_public_id
 @log_proxy
 def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
@@ -939,7 +933,6 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         return HttpResponse(status=500, content=e)
 
 
-@resolve_metadata_public_id
 def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 

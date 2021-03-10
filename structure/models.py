@@ -652,7 +652,8 @@ class MrMapUser(AbstractUser):
         has_perm = has_perm.exists()
         return has_perm
 
-    def has_perms(self, perm_list, obj=None) -> bool:
+    # do not overwrite has_perms cause of using django permission system in Rest API
+    def has_permissions(self, perm_list, obj=None) -> bool:
         has_perm = self.get_groups.filter(
             role__permissions__name__in=perm_list
         )

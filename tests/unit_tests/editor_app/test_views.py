@@ -126,7 +126,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
 
     def test_step_and_save_wizard_instance_view(self):
         return
-        # todo: refactor this test
+        # todo: refactor this testmonitoring
         datasets = self.user.get_datasets_as_qs()
         step_post_params = {"wizard_goto_step": "responsible party",
                             "dataset_wizard-current_step": "identification",

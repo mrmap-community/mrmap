@@ -397,12 +397,10 @@ def create_monitoring_result(metadata: Metadata,
                              duration=timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
                              status_code: int = 200,
                              available: bool = True,
-                             timestamp=None,
-                             how_much_results: int = 1,):
+                             timestamp=None):
     if timestamp:
         return baker.make_recipe(
             "tests.baker_recipes.monitoring_app.monitoring_result",
-            _quantity=how_much_results,
             metadata=metadata,
             duration=duration,
             status_code=status_code,
@@ -413,7 +411,6 @@ def create_monitoring_result(metadata: Metadata,
     else:
         return baker.make_recipe(
             "tests.baker_recipes.monitoring_app.monitoring_result",
-            _quantity=how_much_results,
             metadata=metadata,
             duration=duration,
             status_code=status_code,

@@ -1,3 +1,4 @@
+from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key
 from django.utils import timezone
 from monitoring.models import MonitoringRun, MonitoringResult
@@ -16,6 +17,6 @@ monitoring_result = Recipe(
     duration=timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
     status_code=200,
     available=True,
-    monitored_uri='example.com',
+    monitored_uri=seq('example.com'),
     monitoring_run=foreign_key(monitoring_run),
 )

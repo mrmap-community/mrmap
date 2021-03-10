@@ -168,7 +168,7 @@ class MonitoringResultCapability(MonitoringResult):
 class HealthState(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
     monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
-    metadata = models.OneToOneField('service.Metadata', on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Resource'))
+    metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Resource'))
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, verbose_name=_('Health state code'))
@@ -186,6 +186,7 @@ class HealthState(models.Model):
     average_response_time_3m = models.DurationField(null=True, blank=True)
 
     class Meta:
+        ordering = ['-monitoring_run__start']
         verbose_name = _('Health state')
         verbose_name_plural = _('Health states')
 

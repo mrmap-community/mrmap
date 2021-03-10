@@ -28,11 +28,12 @@ class ServiceFiltersTestCase(TestCase):
         Returns:
 
         """
-        create_monitoring_result(monitoring_run=self.monitoring_run,
-                                 metadata=self.wms_services[0],
-                                 how_much_results=10)
+        monitoring_runs = create_monitoring_run(how_much_runs=10)
+        for monitoring_run in monitoring_runs:
+            create_monitoring_result(monitoring_run=monitoring_run,
+                                     metadata=self.wms_services[0],)
 
-        health_state = HealthState(monitoring_run=self.monitoring_run,
+        health_state = HealthState(monitoring_run=monitoring_runs[-1],
                                    metadata=self.wms_services[0])
         health_state.run_health_state()
 
@@ -75,25 +76,22 @@ class ServiceFiltersTestCase(TestCase):
         # create two HealthStateEnum.OK results
         create_monitoring_result(monitoring_run=self.monitoring_run,
                                  metadata=self.wms_services[0],
-                                 duration=timezone.timedelta(milliseconds=100),
-                                 how_much_results=2,)
+                                 duration=timezone.timedelta(milliseconds=100),)
         # create two HealthStateEnum.CRITICAL results
         create_monitoring_result(monitoring_run=self.monitoring_run,
                                  metadata=self.wms_services[0],
                                  status_code=404,
                                  available=False,
-                                 duration=timezone.timedelta(milliseconds=100),
-                                 how_much_results=1, )
+                                 duration=timezone.timedelta(milliseconds=100), )
         create_monitoring_result(monitoring_run=self.monitoring_run,
                                  metadata=self.wms_services[0],
                                  status_code=200,
                                  available=True,
-                                 duration=timezone.timedelta(seconds=10, ),
-                                 how_much_results=1, )
+                                 duration=timezone.timedelta(seconds=10, ), )
 
         # we've got 3 monitoring results that are available and 1 that is not available
         # we've got 1 monitoring result with critical response time 10 s + CRITICAL_RESPONSE_TIME
-        # The Health state must be critical and the average response time must be (3 * 100 ms + 10 s) / 4 = 2575
+        # The Health state must be critical and the average response time must be (2 * 100 ms + 10 s) / 4 = 255
         # The reliability statistic must be 0 %
 
         health_state = HealthState(monitoring_run=self.monitoring_run,
@@ -101,9 +99,9 @@ class ServiceFiltersTestCase(TestCase):
         health_state.run_health_state()
 
         self.assertEqual(health_state.health_state_code, HealthStateEnum.CRITICAL.value, msg="The health state is not critical")
-        self.assertEqual(health_state.average_response_time_1w.total_seconds()*1000, 2575)
-        self.assertEqual(health_state.average_response_time_1m.total_seconds()*1000, 2575)
-        self.assertEqual(health_state.average_response_time_3m.total_seconds()*1000, 2575)
+        self.assertEqual(health_state.average_response_time_1w.total_seconds()*1000, 3400)
+        self.assertEqual(health_state.average_response_time_1m.total_seconds()*1000, 3400)
+        self.assertEqual(health_state.average_response_time_3m.total_seconds()*1000, 3400)
         self.assertEqual(health_state.reliability_1w, 0)
         self.assertEqual(health_state.reliability_1m, 0)
         self.assertEqual(health_state.reliability_3m, 0)
@@ -120,8 +118,7 @@ class ServiceFiltersTestCase(TestCase):
         # create two HealthStateEnum.OK results for the first monitoring run
         create_monitoring_result(monitoring_run=monitoring_runs[0],
                                  metadata=self.wms_services[0],
-                                 duration=timezone.timedelta(milliseconds=100),
-                                 how_much_results=2,)
+                                 duration=timezone.timedelta(milliseconds=100))
 
         # run_health_state for the first monitoring run ==> HealthStateEnum.OK.value
         health_state = HealthState(monitoring_run=monitoring_runs[0],
@@ -133,8 +130,7 @@ class ServiceFiltersTestCase(TestCase):
                                  metadata=self.wms_services[0],
                                  available=False,
                                  status_code=404,
-                                 duration=timezone.timedelta(milliseconds=200),
-                                 how_much_results=2, )
+                                 duration=timezone.timedelta(milliseconds=200),)
 
         # run_health_state for the 2. monitoring run ==> HealthStateEnum.CRITICAL.value
         health_state = HealthState(monitoring_run=monitoring_runs[1],
@@ -145,8 +141,7 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_runs[2],
                                  metadata=self.wms_services[0],
                                  status_code=200,
-                                 duration=timezone.timedelta(minutes=1),
-                                 how_much_results=1, )
+                                 duration=timezone.timedelta(minutes=1),)
 
         # run_health_state for the 3. monitoring run ==> HealthStateEnum.CRITICAL.value
         health_state = HealthState(monitoring_run=monitoring_runs[2],
@@ -183,8 +178,7 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_run_three_mon_ago[0],
                                  metadata=self.wms_services[0],
                                  duration=timezone.timedelta(milliseconds=100),
-                                 timestamp=three_mon_ago,
-                                 how_much_results=2,)
+                                 timestamp=three_mon_ago,)
         # run_health_state for the first monitoring run ==> HealthStateEnum.OK.value
         health_state_3m_1 = HealthState(monitoring_run=monitoring_run_three_mon_ago[0],
                                         metadata=self.wms_services[0])
@@ -193,8 +187,7 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_run_three_mon_ago[1],
                                  metadata=self.wms_services[0],
                                  duration=timezone.timedelta(milliseconds=200),
-                                 timestamp=three_mon_ago,
-                                 how_much_results=2, )
+                                 timestamp=three_mon_ago,)
         health_state_3m_2 = HealthState(monitoring_run=monitoring_run_three_mon_ago[1],
                                         metadata=self.wms_services[0])
         health_state_3m_2.run_health_state()
@@ -202,8 +195,7 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_run_one_mon_ago[0],
                                  metadata=self.wms_services[0],
                                  duration=timezone.timedelta(milliseconds=100),
-                                 timestamp=one_mon_ago,
-                                 how_much_results=2, )
+                                 timestamp=one_mon_ago, )
         health_state_1m_1 = HealthState(monitoring_run=monitoring_run_one_mon_ago[0],
                                         metadata=self.wms_services[0])
         health_state_1m_1.run_health_state()
@@ -211,8 +203,7 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_run_one_mon_ago[1],
                                  metadata=self.wms_services[0],
                                  duration=timezone.timedelta(milliseconds=200),
-                                 timestamp=three_mon_ago,
-                                 how_much_results=2, )
+                                 timestamp=three_mon_ago,)
 
         health_state_1m_2 = HealthState(monitoring_run=monitoring_run_one_mon_ago[1],
                                         metadata=self.wms_services[0])
@@ -221,16 +212,14 @@ class ServiceFiltersTestCase(TestCase):
         create_monitoring_result(monitoring_run=monitoring_run_one_week_ago[0],
                                  metadata=self.wms_services[0],
                                  duration=timezone.timedelta(minutes=1),
-                                 timestamp=one_week_ago,
-                                 how_much_results=2, )
+                                 timestamp=one_week_ago,)
         health_state_1w_1 = HealthState(monitoring_run=monitoring_run_one_week_ago[0],
                                         metadata=self.wms_services[0])
         health_state_1w_1.run_health_state()
         create_monitoring_result(monitoring_run=monitoring_run_one_week_ago[1],
                                  metadata=self.wms_services[0],
                                  duration=timezone.timedelta(milliseconds=200),
-                                 timestamp=three_mon_ago,
-                                 how_much_results=2, )
+                                 timestamp=three_mon_ago,)
 
         health_state_1w_2 = HealthState(monitoring_run=monitoring_run_one_week_ago[1],
                                         metadata=self.wms_services[0])

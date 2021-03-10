@@ -87,7 +87,7 @@ def check_table_sorting(table: tables.Table, url_path_name: str):
                 if "actions" in column.accessor:
                     break
                 # Check if correctly sorted
-                post_sorting = [row.get_cell_value(column.name).__str__() for row in table.rows]
+                post_sorting = [row.table.columns[column.name].__str__() for row in table.rows]
                 try:
                     # For numerical sorting, the strings have to be casted to Integer - if possible
                     post_sorting = [int(p) for p in post_sorting]
@@ -125,7 +125,7 @@ def check_table_filtering(table, filter_parameter: str, filter_class, queryset: 
         for col in table.columns:
             if "actions" in col.accessor:
                 break
-            filter_for = utils.get_nested_attribute(row.record, col.accessor).__str__()
+            filter_for = row.table.columns[col.name].__str__()
 
             # Generic approach to filter on various types of tables
             table_filter = filter_class({filter_parameter: filter_for}, queryset)

@@ -2066,6 +2066,8 @@ class AllowedOperation(models.Model):
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")
 
+    
+
     def __str__(self):
         return str(self.id)
 
@@ -2999,7 +3001,7 @@ class Service(Resource):
         if self.is_service_type(OGCServiceEnum.WMS):
             if self.metadata.is_layer_metadata:
                 # this is a layer instance
-                qs = self.get_descendants(include_self=include_self)
+                qs = Layer.objects.get(metadata=self.metadata).get_descendants(include_self=include_self)
             else:
                 # this is a service instance
                 qs = Layer.objects.get(parent_service=self, parent=None).get_descendants(include_self=include_self)

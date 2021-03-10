@@ -7,8 +7,9 @@ from django.urls import reverse
 
 from MrMap.messages import NO_PERMISSION
 from service.forms import UpdateOldToNewElementsForm
+from service.helper.enums import DocumentEnum
 from service.helper.service_comparator import ServiceComparator
-from service.models import FeatureType
+from service.models import FeatureType, Document
 from service.settings import NONE_UUID
 from service.tables import PendingTaskTable, OgcServiceTable
 from tests.baker_recipes.db_setup import *

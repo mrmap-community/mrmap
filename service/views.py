@@ -292,13 +292,12 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
 class DatasetMetadataXmlView(BaseDetailView):
     model = Metadata
     # a dataset metadata without a document is broken
-    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents=None)\
+    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents__isnull=False)\
                                .prefetch_related('documents')
     content_type = 'application/xml'
     object = None
 
     def get(self, request, *args, **kwargs):
-        print(self.object.documents)
         document = self.object.documents.get(is_original=False) if self.object.documents.filter(is_original=False).exists() else self.object.documents.get(
             is_original=True)
         return HttpResponse(document.content, content_type=self.content_type)
@@ -309,36 +308,6 @@ class DatasetMetadataXmlView(BaseDetailView):
             return HttpResponse(content=SERVICE_DISABLED, status=423)
         else:
             return super().dispatch(request, *args, **kwargs)
-
-
-@resolve_metadata_public_id
-def get_dataset_metadata(request: HttpRequest, metadata_id):
-    """ Returns the dataset metadata xml file for a given metadata id
-
-    Args:
-        metadata_id: The metadata id
-    Returns:
-         A HttpResponse containing the xml file
-    """
-    md = get_object_or_404(Metadata, id=metadata_id)
-    if not md.is_active:
-        return HttpResponse(content=SERVICE_DISABLED, status=423)
-    try:
-        if md.metadata_type != OGCServiceEnum.DATASET.value:
-            raise ObjectDoesNotExist
-        documents = Document.objects.filter(
-            metadata=md,
-            document_type=DocumentEnum.METADATA.value,
-            is_active=True,
-        )
-        # prefer current metadata document (is_original=false), otherwise take the original one
-        document = documents.get(is_original=False) if documents.filter(is_original=False).exists() else documents.get(
-            is_original=True)
-        document = document.content
-    except ObjectDoesNotExist:
-        # ToDo: a datasetmetadata without a document is broken
-        return HttpResponse(content=_l("No dataset metadata found"), status=404)
-    return HttpResponse(document, content_type='application/xml')
 
 
 @resolve_metadata_public_id

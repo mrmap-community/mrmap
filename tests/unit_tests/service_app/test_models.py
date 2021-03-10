@@ -6,7 +6,7 @@ from service.models import AllowedOperation, Metadata, Service, Layer, FeatureTy
 from tests.baker_recipes.db_setup import create_wms_service, create_superadminuser, create_wfs_service
 
 
-class AllowedOperationTestCase(TestCase):
+class AllowedOperationTestModel(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
@@ -30,13 +30,16 @@ class AllowedOperationTestCase(TestCase):
     def test_object_with_validation_errors_shall_not_be_stored(self):
         """IF a AllowedOperation object with an empty geometry should be saved, THEN the AllowedOperation object shall not be stored to the database."""
         allowed_operation = AllowedOperation(allowed_area=MultiPolygon(), root_metadata=self.root_metadata)
+        print(allowed_operation.allowed_area)
+        print(allowed_operation.allowed_area.empty)
         try:
             allowed_operation.save()
+            print('saved')
         except:
             pass
         finally:
             self.assertFalse(AllowedOperation.objects.all().exists(),
-                             msg='The AllowedOperation table shall be empty after trying to save invalid data.')
+                             msg='The AllowedOperation table shall be empty after trying to save empty geometry data.')
 
     def test_save_successfully(self):
         """IF a valid AllowedOperation object should be saved, THEN the AllowedOperation object shall be stored to the database with correct secured_metadata relations."""

@@ -23,7 +23,7 @@ from MrMap import utils
 from MrMap.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
-    MetadataRelationEnum
+    MetadataRelationEnum, OGCServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -812,9 +812,9 @@ class OGCWebMapService(OGCWebService):
              service (Service): The persisted service object
         """
 
-        ## Create ServiceType record if it doesn't exist yet
+        # Create ServiceType record if it doesn't exist yet
         service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
+            name=self.service_type.value.lower(),
             version=self.service_version.value
         )[0]
         service = Service()

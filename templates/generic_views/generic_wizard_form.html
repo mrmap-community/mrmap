@@ -1,0 +1,130 @@
+{% load bootstrap4 %}
+{% load i18n %}
+
+<div class="card text-center">
+  <div class="card-header">
+      <h5 class="card-title">{{ modal_title }}</h5>
+  </div>
+  <form action="{{action_url}}" method="post">
+      {% csrf_token %}
+      <div class="card-body">
+          {% if wizard.messages %}
+        {% for key, value in wizard.messages %}
+        <div class="alert alert-{{key}} alert-dismissible fade show" role="alert">
+          {{value}}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        <ul class="nav nav-tabs">
+            {% for step in wizard.steps.all %}
+              <li class="nav-item">
+                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to step '%} <b>{{step}}</b>">
+                    <button name="wizard_goto_step" type="submit" class="btn btn-link nav-link {% if step == wizard.steps.current %} active {% endif %}" value="{{ step }}">
+                        <span class="submit_btn_txt">{{ step|title }}</span>
+                        <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                    </button>
+                </span>
+              </li>
+            {% endfor %}
+        </ul>
+        {{ wizard.management_form }}
+        {% if wizard.form.forms %}
+            {{ wizard.form.management_form }}
+            {% for form in wizard.form.forms %}
+                <div id="id-accordion-{{ forloop.counter0 }}">
+                  <div class="card">
+                    <div class="card-header" id="id-heading-{{ forloop.counter0 }}">
+                      <h5 class="mb-0">
+                        <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#id-collapse-{{ forloop.counter0 }}" aria-expanded="true" aria-controls="id-collapse-{{ forloop.counter0 }}">
+                          {{ form.accordion_title }} #{{ forloop.counter0 }}
+                        </button>
+                        {% if wizard.form.can_delete %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Delete this '%}{{ form.accordion_title }}">
+                            <button class="btn btn-sm btn-danger delete-form" data-target="#id_{{form.prefix}}-DELETE" data-parent="#id-accordion-{{ forloop.counter0 }}" type="button" onclick="markFormAsDelete(this)">
+                                {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %}
+                            </button>
+                        </span>
+                        {% endif %}
+                      </h5>
+                    </div>
+                    <div id="id-collapse-{{ forloop.counter0 }}" class="collapse show" aria-labelledby="id-heading-{{ forloop.counter0 }}" data-parent="#id-accordion-{{ forloop.counter0 }}">
+                      <div class="card-body">
+                        {{ form.media }}
+                        {% bootstrap_form form %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            {% endfor %}
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Add new '%}{{ form.accordion_title }}">
+                <button class="btn btn-sm btn-success" name="{{wizard.form.management_form.prefix}}-{{APPEND_FORM_LOOKUP_KEY}}" type="submit" value="">
+                    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %}
+                </button>
+            </span>
+        {% else %}
+            {{ wizard.form.media }}
+            {% bootstrap_form wizard.form %}
+        {% endif %}
+
+      </div>
+      <div class="card-footer text-muted">
+        <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm">
+                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
+            </div>
+            <div class="col-sm">
+                <div class="mx-auto text-center">
+                    <p>{% trans 'Step' %} {{ wizard.steps.step1 }}/{{ wizard.steps.count }}</p>
+                </div>
+            </div>
+            <div class="col-sm">
+                <div class="float-right">
+                    {% if wizard.steps.prev %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_first" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.FIRST}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                        {% if wizard.steps.prev != wizard.steps.first %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go one step backward'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_prev" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.prev }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.BACK}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                        {% endif %}
+                    {% endif %}
+                    {% if wizard.ignore_uncomitted_forms or wizard.steps.last == wizard.steps.current %}
+                        <button id="id_{{id_modal}}_btn_save" name="wizard_save" value="True" type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+                            <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</span>
+                            <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                        </button>
+                    {% endif %}
+                    {% if wizard.steps.next %}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the next step'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_next" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.NEXT}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                    {% endif %}
+                    {% if wizard.steps.current != wizard.steps.last and wizard.ignore_uncomitted_forms%}
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the last step'%}">
+                            <button id="id_{{id_modal}}_btn_wizard_goto_last" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.last }}">
+                                <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.LAST}}{% endautoescape %}</span>
+                                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                            </button>
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        </div>
+      </div>
+  </form>
+</div>

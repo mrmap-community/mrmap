@@ -123,7 +123,7 @@ class MetadataRelationAdmin(admin.ModelAdmin):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.to_metadata.id,)), escape(obj.to_metadata)))
 
     to_metadata_link.allow_tags = True
-    to_metadata_link.short_description = "from_metadata"
+    to_metadata_link.short_description = "to_metadata"
 
 
 class MetadataTypeAdmin(admin.ModelAdmin):
@@ -181,9 +181,8 @@ class RequestOperationAdmin(admin.ModelAdmin):
 
 
 class SecuredOperationAdmin(admin.ModelAdmin):
-    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
-    list_filter = ('operation', 'allowed_group')
-    search_fields = ['id', 'operation', 'secured_metadata__title', 'allowed_group__name']
+    list_display = ("id", )
+    search_fields = ['id', ]
 
 
 class GenericUrlAdmin(admin.ModelAdmin):
@@ -240,7 +239,7 @@ class LegalDateAdmin(admin.ModelAdmin):
 admin.site.register(Dimension, DimensionAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
-admin.site.register(SecuredOperation, SecuredOperationAdmin)
+admin.site.register(AllowedOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
@@ -250,6 +249,7 @@ admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(Licence, TermsOfUseAdmin)
 admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)
+admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(MimeType, MimeTypeAdmin)
 admin.site.register(Layer, LayerAdmin)
 admin.site.register(FeatureType, FeatureTypeAdmin)

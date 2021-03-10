@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
@@ -252,3 +253,9 @@ def not_uuid(value):
     except ValueError:
         # Could not create a uuid from string - all good!
         pass
+
+
+def geometry_is_empty(geometry: GEOSGeometry):
+    """Raise ValidationError on empty GEOSGeometry objects"""
+    if geometry.empty:
+        raise ValidationError(_("Empty geometry collections are not allowed."))

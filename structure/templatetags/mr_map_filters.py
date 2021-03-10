@@ -1,6 +1,9 @@
 from importlib import import_module
 
 from django import template
+from django_bootstrap_swt.components import BootstrapComponent
+from django_bootstrap_swt.utils import RenderHelper
+
 register = template.Library()
 
 
@@ -20,3 +23,10 @@ def duration_to_ms(duration):
     seconds = duration.total_seconds()
     milliseconds = seconds * 1000
     return milliseconds
+
+
+@register.filter
+def render_item(item: BootstrapComponent):
+    return item.render(safe=True)
+
+

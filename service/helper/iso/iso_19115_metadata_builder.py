@@ -33,7 +33,7 @@ class Iso19115MetadataBuilder:
 
         if not self.metadata.is_dataset_metadata:
             self.service_version = self.metadata.get_service_version()
-            self.service_type = self.metadata.get_service_type()
+            self.service_type = self.metadata.service_type.value
 
         if self.metadata.is_featuretype_metadata:
             self.service_type = OGCServiceEnum.WFS.value
@@ -44,7 +44,7 @@ class Iso19115MetadataBuilder:
             self.described_resource = Dataset.objects.get(metadata=self.metadata)
             self.service_type = OGCServiceEnum.DATASET.value
         elif self.metadata.is_service_metadata:
-            self.service_type = self.metadata.get_service_type()
+            self.service_type = self.metadata.service_type.value
             self.described_resource = self.metadata.service
         elif self.metadata.is_layer_metadata:
             self.service_type = OGCServiceEnum.WMS.value

@@ -303,8 +303,115 @@ $(document).ready(function(){
     });
 
     $(function () {
-      $('[data-toggle="tooltip"]').tooltip()
+      $('[data-toggle="tooltip"]').tooltip();
     })
 
 });
 
+
+function toggleBusyState( form ) {
+  // get status message references
+  const busyStateItems = form.querySelectorAll('.submit_btn_txt, .submit_btn_spinner');
+
+  // Show busy state
+  busyStateItems.forEach(function(item) {
+    if ( item.classList.contains('d-none') ){
+        item.classList.remove("d-none");
+    } else {
+        item.classList.add("d-none");
+    }
+  });
+
+  // toggle disable state of all form elements to prevent further input
+  Array.from(form.elements).forEach(function(field) {
+    if ( field.disabled ) {
+        field.disabled = false
+    } else {
+        field.disabled = true
+    }
+  });
+}
+
+
+function submitAsync( event, is_modal = false ) {
+  const submitter = event.submitter;
+
+  // Store reference to form and modal to make later code easier to read
+  const form = event.target;
+  const exchangeContainer = form.querySelector("div").closest(".modal-fetched-content")
+
+  var formData = new FormData(form);
+  if (submitter.name != ""){
+    formData.append(submitter.name, "");
+  }
+  // Post data using the Fetch API
+  fetch(form.action, {
+      method: form.method,
+      body: formData,
+      redirect: 'manual'
+    }).then(response => {
+        if(response.ok) {
+            return response;
+        } else {
+            throw Error(`Request rejected with status ${response.status}`);
+        }
+    }).then(response => {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return response.json().then(data => {
+              // process your JSON data further
+              if ( data.hasOwnProperty('data') ){
+                if ( is_modal ) {
+                    const modal = form.querySelector("div").closest(".modal")
+                    $('#' + modal.id).modal('hide');
+                }
+                // todo: this should be fetched by a websocket
+                document.querySelector("#body-content").insertAdjacentHTML('beforebegin', data.alert);
+              } else {
+                throw Error(`Response has no data attribute`);
+              }
+            });
+        } else {
+            return response.text().then(text => {
+                // There is still a html content to render
+                exchangeContainer.innerHTML = text;
+                $('[data-toggle="tooltip"]').tooltip();
+            });
+        }
+    }).catch(err => {
+        if ( is_modal ) {
+            const modal = form.querySelector("div").closest(".modal")
+            $('#' + modal.id).modal('hide');
+            exchangeContainer.innerHTML = "";
+        }
+        toggleBusyState( form );
+        console.log(err);
+    });
+
+  toggleBusyState( form );
+
+  // Prevent the default form submit
+  event.preventDefault();
+}
+
+// adds auto submitting functionality to submit if a auto submit tagged item becomes changes
+function isFormUpdateEventHandler( event ){
+    const form = event.target.closest("form");
+    const isFormUpdate = document.createElement("input");
+    isFormUpdate.type = "hidden";
+    isFormUpdate.name = "is_form_update";
+    isFormUpdate.value = 'True'
+    form.appendChild(isFormUpdate);
+    form.querySelectorAll('[type=submit]')[0].click();
+}
+
+// adds formset delete form functionality to the frontend
+
+function markFormAsDelete( submitter ){
+
+    const formDeleteCheckbox = document.querySelector(submitter.dataset.target);
+    const parentContainer = document.querySelector(submitter.dataset.parent);
+    formDeleteCheckbox.value = "on";
+    parentContainer.classList.add("d-none");
+
+}

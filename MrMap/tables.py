@@ -2,8 +2,10 @@ import uuid
 
 from django.http import HttpRequest
 from django.template.loader import render_to_string
-from django.utils.html import format_html
 from django_tables2 import tables, RequestConfig
+from django.utils.translation import gettext_lazy as _
+
+from MrMap.columns import MrMapColumn
 from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MrMap.utils import get_theme
@@ -82,7 +84,7 @@ class MrMapTable(tables.Table):
     def check_render_permission(self, permission: PermissionEnum):
         has_perm = self.permission_lookup.get(permission, None)
         if has_perm is None:
-            has_perm = self.user.has_permission(permission)
+            has_perm = self.user.has_perm(permission)
             self.permission_lookup[permission] = has_perm
         return has_perm
 
@@ -136,7 +138,7 @@ class MrMapTable(tables.Table):
             "tooltip": tooltip,
             "tooltip_placement": tooltip_placement,
         }
-        return render_to_string(template_name="sceletons/icon_with_tooltip.html",
+        return render_to_string(template_name="sceletons/icon.html",
                                 context=context)
 
     def prepare_table_pagination_settings(self, request: HttpRequest, param_lead: str):
@@ -162,3 +164,18 @@ class MrMapTable(tables.Table):
             page_size = page_size_options[-1]
 
         self.pagination.update({'page_size': request.GET.get(self.pagination.get('page_size_param'), page_size)})
+
+
+class ActionTableMixin(tables.Table):
+    actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"class": "text-right",
+                      "style": "white-space:nowrap; width: auto !important;"},
+               "th": {"style": "width: 1px;"}
+               }
+    )
+
+

@@ -1,87 +1,80 @@
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
-from django.http import HttpRequest, HttpResponseRedirect, HttpResponseNotFound
-from django.shortcuts import get_object_or_404, render
-from django.urls import reverse
-
-from MrMap.decorator import check_permission
-from MrMap.responses import DefaultContext
-from monitoring.filters import HealthReasonFilter
-from monitoring.models import MonitoringRun
-from monitoring.settings import MONITORING_THRESHOLDS
-from monitoring.tables import HealthStateReasonsTable
-from monitoring.tasks import run_manual_monitoring
-from service.helper.enums import MetadataEnum
-from service.models import Metadata
+from django.contrib.messages.views import SuccessMessageMixin
+from django.utils.decorators import method_decorator
+from django.views.generic import CreateView, DetailView
+from django_filters.views import FilterView
+from MrMap.decorators import permission_required
+from MrMap.messages import MONITORING_RUN_SCHEDULED
+from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
+from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
+from monitoring.forms import MonitoringRunForm
+from monitoring.models import MonitoringRun, MonitoringResult, HealthState
+from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, HealthStateTable, \
+    HealthStateDetailTable
 from django.utils.translation import gettext_lazy as _
-
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 
-@login_required
-@check_permission(PermissionEnum.CAN_RUN_MONITORING)
-def call_run_monitoring(request: HttpRequest, metadata_id):
-    metadata = get_object_or_404(Metadata,
-                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
-                                 ~Q(metadata_type=MetadataEnum.DATASET.value),
-                                 id=metadata_id, )
-
-    run_manual_monitoring.delay(metadatas=[metadata_id, ])
-    messages.info(request, _(f"Health check for {metadata} started."))
-
-    return HttpResponseRedirect(reverse(request.GET.get('current-view') or reverse('home'),), status=303)
+@method_decorator(login_required, name='dispatch')
+class MonitoringRunTableView(CustomSingleTableMixin, FilterView):
+    model = MonitoringRun
+    table_class = MonitoringRunTable
+    filterset_class = MonitoringRunTableFilter
 
 
-@login_required
-def monitoring_results(request: HttpRequest, metadata_id, monitoring_run_id = None, update_params: dict = None, status_code: int = 200,):
-    """ Renders a table with all health state messages
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_RUN_MONITORING.value), name='dispatch')
+class MonitoringRunNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+    model = MonitoringRun
+    form_class = MonitoringRunForm
+    template_name = 'MrMap/detail_views/generic_form.html'
+    title = _('New monitoring run')
+    success_message = MONITORING_RUN_SCHEDULED
 
-        Args:
-            request (HttpRequest): The incoming request
-            metadata_id: the metadata_id
-        Returns:
-             A view
-        """
-    user = user_helper.get_user(request)
 
-    # Default content
-    template = "views/health_state.html"
-    metadata = get_object_or_404(Metadata, id=metadata_id)
-    if monitoring_run_id:
-        monitoring_run = get_object_or_404(MonitoringRun, uuid=monitoring_run_id)
-        health_state = metadata.get_health_state(monitoring_run=monitoring_run)
-    else:
-        health_state = metadata.get_health_state()
-    if not health_state:
-        return HttpResponseNotFound()
+@method_decorator(login_required, name='dispatch')
+class MonitoringResultTableView(CustomSingleTableMixin, FilterView):
+    model = MonitoringResult
+    table_class = MonitoringResultTable
+    filterset_class = MonitoringResultTableFilter
 
-    filtered_reasons = HealthReasonFilter(request=request, queryset=health_state.reasons)
-    reasons_table = HealthStateReasonsTable(queryset=filtered_reasons.qs,
-                                            request=request,
-                                            filter_set_class=HealthReasonFilter,
-                                            order_by_field='sreasons',  # sreasons = sort reasons
-                                            param_lead='reasons-t',
-                                            current_view='monitoring:health-state',
-                                            )
 
-    last_ten_health_states = metadata.get_health_states()
+@method_decorator(login_required, name='dispatch')
+class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
+    class Meta:
+        verbose_name = _('Details')
 
-    params = {
-        "reasons_table": reasons_table,
-        "health_state": health_state,
-        "last_ten_health_states": last_ten_health_states,
-        "current_view": "monitoring:health-state",
-        "MONITORING_THRESHOLDS": MONITORING_THRESHOLDS,
-    }
+    model = MonitoringResult
+    template_name = 'MrMap/detail_views/table_tab.html'
+    queryset = MonitoringResult.objects.all()
+    title = _('Details')
 
-    if update_params:
-        params.update(update_params)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        details_table = MonitoringResultDetailTable(data=[self.object, ], request=self.request)
+        context.update({'table': details_table})
+        return context
 
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
+
+@method_decorator(login_required, name='dispatch')
+class HealthStateTableView(CustomSingleTableMixin, FilterView):
+    model = HealthState
+    table_class = HealthStateTable
+    filterset_class = HealthStateTableFilter
+
+
+@method_decorator(login_required, name='dispatch')
+class HealthStateDetailView(GenericViewContextMixin, DetailView):
+    class Meta:
+        verbose_name = _('Details')
+
+    model = HealthState
+    template_name = 'MrMap/detail_views/table_tab.html'
+    queryset = HealthState.objects.all()
+    title = _('Details')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        details_table = HealthStateDetailTable(data=[self.object, ], request=self.request)
+        context.update({'table': details_table})
+        return context

@@ -236,23 +236,24 @@ class ISOMetadata:
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
             md_data_ident_elem
         )
-        for legal_date_elem in legal_date_elems:
-            legal_date = LegalDate()
-            legal_date.date = xml_helper.try_get_text_from_xml_element(
-                legal_date_elem,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
-            )
-            legal_date.date_type_code = xml_helper.try_get_attribute_from_xml_element(
-                legal_date_elem,
-                "codeListValue",
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
-            )
-            legal_date.date_type_code_list_url = xml_helper.try_get_attribute_from_xml_element(
-                legal_date_elem,
-                "codeList",
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
-            )
-            self.legal_dates.append(legal_date)
+        if legal_date_elems:
+            for legal_date_elem in legal_date_elems:
+                legal_date = LegalDate()
+                legal_date.date = xml_helper.try_get_text_from_xml_element(
+                    legal_date_elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
+                )
+                legal_date.date_type_code = xml_helper.try_get_attribute_from_xml_element(
+                    legal_date_elem,
+                    "codeListValue",
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
+                )
+                legal_date.date_type_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+                    legal_date_elem,
+                    "codeList",
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
+                )
+                self.legal_dates.append(legal_date)
 
     def _parse_xml_legal_reports(self, xml_obj: Element):
         """ Parses existing CI_Date elements from the MD_DataIdentification element
@@ -340,24 +341,26 @@ class ISOMetadata:
                 self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
 
         language = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj,
-                                                        elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:language/gmd:LanguageCode".format(
-                                                           xpath_type))
-        if language.text is not None:
+                                                              elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:language/gmd:LanguageCode".format(
+                                                              xpath_type))
+        if language and language.text is not None:
             self.language = xml_helper.try_get_text_from_xml_element(language)
 
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
-        for iso_category in iso_categories:
-            self.iso_categories.append(xml_helper.try_get_text_from_xml_element(iso_category))
+        if iso_categories:
+            for iso_category in iso_categories:
+                self.iso_categories.append(xml_helper.try_get_text_from_xml_element(iso_category))
 
         # Get all values from <gmd:distributionInfo> which declares the distributionFormat
         formats = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("distributionFormat"))
-        for format_elem in formats:
-            # get the character value per format
-            name_elem = xml_helper.try_get_single_element_from_xml(xml_elem=format_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("name"))
-            if name_elem is None:
-                continue
-            val = xml_helper.try_get_text_from_xml_element(xml_elem=name_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
-            self.formats.append(val)
+        if formats:
+            for format_elem in formats:
+                # get the character value per format
+                name_elem = xml_helper.try_get_single_element_from_xml(xml_elem=format_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("name"))
+                if name_elem is None:
+                    continue
+                val = xml_helper.try_get_text_from_xml_element(xml_elem=name_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+                self.formats.append(val)
 
         self.download_link = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
         self.transfer_size = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')

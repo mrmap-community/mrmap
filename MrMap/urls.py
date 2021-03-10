@@ -19,11 +19,6 @@ from django.urls import path, include
 from MrMap.settings import DEBUG
 
 urlpatterns = [
-    # path('', login, name="login"),
-    # path('logout/', logout, name='logout'),
-    # path('password-reset/', password_reset, name='password-reset'),
-    # path('register/', register, name='register'),
-    # path('activate/<activation_hash>', activate_user, name='activate-user'),
     path('admin/', admin.site.urls),
     path('', include('users.urls')),
     path('structure/', include('structure.urls')),

@@ -20,7 +20,7 @@ from service.helper.enums import MetadataRelationEnum
 from service.models import ServiceType, Metadata, Category, Dimension, MetadataRelation
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
-from monitoring.models import Monitoring
+from monitoring.models import MonitoringResult
 from users.helper import user_helper
 
 
@@ -306,7 +306,7 @@ class MonitoringSerializer(serializers.ModelSerializer):
 
     """
     class Meta:
-        model = Monitoring
+        model = MonitoringResult
         fields = [
             'id', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri',
             'monitoring_run'

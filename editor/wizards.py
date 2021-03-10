@@ -1,22 +1,39 @@
 import json
-import uuid
 from json import JSONDecodeError
-
+from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponseRedirect
+from django.forms import modelformset_factory
+from django.http import JsonResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html
+from django_bootstrap_swt.components import Alert
+from django_bootstrap_swt.enums import AlertEnum
+from MrMap.decorators import permission_required, ownership_required
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
-    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
+    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
+    GeneralAccessSettingsForm, AllowedOperationForm, MetadataEditorForm
 from django.utils.translation import gettext_lazy as _
-
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, Document, MetadataRelation
+from service.models import Dataset, Metadata, MetadataRelation, Document, AllowedOperation
 from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
-from users.helper import user_helper
+from structure.permissionEnums import PermissionEnum
+from django.forms import BaseFormSet
+
+
+ACCESS_EDITOR_STEP_2_NAME = _("restrict")
+APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
+
+ACCESS_EDITOR_WIZARD_FORMS = [(_("general"), GeneralAccessSettingsForm),
+                              (ACCESS_EDITOR_STEP_2_NAME, modelformset_factory(AllowedOperation,
+                                                                               can_delete=True,
+                                                                               form=AllowedOperationForm,
+                                                                               extra=2)), ]
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -28,18 +45,78 @@ DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
 DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsible party']
 
 
+def show_restrict_spatially_form_condition(wizard):
+    # try to get the cleaned data of step 1
+    cleaned_data = wizard.get_cleaned_data_for_step('general') or {}
+    # check if the field ``is_secured`` was checked.
+    return cleaned_data.get('is_secured', True)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_METADATA.value, login_url='home'), name='dispatch')
+class AccessEditorWizard(MrMapWizard):
+    # template_name = "generic_views/generic_wizard_form.html"
+    action_url = ""
+    metadata_object = None
+    condition_dict = {ACCESS_EDITOR_STEP_2_NAME: show_restrict_spatially_form_condition}
+
+    def dispatch(self, request, *args, **kwargs):
+        pk = kwargs.get('pk', None)
+        self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
+        allowed_operations = AllowedOperation.objects.filter(secured_metadata=self.metadata_object)
+        self.instance_dict = {"general": self.metadata_object,
+                              ACCESS_EDITOR_STEP_2_NAME: allowed_operations, }
+        self.initial_dict = {ACCESS_EDITOR_STEP_2_NAME: [{"root_metadata": self.metadata_object}]}
+
+        # if we got existing SecuredOperation objects for the requested metadata object, we do not serve extra empty
+        # forms in our formset. The user can add some if he want with the add button which will post the APPEND_FORMSET
+        # field.
+        if allowed_operations:
+            extra = 0
+        else:
+            extra = 1
+
+        self.form_list[ACCESS_EDITOR_STEP_2_NAME] = modelformset_factory(AllowedOperation,
+                                                                         can_delete=True,
+                                                                         form=AllowedOperationForm,
+                                                                         extra=extra)
+
+        self.action_url = reverse('resource:access-editor-wizard', args=[self.metadata_object.pk, ])
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form, **kwargs)
+        context.update({'action_url': self.action_url,
+                        'APPEND_FORM_LOOKUP_KEY': APPEND_FORM_LOOKUP_KEY})
+        return context
+
+    def get_form(self, step=None, data=None, files=None):
+        form = super().get_form(step=step, data=data, files=files)
+        if issubclass(form.__class__, BaseFormSet) and form.can_delete:
+            for _form in form.forms:
+                _form.accordion_title = _('Allowed operation')
+        return form
+
+    def done(self, form_list, **kwargs):
+        for form in form_list:
+            form.save()
+        return super().done(form_list, **kwargs)
+
+
+@method_decorator(login_required, name='dispatch')
 class DatasetWizard(MrMapWizard):
-    def __init__(self, current_view, current_view_arg=None, instance_id=None, *args, **kwargs):
+    metadata = None
+    dataset = None
+
+    def __init__(self, *args, **kwargs):
         super(MrMapWizard, self).__init__(
             required_forms=DATASET_WIZARD_FORMS_REQUIRED,
-            action_url=reverse('editor:dataset-metadata-wizard-instance',
-                               args=(instance_id,))+f"?current-view={current_view}"
-            if instance_id else reverse('editor:dataset-metadata-wizard-new',)+f"?current-view={current_view}",
-            current_view=current_view,
-            current_view_arg=current_view_arg,
-            instance_id=instance_id,
             *args,
             **kwargs)
+
+    def get_form_kwargs(self, step=None):
+        return {'request': self.request}
 
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})
@@ -58,34 +135,16 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        if self.instance_id is not None:
-            # Update
-            metadata = Metadata.objects.get(id=self.instance_id)
-            dataset = Dataset.objects.get(metadata=metadata)
-        else:
-            # New
-            # Create instances
-            metadata = Metadata()
-            metadata.metadata_type = MetadataEnum.DATASET.value
-            metadata.is_active = True
+        self._fill_form_list(form_list, self.metadata, self.dataset, self.request.user)
 
-            dataset = Dataset()
-            dataset.is_active = True
-            dataset.md_identifier_code = metadata.identifier
-            dataset.metadata_standard_name = "ISO 19115 Geographic information - Metadata"
-            dataset.metadata_standard_version = "ISO 19115:2003(E)"
+        content = {
+            "data": {
+                "id": self.metadata.id,
+            },
+            "alert": Alert(msg="Dataset metadata created/edited", alert_type=AlertEnum.SUCCESS).render()
+        }
 
-            # Pre-save objects to be able to add M2M relations
-            metadata.save()
-            metadata.identifier = metadata.id
-            dataset.metadata = metadata
-            dataset.save()
-            metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(dataset.id,))
-
-        user = user_helper.get_user(request=self.request)
-        self._fill_form_list(form_list, metadata, dataset, user)
-
-        return HttpResponseRedirect(reverse(self.current_view, ), status=303)
+        return JsonResponse(status=200, data=content)
 
     @staticmethod
     def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user: MrMapUser):
@@ -126,7 +185,6 @@ class DatasetWizard(MrMapWizard):
             DatasetWizard._overwrite_dataset_document(metadata, doc)
         except ObjectDoesNotExist:
             DatasetWizard._create_dataset_document(metadata)
-
 
     @staticmethod
     def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
@@ -202,7 +260,8 @@ class DatasetWizard(MrMapWizard):
             bounding_geometry = {}
         if bounding_geometry.get("features", None) is not None:
             # A list of features
-            geoms = [GEOSGeometry(str(feature["geometry"]), srid=DEFAULT_SRS) for feature in bounding_geometry.get("features")]
+            geoms = [GEOSGeometry(str(feature["geometry"]), srid=DEFAULT_SRS) for feature in
+                     bounding_geometry.get("features")]
             geom = GeometryCollection(geoms, srid=DEFAULT_SRS).unary_union
         elif bounding_geometry.get("feature", None) is not None:
             geom = GEOSGeometry(str(bounding_geometry.get("feature")["geometry"]), srid=DEFAULT_SRS)
@@ -245,7 +304,8 @@ class DatasetWizard(MrMapWizard):
         dataset.lineage_statement = data.get("lineage_statement", None)
 
     @staticmethod
-    def _fill_metadata_dataset_responsible_party_form(data:dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_responsible_party_form(data: dict, metadata: Metadata, dataset: Dataset,
+                                                      user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -307,3 +367,74 @@ class DatasetWizard(MrMapWizard):
         dataset_doc_string = doc_builder.overwrite_dataset_metadata(doc.content)
         doc.content = dataset_doc_string.decode("UTF-8")
         doc.save()
+
+
+@method_decorator(permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value), name='dispatch')
+class NewDatasetWizard(DatasetWizard):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            action_url=reverse('editor:dataset-metadata-wizard-new', ),
+            title=_(format_html('<b>Add New Dataset</b>')),
+            *args,
+            **kwargs)
+
+    def get_form_kwargs(self, step=None):
+        return {'request': self.request}
+
+    def done(self, form_list, **kwargs):
+        """ Iterates over all forms and fills the Metadata/Dataset records accordingly
+
+        Args:
+            form_list (FormList): An iterable list of forms
+            kwargs:
+        Returns:
+
+        """
+        # Create instances
+        self.metadata = Metadata()
+        self.metadata.metadata_type = MetadataEnum.DATASET.value
+        self.metadata.is_active = True
+
+        self.dataset = Dataset()
+        self.dataset.is_active = True
+        self.dataset.md_identifier_code = self.metadata.identifier
+        self.dataset.metadata_standard_name = "ISO 19115 Geographic information - Metadata"
+        self.dataset.metadata_standard_version = "ISO 19115:2003(E)"
+
+        # Pre-save objects to be able to add M2M relations
+        self.metadata.save()
+        self.metadata.identifier = self.metadata.id
+        self.dataset.metadata = self.metadata
+        self.dataset.save()
+        self.metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(self.dataset.id,))
+
+        return super().done(form_list=form_list, **kwargs)
+
+
+@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class EditDatasetWizard(DatasetWizard):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            title=_(format_html('<b>Edit Dataset</b>')),
+            *args,
+            **kwargs)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.instance_id = request.resolver_match.kwargs.get('pk')
+        self.action_url = reverse('resource:dataset-metadata-wizard-instance', args=(self.instance_id,))
+        return super().dispatch(request=request, args=args, kwargs=kwargs)
+
+    def done(self, form_list, **kwargs):
+        """ Iterates over all forms and fills the Metadata/Dataset records accordingly
+
+        Args:
+            form_list (FormList): An iterable list of forms
+            kwargs:
+        Returns:
+
+        """
+        self.metadata = Metadata.objects.get(id=self.instance_id)
+        self.dataset = Dataset.objects.get(metadata=self.metadata)
+
+        return super().done(form_list=form_list, **kwargs)

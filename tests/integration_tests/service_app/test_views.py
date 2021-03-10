@@ -1,5 +1,6 @@
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.urls import reverse
 
@@ -9,16 +10,86 @@ from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum, DocumentEnum
-from service.models import Document
+from service.models import Document, Service
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, ALLOWED_SRS
-from tests.baker_recipes.db_setup import create_superadminuser
+from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 # Prevent uninteresting logging of request connection pool
+from tests.test_data import get_capabilitites_url
 from users.models import Subscription
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+
+class NewUpdateServiceViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+
+        self.wms_metadatas = create_wms_service(group=self.user.get_groups.first(), how_much_services=1)
+
+    def test_get_update_service_view(self):
+        response = self.client.get(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_valid_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid'),
+        }
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,)),
+            data=params
+        )
+        self.assertEqual(response.status_code, 303)
+        try:
+            Service.objects.get(is_update_candidate_for=self.wms_metadatas[0].service.id)
+        except ObjectDoesNotExist:
+            self.fail("No update candidate were found for the service.")
+
+    def test_post_invalid_no_service_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('invalid_no_service'),
+        }
+
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+            data=params
+        )
+
+        self.assertEqual(response.status_code, 422)  # 'The given uri is not valid cause there is no service parameter.'
+
+    def test_post_invalid_service_type_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid_wfs_version_202'),
+        }
+
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+            data=params
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_post_invalid_update_candidate_exists_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid'),
+        }
+        create_wms_service(is_update_candidate_for=self.wms_metadatas[0].service, group=self.user.get_groups[0], user=self.user)
+
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+            data=params
+        )
+        self.assertEqual(response.status_code, 422)  # "There are still pending update requests from user '{}' for this service.".format(self.user)
 
 
 class ServiceTestCase(TestCase):
@@ -32,7 +103,7 @@ class ServiceTestCase(TestCase):
         """
         cls.user = create_superadminuser()
 
-        cls.group = cls.user.get_groups().first()
+        cls.group = cls.user.get_groups.first()
 
         cls.test_wms = {
             "title": "Karte RP",

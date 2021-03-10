@@ -9,7 +9,7 @@ from celery import Task
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper, task_helper, service_helper
-from service.helper.enums import OGCOperationEnum, MetadataEnum
+from service.helper.enums import OGCOperationEnum, MetadataEnum, OGCServiceEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
@@ -144,9 +144,10 @@ class OGCCatalogueService(OGCWebService):
         """
         service = Service()
         service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
+            name=self.service_type.value.lower(),
             version=self.service_version.value
         )[0]
+
         service.service_type = service_type
         service.created_by = group
         service.published_for = orga_published_for

@@ -959,18 +959,19 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         if not dataset_mds:
             return
 
-        metadata_elem = xml_helper.create_subelement(
-            layer_elem,
-            "{}MetadataURL".format(self.default_ns),
-            attrib={
-                "type": "ISO19115:2003"
-            }
-        )
-        elem = xml_helper.create_subelement(
-            metadata_elem,
-            "{}Format".format(self.default_ns)
-        )
-        xml_helper.write_text_to_element(elem, txt="text/xml")
+        for dataset in datasets:
+            metadata_elem = xml_helper.create_subelement(
+                layer_elem,
+                "{}MetadataURL".format(self.default_ns),
+                attrib={
+                    "type": "ISO19115:2003"
+                }
+            )
+            elem = xml_helper.create_subelement(
+                metadata_elem,
+                "{}Format".format(self.default_ns)
+            )
+            xml_helper.write_text_to_element(elem, txt="text/xml")
 
         for dataset_md in dataset_mds:
             uri = dataset_md.metadata_url
@@ -1378,8 +1379,8 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         reference_systems = layer.get_inherited_reference_systems()
 
         # wms:EX_GeographicBoundingBox
-        bounding_geometry = md.bounding_geometry
-        bbox = md.bounding_geometry.extent
+        bounding_geometry = md.allowed_area
+        bbox = md.allowed_area.extent
 
         # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
         # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
@@ -1781,7 +1782,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         try:
-            bbox = feature_type_obj.metadata.bounding_geometry.extent
+            bbox = feature_type_obj.metadata.allowed_area.extent
             bbox_elem = xml_helper.create_subelement(
                 upper_elem,
                 "{}WGS84BoundingBox".format(self.default_ns),

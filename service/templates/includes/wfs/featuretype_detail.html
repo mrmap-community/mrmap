@@ -41,7 +41,7 @@
                     {% for dataset in dataset_metadatas %}
                     <a class="dropdown-item" target="_blank" href="{{ dataset.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
                     <a class="dropdown-item" target="_blank" href="{{ dataset.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
-                    <a class="dropdown-item" href="{% url 'editor:dataset-metadata-wizard-instance' dataset.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
+                    <a class="dropdown-item" href="{% url 'resource:dataset-metadata-wizard-instance' dataset.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
                     {% endfor %}
                 </div>
 

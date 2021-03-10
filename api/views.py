@@ -18,12 +18,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MrMap import utils
-from MrMap.decorator import check_permission, resolve_metadata_public_id
+from MrMap.decorators import resolve_metadata_public_id, permission_required
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
 from api import view_helper
-from monitoring.models import Monitoring, MonitoringRun
+from monitoring.models import MonitoringResult, MonitoringRun
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
@@ -77,9 +77,7 @@ def menu_view(request: HttpRequest):
     return render(request, template, default_context.get_context())
 
 
-@check_permission(
-    PermissionEnum.CAN_GENERATE_API_TOKEN
-)
+@permission_required(PermissionEnum.CAN_GENERATE_API_TOKEN.value)
 def generate_token(request: HttpRequest):
     """ Generates a token for the user.
 
@@ -319,8 +317,6 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
             md.is_active = new_status
             md.save()
-            # run activation async!
-            tasks.async_activate_service.delay(pk, user.id, new_status)
             response.data["newStatus"] = md.is_active
             response.data["success"] = True
             return Response(data=response.data, status=200)
@@ -349,8 +345,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
         response = APIResponse()
         try:
             md = Metadata.objects.get(id=pk)
-            user = user_helper.get_user(request)
-            service_helper.remove_service(md, user)
+            md.delete()
             response.data["success"] = True
             response.data["msg"] = SERVICE_REMOVED
         except ObjectDoesNotExist:
@@ -847,13 +842,13 @@ class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         try:
             monitoring_run = MonitoringRun.objects.latest('start')
-            monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+            monitorings = MonitoringResult.objects.filter(monitoring_run=monitoring_run)
         except ObjectDoesNotExist:
-            return Monitoring.objects.all()
+            return MonitoringResult.objects.all()
         return monitorings
 
     def retrieve(self, request, pk=None, *args, **kwargs):
-        tmp = Monitoring.objects.filter(metadata=pk).order_by('-timestamp')
+        tmp = MonitoringResult.objects.filter(metadata=pk).order_by('-timestamp')
 
         if len(tmp) == 0:
             return Response(status=404)

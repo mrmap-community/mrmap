@@ -1,16 +1,38 @@
 import uuid
+
+import six
 from django.contrib.auth.models import AbstractUser, Group
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.db.models import Case, When, QuerySet
+from django.http import HttpRequest
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+
+import json
+
+from django_bootstrap_swt.components import LinkButton, Tag, Badge
+from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColorEnum, TooltipPlacementEnum, \
+    ButtonSizeEnum
+
+from MrMap.icons import IconEnum, get_icon
+from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
+from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
 from structure.permissionEnums import PermissionEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
+from users.settings import default_activation_time, default_request_activation_time
 
 
 class ErrorReport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     message = models.TextField()
     traceback = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -35,7 +57,7 @@ class ErrorReport(models.Model):
 class PendingTask(models.Model):
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
-    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
     remaining_time = models.DurationField(blank=True, null=True)
     is_finished = models.BooleanField(default=False)
     created_by = models.ForeignKey('MrMapGroup', null=True, blank=True, on_delete=models.DO_NOTHING)
@@ -44,6 +66,50 @@ class PendingTask(models.Model):
 
     def __str__(self):
         return self.task_id
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.PENDING_TASKS)
+
+    @property
+    def service_uri(self):
+        return str(json.loads(self.description).get('service', "resource_name_missing")) if 'service' in json.loads(self.description) else _('unknown')
+
+    @property
+    def phase(self):
+        return str(json.loads(self.description).get('phase', "phase_information_missing")) if 'phase' in json.loads(self.description) else _('unknown')
+
+    @property
+    def action_buttons(self):
+        actions = [LinkButton(url=self.remove_view_uri,
+                              content=FONT_AWESOME_ICONS["WINDOW_CLOSE"],
+                              color=ButtonColorEnum.DANGER,
+                              tooltip=_("Cancle this task"), )]
+        if self.error_report:
+            actions.append(LinkButton(url=self.error_report_uri,
+                                      content=FONT_AWESOME_ICONS["CSW"],
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_("Download the error report as text file."), ))
+        return actions
+
+    @property
+    def status_icons(self):
+        json_description = json.loads(self.description)
+        if 'ERROR' in json_description.get('phase', ""):
+            status = [Tag(tag='i', attrs={"class": [IconEnum.ERROR.value, TextColorEnum.DANGER.value]},
+                          tooltip='This task stopped with error.', )]
+        else:
+            status = [Tag(tag='i', attrs={"class": [IconEnum.PLAY.value, TextColorEnum.SUCCESS.value]},
+                          tooltip='This task is still running.', )]
+        return status
+
+    @property
+    def remove_view_uri(self):
+        return reverse('structure:remove-task', args=(self.pk,))
+
+    @property
+    def error_report_uri(self):
+        return reverse('structure:generate-error-report', args=(self.error_report.pk,))
 
 
 class Permission(models.Model):
@@ -87,16 +153,16 @@ class Role(models.Model):
 
 
 class Contact(models.Model):
-    person_name = models.CharField(max_length=200, default="", null=True, blank=True)
-    email = models.CharField(max_length=100, default="", null=True, blank=True)
-    phone = models.CharField(max_length=100, default="", null=True, blank=True)
-    facsimile = models.CharField(max_length=100, default="", null=True, blank=True)
-    city = models.CharField(max_length=100, default="", null=True, blank=True)
-    postal_code = models.CharField(max_length=100, default="", null=True, blank=True)
-    address_type = models.CharField(max_length=100, default="", null=True, blank=True)
-    address = models.CharField(max_length=100, default="", null=True, blank=True)
-    state_or_province = models.CharField(max_length=100, default="", null=True, blank=True)
-    country = models.CharField(max_length=100, default="", null=True, blank=True)
+    person_name = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name=_("Contact person"))
+    email = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('E-Mail'))
+    phone = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('Phone'))
+    facsimile = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Facsimile"))
+    city = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("City"))
+    postal_code = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Postal code"))
+    address_type = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Address type"))
+    address = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Address"))
+    state_or_province = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("State or province"))
+    country = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Country"))
 
     def __str__(self):
         return self.person_name
@@ -106,11 +172,24 @@ class Contact(models.Model):
 
 
 class Organization(Contact):
-    organization_name = models.CharField(max_length=255, null=True, default="")
-    description = models.TextField(default="", null=True, blank=True)
-    parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
-    is_auto_generated = models.BooleanField(default=True)
-    created_by = models.ForeignKey('MrMapUser', related_name='created_by', on_delete=models.SET_NULL, null=True,
+    organization_name = models.CharField(max_length=255, null=True, default="", verbose_name=_('Organization name'))
+    description = models.TextField(default="",
+                                   null=True,
+                                   blank=True,
+                                   verbose_name=_('description'),)
+    parent = models.ForeignKey('self',
+                               on_delete=models.DO_NOTHING,
+                               blank=True,
+                               null=True,
+                               verbose_name=_('Parent organization'),
+                               help_text=_('Configure a inheritance structure for this Organization'))
+    is_auto_generated = models.BooleanField(default=True,
+                                            verbose_name=_('autogenerated'),
+                                            help_text=_('Autogenerated organizations are resolved from registered resources.'))
+    created_by = models.ForeignKey('MrMapUser',
+                                   related_name='created_by',
+                                   on_delete=models.SET_NULL,
+                                   null=True,
                                    blank=True)
 
     class Meta:
@@ -133,38 +212,293 @@ class Organization(Contact):
                 name="unique organizations"
             )
         ]
+        # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
+        # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
+        # the right default way here...
+        ordering = ['organization_name']
+
+        verbose_name = _('Organization')
+        verbose_name_plural = _('Organizations')
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.ORGANIZATION)
 
     def __str__(self):
         if self.organization_name is None:
             return ""
         return self.organization_name
 
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        self.check_circular_configuration(self)
+        super().save(force_insert, force_update, using, update_fields)
+
+    @classmethod
+    def check_circular_configuration(cls, instance):
+        if instance.parent is not None:
+            if instance == instance.parent:
+                raise ValidationError(_("Circular configuration of parent organization detected."))
+            else:
+                _parent = instance.parent.parent
+                while _parent is not None:
+                    if instance == _parent:
+                        raise ValidationError(_("Circular configuration of parent organization detected."))
+                    else:
+                        _parent = _parent.parent
+
+    def get_absolute_url(self):
+        return self.detail_view_uri
+
+    @property
+    def members_view_uri(self):
+        return reverse('structure:organization_members', args=[self.pk, ])
+
+    @property
+    def publishers_uri(self):
+        return reverse('structure:organization_publisher_overview', args=[self.pk, ])
+
+    @classmethod
+    def get_add_action(cls):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' new organization').__str__()).render()
+        return LinkButton(content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:organization_new'),
+                          needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
+
+    @property
+    def detail_view_uri(self):
+        return reverse('structure:organization_details', args=[self.pk, ])
+
+    @property
+    def add_view_uri(self):
+        return reverse('structure:organization_new', args=[self.pk, ])
+
+    @property
+    def edit_view_uri(self):
+        return reverse('structure:organization_edit', args=[self.pk, ])
+
+    @property
+    def remove_view_uri(self):
+        return reverse('structure:organization_remove', args=[self.pk, ])
+
+    def get_actions(self):
+        add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_pub_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=add_icon).render()
+        gt_pub_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                          content=add_icon + _(' become publisher').__str__()).render()
+        edit_icon = Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render()
+        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=edit_icon).render()
+        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                           content=edit_icon + _(' edit').__str__()).render()
+        actions = [
+            LinkButton(url=f"{reverse('structure:publish_request_new',)}?organization={self.id}",
+                       content=st_pub_text + gt_pub_text,
+                       color=ButtonColorEnum.SUCCESS,
+                       size=ButtonSizeEnum.SMALL,
+                       tooltip=format_html(
+                           _(f"Become publisher for organization <strong>{self.organization_name} [{self.id}]</strong>")),
+                       tooltip_placement=TooltipPlacementEnum.LEFT,
+                       needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value),
+            LinkButton(url=self.edit_view_uri,
+                       content=st_edit_text + gt_edit_text,
+                       color=ButtonColorEnum.WARNING,
+                       size=ButtonSizeEnum.SMALL,
+                       tooltip=format_html(_(f"Edit <strong>{self.organization_name} [{self.id}]</strong> organization")),
+                       tooltip_placement=TooltipPlacementEnum.LEFT,
+                       needs_perm=PermissionEnum.CAN_EDIT_ORGANIZATION.value),
+        ]
+
+        if not self.is_auto_generated:
+            remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+            st_remove_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
+            gt_remove_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                                 content=remove_icon + _(' remove').__str__()).render()
+            actions.append(LinkButton(url=self.remove_view_uri,
+                                      content=st_remove_text + gt_remove_text,
+                                      color=ButtonColorEnum.DANGER,
+                                      size=ButtonSizeEnum.SMALL,
+                                      tooltip=format_html(_(f"Remove <strong>{self.organization_name} [{self.id}]</strong> organization")),
+                                      tooltip_placement=TooltipPlacementEnum.LEFT,
+                                      needs_perm=PermissionEnum.CAN_DELETE_ORGANIZATION.value))
+        return actions
+
 
 class MrMapGroup(Group):
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, verbose_name=_('Description'))
     parent_group = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True,
                                      related_name="children_groups")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
                                      related_name="organization_groups")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
-    publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
+    publish_for_organizations = models.ManyToManyField('Organization', related_name='publishers', blank=True)
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
     is_public_group = models.BooleanField(default=False)
     is_permission_group = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = [Case(When(name='Public', then=0)), 'name']
+        verbose_name = _('Group')
+        verbose_name_plural = _('Groups')
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.GROUP)
 
     def __str__(self):
         return self.name
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
+        # todo: check if this could be done with the default attribute of the role field
         from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
         if self.role is None:
-            default_role = Role.objects.get(name=DEFAULT_ROLE_NAME)
-            self.role = default_role
+            obj, created = Role.objects.get_or_create(name=DEFAULT_ROLE_NAME)
+            self.role = obj
+
+        is_new = False
+        if self._state.adding:
+            is_new = True
+            if not self.created_by:
+                raise ValidationError(_('you must define created_by to save new instances'))
+
         super().save(force_insert, force_update, using, update_fields)
+        if is_new:
+            self.user_set.add(self.created_by)
+
+    def delete(self, using=None, keep_parents=False, force=False):
+        if (self.is_permission_group or self.is_public_group) and not force:
+            raise ValidationError(_("Group {} is an important main group and therefore can not be removed.").format(_(self.name)))
+        return super().delete(using=using, keep_parents=keep_parents)
+
+    def get_absolute_url(self):
+        return self.detail_view_uri
+
+    @classmethod
+    def get_add_view_url(self):
+        return reverse('structure:group_new')
+
+    @classmethod
+    def get_add_action(cls):
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New group').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:group_new'),
+                          needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
+
+    @property
+    def detail_view_uri(self):
+        return reverse('structure:group_details', args=[self.pk, ])
+
+    @property
+    def add_view_uri(self):
+        return reverse('structure:group_new')
+
+    @property
+    def edit_view_uri(self):
+        return reverse('structure:group_edit', args=[self.pk, ])
+
+    @property
+    def remove_view_uri(self):
+        return reverse('structure:group_remove', args=[self.pk, ])
+
+    @property
+    def members_view_uri(self):
+        return reverse('structure:group_members', args=[self.pk, ])
+
+    @property
+    def publish_rights_for_uri(self):
+        return reverse('structure:group_publish_rights_overview', args=[self.pk, ])
+
+    @property
+    def new_publisher_requesst_uri(self):
+        return f"{reverse('structure:publish_request_new')}?group={self.pk}"
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.GROUP)
+
+    def get_actions(self, request: HttpRequest):
+        actions = []
+        if not self.is_permission_group:
+            edit_icon = Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render()
+            st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=edit_icon).render()
+            gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']}, content=edit_icon + _(' Edit').__str__()).render()
+            actions.append(LinkButton(url=self.edit_view_uri,
+                                      content=st_edit_text + gt_edit_text,
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_(f"Edit <strong>{self.name}</strong>"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_GROUP.value))
+            delete_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
+            st_delete_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=delete_icon).render()
+            gt_delete_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']}, content=delete_icon + _(' Delete').__str__()).render()
+            actions.append(LinkButton(url=self.remove_view_uri,
+                                      content=st_delete_text + gt_delete_text,
+                                      color=ButtonColorEnum.DANGER,
+                                      tooltip=_(f"Remove <strong>{self.name}</strong>"),
+                                      needs_perm=PermissionEnum.CAN_DELETE_GROUP.value))
+
+            if request.user not in self.user_set.all():
+                add_user_icon = Tag(tag='i', attrs={"class": [IconEnum.USER_ADD.value]}).render()
+                st_add_user_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=add_user_icon).render()
+                gt_add_user_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                                       content=delete_icon + _(' become member').__str__()).render()
+                actions.append(LinkButton(url=f"{reverse('structure:group_invitation_request_new')}?group={self.pk}&user={request.user.id}",
+                                          content=st_add_user_text + gt_add_user_text,
+                                          color=ButtonColorEnum.SUCCESS,
+                                          tooltip=_(f"Become member of  <strong>{self.name}</strong>")))
+            elif self.user_set.count() > 1:
+                from MrMap.utils import signal_last
+                groups_querystring = "groups"
+                groups_excluded_self = request.user.get_groups.exclude(pk=self.pk)
+                if groups_excluded_self:
+                    groups_querystring = ""
+                    for is_last_element, group in signal_last(groups_excluded_self):
+                        if is_last_element:
+                            groups_querystring += f"groups={group.pk}"
+                        else:
+                            groups_querystring += f"groups={group.pk}&"
+
+                leave_icon = Tag(tag='i', attrs={"class": [IconEnum.USER_REMOVE.value]}).render()
+                st_leave_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=leave_icon).render()
+                gt_leave_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                                    content=delete_icon + _(' leave group').__str__()).render()
+                actions.append(LinkButton(
+                    url=f"{reverse('edit_profile')}?{groups_querystring}",
+                    content=st_leave_text + gt_leave_text,
+                    color=ButtonColorEnum.SUCCESS,
+                    tooltip=_(f"Become member of  <strong>{self.name}</strong>")))
+        return actions
+
+    @property
+    def new_publisher_request_action(self):
+        add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=add_icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']}, content=add_icon + _(' become publisher').__str__()).render()
+        return LinkButton(url=self.new_publisher_requesst_uri,
+                          content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          tooltip=_("Become rights to publish"),
+                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
+
+    @property
+    def show_pending_requests(self):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}).render()
+        count = Badge(content=f" {PublishRequest.objects.filter(group=self).count()}", color=BadgeColorEnum.SECONDARY).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon + count).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' pending requests').__str__() + count).render()
+        return LinkButton(url=f"{reverse('structure:publish_request_overview')}?group={self.pk}",
+                          content=f"{st_text}{gt_text}",
+                          color=ButtonColorEnum.INFO,
+                          tooltip=_(f"see pending requests for {self}"),
+                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 
 
 class Theme(models.Model):
+    objects = None
     name = models.CharField(max_length=10, unique=True)
 
     def __str__(self):
@@ -175,14 +509,32 @@ class MrMapUser(AbstractUser):
     salt = models.CharField(max_length=500)
     organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.SET_NULL, null=True,
                                      blank=True)
-    confirmed_newsletter = models.BooleanField(default=False)
-    confirmed_survey = models.BooleanField(default=False)
-    confirmed_dsgvo = models.DateTimeField(auto_now_add=True, null=True,
-                                           blank=True)  # ToDo: For production this is not supposed to be nullable!!!
+    confirmed_newsletter = models.BooleanField(default=False, verbose_name=_("I want to sign up for the newsletter"))
+    confirmed_survey = models.BooleanField(default=False, verbose_name=_("I want to participate in surveys"))
+    confirmed_dsgvo = models.DateTimeField(auto_now_add=True,
+                                           verbose_name=_("I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."))
     theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('User')
+        verbose_name_plural = _('Users')
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.USER)
 
     def __str__(self):
         return self.username
+
+    def get_absolute_url(self):
+        return reverse('password_change_done')
+
+    def get_edit_view_url(self):
+        return reverse('edit_profile')
+
+    @property
+    def invite_to_group_url(self):
+        return f"{reverse('structure:group_invitation_request_new')}?user={self.id}"
 
     def get_services(self, type: OGCServiceEnum = None):
         """ Returns all services which are related to the user
@@ -201,7 +553,7 @@ class MrMapUser(AbstractUser):
         from service.models import Metadata
         md_list = Metadata.objects.filter(
             service__is_root=True,
-            created_by__in=self.get_groups(),
+            created_by__in=self.get_groups,
             service__is_deleted=False,
         ).order_by("title")
         if type is not None:
@@ -217,7 +569,7 @@ class MrMapUser(AbstractUser):
         from service.models import Metadata
 
         md_list = Metadata.objects.filter(
-            created_by__in=self.get_groups(),
+            created_by__in=self.get_groups,
         ).order_by("title")
         if type is not None:
             if inverse_match:
@@ -234,7 +586,7 @@ class MrMapUser(AbstractUser):
         """
         from service.models import Metadata
         if user_groups is None:
-            user_groups = self.get_groups()
+            user_groups = self.get_groups
 
         if count:
             md_list = Metadata.objects.filter(
@@ -248,32 +600,30 @@ class MrMapUser(AbstractUser):
             ).order_by("title")
         return md_list
 
-    def get_groups(self, filter_by: dict = {}):
+    @cached_property
+    def get_groups(self) -> QuerySet:
         """ Returns a queryset of all MrMapGroups related to the user
 
-        filter_by takes the same attributes and properties as a regular queryset filter call.
-        So 'name__icontains=test' becomes 'name__icontains: test'
-
-        Example filter_by:
-            filter_by = {
-                "name__icontains": "test",
-            }
-
-        Args:
-            filter_by (dict): Accepts a dict for pre-filtering before returning a queryset
         Returns:
              queryset
         """
         groups = MrMapGroup.objects.filter(
             id__in=self.groups.all().values('id')
-        ).filter(
-            **filter_by
         ).prefetch_related(
             "role__permissions",
         )
         return groups
 
-    def get_permissions(self, group: MrMapGroup = None) -> set:
+    @cached_property
+    def all_permissions(self) -> set:
+        """Returns a set containing all permission identifiers as strings in a list.
+
+        Returns:
+             A set of permission strings
+        """
+        return self.get_all_permissions()
+
+    def get_all_permissions(self, group: MrMapGroup = None) -> set:
         """Returns a set containing all permission identifiers as strings in a list.
 
         The list is generated by fetching all permissions from all groups the user is part of.
@@ -287,25 +637,25 @@ class MrMapUser(AbstractUser):
         if group is not None:
             groups = MrMapGroup.objects.filter(id=group.id)
         else:
-            groups = self.get_groups().prefetch_related("role__permissions")
-
+            groups = self.get_groups
         all_perm = set(groups.values_list("role__permissions__name", flat=True))
-
         return all_perm
 
-    def has_permission(self, permission_needed: PermissionEnum):
-        """ Checks if needed permissions are provided by the users permission
-
-        Args:
-            permission_needed: The permission that is needed
-        Returns:
-             True if all permissions are satisfied. False otherwise
-        """
-        if permission_needed is None:
+    def has_perm(self, perm, obj=None) -> bool:
+        # Active superusers have all permissions.
+        if self.is_active and self.is_superuser:
             return True
 
-        has_perm = self.get_groups().filter(
-            role__permissions__name=permission_needed.value
+        has_perm = self.get_groups.filter(
+            role__permissions__name=perm
+        )
+        has_perm = has_perm.exists()
+        return has_perm
+
+    # do not overwrite has_perms cause of using django permission system in Rest API
+    def has_permissions(self, perm_list, obj=None) -> bool:
+        has_perm = self.get_groups.filter(
+            role__permissions__name__in=perm_list
         )
         has_perm = has_perm.exists()
         return has_perm
@@ -326,13 +676,25 @@ class MrMapUser(AbstractUser):
         user_activation.save()
 
 
-class UserActivation(models.Model):
-    user = models.ForeignKey(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
-    activation_until = models.DateTimeField(null=True)
-    activation_hash = models.CharField(max_length=500, null=False, blank=False)
+class UserActivation(models.Model, PasswordResetTokenGenerator):
+    user = models.OneToOneField(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
+    activation_until = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=default_activation_time))
+    activation_hash = models.CharField(primary_key=True, max_length=500)
 
     def __str__(self):
         return self.user.username
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self._state.adding:
+            self.activation_hash = self.make_token(self.user)
+        super().save(force_insert, force_update, using, update_fields)
+
+    def _make_hash_value(self, user, timestamp):
+        return (
+                six.text_type(user.pk) + six.text_type(timestamp) +
+                six.text_type(user.email)
+        )
 
 
 class GroupActivity(models.Model):
@@ -349,26 +711,118 @@ class GroupActivity(models.Model):
 class BaseInternalRequest(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     message = models.TextField(null=True, blank=True)
-    activation_until = models.DateTimeField(null=True)
+    activation_until = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=default_request_activation_time))
     created_on = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True)
 
     class Meta:
         abstract = True
 
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if not self._state.adding:
+            if timezone.now() > self.activation_until:
+                self.delete()
+                raise ValidationError(REQUEST_ACTIVATION_TIMEOVER)
+        super().save(force_insert, force_update, using, update_fields)
+
 
 class PublishRequest(BaseInternalRequest):
-    group = models.ForeignKey(MrMapGroup, related_name="publish_requests", on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, related_name="publish_requests", on_delete=models.CASCADE)
+    group = models.ForeignKey(MrMapGroup, verbose_name=_('group'), related_name="publish_requests", on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, verbose_name=_('organization'), related_name="publish_requests", on_delete=models.CASCADE)
+    is_accepted = models.BooleanField(verbose_name=_('accepted'), default=False)
+
+    class Meta:
+        # It shall be restricted to create multiple requests objects for the same organization per group. This unique
+        # constraint will also raise a form error if a user trays to add duplicates.
+        unique_together = ('group', 'organization',)
+        verbose_name = _('Pending publish request')
+        verbose_name_plural = _('Pending publish requests')
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.PUBLISHERS)
 
     def __str__(self):
         return "{} > {}".format(self.group.name, self.organization.organization_name)
 
+    def get_absolute_url(self):
+        return f"{reverse('structure:publish_request_overview')}?group={self.group.id}&organization={self.organization.id}"
+
+    def get_accept_view_url(self):
+        return reverse('structure:publish_request_accept', args=[self.pk])
+
+    @classmethod
+    def get_add_action(cls):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' new publisher request').__str__()).render()
+        return LinkButton(content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:publish_request_new'),
+                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
+
+    @property
+    def accept_request_uri(self):
+        return reverse('structure:publish_request_accept', args=[self.pk])
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save(force_insert, force_update, using, update_fields)
+        if not self._state.adding:
+            if self.is_accepted:
+                self.group.publish_for_organizations.add(self.organization)
+                self.delete()
+
+
 
 class GroupInvitationRequest(BaseInternalRequest):
-    invited_user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations")
-    to_group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE)
+    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations", verbose_name=_('Invited user'), help_text=_('Invite this user to a selected group.'))
+    group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE, verbose_name=_('to group'), help_text=_('Invite the selected user to this group.'))
+    is_accepted = models.BooleanField(verbose_name=_('accepted'), default=False)
+
+    class Meta:
+        # It shall be restricted to create multiple requests objects for the same user per group. This unique
+        # constraint will also raise a form error if a user trays to add duplicates.
+        unique_together = ('group', 'user',)
+        verbose_name = _('Pending group invitation')
+        verbose_name_plural = _('Pending group invitations')
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.PUBLISHERS)
 
     def __str__(self):
         return "{} > {}".format(self.invited_user.username, self.to_group)
 
+    @classmethod
+    def get_add_action(cls):
+        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
+        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
+        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
+                      content=icon + _(' new group invitation').__str__()).render()
+        return LinkButton(content=st_text + gt_text,
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('structure:group_invitation_request_new'),
+                          needs_perm=PermissionEnum.CAN_ADD_USER_TO_GROUP.value)
+
+    def get_absolute_url(self):
+        return f"{reverse('structure:group_invitation_request_overview')}?group={self.group.id}&user={self.user.id}"
+
+    @property
+    def accept_request_uri(self):
+        return reverse('structure:group_invitation_request_accept', args=[self.pk])
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.PUBLISHERS)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if not self._state.adding:
+            if self.is_accepted:
+                self.group.user_set.add(self.user)
+            self.delete()
+        else:
+            super().save(force_insert, force_update, using, update_fields)

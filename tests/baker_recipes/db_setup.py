@@ -393,11 +393,15 @@ def create_monitoring_run(end=timezone.now(), how_much_runs: int = 1,):
 
 
 def create_monitoring_result(metadata: Metadata,
-                             monitoring_run: MonitoringRun = create_monitoring_run(),
+                             monitoring_run: MonitoringRun,
                              duration=timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME-1),
                              status_code: int = 200,
                              available: bool = True,
                              timestamp=None):
+
+    if not monitoring_run:
+        monitoring_run = create_monitoring_run()
+
     if timestamp:
         return baker.make_recipe(
             "tests.baker_recipes.monitoring_app.monitoring_result",

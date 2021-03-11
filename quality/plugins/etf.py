@@ -8,6 +8,7 @@ Created on: 27.10.20
 import time
 
 import requests
+from django.utils import timezone
 from django_celery_beat.utils import now
 
 from quality.helper.mappingHelper import map_parameters
@@ -218,7 +219,7 @@ class QualityEtf:
         """
         self.check_run.result = test_report
         self.check_run.passed = self.client.is_test_report_passed(test_report)
-        self.check_run.time_stop = str(now())
+        self.check_run.time_stop = str(timezone.now())
         self.check_run.save()
 
     def update_progress(self):

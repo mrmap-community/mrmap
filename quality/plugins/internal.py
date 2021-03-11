@@ -8,6 +8,8 @@ Created on: 02.11.20
 import json
 from datetime import datetime
 
+from django.utils import timezone
+
 from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \
     ConformityCheckConfiguration, ConformityCheckConfigurationInternal, \
@@ -76,7 +78,7 @@ class QualityInternal:
             if runs_as_async_task():
                 self.update_progress()
 
-        time_stop = datetime.now()
+        time_stop = timezone.now()
         results["time_start"] = str(run.time_start)
         results["time_stop"] = str(time_stop)
 

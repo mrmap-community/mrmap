@@ -12,7 +12,7 @@ from PIL import Image
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, MultiPolygon
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db import transaction
+from django.db import transaction, OperationalError
 from django.contrib.gis.db import models
 from django.db.models import Q, QuerySet, F, Count
 from django.urls import reverse
@@ -2898,7 +2898,7 @@ class Licence(Resource):
             ]
             descr_str = "<br>".join(descrs)
             descr_str = _l("Explanations: <br>") + descr_str
-        except ProgrammingError:
+        except (ProgrammingError, OperationalError):
             # This will happen on an initial installation. The Licence table won't be created yet, but this function
             # will be called on makemigrations.
             descr_str = ""

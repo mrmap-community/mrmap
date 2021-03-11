@@ -33,7 +33,7 @@ jobs:
           postgresql \
           postgresql-client \
           postgis \
-          postgresql-server-dev-13
+          postgresql-server-dev-13 \
           postgresql-13-postgis-scripts
       - name: Set up Python 3.7
         uses: actions/setup-python@v2

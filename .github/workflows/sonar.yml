@@ -31,11 +31,16 @@ jobs:
           postgis \
           postgresql-server-dev-13 \
           postgresql-13-postgis-3 \
-          postgresql-13-postgis-3-scripts
+          postgresql-13-postgis-3-scripts \
+          redis-server
       - name: Set up postgres
         run: |
           sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
           sudo systemctl start postgresql
+      - name: Set up redis
+        run: |
+          sudo sed -i "s/supervised no/supervised systemd/g" vim /etc/redis/redis.conf && \
+          sudo systemctl restart redis
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:

@@ -16,7 +16,8 @@ jobs:
     steps:
       - name: Set up postgres
         run: |
-          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf
+          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
+          systemctl status postgresql
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0

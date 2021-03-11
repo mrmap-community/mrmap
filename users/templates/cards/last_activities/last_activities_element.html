@@ -4,7 +4,7 @@
 <h5 class="mb-1 mr-3">
     <strong>{% trans group_activity.description %}</strong>
 </h5>
-<p class="mb-1">{{ group_activity.metadata }}</p>
+<p class="mb-1">{% autoescape off %}{{ group_activity.metadata }}{% endautoescape %}</p>
 <small class="text-muted">
     {% trans 'Activity performed by' %}
     <strong>{{ group_activity.user}}</strong>

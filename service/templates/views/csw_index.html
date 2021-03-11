@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load i18n static tz %}
+
+{% block body %}
+<div class="container-fluid px-5">
+    {% include 'sceletons/breadcrumb.html'%}
+    {% if pt_table.rows %}
+        <div id="id_pending_tasks_div">
+            {% include 'includes/pending_tasks.html' %}
+        </div>
+        {% include 'includes/pending_task_table_refresh_script.html' %}
+    {% endif %}
+
+    <div id="id_resource_csw_div">
+        {% include 'includes/index/csw.html' %}
+    </div>
+
+</div>
+{% endblock %}

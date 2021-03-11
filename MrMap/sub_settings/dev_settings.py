@@ -20,8 +20,7 @@ ONLY CHANGE SETTINGS IN HERE IF YOU ARE A DEVELOPER AND YOU REALLY KNOW WHAT YOU
 
 # Defines basic server information
 HTTP_OR_SSL = "http://"
-HOST_NAME = "127.0.0.1:8000"
-HOST_IP = "127.0.0.1:8000"
+HOST_NAME = "localhost:8000"
 
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
@@ -49,6 +48,7 @@ MIGRATABLE_APPS = [
     'service',
     'users',
     'monitoring',
+    'quality'
 ]
 
 # Defines which User model implementation is used for authentication process

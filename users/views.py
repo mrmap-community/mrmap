@@ -37,7 +37,6 @@ from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVA
 from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
 from service.models import Metadata
-from service.views import default_dispatch
 from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, \
     PublishRequest, GroupInvitationRequest

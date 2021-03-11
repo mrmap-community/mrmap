@@ -1,0 +1,136 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n static %}
+{% load fontawesome_5 %}
+
+
+
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3" style="display: inline;">
+    {% comment %} TODO: this will always show logo for root_service; if child is presented this is the wrong logo{% endcomment %}
+    {% if service.is_wms %}
+        {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
+    {% elif service.is_wfs %}
+        {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
+    {% elif service.is_csw %}
+        {% autoescape off %}{{THEME.ICONS.CSW}}{% endautoescape %}
+    {% endif %} <strong>{{ service_md.title }}</strong>
+</h4>
+{% endblock %}
+
+{% block card-header-title-right %}
+{% endblock %}
+
+{% block card-body %}
+<div class="row mb-2 ">
+    <div class="col-sm mb-2 text-center">
+            {% if 'can_activate_resource' in user_permissions %}
+                    {% if service_md.is_active %}
+                        <a href="{% url 'resource:activate' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button">
+                            {% autoescape off %}{{THEME.ICONS.POWER_OFF}}{% endautoescape %} {% trans 'Deactivate' %}
+                        </a>
+                    {% else %}
+                        <a href="{% url 'resource:activate' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button">
+                            {% autoescape off %}{{THEME.ICONS.POWER_OFF}}{% endautoescape %} {% trans 'Activate' %}
+                        </a>
+                {% endif %}
+            {% endif %}
+    </div>
+    <div class="col-sm mb-2 text-center">
+        {% if service.is_csw %}
+            {% if 'can_update_resource' in user_permissions %}
+                <a role="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}"  href="{% url 'csw:harvest-catalogue' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}">
+                    {% autoescape off %}{{THEME.ICONS.HARVEST}}{% endautoescape %} {% trans 'Harvest' %}
+                </a>
+            {% endif %}
+        {% else %}
+            {% if 'can_update_resource' in user_permissions %}
+                <a role="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}"  href="{% url 'resource:new-pending-update' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}">
+                    {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update' %}
+                </a>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% if not service.is_csw %}
+        {% if 'can_edit_metadata' in user_permissions %}
+        <div class="col-sm mb-2 text-center">
+            <div class="dropdown">
+                  <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_edit_service_dropdown">
+                    <a class="dropdown-item" href="{% url 'editor:edit' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:edit_access' service_md.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
+                  </div>
+                </div>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <div class="col-sm mb-2 text-center">
+            <div class="dropdown">
+              <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_caps_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'Capabilities' %}
+              </button>
+              <div class="dropdown-menu" aria-labelledby="id_caps_dropdown">
+                <a class="dropdown-item" target="_blank" href="{{ service_md.capabilities_original_uri }}">{% trans 'Original' %}</a>
+                {% if not service.is_csw %}
+                  <a class="dropdown-item" target="_blank" href="{{ service_md.capabilities_uri }}">{% trans 'Current' %}</a>
+                {% endif %}
+              </div>
+            </div>
+    </div>
+
+    {% if not service.is_csw %}
+        <div class="col-sm mb-2 text-center">
+            {% include 'quality/includes/quality_dropdown.html' %}
+        </div>
+    {% endif %}
+
+    <div class="col-sm mb-2 text-center">
+        <div class="dropdown">
+          <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}
+          </button>
+          <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
+              <a class="dropdown-item" target="_blank" href="{{ service_md.html_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+              <a class="dropdown-item" target="_blank" href="{{ service_md.service_metadata_uri }}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+              {% if not service.is_csw %}
+              <a class="dropdown-item" href="{% url 'editor:restore' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+              {% endif %}
+          </div>
+        </div>
+    </div>
+        {% if 'can_remove_resource' in user_permissions %}
+        <div class="col-sm mb-2 text-center">
+            <a role="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" href="{% url 'resource:remove' service_md.id %}?current-view=resource:index">
+                {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<div class="container-fluid">
+    {% include 'includes/detail/service_detail/root_service_detail_table.html' %}
+</div>
+
+<div class="row mb-2 ">
+    <div class="col">
+
+    {% if service.is_wms %}
+        {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
+        {% with service_md.id as id_accordion %}
+            {% with "accordion_sub_element" as id_accordion_combined %}
+                {% include 'includes/wms/show_sublayer_accordion.html' %}
+            {% endwith %}
+
+        {% endwith %}
+    {% elif service.is_wfs %}
+        {% with service.featuretypes.all as featuretypes %}
+            {% with id_accordion='root' %}
+                {% include 'includes/wfs/show_featuretypes_accordion.html' %}
+            {% endwith %}
+        {% endwith %}
+    {% endif %}
+    </div><!--</col-->
+</div><!--</row-->
+{% endblock %}

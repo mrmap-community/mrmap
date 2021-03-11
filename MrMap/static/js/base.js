@@ -308,7 +308,6 @@ $(document).ready(function(){
 
 });
 
-
 function toggleBusyState( form ) {
   // get status message references
   const busyStateItems = form.querySelectorAll('.submit_btn_txt, .submit_btn_spinner');

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% load i18n static tz %}
+
+{% block body %}
+<div class="container-fluid px-5">
+    {% include 'sceletons/breadcrumb.html'%}
+    {% if pt_table.rows %}
+        <div id="id_pending_tasks_div">
+            {% include 'includes/pending_tasks.html' %}
+        </div>
+        {% include 'includes/pending_task_table_refresh_script.html' %}
+    {% endif %}
+
+    <div id="id_resource_wfs_div">
+        {% if only_type == 'wfs' or only_type is None %}
+        {% include 'includes/index/wfs.html' %}
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

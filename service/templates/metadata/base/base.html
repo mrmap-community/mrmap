@@ -35,12 +35,13 @@
     </div>
     <div class="card-body">
         <div class="tab-content">
-            <div class="row">
-                <div class="col">
-                    <a href="{% url 'resource:subscription-new' md_id %}" >
-                        <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" title="{% trans 'Subscribe to keep updated' %}">
-                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Subscribe'%}
-                        </button>
+            <div class="row justify-content-end">
+                <div class="col-1">
+                    {% include 'quality/includes/quality_dropdown.html' with show_status=True show_indicator=True drop_right=True  %}
+                </div>
+                <div class="col-1">
+                    <a href="{% url 'resource:subscription-new' md_id %}" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" title="{% trans 'Subscribe to keep updated' %}">
+                        {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Subscribe'%}
                     </a>
                 </div>
             </div>

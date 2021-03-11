@@ -92,6 +92,7 @@ ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization <strong>%(organization_name)s
 ORGANIZATION_SUCCESSFULLY_CREATED = _("Organization <strong>%(organization_name)s</strong> was <strong>created</strong> successfully.")
 ORGANIZATION_SUCCESSFULLY_DELETED = _("Organization <strong>%(organization_name)s</strong> was <strong>deleted</strong> successfully.")
 
+SERVICE_PENDING_TASK_ABORTED = _("{} for resource '{}' was canceled.")
 SERVICE_SUCCESSFULLY_DELETED = _("Resource <strong>%(name)s</strong> was successfully deleted.")
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")

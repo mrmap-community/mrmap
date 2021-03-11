@@ -17,13 +17,12 @@ from MrMap.decorators import permission_required, ownership_required
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
 from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, RESOURCE_EDITED
-from MrMap.views import GenericUpdateView, ConfirmView, GenericViewContextMixin, InitFormMixin
+from MrMap.views import GenericUpdateView, ConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
 from editor.filters import AllowedOperationFilter
 from editor.forms import MetadataEditorForm
 from editor.tables import AllowedOperationTable
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, AllowedOperation
-from service.views import default_dispatch
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -102,7 +101,7 @@ class RestoreMetadata(GenericViewContextMixin, SuccessMessageMixin, ConfirmView)
 
 
 @method_decorator(login_required, name='dispatch')
-class AllowedOperationTableView(SingleTableMixin, FilterView):
+class AllowedOperationTableView(CustomSingleTableMixin, FilterView):
     model = AllowedOperation
     table_class = AllowedOperationTable
     filterset_class = AllowedOperationFilter
@@ -111,7 +110,6 @@ class AllowedOperationTableView(SingleTableMixin, FilterView):
 
     def dispatch(self, request, *args, **kwargs):
         self.root_metadata = get_object_or_404(Metadata, id=kwargs.get('pk', None))
-        default_dispatch(instance=self)
         return super(AllowedOperationTableView, self).dispatch(request, *args, **kwargs)
 
     def get_table(self, **kwargs):

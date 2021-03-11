@@ -1,18 +1,15 @@
-import csv
-
 import django_tables2 as tables
 from django.urls import reverse
 from django.utils.html import format_html
 from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
 from django_bootstrap_swt.utils import RenderHelper
-
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum
 from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
-
 from csw.models import HarvestResult
+from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
 from structure.models import PendingTask
@@ -31,6 +28,7 @@ TOOLTIP_ACTIONS = _('Performable Actions')
 TOOLTIP_STATUS = _(
     'Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
+TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 
 class PendingTaskTable(tables.Table):
@@ -109,6 +107,9 @@ class OgcServiceTable(tables.Table):
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.all_permissions)))
 
+
+
+
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
@@ -121,13 +122,15 @@ class OgcServiceTable(tables.Table):
 
         return harvest_result.timestamp_start if harvest_result is not None else None
 
-    def render_collected_haverest_records(self, value):
-        harvest_result = HarvestResult.objects.filter(
-            service=value
-        ).order_by(
-            "-created"
-        ).first()
-        return harvest_result.number_results if harvest_result is not None else None
+    # todo
+    def render_wms_validation(self, record):
+        passed = None
+        try:
+            check_run = ConformityCheckRun.objects.get_latest_check(record)
+            passed = check_run.passed
+        except ConformityCheckRun.DoesNotExist:
+            pass
+        return self.get_validation_icons(passed=passed)
 
     def render_parent_service(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)

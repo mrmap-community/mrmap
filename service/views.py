@@ -1,7 +1,5 @@
 import base64
 import io
-import multiprocessing
-from functools import partial
 from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
@@ -18,11 +16,10 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, TemplateView, DetailView, DeleteView, UpdateView
+from django.views.generic import ListView, DetailView, DeleteView, UpdateView
 from django.views.generic.detail import BaseDetailView
-from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow, Modal, \
-    Badge, Accordion, CardHeader
-from django_bootstrap_swt.enums import ButtonColorEnum, ModalSizeEnum
+from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
+from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2 import SingleTableMixin
@@ -63,24 +60,6 @@ from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 from django.urls import reverse, reverse_lazy
 from users.models import Subscription
-
-
-# todo: move this function to a global place; Maybe a class called MrMapDefaultContextMixin
-def default_dispatch(instance, extra_context=None, with_base: bool = True, is_list_view: bool = True):
-    if is_list_view:
-        # configure table_pagination dynamically to support per_page switching
-        instance.table_pagination = {"per_page": instance.request.GET.get('per_page', 5), }
-
-    if extra_context is None:
-        extra_context = {}
-    # push DefaultContext to the template rendering engine
-    instance.extra_context = extra_context
-
-    with_base = instance.request.GET.get('with-base', 'True' if with_base else 'False')
-    if with_base == 'True':
-        instance.template_name = 'generic_views/generic_list_with_base.html' if is_list_view else 'generic_views/generic_detail_with_base.html'
-    else:
-        instance.template_name = 'generic_views/generic_list_without_base.html' if is_list_view else 'generic_views/generic_detail_without_base.html'
 
 
 def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
@@ -812,10 +791,6 @@ class ResourceTreeView(DetailView):
         filter(available_resources)
     render_helper = None
 
-    def dispatch(self, request, *args, **kwargs):
-        default_dispatch(instance=self, extra_context=kwargs.get('update_params', {}), is_list_view=False)
-        return super(ResourceTreeView, self).dispatch(request, *args, **kwargs)
-
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         self.render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
@@ -954,10 +929,11 @@ def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
 
 
 @method_decorator(login_required, name='dispatch')
-class LogsIndexView(ExportMixin, SingleTableMixin, FilterView):
+class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
     model = ProxyLog
     table_class = ProxyLogTable
     filterset_class = ProxyLogTableFilter
+    export_name = f'MrMap_logs_{timezone.now().strftime("%Y-%m-%dT%H_%M_%S")}'
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
@@ -980,11 +956,6 @@ class LogsIndexView(ExportMixin, SingleTableMixin, FilterView):
                             needs_perm=PermissionEnum.CAN_ACCESS_LOGS.value)
         table.actions = [render_helper.render_item(item=dropdown)]
         return table
-
-    def dispatch(self, request, *args, **kwargs):
-        default_dispatch(instance=self)
-        self.export_name = f'MrMap_logs_{timezone.now().strftime("%Y-%m-%dT%H_%M_%S")}'
-        return super(LogsIndexView, self).dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups)

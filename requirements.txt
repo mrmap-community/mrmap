@@ -62,6 +62,28 @@ soupsieve==2.1
 sqlparse==0.4.1
 tablib==3.0.0
 urllib3==1.25.10
+argon2-cffi==20.1.0
+celery==4.3.1
+redis==3.5.3
+Pillow==7.2.0
+cryptography==3.1.1
+coverage==5.3
+model-bakery==1.2.0
+python-dateutil==2.8.1
+xmltodict==0.12.0
+Werkzeug==1.0.1
+
+# For git revision rendering
+dealer==2.1.0
+
+
+# UNUSED PACKAGES
+## Keep them until we can be sure they can be removed without problems
+#chardet==3.0.4
+#markdown
+#pysxm
+#six==1.12.0
+=======
 vine==1.3.0
 xmltodict==0.12.0
 zipp==3.4.0

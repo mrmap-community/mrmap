@@ -120,6 +120,24 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
+    def get_dropdown_btn(self, btn_color: str, btn_value: str, btn_disabled: bool, btn_options: list, permission: PermissionEnum, tooltip: str = '', tooltip_placement: str = 'left', btn_loading: bool = False):
+        has_perm = self.check_render_permission(permission)
+        if has_perm:
+            context = {
+                "btn_size": BTN_SM_CLASS,
+                "btn_color": btn_color,
+                "btn_value": btn_value,
+                "btn_options": btn_options,
+                "btn_disabled": btn_disabled,
+                "btn_loading": btn_loading,
+                "tooltip": tooltip,
+                "tooltip_placement": tooltip_placement,
+            }
+            return render_to_string(template_name="sceletons/open-link-dropdown.html",
+                                    context=context)
+        else:
+            return ''
+
     def get_badge(self, value: str, badge_color: str, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
         context = {
             "badge_color": badge_color,

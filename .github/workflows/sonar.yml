@@ -12,11 +12,11 @@ on:
 jobs:
   sonarcloud:
     name: Sonar
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Set up postgres
         run: |
-          sudo sed -i "s/md5/trust/g" /etc/postgresql/11/main/pg_hba.conf && \
+          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
           sudo systemctl start postgresql
       - uses: actions/checkout@v2
         with:
@@ -29,7 +29,11 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends \
           libssl-dev \
           libcurl4-openssl-dev \
-          gdal-bin
+          gdal-bin \
+          postgresql \
+          postgresql-client \
+          postgis \
+          postgresql-server-dev-13
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:

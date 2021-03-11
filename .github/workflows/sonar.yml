@@ -12,11 +12,11 @@ on:
 jobs:
   sonarcloud:
     name: Sonar
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: Set up postgres
         run: |
-          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
+          sudo sed -i "s/md5/trust/g" /etc/postgresql/11/main/pg_hba.conf && \
           sudo systemctl start postgresql
       - uses: actions/checkout@v2
         with:

@@ -15,6 +15,7 @@ from service.helper import xml_helper
 from service.models import Service
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
+from tests.utils import activate_service
 
 CSW_PATH = "csw:get-csw-results"
 WRONG_STATUS_CODE_TEMPLATE = "CSW GetRecords returned with code {}"
@@ -25,12 +26,12 @@ class CswViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
 
         # Make sure services are activated
         services = Service.objects.all()
         for service in services:
-            service.activate_service(True)
+            activate_service(service, True)
 
         self.test_id = services.first().metadata.identifier
 

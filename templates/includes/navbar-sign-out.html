@@ -17,13 +17,13 @@
                     {% autoescape off %}{{THEME.ICONS.SIGNIN}}{% endautoescape %} {% trans 'Login' %}
                 </a>
             </li>
-            <li class="nav-item {% if PATH == 'register' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'register' %}">
+            <li class="nav-item {% if PATH == 'signup' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'signup' %}">
                     {% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
                 </a>
             </li>
-            <li class="nav-item {% if PATH == 'password-reset' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'password-reset' %}">
+            <li class="nav-item {% if PATH == 'password_reset' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'password_reset' %}">
                     {% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Reset password' %}
                 </a>
             </li>

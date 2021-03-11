@@ -9,6 +9,7 @@ from time import time
 
 from django.core.management import BaseCommand
 from django.db import transaction
+from django.db.models import Q
 
 from service.helper.enums import MetadataRelationEnum, MetadataEnum
 from service.models import Metadata
@@ -30,17 +31,11 @@ class Command(BaseCommand):
             csw_id = Metadata.objects.filter(
                 metadata_type=MetadataEnum.CATALOGUE.value
             ).values_list("id", flat=True)
-        mds = Metadata.objects.filter(
-            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-        )
 
+        filters = Q(related_metadatas__to_metadatas__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+                    related_metadatas__to_metadatas__from_metadata__id__in=csw_id)
+        mds = Metadata.objects.filter(filters)
         t_start = time()
         self.stdout.write(self.style.NOTICE("Found {} records in total. Start removing...".format(mds.count())))
-        for _id in csw_id:
-            mds_id = mds.filter(
-                related_metadata__metadata_to__id=_id
-            )
-            self.stdout.write(self.style.NOTICE("Found {} records for {}. Start removing...".format(mds_id.count(), _id)))
-            for md in mds_id:
-                md.delete()
+        mds.delete()
         self.stdout.write(self.style.NOTICE("Removing finished. Took {}s".format(time() - t_start)))

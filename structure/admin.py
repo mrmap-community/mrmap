@@ -2,7 +2,6 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib.auth.admin import UserAdmin
-from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.template.defaultfilters import escape
 
@@ -113,14 +112,15 @@ class MrMapUserAdmin(UserAdmin):
 
 
 class UserActivationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'activation_until']
+    list_display = ['user', 'activation_until']
 
 
 class PublishRequestAdmin(admin.ModelAdmin):
     list_display = ['group', 'organization', 'activation_until', 'created_by']
 
+
 class GroupInvitationAdmin(admin.ModelAdmin):
-    list_display = ['invited_user', 'to_group', 'activation_until', 'created_by']
+    list_display = ['user', 'group', 'activation_until', 'created_by']
 
 
 admin.site.register(PublishRequest, PublishRequestAdmin)

@@ -43,9 +43,9 @@ REQUEST_TIMEOUT = 100  # seconds
 
 # security proxy settings
 MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(os.path.dirname(__file__), "mapserver/security_mask.map")
-MAPSERVER_SECURITY_MASK_TABLE = "service_securedoperation"
-MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "bounding_geometry"
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(os.path.dirname(__file__), "helper/mapserver/security_mask.map")
+MAPSERVER_SECURITY_MASK_TABLE = "service_allowedoperation"
+MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
 EXTERNAL_AUTHENTICATION_FILEPATH = "{}/../ext_auth_keys".format(BASE_DIR)

@@ -1,5 +1,6 @@
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.urls import reverse
 
@@ -9,16 +10,86 @@ from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum, DocumentEnum
-from service.models import Document
+from service.models import Document, Service
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, ALLOWED_SRS
-from tests.baker_recipes.db_setup import create_superadminuser
+from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 # Prevent uninteresting logging of request connection pool
+from tests.test_data import get_capabilitites_url
 from users.models import Subscription
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+
+class NewUpdateServiceViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+
+        self.wms_metadatas = create_wms_service(group=self.user.get_groups.first(), how_much_services=1)
+
+    def test_get_update_service_view(self):
+        response = self.client.get(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_valid_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid'),
+        }
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,)),
+            data=params
+        )
+        self.assertEqual(response.status_code, 303)
+        try:
+            Service.objects.get(is_update_candidate_for=self.wms_metadatas[0].service.id)
+        except ObjectDoesNotExist:
+            self.fail("No update candidate were found for the service.")
+
+    def test_post_invalid_no_service_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('invalid_no_service'),
+        }
+
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+            data=params
+        )
+
+        self.assertEqual(response.status_code, 422)  # 'The given uri is not valid cause there is no service parameter.'
+
+    def test_post_invalid_service_type_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid_wfs_version_202'),
+        }
+
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+            data=params
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_post_invalid_update_candidate_exists_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid'),
+        }
+        create_wms_service(is_update_candidate_for=self.wms_metadatas[0].service, group=self.user.get_groups[0], user=self.user)
+
+        response = self.client.post(
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
+            data=params
+        )
+        self.assertEqual(response.status_code, 422)  # "There are still pending update requests from user '{}' for this service.".format(self.user)
 
 
 class ServiceTestCase(TestCase):
@@ -32,7 +103,7 @@ class ServiceTestCase(TestCase):
         """
         cls.user = create_superadminuser()
 
-        cls.group = cls.user.get_groups().first()
+        cls.group = cls.user.get_groups.first()
 
         cls.test_wms = {
             "title": "Karte RP",
@@ -121,7 +192,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
         cap_xml = xml_helper.parse_xml(self.cap_doc_wms.content)
 
         num_layers_xml = self._get_num_of_layers(cap_xml)
@@ -136,7 +207,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         self.assertIsNotNone(service.metadata, msg="Service metadata does not exist!")
         for layer in layers:
@@ -154,7 +225,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         cap_doc = self.cap_doc_wms.content
         cap_uri = service.metadata.capabilities_original_uri
@@ -186,7 +257,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
         cap_xml = xml_helper.parse_xml(self.cap_doc_wms.content)
 
         xml_title = xml_helper.try_get_text_from_xml_element(cap_xml, "//Service/Title")
@@ -217,11 +288,11 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements().select_related('metadata')
 
         self.assertFalse(service.is_active)
         for layer in layers:
-            self.assertFalse(layer.is_active)
+            self.assertFalse(layer.metadata.is_active)
 
     def test_new_service_check_register_dependencies(self):
         """ Tests whether the registered_by and register_for attributes are correctly set.
@@ -233,7 +304,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         self.assertEqual(service.created_by, self.group)
         for layer in layers:
@@ -249,7 +320,7 @@ class ServiceTestCase(TestCase):
 
         """
         service = self.service_wms
-        layers = service.subelements
+        layers = service.get_subelements()
 
         self.assertEqual(service.service_type.name, self.test_wms.get("type").value)
         self.assertEqual(service.service_type.version, self.test_wms.get("version").value)
@@ -265,7 +336,7 @@ class ServiceTestCase(TestCase):
         Returns:
 
         """
-        layers = self.service_wms.subelements
+        layers = self.service_wms.get_subelements().select_related('metadata').prefetch_related('metadata__reference_system')
         cap_xml = self.cap_doc_wms.content
 
         for layer in layers:

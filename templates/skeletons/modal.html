@@ -1,0 +1,20 @@
+<div id="{{modal_id}}" class="modal {% if fade %} fade {% endif %} " tabindex="-1" role="document" {% if fetch_url %}data-url="{{fetch_url}}"{% endif %}>
+  <div class="modal-dialog {% if size %} {{size.value}} {% endif%}">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{title|safe}}</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div id="{{modal_id}}_body" class="modal-body">
+        {{modal_body|safe}}
+      </div>
+      {% if modal_footer %}
+      <div class="modal-footer">
+        {{modal_footer}}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

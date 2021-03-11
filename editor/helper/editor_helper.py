@@ -5,14 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 01.08.19
 
 """
-import json
 import xmltodict
-from django.contrib import messages
 from django.db import transaction
-from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
+from editor.settings import editor_logger
 from service.helper.iso.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
@@ -20,7 +18,7 @@ from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum, \
     MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, SecuredOperation
+from service.models import Metadata, Keyword, FeatureType, Document
 from service.helper import xml_helper
 
 
@@ -270,7 +268,7 @@ def overwrite_capabilities_document(metadata: Metadata):
     xml_obj_root = xml_helper.parse_xml(cap_doc.content)
 
     # find matching xml element in xml doc
-    _type = metadata.get_service_type()
+    _type = metadata.service_type.value
     _version = metadata.get_service_version()
 
     identifier = metadata.identifier
@@ -330,11 +328,11 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     """
     # remove iso metadata from capabilities document
     rel_md = metadata
-    service_type = metadata.get_service_type()
+    service_type = metadata.service_type
     if not metadata.is_root():
-        if service_type == 'wms':
+        if service_type == OGCServiceEnum.WMS:
             rel_md = metadata.service.parent_service.metadata
-        elif service_type == 'wfs':
+        elif service_type == OGCServiceEnum.WFS:
             rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(
         metadata=rel_md,
@@ -347,8 +345,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     # if there are links in existing_iso_links that do not show up in md_links -> remove them
     for link in existing_iso_links:
         if link not in md_links:
-            missing_md = metadata.related_metadata.get(metadata_to__metadata_url=link)
-            missing_md = missing_md.metadata_to
+            missing_md = metadata.get_related_metadatas(filters={'to_metadatas__to_metadata__metadata_url': link})
             missing_md.delete()
             # remove from capabilities
             xml_iso_element = xml_helper.find_element_where_attr(xml_cap_obj, "xlink:href", link)
@@ -381,16 +378,13 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         iso_md = ISOMetadata(link, ResourceOriginEnum.EDITOR.value)
         iso_md = iso_md.to_db_model(created_by=metadata.created_by)
         iso_md.save()
-        md_relation = MetadataRelation()
-        md_relation.metadata_to = iso_md
-        md_relation.origin = iso_md.origin
-        md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
-        md_relation.save()
-        metadata.related_metadata.add(md_relation)
+        metadata.add_metadata_relation(to_metadata=iso_md,
+                                       origin=iso_md.origin,
+                                       relation_type=MetadataRelationEnum.DESCRIBES.value)
 
 
 @transaction.atomic
-def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_form):
+def resolve_iso_metadata_links(metadata: Metadata, editor_form):
     """ Iterate over all provided iso metadata links and create metadata from it which will be related to the metadata
 
     Args:
@@ -409,10 +403,10 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
         _remove_iso_metadata(metadata, md_links, existing_iso_links)
         _add_iso_metadata(metadata, md_links, existing_iso_links)
     except MissingSchema as e:
-        messages.add_message(request, messages.ERROR, EDITOR_INVALID_ISO_LINK.format(e.link))
+        editor_logger.error(msg=EDITOR_INVALID_ISO_LINK.format(e.link))
+        editor_logger.exception(e, exc_info=True, stack_info=True)
     except Exception as e:
-        messages.add_message(request, messages.ERROR, e)
-
+        editor_logger.exception(e, exc_info=True, stack_info=True)
 
 @transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
@@ -454,11 +448,11 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         pass
 
     # Categories are inherited by subelements
-    subelement_mds = original_md.get_subelements_metadatas()
-    for subelement_md in subelement_mds:
-        subelement_md.categories.clear()
+    subelements = original_md.get_described_element().get_subelements().select_related('metadata')
+    for subelement in subelements:
+        subelement.metadata.categories.clear()
         for category in categories:
-            subelement_md.categories.add(category)
+            subelement.metadata.categories.add(category)
 
     # change capabilities document so that all sensitive elements (links) are proxied
     if original_md.use_proxy_uri != custom_md.use_proxy_uri:
@@ -475,8 +469,6 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         overwrite_dataset_metadata_document(original_md)
     else:
         overwrite_capabilities_document(original_md)
-
-
 
 
 def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, editor_form):
@@ -504,64 +496,3 @@ def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, edit
     original_ft.is_custom = True
     original_ft.save()
 
-
-def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata):
-    """ Merges RequestOperations and SecuredOperations into a usable form for the template rendering.
-
-    Iterates over all SecuredOperations of a metadata, simplifies the objects into dicts, adds the remaining
-    RequestOperation objects.
-
-    Args:
-        operations: The RequestOperation query set
-        sec_ops: The SecuredOperation query set
-        all_groups: All system groups
-        metadata: The secured metadata
-    Returns:
-         A list, containing dicts of all operations with groups and only the most important data
-    """
-    tmp = []
-    for op in operations:
-        op_dict = {
-            "operation": op,
-            "groups": []
-        }
-        secured_operations = SecuredOperation.objects.filter(
-            operation=op,
-            secured_metadata=metadata,
-        )
-        if secured_operations.count() > 0:
-            allowed_groups = [x.allowed_group for x in secured_operations]
-
-            for group in all_groups:
-                allowed = False
-                sec_id = -1
-                geometry = None
-                if group in allowed_groups:
-                    allowed = True
-                    sec_op = secured_operations.get(allowed_group=group)
-                    geometry_collection = sec_op.bounding_geometry
-                    polygon_list = [json.loads(x.geojson) for x in geometry_collection]
-                    geometry = json.dumps(polygon_list)
-                    if len(polygon_list) == 0:
-                        geometry = None
-                    sec_id = sec_op.id
-
-                op_dict["groups"].append({
-                    "group": group,
-                    "allowed": allowed,
-                    "sec_id": sec_id,
-                    "geo_json_geometry": geometry,
-                })
-
-            tmp.append(op_dict)
-
-        else:
-            for group in all_groups:
-                op_dict["groups"].append({
-                    "group": group,
-                    "allowed": False,
-                    "sec_id": -1,
-                    "geo_json_geometry": None,
-                })
-            tmp.append(op_dict)
-    return tmp

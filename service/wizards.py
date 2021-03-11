@@ -1,12 +1,20 @@
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html
+from django_bootstrap_swt.components import Alert
+from django_bootstrap_swt.enums import AlertEnum
 
+from MrMap.decorators import permission_required
 from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
-from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
+from service.settings import service_logger
+from structure.permissionEnums import PermissionEnum
 
 FIRST_STEP_ID = _("URL")
 SECOND_STEP_ID = _("Overview")
@@ -17,13 +25,23 @@ NEW_RESOURCE_WIZARD_FORMS = [
 ]
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(PermissionEnum.CAN_REGISTER_RESOURCE.value), name='dispatch')
 class NewResourceWizard(MrMapWizard):
-    def __init__(self, current_view, *args, **kwargs):
-        super(MrMapWizard, self).__init__(
-            action_url=reverse('resource:add', ) + f"?current-view={current_view}",
-            current_view=current_view,
+    success_url = reverse_lazy('resource:pending-tasks')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            action_url=reverse('resource:add', ),
+            title=_(format_html('<b>Add New Resource</b>')),
             *args,
             **kwargs)
+
+    def get_form_kwargs(self, step=None):
+        if step == SECOND_STEP_ID:
+            return {'request': self.request}
+        else:
+            return super().get_form_kwargs(step=step)
 
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})
@@ -62,7 +80,7 @@ class NewResourceWizard(MrMapWizard):
                     'uri': url_dict["base_uri"],
                     'service_needs_authentication': needs_authentication,
                 })
-        return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
+        return super().render_goto_step(goto_step=goto_step)
 
     def done(self, form_list, **kwargs):
         """ Iterates over all forms and fills the Metadata/Dataset records accordingly
@@ -76,11 +94,10 @@ class NewResourceWizard(MrMapWizard):
         for form in form_list:
             if isinstance(form, RegisterNewResourceWizardPage2):
                 try:
-                    # Run creation async!
-                    # Function returns the pending task object
-                    service_helper.create_new_service(form, form.requesting_user)
+                    service_helper.create_new_service(form, self.request.user)
+                    messages.success(self.request, 'Async task was created to create new resource.')
                 except Exception as e:
-                    messages.error(self.request, message=e)
-                    return HttpResponseRedirect(reverse(self.current_view, ), status=303)
-
-        return HttpResponseRedirect(reverse(self.current_view, ), status=303)
+                    service_logger.exception(e, stack_info=True, exc_info=True)
+                    messages.error(self.request, 'Something went wrong. See service.log for details.')
+                finally:
+                    return super().done(form_list, **kwargs)

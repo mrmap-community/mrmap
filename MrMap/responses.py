@@ -6,52 +6,37 @@ Created on: 15.04.19
 
 """
 from django.http import JsonResponse, HttpRequest
-
 from MrMap.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
 from structure.models import MrMapUser
 from MrMap.utils import get_theme
 
 
+# Todo: Deprecated! This will be done by the default_context() in the MrMap/context_processors.py file
+#  Remove DefaultContext class
 class DefaultContext:
     """ Contains the default values that have to be set on every rendering process!
 
     """
 
     def __init__(self, request: HttpRequest, context: dict, user: MrMapUser = None):
-        if user is not None:
-            permissions = user.get_permissions()
+        if user is not None and not user.is_anonymous:
+            permissions = user.get_all_permissions()
         else:
             permissions = []
 
-        breadcrumb = []
-        breadcrumb_items = request.path.split("/")
-        breadcrumb_items.pop(0)   # pop the first / item
-
-        index = 0
-        while index < len(breadcrumb_items):
-            item = {'item': breadcrumb_items[index]}
-            if index != 0:
-                path = breadcrumb[index-1]["path"] + '/' + breadcrumb_items[index]
-                item.update({'path': path})
-            else:
-                item.update({'path': breadcrumb_items[index]})
-
-            if index == len(breadcrumb_items)-1:
-                item.update({'is_last': True})
-
-            breadcrumb.append(item)
-            index += 1
+        #breadcrumb_builder = BreadCrumbBuilder(path=request.path)
 
         self.context = {
             "ROOT_URL": ROOT_URL,
             "PATH": request.path.split("/")[1],
+            "FULL_PATH": request.path,
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
-            "user_permissions": permissions,  #user_helper.get_permissions(user)
+            "user_permissions": permissions,  # user_helper.get_permissions(user)
             "user": user,
             "GIT_REPO_URI": GIT_REPO_URI,
             "GIT_GRAPH_URI": GIT_GRAPH_URI,
             "THEME": get_theme(user),
-            "BREADCRUMB": breadcrumb,
+            #"BREADCRUMB_CONFIG": breadcrumb_builder.breadcrumb,
         }
         self.add_context(context)
 
@@ -73,12 +58,14 @@ class DefaultContext:
         for key, val in context.items():
             self.context[key] = val
 
+
 class APIResponse:
     def __init__(self):
         self.data = {
             "success": False,
             "msg": "",
         }
+
 
 class BackendAjaxResponse:
     """ Generic JsonResponse wrapper for Backend->Frontend(AJAX) communication
@@ -91,6 +78,7 @@ class BackendAjaxResponse:
     Always(!) use this object instead of a direct JsonResponse() object.
 
     """
+
     def __init__(self, html, **kwargs: dict):
         self.context = {
             "html": html,

@@ -5,8 +5,9 @@ from django_tables2 import RequestConfig
 
 from MrMap.consts import SERVICE_INDEX_LOG
 from service.models import Metadata, ProxyLog
-from service.tables import WmsLayerTableWms, WfsServiceTable, WmsTableWms, PendingTasksTable, ChildLayerTable, \
-    FeatureTypeTable, CoupledMetadataTable, ProxyLogTable
+from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable, ProxyLogTable, OgcServiceTable, \
+    PendingTaskTable
+from structure.models import PendingTask
 from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs, create_testuser
 from tests.utils import check_table_sorting
 
@@ -27,9 +28,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsTableWms(queryset=md_list,
-                                order_by_field='swms',  # swms = sort wms
-                                request=self.request, )
+        wms_table = OgcServiceTable(data=md_list,
+                                    order_by_field='swms',  # swms = sort wms
+                                    request=self.request, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("resource:wms-index") + '?{}={}'.format("swms", column))
@@ -50,9 +51,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsLayerTableWms(queryset=md_list,
-                                     order_by_field='swms',  # swms = sort wms
-                                     request=self.request, )
+        wms_table = OgcServiceTable(data=md_list,
+                                    order_by_field='swms',  # swms = sort wms
+                                    request=self.request, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("resource:wms-index") + '?{}={}'.format("swms", column))
@@ -73,7 +74,7 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wfs_table = WfsServiceTable(queryset=md_list,
+        wfs_table = OgcServiceTable(data=md_list,
                                     order_by_field='swfs',  # swms = sort wms
                                     request=self.request, )
 
@@ -91,29 +92,6 @@ class ServiceTestCase(TestCase):
             self.assertEqual(exception, None,
                              msg="Field Error for field {} raised. Check your custom order function of table {}".format(
                                  column, "WfsServiceTable"))
-
-    def test_pending_tasks_table_sorting(self):
-        # we just need an empty queryset
-        md_list = Metadata.objects.all()
-
-        table = PendingTasksTable(queryset=md_list,
-                                  order_by_field='sort',  # swms = sort wms
-                                  request=self.request, )
-
-        for column in table.columns.columns:
-            request = self.factory.get(reverse("resource:pending-tasks") + '?{}={}'.format("sort", column))
-            RequestConfig(request).configure(table)
-
-            exception = None
-            try:
-                # this line will raise a filederror exception if (i dont know why but it does)
-                # custom rendered field without accessor has no custom order function
-                list(table.rows)
-            except FieldError as e:
-                exception = e
-            self.assertEqual(exception, None,
-                             msg="Field Error for field {} raised. Check your custom order function of table {}".format(
-                                 column, "PendingTasksTable"))
 
     def test_child_layer_table_sorting(self):
         # we just need an empty queryset
@@ -215,7 +193,6 @@ class ServiceTestCase(TestCase):
         sorting_implementation_failed, sorting_results = check_table_sorting(
             table=table,
             url_path_name=SERVICE_INDEX_LOG,
-            sorting_parameter=sorting_param,
         )
 
         for key, val in sorting_results.items():

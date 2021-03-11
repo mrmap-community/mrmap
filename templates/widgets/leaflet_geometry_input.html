@@ -1,18 +1,6 @@
 {% load static i18n l10n %}
-<div class="input-group" id="{{ widget.leaflet_geometry_input_id }}" data-target-input="nearest">
   {% include "django/forms/widgets/textarea.html" %}
-  <div class="input-group-append" data-toggle="collapse" data-target="#collapse_{{ widget.leaflet_geometry_input_id }}" aria-expanded="true" aria-controls="collapse_{{ widget.leaflet_geometry_input_id }}">
-    <div id="id_heading_{{ widget.leaflet_geometry_input_id }}" class="input-group-text">
-          <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Click to collapse leaflet client to draw a spatial area'%}">
-            <i class="fa fa-draw-polygon"></i>
-          </span>
-    </div>
-  </div>
-</div>
-<div id="id_accordion_{{ widget.leaflet_geometry_input_id }}">
-    <div id="collapse_{{ widget.leaflet_geometry_input_id }}" class="collapse" aria-labelledby="id_heading_{{ widget.leaflet_geometry_input_id }}" data-parent="#id_accordion_{{ widget.leaflet_geometry_input_id }}">
-        <div class="card mt-2">
-            <div class="card-header">{% trans 'Leaflet client for field ' %} <strong>{{widget.attrs.placeholder}}</strong></div>
+  <div class="card mt-2">
           <div class="card-body">
                 <link rel="stylesheet" href="{% static 'css/leaflet-geoman.min.css' %}" />
                 <div id="id_map_{{ widget.leaflet_geometry_input_id }}" style="height: 60vh; min-height: 400px;"></div>
@@ -35,6 +23,7 @@
                             <span class="ml-2">{% trans 'Export as GeoJSON' %}</span>
                         </button>
                         <script type="application/javascript">
+                            // export geojson as downloadable file
                             $("#id_geometry_download_{{ widget.leaflet_geometry_input_id }}").click(function(){
                                 var file = new Blob([$('#{{widget.attrs.id}}').val()], {type: "geojson"});
                                 if (window.navigator.msSaveOrOpenBlob) // IE10+
@@ -73,51 +62,94 @@
                     }
 
                     function getAllPolygons(){
-                        var layers = [];
-                        map_{{ id_map }}.eachLayer(function(layer) {
+                        var polygons = [];
+                        map_{{ id_map }}.eachLayer( function( layer ) {
                             if ( layer instanceof L.Polygon ) {
-                                layers.push(layer);
+                                if ( layer._pmTempLayer != true ){
+                                    polygons.push(layer);
+                                }
                             }
                         });
-                        return layers;
+                        return polygons;
                     }
 
-                    function updateGeoJsonInput( layers ){
-                        if ( layers.length == 0 ) {
-                            $('#{{widget.attrs.id}}').val("");
-                        } else {
-                            var layer_group = L.layerGroup(layers);
-                            $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                    function toGEOSPolygon( points ){
+                        var geosPolygon = '((';
+                        for ( point of points ) {
+                            geosPolygon +=  point.lng + ' ' + point.lat + ', ';
+                            if ( point == points[points.length - 1] ){
+                                geosPolygon +=  points[0].lng + ' ' + points[0].lat;
+                            }
                         }
+                        geosPolygon += '))';
+                        return geosPolygon;
+                    }
+
+                    function appendCommaToGEOSPolygon( polygonPoints, lastPolygonPoints ) {
+                        if ( polygonPoints != lastPolygonPoints ){
+                            return ', ';
+                        } else  {
+                            return '';
+                        }
+                        
+                    }
+
+                    function toGEOSMultiPolygon( lPolygons ){
+                        if ( lPolygons.length == 0 ) {
+                            return "";
+                        } else {
+                            var allPolygonPointsFlat = []
+
+                            for (lPolygon of lPolygons){
+                                for ( polygonPoints of lPolygon.getLatLngs()){
+                                    if ( polygonPoints[0] instanceof Array ) {
+                                        // multi-dimensinal array for multi polygons
+                                        for ( _polygonPoints of polygonPoints ){
+                                            allPolygonPointsFlat.push( _polygonPoints );
+                                        }
+                                    } else {
+                                        allPolygonPointsFlat.push( polygonPoints );                                        
+                                    }
+                                }
+                            }
+
+                            var geosMultiPolygon = 'SRID=4326;MULTIPOLYGON (';
+                            for (polygonPoints in allPolygonPointsFlat){
+                                geosMultiPolygon += toGEOSPolygon( allPolygonPointsFlat[polygonPoints] ); 
+                                geosMultiPolygon += appendCommaToGEOSPolygon(allPolygonPointsFlat[polygonPoints], allPolygonPointsFlat[allPolygonPointsFlat.length - 1]);
+                            }
+
+                            return geosMultiPolygon + ')';
+                        }
+                    }
+
+                    function updateGeoJsonInput( polygons ){
+                        $('#{{widget.attrs.id}}').val( toGEOSMultiPolygon ( polygons ) );
                     }
 
                     function addEventListenersToLayer( layer ){
                         // create a listener which is triggered when the created polygon is edited
                         layer.on('pm:edit', e => {
                             updateGeoJsonInput( getAllPolygons() );
+                            if (e.layer.options.color == 'red'){
+                                e.layer.setStyle({color: 'orange'})
+                            }
+                        });
+
+                        layer.on('pm:dragend', e => {
+                            updateGeoJsonInput( getAllPolygons() );
                         });
 
                         layer.on('pm:cut', e => {
                             // first remove the original layer... otherwise this layer is still in the list of eachLayer iteration
-                            map_{{ id_map }}.removeLayer(e.originalLayer);
+                            //map_{{ id_map }}.removeLayer(e.originalLayer);
                             updateGeoJsonInput( getAllPolygons() );
+                            //e.layer.color = '#33ff47';
+                            //e.layer.fillColor = '#33ff47';
                         });
                     }
 
-                    function addListeners(){
-                        // adds global remove listener
-                        map_{{ id_map }}.on('pm:remove', e => {
-                            updateGeoJsonInput( getAllPolygons() );
-                        });
-
-                        // adds global create listener
-                        map_{{ id_map }}.on('pm:create', e => {
-                            updateGeoJsonInput( getAllPolygons() );
-                            addEventListenersToLayer( e.layer );
-                        });
-                    }
-
-                    function initializeLeafletClient(){
+                    function initializeLeafletClient_{{ id_map }}(){
                         if (!initialized) {
                             // create the map instance and save it to the var
                             map_{{ id_map }} = L.map('{{ id_map }}', {
@@ -130,21 +162,35 @@
                                 ],
                             });
 
-                            addListeners();
+                            
 
                             // zoom in and fit the bound of all presented layers
                             {% if geojson %}
-                                var polygon = new L.geoJSON({{ geojson|safe }}, {style: {fillColor: 'red', color: 'red'}});
-                                var bounds = polygon.getBounds();
-                                map_{{ id_map }}.addLayer( polygon );
-                                map_{{ id_map }}.fitBounds(bounds);
+                                var geojson = new L.geoJSON({{ geojson|safe }}, 
+                                                          {
+                                                            style: {
+                                                                fillColor: 'red', 
+                                                                color: 'red'}
+                                                          });
+
+                                for(key in geojson._layers){
+                                    var layer = geojson._layers[key];
+
+                                    for (key2 in layer._latlngs){
+                                        var latLng = layer._latlngs[key2];
+                                        var polygon = L.polygon(latLng, {color: 'red'}).addTo(map_{{ id_map }});
+                                        addEventListenersToLayer( polygon );
+                                    }
+                                }
+                                var bounds = geojson.getBounds();
+                                map_{{ id_map }}.fitBounds( bounds );
                             {% else %}
                                 map_{{ id_map }}.fitBounds(
                                     [
                                         [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
                                         [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
                                     ]
-                                    );
+                                );
                             {% endif %}
 
                             // set which controls should be available in the toolbar
@@ -155,9 +201,29 @@
                               {% endfor %}
                               {% endautoescape %}
                             });
+
+                            map_{{ id_map }}.on('pm:remove', e => {
+                                updateGeoJsonInput( getAllPolygons() );
+                            });
+
+                            map_{{ id_map }}.on('pm:create', e => {
+                                e.layer.setStyle({color: 'green'})
+                                updateGeoJsonInput( getAllPolygons() );
+                                addEventListenersToLayer( e.layer );
+                            });
+                    
                             initialized = true;
                         }
                     }
+
+                    // we have to observe if the map div is visible, cause if the map div is encapsulated by other div which is not
+                    // visible by default, the initialization of the leaflet client failed, cause it depends on the current view port.
+                    var observer = new IntersectionObserver(function(entries) {
+                        if(entries[0].isIntersecting === true)
+                            initializeLeafletClient_{{ id_map }}();
+                    }, { threshold: [0] });
+
+                    observer.observe(document.querySelector("#id_map_{{ widget.leaflet_geometry_input_id }}"));
 
                     {% if activate_upload %}
                     $("#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}").change(function(){
@@ -247,15 +313,10 @@
                     });
                     {% endif %}
                 </script>
-                <script type="application/javascript">
-                    $('#collapse_{{ widget.leaflet_geometry_input_id }}').on('shown.bs.collapse', function (e) {
-                        initializeLeafletClient();
-                    })
-                </script>
                 {% endlocalize %}
                 {% endwith %}
 
             </div>
         </div>
-    </div>
-</div>
+
+        

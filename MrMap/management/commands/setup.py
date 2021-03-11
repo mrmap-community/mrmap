@@ -15,6 +15,8 @@ from django.utils.translation import gettext_lazy as _
 
 from MrMap.management.commands.setup_settings import DEFAULT_GROUPS, DEFAULT_ROLE_NAME
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
+from service.helper.enums import OGCOperationEnum
+from service.models import OGCOperation
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.permissionEnums import PermissionEnum
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME, \
@@ -77,13 +79,13 @@ class Command(BaseCommand):
 
         # handle public group
         group = self._create_public_group(superuser)
-        #group.created_by = superuser
+        # group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
         # handle root group
         group = self._create_superuser_group(superuser)
-        #group.created_by = superuser
+        # group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
@@ -119,6 +121,10 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
+        self._create_ogc_operations()
+        msg = "OgcOperations created"
+        self.stdout.write((self.style.SUCCESS(msg)))
+
     @staticmethod
     def _create_group_from_default_setting(setting: dict, user: MrMapUser):
         """ Creates default groups besides of Superuser group and Public group
@@ -144,22 +150,22 @@ class Command(BaseCommand):
 
         try:
             group = MrMapGroup.objects.get(
-            name=group_name,
-            parent_group=parent_group,
-            role=role,
-            is_permission_group=True,
+                name=group_name,
+                parent_group=parent_group,
+                role=role,
+                is_permission_group=True,
             )
-            created=False
+            created = False
         except MrMapGroup.DoesNotExist:
             group = MrMapGroup(
-            name=group_name,
-            parent_group=parent_group,
-            role=role,
-            created_by=user,
-            is_permission_group=True,
+                name=group_name,
+                parent_group=parent_group,
+                role=role,
+                created_by=user,
+                is_permission_group=True,
             )
             group.save()
-            created=True
+            created = True
 
         group.description = group_desc
         group.save()
@@ -186,18 +192,18 @@ class Command(BaseCommand):
         """
         try:
             group = MrMapGroup.objects.get(
-            name=PUBLIC_GROUP_NAME,
-            description=PUBLIC_GROUP_DESCRIPTION,
-            is_public_group=True,
-            is_permission_group=True,
+                name=PUBLIC_GROUP_NAME,
+                description=PUBLIC_GROUP_DESCRIPTION,
+                is_public_group=True,
+                is_permission_group=True,
             )
         except MrMapGroup.DoesNotExist:
             group = MrMapGroup(
-            name=PUBLIC_GROUP_NAME,
-            description=PUBLIC_GROUP_DESCRIPTION,
-            created_by=user,
-            is_public_group=True,
-            is_permission_group=True,
+                name=PUBLIC_GROUP_NAME,
+                description=PUBLIC_GROUP_DESCRIPTION,
+                created_by=user,
+                is_public_group=True,
+                is_permission_group=True,
             )
             group.save()
 
@@ -227,18 +233,18 @@ class Command(BaseCommand):
 
         try:
             group = MrMapGroup.objects.get(
-            name=SUPERUSER_GROUP_NAME,
-            description=SUPERUSER_GROUP_DESCRIPTION,
-            is_permission_group=True,
-            role=role,
+                name=SUPERUSER_GROUP_NAME,
+                description=SUPERUSER_GROUP_DESCRIPTION,
+                is_permission_group=True,
+                role=role,
             )
         except MrMapGroup.DoesNotExist:
             group = MrMapGroup(
-            name=SUPERUSER_GROUP_NAME,
-            description=SUPERUSER_GROUP_DESCRIPTION,
-            created_by=user,
-            is_permission_group=True,
-            role=role,
+                name=SUPERUSER_GROUP_NAME,
+                description=SUPERUSER_GROUP_DESCRIPTION,
+                created_by=user,
+                is_permission_group=True,
+                role=role,
             )
             group.save()
 
@@ -272,17 +278,16 @@ class Command(BaseCommand):
 
         try:
             group = MrMapGroup.objects.get(
-            name="Testgroup",
-            organization=org,
+                name="Testgroup",
+                organization=org,
             )
         except MrMapGroup.DoesNotExist:
             group = MrMapGroup(
-            name="Testgroup",
-            organization=org,
-            created_by=user,
+                name="Testgroup",
+                organization=org,
+                created_by=user,
             )
             group.save()
-
 
         group.user_set.add(user)
         return group
@@ -299,3 +304,13 @@ class Command(BaseCommand):
             check_time=mon_time, timeout=MONITORING_REQUEST_TIMEOUT
         )[0]
         monitoring_setting.save()
+
+    @staticmethod
+    def _create_ogc_operations():
+        """ Create all possible OGCOperations in model ``OGCOperation´´
+
+        Returns:
+            nothing
+        """
+        for key, value in OGCOperationEnum.as_choices(drop_empty_choice=True):
+            OGCOperation(operation=value).save()

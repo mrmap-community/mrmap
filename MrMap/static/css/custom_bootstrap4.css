@@ -8,10 +8,6 @@
 
 /* Navbar
 -------------------------------------------------- */
-.nav-item+.dropdown:hover>.dropdown-menu {
-  display: block;
-}
-
 .navbar {
     background-color: var(--primary-color) !important;
 }
@@ -67,4 +63,10 @@
 
 .accordion.collapsed .fa:before {
   content: "\f13a";
+}
+
+
+
+.dropdown-toggle {
+   white-space: nowrap;
 }

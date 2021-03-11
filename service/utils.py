@@ -7,8 +7,7 @@ Created on: 21.01.20
 """
 
 from django.http import HttpRequest
-from service.helper.enums import MetadataEnum
-from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation
+from service.models import Metadata, Organization, Layer, FeatureType
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
@@ -72,20 +71,11 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
         params['fees'] = md.service.parent_service.metadata.fees
         params['licence'] = md.service.parent_service.metadata.licence
 
-    try:
-        # is it a root layer?
-        params['parent_layer'] = Layer.objects.get(
-            child_layers=md.service.layer
-        )
-    except Layer.DoesNotExist:
-        # yes, it's a root layer, no parent available; skip
-        None
+    if md.service.layer.is_root_node():
+        params['parent'] = md.service.layer
 
     # get sublayers
-    child_layers = Layer.objects.filter(
-        parent_layer=md.service
-    )
-
+    child_layers = md.service.get_subelements()
     # if child_layers > 0 collect more data about the child layers
     if child_layers.count() > 0:
         # filter queryset
@@ -95,10 +85,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
         children = []
         for child in child_layers_filtered.qs:
             # search for sub children
-            child_child_layers = Layer.objects.filter(
-                parent_layer=child
-            )
-
+            child_child_layers = child.get_children()
             children.append({'id': child.metadata.id,
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
@@ -122,7 +109,7 @@ def collect_wms_root_data(md: Metadata, request: HttpRequest):
     # first layer item
     layer = Layer.objects.get(
         parent_service=md.service,
-        parent_layer=None,
+        parent=None,
     )
 
     params['bounding_box'] = md.bounding_geometry
@@ -132,7 +119,7 @@ def collect_wms_root_data(md: Metadata, request: HttpRequest):
 
     # search for sub children
     child_child_layers = Layer.objects.filter(
-        parent_layer=layer
+        parent=layer
     )
     sub_layer = [{'id': layer.metadata.id,
                   'title': layer.metadata.title,
@@ -190,32 +177,17 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
 def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
     params = {}
 
-    # get all related Metadata objects
-    metadata_relations = md.related_metadata.filter(
-        metadata_to__metadata_type=MetadataEnum.DATASET.value
-    )
-
-    # if no related metadata found, skip
-    if metadata_relations.count() > 0:
-        # convert MetadataRelation Objects to Metadata object
-        metadatas_object_array = [metadata_relation.metadata_to for metadata_relation in metadata_relations]
-
-        metadatas_dict_array = []
-        for metadata in metadatas_object_array:
-            metadatas_dict_array.append({'id': metadata.id, 'title': metadata.title})
-
-        show_header = False
-        if metadata_relations.count() > 1:
-            show_header = True
-
+    # get all related Metadata objects from type dataset
+    related_metadatas = md.get_related_dataset_metadatas()
+    if related_metadatas:
         # build django tables2 table
-        related_metadata_table = CoupledMetadataTable(
-            queryset=metadatas_dict_array,
+        related_metadatas_table = CoupledMetadataTable(
+            queryset=related_metadatas,
             order_by='title',
-            show_header=show_header,
+            show_header=True,
             request=request,
             param_lead='rm-t')
 
-        params['related_metadata'] = related_metadata_table
+        params['related_metadatas'] = related_metadatas
 
     return params

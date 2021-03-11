@@ -1,0 +1,13 @@
+{% extends 'skeletons/card.html'%}
+{% block card-header-title-left %}
+<h4>{{ card_header_title_left|safe }}</h4>
+{% endblock %}
+{% block card-header-title-center %}
+{{ card_header_title_center|safe }}
+{% endblock %}
+{% block card-header-title-right %}
+{{ card_header_title_right|safe }}
+{% endblock %}
+{% block card-body %}
+{{ card_body|safe }}
+{% endblock %}

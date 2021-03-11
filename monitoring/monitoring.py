@@ -16,7 +16,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT
-from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting, \
+from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultCapability, MonitoringRun, MonitoringSetting, \
     HealthState
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
@@ -315,14 +315,14 @@ class Monitoring:
             if diff_obj is not None:
                 needs_update = True
                 diff = ''.join(diff_obj)
-                monitoring_capability = MonitoringCapability(
+                monitoring_capability = MonitoringResultCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                 )
             else:
                 needs_update = False
-                monitoring_capability = MonitoringCapability(
+                monitoring_capability = MonitoringResultCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,

@@ -25,6 +25,10 @@ ALLOWED_HOSTS = [
 GIT_REPO_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/src/branch/pre_master"
 GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/graph"
 
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "login"
+LOGIN_URL = "login"
+
 # Defines the semantic web information which will be injected on the resource html views
 SEMANTIC_WEB_HTML_INFORMATION = {
     "legalName": "Zentrale Stelle GDI-RP",
@@ -46,3 +50,7 @@ PROXIES = {
     "http": HTTP_PROXY,
     "https": HTTP_PROXY,
 }
+
+# configure if you want to validate ssl certificates
+# it is highly recommend keeping this to true
+VERIFY_SSL_CERTIFICATES = True

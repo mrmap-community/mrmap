@@ -23,7 +23,7 @@ from MrMap import utils
 from MrMap.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
-    MetadataRelationEnum
+    MetadataRelationEnum, OGCServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -31,7 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    MetadataRelation, Style, ExternalAuthentication, ServiceUrl, RequestOperation
+    Style, ExternalAuthentication, ServiceUrl, RequestOperation
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
 
@@ -477,7 +477,7 @@ class OGCWebMapService(OGCWebService):
 
         return layer_obj
 
-    def _parse_single_layer(self, layer, parent, position, step_size: float = None, async_task: Task = None):
+    def _parse_single_layer(self, layer, parent, step_size: float = None, async_task: Task = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
 
         Runs recursive through own children for further parsing
@@ -485,7 +485,6 @@ class OGCWebMapService(OGCWebService):
         Args:
             layer: The layer xml element
             parent: The parent OGCWebMapLayer object
-            position: The current position of this layer object in relation to it's siblings
         Returns:
             nothing
         """
@@ -497,7 +496,6 @@ class OGCWebMapService(OGCWebService):
             task_helper.update_service_description(async_task, None, "Parsing {}".format(layer_obj.title))
 
         layer_obj.parent = parent
-        layer_obj.position = position
         if self.layers is None:
             self.layers = []
         self.layers.append(layer_obj)
@@ -507,11 +505,10 @@ class OGCWebMapService(OGCWebService):
         )
         if parent is not None:
             parent.child_layers.append(layer_obj)
-        position += 1
 
         self._parse_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
-    def _parse_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
+    def _parse_layers_recursive(self, layers, parent=None, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -519,7 +516,6 @@ class OGCWebMapService(OGCWebService):
         Args:
             layers: An array of layers (In fact the children of the parent layer)
             parent: The parent layer. If no parent exist it means we are in the root layer
-            position: The position inside the layer tree, which is more like an order number
         Returns:
             nothing
         """
@@ -530,14 +526,12 @@ class OGCWebMapService(OGCWebService):
             for layer in layers:
                 thread_list.append(
                     Thread(target=self._parse_single_layer,
-                           args=(layer, parent, position))
+                           args=(layer, parent))
                 )
-                position += 1
             execute_threads(thread_list)
         else:
             for layer in layers:
-                self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
-                position += 1
+                self._parse_single_layer(layer, parent, step_size=step_size, async_task=async_task)
 
     def _parse_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
@@ -746,7 +740,7 @@ class OGCWebMapService(OGCWebService):
                 parent_service=service,
                 group=group,
                 user=user,
-                parent_layer=None,
+                parent=None,
                 epsg_api=self.epsg_api
             )
         except KeyError:
@@ -818,9 +812,9 @@ class OGCWebMapService(OGCWebService):
              service (Service): The persisted service object
         """
 
-        ## Create ServiceType record if it doesn't exist yet
+        # Create ServiceType record if it doesn't exist yet
         service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
+            name=self.service_type.value.lower(),
             version=self.service_version.value
         )[0]
         service = Service()
@@ -939,12 +933,9 @@ class OGCWebMapService(OGCWebService):
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
-            md_relation = MetadataRelation()
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
-            md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
-            md_relation.save()
-            metadata.related_metadata.add(md_relation)
+            metadata.add_metadata_relation(to_metadata=service.linked_service_metadata,
+                                           relation_type=MetadataRelationEnum.VISUALIZES.value,
+                                           origin=ResourceOriginEnum.CAPABILITIES.value)
 
 
 class OGCWebMapServiceLayer(OGCLayer):

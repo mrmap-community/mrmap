@@ -23,7 +23,7 @@ class WmsHelper:
             metadata=service.metadata
         ) if self.service.metadata.is_layer_metadata else Layer.objects.get(
             parent_service=self.service,
-            parent_layer=None
+            parent=None
         )
         self.crs_srs_identifier = 'CRS' if self.service.service_type.version == OGCServiceVersionEnum.V_1_3_0.value else 'SRS'
         self.bbox = self.layer.bbox_lat_lon if self.layer.bbox_lat_lon.area > 0 else self.parent_service.metadata.find_max_bounding_box()

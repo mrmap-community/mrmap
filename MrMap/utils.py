@@ -8,7 +8,7 @@ Created on: 17.04.19
 import urllib
 from MrMap.themes import DARK_THEME, LIGHT_THEME
 from django.utils.html import format_html
-
+from typing import Iterable, Any, Tuple
 from structure.models import MrMapUser
 from MrMap.settings import DEBUG
 
@@ -106,7 +106,7 @@ def set_uri_GET_param(uri: str, param: str, val):
 
 # ToDo: move this function to the MrMapUser model
 def get_theme(user: MrMapUser):
-    if user is None or user.theme is None:
+    if user is None or user.is_anonymous or user.theme is None:
         return LIGHT_THEME
     elif user.theme.name == 'DARK':
         return DARK_THEME
@@ -154,3 +154,12 @@ def get_dict_value_insensitive(d: dict, k: str):
         val: The matching value
     """
     return {key.lower(): val for key, val in d.items()}.get(k.lower(), None)
+
+
+def signal_last(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+    iterable = iter(it)
+    ret_var = next(iterable)
+    for val in iterable:
+        yield False, ret_var
+        ret_var = val
+    yield True, ret_var

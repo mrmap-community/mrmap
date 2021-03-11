@@ -14,10 +14,6 @@ jobs:
     name: Sonar
     runs-on: ubuntu-20.04
     steps:
-      - name: Set up postgres
-        run: |
-          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
-          sudo systemctl start postgresql
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -34,7 +30,12 @@ jobs:
           postgresql-client \
           postgis \
           postgresql-server-dev-13 \
+          postgresql-13-postgis-3 \
           postgresql-13-postgis-3-scripts
+      - name: Set up postgres
+        run: |
+          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
+          sudo systemctl start postgresql
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:

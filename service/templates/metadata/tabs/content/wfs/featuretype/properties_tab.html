@@ -59,11 +59,11 @@
             {{ featuretype.bbox_lat_lon.geom_type }}
         </td>
     </tr>
-    {% if related_metadata %}
+    {% if related_metadatas %}
     <tr>
         <th scope="row">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Coupled dataset metadata' %}</th>
         <td>
-            {% render_table related_metadata %}
+            {% render_table related_metadatas %}
         </td>
     </tr>
     {% endif %}

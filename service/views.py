@@ -5,498 +5,223 @@ from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.db.models import QuerySet, Q
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
-from django.utils.translation import gettext_lazy as _
+from django.template.loader import render_to_string
+from django.utils.decorators import method_decorator
+from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import ListView, DetailView, DeleteView, UpdateView
+from django.views.generic.detail import BaseDetailView
+from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
+from django_bootstrap_swt.enums import ButtonColorEnum
+from django_bootstrap_swt.utils import RenderHelper
+from django_filters.views import FilterView
+from django_tables2 import SingleTableMixin
+from django_tables2.export import ExportMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
+from MrMap.decorators import log_proxy, ownership_required, permission_required
+from MrMap.forms import get_current_view_args
+from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SUBSCRIPTION_CREATED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
-from MrMap.responses import DefaultContext
+    SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
-from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
-    ActivateServiceForm
+from MrMap.themes import FONT_AWESOME_ICONS
+from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
+    SuccessMessageDeleteMixin
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
+from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
-from service.helper.logger_helper import prepare_proxy_log_filter
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    DatasetTable, CswTable
+from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
+    ProxyLogTable
 from service.tasks import async_log_response
-from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
+from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
-from structure.models import MrMapUser, PendingTask
+from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
-from django.urls import reverse
-
+from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 
 
-def _is_updatecandidate(metadata: Metadata):
-    # get service object
-    if metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
-        service = metadata.featuretype.parent_service
-    elif metadata.is_metadata_type(MetadataEnum.DATASET):
-        return False
-    else:
-        service = metadata.service
-    # proof if the requested metadata is a update_candidate --> 404
-    if service.is_root:
-        if service.is_update_candidate_for is not None:
-            return True
-    else:
-        if service.parent_service.is_update_candidate_for is not None:
-            return True
-    return False
-
-
-def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
-    """ Collects all wms service data and prepares parameter for rendering
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         params (dict): The rendering parameter
-    """
-    # whether whole services or single layers should be displayed
-    if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
-        show_service = False
-    else:
-        show_service = True
-
-    queryset = Metadata.objects.filter(
-        service__service_type__name=OGCServiceEnum.WMS.value,
-        created_by__in=user_groups,
+def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
+    return Metadata.objects.filter(
+        service__service_type__name=service_type.value,
+        created_by__in=instance.request.user.get_groups,
         is_deleted=False,
-        service__is_update_candidate_for=None
-    ).prefetch_related(
-        "contact",
+        service__is_update_candidate_for=None,
+    ).select_related(
         "service",
         "service__created_by",
         "service__published_for",
         "service__service_type",
-        "external_authentication",
         "service__parent_service__metadata",
         "service__parent_service__metadata__external_authentication",
-    ).order_by("title")
-
-    if show_service:
-        wms_table = WmsTableWms(request=request,
-                                queryset=queryset,
-                                filter_set_class=MetadataWmsFilter,
-                                order_by_field='swms',  # swms = sort wms
-                                current_view=current_view,
-                                param_lead='wms-t', )
-    else:
-        wms_table = WmsLayerTableWms(request=request,
-                                     queryset=queryset,
-                                     filter_set_class=MetadataWmsFilter,
-                                     order_by_field='swms',  # swms = sort wms
-                                     current_view=current_view,
-                                     param_lead='wms-t', )
-
-    return {
-        "wms_table": wms_table,
-    }
-
-
-def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
-    """ Collects all wfs service data and prepares parameter for rendering
-
-    Args:
-        request (HttpRequest): The incoming request
-        user (MrMapUser): The performing user
-    Returns:
-         params (dict): The rendering parameter
-    """
-    queryset = Metadata.objects.filter(
-        service__service_type__name=OGCServiceEnum.WFS.value,
-        created_by__in=user_groups,
-        is_deleted=False,
-        service__is_update_candidate_for=None
-    ).prefetch_related(
         "contact",
-        "service",
-        "service__created_by",
-        "service__published_for",
-        "service__service_type",
         "external_authentication",
-        "service__parent_service__metadata",
-        "service__parent_service__metadata__external_authentication",
-    ).order_by("title")
-
-    wfs_table = WfsServiceTable(request=request,
-                                queryset=queryset,
-                                filter_set_class=MetadataWfsFilter,
-                                order_by_field='swfs',  # swms = sort wms
-                                current_view=current_view,
-                                param_lead='wfs-t',)
-
-    return {
-        "wfs_table": wfs_table,
-    }
-
-
-def _prepare_csw_table(request: HttpRequest, current_view: str, user_groups):
-    """ Collects all wfs service data and prepares parameter for rendering
-
-    Args:
-        request (HttpRequest): The incoming request
-        user (MrMapUser): The performing user
-    Returns:
-         params (dict): The rendering parameter
-    """
-    queryset = Metadata.objects.filter(
-        metadata_type=MetadataEnum.CATALOGUE.value,
-        created_by__in=user_groups,
-        is_deleted=False,
-        service__is_update_candidate_for=None
     ).prefetch_related(
-        "contact",
-        "service",
-        "service__created_by",
-        "service__published_for",
-        "service__service_type",
-        "external_authentication",
+        "service__featuretypes",
+        "service__child_services",
     ).order_by("title")
 
-    table = CswTable(request=request,
-                     queryset=queryset,
-                     filter_set_class=MetadataCswFilter,
-                     order_by_field='scsw',  # scsw = sort csw
-                     current_view=current_view,
-                     param_lead='csw-t',)
-
-    return {
-        "csw_table": table,
-    }
-
-
-def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str, user_groups):
-    dataset_table = DatasetTable(request=request,
-                                 filter_set_class=MetadataDatasetFilter,
-                                 queryset=user.get_datasets_as_qs(user_groups=user_groups),
-                                 current_view=current_view,
-                                 param_lead='dataset-t',)
-    return {
-            "dataset_table": dataset_table,
-    }
-
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_REGISTER_RESOURCE
-)
-def add(request: HttpRequest):
-    """ Renders wizard page configuration for service registration
-
-        Args:
-            request (HttpRequest): The incoming request
-            user (User): The performing user
-        Returns:
-             params (dict): The rendering parameter
-    """
-    return NewResourceWizard.as_view(
-        form_list=NEW_RESOURCE_WIZARD_FORMS,
-        current_view=request.GET.get('current-view'),
-        title=_(format_html('<b>Add New Resource</b>')),
-        id_wizard='add_new_resource_wizard',
-    )(request=request)
-
-
-@login_required
-def index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of all wms and wfs
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params: (Optional) the update_params dict
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "views/index.html"
-
-    # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
-    pt_table = PendingTasksTable(data=pt,
-                                 orderable=False,
-                                 request=request,)
-
-    params = {
-        "pt_table": pt_table,
-        "current_view": "resource:index",
-    }
-
-    params.update(_prepare_wms_table(request=request, current_view='resource:index', user_groups=user_groups))
-    params.update(_prepare_wfs_table(request=request, current_view='resource:index', user_groups=user_groups))
-    params.update(_prepare_csw_table(request=request, current_view='resource:index', user_groups=user_groups))
-    params.update(_prepare_dataset_table(request=request, current_view='resource:index', user=user, user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-def pending_tasks(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a table of all pending tasks without any css depending scripts or something else
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-
-    # Default content
-    template = "includes/pending_tasks.html"
-
-    # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.get_groups()).order_by('id')
-    pt_table = PendingTasksTable(data=pt,
-                                 orderable=False,
-                                 request=request,)
-    params = {
-        "pt_table": pt_table,
-        "current_view": "resource:prending-tasks",
-    }
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-@login_required
-def wms_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a table of all wms without any css depending scripts or something else
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "includes/index/wms.html"
-
-    current_view = request.GET.get('current-view', None)
-
-    params = {
-        "current_view": current_view,
-    }
-
-    params.update(_prepare_wms_table(request=request, current_view=current_view, user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-def wfs_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a table of all wfs without any css depending scripts or something else
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "includes/index/wfs.html"
-
-    current_view = request.GET.get('current-view', None)
-
-    params = {
-        "current_view": current_view,
-    }
-
-    params.update(_prepare_wfs_table(request=request, current_view=current_view, user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-def csw_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a table of all csw without any css depending scripts or something else
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "includes/index/csw.html"
-
-    current_view = request.GET.get('current-view', None)
-
-    params = {
-        "current_view": current_view,
-    }
-
-    params.update(_prepare_csw_table(request=request, current_view=current_view, user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-def datasets_table(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a table of all datasets without any css depending scripts or something else
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params:
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "includes/index/datasets.html"
-
-    current_view = request.GET.get('current-view', None)
-
-    params = {
-        "current_view": current_view,
-    }
-
-    params.update(_prepare_dataset_table(request=request, current_view=current_view, user_groups=user_groups, user=user))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_REMOVE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
-def remove(request: HttpRequest, metadata_id):
-    """ Renders the remove form for a service
-
-    Args:
-        request(HttpRequest): The used request
-        metadata_id:
-    Returns:
-        Redirect to service:index
-    """
-    metadata = get_object_or_404(Metadata, id=metadata_id)
-    form = RemoveServiceForm(data=request.POST or None,
-                             request=request,
-                             reverse_lookup='resource:remove',
-                             reverse_args=[metadata_id, ],
-                             # ToDo: after refactoring of all forms is done, show_modal can be removed
-                             show_modal=True,
-                             is_confirmed_label=_("Do you really want to remove this service?"),
-                             form_title=_(f"Remove service <strong>{metadata}</strong>"),
-                             instance=metadata)
-    return form.process_request(valid_func=form.process_remove_service)
-
-
-@login_required
-@resolve_metadata_public_id
-@check_permission(
-    PermissionEnum.CAN_ACTIVATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
-def activate(request: HttpRequest, metadata_id):
-    """ (De-)Activates a service and all of its layers
-
-    Args:
-        metadata_id:
-        request:
-    Returns:
-         redirects to service:index
-    """
-    md = get_object_or_404(Metadata, id=metadata_id)
-
-    form = ActivateServiceForm(
-        data=request.POST or None,
-        request=request,
-        reverse_lookup='resource:activate',
-        reverse_args=[metadata_id, ],
-        # ToDo: after refactoring of all forms is done, show_modal can be removed
-        show_modal=True,
-        form_title=_("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _("Activate resource \n<strong>{}</strong>").format(md.title),
-        is_confirmed_label=_("Do you really want to deactivate this resource?") if md.is_active else _("Do you really want to activate this resource?"),
-        instance=md,
-    )
-    return form.process_request(valid_func=form.process_activate_service)
-
-
-@resolve_metadata_public_id
+
+@method_decorator(login_required, name='dispatch')
+class PendingTaskView(CustomSingleTableMixin, ListView):
+    model = PendingTask
+    table_class = PendingTaskTable
+    title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
+
+
+@method_decorator(login_required, name='dispatch')
+class WmsIndexView(CustomSingleTableMixin, FilterView):
+    model = Metadata
+    table_class = OgcServiceTable
+    filterset_class = OgcWmsFilter
+    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+    title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
+
+    def get_filterset_kwargs(self, *args):
+        kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
+        if kwargs['data'] is None:
+            kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
+        return kwargs
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(WmsIndexView, self).get_table(**kwargs)
+        # whether whole services or single layers should be displayed, we have to exclude some columns
+        filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
+        if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
+            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+        else:
+            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.all_permissions)))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
+        return table
+
+    def get_queryset(self):
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
+
+
+@method_decorator(login_required, name='dispatch')
+class WfsIndexView(CustomSingleTableMixin, FilterView):
+    model = Metadata
+    table_class = OgcServiceTable
+    filterset_fields = {'title': ['icontains'], }
+    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+    title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(WfsIndexView, self).get_table(**kwargs)
+        table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
+
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
+        return table
+
+    def get_queryset(self):
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WFS)
+
+
+@method_decorator(login_required, name='dispatch')
+class CswIndexView(CustomSingleTableMixin, FilterView):
+    model = Metadata
+    table_class = OgcServiceTable
+    filterset_fields = {'title': ['icontains'], }
+    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
+    title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(CswIndexView, self).get_table(**kwargs)
+        table.exclude = ('parent_service', 'layers', 'featuretypes', 'health', 'service__published_for')
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
+        return table
+
+    def get_queryset(self):
+        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.CSW)
+
+
+@method_decorator(login_required, name='dispatch')
+class DatasetIndexView(CustomSingleTableMixin, FilterView):
+    model = Metadata
+    table_class = DatasetTable
+    filterset_class = DatasetFilter
+    title = get_icon(IconEnum.DATASET) + _(' Dataset').__str__()
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(DatasetIndexView, self).get_table(**kwargs)
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
+        return table
+
+    def get_queryset(self):
+        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value, login_url='home'), name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk', login_url='home'), name='dispatch')
+class ResourceDeleteView(SuccessMessageDeleteMixin, DeleteView):
+    model = Metadata
+    queryset = Metadata.objects.filter(Q(metadata_type=MetadataEnum.SERVICE.value) |
+                                       Q(metadata_type=MetadataEnum.CATALOGUE.value))
+    success_url = reverse_lazy('home')
+    template_name = "MrMap/detail_views/delete.html"
+    success_message = SERVICE_SUCCESSFULLY_DELETED
+
+    def get_msg_dict(self):
+        return {'name': self.get_object()}
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='home'),
+                  name='dispatch')
+class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+    model = Metadata
+    template_name = "MrMap/detail_views/generic_form.html"
+    fields = ('is_active',)
+
+    def get_title(self):
+        if self.object.is_active:
+            return _('Deactivate service')
+        else:
+            return _('Activate service')
+
+    def get_success_message(self, cleaned_data):
+        if cleaned_data['is_active']:
+            self.success_message = SERVICE_ACTIVATED
+        else:
+            self.success_message = SERVICE_DEACTIVATED
+        cleaned_data.update({'title': self.object.title})
+        return super().get_success_message(cleaned_data)
+
+
 def get_service_metadata(request: HttpRequest, metadata_id):
     """ Returns the service metadata xml file for a given metadata id
 
@@ -533,47 +258,34 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
         user=user,
     )[1]
     if subscription_created:
-        messages.success(request, SUBSCRIPTION_CREATED_TEMPLATE.format(md.title))
+        messages.success(request, SUBSCRIPTION_SUCCESSFULLY_CREATED.format(md.title))
     else:
         messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(md.title))
 
     return redirect("subscription-index")
 
 
-@resolve_metadata_public_id
-def get_dataset_metadata(request: HttpRequest, metadata_id):
-    """ Returns the dataset metadata xml file for a given metadata id
+class DatasetMetadataXmlView(BaseDetailView):
+    model = Metadata
+    # a dataset metadata without a document is broken
+    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents__isnull=False)\
+                               .prefetch_related('documents')
+    content_type = 'application/xml'
+    object = None
 
-    Args:
-        metadata_id: The metadata id
-    Returns:
-         A HttpResponse containing the xml file
-    """
-    md = get_object_or_404(Metadata, id=metadata_id)
-    if not md.is_active:
-        return HttpResponse(content=SERVICE_DISABLED, status=423)
-    try:
-        if md.metadata_type != OGCServiceEnum.DATASET.value:
-            # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-            md = md.get_related_dataset_metadata()
-            if md is None:
-                raise ObjectDoesNotExist
-            return redirect("resource:get-dataset-metadata", metadata_id=md.id)
-        documents = Document.objects.filter(
-            metadata=md,
-            document_type=DocumentEnum.METADATA.value,
-            is_active=True,
-        )
-        # prefer current metadata document (is_original=false), otherwise take the original one
-        document = documents.get(is_original=False) if documents.filter(is_original=False).exists() else documents.get(is_original=True)
-        document = document.content
-    except ObjectDoesNotExist:
-        # ToDo: a datasetmetadata without a document is broken
-        return HttpResponse(content=_("No dataset metadata found"), status=404)
-    return HttpResponse(document, content_type='application/xml')
+    def get(self, request, *args, **kwargs):
+        document = self.object.documents.get(is_original=False) if self.object.documents.filter(is_original=False).exists() else self.object.documents.get(
+            is_original=True)
+        return HttpResponse(document.content, content_type=self.content_type)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not self.object.is_active:
+            return HttpResponse(content=SERVICE_DISABLED, status=423)
+        else:
+            return super().dispatch(request, *args, **kwargs)
 
 
-@resolve_metadata_public_id
 def get_service_preview(request: HttpRequest, metadata_id):
     """ Returns the service metadata preview as png for a given metadata id
 
@@ -587,22 +299,22 @@ def get_service_preview(request: HttpRequest, metadata_id):
     md = get_object_or_404(Metadata, id=metadata_id)
     if md.is_metadata_type(MetadataEnum.DATASET) or \
             md.is_metadata_type(MetadataEnum.FEATURETYPE) or \
-            not md.service.is_service_type(OGCServiceEnum.WMS) or _is_updatecandidate(md):
+            not md.service.is_service_type(OGCServiceEnum.WMS) or md.is_updatecandidate:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
-        layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
+        layer = get_object_or_404(Layer, parent_service=service, parent=None, )
         # Fake the preview image for the whole service by using the root layer instead
         md = layer.metadata
     elif md.service.is_service_type(OGCServiceEnum.WMS) and not md.service.is_root:
         layer = md.service.layer
 
     layer = layer.identifier
-    if md.bounding_geometry.area == 0:
+    if md.allowed_area.area == 0:
         bbox = md.find_max_bounding_box()
     else:
-        bbox = md.bounding_geometry
+        bbox = md.allowed_area
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
     img_width = 200
@@ -668,7 +380,6 @@ def get_service_preview(request: HttpRequest, metadata_id):
     return HttpResponse(response, content_type=content_type)
 
 
-@resolve_metadata_public_id
 def _get_capabilities(request: HttpRequest, metadata_id):
     """ Returns the current capabilities xml file
 
@@ -688,196 +399,76 @@ def _get_capabilities(request: HttpRequest, metadata_id):
     return HttpResponse(doc, content_type='application/xml')
 
 
-@resolve_metadata_public_id
-def get_metadata_html(request: HttpRequest, metadata_id):
-    """ Returns the metadata as html rendered view
-        Args:
-            request (HttpRequest): The incoming request
-            metadata_id : The metadata id
-        Returns:
-             A HttpResponse containing the html formated metadata
-    """
-    # ---- constant values
-    base_template = '404.html'
-    # ----
-    md = get_object_or_404(Metadata, id=metadata_id)
-    if _is_updatecandidate(md):
-        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+class MetadataHtml(DetailView):
+    model = Metadata
+    queryset = Metadata.objects.select_related('service').filter(service__is_update_candidate_for=None)
+    extra_context = {"SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION}
 
-    # collect global data for all cases
-    params = {
-        'md_id': md.id,
-        'title': md.title,
-        'abstract': md.abstract,
-        'access_constraints': md.access_constraints,
-        'capabilities_original_uri': md.capabilities_original_uri,
-        'capabilities_uri': md.capabilities_uri,
-        'contact': collect_contact_data(md.contact),
-        "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
-    }
+    def get_template_names(self):
+        if self.object.is_metadata_type(MetadataEnum.DATASET):
+            self.template_name = 'metadata/base/dataset/dataset_metadata_as_html.html'
+        elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
+            self.template_name = 'metadata/base/wfs/featuretype_metadata_as_html.html'
+        elif self.object.is_metadata_type(MetadataEnum.LAYER):
+            self.template_name = 'metadata/base/wms/layer_metadata_as_html.html'
+        elif self.object.service.is_service_type(OGCServiceEnum.WMS):
+            # wms root object
+            self.template_name = 'metadata/base/wms/root_metadata_as_html.html'
+        elif self.object.service.is_service_type(OGCServiceEnum.WFS):
+            # wfs root object
+            self.template_name = 'metadata/base/wfs/root_metadata_as_html.html'
+        elif self.object.is_catalogue_metadata:
+            # ToDo: Add html view for CSW!
+            pass
+        return super().get_template_names()
 
-    params.update(collect_metadata_related_objects(md, request, ))
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # todo: refactor this messy context by using just the self.object from default context....
+        context.update({
+            'md_id': self.object.id,
+            'title': self.object.title,
+            'abstract': self.object.abstract,
+            'access_constraints': self.object.access_constraints,
+            'capabilities_original_uri': self.object.capabilities_original_uri,
+            'capabilities_uri': self.object.capabilities_uri,
+            'contact': collect_contact_data(self.object.contact),
+            "SEMANTIC_WEB_HTML_INFORMATION": SEMANTIC_WEB_HTML_INFORMATION,
+        })
 
-    # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
-    if md.is_metadata_type(MetadataEnum.DATASET):
-        base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
-        params['contact'] = collect_contact_data(md.contact)
-        params['bounding_box'] = md.bounding_geometry
-        params['dataset_metadata'] = md
-        params['fees'] = md.fees
-        params['licence'] = md.licence
-        params.update({'capabilities_uri': md.service_metadata_uri})
+        context.update(collect_metadata_related_objects(self.object, self.request, ))
 
-    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
-        params.update(collect_featuretype_data(md))
+        if self.object.is_metadata_type(MetadataEnum.DATASET):
+            context['contact'] = collect_contact_data(self.object.contact)
+            context['bounding_box'] = self.object.allowed_area
+            context['dataset_metadata'] = self.object
+            context['fees'] = self.object.fees
+            context['licence'] = self.object.licence
+            context.update({'capabilities_uri': self.object.service_metadata_uri})
 
-    elif md.is_metadata_type(MetadataEnum.LAYER):
-        base_template = 'metadata/base/wms/layer_metadata_as_html.html'
-        params.update(collect_layer_data(md, request))
+        elif self.object.is_metadata_type(MetadataEnum.FEATURETYPE):
+            context.update(collect_featuretype_data(self.object))
 
-    elif md.service.is_service_type(OGCServiceEnum.WMS):
-        # wms root object
-        base_template = 'metadata/base/wms/root_metadata_as_html.html'
-        params.update(collect_wms_root_data(md, request))
+        elif self.object.is_metadata_type(MetadataEnum.LAYER):
+            context.update(collect_layer_data(self.object, self.request))
 
-    elif md.service.is_service_type(OGCServiceEnum.WFS):
-        # wfs root object
-        base_template = 'metadata/base/wfs/root_metadata_as_html.html'
-        params.update(collect_wfs_root_data(md, request))
+        elif self.object.service.is_service_type(OGCServiceEnum.WMS):
+            # wms root object
+            context.update(collect_wms_root_data(self.object, self.request))
 
-    elif md.is_catalogue_metadata:
-        # ToDo: Add html view for CSW!
-        pass
+        elif self.object.service.is_service_type(OGCServiceEnum.WFS):
+            # wfs root object
+            context.update(collect_wfs_root_data(self.object, self.request))
 
-    context = DefaultContext(request, params, None)
-    return render(request=request, template_name=base_template, context=context.get_context())
+        elif self.object.is_catalogue_metadata:
+            # ToDo: Add html view for CSW!
+            pass
 
-
-@login_required
-def wms_index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of all wms
-
-    Args:t
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "views/wms_index.html"
-
-    # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
-    pt_table = PendingTasksTable(data=pt,
-                                 orderable=False,
-                                 request=request,)
-
-    params = {
-        "pt_table": pt_table,
-        "current_view": "resource:wms-index",
-    }
-
-    params.update(_prepare_wms_table(request=request, current_view='resource:wms-index', user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
+        return context
 
 @login_required
-def csw_index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders an overview of all wms and wfs
-
-    Args:
-        request (HttpRequest): The incoming request
-        update_params: (Optional) the update_params dict
-        status_code:
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "views/csw_index.html"
-
-    # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
-    pt_table = PendingTasksTable(data=pt,
-                                 orderable=False,
-                                 request=request,)
-
-    params = {
-        "pt_table": pt_table,
-        "current_view": "resource:csw-index",
-    }
-
-    params.update(_prepare_csw_table(request=request, current_view='resource:index', user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_EDIT_METADATA
-)
-def datasets_index(request: HttpRequest, update_params=None, status_code: int = 200, ):
-    """ The index view of the editor app.
-
-    Lists all datasets with information of custom set metadata.
-
-    Args:
-        request: The incoming request
-        update_params:
-        status_code:
-    Returns:
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    template = "views/datasets_index.html"
-
-    params = {
-        "current_view": 'resource:datasets-index',
-    }
-    params.update(
-        _prepare_dataset_table(
-            request=request,
-            user=user,
-            current_view='resource:datasets-index',
-            user_groups=user_groups
-        ),
-    )
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+# @permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
+# @ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def new_pending_update_service(request: HttpRequest, metadata_id):
     """ Compare old service with new service and collect differences
@@ -899,7 +490,8 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
                                   show_modal=True,
                                   current_service=current_service,
                                   requesting_user=user,
-                                  form_title=_(f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
+                                  form_title=_l(
+                                      f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
     if request.method == 'GET':
         return form.render_view()
 
@@ -927,12 +519,11 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
     return HttpResponseRedirect(reverse(request.GET.get('current-view', None), args=(metadata_id,)), status=303)
 
+
 # Todo: wizard/form view?
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
@@ -942,14 +533,14 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
     try:
         new_service = Service.objects.get(is_update_candidate_for=current_service)
     except ObjectDoesNotExist:
-        messages.error(request, _("No updatecandidate was found."))
+        messages.error(request, _l("No updatecandidate was found."))
         # ToDo: make 7 dynamic
-        messages.info(request, _("Update candidates will be deleted after 7 days."))
+        messages.info(request, _l("Update candidates will be deleted after 7 days."))
         return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
 
     if current_service.is_service_type(OGCServiceEnum.WMS):
-        current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
-        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+        current_service.root_layer = Layer.objects.get(parent_service=current_service, parent=None)
+        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent=None)
 
     # Collect differences
     comparator = ServiceComparator(service_a=new_service, service_b=current_service)
@@ -974,7 +565,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
     updated_elements_table = UpdateServiceElements(request=request,
                                                    queryset=updated_elements_md,
                                                    current_view="resource:dismiss-pending-update",
-                                                   order_by_field='updated',)
+                                                   order_by_field='updated', )
 
     removed_elements_table = UpdateServiceElements(request=request,
                                                    queryset=removed_elements_md,
@@ -995,18 +586,15 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
     if update_params:
         params.update(update_params)
 
-    context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
-                  context=context.get_context(),
+                  context=params,
                   status=status_code)
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
@@ -1016,9 +604,9 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     if request.method == 'POST':
         if new_service.created_by_user == user:
             new_service.delete()
-            messages.success(request, _("Pending update successfully dismissed."))
+            messages.success(request, _l("Pending update successfully dismissed."))
         else:
-            messages.error(request, _("You are not the owner of this pending update. Rejected!"))
+            messages.error(request, _l("You are not the owner of this pending update. Rejected!"))
 
         return HttpResponseRedirect(reverse("resource:detail", args=(current_service.metadata.id,)), status=303)
 
@@ -1026,27 +614,21 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(
-    PermissionEnum.CAN_UPDATE_RESOURCE
-)
-@check_ownership(Metadata, 'metadata_id')
+# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
+@ownership_required(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
-    user = user_helper.get_user(request)
-
     if request.method == 'POST':
-        current_service = get_object_or_404(Service, metadata__id=metadata_id)
-        new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
-        new_document = get_object_or_404(
-            Document,
-            metadata=new_service.metadata,
-            document_type=DocumentEnum.CAPABILITY.value,
-            is_original=True,
-        )
+        current_service = get_object_or_404(
+            Service.objects.select_related('metadata').prefetch_related('metadata__documents'),
+            metadata__id=metadata_id)
+        new_service = get_object_or_404(
+            Service.objects.select_related('metadata').prefetch_related('metadata__documents'),
+            is_update_candidate_for=current_service)
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
-            new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
-            current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
+            new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent=None)
+            current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent=None)
 
         comparator = ServiceComparator(service_a=new_service, service_b=current_service)
         diff = comparator.compare_services()
@@ -1078,9 +660,11 @@ def run_update_service(request: HttpRequest, metadata_id):
             )
             md.save()
             current_service.metadata = md
+            current_service.save()
 
             # Then update the service object
             current_service = update_helper.update_service(current_service, new_service)
+            current_service.save()
 
             # Update the subelements
             if new_service.is_service_type(OGCServiceEnum.WFS):
@@ -1092,7 +676,7 @@ def run_update_service(request: HttpRequest, metadata_id):
                     new_service.keep_custom_md
                 )
             elif new_service.is_service_type(OGCServiceEnum.WMS):
-                # dauer lange
+                # takes long time | todo proof again after using django-mptt
                 current_service = update_helper.update_wms_elements(
                     current_service,
                     new_service,
@@ -1101,12 +685,15 @@ def run_update_service(request: HttpRequest, metadata_id):
                     new_service.keep_custom_md
                 )
 
-            update_helper.update_capability_document(current_service, new_document.content)
+            current_service.save()
+
+            update_helper.update_capability_document(current_service, new_service)
 
             current_service.save()
+
             user_helper.create_group_activity(
                 current_service.metadata.created_by,
-                user,
+                request.user,
                 SERVICE_UPDATED,
                 current_service.metadata.title
             )
@@ -1125,142 +712,110 @@ def run_update_service(request: HttpRequest, metadata_id):
         return HttpResponseRedirect(reverse("resource:pending-update", args=(metadata_id,)), status=303)
 
 
-@login_required
-def wfs_index(request: HttpRequest, update_params=None, status_code=None):
-    """ Renders an overview of all wfs
+@method_decorator(login_required, name='dispatch')
+@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
+class ResourceDetailTableView(DetailView):
+    model = Metadata
+    template_name = 'generic_views/generic_detail_without_base.html'
+    queryset = Metadata.objects.all().prefetch_related('contact', 'service', 'service__layer', 'featuretype')
 
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    user = user_helper.get_user(request)
-    user_groups = user.get_groups()
-
-    # Default content
-    template = "views/wfs_index.html"
-
-    # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user_groups).order_by('id')
-    pt_table = PendingTasksTable(data=pending_tasks,
-                                 orderable=False,
-                                 request=request,)
-
-    params = {
-        "pt_table": pt_table,
-        "current_view": "resource:wfs-index"
-    }
-
-    params.update(_prepare_wfs_table(request=request, current_view='resource:wfs-indext', user_groups=user_groups))
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=200 if status_code is None else status_code)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        details = ResourceDetailTable(data=[self.object, ], request=self.request, )
+        details = render_to_string(template_name='skeletons/django_tables2_render_table.html',
+                                   context={'table': details})
+        context.update({'card_body': details})
+        return context
 
 
-def _check_for_dataset_metadata(metadata: Metadata, ):
-    """ Checks whether a metadata object has a dataset metadata record.
+@method_decorator(login_required, name='dispatch')
+class ResourceRelatedDatasetView(DetailView):
+    model = Metadata
+    template_name = 'generic_views/generic_detail_without_base.html'
+    queryset = Metadata.objects.all().prefetch_related('related_metadatas', )
 
-    Args:
-        metadata:
-    Returns:
-         The document or none
-    """
-    try:
-        md_2 = metadata.get_related_dataset_metadata()
-        return Document.objects.get(
-            metadata=md_2,
-            document_type=DocumentEnum.METADATA.value,
-        )
-    except ObjectDoesNotExist:
-        return None
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
-# Todo: index view
-@login_required
-@check_ownership(Metadata, 'object_id')
-def detail(request: HttpRequest, object_id, update_params=None, status_code=None):
-    """ Renders a detail view of the selected service
+        related_datasets = self.object.get_related_dataset_metadatas()
 
-    Args:
-        request: The incoming request
-        object_id: The id of the selected metadata
-        update_params: dict with params we will update before we return the context
-        status_code
-    Returns:
-    """
-    user = user_helper.get_user(request)
+        item_list = []
+        for related_dataset in related_datasets:
+            link_to_dataset = Link(url=related_dataset.detail_view_uri, content=related_dataset.title)
 
-    template = "views/detail.html"
-    service_md = get_object_or_404(Metadata, id=object_id)
+            metadata_xml = Link(url=related_dataset.service_metadata_uri,
+                                content=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'),
+                                open_in_new_tab=True)
+            metadata_html = Link(url=related_dataset.html_metadata_uri,
+                                 content=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'),
+                                 open_in_new_tab=True)
 
-    if _is_updatecandidate(service_md):
-        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+            dataset_metadata_dropdown = Dropdown(btn_value=FONT_AWESOME_ICONS['METADATA'] + _(' Metadata'),
+                                                 items=[metadata_xml, metadata_html],
+                                                 color=ButtonColorEnum.SECONDARY,
+                                                 header=_l('Show metadata as:'))
 
-    params = {}
+            render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                         update_url_qs=get_current_view_args(request=self.request),
+                                         update_attrs={"class": ["btn-sm", "mr-1"]})
+            right = render_helper.render_list_coherent(items=related_dataset.get_actions())
 
-    # catch featuretype
-    if service_md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        params.update({'caption': _("Shows informations about the featuretype.")})
-        template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
-        service = service_md.featuretype
-        layers_md_list = {}
-        params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
-    else:
-        if service_md.service.is_root:
-            params.update({'caption': _("Shows informations about the service.")})
-            service = service_md.service
-            layers = Layer.objects.filter(parent_service=service_md.service)
-            layers_md_list = layers.filter(parent_layer=None)
-        else:
-            params.update({'caption': _("Shows informations about the sublayer.")})
-            template = "views/sublayer_detail_no_base.html" if 'no-base' in request.GET else "views/sublayer_detail.html"
-            service = Layer.objects.get(
-                metadata=service_md
-            )
-            # get sublayers
-            layers_md_list = Layer.objects.filter(
-                parent_layer=service_md.service
-            )
-            params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
+            item_content = DefaultHeaderRow(content_left=link_to_dataset.render(),
+                                            content_center=dataset_metadata_dropdown.render(),
+                                            content_right=right)
+            item_list.append(ListGroupItem(content=item_content.render()))
 
-    mime_types = {}
+        dataset_list = ListGroup(items=item_list)
 
-    formats = service_md.get_formats()
-    for mime in formats:
-        op = mime_types.get(mime.operation)
-        if op is None:
-            op = []
-        op.append(mime.mime_type)
-        mi = {mime.operation: op}
-        mime_types.update(mi)
+        context.update({'card_body': dataset_list if related_datasets else ''})
+        return context
 
-    params.update({
-        "service_md": service_md,
-        "service": service,
-        "layers": layers_md_list,
-        "mime_types": mime_types,
-        "leaflet_add_bbox": True,
-        "current_view": "resource:detail",
-        "current_view_arg": object_id,
-    })
 
-    if update_params:
-        params.update(update_params)
+def render_actions(element, render_helper):
+    element.actions = render_helper.render_list_coherent(safe=True, items=element.metadata.get_actions())
+    return element.actions
 
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=200 if status_code is None else status_code)
+
+@method_decorator(login_required, name='dispatch')
+class ResourceTreeView(DetailView):
+    model = Metadata
+    template_name = 'generic_views/resource.html'
+    available_resources = Q(metadata_type='layer') | \
+                          Q(metadata_type='featureType') | \
+                          Q(service__service_type__name='wms') | \
+                          Q(service__service_type__name='wfs') & \
+                          Q(service__is_update_candidate_for=None)
+    queryset = Metadata.objects. \
+        select_related('service', 'service__service_type', 'featuretype', 'created_by'). \
+        prefetch_related('service__featuretypes', 'service__child_services', 'featuretype__elements'). \
+        filter(available_resources)
+    render_helper = None
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                          update_attrs={"class": ["btn-sm", "mr-1"]})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'tree_style': True})
+
+        if self.object.is_featuretype_metadata:
+            self.template_name = 'service/views/featuretype.html'
+        elif self.object.is_service_type(enum=OGCServiceEnum.WFS):
+            self.template_name = 'service/views/wfs_tree.html'
+            sub_elements = self.object.get_described_element().get_subelements().select_related(
+                'metadata').prefetch_related('elements')
+            context.update({'featuretypes': sub_elements})
+        elif self.object.is_layer_metadata or self.object.is_service_type(enum=OGCServiceEnum.WMS):
+            sub_elements = self.object.get_described_element().get_subelements().select_related('metadata')
+            self.template_name = 'service/views/wms_tree.html'
+            context.update({'nodes': sub_elements,
+                            'root_node': self.object.service})
+        return context
 
 
 @csrf_exempt
-@resolve_metadata_public_id
 @log_proxy
 def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
@@ -1313,7 +868,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
                 # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
         if md_secured:
-            response_dict = operation_handler.get_secured_operation_response(request, metadata, proxy_log=proxy_log)
+            response_dict = operation_handler.get_allowed_operation_response()
         else:
             response_dict = operation_handler.get_operation_response(proxy_log=proxy_log)
 
@@ -1353,7 +908,6 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         return HttpResponse(status=500, content=e)
 
 
-@resolve_metadata_public_id
 def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
@@ -1374,73 +928,41 @@ def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     return HttpResponse(response, content_type="")
 
 
-@login_required
-@check_permission(
-    PermissionEnum.CAN_ACCESS_LOGS
-)
-def logs_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ Renders a view for the ProxyLog entries
+@method_decorator(login_required, name='dispatch')
+class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
+    model = ProxyLog
+    table_class = ProxyLogTable
+    filterset_class = ProxyLogTableFilter
+    export_name = f'MrMap_logs_{timezone.now().strftime("%Y-%m-%dT%H_%M_%S")}'
 
-    Possible parameters for log filtering are:
-        * ds (date-start): Date-time string
-        * de (date-end): Date-time string
-        * u (user): Id of a user
-        * g (group): Id of a group
-        * t (type): 'wms'|'wfs'
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(LogsIndexView, self).get_table(**kwargs)
+        table.title = Tag(tag='i', attrs={"class": [IconEnum.LOGS.value]}) + _(' Logs')
 
-    Args:
-        request (HttpRequest):
-    Returns:
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
 
-    """
-    template = "views/log_index.html"
-    user = user_helper.get_user(request)
+        # append export links
+        query_trailer_sign = "?"
+        if self.request.GET:
+            query_trailer_sign = "&"
+        csv_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=csv", content=".csv")
+        json_download_link = Link(url=self.request.get_full_path() + f"{query_trailer_sign}_export=json",
+                                  content=".json")
 
-    params = {
-        "log_table": prepare_proxy_log_filter(
-            request=request,
-            user=user,
-            current_view='resource:logs-view'
-        ),
-        "current_view": 'resource:logs-view',
-    }
-    if update_params:
-        params.update(update_params)
+        dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.DOWNLOAD.value]}) + _(" Export as"),
+                            items=[csv_download_link, json_download_link],
+                            needs_perm=PermissionEnum.CAN_ACCESS_LOGS.value)
+        table.actions = [render_helper.render_item(item=dropdown)]
+        return table
 
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+    def get_queryset(self):
+        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups)
 
-
-@login_required
-@check_permission(
-    PermissionEnum.CAN_DOWNLOAD_LOGS
-)
-def logs_download(request: HttpRequest):
-    """ Provides the filtered ProxyLog table as csv download.
-
-    CSV is the only provided file type.
-
-    Args:
-        request (HttpRequest):
-    Returns:
-
-    """
-    user = user_helper.get_user(request)
-    CSV = "text/csv"
-    # ToDo: current_view parameter should be dynamic
-    proxy_log_table = prepare_proxy_log_filter(request=request, user=user, current_view='resource:logs-view')
-
-    # Create empty response object and fill it with dynamic csv content
-    stream = io.StringIO()
-    timestamp_now = timezone.now()
-    data = proxy_log_table.fill_csv_response(stream)
-
-    data_size = len(data)
-    # Stream files larger than 100 MB
-    if data_size > 100 * 1024 * 1024:
-        response = StreamingHttpResponse(data, content_type=CSV)
-    else:
-        response = HttpResponse(data, content_type=CSV)
-
-    response['Content-Disposition'] = f'attachment; filename="MrMap_logs_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.csv"'
-    return response
+        return ProxyLog.objects.filter(
+            metadata__in=group_metadatas
+        ).prefetch_related(
+            "metadata",
+            "user"
+        )

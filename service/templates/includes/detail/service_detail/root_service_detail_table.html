@@ -20,6 +20,18 @@
                 <td>{{ service.metadata.last_modified }}</td>
             </tr>
             <tr>
+                <th scope="row">{% trans 'Validity' %}</th>
+                {% if quality.valid is None and quality.running %}
+                    <td>{% trans 'Validation is running...' %}</td>
+                {% elif quality.valid is None %}
+                    <td>{{ quality.DEFAULT_UNKNOWN_MESSAGE }}</td>
+                {% elif quality.valid %}
+                    <td>{{ quality.DEFAULT_SUCCESS_MESSAGE }}</td>
+                {% else %}
+                    <td>{{ quality.DEFAULT_FAIL_MESSAGE }}</td>
+                {% endif %}
+            </tr>
+            <tr>
                 <th scope="row">{% trans 'Hits' %}</th>
                 <td>{{ service.metadata.hits }}</td>
             </tr>

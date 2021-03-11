@@ -28,7 +28,7 @@ class ApiViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
 
         # Default elements of json response
         self.default_response_elements = [

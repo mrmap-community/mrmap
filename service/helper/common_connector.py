@@ -21,7 +21,7 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 from service.helper import xml_helper
 from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT, service_logger
-from MrMap.settings import HTTP_PROXY, PROXIES
+from MrMap.settings import HTTP_PROXY, PROXIES, VERIFY_SSL_CERTIFICATES
 from service.helper.enums import ConnectionEnum
 
 
@@ -69,7 +69,7 @@ class CommonConnector:
             self.is_local_request = True
         self._url = url
 
-    def url_is_reachable(self, url: str = None) -> (bool, int):
+    def url_is_reachable(self, url: str = None, timeout: int = None) -> (bool, int, int):
         """ Performs a HEAD request on the given url to check whether it's reachable or not.
 
         Returns a tuple of
@@ -78,13 +78,15 @@ class CommonConnector:
 
         Args:
             url (str): An url to be used instead of the member attribute
+            timeout (int): timeout in seconds, else requests will wait until the remote side closes the connection
         Returns:
 
         """
         if url is None:
             url = self._url
         try:
-            response = requests.head(url=url, proxies=PROXIES)
+            response = requests.head(
+                url=url, proxies=PROXIES, timeout=timeout, verify=VERIFY_SSL_CERTIFICATES)
         except requests.exceptions.ConnectionError as e:
             return False, -1
         return True, response.status_code
@@ -107,14 +109,15 @@ class CommonConnector:
     def __load_curl(self, params: dict = None):
         response = types.SimpleNamespace()
         # Example from http://pycurl.io/docs/latest/quickstart.html
-        #import curl #normally we would use pycurl - but the class has been renamed?
+        # import curl #normally we would use pycurl - but the class has been renamed?
         #import re
-        #try:
+        # try:
         #    from io import BytesIO
-        #except ImportError:
+        # except ImportError:
         #    from StringIO import StringIO as BytesIO
 
         headers = {}
+
         def header_function(header_line):
             # HTTP standard specifies that headers are encoded in iso-8859-1.
             # On Python 2, decoding step can be skipped.
@@ -146,7 +149,7 @@ class CommonConnector:
 
         url_args = ""
         if params is not None:
-            url_args = "?" +urlencode(params)
+            url_args = "?" + urlencode(params)
 
         buffer = BytesIO()
         c = pycurl.Curl()
@@ -181,7 +184,7 @@ class CommonConnector:
         response.encoding = encoding
         response.text = response.content.decode(encoding)
         return response
-    
+
     def __load_requests(self, params: dict = None):
         response = None
         proxies = None
@@ -189,18 +192,23 @@ class CommonConnector:
             proxies = PROXIES
         if self.external_auth is not None:
             if self.external_auth.auth_type is None:
-                response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params,
+                                            proxies=proxies, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL_CERTIFICATES)
             elif self.external_auth.auth_type == 'http_basic':
-                response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(
+                    self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL_CERTIFICATES)
             elif self.external_auth.auth_type == 'http_digest':
-                response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(
+                    self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL_CERTIFICATES)
             else:
-                response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params,
+                                            proxies=proxies, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL_CERTIFICATES)
         else:
-            response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+            response = requests.request(self.http_method, self._url, params=params,
+                                        proxies=proxies, timeout=REQUEST_TIMEOUT, verify=VERIFY_SSL_CERTIFICATES)
 
-        return response   
-    
+        return response
+
     def __load_urllib(self):
         pass
 
@@ -239,6 +247,7 @@ class CommonConnector:
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
                     headers=self.additional_headers,
+                    verify=VERIFY_SSL_CERTIFICATES,
                 )
             elif self.external_auth.auth_type == "http_basic":
                 response = requests.post(
@@ -246,8 +255,10 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
-                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password),
+                    auth=HTTPBasicAuth(
+                        self.external_auth.username, self.external_auth.password),
                     headers=self.additional_headers,
+                    verify=VERIFY_SSL_CERTIFICATES,
                 )
             elif self.external_auth.auth_type == "http_digest":
                 response = requests.post(
@@ -255,8 +266,10 @@ class CommonConnector:
                     data,
                     timeout=REQUEST_TIMEOUT,
                     proxies=PROXIES,
-                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password),
+                    auth=HTTPDigestAuth(
+                        self.external_auth.username, self.external_auth.password),
                     headers=self.additional_headers,
+                    verify=VERIFY_SSL_CERTIFICATES,
                 )
             self.status_code = response.status_code
             self.content = response.content

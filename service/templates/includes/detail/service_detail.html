@@ -79,6 +79,13 @@
               </div>
             </div>
     </div>
+
+    {% if not service.is_csw %}
+        <div class="col-sm mb-2 text-center">
+            {% include 'quality/includes/quality_dropdown.html' %}
+        </div>
+    {% endif %}
+
     <div class="col-sm mb-2 text-center">
         <div class="dropdown">
           <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

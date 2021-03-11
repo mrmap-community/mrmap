@@ -141,7 +141,7 @@ class MetadataRelationEnum(EnumChoice):
 
     """
     VISUALIZES = "visualizes"
-    DESCRIBED_BY = "describedBy"
+    DESCRIBES = "describes"
     HARVESTED_THROUGH = "harvestedThrough"
     HARVESTED_PARENT = "harvestedParent"
 
@@ -152,3 +152,4 @@ class PendingTaskEnum(EnumChoice):
     """
     HARVEST = "harvest"
     REGISTER = "register"
+    VALIDATE = "validate"

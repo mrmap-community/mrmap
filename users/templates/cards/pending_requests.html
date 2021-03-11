@@ -8,9 +8,14 @@
 </div>
 {% endblock %}
 {% block card-body %}
-    {% for request in requests %}
-        {% include 'cards/pending_requests/pending_request_elements.html' %}
-    {% empty %}
+    {% if no_requests %}
         {% include 'cards/pending_requests/empty.html' %}
-    {% endfor %}
+    {% else %}
+        {% for request in publishing_requests %}
+            {% include 'cards/pending_requests/publishing_request_elements.html' %}
+        {% endfor %}
+        {% for request in group_invitation_requests %}
+            {% include 'cards/pending_requests/group_invitation_request_elements.html' %}
+        {% endfor %}
+    {% endif %}
 {% endblock %}

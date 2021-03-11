@@ -5,36 +5,35 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-import json
-
 from dal import autocomplete
 from django.db.models import Q
-from django.forms import ModelMultipleChoiceField
+from django.forms import ModelMultipleChoiceField, ModelForm
+from django.forms import BaseModelFormSet
+from django.forms.formsets import TOTAL_FORM_COUNT, INITIAL_FORM_COUNT
 from django.http import HttpResponseRedirect
-from django.urls import reverse, NoReverseMatch
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django import forms
+from leaflet.forms.widgets import LeafletWidget
+
 from MrMap.cacher import PageCacher
 from MrMap.forms import MrMapConfirmForm, MrMapForm
-from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA_IS_ORIGINAL, \
+from MrMap.messages import METADATA_IS_ORIGINAL, \
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
 from editor.tasks import async_process_securing_access
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum
-from MrMap.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.forms import MrMapWizardForm
 from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence, \
-    SecuredOperation
+from service.models import Metadata, Keyword, Category, Dataset, ReferenceSystem, Licence, AllowedOperation
 from service.settings import ISO_19115_LANG_CHOICES
-from service.tasks import async_secure_service_task
 from structure.models import Organization, MrMapGroup
 from users.helper import user_helper
 from django.contrib import messages
 
 
-class MetadataEditorForm(MrMapModelForm):
+class MetadataEditorForm(ModelForm):
     def __init__(self, *args, **kwargs):
         # first call parent's constructor
         super(MetadataEditorForm, self).__init__(*args, **kwargs)
@@ -43,7 +42,7 @@ class MetadataEditorForm(MrMapModelForm):
         self.fields['licence'].required = False
         self.fields['categories'].required = False
         self.fields['keywords'].required = False
-        self.has_autocomplete = True
+        self.has_autocomplete_fields = True
 
     class Meta:
         model = Metadata
@@ -94,8 +93,8 @@ class MetadataEditorForm(MrMapModelForm):
             ),
         }
 
-    def process_edit_metadata(self):
-        custom_md = self.save(commit=False)
+    def save(self, commit=True):
+        custom_md = super().save(commit=False)
         if not self.instance.is_root():
             # this is for the case that we are working on a non root element which is not allowed to change the
             # inheritance setting for the whole service -> we act like it didn't change
@@ -105,15 +104,15 @@ class MetadataEditorForm(MrMapModelForm):
             # might have changed!
             self.instance.clear_cached_documents()
 
-        editor_helper.resolve_iso_metadata_links(self.request, self.instance, self)
+        editor_helper.resolve_iso_metadata_links(self.instance, self)
         editor_helper.overwrite_metadata(self.instance, custom_md, self)
 
         # Clear page cache for API, so the changes will be visible on the next cache
         p_cacher = PageCacher()
         p_cacher.remove_pages(API_CACHE_KEY_PREFIX)
 
-        messages.add_message(self.request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-
+        # todo: add last_changed_by_user field to Metadata model
+        """
         if self.instance.is_root():
             parent_service = self.instance.service
         else:
@@ -122,8 +121,11 @@ class MetadataEditorForm(MrMapModelForm):
             elif self.instance.is_service_type(OGCServiceEnum.WFS):
                 parent_service = self.instance.featuretype.parent_service
 
-        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_EDITED,
-                                          "{}: {}".format(parent_service.metadata.title, self.instance.title))
+        
+        #user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_EDITED,
+        #                                 "{}: {}".format(parent_service.metadata.title, self.instance.title))
+        """
+        custom_md.save()
 
 
 class MetadataModelMultipleChoiceField(ModelMultipleChoiceField):
@@ -190,13 +192,13 @@ class DatasetIdentificationForm(MrMapWizardForm):
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
         user = user_helper.get_user(request=kwargs.pop("request"))
-        user_groups = user.get_groups({"is_public_group": False})
+        user_groups = user.get_groups.filter(is_public_group=False)
         self.fields["created_by"].queryset = user_groups
         self.fields["created_by"].initial = user_groups.first()
 
         if self.instance_id:
-            metadata = Metadata.objects.get(id=self.instance_id)
-            dataset = Dataset.objects.get(id=metadata.dataset.id)
+            metadata = Metadata.objects.get(pk=self.instance_id)
+            dataset = Dataset.objects.get(pk=metadata.dataset.id)
             self.fields['title'].initial = metadata.title
             self.fields['abstract'].initial = metadata.abstract
             self.fields['reference_system'].initial = metadata.reference_system.all()
@@ -205,12 +207,10 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['character_set_code'].initial = dataset.character_set_code
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
-            metadata_relations = MetadataRelation.objects.filter(
-                metadata_to=self.instance_id
-            ).exclude(
-                origin=ResourceOriginEnum.CAPABILITIES.value
-            )
-            self.fields['additional_related_objects'].initial = metadata_relations
+
+            exclusions = {'to_metadatas__origin': ResourceOriginEnum.CAPABILITIES.value}
+            related_metadatas = metadata.get_related_metadatas(exclusions=exclusions)
+            self.fields['additional_related_objects'].initial = related_metadatas
 
 
 class DatasetClassificationForm(MrMapWizardForm):
@@ -297,11 +297,11 @@ class DatasetSpatialExtentForm(MrMapWizardForm):
             bbox = metadata.find_max_bounding_box()
 
             self.fields['bounding_geometry'].widget = LeafletGeometryInput(bbox=bbox,
-                                                                           geojson=metadata.bounding_geometry.geojson
+                                                                           geojson=metadata.allowed_area.geojson
                                                                            if data_for_bounding_geometry is None
                                                                            else data_for_bounding_geometry,
                                                                            request=self.request,)
-            self.fields['bounding_geometry'].initial = metadata.bounding_geometry.geojson
+            self.fields['bounding_geometry'].initial = metadata.allowed_area.geojson
 
 
 class DatasetQualityForm(MrMapWizardForm):
@@ -335,86 +335,25 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
 
     def __init__(self, *args, **kwargs):
         user = user_helper.get_user(kwargs.get("request"))
-        user_groups = user.get_groups()
+        user_groups = user.get_groups
         if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
             init_organization = Organization.objects.filter(id=metadata.contact.id)
             organizations = Organization.objects.filter(
                 Q(is_auto_generated=False) &
-                Q(can_publish_for__in=user_groups) |
+                Q(publishers=user_groups) |
                 Q(id=user.organization.id)
             ) | init_organization
         else:
             organizations = Organization.objects.filter(
                 Q(is_auto_generated=False) &
-                Q(can_publish_for__in=user_groups) |
+                Q(publishers=user_groups) |
                 Q(id=user.organization.id)
             )
 
         super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
 
         self.fields['organization'].queryset = organizations
-
-
-class RemoveDatasetForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(RemoveDatasetForm, self).__init__(*args, **kwargs)
-
-    def process_remove_dataset(self):
-        self.instance.delete(force=True)
-        messages.success(self.request, message=_("Dataset successfully deleted."))
-
-
-class RestoreMetadataForm(MrMapConfirmForm):
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(RestoreMetadataForm, self).__init__(*args, **kwargs)
-
-    def process_restore_metadata(self):
-        ext_auth = self.instance.get_external_authentication_object()
-        service_type = self.instance.get_service_type()
-        if service_type == OGCServiceEnum.WMS.value:
-            children_md = Metadata.objects.filter(service__parent_service__metadata=self.instance, is_custom=True)
-        elif service_type == OGCServiceEnum.WFS.value:
-            children_md = Metadata.objects.filter(featuretype__parent_service__metadata=self.instance, is_custom=True)
-
-        if not self.instance.is_custom and len(children_md) == 0:
-            messages.add_message(self.request, messages.INFO, METADATA_IS_ORIGINAL)
-            try:
-                redirect = HttpResponseRedirect(
-                    reverse(
-                        self.request.GET.get('current-view', 'home'),
-                        args=(
-                            self.request.GET.get('current-view-arg', ""),
-                        ),
-                    ),
-                    status=303
-                )
-            except NoReverseMatch:
-                redirect = HttpResponseRedirect(reverse(self.request.GET.get('current-view', 'home')), status=303)
-            return redirect
-
-        if self.instance.is_custom:
-            self.instance.restore(self.instance.identifier, external_auth=ext_auth)
-            self.instance.save()
-
-        for md in children_md:
-            md.restore(md.identifier)
-            md.save()
-        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
-        if not self.instance.is_root():
-            if service_type == OGCServiceEnum.WMS.value:
-                parent_metadata = self.instance.service.parent_service.metadata
-            elif service_type == OGCServiceEnum.WFS.value:
-                parent_metadata = self.instance.featuretype.parent_service.metadata
-            else:
-                # This case is not important now
-                pass
-        else:
-            parent_metadata = self.instance
-        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
-                                          "{}: {}".format(parent_metadata.title, self.instance.title))
 
 
 class RestoreDatasetMetadata(MrMapConfirmForm):
@@ -438,213 +377,91 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
                                           "{}".format(self.instance.title, ))
 
 
-class RestrictAccessForm(MrMapForm):
-    use_proxy = forms.BooleanField(
-        required=False,
-        label=_("Use proxy"),
-        help_text=_(
-            "Activate to reroute all traffic for this service on MrMap"
-        )
-    )
-    log_proxy = forms.BooleanField(
-        required=False,
-        label=_("Log proxy activity"),
-        help_text=_(
-            "Activate to log every traffic activity for this service"
-        )
-    )
-    restrict_access = forms.BooleanField(
-        required=False,
-        label=_("Restrict access"),
-        help_text=_(
-            "Activate to restrict access on this service"
-        )
-    )
+class GeneralAccessSettingsForm(forms.ModelForm):
 
-    def __init__(self, metadata: Metadata, *args, **kwargs):
-        super(RestrictAccessForm, self).__init__(*args, **kwargs)
-        self.metadata = metadata
-        self.fields["use_proxy"].initial = metadata.use_proxy_uri
-        self.fields["log_proxy"].initial = metadata.log_proxy_access
-        self.fields["restrict_access"].initial = metadata.is_secured
+    class Meta:
+        model = Metadata
+        fields = ('use_proxy_uri', 'log_proxy_access', 'is_secured')
+        labels = {
+            'use_proxy_uri': _("Use proxy"),
+            'log_proxy_access': _("Log proxy activity"),
+            'is_secured': _("Restrict access"),
+        }
+        help_texts = {
+            'use_proxy_uri': _('Activate to reroute all traffic for this service on MrMap.'),
+            'log_proxy_access': _('Activate to log every traffic activity for this service.'),
+            'is_secured': _('Activate to restrict access on this service')
+        }
+        widgets = {
+            'is_secured': forms.CheckboxInput(attrs={'class': 'auto_submit_item', }),
+        }
 
-        is_root = metadata.is_root()
-        self.fields["use_proxy"].disabled = not is_root
-        self.fields["log_proxy"].disabled = not is_root
-        self.fields["restrict_access"].disabled = not is_root
+    def __init__(self, *args, **kwargs):
+        super(GeneralAccessSettingsForm, self).__init__(*args, **kwargs)
 
     def clean(self):
-        cleaned_data = super(RestrictAccessForm, self).clean()
-        use_proxy = cleaned_data.get("use_proxy")
-        log_proxy = cleaned_data.get("log_proxy")
-        restrict_access = cleaned_data.get("restrict_access")
+        cleaned_data = super().clean()
+        use_proxy = cleaned_data.get("use_proxy_uri")
+        log_proxy = cleaned_data.get("log_proxy_access")
+        restrict_access = cleaned_data.get("is_secured")
 
         # log_proxy and restrict_access can only be activated in combination with use_proxy!
         if log_proxy and not use_proxy or restrict_access and not use_proxy:
-            self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
+            self.add_error("use_proxy_uri", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
 
         # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-        if self.metadata.has_external_authentication and not use_proxy:
+        if self.instance.has_external_authentication and not use_proxy:
             raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
         return cleaned_data
 
-    def process_securing_access(self, metadata: Metadata):
-        """ Call the metadata functions for proxying, logging and securing (access restricting)
+    def save(self, commit=True):
 
-        Args:
-            metadata (Metadata):
-        Returns:
-
-        """
-        use_proxy = self.cleaned_data.get("use_proxy", False)
-        log_proxy = self.cleaned_data.get("log_proxy", False)
-        restrict_access = self.cleaned_data.get("restrict_access", False)
+        # todo: just save the fields and implement a signal which detects if one of the three fields become changed.
+        #  the signal can then fire the async task.
+        # todo: maybe we could merge the async_proccess from step 1 and two of the wizard
+        use_proxy = self.cleaned_data.get("use_proxy_uri", False)
+        log_proxy = self.cleaned_data.get("log_proxy_access", False)
+        restrict_access = self.cleaned_data.get("is_secured", False)
 
         async_process_securing_access.delay(
-            metadata.id,
+            self.instance.id,
             use_proxy,
             log_proxy,
             restrict_access
         )
 
 
-class RestrictAccessSpatially(MrMapForm):
-    HELP_TXT_TEMPLATE = _("Activate to allow <strong>{}</strong> in the area defined in the map viewer below.\nIf you want to allow {} without spatial restriction (everywhere), just remove any restriction below.")
-    get_map = forms.BooleanField(
-        required=False,
-        label=OGCOperationEnum.GET_MAP.value,
-        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
-    )
-    get_feature_info = forms.BooleanField(
-        required=False,
-        label=OGCOperationEnum.GET_FEATURE_INFO.value,
-        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
-    )
-    get_feature = forms.BooleanField(
-        required=False,
-        label=OGCOperationEnum.GET_FEATURE.value,
-        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
-    )
-    spatial_restricted_area = forms.CharField(
-        label=_('Allowed area'),
-        required=False,
-        widget=LeafletGeometryInput(),
-        help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),
-    )
+class AllowedOperationForm(forms.ModelForm):
 
-    def __init__(self, metadata_id: int, group_id: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.metadata_id = metadata_id
-        self.group_id = group_id
+    class Meta:
+        model = AllowedOperation
+        fields = ('operations', 'allowed_groups', 'allowed_area', 'root_metadata')
 
-        self.metadata = Metadata.objects.get(
-            id=metadata_id
-        )
-        md_is_root = self.metadata.is_root()
-
-        # Read initial data for fields
-        secured_operations = SecuredOperation.objects.filter(
-            secured_metadata__id=metadata_id,
-            allowed_group__id=group_id
-        )
-        secured_operation_get_map = secured_operations.filter(
-            operation=OGCOperationEnum.GET_MAP.value
-        ).exists()
-        secured_operation_get_feature_info = secured_operations.filter(
-            operation=OGCOperationEnum.GET_FEATURE_INFO.value
-        ).exists()
-        secured_operation_get_feature = secured_operations.filter(
-            operation=OGCOperationEnum.GET_FEATURE.value
-        ).exists()
-
-        # Since we persist geometries in GeometryCollections, containing Polygon obejcts, we need to use a little hack
-        # to force Leaflet to read this artifical FeatureCollection, which is filled by the persisted Polygon objects
-        feature_geojson = {
-            "type": "FeatureCollection",
-            "features": [],
-        }
-
-        # If the metadata is not root, we are not allowed to create own geometries but we need to inherit the ones from
-        # the parent. Therefore we read it from the root in this case
-        if not md_is_root:
-            secured_operations_bounding_geometry = self.metadata.get_root_metadata().secured_operations.all().first()
-        else:
-            secured_operations_bounding_geometry = secured_operations.first()
-        if secured_operations_bounding_geometry is not None:
-            secured_operations_bounding_geometry = secured_operations_bounding_geometry.bounding_geometry
-            if secured_operations_bounding_geometry is not None:
-                for geom in secured_operations_bounding_geometry:
-                    feature = {
-                        "type": "Feature",
-                        "properties": "{}",
-                        "geometry": json.loads(geom.geojson),
+        widgets = {
+            'operations': autocomplete.ModelSelect2Multiple(
+                url='editor:operations-autocomplete',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
                     }
-                    feature_geojson["features"].append(feature)
-                feature_geojson = json.dumps(feature_geojson)
-            else:
-                # If no bounding geometry exists, we need to set feature_geojson to None,
-                # so it will be interpreted as empty geometry input
-                feature_geojson = None
-        else:
-            feature_geojson = None
-
-        # restricting via geometry is only allowed for root metadata, not for every single subelement
-        if not md_is_root:
-            self.fields["spatial_restricted_area"].widget = forms.HiddenInput()
-
-        # Set initial fields
-        if self.metadata.service.is_wms:
-            self.fields["get_map"].initial = secured_operation_get_map
-            self.fields["get_feature_info"].initial = secured_operation_get_feature_info
-            del self.fields["get_feature"]
-        elif self.metadata.service.is_wfs:
-            self.fields["get_feature"].initial = secured_operation_get_feature
-            del self.fields["get_map"]
-            del self.fields["get_feature_info"]
-        else:
-            raise AssertionError("Wrong service type for spatial access form!")
-        self.fields["spatial_restricted_area"].initial = feature_geojson
-
-    def process_restict_access_spatially(self):
-        """ Create SecuredOperations for metadata, according to form data
-
-        Returns:
-
-        """
-        # Check if the metadata is already secured. If not, secure it!
-        if not self.metadata.is_secured:
-            self.metadata.set_secured(True)
-
-        bounding_geometry = self.cleaned_data.get("spatial_restricted_area", None)
-        try:
-            del self.cleaned_data["spatial_restricted_area"]
-        except KeyError:
-            # happens on a non-root service
-            pass
-
-        ogc_operation_map = {
-            "get_map": OGCOperationEnum.GET_MAP.value,
-            "get_feature_info": OGCOperationEnum.GET_FEATURE_INFO.value,
-            "get_feature": OGCOperationEnum.GET_FEATURE.value,
+                },
+            ),
+            'allowed_groups': autocomplete.ModelSelect2Multiple(
+                url='editor:groups',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
+                    }
+                },
+            ),
+            'allowed_area': LeafletWidget(attrs={
+                                            'map_height': '500px',
+                                            'map_width': '100%',
+                                            #'display_raw': 'true',
+                                            'map_srid': 4326,
+                                        }),
+            'root_metadata': forms.HiddenInput(),
         }
-        operation_map = {
-            "get_map": None,
-            "get_feature_info": None,
-            "get_feature": None,
-        }
-        for k, v in self.cleaned_data.items():
-            try:
-                operation_map[k] = v
-            except KeyError:
-                pass
-        # Reduce operation_map on valid data
-        operations = [v for k, v in ogc_operation_map.items() if k in operation_map and operation_map[k] is True]
-
-        # Call persisting of new settings in background process
-        async_secure_service_task.delay(
-            self.metadata_id,
-            self.group_id,
-            operations,
-            bounding_geometry
-        )

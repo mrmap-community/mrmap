@@ -15,11 +15,13 @@ class PermissionEnum(EnumChoice):
     CAN_CREATE_ORGANIZATION = "can_create_organization"
     CAN_EDIT_ORGANIZATION = "can_edit_organization"
     CAN_DELETE_ORGANIZATION = "can_delete_organization"
+
     CAN_CREATE_GROUP = "can_create_group"
     CAN_DELETE_GROUP = "can_delete_group"
     CAN_EDIT_GROUP = "can_edit_group"
     CAN_ADD_USER_TO_GROUP = "can_add_user_to_group"
     CAN_REMOVE_USER_FROM_GROUP = "can_remove_user_from_group"
+
     CAN_EDIT_GROUP_ROLE = "can_edit_group_role"
     CAN_EDIT_METADATA = "can_edit_metadata"
     CAN_ACTIVATE_RESOURCE = "can_activate_resource"
@@ -36,3 +38,4 @@ class PermissionEnum(EnumChoice):
     CAN_ACCESS_LOGS = "can_access_logs"
     CAN_DOWNLOAD_LOGS = "can_download_logs"
     CAN_RUN_MONITORING = "can_run_monitoring"
+    CAN_RUN_VALIDATION = "can_run_validation"

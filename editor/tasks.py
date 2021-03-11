@@ -24,11 +24,10 @@ def async_process_securing_access(md_id, use_proxy: bool, log_proxy: bool, restr
     """
     metadata = Metadata.objects.get(
         id=md_id
-    )
+    ).select_related('service', 'featuretype')
 
     # Create list of main and sub metadatas for later use
-    metadatas = metadata.get_subelements_metadatas()
-    metadatas.append(metadata)
+    subelements = metadata.get_described_element().get_subelements().select_related('metadata') # could be list of layers or featuretypes
 
     if metadata.use_proxy_uri != use_proxy:
         metadata.set_proxy(use_proxy)
@@ -39,9 +38,18 @@ def async_process_securing_access(md_id, use_proxy: bool, log_proxy: bool, restr
     if metadata.is_secured != restrict_access:
         metadata.set_secured(restrict_access)
 
-    for md in metadatas:
+    if restrict_access is False:
+        metadata.allowed_operations.all().delete()
+    # Clear cached documents
+    ## There might be the case, that a user requests a subelements capability document just before the securing is finished
+    ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end
+    ## just to make sure!
+    metadata.clear_cached_documents()
+
+    for subelement in subelements:
+        md = subelement.metadata
         if restrict_access is False:
-            md.secured_operations.all().delete()
+            md.allowed_operations.all().delete()
         # Clear cached documents
         ## There might be the case, that a user requests a subelements capability document just before the securing is finished
         ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end

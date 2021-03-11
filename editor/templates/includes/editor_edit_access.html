@@ -10,14 +10,14 @@
 
 {% block card-header-subtitle-left %}
 <h5 class="text-muted">
-    {% if service_metadata.is_root %}
+    {% if object.is_root %}
         {% trans 'Service:' %}
-    {% elif service_metadata.is_featuretype_metadata %}
+    {% elif object.is_featuretype_metadata %}
         {% trans 'Featuretype:' %}
-    {% elif service_metadata.is_layer_metadata %}
+    {% elif object.is_layer_metadata %}
         {% trans 'Layer:' %}
     {% endif %}
-    {{ service_metadata.title }}
+    {{ object.title }}
 </h5>
 
 {% endblock %}
@@ -26,7 +26,7 @@
 {% endblock %}
 
 {% block card-header-subtitle-right %}
-    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'resource:detail' service_metadata.id %}">
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'resource:detail' object.id %}">
     <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service Detail View' %}</span>
     </a>
 {% endblock %}
@@ -37,38 +37,29 @@
 <h5>
     {% trans 'General settings' %}
 </h5>
-    <form action="{{ restrict_access_form.action_url }}" method="post">
-        {% csrf_token %}
-
-        {% bootstrap_form restrict_access_form  %}
-
-        <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
-            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
-        </button>
-    </form>
+    {{ form.rendered_content }}
     <hr>
 
 <h5>
     {% trans 'Edit group access' %}
 </h5>
-<div id="id_div_restrict_access_table" {% if not restrict_access_form.restrict_access.value %} style="pointer-events: none; opacity: 0.4;" {% endif %}>
-    {% render_table restrict_access_table %}
+<div id="id_div_restrict_access_table">
+    {{ table.rendered_content }}
 </div>
 
 <script type="application/javascript">
-    $(':checkbox').change(function() {
-        if ( $('#id_log_proxy').prop('checked') == true || $('#id_restrict_access').prop('checked') == true ) {
-            $('#id_use_proxy').prop('checked', true);
-        }
+    var use_proxy_checked = $('#id_use_proxy_uri').prop('checked')
+    var log_proxy_checked = $('#id_log_proxy_access').prop('checked')
+    var restrict_access_checked = $('#id_is_secured').prop('checked')
 
-        if ( $('#id_restrict_access').prop('checked') == true ) {
-            $('#id_div_restrict_access_table').css('pointer-events', '');
-            $('#id_div_restrict_access_table').css('opacity', '');
-        } else {
-            $('#id_div_restrict_access_table').css('pointer-events', 'none');
-            $('#id_div_restrict_access_table').css('opacity', '0.4');
-        }
-    });
+    if ( $('#id_is_secured').prop('checked') == true ) {
+        $('#id_div_restrict_access_table').css('pointer-events', '');
+        $('#id_div_restrict_access_table').css('opacity', '');
+    } else {
+        $('#id_div_restrict_access_table').css('pointer-events', 'none');
+        $('#id_div_restrict_access_table').css('opacity', '0.4');
+    }
+
 </script>
 
 {% endblock %}

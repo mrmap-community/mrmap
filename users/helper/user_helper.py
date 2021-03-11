@@ -14,7 +14,7 @@ from django.http import HttpRequest
 from structure.models import MrMapGroup, MrMapUser, GroupActivity
 from structure.settings import PUBLIC_GROUP_NAME
 
-
+# todo: deprecated, cause user is always part of the request
 def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
     """ Returns the user object matching to the given string
 
@@ -68,6 +68,7 @@ def get_public_groups():
     return public_groups
 
 
+# todo: use django signals to fire this
 def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.
 

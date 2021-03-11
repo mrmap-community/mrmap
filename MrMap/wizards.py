@@ -1,95 +1,117 @@
-import random
-import string
+import uuid
 from abc import ABC
+
+from django.core.exceptions import ImproperlyConfigured
+from django.forms import BaseFormSet, modelformset_factory, HiddenInput
+from django.shortcuts import redirect
 from django.template.loader import render_to_string
-from django.urls import reverse, resolve
+from django.urls import resolve, reverse
 from formtools.wizard.views import SessionWizardView
 from MrMap.utils import get_theme
 from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _
+from django.forms.formsets import DELETION_FIELD_NAME
+
+
+APPEND_FORM_LOOKUP_KEY = "APPEND_FORM"
+
+
+def get_class( kls ):
+    parts = kls.split('.')
+    module = ".".join(parts[:-1])
+    m = __import__( module )
+    for comp in parts[1:]:
+        m = getattr(m, comp)
+    return m
 
 
 class MrMapWizard(SessionWizardView, ABC):
-    template_name = "sceletons/modal-wizard-form.html"
+    template_name = "generic_views/base_extended/wizard.html"
     ignore_uncomitted_forms = False
-    current_view = None
-    current_view_arg = None
     instance_id = None
-    title = None
-    id_wizard = None
+    title = _('Wizard')
+    id_wizard = "id_" + str(uuid.uuid4())
     required_forms = None
+    action_url = ""
+    success_url = ""
 
-    def __init__(self,
-                 action_url: str,
-                 current_view: str,
-                 current_view_arg: int,
-                 instance_id: int = None,
-                 ignore_uncomitted_forms: bool = False,
-                 required_forms: list = None,
-                 title: str = _('Wizard'),
-                 id_wizard: str = ''.join(random.choice(string.ascii_lowercase) for i in range(10)),
-                 *args,
-                 **kwargs):
-        super(MrMapWizard, self).__init__(*args, **kwargs)
-        self.action_url = action_url
-        self.current_view = current_view
-        self.current_view_arg = current_view_arg
-        self.instance_id = instance_id
-        self.ignore_uncomitted_forms = ignore_uncomitted_forms
-        self.required_forms = required_forms
-        self.title = title
-        self.id_wizard = id_wizard
+    def get_success_url(self):
+        return self.success_url
 
     def get_context_data(self, form, **kwargs):
         context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
+
         context.update({'id_modal': self.id_wizard,
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': self.action_url,
-                        'show_modal': True,
-                        'fade_modal': True,
-                        'current_view': self.current_view,
-                        'current_view_arg': self.current_view_arg,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
-
-        if bool(self.storage.data['step_data']):
-            # this wizard is not new, prevent from bootstrap modal fading
-            context.update({'fade_modal': False, })
-
         return context
 
-    def render(self, form=None, **kwargs):
-        # we implement custom rendering, for that we need the current we to render the modal as string and
-        # pass it to the view where the wizard should be rendered
-        form = form or self.get_form()
-        context = self.get_context_data(form=form, **kwargs)
+    def is_form_update(self):
+        if 'is_form_update' in self.request.POST:
+            # it's update of dropdown items or something else
+            # refresh with updated form
+            return True
+        return False
 
-        rendered_wizard = render_to_string(request=self.request,
-                                           template_name=self.template_name,
-                                           context=context)
+    def is_append_formset(self, form):
+        if issubclass(form.__class__, BaseFormSet):
+            # formset is posted
+            append_form_lookup_key = f"{form.prefix}-{APPEND_FORM_LOOKUP_KEY}" if form.prefix else APPEND_FORM_LOOKUP_KEY
+            if append_form_lookup_key in form.data:
+                # to prevent data loses, we have to store the current form
+                self.storage.set_step_data(self.steps.current, self.process_step(form))
+                self.storage.set_step_files(self.steps.current, self.process_step_files(form))
 
-        if self.current_view_arg:
-            view_function = resolve(reverse(f"{self.current_view}", args=[self.current_view_arg, ]))
-            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard}, object_id=self.current_view_arg)
+                # append current initial_dict to initial new form also
+                current_extra = len(form.extra_forms)
+                new_init_list = []
+                for i in range(current_extra + 1):
+                    new_init_list.append(self.initial_dict[self.steps.current][0])
+                self.initial_dict[self.steps.current] = new_init_list
 
-        else:
-            view_function = resolve(reverse(f"{self.current_view}", ))
-            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard})
+                # overwrite new generated forms to form list
+                self.form_list[self.steps.current] = modelformset_factory(form.form.Meta.model,
+                                                                          can_delete=True,
+                                                                          # be carefully; there could also be other Form
+                                                                          # classes
+                                                                          form=form.forms[0].__class__,
+                                                                          extra=current_extra + 1)
+
+                return True
+        return False
+
+    def render_next_step(self, form, **kwargs):
+        if self.is_append_formset(form=form):
+            # call form again with get_form(), cause it is updated and the current form instance does not hold updates
+            return self.render(form=self.get_form(step=self.steps.current))
+        if self.is_form_update():
+            return self.render(form=form)
+        return super().render_next_step(form=form, **kwargs)
+
+    def render_done(self, form, **kwargs):
+        if self.is_append_formset(form=form):
+            # call form again with get_form(), cause it is updated and the current form instance does not hold updates
+            return self.render(form=self.get_form(step=self.steps.current))
+        if self.is_form_update():
+            return self.render(form=form)
+        return super().render_done(form=form, **kwargs)
 
     def render_goto_step(self, goto_step, **kwargs):
+        current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
+        if self.is_append_formset(form=current_form):
+            # call form again with get_form(), cause it is updated and the current form instance does not hold updates
+            return self.render(form=self.get_form(step=self.steps.current))
+        if self.is_form_update():
+            return self.render(current_form)
         # 1. save current form, we doesn't matter for validation for now.
         # If the wizard is done, he will perform validation for each.
-        current_form = self.get_form(data=self.request.POST, files=self.request.FILES)
         self.storage.set_step_data(self.steps.current,
                                    self.process_step(current_form))
         self.storage.set_step_files(self.steps.current, self.process_step_files(current_form))
-
-        if self.storage.current_step == goto_step and \
-                f"{current_form.prefix}-is_form_update" in self.request.POST and \
-                self.request.POST[f"{current_form.prefix}-is_form_update"] == 'True':
-            return self.render(current_form)
-        return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
+        return super().render_goto_step(goto_step=goto_step)
 
     def process_step(self, form):
         # we implement custom logic to ignore uncomitted forms,
@@ -105,6 +127,11 @@ class MrMapWizard(SessionWizardView, ABC):
                 # x.1. self.get_form_list(): get the unbounded forms
                 if not form_obj.is_bound and form_key != self.steps.current:
                     uncomitted_forms.append(form_key)
+
+            for uncomitted_form in uncomitted_forms:
+                if uncomitted_form in self.required_forms:
+                    # not all required forms are posted. Render next form.
+                    return self.get_form_step_data(form)
             # x.4. if no unbounded form has required fields then remove them from the form_list
             temp_form_list = self.form_list
             for uncomitted_form in uncomitted_forms:
@@ -119,7 +146,15 @@ class MrMapWizard(SessionWizardView, ABC):
             self.form_list.move_to_end(self.steps.current)
         return self.get_form_step_data(form)
 
-    def get_form_kwargs(self, step):
-        # pass instance_id and request to the forms
-        return {'instance_id': self.instance_id,
-                'request': self.request, }
+    def get_form(self, step=None, data=None, files=None):
+        form = super().get_form(step=step, data=data, files=files)
+        if issubclass(form.__class__, BaseFormSet) and form.can_delete:
+            for _form in form.forms:
+                _form.fields[DELETION_FIELD_NAME].widget = HiddenInput()
+        return form
+
+    def done(self, form_list, **kwargs):
+        if self.success_url:
+            return redirect(to=self.get_success_url())
+        else:
+            raise ImproperlyConfigured('No success_url served.')

@@ -1,3 +1,4 @@
+from django.contrib.gis.geos import MultiPolygon, GEOSGeometry
 from django.forms import DateTimeInput, DateInput, Textarea
 from MrMap.utils import get_theme
 from MrMap.settings import DEFAULT_DATE_TIME_FORMAT
@@ -13,7 +14,7 @@ GEOMAN_CONTROLS = {'position': '\'topright\'',
                    'drawRectangle': 'true',
                    'drawMarker': 'false',
                    'removalMode': 'true',
-                   'cutPolygon': 'true', }
+                   'cutPolygon': 'false', }
 
 
 class BootstrapDatePickerInput(DateInput):
@@ -83,23 +84,21 @@ class BootstrapDatePickerRangeWidget(SuffixedMultiWidget):
 
 class LeafletGeometryInput(Textarea):
     template_name = 'widgets/leaflet_geometry_input.html'
+    bbox = DEFAULT_SERVICE_BOUNDING_BOX
+    geoman_controls = None
 
     def __init__(self,
-                 bbox=None,
-                 geojson=None,
                  request=None,
                  activate_download=True,
                  activate_upload=True,
-                 geoman_controls=GEOMAN_CONTROLS,
+                 geoman_controls=None,
                  *args,
                  **kwargs):
         super(LeafletGeometryInput, self).__init__(*args, **kwargs)
-        self.bbox = bbox or DEFAULT_SERVICE_BOUNDING_BOX
-        self.geojson = geojson
         self.request = request
         self.activate_download = activate_download
         self.activate_upload = activate_upload
-        self.geoman_controls = geoman_controls
+        self.geoman_controls = geoman_controls if geoman_controls else GEOMAN_CONTROLS
 
     def get_context(self,
                     name,
@@ -110,8 +109,8 @@ class LeafletGeometryInput(Textarea):
         leaflet_geometry_input_id = f'leaflet_geometry_input_id_{attrs["id"]}'
         if attrs is None:
             attrs = dict()
-        attrs['data-target'] = f'#{leaflet_geometry_input_id}'
-        attrs['readonly'] = ''
+        # attrs['data-target'] = f'#{leaflet_geometry_input_id}'
+        # attrs['readonly'] = ''
 
         if 'class' in attrs:
             classes = attrs['class'].split()
@@ -125,7 +124,10 @@ class LeafletGeometryInput(Textarea):
         context = super().get_context(name, value, attrs)
         context['widget']['leaflet_geometry_input_id'] = leaflet_geometry_input_id
         context['bbox'] = self.bbox
-        context['geojson'] = self.geojson or value
+
+        if value:
+            context['geojson'] = value.geojson if isinstance(value, MultiPolygon) else GEOSGeometry(value).geojson
+
         context['THEME'] = get_theme(user_helper.get_user(request=self.request))
         context['activate_download'] = self.activate_download
         context['activate_upload'] = self.activate_upload

@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
@@ -196,10 +197,15 @@ def validate_get_capablities_uri(value):
         _get_request_uri_has_no_version_parameter,
     ]
 
+    skip_check_uri_provides_ogc_capabilities = False
     for func in validate_funcs:
+        if skip_check_uri_provides_ogc_capabilities and func == check_uri_provides_ogc_capabilities:
+            continue
         val = func(value)
         if isinstance(val, ValidationError):
             validation_errors.append(val)
+            if func == check_uri_is_reachable:
+                skip_check_uri_provides_ogc_capabilities = True
 
     if len(validation_errors) > 0:
         raise ValidationError(validation_errors)
@@ -247,3 +253,9 @@ def not_uuid(value):
     except ValueError:
         # Could not create a uuid from string - all good!
         pass
+
+
+def geometry_is_empty(geometry: GEOSGeometry):
+    """Raise ValidationError on empty GEOSGeometry objects"""
+    if geometry.empty:
+        raise ValidationError(_("Empty geometry collections are not allowed."))

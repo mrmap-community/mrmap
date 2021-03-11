@@ -13,11 +13,31 @@ from django.db.models import QuerySet
 from django.test import RequestFactory, Client
 from django.urls import reverse
 from django_filters import FilterSet
-from django_tables2 import RequestConfig
+from django_tables2 import RequestConfig, tables
 
 from MrMap import utils
 from MrMap.tables import MrMapTable
 from structure.models import MrMapUser
+
+
+def activate_service(self, is_active: bool):
+    """ Toggles the activity status of a service and it's metadata
+
+    Args:
+        is_active (bool): Whether the service shall be activated or not
+    Returns:
+         nothing
+    """
+    self.is_active = is_active
+    self.metadata.is_active = is_active
+
+    linked_mds = self.metadata.related_metadatas.all()
+    for md in linked_mds:
+        md.is_active = is_active
+        md.save(update_last_modified=False)
+
+    self.metadata.save(update_last_modified=False)
+    self.save(update_last_modified=False)
 
 
 def generate_random_string(len: int):
@@ -31,7 +51,7 @@ def generate_random_string(len: int):
     return ''.join(random.choices(string.ascii_uppercase, k=len))
 
 
-def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter: str):
+def check_table_sorting(table: tables.Table, url_path_name: str):
     """ Checks the sorting of a MrMapTable object.
 
     This function returns two elements, so call it like
@@ -40,9 +60,8 @@ def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter
     ```
 
     Args:
-        table (MrMapTable): An instance of a MrMapTable (or inherited)
+        table: (tables.Table)
         url_path_name (str): Identifies the url path name like `structure:groups-index` where the table would be rendered
-        sorting_parameter (str): Identifies the GET parameter name, that holds the ordering column name
     Returns:
         sorting_implementation_failed (dict): Contains results if the sorting created an exception
                                               (maybe due to a custom sorting functionality)
@@ -57,19 +76,18 @@ def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter
         for column in table.columns:
             request = request_factory.get(
                 reverse(url_path_name) + '?{}={}{}'.format(
-                    sorting_parameter,
+                    table.prefixed_order_by_field,
                     sorting,
                     column.name
                 )
             )
-
             RequestConfig(request).configure(table)
 
             try:
                 if "actions" in column.accessor:
                     break
                 # Check if correctly sorted
-                post_sorting = [utils.get_nested_attribute(row.record, column.accessor).__str__() for row in table.rows]
+                post_sorting = [row.table.columns[column.name].__str__() for row in table.rows]
                 try:
                     # For numerical sorting, the strings have to be casted to Integer - if possible
                     post_sorting = [int(p) for p in post_sorting]
@@ -86,12 +104,12 @@ def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter
     return sorting_implementation_failed, sorting_results
 
 
-def check_table_filtering(table: MrMapTable, filter_parameter: str, filter_class, queryset: QuerySet,
+def check_table_filtering(table, filter_parameter: str, filter_class, queryset: QuerySet,
                           table_class, user: MrMapUser):
     """ Checks if the filter functionality of a MrMapTable is working
 
     Args:
-        table (MrMapTable): An instance of a MrMapTable (or inherited)
+        table: An instance of a MrMapTable (or inherited)
         filter_parameter (str): Identifies the parameter used for filtering in the table (e.g. 'gsearch' in Groups)
         filter_class: The class used for creating the table filter (e.g. GroupFilter)
         queryset (QuerySet): The queryset containing the data which is displayed in the table
@@ -107,7 +125,7 @@ def check_table_filtering(table: MrMapTable, filter_parameter: str, filter_class
         for col in table.columns:
             if "actions" in col.accessor:
                 break
-            filter_for = utils.get_nested_attribute(row.record, col.accessor).__str__()
+            filter_for = row.table.columns[col.name].__str__()
 
             # Generic approach to filter on various types of tables
             table_filter = filter_class({filter_parameter: filter_for}, queryset)

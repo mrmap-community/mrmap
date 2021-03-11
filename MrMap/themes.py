@@ -8,6 +8,7 @@ FONT_AWESOME_ICONS = {
     'WFS': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon', ),
     'CSW': format_html(ICON_PATTERN, 'fas', 'fa-book', ),
     'LAYER': format_html(ICON_PATTERN, 'fas', 'fa-layer-group', ),
+    'FEATURETYPE': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon'),
     'DATASET': format_html(ICON_PATTERN, 'fas', 'fa-clipboard-list', ),
     'PENDINGTASKS': format_html(ICON_PATTERN, 'fas', 'fa-tasks', ),
     'USER': format_html(ICON_PATTERN, 'fas', 'fa-user', ),
@@ -31,6 +32,9 @@ FONT_AWESOME_ICONS = {
     'CAPABILITIES': format_html(ICON_PATTERN, 'fas', 'fa-file-code', ),
     'NEWSPAPER': format_html(ICON_PATTERN, 'far', 'fa-newspaper', ),
     'METADATA': format_html(ICON_PATTERN, 'fas', 'fa-file-alt', ),
+    'VALIDATION': format_html(ICON_PATTERN, 'fas', 'fa-check-circle', ),
+    'VALIDATION_ERROR': format_html(ICON_PATTERN, 'fas', 'fa-times-circle', ),
+    'VALIDATION_UNKNOWN': format_html(ICON_PATTERN, 'fas', 'fa-question-circle', ),
     'ACCESS': format_html(ICON_PATTERN, 'fas', 'fa-key', ),
     'SORT_ALPHA_UP': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-up', ),
     'SORT_ALPHA_DOWN': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-down', ),
@@ -73,6 +77,10 @@ FONT_AWESOME_ICONS = {
     'WARNING': format_html(ICON_PATTERN, 'fas', 'fa-exclamation-triangle'),
     'CRITICAL': format_html(ICON_PATTERN, 'fas', 'fa-bolt'),
     'LIST': format_html(ICON_PATTERN, 'fas', 'fa-th-list'),
+    'PROXY': format_html(ICON_PATTERN, 'fas', 'fa-archway'),
+    'LOGGING': format_html(ICON_PATTERN, 'fas', 'fa-file-signature'),
+    'MONITORING': format_html(ICON_PATTERN, 'fas', 'fa-binoculars'),
+    'NONE': '',
 }
 
 # dark theme settings

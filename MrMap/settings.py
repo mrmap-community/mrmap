@@ -15,9 +15,19 @@ from MrMap.sub_settings.db_settings import *
 from MrMap.sub_settings.logging_settings import *
 from api.settings import REST_FRAMEWORK
 
+ALLOWED_HOSTS = [
+    HOST_NAME,
+    "127.0.0.1",
+    "localhost",
+]
+
 # GIT repo links
 GIT_REPO_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/src/branch/pre_master"
 GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/graph"
+
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "login"
+LOGIN_URL = "login"
 
 # Defines the semantic web information which will be injected on the resource html views
 SEMANTIC_WEB_HTML_INFORMATION = {
@@ -40,3 +50,7 @@ PROXIES = {
     "http": HTTP_PROXY,
     "https": HTTP_PROXY,
 }
+
+# configure if you want to validate ssl certificates
+# it is highly recommend keeping this to true
+VERIFY_SSL_CERTIFICATES = True

@@ -2,31 +2,43 @@ import csv
 import io
 import json
 import uuid
-
 import os
 from collections import OrderedDict
-
 import time
 from datetime import datetime
 from json import JSONDecodeError
-
+from typing import Iterator
 from PIL import Image
 from dateutil.parser import parse
-from django.contrib.gis.geos import Polygon, GeometryCollection
-from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.contrib.gis.db import models
+from django.db.models import Q, QuerySet, F, Count
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import gettext as _
+from django_bootstrap_swt.components import LinkButton, Badge, Tag, Modal
+from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum, ButtonSizeEnum, \
+    TooltipPlacementEnum
 from django.utils.translation import gettext_lazy as _
-
-from MrMap.cacher import DocumentCacher
+from mptt.fields import TreeForeignKey
+from mptt.models import MPTTModel
+from MrMap.cacher import DocumentCacher, PageCacher
+from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
-from MrMap.validators import not_uuid
+from MrMap.themes import FONT_AWESOME_ICONS
+from MrMap.validators import not_uuid, geometry_is_empty
+from api.settings import API_CACHE_KEY_PREFIX
+from csw.settings import CSW_CACHE_PREFIX
+from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
+from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
     ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
@@ -37,14 +49,16 @@ from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATI
     service_logger
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
+from structure.permissionEnums import PermissionEnum
 
 
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
+    # todo: check if we still need this two boolean flags
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
 
@@ -58,6 +72,9 @@ class Resource(models.Model):
 
     class Meta:
         abstract = True
+
+    def get_absolute_url(self):
+        return reverse('resource:details', args=[self.pk])
 
 
 class Keyword(models.Model):
@@ -75,7 +92,7 @@ class Keyword(models.Model):
 
 class ProxyLog(models.Model):
     from structure.models import MrMapUser
-    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, null=True, blank=True)
+    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE)
     user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
     operation = models.CharField(max_length=100, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
@@ -85,9 +102,7 @@ class ProxyLog(models.Model):
     response_wms_megapixel = models.FloatField(null=True, blank=True)
 
     class Meta:
-        ordering = [
-            "-timestamp"
-        ]
+        ordering = ["-timestamp"]
 
     def __str__(self):
         return str(self.id)
@@ -371,119 +386,37 @@ class RequestOperation(models.Model):
         return self.operation_name
 
 
-class SecuredOperation(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), null=True, blank=True)
-    allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
-    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
-    secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
-
-    def __str__(self):
-        return str(self.id)
-
-    def delete(self, using=None, keep_parents=False):
-        """ Overwrites builtin delete() method with model specific logic.
-
-        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
-        existing SecuredOperation records as well.
-
-        Args:
-            using:
-            keep_parents:
-        Returns:
-
-        """
-        md = self.secured_metadata
-        operation = self.operation
-        group = self.allowed_group
-
-        # continue with possibly existing children
-        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
-            sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=md,
-                operation=operation,
-                allowed_group=group
-            )
-            sec_ops.delete()
-
-        elif md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
-            if md.is_service_type(OGCServiceEnum.WFS):
-                # find all wfs featuretypes
-                featuretypes = md.service.featuretypes.all()
-                for featuretype in featuretypes:
-                    sec_ops = SecuredOperation.objects.filter(
-                        secured_metadata=featuretype.metadata,
-                        operation=operation,
-                        allowed_group=group,
-                    )
-                    sec_ops.delete()
-
-            elif md.is_service_type(OGCServiceEnum.WMS):
-                if md.service.is_root:
-                    # find root layer
-                    layer = Layer.objects.get(
-                        parent_layer=None,
-                        parent_service=md.service
-                    )
-                else:
-                    # find layer which is described by this metadata
-                    layer = Layer.objects.get(
-                        metadata=md
-                    )
-
-                # remove root layer secured operation
-                sec_op = SecuredOperation.objects.filter(
-                    secured_metadata=layer.metadata,
-                    operation=operation,
-                    allowed_group=group
-                )
-                sec_op.delete()
-
-                # remove secured operations of root layer children
-                for child_layer in layer.child_layers.all():
-                    sec_ops = SecuredOperation.objects.filter(
-                        secured_metadata=child_layer.metadata,
-                        operation=operation,
-                        allowed_group=group,
-                    )
-                    sec_ops.delete()
-                    child_layer.delete_children_secured_operations(child_layer, operation, group)
-
-        # delete current object
-        super().delete(using, keep_parents)
-
-
 class MetadataRelation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE)
+    from_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='from_metadatas')
+    to_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='to_metadatas')
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
-        return "{} {}".format(self.relation_type, self.metadata_to.title)
+        return "{} {} {}".format(self.to_metadata.title, self.relation_type, self.from_metadata.title)
 
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-        """ Overwrites default save function
-
-        Saves the relation and stores information about relation in both related metadata records
-
-        Args:
-            force_insert: Default save parameter
-            force_update: Default save parameter
-            using: Default save parameter
-            update_fields: Default save parameter
-        Returns:
-
-        """
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
         super().save(force_insert, force_update, using, update_fields)
+        if self.to_metadata.metadata_type is OGCServiceEnum.DATASET.value:
+            self.from_metadata.has_dataset_metadatas = True
+            self.from_metadata.save()
+
+    def delete(self,  using=None, keep_parents=False):
+        collector = super().delete(using, keep_parents)
+        if self.from_metadata.get_related_dataset_metadatas().count() == 0:
+            self.from_metadata.has_dataset_metadatas = False
+            self.from_metadata.save()
+        return collector
 
 
 class ExternalAuthentication(models.Model):
     username = models.CharField(max_length=255)
     password = models.CharField(max_length=500)
     auth_type = models.CharField(max_length=100)
-    metadata = models.OneToOneField('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True, related_name="external_authentication")
+    metadata = models.OneToOneField('Metadata', on_delete=models.CASCADE, null=True, blank=True, related_name="external_authentication")
 
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete function
@@ -542,7 +475,7 @@ class ExternalAuthentication(models.Model):
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
     identifier = models.CharField(max_length=1000, null=True)
-    title = models.CharField(max_length=1000)
+    title = models.CharField(max_length=1000, verbose_name=_l('Title'))
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
@@ -550,15 +483,13 @@ class Metadata(Resource):
     service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
     additional_urls = models.ManyToManyField('GenericUrl', blank=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
+    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True, verbose_name=_l('Data provider'))
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True, blank=True)
-    use_proxy_uri = models.BooleanField(default=False)
-    log_proxy_access = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True, blank=True)
     spatial_res_value = models.CharField(max_length=100, null=True, blank=True)
     is_broken = models.BooleanField(default=False)
@@ -576,6 +507,10 @@ class Metadata(Resource):
     ))
 
     # security
+    use_proxy_uri = models.BooleanField(default=False)
+    # log_proxy_access constraint: if True user_proxy_uri shall also be True
+    log_proxy_access = models.BooleanField(default=False)
+    # is_secured constraint: if True user_proxy_uri shall also be True
     is_secured = models.BooleanField(default=False)
 
     # capabilities
@@ -595,8 +530,13 @@ class Metadata(Resource):
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
-    related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
+
+    # By passing the MetadataRelation class as through value, django dose everything we need and gives us here directly
+    # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
+    # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
+    related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to', blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
+    has_dataset_metadatas = models.BooleanField(default=False)
     origin = None
 
     class Meta:
@@ -619,8 +559,110 @@ class Metadata(Resource):
         self.formats_list = []
         self.categories_list = []
 
+        # memories some values to check has_changed in the save function
+        self.__is_active = self.is_active
+
     def __str__(self):
         return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
+
+    def is_updatecandidate(self):
+        # get service object
+
+        self.get_described_element()
+        if self.is_metadata_type(MetadataEnum.FEATURETYPE):
+            service = self.featuretype.parent_service
+        elif self.is_metadata_type(MetadataEnum.DATASET):
+            return False
+        else:
+            service = self.service
+        # proof if the requested metadata is a update_candidate
+        if service.is_root:
+            if service.is_update_candidate_for is not None:
+                return True
+        else:
+            if service.parent_service.is_update_candidate_for is not None:
+                return True
+        return False
+
+    def get_absolute_url(self):
+        return reverse('resource:detail', kwargs={'pk': self.pk})
+
+    def add_metadata_relation(self, to_metadata, relation_type, origin, internal=False):
+        relation, created = MetadataRelation.objects.get_or_create(
+            from_metadata=self,
+            to_metadata=to_metadata,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin)
+        return relation
+
+    def remove_metadata_relation(self, to_metadata, relation_type, internal, origin):
+        MetadataRelation.objects.filter(
+            from_metadata=self,
+            to_metadata=to_metadata,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin).delete()
+
+    def get_related_dataset_metadatas(self, filters=None, exclusions=None) -> QuerySet:
+        """ Returns all related metadata records from type dataset.
+
+        Returns:
+             metadatas (QuerySet)
+        """
+        _filters = {'to_metadatas__to_metadata__metadata_type': OGCServiceEnum.DATASET.value,
+                    'to_metadatas__relation_type': MetadataRelationEnum.DESCRIBES.value}
+        if filters:
+            _filters.update(filters)
+        return self.get_related_metadatas(filters=_filters, exclusions=exclusions)
+
+    def get_related_metadatas(self, filters=None, exclusions=None) -> QuerySet:
+        """ Return all related metadata records which where self points to.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        filter_query = Q(to_metadatas__from_metadata=self)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(filter_query)
+
+    def get_family_related_metadatas(self, filters=None, exclusions=None) -> QuerySet:
+        """ Return all related metadata records which points to any akin of the current.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        filter_query = Q(to_metadatas__from_metadata__in=self.get_family_metadatas)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(filter_query)
+
+    def get_descendant_related_metadatas(self, filters=None, exclusions=None, include_self=False) -> QuerySet:
+        """ Return all related metadata records which points to any akin of the current.
+
+        Returns:
+             metadatas (Queryset)
+        """
+        filter_query = Q(to_metadatas__from_metadata__in=self.get_descendant_metadatas(include_self=True))
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_metadatas.filter(filter_query)
+
+    def get_related_to(self, filters=None, exclusions=None) -> QuerySet:
+        """ Return all related metadata records which points to self """
+        filter_query = Q(from_metadatas__to_metadata=self)
+        if filters:
+            filter_query &= Q(**filters)
+        if exclusions:
+            filter_query &= ~Q(**exclusions)
+        return self.related_to.filter(filter_query)
 
     def get_formats(self, filter: dict = {}):
         """ Returns supported formats/MimeTypes.
@@ -640,6 +682,235 @@ class Metadata(Resource):
             except Exception:
                 formats = MimeType.objects.none()
         return formats
+
+    @classmethod
+    def get_add_resource_action(cls):
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('resource:add'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+
+    @classmethod
+    def get_add_dataset_action(cls):
+        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('editor:dataset-metadata-wizard-new'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+
+    def get_actions(self):
+        actions = []
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            # datasets can be edited,
+            # removed if it is a dataset which is created from the user,
+            # restored if it's customized
+            actions.append(LinkButton(url=self.edit_view_uri,
+                                      content=FONT_AWESOME_ICONS["EDIT"],
+                                      color=ButtonColorEnum.WARNING,
+                                      tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
+                                      tooltip_placement=TooltipPlacementEnum.LEFT,
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+            # todo: if this dataset is in the given from_metadata context origin editor, then we can show this
+            actions.append(LinkButton(url=self.remove_view_uri,
+                                      content=FONT_AWESOME_ICONS["REMOVE"],
+                                      color=ButtonColorEnum.DANGER,
+                                      tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
+
+        else:
+            actions.append(LinkButton(url=self.activate_view_uri,
+                                      content=FONT_AWESOME_ICONS["POWER_OFF"],
+                                      color=ButtonColorEnum.WARNING if self.is_active else ButtonColorEnum.SUCCESS,
+                                      tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
+                                      tooltip_placement=TooltipPlacementEnum.LEFT,
+                                      needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
+            if self.is_service_type(OGCServiceEnum.CSW):
+                actions.append(LinkButton(url=self.harvest_view_uri,
+                                          content=FONT_AWESOME_ICONS["HARVEST"],
+                                          color=ButtonColorEnum.INFO,
+                                          tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
+                                          tooltip_placement=TooltipPlacementEnum.LEFT,
+                                          needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
+            else:
+                actions.extend([LinkButton(url=self.edit_view_uri,
+                                           content=FONT_AWESOME_ICONS["EDIT"],
+                                           color=ButtonColorEnum.WARNING,
+                                           tooltip=_l("Edit the metadata of this resource"),
+                                           tooltip_placement=TooltipPlacementEnum.LEFT,
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
+                                LinkButton(url=self.edit_access_view_uri,
+                                           content=FONT_AWESOME_ICONS["ACCESS"],
+                                           color=ButtonColorEnum.WARNING,
+                                           tooltip=_l("Edit the access for resource"),
+                                           tooltip_placement=TooltipPlacementEnum.LEFT,
+                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), ])
+
+                if self.is_metadata_type(MetadataEnum.SERVICE):
+                    actions.extend([LinkButton(url=self.update_view_uri,
+                                               content=FONT_AWESOME_ICONS["UPDATE"],
+                                               color=ButtonColorEnum.INFO,
+                                               tooltip=_l("Update this resource"),
+                                               tooltip_placement=TooltipPlacementEnum.LEFT,
+                                               needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE.value),
+                                    LinkButton(url=self.run_monitoring_view_uri,
+                                               content=FONT_AWESOME_ICONS["HEARTBEAT"],
+                                               color=ButtonColorEnum.INFO,
+                                               tooltip=_l("Run health checks for this resource"),
+                                               tooltip_placement=TooltipPlacementEnum.LEFT,
+                                               needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
+                                    LinkButton(url=self.remove_view_uri,
+                                               content=FONT_AWESOME_ICONS["REMOVE"],
+                                               color=ButtonColorEnum.DANGER,
+                                               tooltip=_l("Remove this resource"),
+                                               tooltip_placement=TooltipPlacementEnum.LEFT,
+                                               needs_perm=PermissionEnum.CAN_REMOVE_RESOURCE.value)])
+
+        if self.is_custom:
+            actions.append(LinkButton(url=self.restore_view_uri,
+                                      content=FONT_AWESOME_ICONS["UNDO"],
+                                      color=ButtonColorEnum.DANGER,
+                                      tooltip=_l("Restore the metadata for resource"),
+                                      needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
+
+        return actions
+
+    def get_status_icons(self):
+        icons = []
+        if self.is_active:
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.POWER_OFF.value, TextColorEnum.SUCCESS.value]},
+                             tooltip=_l('This resource is active')))
+        else:
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.POWER_OFF.value, TextColorEnum.DANGER.value]},
+                             tooltip=_l('This resource is deactivated')))
+        if self.use_proxy_uri:
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.PROXY.value]},
+                             tooltip=_l('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
+        if self.log_proxy_access:
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.LOGGING.value]},
+                             tooltip=_l('This resource will be logged')))
+        if self.is_secured:
+            security_icon = Tag(tag='i', attrs={"class": [IconEnum.WFS.value]}).render()
+            security_overview_link = LinkButton(url=self.security_overview_uri,
+                                                content=security_icon,
+                                                color=ButtonColorEnum.INFO_OUTLINE,
+                                                tooltip=_l('This resource is secured'))
+            security_overview_link.update_attributes({'class': [ButtonSizeEnum.SMALL.value]})
+            icons.append(security_overview_link)
+        if hasattr(self, 'external_authentication'):
+            icons.append(Tag(tag='i', attrs={"class": [IconEnum.PASSWORD.value]},
+                             tooltip=_l('This resource has external authentication.')))
+        return icons
+
+    def get_health_icons(self):
+        icons = []
+        btn_color = ButtonColorEnum.SECONDARY_OUTLINE
+        health_state = self.get_health_state()
+        if health_state:
+            if health_state.health_state_code == HealthStateEnum.OK.value:
+                # state is OK
+                btn_color = ButtonColorEnum.SUCCESS_OUTLINE
+            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
+                # state is WARNING
+                btn_color = ButtonColorEnum.WARNING_OUTLINE
+            elif health_state.health_state_code == HealthStateEnum.CRITICAL.value:
+                # state is CRITICAL
+                btn_color = ButtonColorEnum.DANGER_OUTLINE
+            tooltip = health_state.health_message
+
+            icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, btn_color.value]},
+                       tooltip=tooltip)
+        else:
+            # state is unknown
+            tooltip = DEFAULT_UNKNOWN_MESSAGE
+            icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
+
+        if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
+            icon = LinkButton(url=self.health_state.get_absolute_url(),
+                              content=icon.render(),
+                              color=btn_color,
+                              tooltip=tooltip,
+                              tooltip_placement=TooltipPlacementEnum.LEFT)
+
+        icons.append(icon)
+        if health_state:
+            for reason in health_state.reasons.all():
+                if reason.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
+                    icons.append(Tag(tag='i',
+                                     attrs={"class": [IconEnum.PASSWORD.value]},
+                                     tooltip=_l('Some checks can\'t get a result, cause the service needs an authentication for this request.')))
+                    break
+
+            badge_color = BadgeColorEnum.SUCCESS
+            if health_state.reliability_1w < CRITICAL_RELIABILITY:
+                badge_color = BadgeColorEnum.DANGER
+            elif health_state.reliability_1w < WARNING_RELIABILITY:
+                badge_color = BadgeColorEnum.WARNING
+            icons.append(Badge(badge_color=badge_color,
+                               badge_pill=True,
+                               content=f'{round(health_state.reliability_1w, 2)} %',
+                               tooltip=_l('Reliability statistic for one week.')))
+        return icons
+
+    @property
+    def detail_view_uri(self):
+        return reverse('resource:detail', args=[self.pk, ])
+
+    @property
+    def detail_table_view_uri(self):
+        return reverse('resource:detail-table', args=[self.pk, ])
+
+    @property
+    def detail_related_datasets_view_uri(self):
+        return reverse('resource:detail-related-datasets', args=[self.pk, ])
+
+    @property
+    def detail_html_view_uri(self):
+        return reverse('resource:get-metadata-html', args=[self.pk, ])
+
+    @property
+    def edit_view_uri(self):
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            return reverse('resource:dataset-metadata-wizard-instance', args=[self.pk, ])
+        return reverse('resource:edit', args=[self.pk, ])
+
+    @property
+    def edit_access_view_uri(self):
+        return reverse('resource:access-editor-wizard', args=(self.pk,))
+
+    @property
+    # todo: move to security app
+    def security_overview_uri(self):
+        return reverse('editor:allowed-operations', args=(self.pk,))
+
+    @property
+    def remove_view_uri(self):
+        if self.metadata_type == MetadataEnum.DATASET.value:
+            return reverse('resource:remove-dataset-metadata', args=[self.pk, ])
+        return reverse('resource:remove', args=[self.pk, ])
+
+    @property
+    def restore_view_uri(self):
+        return reverse('resource:restore', args=[self.pk, ])
+
+    @property
+    def activate_view_uri(self):
+        return reverse('resource:activate', args=[self.pk, ])
+
+    @property
+    def update_view_uri(self):
+        return reverse('resource:run-update', args=[self.pk, ])
+
+    @property
+    def health_state_uri(self):
+        #Todo
+        return '#'
+
+    @property
+    def harvest_view_uri(self):
+        return reverse('csw:harvest-catalogue', args=[self.pk]) if self.service_type == OGCServiceEnum.CSW else ''
+
+    @property
+    def run_monitoring_view_uri(self):
+        return f"{reverse('monitoring:run_new')}?metadatas={self.pk}"
 
     @property
     def capabilities_uri(self):
@@ -743,9 +1014,9 @@ class Metadata(Resource):
         Returns:
              True|False
         """
-        return self.get_service_type() == enum.value
+        return self.service_type == enum
 
-    def get_described_element(self):
+    def get_described_element(self) -> Resource:
         """ Simple getter to return the 'real' described element.
 
         Described elements are .service, .layer or .featuretype. Instead of doing these if-else checks
@@ -758,12 +1029,15 @@ class Metadata(Resource):
         if self.is_service_metadata:
             ret_val = self.service
         elif self.is_layer_metadata:
+            # todo: this slows down... think about to set up a related_name called 'layer' to get the layer with self.layer
             ret_val = Layer.objects.get(
                 metadata=self
             )
         elif self.is_featuretype_metadata:
             ret_val = self.featuretype
         return ret_val
+
+
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -780,8 +1054,7 @@ class Metadata(Resource):
         # Find all upper layers/elements
         layer = Layer.objects.get(metadata=self)
 
-        upper_elements = layer.get_upper_layers()
-        upper_elements_metadatas = [elem.metadata for elem in upper_elements]
+        upper_elements_metadatas = [elem.metadata for elem in layer.get_ancestors()]
 
         if clear_self_too:
             upper_elements_metadatas.append(self)
@@ -826,43 +1099,6 @@ class Metadata(Resource):
         for version in OGCServiceVersionEnum:
             cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
             cacher.remove(str(self.id))
-
-    def get_subelements_metadatas(self):
-        """ Returns a list containing all subelement metadata records
-
-
-        Returns:
-             ret_list (list)
-        """
-        is_service = self.is_metadata_type(MetadataEnum.SERVICE)
-        is_layer = self.is_metadata_type(MetadataEnum.LAYER)
-
-        ret_list = []
-        if is_service or is_layer:
-            ret_list += [elem.metadata for elem in self.service.subelements]
-        else:
-            subelement_metadatas = Metadata.objects.filter(
-                service__parent_service__metadata=self,
-            )
-            ret_list += list(subelement_metadatas)
-
-        return ret_list
-
-    def get_root_metadata(self):
-        """ Returns the root metadata of the current metadata if there is one.
-
-        Returns the same metadata otherwise
-
-
-        Returns:
-             ret_list (list)
-        """
-        if self.service.parent_service is not None:
-            root_md = self.service.parent_service.metadata
-        else:
-            root_md = self
-
-        return root_md
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -1004,23 +1240,6 @@ class Metadata(Resource):
             pass
         return ext_auth
 
-    def get_related_dataset_metadata(self):
-        """ Returns a related dataset metadata record.
-
-        If none exists, None is returned
-
-        Returns:
-             dataset_md (Metadata) | None
-        """
-        try:
-            dataset_md = self.related_metadata.get(
-                metadata_to__metadata_type=OGCServiceEnum.DATASET.value
-            )
-            dataset_md = dataset_md.metadata_to
-            return dataset_md
-        except ObjectDoesNotExist:
-            return None
-
     def get_remote_original_capabilities_document(self, version: str):
         """ Fetches the original capabilities document from the remote server.
 
@@ -1062,33 +1281,100 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             return False
 
+    def get_root_metadata(self):
+        """ returns the root metadata object of the current metadata object. If the current one is the root node,
+            it returns it self.
+        """
+        if self.is_root():
+            parent_metadata = self
+        else:
+            if self.is_service_type(OGCServiceEnum.WMS):
+                parent_metadata = self.service.parent_service.metadata
+            elif self.is_service_type(OGCServiceEnum.WFS):
+                parent_metadata = self.featuretype.parent_service.metadata
+            else:
+                # This case is not important now
+                parent_metadata = None
+        return parent_metadata
+
+    @cached_property
+    def get_all_service_metadatas(self) -> QuerySet:
+        """ Return all Metadata objects which are akin to the service of this Metadata.
+
+            If the given Metadata object describes a Service,
+            the service Metadata it self and all subelement metadatas are included.
+            If the given Metadata object describes a Layer,
+            the service Metadata and all Metadata objects of the family of the given Layer objects are included.
+            If the given Metadata objects describes a FeatureType,
+            the service Metadata and all Metadata objects of the family of the given FeatureType objects are included.
+
+            Returns:
+                qs (QuerySet): the QuerySet of all akin metadata objects
+        """
+        # todo: maybe we could use F() expressions to select the manytomany fields like service.child_services.all()
+        filter_query = None
+        if self.is_service_metadata:
+            if self.service_type is OGCServiceEnum.WMS:
+                filter_query = Q(service=self.service) | Q(service__in=self.service.child_services.all())
+            elif self.service_type is OGCServiceEnum.WFS:
+                filter_query = Q(service=self.service) | Q(featuretype__in=self.service.featuretypes.all())
+        elif self.is_layer_metadata:
+            filter_query = Q(service=self.service.parent_service) | Q(service__in=self.service.parent_service.child_services.all())
+        elif self.is_featuretype_metadata:
+            filter_query = Q(service=self.featuretype.parent_service) | Q(featuretype__in=self.service.parent_service.featuretypes.all())
+        qs = Metadata.objects.filter(filter_query) if filter_query else Metadata.objects.none()
+        return qs
+
+    @cached_property
+    def get_family_metadatas(self) -> QuerySet:
+        """ Returns a QuerySet containing the ancestors, the model itself and the descendants,
+            in tree order if it's a WMS and in various order else.
+            Returns:
+                qs (QuerySet): the QuerySet of all family metadata objects
+        """
+        filter_query = None
+        if self.is_service_metadata:
+            if self.service_type is OGCServiceEnum.WMS:
+                filter_query = Q(service__in=self.service.get_subelements()) | Q(service=self.service)
+        elif self.is_layer_metadata:
+            filter_query = Q(service__in=self.get_described_element().get_family()) | Q(service=self.service.parent_service)
+        # todo: filter for wfs services
+
+        qs = Metadata.objects.filter(filter_query) if filter_query else Metadata.objects.none()
+        return qs
+
+    def get_descendant_metadatas(self, include_self=False) -> QuerySet:
+        """ Return all Metadata objects which are descendant to the given Metadata.
+
+            Returns:
+                qs (QuerySet): the QuerySet of all descendant metadata objects
+        """
+        filter_query = None
+        if self.is_service_metadata:
+            if self.service_type is OGCServiceEnum.WMS:
+                filter_query = Q(service__in=self.service.get_subelements())
+                if include_self:
+                    filter_query |= Q(service=self.service)
+        elif self.is_layer_metadata:
+            filter_query = Q(service__in=self.get_described_element().get_descendants(include_self=include_self))
+        # todo: filter for wfs services
+
+        qs = Metadata.objects.filter(filter_query) if filter_query else Metadata.objects.none()
+        return qs
+
     @transaction.atomic
     def increase_hits(self):
-        """ Increases the hit counter of the metadata
+        """ Increases the hit counter of all metadata objects the service has
 
         Returns:
              Nothing
         """
-        # increase itself
-        self.hits += 1
-
         # Only if whole service was called, increase the children hits as well
         if self.is_metadata_type(MetadataEnum.SERVICE):
-
-            # wms children
-            if self.service.is_service_type(OGCServiceEnum.WMS):
-                children = self.service.child_service.all()
-                for child in children:
-                    child.metadata.hits += 1
-                    child.metadata.save()
-
-            elif self.service.is_service_type(OGCServiceEnum.WFS):
-                featuretypes = self.service.featuretypes.all()
-                for f_t in featuretypes:
-                    f_t.metadata.hits += 1
-                    f_t.metadata.save()
-
-        self.save()
+            self.get_all_service_metadatas.update(hits=F('hits') + 1)
+        else:
+            # todo
+            pass
 
     def generate_public_id(self, stump: str = None):
         """ Generates a public_id for a Metadata entry.
@@ -1134,14 +1420,37 @@ class Metadata(Resource):
         """
         super().save(*args, **kwargs)
 
-        # Add created/updated object to the MonitoringSettings. Django does not add
-        # the same instance twice, so we do not have to check for updating specifically.
-        # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
-        if add_monitoring:
-            monitoring_setting = MonitoringSetting.objects.first()
-            if monitoring_setting is not None:
-                monitoring_setting.metadatas.add(self)
-                monitoring_setting.save()
+        if not self._state.adding:
+            if self.__is_active != self.is_active:
+                # the active sate of this and all descendant metadatas shall be changed to the new value. Bulk update
+                # is the most efficient way to do it.
+                if self.is_active:
+                    self.get_family_metadatas.prefetch_related('related_metadatas') \
+                        .update(is_active=self.is_active)
+                    self.get_family_related_metadatas() \
+                        .update(is_active=self.is_active)
+                else:
+                    self.get_descendant_metadatas(include_self=True).prefetch_related('related_metadatas') \
+                        .update(is_active=self.is_active)
+                    # updating only related metadatas without dependencies
+                    self.get_descendant_related_metadatas(include_self=True) \
+                        .annotate(num_dependencies=Count('from_metadatas')) \
+                        .filter(num_dependencies__lte=1) \
+                        .update(is_active=self.is_active)
+
+                # clear page cacher for API and csw
+                page_cacher = PageCacher()
+                page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+                page_cacher.remove_pages(CSW_CACHE_PREFIX)
+        else:
+            # Add created/updated object to the MonitoringSettings.
+            # todo: NOTE: Since we do not have a clear handling for which setting to use, always use first (default)
+            #  setting.
+            if add_monitoring:
+                monitoring_setting = MonitoringSetting.objects.first()
+                if monitoring_setting is not None:
+                    monitoring_setting.metadatas.add(self)
+                    monitoring_setting.save()
 
     def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
@@ -1153,61 +1462,46 @@ class Metadata(Resource):
         Args:
             using: The regular 'using' parameter
             keep_parents: The regular 'keep_parents' parameter
-            force: Forces the deletion in any case
+            force: Forces the deletion of dataset metadatas in any case
         Returns:
             nothing
         """
-        # check for SecuredOperations
-        if self.is_secured:
-            sec_ops = self.secured_operations.all()
-            sec_ops.delete()
+        if self.get_related_to().count() <= 1 or force:
+            # this metadata is save to delete, cause there are no dependencies or force was passed
 
-        # remove externalAuthentication object if it exists
-        try:
-            self.external_authentication.delete()
-        except ObjectDoesNotExist:
+            # delete related metadatas
+            self.get_related_metadatas().delete()
+
+            # Remove GenericUrls if they are not used anywhere else!
+            urls = self.additional_urls.all()
+            for url in urls:
+                other_dependencies = Metadata.objects.filter(
+                    additional_urls=url
+                ).exclude(
+                    id=self.id
+                ).exists()
+                if not other_dependencies:
+                    url.delete()
+
+            return super().delete(using, keep_parents)
+        else:
+            # todo: maybe an exception should be raised to signal that it isn't possible to delete this record
             pass
 
-        # Remove GenricUrls if they are not used anywhere else!
-        urls = self.additional_urls.all()
-        for url in urls:
-            other_dependencies = Metadata.objects.filter(
-                additional_urls=url
-            ).exclude(
-                id=self.id
-            ).exists()
-            if not other_dependencies:
-                url.delete()
-
-        # check if there are MetadataRelations to(!) this metadata record
-        # if so, we can not remove it until these relations aren't used anymore
-        dependencies = MetadataRelation.objects.filter(
-            metadata_to=self
-        )
-        if dependencies.count() > 1 and force is False:
-            # if there are more than one dependency, we should not remove it
-            # the one dependency we can expect at least is the relation to the current metadata record
-            return
-        else:
-            # Remove all relations from(!) this metadata as well
-            md_rels = self.related_metadata.all()
-            md_rels.delete()
-            # if we have one or less relations to this metadata record, we can remove it anyway
-            super().delete(using, keep_parents)
-
-    def get_service_type(self):
+    @property
+    def service_type(self):
         """ Performs a check on which service type is described by the metadata record
 
         Returns:
-             service_type (str): The service type as string ('wms' or 'wfs')
+             service_type (OGCServiceEnum): The service type as OGCServiceEnum
         """
         service_type = None
         if self.is_root():
-            return self.service.service_type.name
+            return OGCServiceEnum(self.service.service_type.name)
         elif self.is_metadata_type(MetadataEnum.LAYER):
-            service_type = 'wms'
+            service_type = OGCServiceEnum.WMS
         elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
-            service_type = 'wfs'
+            service_type = OGCServiceEnum.WFS
         return service_type
 
     def get_service_version(self) -> OGCServiceEnum:
@@ -1242,17 +1536,17 @@ class Metadata(Resource):
 
         """
         if self.metadata_type == MetadataEnum.SERVICE.value:
-            if self.service.service_type.name == OGCServiceEnum.WMS.value:
+            if self.service.service_type.name.value == OGCServiceEnum.WMS.value:
                 children = Layer.objects.filter(
                     parent_service__metadata=self
                 )
-            elif self.service.service_type.name == OGCServiceEnum.WFS.value:
+            elif self.service.service_type.name.value == OGCServiceEnum.WFS.value:
                 children = FeatureType.objects.filter(
                     parent_service__metadata=self
                 )
         elif self.metadata_type == MetadataEnum.LAYER.value:
             children = Layer.objects.filter(
-                parent_layer__metadata=self
+                parent__metadata=self
             )
         else:
             return DEFAULT_SERVICE_BOUNDING_BOX
@@ -1304,10 +1598,9 @@ class Metadata(Resource):
             self.keywords.add(keyword)
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
-        for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_to.metadata_url
+        for related_iso in self.get_related_metadatas():
+            md_link = related_iso.metadata_url
             if md_link not in original_iso_links:
-                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -1341,10 +1634,9 @@ class Metadata(Resource):
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
-        for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_to.metadata_url
+        for related_iso in self.get_related_metadatas():
+            md_link = related_iso.metadata_url
             if md_link not in f_t_iso_links:
-                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -1464,7 +1756,8 @@ class Metadata(Resource):
              nothing, it changes the Metadata object itself
         """
         from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-        original_metadata_document = ISOMetadata(uri=str(self.metadata_url), origin="capabilities")
+        # todo: refactor this by using the content from the original `Document`
+        original_metadata_document = ISOMetadata(uri=str(self.metadata_url), origin=ResourceOriginEnum.CAPABILITIES.value)
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title
 
@@ -1523,12 +1816,13 @@ class Metadata(Resource):
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
 
-    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
+    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None, restore_children=True):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
             identifier (str): The identifier of a featureType or Layer (in xml often named 'name')
             external_auth (ExternalAuthentication):
+            restore_children (bool):
         Returns:
              nothing
         """
@@ -1539,11 +1833,19 @@ class Metadata(Resource):
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         if self.is_service_type(OGCServiceEnum.WFS):
             self._restore_wfs(identifier, external_auth=external_auth)
+            if restore_children:
+                for children in Metadata.objects.filter(featuretype__parent_service__metadata=self, is_custom=True):
+                    # avoid childlookup `restore_children=False`
+                    children.restore(identifier=children.identifier, external_auth=external_auth, restore_children=False)
         elif self.is_service_type(OGCServiceEnum.WMS):
             self._restore_wms(external_auth=external_auth)
+            if restore_children:
+                for children in Metadata.objects.filter(service__parent_service__metadata=self, is_custom=True):
+                    children.restor(external_auth=external_auth, restore_children=False)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
         self.clear_cached_documents()
+        self.save()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -1551,10 +1853,10 @@ class Metadata(Resource):
         Returns:
              links (list): A list containing all online links of related metadata
         """
-        rel_mds = self.related_metadata.all()
+        rel_mds = self.get_related_metadatas()
         links = []
         for md in rel_mds:
-            links.append(md.metadata_to.metadata_url)
+            links.append(md.metadata_url)
         return links
 
     def _set_document_secured(self, is_secured: bool):
@@ -1566,8 +1868,7 @@ class Metadata(Resource):
             nothing
         """
         try:
-            cap_doc = Document.objects.get(
-                metadata=self,
+            cap_doc = self.docuents.get(
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
             )
@@ -1575,6 +1876,8 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
 
+    # todo: since all active state checks are based on the metadata object, we don't need document active state also
+    #  So we can drop this function
     def set_documents_active_status(self, is_active: bool):
         """ Sets the active status for related documents
 
@@ -1583,12 +1886,7 @@ class Metadata(Resource):
         Returns:
 
         """
-        docs = Document.objects.filter(
-            metadata=self
-        )
-        for doc in docs:
-            doc.is_active = is_active
-            doc.save()
+        self.documents.all().update(is_active=is_active)
 
     def set_logging(self, logging: bool):
         """ Set the metadata logging flag to a new value
@@ -1599,15 +1897,8 @@ class Metadata(Resource):
         """
         # Only change if the proxy setting is activated or the logging shall be deactivated anyway
         if self.use_proxy_uri or not logging:
-            self.log_proxy_access = logging
-
             # If the metadata shall be logged, all of it's subelements shall be logged as well!
-            child_mds = Metadata.objects.filter(service__parent_service=self.service)
-            for child_md in child_mds:
-                child_md.log_proxy_access = logging
-                child_md.save()
-
-            self.save()
+            self.get_descendant_metadatas().update(log_proxy_acces=F('log_proxy_access'))
 
     def set_proxy(self, use_proxy: bool):
         """ Set the metadata proxy to a new value.
@@ -1652,16 +1943,13 @@ class Metadata(Resource):
         self.use_proxy_uri = use_proxy
 
         # If md uris shall be tunneled using the proxy, we need to make sure that all children are aware of this!
-        subelements_mds = [element.metadata for element in self.service.subelements]
-        for subelement_md in subelements_mds:
+        for subelement in self.service.get_subelements().select_related('metadata').prefetch_related('metadata__documents'):
+            subelement_md = subelement.metadata
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
                 # If there exists already a capabilities document for a subelement, we need to change the links there as well
-                subelement_md_doc = Document.objects.get(
-                    metadata=subelement_md,
-                    document_type=DocumentEnum.CAPABILITY.value,
-                    is_original=False
-                )
+                subelement_md_doc = subelement_md.documents.get(document_type=DocumentEnum.CAPABILITY.value,
+                                                                is_original=False)
                 if subelement_md_doc.content is not None:
                     subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:
@@ -1720,6 +2008,7 @@ class Metadata(Resource):
         Returns:
 
         """
+        # todo: use django signals to call inform_subscriptor
         from users.models import Subscription
         subscriptions = Subscription.objects.filter(
             metadata=self
@@ -1752,12 +2041,74 @@ class Metadata(Resource):
         return health_states
 
 
+class OGCOperation(models.Model):
+    operation = models.CharField(primary_key=True, max_length=255, choices=OGCOperationEnum.as_choices())
+
+    def __str__(self):
+        return self.operation
+
+
+class AllowedOperation(models.Model):
+    """Configures the operation(s) which allows one or more groups to access a :class:`service.models.Resource`.
+
+    id: the id of the ``SecuredOperation`` object
+    operations: a list of allowed ``OGCOperation`` objects
+    allowed_groups: a list of groups which are allowed to perform the operations from the ``operations`` field on all
+                    ``Metadata`` objects from the secured_metadata list.
+    root_metadata: holds the root node of the secured_metadata set. With that we solve another problem. The deletion
+                   trigger, if the `Metadata` object is deleted. Then the `SecuredOperation` will be also deleted.
+    secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
+                      applies to.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    operations = models.ManyToManyField(OGCOperation, related_name="allowed_operations")
+    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="allowed_operations")
+    allowed_area = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
+    root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+    secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")
+
+    def __str__(self):
+        return str(self.id)
+
+    def setup_secured_metadata(self):
+        child_nodes = self.root_metadata.get_described_element().get_subelements().select_related('metadata')
+        metadatas = [element.metadata for element in child_nodes]
+        metadatas.append(self.root_metadata)
+        self.secured_metadata.clear()
+        self.secured_metadata.add(*metadatas)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        """
+        In the `OGCOperationRequestHandler` we have some query's against the `AllowedOperation` object filtered by
+        an empty `GEOSGeometry` looked up in the `allowed_area` field. The lookup is implemented with
+        `allowed_area<=None`. So we have to prevent saving empty GEOSGeometry objects by adding a validator.
+        However, this is security component, which shall work always as expected. So we have to make sure, that
+        inconsistent data is never saved to the database. Cause the full_clean() method will only called in ModelForm
+        classes, we need to add this again at this point, if the AllowedOperation will be used in other ways as
+        ModelForm. For that we need to call the full_clean() method ALWAYS before saving.
+        """
+        if self.allowed_area.empty:
+            raise ValidationError('Empty MultiPolygon is not allowed')
+        super().save(force_insert=False, force_update=force_update, using=using, update_fields=update_fields)
+        self.setup_secured_metadata()
+
+
 class Document(Resource):
+
     from MrMap.validators import validate_document_enum_choices
+    # One Metadata object can be related to multiple Document objects, cause we save the original and the customized
+    # version of a given xml.
+    # But one Metadata object can only have one Document which is original and a unique doc type.
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
     is_original = models.BooleanField(default=False)
+
+    """ todo: let the update_capability_document() function crash
+    class Meta:
+        unique_together = ('metadata', 'is_original', 'document_type')
+    """
 
     def __str__(self):
         return self.metadata.title
@@ -2351,9 +2702,8 @@ class Document(Resource):
 
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
         service_version = force_version or self.metadata.get_service_version()
-        service_type = self.metadata.get_service_type()
 
-        is_wfs = service_type == OGCServiceEnum.WFS.value
+        is_wfs = self.metadata.is_service_type(OGCServiceEnum.WFS)
         is_wfs_1_0_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_0_0.value
         is_wfs_1_1_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_1_0.value
 
@@ -2547,7 +2897,7 @@ class Licence(Resource):
                 )
             ]
             descr_str = "<br>".join(descrs)
-            descr_str = _("Explanations: <br>") + descr_str
+            descr_str = _l("Explanations: <br>") + descr_str
         except ProgrammingError:
             # This will happen on an initial installation. The Licence table won't be created yet, but this function
             # will be called on makemigrations.
@@ -2581,7 +2931,7 @@ class Category(Resource):
 
 
 class ServiceType(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, choices=OGCServiceEnum.as_choices())
     version = models.CharField(max_length=100, choices=OGCServiceVersionEnum.as_choices())
     specification = models.URLField(blank=False, null=True)
 
@@ -2604,8 +2954,8 @@ class ServiceUrl(GenericUrl):
 
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
-    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
+    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
+    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True, verbose_name=_l('Published for'))
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)
@@ -2630,34 +2980,35 @@ class Service(Resource):
         return str(self.id)
 
     @property
-    def subelements(self):
-        """ Returns a list of Layer or Featuretype records.
+    def icon(self):
+        icon = ''
+        if self.is_wms:
+            icon = get_icon(IconEnum.WMS)
+        elif self.is_wfs:
+            icon = get_icon(IconEnum.WFS)
+        elif self.is_csw:
+            icon = get_icon(IconEnum.CSW)
+        return icon
+
+    def get_subelements(self, include_self=False):
+        """ Returns a queryset of Layer or Featuretype records.
+
+        This function is needed to get descendants of different related object types.
 
         Returns:
-             list (list): The list of subelements
+             qs (QuerySet): The queryset of all descendants
         """
-        ret_list = []
+        qs = Service.objects.none()
         if self.is_service_type(OGCServiceEnum.WMS):
-            if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
-                qs = Layer.objects.filter(
-                    parent_service=self
-                ).prefetch_related(
-                    "metadata"
-                )
-                ret_list = list(qs)
+            if self.metadata.is_layer_metadata:
+                # this is a layer instance
+                qs = Layer.objects.get(metadata=self.metadata).get_descendants(include_self=include_self)
             else:
-                self_layer_instance = Layer.objects.get(metadata=self.metadata)
-                ret_list += list(self_layer_instance.child_layers.all())
-                for layer in ret_list:
-                    ret_list += list(layer.child_layers.all())
+                # this is a service instance
+                qs = Layer.objects.get(parent_service=self, parent=None).get_descendants(include_self=include_self)
         elif self.is_service_type(OGCServiceEnum.WFS):
-            ret_list += FeatureType.objects.filter(
-                parent_service=self
-            ).prefetch_related(
-                "metadata"
-            )
-
-        return ret_list
+            qs = self.featuretypes.all()
+        return qs
 
     @property
     def is_wms(self):
@@ -2696,124 +3047,6 @@ class Service(Resource):
         """
         return self.service_type.name == enum.value
 
-    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
-        """ Secures a single element
-
-        Args:
-            is_secured (bool): Whether to secure the element or not
-            group (MrMapGroup): The group which is allowed to perform an operation
-            operation (RequestOperation): The operation which can be performed by the groups
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-
-        """
-        if element is None:
-            element = self
-        element.metadata.is_secured = is_secured
-        if is_secured:
-
-            if sec_op is None:
-                sec_op = SecuredOperation()
-                sec_op.operation = operation
-                sec_op.allowed_group = group
-            else:
-                sec_op = SecuredOperation.objects.get(
-                    secured_metadata=element.metadata,
-                    operation=operation,
-                    allowed_group=group
-                )
-
-            poly_list = []
-            for group_polygon in group_polygons:
-                poly_str = group_polygon.get("geometry", group_polygon).get("coordinates", [None])[0]
-                tmp_poly = Polygon(poly_str)
-                poly_list.append(tmp_poly)
-
-            sec_op.bounding_geometry = GeometryCollection(poly_list)
-            sec_op.save()
-            element.metadata.secured_operations.add(sec_op)
-        else:
-            element.metadata.secured_operations.all().delete()
-            element.metadata.secured_operations.clear()
-        element.metadata.save()
-        element.save()
-
-    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_root:
-            # get the first layer in this service
-            start_element = Layer.objects.get(
-                parent_service=self,
-                parent_layer=None,
-            )
-        else:
-            # simply get the layer which is described by the given metadata
-            start_element = Layer.objects.get(
-                metadata=self.metadata
-            )
-        start_element.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
-
-    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_root:
-            elements = self.featuretypes.all()
-            for element in elements:
-                self.secure_access(is_secured, group, operation, group_polygons, secured_operation, element=element)
-
-    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Secures all sub elements of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        if self.is_service_type(OGCServiceEnum.WMS):
-            self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
-
-    @transaction.atomic
-    def delete_child_data(self, child):
-        """ Delete all layer data like related iso metadata
-
-        Args:
-            layer (Layer): The current layer object
-        Returns:
-            nothing
-        """
-        # remove related metadata
-        iso_mds = child.metadata.related_metadata.all()
-        for iso_md in iso_mds:
-            md_2 = iso_md.metadata_to
-            md_2.delete()
-            iso_md.delete()
-        if isinstance(child, FeatureType):
-            # no other way to remove feature type metadata on service deleting
-            child.metadata.delete()
-        child.delete()
-
     @transaction.atomic
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete method
@@ -2825,83 +3058,26 @@ class Service(Resource):
             keep_parents:
         Returns:
         """
-        # remove related metadata
-        linked_mds = self.metadata.related_metadata.all()
-        for linked_md in linked_mds:
-            md_2 = linked_md.metadata_to
-            md_2.delete()
-            linked_md.delete()
+        if not self.is_root and not keep_parents:
+            # call only delete for the parent_service. All related objects will CASCADE
+            self.metadata.delete()
+            self.parent_service.delete()
+        else:
+            # this is the Service object
 
-        # remove subelements
-        if self.is_service_type(OGCServiceEnum.WMS):
-            layers = self.child_service.all()
-            for layer in layers:
-                self.delete_child_data(layer)
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            feature_types = self.featuretypes.all()
-            for f_t in feature_types:
-                self.delete_child_data(f_t)
+            # Remove ServiceURL entries if they are not used by other services
+            operation_urls = self.operation_urls.all()
+            for url in operation_urls:
+                other_services_exists = Service.objects.filter(
+                    operation_urls=url
+                ).exclude(
+                    id=self.id
+                ).exists()
+                if not other_services_exists:
+                    url.delete()
 
-        # Remove ServiceURL entries if they are not used by other services
-        operation_urls = self.operation_urls.all()
-        for url in operation_urls:
-            other_services_exists = Service.objects.filter(
-                operation_urls=url
-            ).exclude(
-                id=self.id
-            ).exists()
-            if not other_services_exists:
-                url.delete()
-
-        self.metadata.delete()
-        super().delete()
-
-    def __get_children(self, current, layers: list):
-        """ Recursive appending of all layers
-
-        Args:
-            current (Layer): The current layer instance
-            layers (list): The list of all collected layers so far
-        Returns:
-             nothing
-        """
-        layers.append(current)
-        for layer in current.children_list:
-            layers.append(layer)
-            if len(layer.children_list) > 0:
-                self.__get_children(layer, layers)
-
-    def get_all_layers(self):
-        """ Returns all layers in a list that can be found in this service
-
-        NOTE: THIS IS ONLY USED FOR CHILDREN_LIST, WHICH SHOULD ONLY BE USED FOR NON-PERSISTED OBJECTS!!!
-
-        Returns:
-             layers (list): The layers
-        """
-
-        layers = []
-        self.__get_children(self.root_layer, layers)
-        return layers
-
-    def activate_service(self, is_active: bool):
-        """ Toggles the activity status of a service and it's metadata
-
-        Args:
-            is_active (bool): Whether the service shall be activated or not
-        Returns:
-             nothing
-        """
-        self.is_active = is_active
-        self.metadata.is_active = is_active
-
-        linked_mds = self.metadata.related_metadata.all()
-        for md_relation in linked_mds:
-            md_relation.metadata_to.is_active = is_active
-            md_relation.metadata_to.save(update_last_modified=False)
-
-        self.metadata.save(update_last_modified=False)
-        self.save(update_last_modified=False)
+            self.metadata.delete()
+            return super().delete()
 
     def persist_original_capabilities_doc(self, xml: str):
         """ Persists the capabilities document
@@ -2920,15 +3096,12 @@ class Service(Resource):
         )
 
 
-class Layer(Service):
-    class Meta:
-        ordering = ["position"]
+class Layer(Service, MPTTModel):
     identifier = models.CharField(max_length=500, null=True)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)
-    parent_layer = models.ForeignKey("self", on_delete=models.CASCADE, null=True, related_name="child_layers")
-    position = models.IntegerField(default=0)
+    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     is_queryable = models.BooleanField(default=False)
     is_opaque = models.BooleanField(default=False)
     is_cascaded = models.BooleanField(default=False)
@@ -2954,33 +3127,21 @@ class Layer(Service):
     def __str__(self):
         return str(self.identifier)
 
-    def delete(self, using=None, keep_parents=False):
-        """ Deletes layer and all of it's children
-
-        Args:
-            using:
-            keep_parents:
-        Returns:
-
-        """
-        children = self.get_children()
-        for child in children:
-            child.delete(using, keep_parents)
-        super().delete(using, keep_parents)
+    @property
+    def icon(self):
+        return get_icon(IconEnum.LAYER)
 
     def get_inherited_reference_systems(self):
-        ref_systems = []
-        ref_systems += list(self.metadata.reference_system.all())
+        """ Return all inherited ReferenceSystem objects of the given Layer
 
-        parent_layer = self.parent_layer
-        while parent_layer is not None:
-            parent_srs = parent_layer.metadata.reference_system.all()
-            for srs in parent_srs:
-                if srs not in ref_systems:
-                    ref_systems.append(srs)
-            parent_layer = parent_layer.parent_layer
-
-        return ref_systems
+        Returns:
+            reference_systems (Queryset): The QuerySet which contains all possible ReferenceSystems of the Layer
+        """
+        ancestors = self.get_ancestors(ascending=True, include_self=True).select_related('metadata').prefetch_related('metadata__reference_system')
+        reference_systems = ReferenceSystem.objects.none()
+        for ancestor in ancestors:
+            reference_systems |= ancestor.metadata.reference_system.all()
+        return reference_systems
 
     def get_inherited_bounding_geometry(self):
         """ Returns the biggest bounding geometry of the service.
@@ -2993,182 +3154,15 @@ class Layer(Service):
         Returns:
              bounding_geometry (Polygon): A geometry object
         """
-        bounding_geometry = self.metadata.bounding_geometry
-        parent_layer = self.parent_layer
-        while parent_layer is not None:
-            parent_geometry = parent_layer.metadata.bounding_geometry
-            if bounding_geometry.area > 0:
-                if parent_geometry.covers(bounding_geometry):
-                    bounding_geometry = parent_geometry
+        ancestors = self.get_ancestors(ascending=True).select_related('metadata')
+        # todo: maybe GEOS can get the object with the greatest geometry from the db directly?
+        for ancestor in ancestors:
+            ancestor_geometry = ancestor.metadata.bounding_geometry
+            if bounding_geometry.area > 0 and ancestor_geometry.covers(bounding_geometry):
+                bounding_geometry = ancestor_geometry
             else:
-                bounding_geometry = parent_geometry
-            parent_layer = parent_layer.parent_layer
+                bounding_geometry = ancestor_geometry
         return bounding_geometry
-
-    def get_style(self):
-        """ Simple getter for the style of the current layer
-
-        Returns:
-             styles (QuerySet): A query set containing all styles
-        """
-        return self.style.all()
-
-    def _get_all_children_recursive(self, layer_list: list):
-        """ Returns a list of all children of the current layer
-
-        Args:
-            layer_list (list): The list of collected layers so far
-        Returns:
-            layer_list (list)
-        """
-        children = self.get_children()
-        for child in children:
-            layer_list.append(child)
-            child._get_all_children_recursive(layer_list)
-        return layer_list
-
-    def get_children(self, all=False):
-        """ Simple getter for the direct children of the current layer
-
-        Returns:
-             children (QuerySet): A query set containing all direct children layer of this layer
-        """
-        if all:
-            return self._get_all_children_recursive([])
-        else:
-            return self.child_layers.all()
-
-    def get_upper_layers(self):
-        """ Returns a list of all layers from self to the root layer of the service
-
-        Returns:
-
-        """
-        ret_list = []
-        upper_element = Layer.objects.get(
-            child_layers=self
-        )
-        while upper_element is not None:
-            ret_list.append(upper_element)
-            try:
-                upper_element = Layer.objects.get(
-                    child_layers=upper_element
-                )
-            except ObjectDoesNotExist:
-                upper_element = None
-        return ret_list
-
-    def delete_children_secured_operations(self, layer, operation, group):
-        """ Walk recursive through all layers of wms and remove their secured operations
-
-        The 'layer' will not be affected!
-
-        Args:
-            layer: The layer, which children shall be changed.
-            operation: The RequestOperation of the SecuredOperation
-            group: The group
-        Returns:
-
-        """
-        for child_layer in layer.child_layers.all():
-            sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=child_layer.metadata,
-                operation=operation,
-                allowed_group=group,
-            )
-            sec_ops.delete()
-            self.delete_children_secured_operations(child_layer, operation, group)
-
-    def activate_layer_recursive(self, new_status):
-        """ Walk recursive through all layers of a wms and set the activity status new
-
-        Args:
-            root_layer: The root layer, where the recursion begins
-            new_status: The new status that will be persisted
-        Returns:
-             nothing
-        """
-        # check for all related metadata, we need to toggle their active status as well
-        rel_md = self.metadata.related_metadata.all()
-        for md in rel_md:
-            dependencies = MetadataRelation.objects.filter(
-                metadata_to=md.metadata_to,
-            )
-            if dependencies.count() > 1 and new_status is False:
-                # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
-                pass
-            else:
-                # since we have no more dependencies on this metadata, we can set it inactive
-                md.metadata_to.is_active = new_status
-                md.metadata_to.set_documents_active_status(new_status)
-                md.metadata_to.save()
-                md.save()
-
-        self.metadata.is_active = new_status
-        self.metadata.save()
-        self.metadata.set_documents_active_status(new_status)
-        self.is_active = new_status
-        self.save()
-
-        for layer in self.child_layers.all():
-            layer.activate_layer_recursive(new_status)
-
-    def _get_bottom_layers_identifier_iterative(self):
-        """ Runs a iterative search for all leaf layers.
-
-        If a leaf layer is found, it will be added to layer_list
-
-        Returns:
-             leaves (list): List of id sorted leaf layer identifiers
-        """
-        layer_obj_children = self.child_layers.all()
-        leaves = []
-        non_leaves = []
-        for child in layer_obj_children:
-            children = child.child_layers.all()
-            if children.count() == 0:
-                leaves.append(child)
-            else:
-                non_leaves.append(child)
-
-        while len(non_leaves) > 0:
-            layer = non_leaves.pop()
-            children = layer.child_layers.all()
-            if children.count() == 0:
-                leaves.append(layer)
-            else:
-                non_leaves += children
-
-        leaves.sort(key=lambda elem: elem.id)
-        leaves = [leaf.identifier for leaf in leaves]
-        return leaves
-
-    def get_leaf_layers_identifier(self):
-        """ Returns a list of all leaf layer's identifiers.
-
-        Leaf layers are the layers, which have no further children.
-
-        Returns:
-             leaf_layers (list): The leaf layers of a layer
-        """
-        leaf_layers = self._get_bottom_layers_identifier_iterative()
-        return leaf_layers
-
-    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Recursive implementation of securing all sub layers of a current layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        self.secure_access(is_secured, group, operation, group_polygons, secured_operation)
-
-        for layer in self.child_layers.all():
-            layer.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
 
 class Module(Service):
@@ -3573,30 +3567,13 @@ class FeatureType(Resource):
     def __str__(self):
         return self.metadata.identifier
 
-    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation, secured_operation: SecuredOperation):
-        """ Secures the feature type or removes the secured constraints
+    @property
+    def icon(self):
+        return get_icon(IconEnum.FEATURETYPE)
 
-        Args:
-            is_secured (bool): Whether to secure the feature type or not
-            groups (list): The list of groups which are allowed to perform an operation
-            operation (RequestOperation): The operation which can be allowed
-        Returns:
-
-        """
-        self.metadata.is_secured = is_secured
-        if is_secured:
-            sec_op = SecuredOperation()
-            sec_op.operation = operation
-            sec_op.save()
-            for g in groups:
-                sec_op.allowed_groups.add(g)
-            self.metadata.secured_operations.add(sec_op)
-        else:
-            for sec_op in self.metadata.secured_operations.all():
-                sec_op.delete()
-            self.metadata.secured_operations.clear()
-        self.metadata.save()
-        self.save()
+    def delete(self, using=None, keep_parents=False):
+        self.metadata.delete()
+        return super().delete(using=using, keep_parents=keep_parents)
 
     def restore(self):
         """ Reset the metadata to it's original capabilities content
@@ -3630,6 +3607,14 @@ class FeatureType(Resource):
             self.metadata.keywords.add(keyword)
         self.is_custom = False
 
+    def get_subelements(self):
+        """ This is a helper function to match the get_subelements() from Service(Resource),
+        to avoid special handling for FeatureType
+
+        Returns:
+             self as (QuerySet)
+        """
+        return FeatureType.objects.filter(pk=self.pk)
 
 class FeatureTypeElement(Resource):
     name = models.CharField(max_length=255)

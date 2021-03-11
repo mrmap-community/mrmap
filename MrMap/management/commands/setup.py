@@ -15,6 +15,8 @@ from django.utils.translation import gettext_lazy as _
 
 from MrMap.management.commands.setup_settings import DEFAULT_GROUPS, DEFAULT_ROLE_NAME
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
+from service.helper.enums import OGCOperationEnum
+from service.models import OGCOperation
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.permissionEnums import PermissionEnum
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME, \
@@ -49,8 +51,8 @@ class Command(BaseCommand):
         name = input("Enter a username: ")
 
         if MrMapUser.objects.filter(username=name).exists():
-            self.stdout.write(self.style.NOTICE("User with that name already exists!"))
-            return
+            self.stdout.write(self.style.NOTICE("User with that name already exists! Please choose another one!"))
+            exit()
 
         # check password
         password = getpass("Enter a password: ")
@@ -77,22 +79,27 @@ class Command(BaseCommand):
 
         # handle public group
         group = self._create_public_group(superuser)
-        group.created_by = superuser
+        # group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
         # handle root group
         group = self._create_superuser_group(superuser)
-        group.created_by = superuser
+        # group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
         # handle default groups
         for setting in DEFAULT_GROUPS:
             try:
-                group = self._create_group_from_default_setting(setting, superuser)
-                msg = "Group '{}' created!".format(group.name)
-                self.stdout.write(self.style.SUCCESS(msg))
+                if self._create_group_from_default_setting(setting, superuser)[1] is True:
+                    group = self._create_group_from_default_setting(setting, superuser)[0]
+                    msg = "Group '{}' created!".format(group.name)
+                    self.stdout.write(self.style.SUCCESS(msg))
+                else:
+                    group = self._create_group_from_default_setting(setting, superuser)[0]
+                    msg = "Group '{}' was already in Database!".format(group.name)
+                    self.stdout.write(self.style.SUCCESS(msg))
             except AttributeError as e:
                 msg = "Group creation error for '{}':{}".format(setting["name"], e)
                 self.stdout.write(self.style.ERROR(msg))
@@ -113,6 +120,10 @@ class Command(BaseCommand):
             f"timeout {MONITORING_REQUEST_TIMEOUT} was created successfully"
         )
         self.stdout.write(self.style.SUCCESS(str(msg)))
+
+        self._create_ogc_operations()
+        msg = "OgcOperations created"
+        self.stdout.write((self.style.SUCCESS(msg)))
 
     @staticmethod
     def _create_group_from_default_setting(setting: dict, user: MrMapUser):
@@ -137,17 +148,28 @@ class Command(BaseCommand):
             p = Permission.objects.get(name=perm.value)
             role.permissions.add(p)
 
-        group = MrMapGroup.objects.get_or_create(
-            name=group_name,
-            parent_group=parent_group,
-            role=role,
-            created_by=user,
-            is_permission_group=True,
-        )[0]
+        try:
+            group = MrMapGroup.objects.get(
+                name=group_name,
+                parent_group=parent_group,
+                role=role,
+                is_permission_group=True,
+            )
+            created = False
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
+                name=group_name,
+                parent_group=parent_group,
+                role=role,
+                created_by=user,
+                is_permission_group=True,
+            )
+            group.save()
+            created = True
 
         group.description = group_desc
         group.save()
-        return group
+        return group, created
 
     @staticmethod
     def _create_themes():
@@ -168,13 +190,23 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(
-            name=PUBLIC_GROUP_NAME,
-            description=PUBLIC_GROUP_DESCRIPTION,
-            created_by=user,
-            is_public_group=True,
-            is_permission_group=True,
-        )[0]
+        try:
+            group = MrMapGroup.objects.get(
+                name=PUBLIC_GROUP_NAME,
+                description=PUBLIC_GROUP_DESCRIPTION,
+                is_public_group=True,
+                is_permission_group=True,
+            )
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
+                name=PUBLIC_GROUP_NAME,
+                description=PUBLIC_GROUP_DESCRIPTION,
+                created_by=user,
+                is_public_group=True,
+                is_permission_group=True,
+            )
+            group.save()
+
         if group.role is None:
             role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
             group.role = role
@@ -199,13 +231,23 @@ class Command(BaseCommand):
             role.permissions.add(p)
         role.save()
 
-        group = MrMapGroup.objects.get_or_create(
-            name=SUPERUSER_GROUP_NAME,
-            description=SUPERUSER_GROUP_DESCRIPTION,
-            created_by=user,
-            is_permission_group=True,
-            role=role,
-        )[0]
+        try:
+            group = MrMapGroup.objects.get(
+                name=SUPERUSER_GROUP_NAME,
+                description=SUPERUSER_GROUP_DESCRIPTION,
+                is_permission_group=True,
+                role=role,
+            )
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
+                name=SUPERUSER_GROUP_NAME,
+                description=SUPERUSER_GROUP_DESCRIPTION,
+                created_by=user,
+                is_permission_group=True,
+                role=role,
+            )
+            group.save()
+
         return group
 
     @staticmethod
@@ -233,11 +275,20 @@ class Command(BaseCommand):
 
     @staticmethod
     def _create_default_group(org: Organization, user: MrMapUser):
-        group = MrMapGroup.objects.get_or_create(
-            name="Testgroup",
-            organization=org,
-            created_by=user,
-        )[0]
+
+        try:
+            group = MrMapGroup.objects.get(
+                name="Testgroup",
+                organization=org,
+            )
+        except MrMapGroup.DoesNotExist:
+            group = MrMapGroup(
+                name="Testgroup",
+                organization=org,
+                created_by=user,
+            )
+            group.save()
+
         group.user_set.add(user)
         return group
 
@@ -253,3 +304,13 @@ class Command(BaseCommand):
             check_time=mon_time, timeout=MONITORING_REQUEST_TIMEOUT
         )[0]
         monitoring_setting.save()
+
+    @staticmethod
+    def _create_ogc_operations():
+        """ Create all possible OGCOperations in model ``OGCOperation´´
+
+        Returns:
+            nothing
+        """
+        for key, value in OGCOperationEnum.as_choices(drop_empty_choice=True):
+            OGCOperation(operation=value).save()

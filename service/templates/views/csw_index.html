@@ -8,10 +8,12 @@
         <div id="id_pending_tasks_div">
             {% include 'includes/pending_tasks.html' %}
         </div>
-        {% include 'includes/index/pending_task_table_refresh_script.html' %}
+        {% include 'includes/pending_task_table_refresh_script.html' %}
     {% endif %}
 
-    {% include 'includes/index/csw.html' %}
+    <div id="id_resource_csw_div">
+        {% include 'includes/index/csw.html' %}
+    </div>
 
 </div>
 {% endblock %}

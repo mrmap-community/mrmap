@@ -10,8 +10,9 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.test import TestCase, Client, RequestFactory
+from django.urls import ResolverMatch
 
-from MrMap.decorator import log_proxy, check_permission, check_ownership, resolve_metadata_public_id
+from MrMap.decorators import log_proxy, permission_required, ownership_required, resolve_metadata_public_id
 from service.models import Metadata, ProxyLog, Service
 from structure.models import MrMapGroup, Organization, Permission
 from structure.permissionEnums import PermissionEnum
@@ -37,7 +38,7 @@ class DecoratorTestCase(TestCase):
         self.request_factory = RequestFactory()
 
         self.wms_services = create_wms_service(
-            group=self.user.get_groups().first(),
+            group=self.user.get_groups.first(),
             how_much_services=1
         )
 
@@ -55,7 +56,7 @@ class DecoratorTestCase(TestCase):
 
         """
         # Mock decorator usage
-        @check_permission(PermissionEnum.CAN_CREATE_ORGANIZATION)
+        @permission_required(PermissionEnum.CAN_CREATE_ORGANIZATION.value)
         def test_function(request, *args, **kwargs):
             return HttpResponse()
 
@@ -81,7 +82,7 @@ class DecoratorTestCase(TestCase):
         self.assertEqual(response.status_code, 302, msg=MSG_PERMISSION_CHECK_FALSE_POSITIVE)
 
         # Give Testuser group permission
-        user_groups = self.default_user.get_groups()
+        user_groups = self.default_user.get_groups
         first_group = user_groups.first()
         create_org_perm = Permission.objects.get_or_create(name=PermissionEnum.CAN_CREATE_ORGANIZATION.value)[0]
         first_group.role.permissions.add(create_org_perm)
@@ -101,7 +102,7 @@ class DecoratorTestCase(TestCase):
         """
 
         # Mock the usage of the decorator
-        @check_ownership(
+        @ownership_required(
             klass=Service,
             id_name='service_id'
         )
@@ -116,6 +117,7 @@ class DecoratorTestCase(TestCase):
             "http://test.com/{}".format(requested_service.id),
         )
         request.user = self.default_user
+        request.resolver_match = ResolverMatch(None, None, {'service_id': requested_service.id})
 
         # add support for message middleware
         session_middleware = SessionMiddleware()
@@ -127,7 +129,7 @@ class DecoratorTestCase(TestCase):
         setattr(request, '_messages', messages)
 
         response = test_function(request, service_id=requested_service.id)
-        self.assertEqual(response.status_code, 303, msg="")
+        self.assertEqual(response.status_code, 302, msg="")
 
         request.user = self.user
 
@@ -142,14 +144,14 @@ class DecoratorTestCase(TestCase):
         """
 
         # Mock the usage of the decorator
-        @check_ownership(
+        @ownership_required(
             klass=MrMapGroup,
             id_name='group_id'
         )
         def test_function(request, group_id, *args, **kwargs):
             return HttpResponse()
 
-        requested_group = self.user.get_groups()[0]
+        requested_group = self.user.get_groups[0]
 
         # Testuser permission check without any permissions must fail
         # Mock the request
@@ -157,6 +159,7 @@ class DecoratorTestCase(TestCase):
             "http://test.com/{}".format(requested_group.id),
         )
         request.user = self.default_user
+        request.resolver_match = ResolverMatch(None, None, {'group_id': requested_group.id})
 
         # add support for message middleware
         session_middleware = SessionMiddleware()
@@ -168,7 +171,7 @@ class DecoratorTestCase(TestCase):
         setattr(request, '_messages', messages)
 
         response = test_function(request, group_id=requested_group.id)
-        self.assertEqual(response.status_code, 303, msg="")
+        self.assertEqual(response.status_code, 302, msg="")
 
         request.user = self.user
 
@@ -183,7 +186,7 @@ class DecoratorTestCase(TestCase):
         """
 
         # Mock the usage of the decorator
-        @check_ownership(
+        @ownership_required(
             klass=Organization,
             id_name='org_id'
         )
@@ -198,6 +201,7 @@ class DecoratorTestCase(TestCase):
             "http://test.com/{}".format(requested_organization.id),
         )
         request.user = self.default_user
+        request.resolver_match = ResolverMatch(None, None, {'org_id': requested_organization.id})
 
         # add support for message middleware
         session_middleware = SessionMiddleware()
@@ -209,7 +213,7 @@ class DecoratorTestCase(TestCase):
         setattr(request, '_messages', messages)
 
         response = test_function(request, org_id=requested_organization.id)
-        self.assertEqual(response.status_code, 303, msg="")
+        self.assertEqual(response.status_code, 302, msg="")
 
         request.user = self.user
 

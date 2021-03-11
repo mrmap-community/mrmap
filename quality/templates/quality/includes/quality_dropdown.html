@@ -1,0 +1,46 @@
+{% load i18n static %}
+{% load fontawesome_5 %}
+
+<div class="dropdown">
+    <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle {% if quality.disabled %}disabled{% endif %}" type="button" id="id_quality_dropdown" data-toggle="dropdown" data-display="static" aria-haspopup="true" aria-expanded="false">
+        {% if quality.running %}
+            {% include 'includes/loading_spinner.html' with no_text=True %}
+        {% else %}
+            {% if show_indicator %}
+                {% if quality.valid is None %}
+                    {% autoescape off %}{{THEME.ICONS.VALIDATION_UNKNOWN}}{% endautoescape %}
+                {% elif quality.valid %}
+                    {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+                {% else %}
+                    {% autoescape off %}{{THEME.ICONS.VALIDATION_ERROR}}{% endautoescape %}
+                {% endif %}
+            {% else %}
+                {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+            {% endif %}
+        {% endif %}
+        {% if not quality.no_text %}
+            {% trans 'Validation' %}
+        {% endif %}
+    </button>
+    <div class="dropdown-menu dropdown-menu-{% if drop_right %}right{% else %}left{% endif %}" aria-labelledby="id_quality_dropdown">
+        {% if show_status %}
+        <h6 class="dropdown-header">
+            {% if quality.valid is None %}
+                {% autoescape off %}{{THEME.ICONS.VALIDATION_UNKNOWN}}{% endautoescape %}
+                {{ quality.DEFAULT_UNKNOWN_MESSAGE}}
+            {% elif quality.valid %}
+                {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+                {{ quality.DEFAULT_SUCCESS_MESSAGE}}
+            {% else %}
+                {% autoescape off %}{{THEME.ICONS.VALIDATION_ERROR}}{% endautoescape %}
+                {{ quality.DEFAULT_FAIL_MESSAGE}}
+            {% endif %}
+        </h6>
+        <div class="dropdown-divider"></div>
+        {% endif %}
+
+        {% for config in quality.configs %}
+        <a class="dropdown-item" href="{% url 'quality:check' quality.metadata_id %}?config_id={{config.id}}&current-view={{current_view}}&current-view-arg={{current_view_arg}}">{{ config }}</a>
+        {% endfor %}
+    </div>
+</div>

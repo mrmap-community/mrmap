@@ -352,7 +352,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.root_layer = Layer.objects.get(
             parent_service=self.parent_service,
-            parent_layer=None
+            parent=None
         )
 
     def _generate_xml(self):
@@ -749,8 +749,9 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             }
         )
 
-        elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt=layer.identifier)
+        if layer.identifier is not None:
+            elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
+            xml_helper.write_text_to_element(elem, txt=layer.identifier)
 
         elem = xml_helper.create_subelement(layer_elem, "{}Title".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=md.title)
@@ -794,13 +795,13 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         xml_helper.write_text_to_element(elem, txt="")
 
         # Style
-        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+        self._generate_capability_layer_style_xml(layer_elem, layer.style.all())
 
         # Various
         self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
-        layer_children = layer.get_children()
+        layer_children = layer.get_descendants()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
@@ -920,10 +921,13 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         if self.original_doc is None:
             return
 
-        original_layer_elem = xml_helper.try_get_single_element_from_xml(
-            "//Layer/Name[text()='{}']/parent::Layer".format(layer.identifier),
-            self.original_doc
-        )
+        try:
+            original_layer_elem = xml_helper.find_element_where_text(self.original_doc, layer.identifier)[0]
+        except IndexError:
+            original_layer_elem = None
+
+        if original_layer_elem is None:
+            return
 
         original_dimension_elems = xml_helper.try_get_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
@@ -951,32 +955,34 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = layer.metadata
 
-        dataset_md = md.get_related_dataset_metadata()
-        if dataset_md is None:
+        dataset_mds = md.get_related_dataset_metadatas()
+        if not dataset_mds:
             return
 
-        metadata_elem = xml_helper.create_subelement(
-            layer_elem,
-            "{}MetadataURL".format(self.default_ns),
-            attrib={
-                "type": "ISO19115:2003"
-            }
-        )
-        elem = xml_helper.create_subelement(
-            metadata_elem,
-            "{}Format".format(self.default_ns)
-        )
-        xml_helper.write_text_to_element(elem, txt="text/xml")
+        for dataset in datasets:
+            metadata_elem = xml_helper.create_subelement(
+                layer_elem,
+                "{}MetadataURL".format(self.default_ns),
+                attrib={
+                    "type": "ISO19115:2003"
+                }
+            )
+            elem = xml_helper.create_subelement(
+                metadata_elem,
+                "{}Format".format(self.default_ns)
+            )
+            xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        uri = dataset_md.metadata_url
-        xml_helper.create_subelement(
-            metadata_elem,
-            "{}OnlineResource".format(self.default_ns),
-            attrib={
-                "{}type".format(self.xlink_ns): "simple",
-                "{}href".format(self.xlink_ns): uri,
-            }
-        )
+        for dataset_md in dataset_mds:
+            uri = dataset_md.metadata_url
+            xml_helper.create_subelement(
+                metadata_elem,
+                "{}OnlineResource".format(self.default_ns),
+                attrib={
+                    "{}type".format(self.xlink_ns): "simple",
+                    "{}href".format(self.xlink_ns): uri,
+                }
+            )
 
     def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
         """ Generate the 'Style' subelement of a layer xml object
@@ -1203,13 +1209,13 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         # Style
-        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+        self._generate_capability_layer_style_xml(layer_elem, layer.style.all())
 
         # Various
         self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
-        layer_children = layer.get_children()
+        layer_children = layer.get_descendants()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
@@ -1373,8 +1379,8 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         reference_systems = layer.get_inherited_reference_systems()
 
         # wms:EX_GeographicBoundingBox
-        bounding_geometry = md.bounding_geometry
-        bbox = md.bounding_geometry.extent
+        bounding_geometry = md.allowed_area
+        bbox = md.allowed_area.extent
 
         # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
         # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
@@ -1776,7 +1782,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         try:
-            bbox = feature_type_obj.metadata.bounding_geometry.extent
+            bbox = feature_type_obj.metadata.allowed_area.extent
             bbox_elem = xml_helper.create_subelement(
                 upper_elem,
                 "{}WGS84BoundingBox".format(self.default_ns),
@@ -1819,9 +1825,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        dataset_mds = feature_type_obj.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = feature_type_obj.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(
@@ -1834,7 +1838,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 )
                 xml_helper.write_text_to_element(
                     metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
+                    txt=dataset_md.metadata_url
                 )
             except ObjectDoesNotExist:
                 continue
@@ -2184,9 +2188,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
                 metadata_url_elem = xml_helper.create_subelement(
@@ -2199,10 +2201,11 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
                 )
                 xml_helper.write_text_to_element(
                     metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
+                    txt=dataset_md.metadata_url
                 )
             except ObjectDoesNotExist:
                 continue
+
 
 class CapabilityWFS200Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
@@ -2259,16 +2262,15 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
-                metadata_url_elem = xml_helper.create_subelement(
+                xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),
                     attrib=OrderedDict({
-                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_url,
                     })
                 )
             except ObjectDoesNotExist:
@@ -2330,16 +2332,14 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type=MetadataEnum.DATASET.value,
-        )
+        dataset_mds = self.metadata.get_related_dataset_metadatas()
         for dataset_md in dataset_mds:
             try:
-                metadata_url_elem = xml_helper.create_subelement(
+                xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),
                     attrib=OrderedDict({
-                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_url,
                     })
                 )
             except ObjectDoesNotExist:

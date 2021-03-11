@@ -66,6 +66,11 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
+    'quality',
+    'django_bootstrap_swt',
+    'leaflet',
+    'breadcrumb',
+    'mptt',
 ]
 if DEBUG:
     INSTALLED_APPS.append(
@@ -93,6 +98,8 @@ if DEBUG:
 
 TEMPLATE_LOADERS = (
     'django.template.loaders.structure.mr_map_filters.py',
+    'django.template.loaders.structure.template_filters.py',
+    'django.template.loaders.app_directories.Loader'
 )
 
 MIDDLEWARE = [
@@ -136,6 +143,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'dealer.contrib.django.context_processor',
+                'MrMap.context_processors.default_context',
+                'breadcrumb.context_processors.breadcrumb_renderer',
             ],
         },
     },

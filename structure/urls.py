@@ -3,27 +3,40 @@ from structure.views import *
 
 app_name = 'structure'
 urlpatterns = [
-    path('', index, name='index'),
 
-    path('task/remove/<task_id>', remove_task, name='remove-task'),
-    path('report/error/<report_id>', generate_error_report, name='generate-error-report'),
+    # PendingTask
+    path('tasks/<pk>/remove', PendingTaskDelete.as_view(), name='remove-task'),
+    path('error-reports/<pk>', ErrorReportDetailView.as_view(), name='generate-error-report'),
 
-    path('groups/', groups_index, name='groups-index'),
-    path('groups/detail/<object_id>', detail_group, name='detail-group'),
-    path('groups/edit/<object_id>', edit_group, name='edit-group'),
-    path('groups/delete/<object_id>', remove_group, name='delete-group'),
-    path('groups/new/register-form/', new_group, name='new-group'),
-    path('groups/publisher/<group_id>', list_publisher_group, name='publisher-group'),
+    # MrMapGroups
+    path('groups', GroupTableView.as_view(), name='group_overview'),
+    path('groups/new', GroupNewView.as_view(), name='group_new'),
+    path('groups/<pk>', GroupDetailView.as_view(), name='group_details'),
+    path('groups/<pk>/edit', GroupEditView.as_view(), name='group_edit'),
+    path('groups/<pk>/remove', GroupDeleteView.as_view(), name='group_remove'),
+    path('groups/<pk>/members', GroupMembersTableView.as_view(), name='group_members'),
+    path('groups/<pk>/publish-rights-for', GroupPublishRightsForTableView.as_view(), name='group_publish_rights_overview'),
 
-    path('publish-request/<request_id>/accept/', accept_publish_request, name='accept-publish-request'),
+    # Organizations
+    path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
+    path('organizations/new', OrganizationNewView.as_view(), name='organization_new'),
+    path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_details'),
+    path('organizations/<pk>/edit', OrganizationEditView.as_view(), name='organization_edit'),
+    path('organizations/<pk>/remove', OrganizationDeleteView.as_view(), name='organization_remove'),
+    path('organizations/<pk>/members', OrganizationMembersTableView.as_view(), name='organization_members'),
+    path('organizations/<pk>/publishers', OrganizationPublishersTableView.as_view(), name='organization_publisher_overview'),
 
-    path('organizations/', organizations_index, name='organizations-index'),
-    path('organizations/detail/<object_id>', detail_organizations, name='detail-organization'),
-    path('organizations/edit/<object_id>', edit_org, name='edit-organization'),
-    path('organizations/delete/<object_id>', remove_org, name='delete-organization'),
-    path('organizations/create-publish-request/<org_id>/', publish_request, name='publish-request'),
-    path('organizations/<org_id>/remove-publisher/<group_id>/', remove_publisher, name='remove-publisher'),
-    path('organizations/new/register-form/', new_org, name='new-organization'),
+    # PublishRequests
+    path('publish-requests', PublishRequestTableView.as_view(), name='publish_request_overview'),
+    path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
+    path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
 
+    # GroupInvitationRequests
+    path('group-invitation-request', GroupInvitationRequestTableView.as_view(), name='group_invitation_request_overview'),
+    path('group-invitation-request/new', GroupInvitationRequestNewView.as_view(), name='group_invitation_request_new'),
+    path('group-invitation-request/<pk>/accept', GroupInvitationRequestAcceptView.as_view(), name='group_invitation_request_accept'),
+
+    # users
+    path('users', UserTableView.as_view(), name='users_overview'),
 ]
 

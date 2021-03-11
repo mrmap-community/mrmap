@@ -11,7 +11,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
-from MrMap.decorator import resolve_metadata_public_id, check_permission
+from MrMap.decorators import permission_required
 from MrMap.messages import SERVICE_DISABLED
 from csw.forms import HarvestGroupForm
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
@@ -46,8 +46,7 @@ def get_csw_results(request: HttpRequest):
 
 
 @login_required
-@resolve_metadata_public_id
-@check_permission(
+@permission_required(
     PermissionEnum.CAN_HARVEST
 )
 def harvest_catalogue(request: HttpRequest, metadata_id: str):
@@ -62,7 +61,7 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
     metadata = get_object_or_404(Metadata, id=metadata_id)
     if not metadata.is_active:
         messages.error(request, SERVICE_DISABLED)
-        return redirect("resource:index")
+        return redirect("resource:csw-index")
     form = HarvestGroupForm(data=request.POST or None,
                             request=request,
                             reverse_lookup='csw:harvest-catalogue',

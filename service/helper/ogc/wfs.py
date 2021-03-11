@@ -23,7 +23,7 @@ from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication, ServiceUrl
+    FeatureTypeElement, RequestOperation, ExternalAuthentication, ServiceUrl
 from service.settings import ALLOWED_SRS, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
@@ -740,7 +740,7 @@ class OGCWebFeatureService(OGCWebService):
         """
         service = Service()
         service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
+            name=self.service_type.value.lower(),
             version=self.service_version.value
         )[0]
         service.service_type = service_type
@@ -866,12 +866,9 @@ class OGCWebFeatureService(OGCWebService):
         # save linked service metadata
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=md.created_by)
-            md_relation = MetadataRelation()
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
-            md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
-            md_relation.save()
-            md.related_metadata.add(md_relation)
+            md.add_metadata_relation(to_metadata=service.linked_service_metadata,
+                                     relation_type=MetadataRelationEnum.VISUALIZES.value,
+                                     origin=ResourceOriginEnum.CAPABILITIES.value)
 
         # Keywords
         for kw in self.service_identification_keywords:
@@ -922,13 +919,9 @@ class OGCWebFeatureService(OGCWebService):
             for dataset_md in f_t.dataset_md_list:
                 dataset_record = dataset_md.to_db_model(created_by=group)
                 dataset_record.save()
-                md_relation = MetadataRelation()
-                md_relation.metadata_to = dataset_record
-                origin = ResourceOriginEnum.CAPABILITIES.value
-                md_relation.origin = origin
-                md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
-                md_relation.save()
-                f_t.metadata.related_metadata.add(md_relation)
+                f_t.metadata.add_metadata_relation(to_metadata=dataset_record,
+                                                   relation_type=MetadataRelationEnum.DESCRIBES.value,
+                                                   origin=ResourceOriginEnum.CAPABILITIES.value)
 
             # keywords of feature types
             for kw in f_t.keywords_list:
@@ -976,7 +969,7 @@ class OGCWebFeatureService(OGCWebService):
                 if iso_uri is None:
                     continue
                 try:
-                    iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                    iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue

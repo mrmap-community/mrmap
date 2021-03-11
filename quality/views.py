@@ -7,13 +7,12 @@ Created on: 27.10.20
 """
 import json
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework import status
 
-from MrMap.decorator import check_permission
 from quality.models import ConformityCheckRun
 from quality.tasks import run_quality_check, complete_validation, \
     complete_validation_error
@@ -28,7 +27,7 @@ CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
 
 
 @login_required
-@check_permission(
+@permission_required(
     PermissionEnum.CAN_RUN_VALIDATION
 )
 def validate(request, metadata_id: str):

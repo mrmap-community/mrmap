@@ -61,3 +61,4 @@ body:
       value: |
         ### Additional information
         You can use the space below to provide any additional information or to attach files.
+---

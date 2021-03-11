@@ -116,4 +116,6 @@ docker/etf-inspire/
 docker/etf/
 docker/geoserver/
 docker/inspire-validator/
-docker/postgis/postgresql_data/
+docker/postgis/postgresql_data/coverage-report.xml
+coverage-report.xml
+tests/unit_tests/xunit-result.xml

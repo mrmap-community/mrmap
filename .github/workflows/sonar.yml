@@ -24,7 +24,8 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends \
           libssl-dev \
-          libcurl4-openssl-dev
+          libcurl4-openssl-dev \
+          gdal-bin
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:

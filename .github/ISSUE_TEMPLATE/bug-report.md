@@ -1,38 +1,39 @@
 ---
-name: "\U0001F41B Bug report"
+name: 🐛 Bug Report
 about: Report a reproducible bug in the current release of MrMap
-title: "[BUG] "
 labels: 'type: bug'
-assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+<!--
+    NOTE: IF YOUR ISSUE DOES NOT FOLLOW THIS TEMPLATE, IT WILL BE CLOSED.
+    This form is only for reporting reproducible bugs. If you need assistance
+    with MrMap installation, or if you have a general question, please start a
+    discussion instead: https://github.com/mrmap-community/mrmap/discussions
+    Please describe the environment in which you are running MrMap. Be sure
+    that you are running an unmodified instance of the latest stable release
+    before submitting a bug report, and that any plugins have been disabled.
+-->
+### Environment
+* Python version: 
+* MrMap version: 
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+<!--
+    Describe in detail the exact steps that someone else can take to reproduce
+    this bug using the current stable release of MrMap. Begin with the
+    creation of any necessary database objects and call out every operation
+    being performed explicitly. If reporting a bug in the REST API, be sure to
+    reconstruct the raw HTTP request(s) being made: Don't rely on a client
+    library such as pynetbox.
+-->
+### Steps to Reproduce
+1. 
+2. 
+3. 
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+<!-- What did you expect to happen? -->
+### Expected Behavior
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
-
-**Additional context**
-Add any other context about the problem here.
+<!-- What happened instead? -->
+### Observed Behavior

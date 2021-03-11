@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Set up postgres
         run: |
-          sudo sed -i "/host    all             all             127.0.0.1/32            md5/c host    all             all             127.0.0.1/32            trust" /etc/postgresql/13/main/pg_hba.conf
+          sudo sed -i "s/md5/trustg" /etc/postgresql/13/main/pg_hba.conf
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0

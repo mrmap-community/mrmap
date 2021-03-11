@@ -28,7 +28,6 @@ jobs:
           gdal-bin
       - name: Set up postgres
         run: |
-          cat /etc/postgresql/11/main/pg_hba.conf && \
           cat /etc/postgresql/13/main/pg_hba.conf
       - name: Set up Python 3.7
         uses: actions/setup-python@v2

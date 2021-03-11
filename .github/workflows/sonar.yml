@@ -48,9 +48,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip3 install -r requirements.txt
-      - name: Run Tests
+      - name: Run unit tests
         run: |
-          python manage.py test
+          python manage.py test --where "tests/unit_tests/" -s
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:

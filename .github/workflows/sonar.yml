@@ -50,7 +50,7 @@ jobs:
           pip3 install -r ./mrmap/requirements.txt
       - name: Run unit tests
         run: |
-          python ./mrmap/manage.py test --where "tests/unit_tests/" -s
+          python ./mrmap/manage.py test
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:

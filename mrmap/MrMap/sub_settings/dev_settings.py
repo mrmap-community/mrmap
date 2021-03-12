@@ -80,11 +80,11 @@ if 'test' in sys.argv:
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = [
     '--with-xunit',
-    '--xunit-file=coverage-report.xml',
+    '--xunit-file=xunit-result.xml',
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',
-    '--cover-xml-file=xunit-result.xml',
+    '--cover-xml-file=coverage-report.xml',
 ]
 
 # DJANGO DEBUG TOOLBAR

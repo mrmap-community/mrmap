@@ -1,3 +1,6 @@
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_mrmap&metric=coverage)](https://sonarcloud.io/dashboard?id=mrmap-community_mrmap)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_mrmap&metric=alert_status)](https://sonarcloud.io/dashboard?id=mrmap-community_mrmap)
+
 <img src="https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/MrMap/static/images/mr_map.png" width="200">
 
 Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services [WMS](https://www.opengeospatial.org/standards/wms), web feature services [WFS](https://www.opengeospatial.org/standards/wfs) and all the other [OGC](http://www.opengeospatial.org/) stuff ;-) . A similar project maybe [Hypermap-Registry](http://cga-harvard.github.io/Hypermap-Registry/) - but it lacks off many things which are needed in practice. The information model was inspired by the old well known mapbender2 project. This is lives on https://git.osgeo.org/gitea/GDI-RP/Mapbender2.8 and somewhen will be replaced by mrmap ;-) .

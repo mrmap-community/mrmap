@@ -8,7 +8,7 @@ Created on: 04.05.20
 from django.utils import timezone
 from django.test import TestCase
 
-from service.helper import service_helper
+from mrmap.service.helper import service_helper
 from service.helper.enums import OGCOperationEnum
 from service.models import Metadata, RequestOperation
 from service.tasks import async_increase_hits

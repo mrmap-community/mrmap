@@ -1,12 +1,12 @@
 import base64
-from time import sleep, time
 
 from django.test import TestCase, Client
 
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from editor.tasks import async_process_securing_access
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
-from service.helper import service_helper, xml_helper
+from service.helper import xml_helper
+from mrmap.service.helper import service_helper
 from service.models import Document, ProxyLog, Layer
 from service.tasks import async_log_response
 from structure.models import Permission

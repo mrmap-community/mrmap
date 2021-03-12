@@ -12,7 +12,7 @@ MrMap runs as a web application atop the [Django](https://www.djangoproject.com/
 Python framework with a [PostgreSQL](https://www.postgresql.org/) database. For a
 complete list of requirements, see `requirements.txt`. The code is available [on GitHub](https://github.com/mrmap-community/mrmap).
 
-The complete documentation for MrMap can be found at [Read the Docs](https://mrmap.readthedocs.io/en/stable/).
+The complete documentation for MrMap can be found at [Read the Docs](https://mrmap.readthedocs.io/en/latest/).
 
 ### Screenshots
 
@@ -26,7 +26,7 @@ The complete documentation for MrMap can be found at [Read the Docs](https://mrm
 
 ## Installation
 
-Please see [the documentation](https://mrmap.readthedocs.io/en/stable/) for
+Please see [the documentation](https://mrmap.readthedocs.io/en/latest/) for
 instructions on installing MrMap.
 
 ## Providing Feedback

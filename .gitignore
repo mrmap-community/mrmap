@@ -45,6 +45,8 @@ htmlcov/
 nosetests.xml
 nosecover.xml
 *,cover
+xunit-result.xml
+coverage-report.xml
 .hypothesis/
 
 # Translations

@@ -7,7 +7,8 @@ from django.urls import reverse
 from MrMap.messages import SECURITY_PROXY_NOT_ALLOWED
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service import tasks
-from service.helper import service_helper, xml_helper
+from service.helper import xml_helper
+from mrmap.service.helper import service_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum, DocumentEnum
 from service.models import Document, Service

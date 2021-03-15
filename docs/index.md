@@ -1,4 +1,4 @@
-<img src="https://github.com/mrmap-community/mrmap/blob/master/mrmap/MrMap/static/images/mr_map.png" width="200">
+<img src="mr_map.png" width="200">
 
 # What is MrMap?
 
@@ -21,12 +21,12 @@ It encompasses the following aspects:
 * Dashboard
 * Catalogue and APIs (REST interfaces for the resources)
 * CSW interface
-* mapContext configurator (WIP)
-* mapContext API (WIP)
-* OGC API Features Proxy (WIP)
-* Support for the European SDI initiative (WIP)
-* Support for publishing resources in DCAT-AP format   
-* Support for CKAN API (WIP)
+
+# What MrMap Is Not
+
+While MrMap strives to cover many areas of geodata infrastructure, the scope of its feature set is necessarily limited. This ensures that development focuses on core functionality and that scope creep is reasonably contained. To that end, it might help to provide some examples of functionality that MrMap does not provide:
+
+* Card viewer
 
 
 ## Design Philosophy

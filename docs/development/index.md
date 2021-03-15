@@ -9,10 +9,6 @@ There are several official forums for communication among the developers and com
 * [GitHub issues](https://github.com/mrmap-community/mrmap/issues) - All feature requests, bug reports, and other substantial changes to the code base **must** be documented in an issue.
 * [GitHub Discussions](https://github.com/mrmap-community/mrmap/discussions) - The preferred forum for general discussion and support issues. Ideal for shaping a feature request prior to submitting an issue.
 
-## Governance
-
-MrMap follows the [benevolent dictator](http://oss-watch.ac.uk/resources/benevolentdictatorgovernancemodel) model of governance, with [Jeremy Stretch](https://github.com/jeremystretch) ultimately responsible for all changes to the code base. While community contributions are welcomed and encouraged, the lead maintainer's primary role is to ensure the project's long-term maintainability and continued focus on its primary functions (in other words, avoid scope creep).
-
 ## Project Structure
 
 All development of the current MrMap release occurs in the `develop` branch; releases are packaged from the `master` branch. The `master` branch should _always_ represent the current stable release in its entirety, such that installing MrMap by either downloading a packaged release or cloning the `master` branch provides the same code base.

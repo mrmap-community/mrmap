@@ -12,7 +12,7 @@ from django.http import HttpResponse
 from django.test import TestCase, Client, RequestFactory
 from django.urls import ResolverMatch
 
-from MrMap.decorators import log_proxy, permission_required, ownership_required, resolve_metadata_public_id
+from MrMap.decorators import log_proxy, permission_required, ownership_required
 from service.models import Metadata, ProxyLog, Service
 from structure.models import MrMapGroup, Organization, Permission
 from structure.permissionEnums import PermissionEnum
@@ -260,28 +260,3 @@ class DecoratorTestCase(TestCase):
         self.assertEqual(proxy_log.user, self.user, msg="Another user has been related to the ProxyLog record")
         self.assertEqual(proxy_log.uri, TEST_URI_LOG_STRING, msg="The uri has not been stored correctly into the ProxyLog record")
 
-    def test_resolve_metadata_public_id(self):
-        """ Tests whether the public_id of a metadata can be resolved into the regular one.
-
-        Returns:
-
-        """
-        # Mock the usage of the decorator
-        @resolve_metadata_public_id
-        def test_function(request, *args, **kwargs):
-            return HttpResponse(content=kwargs.get("metadata_id", None))
-
-        requested_md = self.metadata
-        request = self.request_factory.get(
-            "http://test.com/{}".format(requested_md.id),
-        )
-        request.user = self.default_user
-
-        # Add a public_id
-        self.metadata.public_id = "TEST_PUBLIC_ID"
-        self.metadata.save()
-
-        response = test_function(request, metadata_id=str(self.metadata.id))
-        self.assertEqual(response.content.decode("UTF-8"), str(self.metadata.id))
-        response = test_function(request, metadata_id=self.metadata.public_id)
-        self.assertEqual(response.content.decode("UTF-8"), str(self.metadata.id))

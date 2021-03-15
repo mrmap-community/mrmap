@@ -142,7 +142,6 @@ class MetadataSerializer(serializers.Serializer):
 
     """
     id = serializers.UUIDField()
-    easy_id = serializers.CharField(source="public_id")
     metadata_type = serializers.CharField()
     identifier = serializers.CharField()
     title = serializers.CharField()
@@ -492,7 +491,6 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     # Create response data
     serialized = OrderedDict()
     serialized["id"] = md.id
-    serialized["easy_id"] = md.public_id
     serialized["file_identifier"] = md.identifier
     serialized["type"] = md.metadata_type
     serialized["title"] = md.title

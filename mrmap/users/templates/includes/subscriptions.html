@@ -4,12 +4,12 @@
 {% load django_tables2 %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.SUBSCRIPTION}}{% endautoescape %} <strong>{% trans 'Subscriptions' %}</strong></h4>
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{ICONS.SUBSCRIPTION}}{% endautoescape %} <strong>{% trans 'Subscriptions' %}</strong></h4>
 {% endblock %}
 {% block card-header-title-right %}
 
-<a role="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'add_subscription'%}">
-    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Subscription' %}
+<a role="button" class="btn btn-success" href="{% url 'add_subscription'%}">
+    {% autoescape off %}{{ICONS.ADD}}{% endautoescape %} {% trans 'New Subscription' %}
 </a>
 
 {% endblock %}

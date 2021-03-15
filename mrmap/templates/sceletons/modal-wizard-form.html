@@ -5,7 +5,7 @@
 <div class="modal {% if wizard.form.errors|length > 0  %} animated shake {% endif %} {% if fade_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true"><!-- <modal> -->
     <div class="modal-dialog modal-lg" role="document"><!-- <modal-dialog> -->
-        <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}"><!-- <modal-content> -->
+        <div class="modal-content"><!-- <modal-content> -->
             <div class="modal-header"><!-- <modal-header> -->
                 <h5 class="modal-title" id="id_modal_title_{{id_modal}}"><!-- <modal-title> -->
                     {{ modal_title }}
@@ -63,12 +63,12 @@
                         <div class="row">
                             <div class="col-sm">
                                 {% if current_view_arg %}
-                                    <a href="{% url current_view current_view_arg %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
-                                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
+                                    <a href="{% url current_view current_view_arg %}" class="btn btn-warning" role="button" aria-pressed="true">
+                                        {% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
                                     </a>
                                 {% else %}
-                                <a href="{% url current_view %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
-                                    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
+                                <a href="{% url current_view %}" class="btn btn-warning" role="button" aria-pressed="true">
+                                    {% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
                                 </a>
                                 {% endif %}
                             </div>
@@ -81,34 +81,34 @@
                                 <div class="float-right">
                                     {% if wizard.steps.prev %}
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
-                                            <button id="id_{{id_modal}}_btn_wizard_goto_first" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">
-                                                {% autoescape off %}{{THEME.ICONS.FIRST}}{% endautoescape %}
+                                            <button id="id_{{id_modal}}_btn_wizard_goto_first" name="wizard_goto_step" type="submit" class="btn btn-success" value="{{ wizard.steps.first }}">
+                                                {% autoescape off %}{{ICONS.FIRST}}{% endautoescape %}
                                             </button>
                                         </span>
                                         {% if wizard.steps.prev != wizard.steps.first %}
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go one step backward'%}">
-                                            <button id="id_{{id_modal}}_btn_wizard_goto_prev" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.prev }}">
-                                                {% autoescape off %}{{THEME.ICONS.BACK}}{% endautoescape %}
+                                            <button id="id_{{id_modal}}_btn_wizard_goto_prev" name="wizard_goto_step" type="submit" class="btn btn-secondary" value="{{ wizard.steps.prev }}">
+                                                {% autoescape off %}{{ICONS.BACK}}{% endautoescape %}
                                             </button>
                                         </span>
                                         {% endif %}
                                     {% endif %}
                                     {% if wizard.ignore_uncomitted_forms or wizard.steps.last == wizard.steps.current %}
-                                        <button id="id_{{id_modal}}_btn_save" name="wizard_save" value="True" type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
-                                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                                        <button id="id_{{id_modal}}_btn_save" name="wizard_save" value="True" type="submit" class="btn btn-primary">
+                                            {% autoescape off %}{{ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
                                         </button>
                                     {% endif %}
                                     {% if wizard.steps.next %}
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the next step'%}">
-                                            <button id="id_{{id_modal}}_btn_wizard_goto_next" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}">
-                                                {% autoescape off %}{{THEME.ICONS.NEXT}}{% endautoescape %}
+                                            <button id="id_{{id_modal}}_btn_wizard_goto_next" type="submit" class="btn btn-secondary">
+                                                {% autoescape off %}{{ICONS.NEXT}}{% endautoescape %}
                                             </button>
                                         </span>
                                     {% endif %}
                                     {% if wizard.steps.current != wizard.steps.last and wizard.ignore_uncomitted_forms%}
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the last step'%}">
-                                            <button id="id_{{id_modal}}_btn_wizard_goto_last" name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.last }}">
-                                                {% autoescape off %}{{THEME.ICONS.LAST}}{% endautoescape %}
+                                            <button id="id_{{id_modal}}_btn_wizard_goto_last" name="wizard_goto_step" type="submit" class="btn btn-secondary" value="{{ wizard.steps.last }}">
+                                                {% autoescape off %}{{ICONS.LAST}}{% endautoescape %}
                                             </button>
                                         </span>
                                     {% endif %}

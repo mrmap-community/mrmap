@@ -5,7 +5,7 @@ from django.contrib.auth.hashers import make_password
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
 from structure.models import Organization, PendingTask, PublishRequest, GroupInvitationRequest
-from structure.models import MrMapUser, Theme, Role, MrMapGroup
+from structure.models import MrMapUser, Role, MrMapGroup
 from structure.settings import SUPERUSER_GROUP_NAME, PUBLIC_GROUP_NAME
 from tests.test_data import get_password_data
 
@@ -14,11 +14,6 @@ salt = str(os.urandom(25).hex())
 PASSWORD = get_password_data().get('valid')
 EMAIL = "test@example.com"
 
-
-light_theme = Recipe(
-    Theme,
-    name=seq("LIGHT")
-)
 
 superadmin_role = Recipe(
     Role,
@@ -38,7 +33,6 @@ god_user = Recipe(
     salt=salt,
     password=make_password("354Dez25!"),
     is_active=True,
-    theme=foreign_key(light_theme),
 )
 
 superadmin_orga = Recipe(
@@ -71,7 +65,6 @@ superadmin_user = Recipe(
     salt=salt,
     password=make_password(PASSWORD, salt=salt),
     is_active=True,
-    theme=foreign_key(light_theme),
     groups=related(superadmin_group),
     organization=foreign_key(superadmin_orga)
 )
@@ -97,7 +90,6 @@ active_testuser = Recipe(
     salt=salt,
     password=make_password(PASSWORD, salt=salt),
     is_active=True,
-    theme=foreign_key(light_theme),
     groups=related(guest_group)
 )
 

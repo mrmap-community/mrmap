@@ -6,9 +6,8 @@ from django_tables2 import tables, RequestConfig
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.columns import MrMapColumn
-from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
+from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
-from MrMap.utils import get_theme
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -88,76 +87,6 @@ class MrMapTable(tables.Table):
             self.permission_lookup[permission] = has_perm
         return has_perm
 
-    def get_link(self, href: str, value: str, permission: PermissionEnum, tooltip_placement: str = 'left', open_in_new_tab: bool = False, tooltip: str = None,):
-        has_perm = self.check_render_permission(permission)
-        if has_perm:
-            context = {
-                "href": href,
-                "value": value,
-                "link_color": get_theme(self.user)["TABLE"]["LINK_COLOR"],
-                "tooltip": tooltip,
-                "tooltip_placement": tooltip_placement,
-                "new_tab": open_in_new_tab,
-            }
-            return render_to_string(template_name="sceletons/open-link.html",
-                                    context=context)
-        else:
-            return ''
-
-    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: PermissionEnum = None, tooltip: str = '', tooltip_placement: str = 'left',):
-        has_perm = self.check_render_permission(permission)
-        if has_perm:
-            context = {
-                "btn_size": BTN_SM_CLASS,
-                "btn_color": btn_color,
-                "btn_value": btn_value,
-                "btn_url": href,
-                "tooltip": tooltip,
-                "tooltip_placement": tooltip_placement,
-            }
-            return render_to_string(template_name="sceletons/open-link-button.html",
-                                    context=context)
-        else:
-            return ''
-
-    def get_dropdown_btn(self, btn_color: str, btn_value: str, btn_disabled: bool, btn_options: list, permission: PermissionEnum, tooltip: str = '', tooltip_placement: str = 'left', btn_loading: bool = False):
-        has_perm = self.check_render_permission(permission)
-        if has_perm:
-            context = {
-                "btn_size": BTN_SM_CLASS,
-                "btn_color": btn_color,
-                "btn_value": btn_value,
-                "btn_options": btn_options,
-                "btn_disabled": btn_disabled,
-                "btn_loading": btn_loading,
-                "tooltip": tooltip,
-                "tooltip_placement": tooltip_placement,
-            }
-            return render_to_string(template_name="sceletons/open-link-dropdown.html",
-                                    context=context)
-        else:
-            return ''
-
-    def get_badge(self, value: str, badge_color: str, badge_pill: bool = False, tooltip: str = '', tooltip_placement: str = 'left',):
-        context = {
-            "badge_color": badge_color,
-            "badge_pill": badge_pill,
-            "value": value,
-            "tooltip": tooltip,
-            "tooltip_placement": tooltip_placement,
-        }
-        return render_to_string(template_name="sceletons/badge_with_tooltip.html",
-                                context=context)
-
-    def get_icon(self, icon: str, icon_color: str = None, tooltip: str = '', tooltip_placement: str = 'left',):
-        context = {
-            "icon_color": icon_color,
-            "icon": icon,
-            "tooltip": tooltip,
-            "tooltip_placement": tooltip_placement,
-        }
-        return render_to_string(template_name="sceletons/icon.html",
-                                context=context)
 
     def prepare_table_pagination_settings(self, request: HttpRequest, param_lead: str):
         return self.prepare_list_pagination_settings(request, param_lead)

@@ -1,9 +1,7 @@
 from django.contrib.gis.geos import MultiPolygon, GEOSGeometry
 from django.forms import DateTimeInput, DateInput, Textarea
-from MrMap.utils import get_theme
 from MrMap.settings import DEFAULT_DATE_TIME_FORMAT
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
-from users.helper import user_helper
 from django_filters.widgets import SuffixedMultiWidget
 
 
@@ -128,7 +126,6 @@ class LeafletGeometryInput(Textarea):
         if value:
             context['geojson'] = value.geojson if isinstance(value, MultiPolygon) else GEOSGeometry(value).geojson
 
-        context['THEME'] = get_theme(user_helper.get_user(request=self.request))
         context['activate_download'] = self.activate_download
         context['activate_upload'] = self.activate_upload
         context['geoman_controls'] = self.geoman_controls

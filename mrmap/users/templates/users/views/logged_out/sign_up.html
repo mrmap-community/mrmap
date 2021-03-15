@@ -4,9 +4,9 @@
 {% load i18n static %}
 {% load bootstrap4 %}
 <div class="container mb-5">
-    <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 ">
+    <div class="card bg-light mt-3 ">
         <div class="card-header">
-            <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {{ title }}</h4>
+            <h4 class="mb-1 mr-3">{% autoescape off %}{{ICONS.SIGNUP}}{% endautoescape %} {{ title }}</h4>
         </div>
         <div class="card-body">
             <div class="media">
@@ -24,8 +24,8 @@
                             <form action="{{ action_url }}" method="post">
                                 {% csrf_token %}
                                 {% bootstrap_form form %}
-                                <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
-                                    {% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% autoescape off %}{{ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
                                 </button>
                             </form>
                         </div>

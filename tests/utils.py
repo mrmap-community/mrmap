@@ -16,7 +16,6 @@ from django_filters import FilterSet
 from django_tables2 import RequestConfig, tables
 
 from MrMap import utils
-from MrMap.tables import MrMapTable
 from structure.models import MrMapUser
 
 

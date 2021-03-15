@@ -7,10 +7,10 @@
         <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
             {% if table.context.filter %}
             <div id="id_filter_accordion_{{table.table_id}}">
-                <div class="card border border-white rounded {{table.context.THEME.CARD.BG}}">
+                <div class="card border border-white rounded">
                     <div class="card-header" id="id_filter_card_header_{{table.table_id}}">
                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Click to open filter options' %}">
-                            <button id="id_filter_btn_{{table.table_id}}" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
+                            <button id="id_filter_btn_{{table.table_id}}" class="btn btn-info" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
                                 <i class="fas fa-filter"></i> {% trans 'Filter table' %}
                             </button>
                         </span>
@@ -30,12 +30,12 @@
                                                 <div class="d-flex align-items-end flex-column mt-auto">
                                                     <div class="row mb-1">
                                                     <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Filter the table' %}">
-                                                        <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}"><i class="fas fa-search"></i></button>
+                                                        <button type="submit" class="btn btn-info"><i class="fas fa-search"></i></button>
                                                     </span>
                                                     </div>
                                                     <div class="row">
                                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Dismiss all filters' %}">
-                                                            <a class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" href="{{ request.path }}"><i class="fas fa-undo"></i></a>
+                                                            <a class="btn btn-info" href="{{ request.path }}"><i class="fas fa-undo"></i></a>
                                                         </span>
                                                     </div>
                                                 </div>
@@ -54,7 +54,7 @@
             <div class="d-flex align-items-end flex-column mt-auto">
                 <div class="dropdown d-inline-block">
                     {% trans 'Show' %}
-                        <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_table_per_page_dropdown"
+                        <button class="btn btn-info dropdown-toggle" type="button" id="id_table_per_page_dropdown"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Switch the items per page' %}">
                                 {{ table.paginator.per_page }}
@@ -79,7 +79,7 @@
         <div class="overflow-auto">
         <div class="table-container">
             {% block table %}
-                <table id="id_{{table.table_id}}" class="table {{table.context.THEME.TABLE.BG}} table-striped table-bordered table-hover" {% render_attrs table.attrs %}>
+                <table id="id_{{table.table_id}}" class="table table-striped table-bordered table-hover" {% render_attrs table.attrs %}>
                     <caption class="d-none">{{table.caption}}</caption>
                     {% block table.thead %}
                     {% if table.show_header %}
@@ -102,31 +102,31 @@
                                         {% if request.GET|get_item:table.order_by_field is None%}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
-                                            class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                            class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} text-success {% endif %}">
                                                 <i class="fas fa-sort-alpha-down"></i>
                                             </a>
                                         </span>
                                         {% elif '-' not in column.order_by_alias.next%}
                                             {% if column.order_by_alias|lower == request.GET|get_item:table.order_by_field|lower %}
                                                 <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
-                                                    <a class="{{table.context.THEME.TABLE.LINK_COLOR}}" href="{% querystring table.order_by_field='' %}"><i class="fas fa-undo"></i></a>
+                                                    <a href="{% querystring table.order_by_field='' %}"><i class="fas fa-undo"></i></a>
                                                 </span>
                                             {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
-                                            class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                            class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} text-success {% endif %}">
                                                 <i class="fas fa-sort-alpha-up"></i>
                                             </a>
                                         </span>
                                         {% else %}
                                             {% if column.order_by_alias|lower == request.GET|get_item:table.order_by_field|lower %}
                                                 <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
-                                                    <a class="{{table.context.THEME.TABLE.LINK_COLOR}}" href="{% querystring table.order_by_field='' %}"><i class="fas fa-undo"></i></a>
+                                                    <a href="{% querystring table.order_by_field='' %}"><i class="fas fa-undo"></i></a>
                                                 </span>
                                             {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
-                                            class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                            class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} text-success {% endif %}">
                                                 <i class="fas fa-sort-alpha-down"></i>
                                             </a>
                                         </span>

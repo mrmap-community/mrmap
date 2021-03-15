@@ -2,7 +2,7 @@
 {% load i18n static bootstrap4 %}
 
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.API}}{% endautoescape %} {% trans 'API' %}</h4>
+<h4 class="mb-1 mr-3">{% autoescape off %}{{ICONS.API}}{% endautoescape %} {% trans 'API' %}</h4>
 {% endblock %}
 
 
@@ -24,7 +24,7 @@
 
 
 {% block card-body %}
-<a class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}" href="{% url 'api:api-root' %}" target="_blank" title="{% trans 'Open API' %}">
+<a class="btn btn-primary" href="{% url 'api:api-root' %}" target="_blank" title="{% trans 'Open API' %}">
     {% trans 'Open' %}
 </a>
 

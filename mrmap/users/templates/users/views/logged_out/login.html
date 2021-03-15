@@ -5,12 +5,12 @@
 {% load bootstrap4 %}
 <div class="container">
     <div class="row">
-        <div class="col-md mt-5 {{THEME.TXT_DEF_COLOR}}">
+        <div class="col-md mt-5 text-dark">
             <h1>{{ login_article_title }}</h1>
             <article class="login-article">{{ login_article }}</article>
         </div>
         <div class="col-md mt-5 mb-5">
-            <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
+            <div class="card bg-light mt-3">
                 <div class="card-body">
                     <h4 class="card-title text-center">{% trans 'Sign in' %}</h4>
                     <hr>
@@ -21,8 +21,8 @@
                                 {% csrf_token %}
                                 {{ form.media }}
                                 {% bootstrap_form form %}
-                                <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
-                                    {% autoescape off %}{{THEME.ICONS.SIGNIN}}{% endautoescape %} {% trans 'Sign in' %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% autoescape off %}{{ICONS.SIGNIN}}{% endautoescape %} {% trans 'Sign in' %}
                                 </button>
                             </form>
                         </div>
@@ -30,8 +30,8 @@
                     <hr>
                     <div class="text-center">
                         <span>{% trans 'Don`t have an account?' %} </span>
-                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'signup' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
-                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'password_reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
+                        <a href="{% url 'signup' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
+                        <a href="{% url 'password_reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
                     </div>
                 </div>
 

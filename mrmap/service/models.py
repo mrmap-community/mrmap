@@ -7,10 +7,9 @@ from collections import OrderedDict
 import time
 from datetime import datetime
 from json import JSONDecodeError
-from typing import Iterator
 from PIL import Image
 from dateutil.parser import parse
-from django.contrib.gis.geos import Polygon, MultiPolygon
+from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction, OperationalError
 from django.contrib.gis.db import models
@@ -21,8 +20,8 @@ from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django_bootstrap_swt.components import LinkButton, Badge, Tag, Modal
-from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ModalSizeEnum, ButtonSizeEnum, \
+from django_bootstrap_swt.components import LinkButton, Badge, Tag
+from django_bootstrap_swt.enums import ButtonColorEnum, BadgeColorEnum, TextColorEnum, ButtonSizeEnum, \
     TooltipPlacementEnum
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
@@ -32,7 +31,6 @@ from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
-from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import not_uuid, geometry_is_empty
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
@@ -685,14 +683,14 @@ class Metadata(Resource):
 
     @classmethod
     def get_add_resource_action(cls):
-        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Resource').__str__(),
+        return LinkButton(content=get_icon(IconEnum.ADD) + _(' New Resource').__str__(),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('resource:add'),
                           needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
 
     @classmethod
     def get_add_dataset_action(cls):
-        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New Dataset').__str__(),
+        return LinkButton(content=get_icon(IconEnum.ADD) + _(' New Dataset').__str__(),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('editor:dataset-metadata-wizard-new'),
                           needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
@@ -704,41 +702,41 @@ class Metadata(Resource):
             # removed if it is a dataset which is created from the user,
             # restored if it's customized
             actions.append(LinkButton(url=self.edit_view_uri,
-                                      content=FONT_AWESOME_ICONS["EDIT"],
+                                      content=get_icon(IconEnum.EDIT),
                                       color=ButtonColorEnum.WARNING,
                                       tooltip=_l(f"Edit <strong>{self.title} [{self.id}]</strong> dataset"),
                                       tooltip_placement=TooltipPlacementEnum.LEFT,
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
             # todo: if this dataset is in the given from_metadata context origin editor, then we can show this
             actions.append(LinkButton(url=self.remove_view_uri,
-                                      content=FONT_AWESOME_ICONS["REMOVE"],
+                                      content=get_icon(IconEnum.DELETE),
                                       color=ButtonColorEnum.DANGER,
                                       tooltip=_l(f"Remove <strong>{self.title} [{self.id}]</strong> dataset"),
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value))
 
         else:
             actions.append(LinkButton(url=self.activate_view_uri,
-                                      content=FONT_AWESOME_ICONS["POWER_OFF"],
+                                      content=get_icon(IconEnum.POWER_OFF),
                                       color=ButtonColorEnum.WARNING if self.is_active else ButtonColorEnum.SUCCESS,
                                       tooltip=_l("Deactivate") if self.is_active else _l("Activate"),
                                       tooltip_placement=TooltipPlacementEnum.LEFT,
                                       needs_perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value))
             if self.is_service_type(OGCServiceEnum.CSW):
                 actions.append(LinkButton(url=self.harvest_view_uri,
-                                          content=FONT_AWESOME_ICONS["HARVEST"],
+                                          content=get_icon(IconEnum.HARVEST),
                                           color=ButtonColorEnum.INFO,
                                           tooltip=_l(f"Havest resource <strong>{self.title} [{self.id}]</strong>"),
                                           tooltip_placement=TooltipPlacementEnum.LEFT,
                                           needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
             else:
                 actions.extend([LinkButton(url=self.edit_view_uri,
-                                           content=FONT_AWESOME_ICONS["EDIT"],
+                                           content=get_icon(IconEnum.EDIT),
                                            color=ButtonColorEnum.WARNING,
                                            tooltip=_l("Edit the metadata of this resource"),
                                            tooltip_placement=TooltipPlacementEnum.LEFT,
                                            needs_perm=PermissionEnum.CAN_EDIT_METADATA.value),
                                 LinkButton(url=self.edit_access_view_uri,
-                                           content=FONT_AWESOME_ICONS["ACCESS"],
+                                           content=get_icon(IconEnum.ACCESS),
                                            color=ButtonColorEnum.WARNING,
                                            tooltip=_l("Edit the access for resource"),
                                            tooltip_placement=TooltipPlacementEnum.LEFT,
@@ -746,19 +744,19 @@ class Metadata(Resource):
 
                 if self.is_metadata_type(MetadataEnum.SERVICE):
                     actions.extend([LinkButton(url=self.update_view_uri,
-                                               content=FONT_AWESOME_ICONS["UPDATE"],
+                                               content=get_icon(IconEnum.UPDATE),
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Update this resource"),
                                                tooltip_placement=TooltipPlacementEnum.LEFT,
                                                needs_perm=PermissionEnum.CAN_UPDATE_RESOURCE.value),
                                     LinkButton(url=self.run_monitoring_view_uri,
-                                               content=FONT_AWESOME_ICONS["HEARTBEAT"],
+                                               content=get_icon(IconEnum.HEARTBEAT),
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Run health checks for this resource"),
                                                tooltip_placement=TooltipPlacementEnum.LEFT,
                                                needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
                                     LinkButton(url=self.remove_view_uri,
-                                               content=FONT_AWESOME_ICONS["REMOVE"],
+                                               content=get_icon(IconEnum.DELETE),
                                                color=ButtonColorEnum.DANGER,
                                                tooltip=_l("Remove this resource"),
                                                tooltip_placement=TooltipPlacementEnum.LEFT,
@@ -766,7 +764,7 @@ class Metadata(Resource):
 
         if self.is_custom:
             actions.append(LinkButton(url=self.restore_view_uri,
-                                      content=FONT_AWESOME_ICONS["UNDO"],
+                                      content=get_icon(IconEnum.RESTORE),
                                       color=ButtonColorEnum.DANGER,
                                       tooltip=_l("Restore the metadata for resource"),
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )

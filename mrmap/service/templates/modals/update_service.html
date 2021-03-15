@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block modal-footer %}
-<a id="id_dismiss_update_service_btn" class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url 'resource:detail' service.metadata.id %}" role="button">{% trans 'Dismiss' %}</a>
-<button id="id_submit_update_service_btn" type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+<a id="id_dismiss_update_service_btn" class="btn btn-warning" href="{% url 'resource:detail' service.metadata.id %}" role="button">{% trans 'Dismiss' %}</a>
+<button id="id_submit_update_service_btn" type="button submit" class="btn btn-primary">
     <div id="id_loading_spinner_div" class="d-none">
         {% include 'includes/loading_spinner.html' %}
     </div>

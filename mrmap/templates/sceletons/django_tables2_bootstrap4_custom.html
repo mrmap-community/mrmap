@@ -39,7 +39,7 @@
                                                     </div>
                                                     <div class="row">
                                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Dismiss all filters' %}">
-                                                            <a class="btn btn-info" href="{{ request.path }}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                            <a class="btn btn-info" href="{{ request.path }}">{% autoescape off %}{{table.context.ICONS.UNDO}}{% endautoescape %}</a>
                                                         </span>
                                                     </div>
                                                 </div>
@@ -89,7 +89,7 @@
         <div class="overflow-auto">
         <div class="table-container">
             {% block table %}
-                <table id="id_{{table.table_id}}" class="table table-hover {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
+                <table id="id_{{table.table_id}}" class="table table-hover bg-light" {% render_attrs table.attrs %}>
                     <caption class="d-none">{{table.caption}}</caption>
                     {% block table.thead %}
                     {% if table.show_header %}
@@ -113,31 +113,31 @@
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success  {% endif %}">
-                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
+                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %}
                                             </a>
                                         </span>
                                         {% elif '-' not in column.order_by_alias.next%}
                                             {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
                                                 <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
-                                                    <a class="btn-info" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                    <a class="btn-info" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.ICONS.UNDO}}{% endautoescape %}</a>
                                                 </span>
                                             {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success {% endif %}">
-                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
+                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_UP}}{% endautoescape %}
                                             </a>
                                         </span>
                                         {% else %}
                                             {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
                                                 <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
-                                                    <a class="{{table.context.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                    <a class="{{table.context.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.ICONS.UNDO}}{% endautoescape %}</a>
                                                 </span>
                                             {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success {% endif %}">
-                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
+                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %}
                                             </a>
                                         </span>
                                         {% endif %}

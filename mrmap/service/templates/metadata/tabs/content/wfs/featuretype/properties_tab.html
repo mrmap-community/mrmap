@@ -9,9 +9,9 @@
         <th scope="row">{% trans 'is searchable' %}</th>
         <td>
             {% if featuretype.is_searchable %}
-                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+                <h4><p class="text-success">{% autoescape off %}{{ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
             {% else %}
-                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+                <h4><p class="text-danger">{% autoescape off %}{{ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
             {% endif %}
         </td>
     </tr>
@@ -19,9 +19,9 @@
         <th scope="row">{% trans 'is access secured' %}</th>
         <td>
             {% if featuretype.metadata.is_secured %}
-                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+                <h4><p class="text-success">{% autoescape off %}{{ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
             {% else %}
-                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+                <h4><p class="text-danger">{% autoescape off %}{{ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
             {% endif %}
         </td>
     </tr>
@@ -30,7 +30,7 @@
         <td>
             {% comment %} TODO: is reference_system.all right? check it {% endcomment %}
             {% for rs in featuretype.metadata.reference_system.all %}
-            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
+            <span class="badge badge-info">{{ rs.prefix }}{{ rs.code }}</span>
             {% empty %}
             {% trans 'No additional reference systems provided' %}
             {% endfor %}
@@ -61,7 +61,7 @@
     </tr>
     {% if related_metadatas %}
     <tr>
-        <th scope="row">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Coupled dataset metadata' %}</th>
+        <th scope="row">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Coupled dataset metadata' %}</th>
         <td>
             {% render_table related_metadatas %}
         </td>

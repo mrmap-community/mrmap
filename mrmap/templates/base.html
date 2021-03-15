@@ -192,7 +192,8 @@
                         <div id="ee-trggr" class="d-inline-flex">Mr. Map</div>
                     </a>
                 </div>
-                <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto text-primary">rev. {{ REVISION }}</a>
+               <a href="https://mrmap.readthedocs.io/en/master/" target="_blank" class="row-auto {{THEME.FOOTER.LINK_COLOR}} mr-1">{{ICONS.BOOK_OPEN}} {% trans 'Docs' %}</a> <span class="mr-1">&#8226;</span>
+               <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto {{THEME.FOOTER.LINK_COLOR}}" mr-1>{{ICONS.CODE}} {% trans 'Code' %}</a>
             </div>
         </div>
     </div>

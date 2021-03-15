@@ -90,6 +90,9 @@ class IconEnum(EnumChoice):
     OFF = 'fas fa-toggle-off'
     LIST = 'fas fa-th-list'
     NONE = ''
+    BOOK = 'fas fa-book'
+    CODE = "fas fa-code"
+    BOOK_OPEN = 'fas fa-book-open'
 
 
 def get_icon(enum: IconEnum) -> SafeString:

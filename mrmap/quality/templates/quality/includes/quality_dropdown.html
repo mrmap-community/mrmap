@@ -2,20 +2,20 @@
 {% load fontawesome_5 %}
 
 <div class="dropdown">
-    <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle {% if quality.disabled %}disabled{% endif %}" type="button" id="id_quality_dropdown" data-toggle="dropdown" data-display="static" aria-haspopup="true" aria-expanded="false">
+    <button class="btn btn-info dropdown-toggle {% if quality.disabled %}disabled{% endif %}" type="button" id="id_quality_dropdown" data-toggle="dropdown" data-display="static" aria-haspopup="true" aria-expanded="false">
         {% if quality.running %}
             {% include 'includes/loading_spinner.html' with no_text=True %}
         {% else %}
             {% if show_indicator %}
                 {% if quality.valid is None %}
-                    {% autoescape off %}{{THEME.ICONS.VALIDATION_UNKNOWN}}{% endautoescape %}
+                    {% autoescape off %}{{ICONS.VALIDATION_UNKNOWN}}{% endautoescape %}
                 {% elif quality.valid %}
-                    {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+                    {% autoescape off %}{{ICONS.VALIDATION}}{% endautoescape %}
                 {% else %}
-                    {% autoescape off %}{{THEME.ICONS.VALIDATION_ERROR}}{% endautoescape %}
+                    {% autoescape off %}{{ICONS.VALIDATION_ERROR}}{% endautoescape %}
                 {% endif %}
             {% else %}
-                {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+                {% autoescape off %}{{ICONS.VALIDATION}}{% endautoescape %}
             {% endif %}
         {% endif %}
         {% if not quality.no_text %}
@@ -26,13 +26,13 @@
         {% if show_status %}
         <h6 class="dropdown-header">
             {% if quality.valid is None %}
-                {% autoescape off %}{{THEME.ICONS.VALIDATION_UNKNOWN}}{% endautoescape %}
+                {% autoescape off %}{{ICONS.VALIDATION_UNKNOWN}}{% endautoescape %}
                 {{ quality.DEFAULT_UNKNOWN_MESSAGE}}
             {% elif quality.valid %}
-                {% autoescape off %}{{THEME.ICONS.VALIDATION}}{% endautoescape %}
+                {% autoescape off %}{{ICONS.VALIDATION}}{% endautoescape %}
                 {{ quality.DEFAULT_SUCCESS_MESSAGE}}
             {% else %}
-                {% autoescape off %}{{THEME.ICONS.VALIDATION_ERROR}}{% endautoescape %}
+                {% autoescape off %}{{ICONS.VALIDATION_ERROR}}{% endautoescape %}
                 {{ quality.DEFAULT_FAIL_MESSAGE}}
             {% endif %}
         </h6>

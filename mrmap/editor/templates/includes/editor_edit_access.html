@@ -5,7 +5,7 @@
 
 
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access Editor' %}</h4>
+<h4 class="mb-1 mr-3">{% autoescape off %}{{ICONS.ACCESS}}{% endautoescape %} {% trans 'Access Editor' %}</h4>
 {% endblock %}
 
 {% block card-header-subtitle-left %}
@@ -26,8 +26,8 @@
 {% endblock %}
 
 {% block card-header-subtitle-right %}
-    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'resource:detail' object.id %}">
-    <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service Detail View' %}</span>
+    <a href="{% url 'resource:detail' object.id %}">
+    <span style="white-space: nowrap;">{% autoescape off %}{{ICONS.RETURN}}{% endautoescape %} {% trans 'Service Detail View' %}</span>
     </a>
 {% endblock %}
 

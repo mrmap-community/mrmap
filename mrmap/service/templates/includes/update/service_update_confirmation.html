@@ -8,9 +8,9 @@
 {% block card-header-title-left %}
 <h4 class="mb-1 mr-3">
     {% if current_service.is_wms %}
-    {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
+    {% autoescape off %}{{ICONS.WMS}}{% endautoescape %}
     {% else %}
-    {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
+    {% autoescape off %}{{ICONS.WFS}}{% endautoescape %}
     {% endif %} <strong>{{ current_service.metadata.title }}</strong>
 </h4>
 {% endblock %}
@@ -85,7 +85,7 @@
             {% with new_elements_per_page as how_much_items_per_page  %}
             <div class="dropdown d-inline-block mb-2">
                 {% trans 'Show' %}
-                <button class="btn {{THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="PagingButton"
+                <button class="btn btn-info dropdown-toggle" type="button" id="PagingButton"
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% if update_confirmation_form.fields|length == new_elements_per_page %}{% trans 'all' %}{% else %}{{ new_elements_per_page }}{% endif %}
                 </button>
@@ -148,7 +148,7 @@
                 <div class="row mt-2">
                     <div class="col-auto">
                         <button id="id_submit_update_service_btn" type="submit"
-                                class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
+                                class="btn btn-primary">
                             <div id="id_loading_spinner_div" class="d-none">
                                 {% include 'includes/loading_spinner.html' %}
                             </div>
@@ -164,7 +164,7 @@
                     <form action="{% url 'resource:dismiss-pending-update' current_service.metadata.id %}" method="post">
                         {% csrf_token %}
                         <button id="id_dismiss_update_service_btn" type="submit"
-                                class="btn {{THEME.CARD.BTN_WARNING_COLOR}}">{% trans 'Dismiss' %}
+                                class="btn btn-warning">{% trans 'Dismiss' %}
                         </button>
                     </form>
                 </div>

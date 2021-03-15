@@ -42,14 +42,14 @@
             <tr>
                 <th scope="row">{% trans 'Online resource' %}</th>
                 <td>
-                    <a class="{{THEME.TABLE.LINK_COLOR}}" href="{{ service_md.online_resource }}" target="_blank">{{ service_md.online_resource }}</a>
+                    <a href="{{ service_md.online_resource }}" target="_blank">{{ service_md.online_resource }}</a>
                 </td>
             </tr>
             <tr>
                 <th scope="row">{% trans 'Keywords' %}</th>
                 <td>
                     {% for kw in service_md.keywords.all %}
-                        <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
+                        <span class="badge badge-info">{{ kw }}</span>
                     {% empty %}
                         {% trans 'No keywords provided' %}
                     {% endfor %}

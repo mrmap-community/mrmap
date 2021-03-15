@@ -1,6 +1,6 @@
 {% load i18n static %}
 <!--navbar-->
-<nav class="navbar navbar-expand-lg {{THEME.NAV.ITEM_COLOR}} {{THEME.NAV.BG_COLOR}}">
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
     <a class="navbar-brand" href="#">
         <img class="navbar-logo" src="{% static '/images/mr_map.png' %}" width="30" height="30" alt=""
              title="Map your s*** together!" alt="{% trans 'Mr. Map logo' %}">
@@ -14,17 +14,17 @@
         <ul class="navbar-nav mr-auto">
             <li class="nav-item {% if PATH == '' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'login' %}">
-                    {% autoescape off %}{{THEME.ICONS.SIGNIN}}{% endautoescape %} {% trans 'Login' %}
+                    {% autoescape off %}{{ICONS.SIGNIN}}{% endautoescape %} {% trans 'Login' %}
                 </a>
             </li>
             <li class="nav-item {% if PATH == 'signup' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'signup' %}">
-                    {% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
+                    {% autoescape off %}{{ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
                 </a>
             </li>
             <li class="nav-item {% if PATH == 'password_reset' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'password_reset' %}">
-                    {% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Reset password' %}
+                    {% autoescape off %}{{ICONS.UNDO}}{% endautoescape %} {% trans 'Reset password' %}
                 </a>
             </li>
         </ul>

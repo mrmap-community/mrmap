@@ -24,10 +24,6 @@ class OrganizationAdmin(admin.ModelAdmin):
     search_fields = ['id', 'organization_name', 'country', 'city', 'postal_code']
 
 
-class ThemeAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name']
-
-
 class GroupAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description', 'parent_group_link', 'organization_link', 'role_link', 'created_by_link', 'is_public_group', 'is_permission_group', )
     list_filter = ('role', 'created_by', 'is_public_group' )
@@ -100,7 +96,6 @@ class MrMapUserAdmin(UserAdmin):
                      'confirmed_newsletter',
                      'confirmed_survey',
                      'confirmed_dsgvo',
-                     'theme',
                  )
              }
              ),
@@ -132,5 +127,4 @@ admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(MrMapUser, MrMapUserAdmin)
 admin.site.register(MrMapGroup, GroupAdmin)
-admin.site.register(Theme, ThemeAdmin)
 admin.site.register(Role, RoleAdmin)

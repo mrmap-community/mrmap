@@ -2,7 +2,7 @@
 {% load i18n static bootstrap4 %}
 
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'API Token' %}</h4>
+<h4 class="mb-1 mr-3">{% autoescape off %}{{ICONS.ACCESS}}{% endautoescape %} {% trans 'API Token' %}</h4>
 {% endblock %}
 
 
@@ -28,7 +28,7 @@
 <form action="{{form.action_url}}" method="post">
     {% csrf_token %}
     {% bootstrap_form form %}
-    <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}" title="{% trans 'Generate and save a new access token' %}">
+    <button type="button submit" class="btn btn-primary" title="{% trans 'Generate and save a new access token' %}">
         {% trans 'Generate' %}
     </button>
 </form>

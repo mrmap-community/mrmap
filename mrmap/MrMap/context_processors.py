@@ -1,11 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.http import HttpRequest
-
 from MrMap.icons import get_all_icons
 from MrMap.settings import GIT_REPO_URI, GIT_GRAPH_URI
 from MrMap.sub_settings.dev_settings import ROOT_URL
-from MrMap.utils import get_theme
 from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
@@ -71,7 +69,6 @@ def default_context(request: HttpRequest):
         "user_permissions": permissions,
         "GIT_REPO_URI": GIT_REPO_URI,
         "GIT_GRAPH_URI": GIT_GRAPH_URI,
-        "THEME": get_theme(request.user),
         "ICONS": get_all_icons(),
         "mr_map_group_count": mr_map_group_count,
         "mr_map_organization_count": mr_map_organization_count,

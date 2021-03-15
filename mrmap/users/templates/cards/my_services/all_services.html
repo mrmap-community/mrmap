@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block card-header-title-left %}
-<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.GLOBE}}{% endautoescape %}</h5>
+<h5 class="card-title">{% autoescape off %}{{ICONS.GLOBE}}{% endautoescape %}</h5>
 {% endblock %}
 
 {% block card-header-title-center %}
@@ -10,7 +10,7 @@
 {% endblock%}
 
 {% block card-header-title-right %}
-<h5><span class="badge badge-pill {{THEME.CARD.BADGE_LIGHT}}">{{ all_count }}</span></h5>
+<h5><span class="badge badge-pill badge-light">{{ all_count }}</span></h5>
 {% endblock %}
 
 {% block card-body %}

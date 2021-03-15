@@ -3,12 +3,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from MrMap.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
+from MrMap.messages import PASSWORD_SENT
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
-from structure.models import MrMapUser, UserActivation, Theme
+from structure.models import MrMapUser, UserActivation
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone
 from django.contrib.messages import get_messages
@@ -294,7 +294,6 @@ class AccountEditTestCase(TestCase):
             "first_name": "admin",
             "last_name": "frontend",
             "email": get_email_data().get('valid'),
-            "theme": self.user.theme.id,
         }
 
         # case 1: User logged in -> effect!
@@ -305,7 +304,6 @@ class AccountEditTestCase(TestCase):
         )
         self.user.refresh_from_db()
 
-        self.assertEqual(self.user.theme, Theme.objects.get(name='LIGHT1'), msg="Theme could not be changed")
         self.assertEqual(self.user.first_name, "admin", msg="Firstname could not be changed")
         self.assertEqual(self.user.last_name, "frontend", msg="Firstname could not be changed")
         self.assertEqual(self.user.email, get_email_data().get('valid'), msg="Email could not be changed")

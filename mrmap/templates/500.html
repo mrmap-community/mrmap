@@ -4,11 +4,11 @@
 <head>
     {% include 'includes/default-head.html' %}
 </head>
-<body class="{{THEME.BACKGROUND}} {{THEME.BACKGROUND_IMG}}">
+<body class="bg-light bg-img">
     {% include 'includes/messages.html' %}
     {% include 'includes/ee-overlay.html' %}
     <div class="container">
-        <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
+        <div class="card bg-light mt-3">
             <div class="card-header">
                 <h1 class="card-title text-center">500</h1>
             </div><!--</card-header-->
@@ -26,7 +26,7 @@
                     </div>
             </div>
             <div class="card-footer text-center">
-                <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'home' %}">{% autoescape off %}{{THEME.ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
+                <a href="{% url 'home' %}">{% autoescape off %}{{ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
             </div>
         </div> <!-- card-body.// -->
     </div>

@@ -29,7 +29,6 @@ class MrMapUserForm(forms.ModelForm):
             "email",
             "confirmed_newsletter",
             "confirmed_survey",
-            "theme",
             "groups"
         ]
         widgets = {

@@ -6,7 +6,7 @@
 <div class="modal {% if form.errors|length > 0  %} animated shake {% endif %} {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}">
+        <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
                     {{form.form_title}}
@@ -24,11 +24,11 @@
                     {% endif %}
                 </div>
                 <div class="modal-footer">
-                    <a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}" role="button">
-                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}
+                    <a class="btn btn-warning" href="{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}" role="button">
+                        {% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}
                     </a>
-                    <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
-                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                    <button type="button submit" class="btn btn-primary">
+                            {% autoescape off %}{{ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
                     </button>
                 </div>
             </form>

@@ -6,11 +6,8 @@ Created on: 17.04.19
 
 """
 import urllib
-from MrMap.themes import DARK_THEME, LIGHT_THEME
 from django.utils.html import format_html
 from typing import Iterable, Any, Tuple
-from structure.models import MrMapUser
-from MrMap.settings import DEBUG
 
 
 def execute_threads(thread_list):
@@ -102,20 +99,6 @@ def set_uri_GET_param(uri: str, param: str, val):
     uri = urllib.parse.urlunsplit(base_uri)
 
     return uri
-
-
-# ToDo: move this function to the MrMapUser model
-def get_theme(user: MrMapUser):
-    if user is None or user.is_anonymous or user.theme is None:
-        return LIGHT_THEME
-    elif user.theme.name == 'DARK':
-        return DARK_THEME
-    else:
-        return LIGHT_THEME
-
-
-def get_default_theme():
-    return LIGHT_THEME
 
 
 def get_ok_nok_icon(value):

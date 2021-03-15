@@ -5,7 +5,7 @@
 {% load bootstrap4 %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}</h4>
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}</h4>
 {% endblock %}
 
 {% block card-header-title-center%}
@@ -14,12 +14,12 @@
 {% block card-header-title-right %}
     {% if 'can_download_logs' in user_permissions %}
     <div class="dropdown">
-      <button class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}} dropdown-toggle" type="button" id="id_logs_download_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        {% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} {% trans 'Download' %}
+      <button class="btn btn-success dropdown-toggle" type="button" id="id_logs_download_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        {% autoescape off %}{{ICONS.DOWNLOAD}}{% endautoescape %} {% trans 'Download' %}
       </button>
       <div class="dropdown-menu">
         <a class="dropdown-item" href="{% url 'resource:logs-download' %}?{{ request.GET.urlencode }}" data-toggle="tooltip" title="{% trans 'Download the current table as csv file.' %}" aria-labelledby="id_logs_download_dropdown">
-            {% autoescape off %}{{THEME.ICONS.CSV}}{% endautoescape %} {% trans 'CSV' %}
+            {% autoescape off %}{{ICONS.CSV}}{% endautoescape %} {% trans 'CSV' %}
         </a>
       </div>
     </div>

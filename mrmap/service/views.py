@@ -36,7 +36,6 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
@@ -744,13 +743,13 @@ class ResourceRelatedDatasetView(DetailView):
             link_to_dataset = Link(url=related_dataset.detail_view_uri, content=related_dataset.title)
 
             metadata_xml = Link(url=related_dataset.service_metadata_uri,
-                                content=FONT_AWESOME_ICONS['CAPABILITIES'] + _(' XML'),
+                                content=get_icon(IconEnum.CAPABILITIES) + _(' XML'),
                                 open_in_new_tab=True)
             metadata_html = Link(url=related_dataset.html_metadata_uri,
-                                 content=FONT_AWESOME_ICONS['NEWSPAPER'] + _(' HTML'),
+                                 content=get_icon(IconEnum.NEWSPAPER) + _(' HTML'),
                                  open_in_new_tab=True)
 
-            dataset_metadata_dropdown = Dropdown(btn_value=FONT_AWESOME_ICONS['METADATA'] + _(' Metadata'),
+            dataset_metadata_dropdown = Dropdown(btn_value=get_icon(IconEnum.METADATA) + _(' Metadata'),
                                                  items=[metadata_xml, metadata_html],
                                                  color=ButtonColorEnum.SECONDARY,
                                                  header=_l('Show metadata as:'))

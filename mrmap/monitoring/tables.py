@@ -5,10 +5,7 @@ import django_tables2 as tables
 from django_bootstrap_swt.utils import RenderHelper
 
 from MrMap.icons import IconEnum
-from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
-
-from MrMap.utils import get_theme
 from monitoring.enums import HealthStateEnum
 from monitoring.models import HealthState, MonitoringResult, MonitoringRun
 

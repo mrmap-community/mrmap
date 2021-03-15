@@ -8,7 +8,6 @@ Created on: 15.04.19
 from django.http import JsonResponse, HttpRequest
 from MrMap.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
 from structure.models import MrMapUser
-from MrMap.utils import get_theme
 
 
 # Todo: Deprecated! This will be done by the default_context() in the MrMap/context_processors.py file
@@ -35,7 +34,6 @@ class DefaultContext:
             "user": user,
             "GIT_REPO_URI": GIT_REPO_URI,
             "GIT_GRAPH_URI": GIT_GRAPH_URI,
-            "THEME": get_theme(user),
             #"BREADCRUMB_CONFIG": breadcrumb_builder.breadcrumb,
         }
         self.add_context(context)

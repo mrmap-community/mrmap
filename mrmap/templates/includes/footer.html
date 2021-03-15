@@ -1,5 +1,5 @@
 {% load i18n static %}
-<footer class="footer {{THEME.FOOTER.BG_COLOR}} {{THEME.FOOTER.TXT_COLOR}} fixed-bottom">
+<footer class="footer bg-light text-primary fixed-bottom">
     <div class="container-fluid">
     <div class="row align-items-center mt-1">
         <div class="col text-left"></div>
@@ -7,7 +7,7 @@
                 <div class="dropdown">
                     <div class="btn-group dropup">
                         <button type="button"
-                                class="btn {{THEME.FOOTER.BTN_LANGUAGE}} dropdown-toggle"
+                                class="btn btn-light dropdown-toggle"
                                 data-toggle="dropdown"
                                 aria-haspopup="true"
                                 aria-expanded="false"
@@ -43,8 +43,8 @@
                         <div id="ee-trggr" class="d-inline-flex">Mr. Map</div>
                     </a>
                 </div>
-               <a href="https://mrmap.readthedocs.io/en/master/" target="_blank" class="row-auto {{THEME.FOOTER.LINK_COLOR}} mr-1">{{ICONS.BOOK}} {% trans 'Docs' %}</a>
-               <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto {{THEME.FOOTER.LINK_COLOR}}" mr-1>{{ICONS.CAPABILITIES}} {% trans 'Code' %}</a>
+               <a href="https://mrmap.readthedocs.io/en/master/" target="_blank" class="row-auto text-primary mr-1">{{ICONS.BOOK}} {% trans 'Docs' %}</a>
+               <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto text-primary" mr-1>{{ICONS.CAPABILITIES}} {% trans 'Code' %}</a>
             </div>
         </div>
     </div>

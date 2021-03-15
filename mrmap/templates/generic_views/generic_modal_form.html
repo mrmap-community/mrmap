@@ -18,12 +18,12 @@
         <div class="container-fluid">
         <div class="row">
             <div class="col-sm">
-                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
+                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
             </div>
             <div class="col-sm">
                 <div class="float-right">
-                    <button id="{{id}}_btn_save" type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
-                        <span class="submit_btn_txt">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</span>
+                    <button id="{{id}}_btn_save" type="submit" class="btn btn-primary">
+                        <span class="submit_btn_txt">{% autoescape off %}{{ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</span>
                         <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
                     </button>
                 </div>

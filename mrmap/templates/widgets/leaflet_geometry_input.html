@@ -9,8 +9,8 @@
                 <div class="row text-center">
                     {% if activate_upload %}
                     <div class="col">
-                        <button id="id_geometry_upload_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} " onclick="$('#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}').click();">
-                            <span>{% autoescape off %}{{THEME.ICONS.UPLOAD}}{% endautoescape %} </span>
+                        <button id="id_geometry_upload_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn btn-info " onclick="$('#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}').click();">
+                            <span>{% autoescape off %}{{ICONS.UPLOAD}}{% endautoescape %} </span>
                             <span class="ml-2">{% trans 'Import GML3 or GeoJSON' %}</span>
                         </button>
                         <input id="id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}" class="d-none" type="file" title="{% trans 'Load geometry' %}"/>
@@ -18,8 +18,8 @@
                     </div>
                     {% if activate_download %}
                     <div class="col">
-                        <button id="id_geometry_download_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} geometry-download">
-                            <span>{% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} </span>
+                        <button id="id_geometry_download_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn btn-info geometry-download">
+                            <span>{% autoescape off %}{{ICONS.DOWNLOAD}}{% endautoescape %} </span>
                             <span class="ml-2">{% trans 'Export as GeoJSON' %}</span>
                         </button>
                         <script type="application/javascript">

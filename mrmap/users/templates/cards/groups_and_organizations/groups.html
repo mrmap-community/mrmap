@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block card-header-title-left %}
-<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %}</h5>
+<h5 class="card-title">{% autoescape off %}{{ICONS.GROUP}}{% endautoescape %}</h5>
 {% endblock %}
 
 {% block card-header-title-center %}
@@ -10,19 +10,19 @@
 {% endblock%}
 
 {% block card-header-title-right %}
-<h5><span class="badge badge-pill {{THEME.CARD.BADGE_LIGHT}}">{{ groups.count }}</span></h5>
+<h5><span class="badge badge-pill badge-light">{{ groups.count }}</span></h5>
 {% endblock %}
 
 {% block card-body %}
 <p class="card-text">
     {% trans 'Your groups' %}
 </p>
-<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:group_overview' %}" role="button">
+<a class="btn btn-primary" href="{% url 'structure:group_overview' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% if 'can_create_group' in user_permissions %}
-<a class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'structure:group_new' %}" role="button">
-    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
+<a class="btn btn-success" href="{% url 'structure:group_new' %}" role="button">
+    {% autoescape off %}{{ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
 </a>
 {% endif %}
 {% endblock %}

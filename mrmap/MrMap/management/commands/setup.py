@@ -17,7 +17,7 @@ from MrMap.management.commands.setup_settings import DEFAULT_GROUPS, DEFAULT_ROL
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from service.helper.enums import OGCOperationEnum
 from service.models import OGCOperation
-from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
+from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser
 from structure.permissionEnums import PermissionEnum
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME, \
     SUPERUSER_GROUP_DESCRIPTION, PUBLIC_GROUP_DESCRIPTION
@@ -31,9 +31,6 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **options):
-        # first create themes
-        self._create_themes()
-
         with transaction.atomic():
             # first run the main setup
             self._run_superuser_default_setup()
@@ -69,7 +66,6 @@ class Command(BaseCommand):
         )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
-        superuser.theme = Theme.objects.get(name='LIGHT')
         superuser.save()
         msg = "Superuser '" + name + "' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
@@ -170,16 +166,6 @@ class Command(BaseCommand):
         group.description = group_desc
         group.save()
         return group, created
-
-    @staticmethod
-    def _create_themes():
-        """ Adds default dark and light theme for frontend
-
-        Returns:
-
-        """
-        Theme.objects.get_or_create(name='DARK')
-        Theme.objects.get_or_create(name='LIGHT')
 
     @staticmethod
     def _create_public_group(user: MrMapUser):

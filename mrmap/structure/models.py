@@ -22,7 +22,6 @@ from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, BadgeColo
 
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
-from MrMap.themes import FONT_AWESOME_ICONS
 from MrMap.validators import validate_pending_task_enum_choices
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, MetadataEnum, PendingTaskEnum
@@ -82,12 +81,12 @@ class PendingTask(models.Model):
     @property
     def action_buttons(self):
         actions = [LinkButton(url=self.remove_view_uri,
-                              content=FONT_AWESOME_ICONS["WINDOW_CLOSE"],
+                              content=get_icon(IconEnum.WINDOW_CLOSE),
                               color=ButtonColorEnum.DANGER,
                               tooltip=_("Cancle this task"), )]
         if self.error_report:
             actions.append(LinkButton(url=self.error_report_uri,
-                                      content=FONT_AWESOME_ICONS["CSW"],
+                                      content=get_icon(IconEnum.CSW),
                                       color=ButtonColorEnum.WARNING,
                                       tooltip=_("Download the error report as text file."), ))
         return actions
@@ -383,7 +382,7 @@ class MrMapGroup(Group):
 
     @classmethod
     def get_add_action(cls):
-        return LinkButton(content=FONT_AWESOME_ICONS['ADD'] + _(' New group').__str__(),
+        return LinkButton(content=get_icon(IconEnum.ADD) + _(' New group').__str__(),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('structure:group_new'),
                           needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
@@ -497,14 +496,6 @@ class MrMapGroup(Group):
                           needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 
 
-class Theme(models.Model):
-    objects = None
-    name = models.CharField(max_length=10, unique=True)
-
-    def __str__(self):
-        return self.name
-
-
 class MrMapUser(AbstractUser):
     salt = models.CharField(max_length=500)
     organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.SET_NULL, null=True,
@@ -513,7 +504,6 @@ class MrMapUser(AbstractUser):
     confirmed_survey = models.BooleanField(default=False, verbose_name=_("I want to participate in surveys"))
     confirmed_dsgvo = models.DateTimeField(auto_now_add=True,
                                            verbose_name=_("I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."))
-    theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     class Meta:
         verbose_name = _('User')

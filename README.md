@@ -12,7 +12,7 @@ MrMap runs as a web application atop the [Django](https://www.djangoproject.com/
 Python framework with a [PostgreSQL](https://www.postgresql.org/) database. For a
 complete list of requirements, see `requirements.txt`. The code is available [on GitHub](https://github.com/mrmap-community/mrmap).
 
-The complete documentation for MrMap can be found at [Read the Docs](https://mrmap.readthedocs.io/en/latest/).
+The complete documentation for MrMap can be found at [Read the Docs](https://mrmap.readthedocs.io/en/master/).
 
 ### Screenshots
 
@@ -38,8 +38,3 @@ the [appropriate template](https://github.com/mrmap-community/mrmap/issues/new/c
 
 If you are interested in contributing to the development of NetBox, please read
 our [contributing guide](CONTRIBUTING.md) prior to beginning any work.
-
-## Related projects
-
-Please see [our wiki](https://github.com/netbox-community/netbox/wiki/Community-Contributions)
-for a list of relevant community projects.

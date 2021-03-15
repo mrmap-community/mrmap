@@ -141,34 +141,3 @@ New issues are handled according to our [issue intake policy](https://github.com
 Maintainers will assign label(s) and/or close new issues as the policy
 dictates. This helps ensure a productive development environment and avoid
 accumulating a large backlog of work.
-
-The core maintainers group has chosen to make use of GitHub's [Stale bot](https://github.com/apps/stale)
-to aid in issue management.
-
-* Issues will be marked as stale after 45 days of no activity.
-* Then after 15 more days of inactivity, the issue will be closed.
-* Any issue bearing one of the following labels will be exempt from all Stale
-  bot actions:
-  * `status: accepted`
-  * `status: blocked`
-  * `status: needs milestone`
-
-It is natural that some new issues get more attention than others. Stale bot
-helps bring renewed attention to potentially valuable issues that may have been
-overlooked.
-
-## Maintainer Guidance
-
-* Maintainers are expected to contribute at least four hours per week to the
-  project on average. This can be employer-sponsored or individual time, with
-  the understanding that all contributions are submitted under the Apache 2.0
-  license and that your employer may not make claim to any contributions.
-  Contributions include code work, issue management, and community support. All
-  development must be in accordance with our [development guidance](https://mrmap.readthedocs.io/en/stable/development/).
-
-* Maintainers are expected to attend (where feasible) our biweekly ~30-minute
-  sync to review agenda items. This meeting provides opportunity to present and
-  discuss pressing topics. Meetings are held as virtual audio/video conferences.
-
-* Maintainers with no substantial recorded activity in a 60-day period will be
-  removed from the project.

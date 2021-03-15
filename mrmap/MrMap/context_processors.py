@@ -10,7 +10,6 @@ from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
 from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization, PendingTask
-from structure.permissionEnums import PermissionEnum
 
 
 def default_context(request: HttpRequest):

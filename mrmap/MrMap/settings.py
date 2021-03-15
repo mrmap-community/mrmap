@@ -22,8 +22,8 @@ ALLOWED_HOSTS = [
 ]
 
 # GIT repo links
-GIT_REPO_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/src/branch/pre_master"
-GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/graph"
+GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
+GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"

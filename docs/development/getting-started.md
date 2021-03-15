@@ -30,8 +30,8 @@ CONTRIBUTING.md           LICENSE.txt  mrmap      README.md
 The MrMap project utilizes three persistent git branches to track work:
 
 * `master` - Serves as a snapshot of the current stable release
-* `develop` - All development on the upcoming stable release occurs here
-* `feature` - Tracks work on an upcoming major release
+* `develop` - Tracks work on an upcoming new minor release
+* `feature` - Tracks work on an upcoming new feature
 
 Typically, you'll base pull requests off of the `develop` branch, or off of `feature` if you're working on a new major release. **Never** merge pull requests into the `master` branch, which receives merged only from the `develop` branch.
 
@@ -83,18 +83,17 @@ Collecting Django==3.1 (from -r requirements.txt (line 1))
 
 ### Configure MrMap
 
-Within the `mrmap/mrmap/` directory, copy `configuration.example.py` to `configuration.py` and update the following parameters:
+The configuration of MrMap is setup in the following structure, based on the root `settings.py` file under `https://github.com/mrmap-community/mrmap`:
 
-* `ALLOWED_HOSTS`: This can be set to `['*']` for development purposes
-* `DATABASE`: PostgreSQL database connection parameters
-* `REDIS`: Redis configuration, if different from the defaults
-* `SECRET_KEY`: Set to a random string (use `generate_secret_key.py` in the parent directory to generate a suitable key)
-* `DEBUG`: Set to `True`
-* `DEVELOPER`: Set to `True` (this enables the creation of new database migrations)
+* `settings.py` general settings to setup MrMap
+* `sub_settings\db_settings.py` PostgreSQL database connection parameters
+* `sub_settings\dev_settings.py` This settings file contains ONLY development relevant settings. 
+* `sub_settings\django_settings.py` This settings file contains all django framework related settings such as installed apps
+* `sub_settings\logging_settings.py` This settings file contains all logging framework related settings
 
 ### Start the Development Server
 
-Django provides a lightweight, auto-updating HTTP/WSGI server for development use. MrMap extends this slightly to automatically import models and other utilities. Run the MrMap development server with the `nbshell` management command:
+Django provides a lightweight, auto-updating HTTP/WSGI server for development use. MrMap extends this slightly to automatically import models and other utilities. Run the MrMap development server with the command:
 
 ```no-highlight
 $ python mrmap/manage.py runserver

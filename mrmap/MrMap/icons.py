@@ -1,8 +1,5 @@
-from enum import Enum
-
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
-
 from MrMap.enums import EnumChoice
 
 
@@ -49,6 +46,9 @@ class IconEnum(EnumChoice):
     CRITICAL = 'fas fa-bolt'
     UPDATE = 'fas fa-spinner'
     RESTORE = 'fas fa-undo'
+    BOOK = 'fas fa-book'
+    CODE = "fas fa-code"
+    BOOK_OPEN = 'fas fa-book-open'
 
 
 def get_icon(enum: IconEnum) -> SafeString:

@@ -14,10 +14,16 @@ markdown_extensions:
 nav:
     - Introduction: 'index.md'
     - Installation:
-            - Installing MrMap: 'installation/index.md'
-            - 1. PostgreSQL: 'installation/1-postgresql.md'
-            - 2. Redis: 'installation/2-redis.md'
-            - 3. Mapserver: 'installation/3-mapserver.md'
+          - Installing MrMap: 'installation/index.md'
+          - 1. PostgreSQL: 'installation/1-postgresql.md'
+          - 2. Redis: 'installation/2-redis.md'
+          - 3. Mapserver: 'installation/3-mapserver.md'
+    - Core Functionality:
+          - Service registration: 'core-functionality/service-registration.md'
+          - Metadata editor: 'core-functionality/metadata-editor.md'
+          - Security engine: 'core-functionality/security-engine.md'
+          - Monitoring engine: 'core-functionality/monitoring-engine.md'
+          - Logging engine: 'core-functionality/logging-engine.md'
     - Development:
           - Introduction: 'development/index.md'
           - Getting Started: 'development/getting-started.md'

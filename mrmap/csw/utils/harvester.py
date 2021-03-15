@@ -450,7 +450,6 @@ class Harvester:
         md.origin = ResourceOriginEnum.CATALOGUE.value
         md.last_remote_change = md_data_entry.get("date_stamp", None)
         md.title = md_data_entry.get("title", None)
-        md.public_id = md.generate_public_id()
         md.contact = md_data_entry.get("contact", None)
         md.language_code = md_data_entry.get("language_code", None)
         md.metadata_type = md_data_entry.get("metadata_type", None)

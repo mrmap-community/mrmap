@@ -262,7 +262,7 @@ class ResourceDetailTable(tables.Table):
 
     class Meta:
         model = Metadata
-        fields = ('public_id',
+        fields = ('pk',
                   'service__service_type__name',
                   'service__service_type__version',
                   'last_modified',

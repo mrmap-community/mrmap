@@ -18,7 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MrMap import utils
-from MrMap.decorators import resolve_metadata_public_id, permission_required
+from MrMap.decorators import permission_required
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
@@ -723,7 +723,6 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         ]
         only = [
             "id",
-            "public_id",
             "identifier",
             "metadata_type",
             "title",
@@ -821,7 +820,6 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
-    @resolve_metadata_public_id
     def retrieve(self, request, pk=None):
         try:
             tmp = Metadata.objects.get(id=pk)

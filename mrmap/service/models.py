@@ -52,7 +52,6 @@ from structure.permissionEnums import PermissionEnum
 
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
@@ -542,7 +541,6 @@ class Metadata(Resource):
             models.Index(
                 fields=[
                     "id",
-                    "public_id",
                     "identifier"
                 ]
             )
@@ -917,10 +915,9 @@ class Metadata(Resource):
         Returns:
              capabilities_uri (str)
         """
-        p_id = self.public_id or self.id
         return "{}{}{}".format(
             ROOT_URL,
-            reverse("resource:metadata-proxy-operation", args=(str(p_id),)),
+            reverse("resource:metadata-proxy-operation", args=(str(self.pk),)),
             "?request={}".format(OGCOperationEnum.GET_CAPABILITIES.value),
         ) if not self.is_dataset_metadata else None
 
@@ -931,11 +928,10 @@ class Metadata(Resource):
         Returns:
              metadata_uri (str)
         """
-        p_id = self.public_id or self.id
         if not self.is_dataset_metadata:
-            url_name = reverse("resource:get-service-metadata", args=(str(p_id),))
+            url_name = reverse("resource:get-service-metadata", args=(str(self.pk),))
         else:
-            url_name = reverse("resource:get-dataset-metadata", args=(str(p_id),))
+            url_name = reverse("resource:get-dataset-metadata", args=(str(self.pk),))
         return "{}{}".format(ROOT_URL, url_name)
 
     @property
@@ -945,8 +941,7 @@ class Metadata(Resource):
         Returns:
              metadata_uri (str)
         """
-        p_id = self.public_id or self.id
-        url_name = reverse("resource:get-metadata-html", args=(str(p_id),))
+        url_name = reverse("resource:get-metadata-html", args=(str(self.pk),))
         return "{}{}".format(ROOT_URL, url_name)
 
     @property
@@ -1373,37 +1368,6 @@ class Metadata(Resource):
         else:
             # todo
             pass
-
-    def generate_public_id(self, stump: str = None):
-        """ Generates a public_id for a Metadata entry.
-
-        If no stump was provided, the title attribute will be used as stump.
-
-        Args:
-            stump (str): The base string input, which will be incremented if already taken
-        Returns:
-             public_id (str): The generated public id
-        """
-        if stump is None:
-            stump = "{} {}".format(self.title, self.metadata_type)
-
-        slug_stump = slugify(stump)
-        # To prevent too long public ids (keep them < 255 character)
-        # we need to make sure the stump itself isn't longer than 200 characters! So we have enough space left for numbers in the end
-        slug_stump = slug_stump[:225]
-        exists = Metadata.objects.filter(
-            public_id=slug_stump
-        ).exists()
-        public_id = slug_stump
-
-        counter = 1
-        while exists:
-            public_id = "{}-{}".format(slug_stump, counter)
-            counter += 1
-            exists = Metadata.objects.filter(
-                public_id=public_id
-            ).exists()
-        return public_id
 
     def save(self, add_monitoring: bool = True, *args, **kwargs):
         """ Overwriting the regular save function

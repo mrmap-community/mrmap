@@ -10,11 +10,6 @@ from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitat
 
 
 def default_context(request: HttpRequest):
-    if request.user is not None and not request.user.is_anonymous:
-        permissions = request.user.get_all_permissions()
-    else:
-        permissions = []
-
     mr_map_group_count = MrMapGroup.objects.filter(Q(is_permission_group=False) | Q(is_public_group=True)).count()
     mr_map_organization_count = Organization.objects.count()
     mr_map_user_count = MrMapUser.objects.count()
@@ -62,7 +57,6 @@ def default_context(request: HttpRequest):
         "PATH": request.path.split("/")[1],
         "FULL_PATH": request.path,
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
-        "user_permissions": permissions,
         "GIT_REPO_URI": GIT_REPO_URI,
         "GIT_GRAPH_URI": GIT_GRAPH_URI,
         "ICONS": get_all_icons(),

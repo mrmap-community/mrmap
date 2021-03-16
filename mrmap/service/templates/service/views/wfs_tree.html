@@ -38,14 +38,14 @@
     </div>
     <div class="col-7 col-md text-left text-md-right">
       <div class="d-inline-flex">
-        {% if 'can_activate_resource' in user_permissions %}
+        {% if perms.service.activate_resource %}
         <form class="mr-1" action="{{object.activate_view_uri}}" method="post">
           {% csrf_token %}
           <input type="hidden"  name="is_active" {% if not object.is_active %}value="on"{% endif %}>
           <button type="submit" class="btn btn-sm {% if object.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if object.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
         </form>
         {% endif %}
-        {% if 'can_edit_metadata' in user_permissions %}
+        {% if perms.service.change_metadata %}
         <a class="btn btn-sm btn-warning mr-1" href="{{object.edit_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the metadata file' %}">
           {{ ICONS.EDIT|safe }}
         </a>
@@ -53,7 +53,7 @@
           {{ ICONS.ACCESS|safe }}
         </a>
         {% endif %}
-        {% if object.is_custom and 'can_edit_metadata' in user_permissions %}
+        {% if object.is_custom and perms.service.change_metadata %}
         <a class="btn btn-sm btn-danger mr-1" href="{{object.restore_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Restore the metadata of this resource' %}">
           {{ ICONS.RESTORE|safe }}
         </a>

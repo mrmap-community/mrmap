@@ -31,7 +31,7 @@ class NewUpdateServiceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
 
-        self.wms_metadatas = create_wms_service(group=self.user.get_groups.first(), how_much_services=1)
+        self.wms_metadatas = create_wms_service(group=self.user.groups.first(), how_much_services=1)
 
     def test_get_update_service_view(self):
         return
@@ -90,7 +90,7 @@ class NewUpdateServiceViewTestCase(TestCase):
             'page': '1',
             'get_capabilities_uri': get_capabilitites_url().get('valid'),
         }
-        create_wms_service(is_update_candidate_for=self.wms_metadatas[0].service, group=self.user.get_groups[0], user=self.user)
+        create_wms_service(is_update_candidate_for=self.wms_metadatas[0].service, group=self.user.groups.all()[0], user=self.user)
 
         response = self.client.post(
             reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=home",
@@ -111,7 +111,7 @@ class ServiceTestCase(TestCase):
         """
         cls.user = create_superadminuser()
 
-        cls.group = cls.user.get_groups.first()
+        cls.group = cls.user.groups.first()
 
         cls.test_wms = {
             "title": "Karte RP",

@@ -59,12 +59,12 @@ class GroupForm(ModelForm):
         super(GroupForm, self).__init__(*args, **kwargs)
 
         if kwargs.get('instance', None):
-            groups = self.request.user.get_groups
+            groups = self.request.user.groups.select_related('mrmapgroup').all()
 
             instance = kwargs.get('instance')
             exclusions = [instance]
             for group in groups:
-                group_ = group
+                group_ = group.mrmapgroup
                 while group_.parent_group is not None:
                     if group_.parent_group == instance:
                         exclusions.append(group)
@@ -151,7 +151,7 @@ class PublisherForOrganizationForm(MrMapForm):
         self.organization = organization
         super(PublisherForOrganizationForm, self).__init__(*args, **kwargs)
 
-        groups = self.requesting_user.get_groups
+        groups = self.requesting_user.groups
         self.fields['group'].queryset = groups.filter(is_permission_group=False)
         self.fields["organization_name"].initial = self.organization.organization_name
 
@@ -230,7 +230,7 @@ class OrganizationForm(forms.ModelForm):
         instance = kwargs.get('instance')
         if instance:
             org_ids_of_groups = []
-            for group in self.request.user.get_groups:
+            for group in self.request.user.groups.all():
                 org_ids_of_groups.append(group.id)
 
             all_orgs_of_requesting_user = Organization.objects.filter(Q(created_by=self.request.user) |

@@ -9,6 +9,7 @@ from datetime import datetime
 from json import JSONDecodeError
 from PIL import Image
 from dateutil.parser import parse
+from django.contrib.auth.models import Group
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction, OperationalError
@@ -53,7 +54,7 @@ from structure.permissionEnums import PermissionEnum
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
-    created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     # todo: check if we still need this two boolean flags
     is_deleted = models.BooleanField(default=False)
@@ -100,6 +101,9 @@ class ProxyLog(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
+        permissions = [
+            ("download_logs", "Can download logs"),
+        ]
 
     def __str__(self):
         return str(self.id)
@@ -544,6 +548,16 @@ class Metadata(Resource):
                     "identifier"
                 ]
             )
+        ]
+        permissions = [
+            ("delete_dataset_metadata", "Can delete dataset metadata"),
+            ("add_dataset_metadata", "Can add dataset metadata"),
+            ("activate_resource", "Can activate a resource"),
+            ("update_resource", "Can update a resource"),
+            ("harvest_resource", "Can harvest a resource"),
+            ("add_resource", "Can add new resources"),
+            ("delete_resource", "Can delete resources"),
+
         ]
 
     def __init__(self, *args, **kwargs):

@@ -37,6 +37,3 @@ if DEBUG:
     urlpatterns.append(
         path('__debug__/', include(debug_toolbar.urls))
     )
-
-handler404 = "structure.views.handler404"
-handler500 = "structure.views.handler500"

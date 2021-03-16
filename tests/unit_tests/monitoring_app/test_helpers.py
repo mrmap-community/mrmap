@@ -9,6 +9,7 @@ Created on: 26.02.2020
 import os
 
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.utils import timezone
 
@@ -18,7 +19,7 @@ from monitoring.helper.wmsHelper import WmsHelper
 from mrmap.service.helper import service_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.models import Metadata
-from structure.models import Permission, Role, MrMapGroup, MrMapUser
+from structure.models import MrMapGroup, MrMapUser
 from structure.permissionEnums import PermissionEnum
 
 
@@ -27,14 +28,7 @@ class MonitoringTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         # create superuser
-        all_perm_choices = PermissionEnum.as_choices(drop_empty_choice=True)
-        [Permission.objects.get_or_create(name=choice[1]) for choice in all_perm_choices]
-
-        role = Role.objects.create(
-            name="Testrole",
-        )
-        all_permissions = list(Permission.objects.all())
-        role.permissions.add(*all_permissions)
+        all_permissions = Permission.objects.all()
 
         cls.pw = "test"
         salt = str(os.urandom(25).hex())
@@ -49,9 +43,9 @@ class MonitoringTests(TestCase):
 
         cls.group = MrMapGroup.objects.create(
             name="Testgroup",
-            role=role,
             created_by=cls.user,
         )
+        cls.group.permissions.add(*all_permissions)
 
         cls.user.groups.add(cls.group)
 

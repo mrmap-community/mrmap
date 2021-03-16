@@ -10,7 +10,7 @@ class AllowedOperationTestModel(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
-        self.root_metadata = create_wms_service(group=self.user.get_groups.first(),
+        self.root_metadata = create_wms_service(group=self.user.groups.first(),
                                                 how_much_sublayers=100,
                                                 how_much_services=1)[0]
 
@@ -59,10 +59,10 @@ class MetadataTestCase(TestCase):
 
     def setUp(self):
         self.user = create_superadminuser()
-        self.wms_metadata = create_wms_service(group=self.user.get_groups.first(),
+        self.wms_metadata = create_wms_service(group=self.user.groups.first(),
                                                how_much_sublayers=10,
                                                how_much_services=2)
-        self.wfs_metadata = create_wfs_service(group=self.user.get_groups.first(),
+        self.wfs_metadata = create_wfs_service(group=self.user.groups.first(),
                                                how_much_featuretypes=10,
                                                how_much_services=2)
 

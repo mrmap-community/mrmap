@@ -9,7 +9,6 @@ from service.helper import xml_helper
 from mrmap.service.helper import service_helper
 from service.models import Document, ProxyLog, Layer
 from service.tasks import async_log_response
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -36,9 +35,7 @@ class EditorTestCase(TestCase):
         # create superuser
         cls.user = create_superadminuser()
 
-        cls.group = cls.user.get_groups.first()
-
-        cls.perms = cls.group.role.permissions
+        cls.group = cls.user.groups.first()
 
         cls.test_wms = {
             "title": "Karte RP",

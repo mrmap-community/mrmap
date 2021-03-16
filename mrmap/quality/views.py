@@ -28,7 +28,8 @@ CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
 
 @login_required
 @permission_required(
-    PermissionEnum.CAN_RUN_VALIDATION
+    PermissionEnum.CAN_RUN_VALIDATION,
+    raise_exception=True,
 )
 def validate(request, metadata_id: str):
     config_id = request.GET.get('config_id', None)

@@ -7,6 +7,7 @@ Created on: 15.08.19
 """
 from collections import OrderedDict, Iterable
 
+from django.contrib.auth.models import Permission
 from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.urls import reverse
@@ -18,7 +19,7 @@ from service.forms import RegisterNewResourceWizardPage2
 from mrmap.service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension, MetadataRelation
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import MrMapGroup, Role, Permission
+from structure.models import MrMapGroup
 from monitoring.models import MonitoringResult
 from users.helper import user_helper
 
@@ -65,7 +66,6 @@ class GroupSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "organization",
-            "role",
             "publish_for_organizations",
         ]
 
@@ -82,26 +82,6 @@ class PermissionSerializer(serializers.ModelSerializer):
         model = Permission
         fields = [
             p.name for p in Permission._meta.fields
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
-
-
-class RoleSerializer(serializers.ModelSerializer):
-    """ Serializer for Organization model
-
-    """
-    permission = PermissionSerializer()
-
-    class Meta:
-        model = Role
-        fields = [
-            "id",
-            "name",
-            "description",
-            "permission",
         ]
 
         # improves performance by 300%!

@@ -35,7 +35,7 @@ class ErrorReport(models.Model):
     message = models.TextField()
     traceback = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey('MrMapGroup', null=True, blank=True, on_delete=models.SET_NULL)
+    created_by = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL)
 
     def generate_report(self):
         import socket
@@ -59,7 +59,7 @@ class PendingTask(models.Model):
     progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
     remaining_time = models.DurationField(blank=True, null=True)
     is_finished = models.BooleanField(default=False)
-    created_by = models.ForeignKey('MrMapGroup', null=True, blank=True, on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey(Group, null=True, blank=True, on_delete=models.DO_NOTHING)
     error_report = models.ForeignKey('ErrorReport', null=True, blank=True, on_delete=models.SET_NULL)
     type = models.CharField(max_length=500, null=True, blank=True, choices=PendingTaskEnum.as_choices(), validators=[validate_pending_task_enum_choices])
 
@@ -109,46 +109,6 @@ class PendingTask(models.Model):
     @property
     def error_report_uri(self):
         return reverse('structure:generate-error-report', args=(self.error_report.pk,))
-
-
-class Permission(models.Model):
-    name = models.CharField(max_length=500, choices=PermissionEnum.as_choices(), unique=True)
-
-    def __str__(self):
-        return str(self.name)
-
-    def get_permission_set(self) -> set:
-        p_list = set()
-        perms = self.__dict__
-        if perms.get("id", None) is not None:
-            del perms["id"]
-        if perms.get("_state", None) is not None:
-            del perms["_state"]
-        for perm_key, perm_val in perms.items():
-            if perm_val:
-                p_list.add(perm_key)
-        return p_list
-
-
-class Role(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-    permissions = models.ManyToManyField(Permission)
-
-    def __str__(self):
-        return self.name
-
-    def has_permission(self, perm: PermissionEnum):
-        """ Checks whether a permission can be found inside this role
-
-        Args:
-            perm (PermissionEnum): The permission to be checked
-        Returns:
-             bool
-        """
-        return self.permissions.filter(
-            name=perm.value
-        ).exists()
 
 
 class Contact(models.Model):
@@ -218,6 +178,9 @@ class Organization(Contact):
 
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
+        permissions = [
+            ("remove_publisher", "Can remove publisher")
+        ]
 
     @property
     def icon(self):
@@ -332,7 +295,6 @@ class MrMapGroup(Group):
                                      related_name="children_groups")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
                                      related_name="organization_groups")
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     publish_for_organizations = models.ManyToManyField('Organization', related_name='publishers', blank=True)
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
     is_public_group = models.BooleanField(default=False)
@@ -342,6 +304,11 @@ class MrMapGroup(Group):
         ordering = [Case(When(name='Public', then=0)), 'name']
         verbose_name = _('Group')
         verbose_name_plural = _('Groups')
+        permissions = [
+            ("add_user_to_group", "Can add user to a group"),
+            ("remove_user_from_group", "Can remove user from a group"),
+            ("request_to_become_publisher", "Can request to become publisher"),
+        ]
 
     @property
     def icon(self):
@@ -352,11 +319,6 @@ class MrMapGroup(Group):
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
-        # todo: check if this could be done with the default attribute of the role field
-        from MrMap.management.commands.setup_settings import DEFAULT_ROLE_NAME
-        if self.role is None:
-            obj, created = Role.objects.get_or_create(name=DEFAULT_ROLE_NAME)
-            self.role = obj
 
         is_new = False
         if self._state.adding:
@@ -374,7 +336,7 @@ class MrMapGroup(Group):
         return super().delete(using=using, keep_parents=keep_parents)
 
     def get_absolute_url(self):
-        return self.detail_view_uri
+        return reverse('structure:group_details', args=[self.pk, ])
 
     @classmethod
     def get_add_view_url(self):
@@ -451,7 +413,7 @@ class MrMapGroup(Group):
             elif self.user_set.count() > 1:
                 from MrMap.utils import signal_last
                 groups_querystring = "groups"
-                groups_excluded_self = request.user.get_groups.exclude(pk=self.pk)
+                groups_excluded_self = request.user.groups.exclude(pk=self.pk)
                 if groups_excluded_self:
                     groups_querystring = ""
                     for is_last_element, group in signal_last(groups_excluded_self):
@@ -543,7 +505,7 @@ class MrMapUser(AbstractUser):
         from service.models import Metadata
         md_list = Metadata.objects.filter(
             service__is_root=True,
-            created_by__in=self.get_groups,
+            created_by__in=self.groups.all(),
             service__is_deleted=False,
         ).order_by("title")
         if type is not None:
@@ -559,7 +521,7 @@ class MrMapUser(AbstractUser):
         from service.models import Metadata
 
         md_list = Metadata.objects.filter(
-            created_by__in=self.get_groups,
+            created_by__in=self.groups.all(),
         ).order_by("title")
         if type is not None:
             if inverse_match:
@@ -576,7 +538,7 @@ class MrMapUser(AbstractUser):
         """
         from service.models import Metadata
         if user_groups is None:
-            user_groups = self.get_groups
+            user_groups = self.groups.all()
 
         if count:
             md_list = Metadata.objects.filter(
@@ -589,66 +551,6 @@ class MrMapUser(AbstractUser):
                 created_by__in=user_groups,
             ).order_by("title")
         return md_list
-
-    @cached_property
-    def get_groups(self) -> QuerySet:
-        """ Returns a queryset of all MrMapGroups related to the user
-
-        Returns:
-             queryset
-        """
-        groups = MrMapGroup.objects.filter(
-            id__in=self.groups.all().values('id')
-        ).prefetch_related(
-            "role__permissions",
-        )
-        return groups
-
-    @cached_property
-    def all_permissions(self) -> set:
-        """Returns a set containing all permission identifiers as strings in a list.
-
-        Returns:
-             A set of permission strings
-        """
-        return self.get_all_permissions()
-
-    def get_all_permissions(self, group: MrMapGroup = None) -> set:
-        """Returns a set containing all permission identifiers as strings in a list.
-
-        The list is generated by fetching all permissions from all groups the user is part of.
-        Alternatively the list is generated by fetching all permissions from a special group.
-
-        Args:
-            group: The group object
-        Returns:
-             A set of permission strings
-        """
-        if group is not None:
-            groups = MrMapGroup.objects.filter(id=group.id)
-        else:
-            groups = self.get_groups
-        all_perm = set(groups.values_list("role__permissions__name", flat=True))
-        return all_perm
-
-    def has_perm(self, perm, obj=None) -> bool:
-        # Active superusers have all permissions.
-        if self.is_active and self.is_superuser:
-            return True
-
-        has_perm = self.get_groups.filter(
-            role__permissions__name=perm
-        )
-        has_perm = has_perm.exists()
-        return has_perm
-
-    # do not overwrite has_perms cause of using django permission system in Rest API
-    def has_permissions(self, perm_list, obj=None) -> bool:
-        has_perm = self.get_groups.filter(
-            role__permissions__name__in=perm_list
-        )
-        has_perm = has_perm.exists()
-        return has_perm
 
     def create_activation(self):
         """ Create an activation object
@@ -688,7 +590,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
 
 
 class GroupActivity(models.Model):
-    group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
     description = models.CharField(max_length=255, blank=True, null=True)
     user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, blank=True, null=True)
     metadata = models.CharField(max_length=255, blank=True, null=True)
@@ -703,7 +605,7 @@ class BaseInternalRequest(models.Model):
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=default_request_activation_time))
     created_on = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True)
+    created_by = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
 
     class Meta:
         abstract = True
@@ -718,8 +620,8 @@ class BaseInternalRequest(models.Model):
 
 
 class PublishRequest(BaseInternalRequest):
-    group = models.ForeignKey(MrMapGroup, verbose_name=_('group'), related_name="publish_requests", on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, verbose_name=_('organization'), related_name="publish_requests", on_delete=models.CASCADE)
+    group = models.ForeignKey(MrMapGroup, verbose_name=_('group'), related_name="pending_publish_requests", on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, verbose_name=_('organization'), related_name="pending_publish_requests", on_delete=models.CASCADE)
     is_accepted = models.BooleanField(verbose_name=_('accepted'), default=False)
 
     class Meta:
@@ -728,6 +630,9 @@ class PublishRequest(BaseInternalRequest):
         unique_together = ('group', 'organization',)
         verbose_name = _('Pending publish request')
         verbose_name_plural = _('Pending publish requests')
+        permissions = [
+            ("toggle_publish_requests", "Can toggle publish requests"),
+        ]
 
     @property
     def icon(self):
@@ -766,10 +671,9 @@ class PublishRequest(BaseInternalRequest):
                 self.delete()
 
 
-
 class GroupInvitationRequest(BaseInternalRequest):
-    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="group_invitations", verbose_name=_('Invited user'), help_text=_('Invite this user to a selected group.'))
-    group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE, verbose_name=_('to group'), help_text=_('Invite the selected user to this group.'))
+    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, related_name="pending_group_invitations", verbose_name=_('Invited user'), help_text=_('Invite this user to a selected group.'))
+    group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE, verbose_name=_('to group'), help_text=_('Invite the selected user to this group.'), related_name='pending_group_invitations')
     is_accepted = models.BooleanField(verbose_name=_('accepted'), default=False)
 
     class Meta:

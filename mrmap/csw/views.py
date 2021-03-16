@@ -6,12 +6,11 @@ Created on: 05.05.20
 
 """
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
-from MrMap.decorators import permission_required
 from MrMap.messages import SERVICE_DISABLED
 from csw.forms import HarvestGroupForm
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
@@ -47,7 +46,8 @@ def get_csw_results(request: HttpRequest):
 
 @login_required
 @permission_required(
-    PermissionEnum.CAN_HARVEST
+    PermissionEnum.CAN_HARVEST,
+    raise_exception=True
 )
 def harvest_catalogue(request: HttpRequest, metadata_id: str):
     """ Starts harvesting procedure for catalogue

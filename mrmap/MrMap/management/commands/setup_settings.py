@@ -12,6 +12,8 @@ Created on: 28.07.20
 from service.helper.enums import CategoryOriginEnum
 from django.utils.translation import gettext_lazy as _
 
+from service.models import Resource, Metadata
+from structure.models import MrMapGroup
 from structure.permissionEnums import PermissionEnum
 
 DEFAULT_GROUPS = [

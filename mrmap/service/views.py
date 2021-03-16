@@ -4,7 +4,8 @@ from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -27,14 +28,14 @@ from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorators import log_proxy, ownership_required, permission_required
+from MrMap.decorators import log_proxy
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
@@ -64,7 +65,7 @@ from users.models import Subscription
 def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
     return Metadata.objects.filter(
         service__service_type__name=service_type.value,
-        created_by__in=instance.request.user.get_groups,
+        created_by__in=instance.request.user.groups.all(),
         is_deleted=False,
         service__is_update_candidate_for=None,
     ).select_related(
@@ -113,7 +114,7 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
         else:
             table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
 
-        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.all_permissions)))
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
@@ -180,31 +181,33 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups)
+        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.groups.all())
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value, login_url='home'), name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk', login_url='home'), name='dispatch')
-class ResourceDeleteView(SuccessMessageDeleteMixin, DeleteView):
+class ResourceDeleteView(PermissionRequiredMixin, SuccessMessageDeleteMixin, DeleteView):
     model = Metadata
     queryset = Metadata.objects.filter(Q(metadata_type=MetadataEnum.SERVICE.value) |
                                        Q(metadata_type=MetadataEnum.CATALOGUE.value))
     success_url = reverse_lazy('home')
     template_name = "MrMap/detail_views/delete.html"
     success_message = SERVICE_SUCCESSFULLY_DELETED
+    permission_required = PermissionEnum.CAN_REMOVE_RESOURCE.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_msg_dict(self):
         return {'name': self.get_object()}
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='home'),
-                  name='dispatch')
-class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class ResourceActivateDeactivateView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     model = Metadata
     template_name = "MrMap/detail_views/generic_form.html"
     fields = ('is_active',)
+    permission_required = PermissionEnum.CAN_ACTIVATE_RESOURCE.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         if self.object.is_active:
@@ -521,8 +524,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
 # Todo: wizard/form view?
 @login_required
-# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
@@ -592,8 +594,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 
 
 @login_required
-# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
@@ -613,8 +614,7 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 
 
 @login_required
-# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
     if request.method == 'POST':
@@ -712,7 +712,6 @@ def run_update_service(request: HttpRequest, metadata_id):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceDetailTableView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
@@ -957,7 +956,7 @@ class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups)
+        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.groups.all())
 
         return ProxyLog.objects.filter(
             metadata__in=group_metadatas

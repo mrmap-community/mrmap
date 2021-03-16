@@ -8,6 +8,7 @@ Created on: 07.05.19
 import base64
 
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import Group
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
@@ -69,7 +70,7 @@ def get_public_groups():
 
 
 # todo: use django signals to fire this
-def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):
+def create_group_activity(group: Group, user: MrMapUser, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.
 
     This covers basically changes on metadata aka services

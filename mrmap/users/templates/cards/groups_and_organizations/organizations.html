@@ -21,7 +21,7 @@
     {% trans 'Show'%}
 </a>
 {% if 'can_create_organization' in user_permissions %}
-<a class="btn btn-success" href="{% url 'structure:organization_new' %}?current-view={{current_view}}" role="button">
+<a class="btn btn-success" href="{% url 'structure:organization_new' %}" role="button">
     {% autoescape off %}{{ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
 </a>
 {% endif %}

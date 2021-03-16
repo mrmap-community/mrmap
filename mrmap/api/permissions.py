@@ -7,7 +7,6 @@ Created on: 14.04.20
 """
 from rest_framework.permissions import BasePermission
 
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -26,7 +25,7 @@ class CanRegisterService(BasePermission):
         if view.action == "create":
             user = user_helper.get_user(request)
             needed_perm = PermissionEnum.CAN_REGISTER_RESOURCE
-            has_perm = user.has_perm(permission_needed=needed_perm)
+            has_perm = user.has_perm(perm=needed_perm)
             return has_perm
         else:
             return True
@@ -46,7 +45,7 @@ class CanRemoveService(BasePermission):
         if view.action == "destroy":
             user = user_helper.get_user(request)
             needed_perm = PermissionEnum.CAN_REMOVE_RESOURCE
-            has_perm = user.has_perm(permission_needed=needed_perm)
+            has_perm = user.has_perm(perm=needed_perm)
             return has_perm
         else:
             return True
@@ -66,7 +65,7 @@ class CanActivateService(BasePermission):
         if view.action == "active_state":
             user = user_helper.get_user(request)
             needed_perm = PermissionEnum.CAN_ACTIVATE_RESOURCE
-            has_perm = user.has_perm(permission_needed=needed_perm)
+            has_perm = user.has_perm(perm=needed_perm)
             return has_perm
         else:
             return True

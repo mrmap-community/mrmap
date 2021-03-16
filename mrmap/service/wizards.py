@@ -1,10 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
-
-from MrMap.decorators import permission_required
+from MrMap.messages import NO_PERMISSION
 from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
 from django.utils.translation import gettext_lazy as _
@@ -23,9 +23,11 @@ NEW_RESOURCE_WIZARD_FORMS = [
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(PermissionEnum.CAN_REGISTER_RESOURCE.value), name='dispatch')
-class NewResourceWizard(MrMapWizard):
+class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
     success_url = reverse_lazy('resource:pending-tasks')
+    permission_required = PermissionEnum.CAN_REGISTER_RESOURCE.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def __init__(self, *args, **kwargs):
         super().__init__(

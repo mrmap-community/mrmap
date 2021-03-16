@@ -27,7 +27,7 @@ class ApiParameterTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
+        create_wms_service(group=self.user.groups.first(), how_much_services=10)
         self.api_catalogue_uri = reverse("api:catalogue-list")
 
         # Get some fragment from a metadata title as value for parameter q

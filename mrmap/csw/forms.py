@@ -23,7 +23,7 @@ class HarvestGroupForm(MrMapForm):
     def __init__(self, instance, *args, **kwargs):
         self.instance = instance
         super(HarvestGroupForm, self).__init__(*args, **kwargs)
-        self.fields["harvest_with_group"].queryset = self.requesting_user.get_groups\
+        self.fields["harvest_with_group"].queryset = self.requesting_user.groups\
             .filter(is_public_group=False, is_permission_group=False)
 
     def process_harvest_catalogue(self):

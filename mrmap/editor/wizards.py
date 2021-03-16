@@ -1,6 +1,7 @@
 import json
 from json import JSONDecodeError
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import modelformset_factory
@@ -11,11 +12,11 @@ from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum
-from MrMap.decorators import permission_required, ownership_required
+from MrMap.messages import NO_PERMISSION
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm, \
-    GeneralAccessSettingsForm, AllowedOperationForm, MetadataEditorForm
+    GeneralAccessSettingsForm, AllowedOperationForm
 from django.utils.translation import gettext_lazy as _
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
@@ -53,12 +54,14 @@ def show_restrict_spatially_form_condition(wizard):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_METADATA.value, login_url='home'), name='dispatch')
-class AccessEditorWizard(MrMapWizard):
+class AccessEditorWizard(PermissionRequiredMixin, MrMapWizard):
     # template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
     metadata_object = None
     condition_dict = {ACCESS_EDITOR_STEP_2_NAME: show_restrict_spatially_form_condition}
+    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
@@ -369,8 +372,11 @@ class DatasetWizard(MrMapWizard):
         doc.save()
 
 
-@method_decorator(permission_required(PermissionEnum.CAN_ADD_DATASET_METADATA.value), name='dispatch')
-class NewDatasetWizard(DatasetWizard):
+class NewDatasetWizard(PermissionRequiredMixin, DatasetWizard):
+    permission_required = PermissionEnum.CAN_ADD_DATASET_METADATA.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+
     def __init__(self, *args, **kwargs):
         super().__init__(
             action_url=reverse('editor:dataset-metadata-wizard-new', ),
@@ -411,9 +417,11 @@ class NewDatasetWizard(DatasetWizard):
         return super().done(form_list=form_list, **kwargs)
 
 
-@method_decorator(permission_required(PermissionEnum.CAN_EDIT_METADATA.value), name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
-class EditDatasetWizard(DatasetWizard):
+class EditDatasetWizard(PermissionRequiredMixin, DatasetWizard):
+    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+
     def __init__(self, *args, **kwargs):
         super().__init__(
             title=_(format_html('<b>Edit Dataset</b>')),

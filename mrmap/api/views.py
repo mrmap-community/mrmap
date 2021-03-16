@@ -1,4 +1,5 @@
 # Create your views here.
+from django.contrib.auth.decorators import permission_required
 from django.utils import timezone
 from collections import OrderedDict
 
@@ -18,7 +19,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MrMap import utils
-from MrMap.decorators import permission_required
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
@@ -33,11 +33,9 @@ from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSeri
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
-from service import tasks
-from mrmap.service.helper import service_helper
 from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
-from structure.models import Organization, MrMapGroup, Permission, PendingTask
+from structure.models import Organization, MrMapGroup, PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -77,7 +75,7 @@ def menu_view(request: HttpRequest):
     return render(request, template, default_context.get_context())
 
 
-@permission_required(PermissionEnum.CAN_GENERATE_API_TOKEN.value)
+@permission_required(PermissionEnum.CAN_GENERATE_API_TOKEN.value, raise_exception=True)
 def generate_token(request: HttpRequest):
     """ Generates a token for the user.
 

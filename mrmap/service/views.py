@@ -24,6 +24,7 @@ from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
+from guardian.mixins import PermissionListMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
@@ -62,10 +63,9 @@ from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 
 
-def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
+def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySet:
     return Metadata.objects.filter(
         service__service_type__name=service_type.value,
-        created_by__in=instance.request.user.groups.all(),
         is_deleted=False,
         service__is_update_candidate_for=None,
     ).select_related(
@@ -91,10 +91,12 @@ class PendingTaskView(CustomSingleTableMixin, ListView):
 
 
 @method_decorator(login_required, name='dispatch')
-class WmsIndexView(CustomSingleTableMixin, FilterView):
+class WmsIndexView(PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
+    permission_required = ['service.view_metadata']
+    queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.WMS)
     #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
 
@@ -117,9 +119,6 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
-
-    def get_queryset(self):
-        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WMS)
 
 
 @method_decorator(login_required, name='dispatch')

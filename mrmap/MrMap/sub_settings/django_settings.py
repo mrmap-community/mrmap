@@ -71,6 +71,8 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
+    'guardian',
+    'permission',
 ]
 if DEBUG:
     INSTALLED_APPS.append(

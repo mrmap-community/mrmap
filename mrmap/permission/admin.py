@@ -1,7 +1,6 @@
 from django.contrib import admin
 from permission.models.core import TemplateRole, ObjectBasedTemplateRole
 from guardian.models import UserObjectPermission, GroupObjectPermission
-
 from permission.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
 
 """
@@ -14,7 +13,7 @@ For more information on this file, see
 
 
 class TemplateRoleAdmin(admin.ModelAdmin):
-    pass
+    filter_horizontal = ('permissions',)
 
 
 class ObjectBasedTemplateRoleAdmin(admin.ModelAdmin):

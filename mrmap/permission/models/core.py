@@ -23,7 +23,6 @@ class TemplateRole(models.Model):
     description = models.TextField(verbose_name=_("Description"),
                                    help_text=_("Describe what permissions this role shall grant"))
     permissions = models.ManyToManyField(to=Permission, related_name='role_set')
-    content_type = models.ForeignKey(to=ContentType, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
         return str(self.verbose_name)

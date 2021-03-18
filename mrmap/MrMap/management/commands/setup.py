@@ -9,17 +9,14 @@ from getpass import getpass
 
 from dateutil.parser import parse
 from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
 from django.core.management import BaseCommand, call_command
 from django.db import transaction
 from django.utils import timezone
 
-from MrMap.management.commands.setup_settings import DEFAULT_GROUPS
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from service.helper.enums import OGCOperationEnum
 from service.models import OGCOperation
 from structure.models import MrMapGroup, Organization, MrMapUser
-from structure.permissionEnums import PermissionEnum
 from structure.settings import PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, \
     SUPERUSER_GROUP_DESCRIPTION, PUBLIC_GROUP_DESCRIPTION
 from monitoring.models import MonitoringSetting
@@ -83,21 +80,6 @@ class Command(BaseCommand):
         group.user_set.add(superuser)
         group.save()
 
-        # handle default groups
-        for setting in DEFAULT_GROUPS:
-            try:
-                if self._create_group_from_default_setting(setting, superuser)[1] is True:
-                    group = self._create_group_from_default_setting(setting, superuser)[0]
-                    msg = "Group '{}' created!".format(group.name)
-                    self.stdout.write(self.style.SUCCESS(msg))
-                else:
-                    group = self._create_group_from_default_setting(setting, superuser)[0]
-                    msg = "Group '{}' was already in Database!".format(group.name)
-                    self.stdout.write(self.style.SUCCESS(msg))
-            except AttributeError as e:
-                msg = "Group creation error for '{}':{}".format(setting["name"], e)
-                self.stdout.write(self.style.ERROR(msg))
-
         # handle root organization
         orga = self._create_default_organization()
         default_group = self._create_default_group(orga, superuser)
@@ -118,48 +100,6 @@ class Command(BaseCommand):
         self._create_ogc_operations()
         msg = "OgcOperations created"
         self.stdout.write((self.style.SUCCESS(msg)))
-
-    @staticmethod
-    def _create_group_from_default_setting(setting: dict, user: MrMapUser):
-        """ Creates default groups besides of Superuser group and Public group
-
-        Args:
-            setting (dict): The DEFAULT_GROUP setting
-        Returns:
-             group (MrMapGroup): The created group object
-        """
-        group_name = setting["name"]
-        group_desc = setting["description"]
-        group_permissions = setting["permissions"]
-        parent_group = MrMapGroup.objects.filter(
-            name=setting["parent_group"]
-        ).first()
-
-        try:
-            group = MrMapGroup.objects.get(
-                name=group_name,
-                parent_group=parent_group,
-                is_permission_group=True,
-            )
-            created = False
-        except MrMapGroup.DoesNotExist:
-            group = MrMapGroup.objects.create(
-                name=group_name,
-                parent_group=parent_group,
-                created_by=user,
-                is_permission_group=True,
-            )
-            created = True
-        finally:
-            for perm in group_permissions:
-                perm = perm.value.split(".")[-1]
-                print(perm)
-                p = Permission.objects.get(codename=perm)
-                group.permissions.add(p)
-
-        group.description = group_desc
-        group.save()
-        return group, created
 
     @staticmethod
     def _create_public_group(user: MrMapUser):

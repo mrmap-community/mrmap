@@ -42,8 +42,7 @@ class Command(BaseCommand):
                 query = _query
 
         role, created = TemplateRole.objects.get_or_create(verbose_name=setting["verbose_name"],
-                                                           description=setting["description"],
-                                                           content_type=setting["content_type"],)
+                                                           description=setting["description"],)
         if created:
             role.permissions.add(*Permission.objects.filter(query))
         else:

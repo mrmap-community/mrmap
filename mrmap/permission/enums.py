@@ -52,8 +52,7 @@ class PermissionEnum(Enum):
     CAN_GENERATE_API_TOKEN = "rest_framework.add_token"
     CAN_HARVEST = "service.harvest_resource"
 
-    CAN_ACCESS_LOGS = "service.view_proxylog"
-    CAN_DOWNLOAD_LOGS = "service.download_logs"
+    CAN_VIEW_PROXY_LOG = "service.view_proxylog"
 
     CAN_RUN_MONITORING = "monitoring.add_monitoringrun"
     CAN_RUN_VALIDATION = "quality.add_conformitycheckrun"

@@ -2,12 +2,12 @@ from django.contrib.auth.models import Permission
 from django.core.management import BaseCommand
 from django.db import transaction
 from django.db.models import Q
-from permission.models import TemplateRole
+from permission.models.core import TemplateRole
 from permission.settings import DEFAULT_ROLES
 
 
 class Command(BaseCommand):
-    help = "Creates default `Role` objects based on the `DEFAULT_ROLES` settings from settings.py"
+    help = "Creates default `TemplateRole` objects based on the `DEFAULT_ROLES` settings from permission/settings.py"
 
     def add_arguments(self, parser):
         pass
@@ -41,9 +41,9 @@ class Command(BaseCommand):
             else:
                 query = _query
 
-        role, created = TemplateRole.objects.get_or_create(name=setting["name"],
-                                                           verbose_name=setting["verbose_name"],
-                                                           description=setting["description"])
+        role, created = TemplateRole.objects.get_or_create(verbose_name=setting["verbose_name"],
+                                                           description=setting["description"],
+                                                           content_type=setting["content_type"],)
         if created:
             role.permissions.add(*Permission.objects.filter(query))
         else:

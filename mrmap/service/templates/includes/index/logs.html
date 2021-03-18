@@ -12,7 +12,6 @@
 {% endblock %}
 
 {% block card-header-title-right %}
-    {% if 'can_download_logs' in user_permissions %}
     <div class="dropdown">
       <button class="btn btn-success dropdown-toggle" type="button" id="id_logs_download_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         {% autoescape off %}{{ICONS.DOWNLOAD}}{% endautoescape %} {% trans 'Download' %}
@@ -23,7 +22,6 @@
         </a>
       </div>
     </div>
-    {% endif %}
 {% endblock %}
 {% block card-body %}
 

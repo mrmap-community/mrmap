@@ -101,9 +101,6 @@ class ProxyLog(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
-        permissions = [
-            ("download_logs", "Can download logs"),
-        ]
 
     def __str__(self):
         return str(self.id)

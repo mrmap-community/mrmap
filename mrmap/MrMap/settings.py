@@ -15,6 +15,8 @@ from MrMap.sub_settings.db_settings import *
 from MrMap.sub_settings.logging_settings import *
 from api.settings import REST_FRAMEWORK
 
+GUARDIAN_RAISE_403 = True
+
 ALLOWED_HOSTS = [
     HOST_NAME,
     "127.0.0.1",

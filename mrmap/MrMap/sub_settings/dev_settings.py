@@ -43,12 +43,14 @@ MULTITHREADING_THRESHOLD = 2000
 # Holds all apps which needs migrations. Will be used in command 'dev_makemigrations'
 # If you added a new app with models, which need to be migrated, you have to put the app's name in this list
 MIGRATABLE_APPS = [
-    'csw',
+    'users',
     'structure',
     'service',
-    'users',
+    'csw',
     'monitoring',
-    'quality'
+    'quality',
+    'permission',
+    'api'
 ]
 
 # Defines which User model implementation is used for authentication process

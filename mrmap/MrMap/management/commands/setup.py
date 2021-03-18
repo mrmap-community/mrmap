@@ -153,6 +153,7 @@ class Command(BaseCommand):
         finally:
             for perm in group_permissions:
                 perm = perm.value.split(".")[-1]
+                print(perm)
                 p = Permission.objects.get(codename=perm)
                 group.permissions.add(p)
 

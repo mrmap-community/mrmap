@@ -1,14 +1,18 @@
+"""
+dedicated MrMap model based permissions to optimize performance
+
+For more information on this file, see
+https://django-guardian.readthedocs.io/en/v2.3.0/userguide/performance.html#direct-foreign-keys
+
+"""
 from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from django.db import models
-
 from service.models import Metadata
 
 
 class MetadataUserObjectPermission(UserObjectPermissionBase):
-    """create dedicated user permission table for metadata objects to speed up"""
     content_object = models.ForeignKey(Metadata, on_delete=models.CASCADE)
 
 
 class MetadataGroupObjectPermission(GroupObjectPermissionBase):
-    """create dedicated group permission table for metadata objects to speed up"""
     content_object = models.ForeignKey(Metadata, on_delete=models.CASCADE)

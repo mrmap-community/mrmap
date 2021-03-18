@@ -5,7 +5,6 @@ from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -24,7 +23,7 @@ from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
-from guardian.mixins import PermissionListMixin
+from guardian.mixins import PermissionListMixin, PermissionRequiredMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
@@ -95,7 +94,7 @@ class WmsIndexView(PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
-    permission_required = ['service.view_metadata']
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
     queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.WMS)
     #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
@@ -191,7 +190,8 @@ class ResourceDeleteView(PermissionRequiredMixin, SuccessMessageDeleteMixin, Del
     success_url = reverse_lazy('home')
     template_name = "MrMap/detail_views/delete.html"
     success_message = SERVICE_SUCCESSFULLY_DELETED
-    permission_required = PermissionEnum.CAN_REMOVE_RESOURCE.value
+    permission_required = [PermissionEnum.CAN_REMOVE_RESOURCE.value, PermissionEnum.CAN_VIEW_METADATA.value]
+    accept_global_perms = True
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 
@@ -774,7 +774,7 @@ def render_actions(element, render_helper):
 
 
 @method_decorator(login_required, name='dispatch')
-class ResourceTreeView(DetailView):
+class ResourceTreeView(PermissionRequiredMixin, DetailView):
     model = Metadata
     template_name = 'generic_views/resource.html'
     available_resources = Q(metadata_type='layer') | \
@@ -787,6 +787,8 @@ class ResourceTreeView(DetailView):
         prefetch_related('service__featuretypes', 'service__child_services', 'featuretype__elements'). \
         filter(available_resources)
     render_helper = None
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
+    raise_exception = True
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)

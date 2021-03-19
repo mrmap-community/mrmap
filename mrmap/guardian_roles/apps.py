@@ -2,7 +2,7 @@ from django.apps import AppConfig
 
 
 class PermissionConfig(AppConfig):
-    name = 'permission'
+    name = 'guardian_roles'
 
     def ready(self):  # method just to import the signals
-        import permission.signals  # noqa
+        import guardian_roles.signals  # noqa

@@ -2,7 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save, m2m_changed, post_delete
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
-from permission.models.core import TemplateRole, ObjectBasedTemplateRole
+from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole
 from service.models import Metadata
 
 

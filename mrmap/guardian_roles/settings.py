@@ -1,4 +1,4 @@
-from permission.enums import PermissionEnum
+from guardian_roles.enums import PermissionEnum
 from django.utils.translation import gettext_lazy as _
 
 DEFAULT_ROLES = [

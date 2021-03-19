@@ -2,8 +2,8 @@ from django.contrib.auth.models import Permission
 from django.core.management import BaseCommand
 from django.db import transaction
 from django.db.models import Q
-from permission.models.core import TemplateRole
-from permission.settings import DEFAULT_ROLES
+from guardian_roles.models.core import TemplateRole
+from guardian_roles.settings import DEFAULT_ROLES
 
 
 class Command(BaseCommand):

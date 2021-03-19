@@ -4,6 +4,7 @@ from abc import ABC
 from django.core.exceptions import ImproperlyConfigured
 from django.forms import BaseFormSet, modelformset_factory, HiddenInput
 from django.shortcuts import redirect
+from django.utils.html import format_html
 from formtools.wizard.views import SessionWizardView
 from django.utils.translation import gettext_lazy as _
 from django.forms.formsets import DELETION_FIELD_NAME
@@ -38,7 +39,7 @@ class MrMapWizard(SessionWizardView, ABC):
         context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
 
         context.update({'id_modal': self.id_wizard,
-                        'modal_title': self.title,
+                        'modal_title': format_html(self.title),
                         'action_url': self.action_url,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})

@@ -72,7 +72,7 @@ INSTALLED_APPS = [
     'breadcrumb',
     'mptt',
     'guardian',
-    'permission',
+    'guardian_roles',
 ]
 if DEBUG:
     INSTALLED_APPS.append(

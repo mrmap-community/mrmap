@@ -5,12 +5,15 @@ For more information on this file, see
 # todo: link to the docs
 
 """
-
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+
+from guardian_roles.models.template_code import EDIT_LINK_BUTTON
 from structure.models import Organization
 
 
@@ -71,6 +74,18 @@ class OrganizationBasedTemplateRole(ConcreteTemplateRole):
     """
     content_object = models.ForeignKey(to=Organization, on_delete=models.CASCADE,
                                        related_name='organization_based_template_roles')
+
+    def get_absolute_url(self):
+        return reverse('guardian_roles:organization_role_detail', args=[self.pk])
+
+    def get_edit_url(self):
+        return reverse('guardian_roles:organization_role_edit', args=[self.pk])
+
+    def get_members_view_uri(self):
+        return reverse('guardian_roles:organization_role_detail_members', args=[self.pk])
+
+    def get_actions(self):
+        return [format_html(EDIT_LINK_BUTTON % {'url': self.get_edit_url()})]
 
 
 class ObjectBasedTemplateRole(ConcreteTemplateRole):

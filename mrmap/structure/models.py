@@ -30,7 +30,7 @@ from users.settings import default_activation_time, default_request_activation_t
 
 
 class ErrorReport(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     message = models.TextField()
     traceback = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -111,6 +111,7 @@ class PendingTask(models.Model):
 
 
 class Contact(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     person_name = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name=_("Contact person"))
     email = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('E-Mail'))
     phone = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('Phone'))
@@ -458,6 +459,7 @@ class MrMapGroup(Group):
 
 
 class MrMapUser(AbstractUser):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     salt = models.CharField(max_length=500)
     organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.SET_NULL, null=True,
                                      blank=True)

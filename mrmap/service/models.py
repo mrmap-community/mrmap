@@ -52,7 +52,7 @@ from structure.permissionEnums import PermissionEnum
 
 
 class Resource(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
     created_by = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)

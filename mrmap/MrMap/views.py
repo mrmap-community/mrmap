@@ -262,7 +262,7 @@ class CustomSingleTableMixin(SingleTableMixin):
         # set some custom attributes for template rendering
         table = super(CustomSingleTableMixin, self).get_table(**kwargs)
         table.title = self.get_title()
-        model = self.model()
+        model = self.model
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):
             render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
             table.actions = [render_helper.render_item(item=self.model.get_add_action())]

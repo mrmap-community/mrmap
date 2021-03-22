@@ -63,7 +63,7 @@ class OrganizationDetailContextMixin(ContextMixin):
                                                              color=BadgeColorEnum.SECONDARY)},
                    {'url': self.object.publishers_uri,
                     'title': _('Publishers ').__str__() +
-                             Badge(content=str(self.object.can_publish_for.count()),
+                             Badge(content=str(self.object.get_publishers().count()),
                                    color=BadgeColorEnum.SECONDARY)},
                    ]
         context.update({"object": self.object,
@@ -133,7 +133,7 @@ class OrganizationMembersTableView(DependingListView, OrganizationDetailContextM
     title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Members')
 
     def get_queryset(self):
-        return self.object.primary_users.all()
+        return self.object.user_set.all()
 
     def get_table_kwargs(self):
         return {'organization': self.object}
@@ -144,13 +144,13 @@ class OrganizationPublishersTableView(DependingListView, OrganizationDetailConte
     model = Organization
     depending_model = Organization
     table_class = OrganizationPublishersTable
-    filterset_fields = {'name': ['icontains']}
+    filterset_fields = {'organization_name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
     object = None
     title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Publish for list')
 
     def get_queryset(self):
-        return self.object.publishers.all()
+        return Organization.objects.filter(can_publish_for__pk=self.object.pk)
 
     def get_table_kwargs(self):
         return {'organization': self.object}

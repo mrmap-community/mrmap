@@ -1,7 +1,4 @@
-import uuid
 import json
-
-from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -45,7 +42,7 @@ class Contact(models.Model):
         abstract = True
 
 
-class Organization(Contact):
+class Organization(UuidPk, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.
@@ -105,6 +102,15 @@ class Organization(Contact):
     @property
     def icon(self):
         return get_icon(IconEnum.ORGANIZATION)
+
+    def get_publishers(self) -> QuerySet:
+        """
+        return all `Organization` objects which can publish for this `Organization.
+
+        Returns:
+            all publishers for this organization (QuerySet)
+        """
+        return Organization.objects.filter(can_publish_for__pk=self.pk)
 
     def get_publishable_organizations(self, include_self=True) -> QuerySet:
         """
@@ -193,8 +199,7 @@ class Organization(Contact):
         return actions
 
 
-class ErrorReport(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+class ErrorReport(UuidPk):
     message = models.TextField()
     traceback = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)

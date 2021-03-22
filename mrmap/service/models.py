@@ -85,8 +85,7 @@ class RequestOperation(models.Model):
         return self.operation_name
 
 
-class MetadataRelation(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True)
+class MetadataRelation(UuidPk):
     from_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='from_metadatas')
     to_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='to_metadatas')
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())

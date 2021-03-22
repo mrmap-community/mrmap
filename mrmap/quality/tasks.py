@@ -6,13 +6,9 @@ Created on: 27.10.20
 
 """
 from time import sleep
-
 from celery import shared_task
 from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
-from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
-
 from quality.enums import ConformityTypeEnum
 from quality.models import ConformityCheckConfiguration, ConformityCheckRun, \
     ConformityCheckConfigurationExternal
@@ -21,8 +17,7 @@ from quality.plugins.etf import QualityEtf, ValidationDocumentProvider, \
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
 from structure.AbortedException import AbortedException
-from structure.models import MrMapUser, MrMapGroup, PendingTask
-from users.helper.user_helper import create_group_activity
+from structure.models import PendingTask
 
 logger = get_task_logger(__name__)
 
@@ -67,8 +62,7 @@ def run_quality_check(self, config_id: int, metadata_id: int):
 
 
 @shared_task(name="complete_validation_task", bind=True)
-def complete_validation(self, run_id: int, user_id: int = None,
-                        group_id: int = None):
+def complete_validation(self, run_id: int):
     """ Handles the completed validation process.
 
         Handler for completing the validation process. This method
@@ -81,10 +75,6 @@ def complete_validation(self, run_id: int, user_id: int = None,
 
         Args:
             run_id (int): The id of the ConformityCheckRun.
-        Keyword arguments:
-            user_id (int): The id of the user that triggered the run.
-            group_id (int): the id of the group that the validated metadata
-            object belongs to.
         Returns:
             nothing
     """
@@ -106,29 +96,12 @@ def complete_validation(self, run_id: int, user_id: int = None,
         if run.passed is None:
             return
 
-        group = MrMapGroup.objects.get(pk=group_id)
-        user = MrMapUser.objects.get(pk=user_id)
-
-        title = _(f'Validation {"succeeded" if run.passed else "failed"}')
-        href = reverse('resource:detail', args=(run.metadata.pk,))
-        content = _(
-            f'for <a href="{href}">'
-            f'{run.metadata.title}</a> '
-            f'with <i>{run.conformity_check_configuration}</i>.')
-        create_group_activity(
-            group=group,
-            user=user,
-            msg=title,
-            metadata_title=content
-        )
-    except (ConformityCheckRun.DoesNotExist, MrMapGroup.DoesNotExist,
-            MrMapUser.DoesNotExist) as e:
+    except ConformityCheckRun.DoesNotExist as e:
         logger.error("Could not complete validation. ", e)
 
 
 @shared_task(name="complete_validation_error_task")
 def complete_validation_error(request, exc, traceback, user_id: int = None,
-                              group_id: int = None,
                               config_id: int = None, metadata_id: str = None):
     """ Handles the aborted validation process.
 
@@ -163,10 +136,7 @@ def complete_validation_error(request, exc, traceback, user_id: int = None,
                 f'{parent_task_id} does not exist.')
 
     try:
-        config = ConformityCheckConfiguration.objects.get(pk=config_id)
         metadata = Metadata.objects.get(pk=metadata_id)
-        group = MrMapGroup.objects.get(pk=group_id)
-        user = MrMapUser.objects.get(pk=user_id)
 
         # delete run, if it was manually aborted
         if isinstance(exc, AbortedException):
@@ -176,17 +146,5 @@ def complete_validation_error(request, exc, traceback, user_id: int = None,
             except ConformityCheckRun.DoesNotExist:
                 pass
 
-        title = _(f'Validation aborted')
-        content = _(
-            f'for <a href="resource/detail/{metadata.id}">'
-            f'{metadata.title}</a> '
-            f'with <i>{config}</i>.')
-        create_group_activity(
-            group=group,
-            user=user,
-            msg=title,
-            metadata_title=content
-        )
-    except (ConformityCheckRun.DoesNotExist, Metadata.DoesNotExist,
-            MrMapUser.DoesNotExist) as e:
+    except ConformityCheckRun.DoesNotExist as e:
         logger.error("Could not complete error task. ", e)

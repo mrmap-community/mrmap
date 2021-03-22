@@ -96,9 +96,8 @@ class OgcServiceTable(tables.Table):
                   'last_harvest',
                   'collected_harvest_records',
                   'contact',
-                  'service__created_by__mrmapgroup',
-                  'service__published_for',
-                  'created',
+                  'service__owned_by_org',
+                  'created_at',
                   'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'ogc-service-table'
@@ -146,11 +145,8 @@ class OgcServiceTable(tables.Table):
     def render_contact(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
-    def render_service__created_by(self, value):
+    def render_service__owned_by_org(self, value):
         return Link(url=value.get_absolute_url(), content=value).render(safe=True)
-
-    def render_service__published_for(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_actions(self, record):
         self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}

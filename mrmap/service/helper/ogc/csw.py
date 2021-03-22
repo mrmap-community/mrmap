@@ -13,7 +13,7 @@ from mrmap.service.helper import service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
-from structure.models import MrMapUser, Organization, MrMapGroup
+from structure.models import Organization
 
 
 class OGCCatalogueService(OGCWebService):
@@ -85,12 +85,15 @@ class OGCCatalogueService(OGCWebService):
         )[0]
         return contact
 
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth, is_update_candidate_for):
+    def create_service_model_instance(self,
+                                      user,
+                                      register_for_organization,
+                                      external_auth,
+                                      is_update_candidate_for):
         """ Map all data from the OGCCatalogueService class to their database models
 
         Args:
             user (MrMapUser): The user which performs the action
-            register_group (Group): The group which is used to register this service
             register_for_organization (Organization): The organization for which this service is being registered
             external_auth (ExternalAuthentication): The external authentication object
         Returns:
@@ -108,13 +111,13 @@ class OGCCatalogueService(OGCWebService):
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
         md.fees = self.service_identification_fees
-        md.created_by = register_group
+
         md.capabilities_original_uri = self.service_connect_url
         if self.service_bounding_box is not None:
             md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
-        md.save()
+        md.save(user=user, published_for=register_for_organization)
         md.identifier = str(md.id) if md.identifier is None else md.identifier
 
         # Keywords
@@ -127,17 +130,15 @@ class OGCCatalogueService(OGCWebService):
         md.formats.add(*self.formats_list)
         md.save()
 
-        service = self._create_service_record(register_group, register_for_organization, md, is_update_candidate_for)
+        service = self._create_service_record(user, register_for_organization, md, is_update_candidate_for)
 
         return service
 
-    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
+    def _create_service_record(self, user, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
-            group (MrMapGroup): The owner/creator group
             orga_published_for (Organization): The organization for which the service is published
-            orga_publisher (Organization): THe organization that publishes
             md (Metadata): The describing metadata
         Returns:
              service (Service): The persisted service object
@@ -149,9 +150,6 @@ class OGCCatalogueService(OGCWebService):
         )[0]
 
         service.service_type = service_type
-        service.created_by = group
-        service.published_for = orga_published_for
-
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -159,7 +157,7 @@ class OGCCatalogueService(OGCWebService):
         service.is_update_candidate_for = is_update_candidate_for
 
         # Save record to enable M2M relations
-        service.save()
+        service.save(user=user, published_for=orga_published_for)
 
         operation_urls = [
             ServiceUrl.objects.get_or_create(

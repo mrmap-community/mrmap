@@ -3,7 +3,7 @@ from service.helper.enums import MetadataEnum, OGCOperationEnum, MetadataRelatio
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, Dimension, ServiceUrl
 from service.settings import ALLOWED_SRS
-from structure.models import MrMapGroup, MrMapUser
+from structure.models import Organization
 
 
 class OGCLayer:
@@ -52,12 +52,17 @@ class OGCLayer:
 
         self.iso_metadata = []
 
-    def create_layer_record(self, parent_service: Service, group: MrMapGroup, user: MrMapUser, epsg_api: EpsgApi, parent: Layer=None):
+    def create_layer_record(self,
+                            parent_service: Service,
+                            user,
+                            epsg_api: EpsgApi,
+                            register_for_organization: Organization,
+                            parent: Layer=None):
         """ Transforms a OGCWebMapLayer object to Layer model (models.py)
 
         Args:
             parent_service (Service): The root or parent service which holds all these layers
-            group (MrMapGroup): The group that started the registration process
+            group (Organization): The group that started the registration process
             user (MrMapUser): The performing user
             epsg_api (EpsgApi): A EpsgApi object
             parent (Layer): The parent layer object to this layer
@@ -65,13 +70,14 @@ class OGCLayer:
             nothing
         """
         # Metadata
-        metadata = self._create_metadata_record(parent_service, group)
+        metadata = self._create_metadata_record(parent_service, user, register_for_organization)
 
         # Layer
         layer = self._create_layer_record(
             metadata,
             parent_service,
-            group,
+            user,
+            register_for_organization,
             parent
         )
 
@@ -79,7 +85,8 @@ class OGCLayer:
         self._create_additional_records(
             metadata,
             layer,
-            group,
+            user,
+            register_for_organization,
             epsg_api
         )
 
@@ -91,19 +98,19 @@ class OGCLayer:
         for child in self.child_layers:
             child.create_layer_record(
                 parent_service=parent_service,
-                group=group,
                 parent=layer,
                 user=user,
+                register_for_organization=register_for_organization,
                 epsg_api=epsg_api
             )
 
-    def _create_metadata_record(self, parent_service: Service, group: MrMapGroup):
+    def _create_metadata_record(self, parent_service: Service, user, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCLayer object
 
         Args:
             self (OGCLayer): The OGCLayer object (result of parsing)
             parent_service (Service): The parent Service object 
-            group (MrMapGroup): The creator/owner group
+            group (Organization): The creator/owner group
         Returns:
              metadata (Metadata): The persisted metadata object
         """
@@ -118,10 +125,9 @@ class OGCLayer:
         metadata.contact = parent_service.metadata.contact
         metadata.access_constraints = parent_service.metadata.access_constraints
         metadata.is_active = False
-        metadata.created_by = group
 
         # Save metadata to use id afterwards
-        metadata.save()
+        metadata.save(user=user, published_for=register_for_organization)
 
         # create bounding box polygon
         bounding_points = (
@@ -137,13 +143,18 @@ class OGCLayer:
 
         return metadata
     
-    def _create_layer_record(self, metadata: Metadata, parent_service: Service, group: MrMapGroup, parent: Layer):
+    def _create_layer_record(self,
+                             metadata: Metadata,
+                             parent_service: Service,
+                             user,
+                             register_for_organization: Organization,
+                             parent: Layer):
         """ Creates a Layer record from the OGCLayer object
 
         Args:
             metadata (Metadata): The layer's metadata object
             parent_service (Service): The parent Service object
-            group (MrMapGroup): The owner/creator group
+            group (Organization): The owner/creator group
             parent (Layer): The parent layer object
         Returns:
              layer (Layer): The persisted layer object
@@ -157,17 +168,14 @@ class OGCLayer:
         layer.parent_service = parent_service
         layer.is_queryable = self.is_queryable
         layer.is_cascaded = self.is_cascaded
-        layer.registered_by = group
         layer.is_opaque = self.is_opaque
         layer.scale_min = self.capability_scale_hint.get("min")
         layer.scale_max = self.capability_scale_hint.get("max")
         layer.bbox_lat_lon = metadata.bounding_geometry
-        layer.created_by = group
-        layer.published_for = parent_service.published_for
         layer.parent_service = parent_service
 
         # Save model so M2M relations can be used
-        layer.save()
+        layer.save(user=user, published_for=register_for_organization)
 
         operation_urls = [
             ServiceUrl.objects.get_or_create(
@@ -257,13 +265,17 @@ class OGCLayer:
 
         return layer
     
-    def _create_additional_records(self, metadata: Metadata, layer: Layer, group: MrMapGroup, epsg_api: EpsgApi):
+    def _create_additional_records(self,
+                                   metadata: Metadata,
+                                   layer: Layer,
+                                   user,
+                                   register_for_organization: Organization,
+                                   epsg_api: EpsgApi):
         """ Creates additional records such as Keywords, ReferenceSystems, Dimensions, ...
 
         Args:
             metadata (Metadata): The layer's metadata object
             layer (Layer): The Layer record object
-            group (MrMapGroup): The owner/creator group
             epsg_api (EpsgApi): A epsg_api object
         Returns:
 
@@ -283,7 +295,7 @@ class OGCLayer:
             metadata.reference_system.add(ref_sys)
 
         for iso_md in self.iso_metadata:
-            iso_md = iso_md.to_db_model(created_by=group)
+            iso_md = iso_md.to_db_model(user=user, created_by=register_for_organization)
             metadata.add_metadata_relation(to_metadata=iso_md,
                                            relation_type=MetadataRelationEnum.DESCRIBES.value,
                                            origin=iso_md.origin)

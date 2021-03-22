@@ -16,14 +16,13 @@ from celery import Task
 from django.db import transaction
 
 from MrMap.messages import SERVICE_NO_ROOT_LAYER
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, PROGRESS_STATUS_AFTER_PARSING, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, service_logger
+from service.settings import PROGRESS_STATUS_AFTER_PARSING, service_logger
 from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap import utils
 from MrMap.utils import execute_threads
-from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
-    MetadataRelationEnum, OGCServiceEnum
+    MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -32,8 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl, RequestOperation
-from structure.models import Organization, MrMapGroup
-from structure.models import MrMapUser
+from structure.models import Organization
 
 
 class OGCWebMapServiceFactory:
@@ -702,35 +700,35 @@ class OGCWebMapService(OGCWebService):
         self.parse_request_uris(xml_obj, self)
 
     @transaction.atomic
-    def create_service_model_instance(self, user: MrMapUser, register_group: MrMapGroup, register_for_organization: Organization, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
+    def create_service_model_instance(self,
+                                      user,
+                                      register_for_organization: Organization,
+                                      external_auth: ExternalAuthentication = None,
+                                      is_update_candidate_for: Service = None):
         """ Persists the web map service and all of its related content and data
 
         Args:
             user (MrMapUser): The action performing user
-            register_group (MrMapGroup): The group for which the service shall be registered
             register_for_organization (Organization): The organization for which the service shall be registered
             external_auth (ExternalAuthentication): An external authentication object holding information
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-        orga_published_for = register_for_organization
-        group = register_group
-
         # Contact
         contact = self._create_organization_contact_record()
 
         # Metadata
-        metadata = self._create_metadata_record(contact, group)
+        metadata = self._create_metadata_record(user, contact, register_for_organization)
 
         # Process external authentication
         self._process_external_authentication(metadata, external_auth)
 
         # Service
-        service = self._create_service_record(group, orga_published_for, metadata, is_update_candidate_for)
+        service = self._create_service_record(user, register_for_organization, metadata, is_update_candidate_for)
 
         # Additionals (keywords, mimetypes, ...)
-        self._create_additional_records(service, metadata, group)
+        self._create_additional_records(service, metadata)
 
         # Begin creation of Layer records. Calling the found root layer will
         # iterate through all parent-child related layer objects
@@ -738,8 +736,8 @@ class OGCWebMapService(OGCWebService):
             root_layer = self.layers[0]
             root_layer.create_layer_record(
                 parent_service=service,
-                group=group,
                 user=user,
+                register_for_organization=register_for_organization,
                 parent=None,
                 epsg_api=self.epsg_api
             )
@@ -767,12 +765,12 @@ class OGCWebMapService(OGCWebService):
         )[0]
         return contact
 
-    def _create_metadata_record(self, contact: Organization, group: MrMapGroup):
+    def _create_metadata_record(self, user, contact: Organization, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCWebMapService
 
         Args:
             contact (Organization): The contact organization for this metadata record
-            group (MrMapGroup): The owner/creator group
+            group (Organization): The owner/creator group
         Returns:
              metadata (Metadata): The persisted metadata record
         """
@@ -792,21 +790,23 @@ class OGCWebMapService(OGCWebService):
             metadata.bounding_geometry = self.service_bounding_box
         metadata.identifier = self.service_file_identifier
         metadata.is_active = False
-        metadata.created_by = group
         metadata.contact = contact
 
         # Save metadata instance to be able to add M2M entities
-        metadata.save()
+        metadata.save(user=user, published_for=register_for_organization)
 
         return metadata
 
-    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, metadata: Metadata, is_update_candidate_for: Service):
+    def _create_service_record(self,
+                               user,
+                               orga_published_for: Organization,
+                               metadata: Metadata,
+                               is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
-            group (MrMapGroup): The owner/creator group
+            group (Organization): The owner/creator group
             orga_published_for (Organization): The organization for which the service is published
-            orga_publisher (Organization): THe organization that publishes
             metadata (Metadata): The describing metadata
         Returns:
              service (Service): The persisted service object
@@ -822,7 +822,6 @@ class OGCWebMapService(OGCWebService):
         service.is_available = False
         service.service_type = service_type
         service.published_for = orga_published_for
-        service.created_by = group
         operation_urls = [
             ServiceUrl.objects.get_or_create(
                 operation=OGCOperationEnum.GET_CAPABILITIES.value,
@@ -895,16 +894,16 @@ class OGCWebMapService(OGCWebService):
         service.operation_urls.add(*operation_urls)
         service.metadata = metadata
         service.is_root = True
-        service.is_update_candidate_for=is_update_candidate_for
+        service.is_update_candidate_for = is_update_candidate_for
 
-        service.save()
+        service.save(user=user, published_for=orga_published_for)
 
         # Persist capabilities document
         service.persist_original_capabilities_doc(self.service_capabilities_xml)
 
         return service
 
-    def _create_additional_records(self, service: Service, metadata: Metadata, group: MrMapGroup):
+    def _create_additional_records(self, service: Service, metadata: Metadata):
         """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
 
         Args:
@@ -926,13 +925,12 @@ class OGCWebMapService(OGCWebService):
                 mime_type = MimeType.objects.get_or_create(
                     operation=operation,
                     mime_type=format,
-                    created_by=group
                 )[0]
                 metadata.formats.add(mime_type)
 
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
             metadata.add_metadata_relation(to_metadata=service.linked_service_metadata,
                                            relation_type=MetadataRelationEnum.VISUALIZES.value,
                                            origin=ResourceOriginEnum.CAPABILITIES.value)

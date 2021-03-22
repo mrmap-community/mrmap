@@ -10,21 +10,20 @@ from csw.tasks import async_harvest
 
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
-from structure.models import PendingTask, MrMapGroup
+from structure.models import PendingTask, Organization
 
 
 class HarvestGroupForm(MrMapForm):
-    harvest_with_group = forms.ModelChoiceField(
-        label=_("Harvest with group"),
-        queryset=MrMapGroup.objects.none(),
+    harvest_with_organization = forms.ModelChoiceField(
+        label=_("Harvest with organization"),
+        queryset=Organization.objects.none(),
         initial=1
     )
 
     def __init__(self, instance, *args, **kwargs):
         self.instance = instance
         super(HarvestGroupForm, self).__init__(*args, **kwargs)
-        self.fields["harvest_with_group"].queryset = self.requesting_user.groups\
-            .filter(is_public_group=False, is_permission_group=False)
+        self.fields["harvest_with_organization"].queryset = self.requesting_user.organization.get_publishable_organizations()
 
     def process_harvest_catalogue(self):
         # Check if the catalogue exists
@@ -45,8 +44,9 @@ class HarvestGroupForm(MrMapForm):
             except ObjectDoesNotExist:
                 # No pending task exists, so we can start a harvesting process!
                 async_harvest.delay(
-                    self.instance.id,
-                    self.cleaned_data['harvest_with_group'].id,
+                    self.instance.pk,
+                    self.request.user.pk,
+                    self.cleaned_data['harvest_with_organization'].pk,
                 )
                 messages.success(
                     self.request,

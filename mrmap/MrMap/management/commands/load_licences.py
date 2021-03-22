@@ -59,7 +59,7 @@ class Command(BaseCommand):
 
         # Deactivate licences, which are not present in LICENCES anymore
         num_deactivated_licences = 0
-        active_licences = Licence.objects.filter(is_active=True)
+        active_licences = Licence.objects.all()
         identifier_keys = [licence["identifier"] for licence in LICENCES]
         for licence in active_licences:
             if licence.identifier not in identifier_keys:

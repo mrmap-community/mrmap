@@ -13,7 +13,7 @@ from django.urls import reverse
 
 from api.settings import SUGGESTIONS_MAX_RESULTS
 from service.models import Metadata, Keyword, Category, Service, Layer
-from structure.models import Organization, MrMapGroup
+from structure.models import Organization
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
@@ -48,7 +48,6 @@ class ApiViewTestCase(TestCase):
             "organization-list": Organization.objects.filter(),
             "service-list": Service.objects.filter(parent_service=None, metadata__is_active=True),
             "layer-list": Layer.objects.filter(metadata__is_active=True),
-            "group-list": MrMapGroup.objects.filter(),
         }
 
     def test_overview_menu(self):

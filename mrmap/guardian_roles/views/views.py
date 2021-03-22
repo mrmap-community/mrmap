@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.utils.decorators import method_decorator
@@ -7,7 +8,6 @@ from django_filters.views import FilterView
 from guardian.mixins import PermissionRequiredMixin
 
 from MrMap.icons import get_icon, IconEnum
-from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, DependingListView, InitFormMixin
 from guardian_roles.enums import PermissionEnum
 from guardian_roles.forms import UserSetChangeForm
@@ -16,7 +16,6 @@ from guardian_roles.models.core import OrganizationBasedTemplateRole
 from guardian_roles.tables.tables import OrganizationBasedTemplateRoleTable, OrganizationBasedTemplateRoleDetailTable, \
     OrganizationBasedTemplateRoleMemberTable
 from guardian_roles.views.mixins import OrganizationBasedTemplateRoleDetailContextMixin
-from structure.models import MrMapUser
 
 
 @method_decorator(login_required, name='dispatch')
@@ -62,7 +61,7 @@ class OrganizationBasedTemplateRoleChangeView(PermissionRequiredMixin, InitFormM
 
 @method_decorator(login_required, name='dispatch')
 class OrganizationBasedTemplateRoleMembersTableView(DependingListView, OrganizationBasedTemplateRoleDetailContextMixin, CustomSingleTableMixin, FilterView):
-    model = MrMapUser
+    model = get_user_model()
     depending_model = OrganizationBasedTemplateRole
     table_class = OrganizationBasedTemplateRoleMemberTable
     filterset_fields = {'username': ['icontains']}

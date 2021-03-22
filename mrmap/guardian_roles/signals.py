@@ -38,7 +38,7 @@ def assign_perm_to_object(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Metadata)
 def handle_owner_change(sender, instance, created, **kwargs):
     if not created:
-        if instance.created_by != instance._created_by:
+        if instance.owned_by_org != instance._owned_by_org:
             # todo: implement owner change handling
             # MetadataGroupObjectPermission.objects.filter(group=instance._created_by, content_object=instance).bulk_update(group=instance.created_by)
             pass

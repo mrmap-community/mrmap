@@ -28,8 +28,7 @@ from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, Keyword, Category, Dataset, ReferenceSystem, Licence, AllowedOperation
 from service.settings import ISO_19115_LANG_CHOICES
-from structure.models import Organization, MrMapGroup
-from users.helper import user_helper
+from structure.models import Organization
 from django.contrib import messages
 
 
@@ -175,9 +174,9 @@ class DatasetIdentificationForm(MrMapWizardForm):
         required=False, )
 
     created_by = forms.ModelChoiceField(
-        label=_("Create with group"),
+        label=_("Create with organization"),
         widget=forms.Select(attrs={'class': 'auto_submit_item'}),
-        queryset=MrMapGroup.objects.none(),
+        queryset=Organization.objects.none(),
         to_field_name='id',
         initial=1
     )
@@ -187,11 +186,11 @@ class DatasetIdentificationForm(MrMapWizardForm):
                                                         *args,
                                                         **kwargs)
 
-        self.fields['additional_related_objects'].queryset = user_helper.get_user(self.request).get_metadatas_as_qs(
+        self.fields['additional_related_objects'].queryset = self.request.user.get_metadatas_as_qs(
             type=MetadataEnum.DATASET, inverse_match=True)
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
-        user = user_helper.get_user(request=kwargs.pop("request"))
+        user = kwargs.pop("request").user
         user_groups = user.groups.filter(mrmapgroup__is_public_group=False)
         self.fields["created_by"].queryset = user_groups
         self.fields["created_by"].initial = user_groups.first()
@@ -257,7 +256,7 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
     licence = forms.ModelChoiceField(
         label=_('Terms of use'),
         required=False,
-        queryset=Licence.objects.filter(is_active=True),
+        queryset=Licence.objects.all(),
         help_text=Licence.get_descriptions_help_text()
     )
     access_constraints = forms.CharField(
@@ -334,7 +333,7 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
     )
 
     def __init__(self, *args, **kwargs):
-        user = user_helper.get_user(kwargs.get("request"))
+        user = kwargs.get("request").user
         user_groups = user.groups.all()
         if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
@@ -373,8 +372,6 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
             self.instance.save()
 
         messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
-        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
-                                          "{}".format(self.instance.title, ))
 
 
 class GeneralAccessSettingsForm(forms.ModelForm):

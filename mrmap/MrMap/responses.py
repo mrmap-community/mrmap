@@ -7,7 +7,6 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 from MrMap.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
-from structure.models import MrMapUser
 
 
 # Todo: Deprecated! This will be done by the default_context() in the MrMap/context_processors.py file
@@ -17,7 +16,7 @@ class DefaultContext:
 
     """
 
-    def __init__(self, request: HttpRequest, context: dict, user: MrMapUser = None):
+    def __init__(self, request: HttpRequest, context: dict, user = None):
         if user is not None and not user.is_anonymous:
             permissions = user.get_all_permissions()
         else:

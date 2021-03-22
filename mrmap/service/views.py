@@ -57,7 +57,6 @@ from service.utils import collect_contact_data, collect_metadata_related_objects
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 
@@ -69,8 +68,7 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
         service__is_update_candidate_for=None,
     ).select_related(
         "service",
-        "service__created_by",
-        "service__published_for",
+        "service__owned_by_org",
         "service__service_type",
         "service__parent_service__metadata",
         "service__parent_service__metadata__external_authentication",
@@ -179,7 +177,7 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.groups.all())
+        return self.request.user.get_datasets_as_qs()
 
 
 @method_decorator(login_required, name='dispatch')
@@ -253,7 +251,7 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
          A rendered view
     """
     md = get_object_or_404(Metadata, id=metadata_id)
-    user = user_helper.get_user(request)
+    user = request.user
     subscription_created = Subscription.objects.get_or_create(
         metadata=md,
         user=user,
@@ -481,7 +479,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
         A rendered view
     """
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
-    user = user_helper.get_user(request)
+    user = request.user
 
     form = UpdateServiceCheckForm(data=request.POST or None,
                                   request=request,
@@ -527,7 +525,6 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
-    user = user_helper.get_user(request)
 
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
     try:
@@ -596,7 +593,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 @permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
-    user = user_helper.get_user(request)
+    user = request.user
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
     new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
 
@@ -688,13 +685,6 @@ def run_update_service(request: HttpRequest, metadata_id):
             update_helper.update_capability_document(current_service, new_service)
 
             current_service.save()
-
-            user_helper.create_group_activity(
-                current_service.metadata.created_by,
-                request.user,
-                SERVICE_UPDATED,
-                current_service.metadata.title
-            )
 
             new_service.delete()
 

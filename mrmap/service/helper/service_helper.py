@@ -12,7 +12,7 @@ from celery import Task
 from django.db import transaction
 from django.http import HttpResponse, HttpRequest
 
-from MrMap.messages import SERVICE_REMOVED, SERVICE_DISABLED, PARAMETER_ERROR
+from MrMap.messages import SERVICE_DISABLED, PARAMETER_ERROR
 from MrMap.utils import resolve_boolean_attribute_val
 from service import tasks
 from service.helper import xml_helper
@@ -24,8 +24,7 @@ from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication, Metadata, Document
 from service.helper.crypto_handler import CryptoHandler
-from structure.models import PendingTask, MrMapGroup, MrMapUser
-from users.helper import user_helper
+from structure.models import PendingTask, Organization
 
 
 def resolve_version_enum(version: str):
@@ -161,7 +160,14 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
+def create_service(service_type,
+                   version,
+                   base_uri,
+                   user,
+                   register_for_organization: Organization = None,
+                   async_task: Task = None,
+                   external_auth: ExternalAuthentication = None,
+                   is_update_candidate_for: Service = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -172,7 +178,6 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         version: The version of the service type
         base_uri: The conne
         user (User): The performing user
-        register_group (Group): The group which shall be used for registration
         register_for_organization (Organization): The organization for which this service shall be registered
     Returns:
 
@@ -202,7 +207,6 @@ def create_service(service_type, version, base_uri, user, register_group, regist
     with transaction.atomic():
         service = service.create_service_model_instance(
             user,
-            register_group,
             register_for_organization,
             external_auth,
             is_update_candidate_for
@@ -237,7 +241,7 @@ def capabilities_are_different(cap_url_1, cap_url_2):
     return xml_1_hash != xml_2_hash
 
 
-def create_new_service(form, user: MrMapUser):
+def create_new_service(form, user):
     """ Creates a service from a filled RegisterNewServiceWizardPage2 form object.
 
     Returns the PendingTask record for the registration process
@@ -256,10 +260,6 @@ def create_new_service(form, user: MrMapUser):
             "auth_type": form.cleaned_data['authentication_type']
         }
 
-    register_for_other_org = 'None'
-    if form.cleaned_data['registering_for_other_organization'] is not None:
-        register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
-
     uri_dict = {
         "base_uri": form.cleaned_data["uri"],
         "version": form.cleaned_data["ogc_version"],
@@ -270,15 +270,13 @@ def create_new_service(form, user: MrMapUser):
     pending_task = tasks.async_new_service.delay(
         uri_dict,
         user.id,
-        form.cleaned_data['registering_with_group'].id,
-        register_for_other_org,
+        form.cleaned_data['registering_for_organization'].id,
         external_auth
     )
 
     # create db object, so we know which pending task is still ongoing
     pending_task_db = PendingTask()
-    pending_task_db.created_by = MrMapGroup.objects.get(
-        id=form.cleaned_data['registering_with_group'].id)
+    pending_task_db.created_by = form.cleaned_data['registering_for_organization']
     pending_task_db.task_id = pending_task.task_id
     pending_task_db.description = json.dumps({
         "service": form.cleaned_data['uri'],

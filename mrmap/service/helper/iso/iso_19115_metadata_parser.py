@@ -26,7 +26,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, Document, Dataset, LegalDate, LegalReport
-from structure.models import Organization, MrMapGroup
+from structure.models import Organization
 
 
 class ISOMetadata:
@@ -553,7 +553,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self, type=MetadataEnum.DATASET.value, created_by: MrMapGroup = None):
+    def to_db_model(self, type=MetadataEnum.DATASET.value, user = None, created_by: Organization = None):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -580,8 +580,6 @@ class ISOMetadata:
             metadata.metadata_type = md_type
             if metadata.is_dataset_metadata:
                 metadata.dataset = Dataset()
-                metadata.dataset.created_by = created_by
-            metadata.created_by = created_by
             new = True
 
         if update or new:
@@ -591,8 +589,8 @@ class ISOMetadata:
                 metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
 
             metadata = self._fill_metadata_db_model(metadata)
-            metadata.save()
-            metadata.dataset.save()
+            metadata.save(user=user, publish_for=created_by)
+            metadata.dataset.save(user=user, publish_for=created_by)
 
             orig_document = Document.objects.get_or_create(
                 metadata=metadata,

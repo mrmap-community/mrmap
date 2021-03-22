@@ -6,43 +6,31 @@ Created on: 28.05.19
 
 """
 
-from collections import OrderedDict
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
-from django.http import HttpRequest
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_bytes
 from django.utils.html import format_html
-from django.utils.http import urlsafe_base64_encode
-from django.utils.translation import gettext_lazy as _, gettext
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
-from django_bootstrap_swt.components import Tag
-from django_bootstrap_swt.utils import RenderHelper
-from django_filters.views import FilterView
-from django_tables2 import SingleTableMixin
-from MrMap.icons import IconEnum
-from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
+from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
 from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
 from service.models import Metadata
 from structure.forms import RegistrationForm
-from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, \
-    PublishRequest, GroupInvitationRequest
+from structure.models import Organization, PublishRequest
 from users.forms import SubscriptionForm, MrMapUserForm
-from users.helper import user_helper
-from users.models import Subscription
+from users.models import Subscription, UserActivation
 from users.settings import users_logger
 from users.tables import SubscriptionTable
 
@@ -79,33 +67,23 @@ class HomeView(TemplateView):
         user_services_wms = Metadata.objects.filter(
             service__service_type__name="wms",
             service__is_root=True,
-            created_by__in=user_groups,
             service__is_deleted=False,
         ).count()
         user_services_wfs = Metadata.objects.filter(
             service__service_type__name="wfs",
             service__is_root=True,
-            created_by__in=user_groups,
             service__is_deleted=False,
         ).count()
 
         datasets_count = self.request.user.get_datasets_as_qs(count=True)
 
-        activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
-        group_activities = GroupActivity.objects.filter(group__in=user_groups,
-                                                        created_on__gte=activities_since).order_by("-created_on")
-
-        pending_requests = PublishRequest.objects.filter(organization=self.request.user.organization)
-        group_invitation_requests = GroupInvitationRequest.objects.filter(user=self.request.user)
+        pending_requests = PublishRequest.objects.filter(to_organization=self.request.user.organization)
         context.update({
             "wms_count": user_services_wms,
             "wfs_count": user_services_wfs,
             "datasets_count": datasets_count,
             "all_count": user_services_wms + user_services_wfs + datasets_count,
             "publishing_requests": pending_requests,
-            "group_invitation_requests": group_invitation_requests,
-            "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),
-            "group_activities": group_activities,
             "groups": user_groups,
             "organizations": Organization.objects.filter(is_auto_generated=False),
             "current_view": "home",
@@ -116,11 +94,11 @@ class HomeView(TemplateView):
 @method_decorator(login_required, name='dispatch')
 class ProfileView(DetailView):
     template_name = "users/views/profile/profile.html"
-    model = MrMapUser
+    model = get_user_model()
     slug_field = "username"
 
     def get_object(self, queryset=None):
-        return get_object_or_404(MrMapUser, username=self.request.user.username)
+        return get_object_or_404(get_user_model(), username=self.request.user.username)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -141,13 +119,13 @@ class MrMapPasswordResetView(SuccessMessageMixin, PasswordResetView):
 class EditProfileView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     template_name = 'users/views/profile/password_change.html'
     success_message = _('Profile successfully edited.')
-    model = MrMapUser
+    model = get_user_model()
     form_class = MrMapUserForm
     title = _('Edit profile')
 
     # cause this view is callable without primary key. The object will be always the logged in user.
     def get_object(self, queryset=None):
-        return get_object_or_404(MrMapUser, username=self.request.user.username)
+        return get_object_or_404(get_user_model(), username=self.request.user.username)
 
 
 class ActivateUser(DeleteView):
@@ -178,7 +156,7 @@ class ActivateUser(DeleteView):
 class SignUpView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
     template_name = 'users/views/logged_out/sign_up.html'
     success_url = reverse_lazy('login')
-    model = MrMapUser
+    model = get_user_model()
     form_class = RegistrationForm
     success_message = "Your profile was created successfully"
     title = _("Signup")

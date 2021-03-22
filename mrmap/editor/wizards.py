@@ -22,7 +22,7 @@ from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum,
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, Document, AllowedOperation
 from service.settings import DEFAULT_SRS
-from structure.models import Organization, MrMapUser
+from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
 from django.forms import BaseFormSet
 
@@ -150,7 +150,7 @@ class DatasetWizard(MrMapWizard):
         return JsonResponse(status=200, data=content)
 
     @staticmethod
-    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user):
         """ Iterates over all forms and applies the metadata changes on the objects
 
         Args:
@@ -190,7 +190,7 @@ class DatasetWizard(MrMapWizard):
             DatasetWizard._create_dataset_document(metadata)
 
     @staticmethod
-    def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -224,7 +224,7 @@ class DatasetWizard(MrMapWizard):
                                                     origin=ResourceOriginEnum.EDITOR.value)
 
     @staticmethod
-    def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -246,7 +246,7 @@ class DatasetWizard(MrMapWizard):
             metadata.categories.add(cat)
 
     @staticmethod
-    def _fill_metadata_dataset_spatial_extent_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_spatial_extent_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -277,7 +277,7 @@ class DatasetWizard(MrMapWizard):
         metadata.bounding_geometry = geom
 
     @staticmethod
-    def _fill_metadata_dataset_licence_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_licence_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -292,7 +292,7 @@ class DatasetWizard(MrMapWizard):
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod
-    def _fill_metadata_dataset_quality_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_quality_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -308,7 +308,7 @@ class DatasetWizard(MrMapWizard):
 
     @staticmethod
     def _fill_metadata_dataset_responsible_party_form(data: dict, metadata: Metadata, dataset: Dataset,
-                                                      user: MrMapUser):
+                                                      user):
         """ Fills form data into Metadata/Dataset records
 
         Args:

@@ -21,7 +21,6 @@ from editor.tables import AllowedOperationTable
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, AllowedOperation
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 
 @method_decorator(login_required, name='dispatch')
@@ -85,15 +84,6 @@ class RestoreMetadata(PermissionRequiredMixin, GenericViewContextMixin, SuccessM
         self.object = self.get_object()
         ext_auth = self.object.get_external_authentication_object()
         self.object.restore(self.object.identifier, external_auth=ext_auth)
-
-        # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
-        if self.object.is_metadata_type(MetadataEnum.DATASET):
-            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                              "{}".format(self.object.title, ))
-        else:
-            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                              "{}: {}".format(self.object.get_root_metadata().title,
-                                                              self.object.title))
 
         success_url = self.get_success_url()
 

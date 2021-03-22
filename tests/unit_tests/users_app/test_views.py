@@ -67,7 +67,7 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(user.username, self.contact_data.get('username'), msg="Name is incorrect")
         # ToDo: since #148 is implemented, person_name is not longer available
         # self.assertEqual(user.person_name, self.contact_data.get('person_name'), msg="Person name is incorrect")
-        self.assertEqual(user.password, make_password(self.contact_data.get('password'), user.salt), msg="Password is incorrect")
+        self.assertEqual(user.password, make_password(self.contact_data.get('password')), msg="Password is incorrect")
         # ToDo: since #148 is implemented, facsimile is not longer available
         # self.assertEqual(user.facsimile, self.contact_data.get('facsimile'), msg="Facsimile is incorrect")
         # ToDo: since #148 is implemented, phone is not longer available
@@ -207,7 +207,7 @@ class PasswordChangeTestCase(TestCase):
         Returns:
         """
         PASSWORD_WRONG = "Password wrong"
-        self.assertEqual(self.user.password, make_password(self.user_password, self.user.salt), msg=PASSWORD_WRONG)
+        self.assertEqual(self.user.password, make_password(self.user_password), msg=PASSWORD_WRONG)
         new_pw = 'qwertzuiop!123M'
 
         ## case 0: User is not logged in -> action has no effect
@@ -217,7 +217,7 @@ class PasswordChangeTestCase(TestCase):
             data={"password": new_pw, "password_again": new_pw, "user": self.user}
         )
         self.user.refresh_from_db()
-        self.assertNotEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
+        self.assertNotEqual(self.user.password, make_password(new_pw), msg=PASSWORD_WRONG)
 
     def test_user_password_change_with_logged_in_user(self):
         response = self.client.post(

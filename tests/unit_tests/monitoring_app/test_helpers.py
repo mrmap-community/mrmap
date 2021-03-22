@@ -19,8 +19,7 @@ from monitoring.helper.wmsHelper import WmsHelper
 from mrmap.service.helper import service_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.models import Metadata
-from structure.models import MrMapGroup, MrMapUser
-from structure.permissionEnums import PermissionEnum
+from structure.models import MrMapUser
 
 
 class MonitoringTests(TestCase):
@@ -41,13 +40,7 @@ class MonitoringTests(TestCase):
             confirmed_dsgvo=timezone.now(),
         )
 
-        cls.group = MrMapGroup.objects.create(
-            name="Testgroup",
-            created_by=cls.user,
-        )
-        cls.group.permissions.add(*all_permissions)
-
-        cls.user.groups.add(cls.group)
+        cls.user.groups.add()
 
         cls.wfs_base = "https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht?"
         cls.test_wfs = {

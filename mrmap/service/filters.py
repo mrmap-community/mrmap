@@ -1,6 +1,8 @@
 import django_filters
 from dal import autocomplete
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db.models import Q
 
 from MrMap.filtersets import MrMapFilterSet
@@ -8,7 +10,6 @@ from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata, Layer, FeatureType, ProxyLog
 from django.utils.translation import gettext_lazy as _
-from structure.models import MrMapGroup, MrMapUser
 
 
 class OgcWmsFilter(django_filters.FilterSet):
@@ -72,14 +73,8 @@ class ProxyLogTableFilter(MrMapFilterSet):
     )
 
     user__username = django_filters.ModelMultipleChoiceFilter(
-        queryset=MrMapUser.objects.all(),
+        queryset=get_user_model().objects.all(),
         widget=forms.CheckboxSelectMultiple,
-    )
-
-    user__groups__name = django_filters.ModelMultipleChoiceFilter(
-        queryset=MrMapGroup.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        method="filter_by_group",
     )
 
     metadata__service__service_type__name = django_filters.MultipleChoiceFilter(
@@ -96,13 +91,3 @@ class ProxyLogTableFilter(MrMapFilterSet):
 
     def __init__(self, *args, **kwargs):
         super(ProxyLogTableFilter, self).__init__(prefix='proxy-log-filter', *args, **kwargs)
-
-    def filter_by_group(self, queryset, name, value):
-        public_group = MrMapGroup.objects.get(name="Public")
-        if public_group in value:
-            value.remove(MrMapGroup.objects.get(name="Public"))
-            logs_from_public_group = queryset.filter(Q(user=None))
-            queryset = queryset.filter(user__groups__in=value) | logs_from_public_group
-        elif value:
-            queryset = queryset.filter(user__groups__in=value)
-        return queryset

@@ -33,13 +33,14 @@ from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataR
 from service.models import Metadata, Dataset, Keyword, Category, MimeType, \
     GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import PendingTask, MrMapGroup, Organization
+from structure.models import PendingTask, Organization
 
 
 class Harvester:
-    def __init__(self, metadata: Metadata, group: MrMapGroup, max_records_per_request: int = 200):
+    def __init__(self, metadata: Metadata, user, harvesting_organization: Organization, max_records_per_request: int = 200):
         self.metadata = metadata
-        self.harvesting_group = group
+        self.user = user
+        self.harvesting_organization = harvesting_organization
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
         self.harvest_url = metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
@@ -103,7 +104,7 @@ class Harvester:
                 }),
                 progress=0,
                 remaining_time=None,
-                created_by=self.harvesting_group
+                created_by=self.harvesting_organization
             )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
@@ -446,7 +447,6 @@ class Harvester:
             )
             is_new = True
         md.access_constraints = md_data_entry.get("access_constraints", None)
-        md.created_by = self.harvesting_group
         md.origin = ResourceOriginEnum.CATALOGUE.value
         md.last_remote_change = md_data_entry.get("date_stamp", None)
         md.title = md_data_entry.get("title", None)
@@ -494,7 +494,7 @@ class Harvester:
                     generic_url.save()
                     md.additional_urls.add(generic_url)
 
-                md.save(add_monitoring=False)
+                md.save(add_monitoring=False, user=self.user, published_for=self.harvesting_organization)
                 md.keywords.add(*kws)
                 md.categories.add(*categories)
                 md.formats.add(*formats)

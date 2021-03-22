@@ -6,6 +6,7 @@ Created on: 09.03.20
 
 """
 from dal import autocomplete
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
@@ -15,10 +16,8 @@ from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum
 from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
-from structure.models import MrMapGroup, MrMapUser
 
 from structure.permissionEnums import PermissionEnum
-from users.helper.user_helper import get_user
 
 
 class AutocompleteView(autocomplete.Select2QuerySetView):
@@ -83,7 +82,7 @@ class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
         Returns:
              records (QuerySet): The matched records
         """
-        user = get_user(self.request)
+        user = self.request.user
         if user is None:
             return None
 
@@ -118,7 +117,7 @@ class ServiceMetadataAutocomplete(autocomplete.Select2QuerySetView):
         Returns:
              records (QuerySet): The matched records
         """
-        user = get_user(self.request)
+        user = self.request.user
         if user is None:
             return None
 
@@ -171,32 +170,10 @@ class OperationsAutocomplete(autocomplete.Select2QuerySetView):
 
 
 @method_decorator(login_required, name='dispatch')
-class GroupsAutocomplete(autocomplete.Select2QuerySetView):
-    """ Provides an autocomplete functionality for categories records
-
-    """
-    def get_queryset(self):
-        """ Getter for the matching groups
-
-        Returns:
-             records (QuerySet): The matched records
-        """
-        records = MrMapGroup.objects.filter(Q(is_permission_group=False) | Q(is_public_group=True))
-        query = ""
-        if self.q:
-            # There are filtering parameters!
-            query = self.q
-        records = records.filter(
-            Q(name__icontains=query)
-        )
-        return records
-
-
-@method_decorator(login_required, name='dispatch')
 class UsersAutocomplete(autocomplete.Select2QuerySetView):
     """ Provides an autocomplete functionality for user records
 
     """
-    model = MrMapUser
+    model = get_user_model()
     search_fields = ['username']
 

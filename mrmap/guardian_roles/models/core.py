@@ -12,9 +12,9 @@ from django.db import models
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-
 from guardian_roles.models.template_code import EDIT_LINK_BUTTON
 from structure.models import Organization
+from django.conf import settings
 
 
 class TemplateRole(models.Model):
@@ -32,7 +32,10 @@ class TemplateRole(models.Model):
         return str(self.verbose_name)
 
 
-class ConcreteTemplateRole(Group):
+class ConcreteTemplateRole(models.Model):
+    """
+    An abstract model to
+    """
     # do not change after generation of this instance, cause permission changing is not implemented for base_template
     # changing.
     based_template = models.ForeignKey(to=TemplateRole, on_delete=models.CASCADE)
@@ -72,8 +75,20 @@ class OrganizationBasedTemplateRole(ConcreteTemplateRole):
     User membership:
         Is handled by the user it self.
     """
-    content_object = models.ForeignKey(to=Organization, on_delete=models.CASCADE,
-                                       related_name='organization_based_template_roles')
+    content_object = models.ForeignKey(to=Organization,
+                                       on_delete=models.CASCADE,
+                                       related_name='real_organization_based_template_roles')
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_('users'),
+        blank=True,
+        help_text=_(
+            'The users this role belongs to. A user will get all permissions '
+            'granted to each of their roles.'
+        ),
+        related_name="role_set",
+        related_query_name="role",
+    )
 
     def get_absolute_url(self):
         return reverse('guardian_roles:organization_role_detail', args=[self.pk])
@@ -88,7 +103,7 @@ class OrganizationBasedTemplateRole(ConcreteTemplateRole):
         return [format_html(EDIT_LINK_BUTTON % {'url': self.get_edit_url()})]
 
 
-class ObjectBasedTemplateRole(ConcreteTemplateRole):
+class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
     """ObjectBasedTemplateRole model to handle Role groups per object.
 
     Creation:

@@ -7,7 +7,7 @@ Created on: 09.07.19
 """
 from django.urls import path
 from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
-    ReferenceSystemAutocomplete, ServiceMetadataAutocomplete, OperationsAutocomplete, GroupsAutocomplete, \
+    ReferenceSystemAutocomplete, ServiceMetadataAutocomplete, OperationsAutocomplete, \
     UsersAutocomplete, MetadataAutocomplete
 from editor.views import *
 from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_FORMS, AccessEditorWizard, \
@@ -23,7 +23,6 @@ urlpatterns = [
     path('autocomplete-metadata/', MetadataAutocomplete.as_view(), name="autocomplete_metadata"),
     path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
     path('operations/', OperationsAutocomplete.as_view(), name="operations-autocomplete"),
-    path('groups/', GroupsAutocomplete.as_view(), name="groups"),
     path('users/', UsersAutocomplete.as_view(), name="users"),
 
     # was moved to the service app

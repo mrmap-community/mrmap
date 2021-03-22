@@ -9,6 +9,7 @@ from datetime import datetime
 from json import JSONDecodeError
 from PIL import Image
 from dateutil.parser import parse
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -18,7 +19,6 @@ from django.db.models import Q, QuerySet, F, Count
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django_bootstrap_swt.components import LinkButton, Badge, Tag
@@ -32,9 +32,10 @@ from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
-from MrMap.validators import not_uuid, geometry_is_empty
+from MrMap.validators import geometry_is_empty
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
+from main.models import CommonInfo, UuidPk
 from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
@@ -46,27 +47,16 @@ from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATI
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
     LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS, \
     service_logger
-from structure.models import MrMapGroup, Organization, MrMapUser
+from structure.models import Organization
 from service.helper import xml_helper
 from structure.permissionEnums import PermissionEnum
 
 
+# todo: check if we still need this class?
 class Resource(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
-    created_by = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)
-    last_modified = models.DateTimeField(null=True)
     # todo: check if we still need this two boolean flags
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
-
-    def save(self, update_last_modified=True, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        if update_last_modified:
-            # We always want to have automatically the last timestamp from the latest change!
-            # ONLY if the function is especially called with a False flag in update_last_modified, we will not change the record's last change
-            self.last_modified = timezone.now()
-        super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
         abstract = True
@@ -86,295 +76,6 @@ class Keyword(models.Model):
         indexes = [
             models.Index(fields=["keyword"])
         ]
-
-
-class ProxyLog(models.Model):
-    from structure.models import MrMapUser
-    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE)
-    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
-    operation = models.CharField(max_length=100, null=True, blank=True)
-    uri = models.CharField(max_length=1000, null=True, blank=True)
-    post_body = models.TextField(null=True, blank=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
-    response_wfs_num_features = models.IntegerField(null=True, blank=True)
-    response_wms_megapixel = models.FloatField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-timestamp"]
-
-    def __str__(self):
-        return str(self.id)
-
-    @transaction.atomic
-    def log_response(self, response, request_param: str, output_format: str):
-        """ Evaluate the response.
-
-        In case of a WFS response, the number of returned features will be counted.
-        In case of a WMS response, the megapixel will be computed.
-
-        Args:
-            response: The response, could be xml or bytes
-            request_param (str): The operation that has been performed
-            output_format (str): The output format for the response
-        Returns:
-             nothing
-        """
-        start_time = time.time()
-        if self.metadata.is_service_type(OGCServiceEnum.WFS):
-            self._log_wfs_response(response, output_format)
-        elif self.metadata.is_service_type(OGCServiceEnum.WMS):
-            self._log_wms_response(response)
-        else:
-            # For future implementation
-            pass
-        self.operation = request_param
-        self.save()
-        service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
-
-    def _log_wfs_response_xml(self, xml: str):
-        """ Evaluate the wfs response.
-
-        For KML:
-        KML specification can be found here:
-        http://schemas.opengis.net/kml/
-
-        Another informative page:
-        https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
-
-        Args:
-            xml (str): The response xml
-        Returns:
-             nothing
-        """
-        num_features = 0
-        try:
-            xml = xml_helper.parse_xml(xml)
-
-            # Due to different versions of wfs, the member name changes. Since we do not know in which version the
-            # GetFeature request was performed, we simply check on both possibilites and continue with the one that
-            # delivers more features than 0. If no features are returned anyway, the value 0 will fit as well.
-            identifiers = [
-                "member",
-                "featureMember",
-            ]
-            root = xml.getroot()
-
-            num_features = -1
-            for identifier in identifiers:
-                feature_elems = xml_helper.try_get_element_from_xml(
-                    "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
-                    root
-                )
-                num_features = len(feature_elems)
-                if num_features > 0:
-                    break
-
-            if num_features == 0:
-                # Special case:
-                # There are services which do not follow the specification for WFS and wrap all their features in
-                # <members> or <featureMembers> elements. So we have to check if there might be one of these identifiers
-                # inside the response.
-                identifiers = [
-                    "members",
-                    "featureMembers"
-                ]
-                for identifier in identifiers:
-                    feature_elem = xml_helper.try_get_single_element_from_xml(
-                        "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
-                        root
-                    )
-                    if feature_elem is not None:
-                        num_features = len(feature_elem.getchildren())
-                        break
-        except AttributeError:
-            pass
-        self.response_wfs_num_features = num_features
-
-    def _log_wfs_response_csv(self, response: str):
-        """ Evaluate the wfs response as csv.
-
-        It's assumed, that the first line of a csv formatted wfs response contains the headlines
-        of each column.
-        All following lines are features.
-
-        Args:
-            response (str): The response csv
-        Returns:
-             nothing
-        """
-        response_maybe_csv = True
-
-        # Make sure no non-csv has been returned as response
-        # Check if we can create XML from it
-        test_xml = xml_helper.parse_xml(response)
-        if test_xml is not None:
-            # This is not CSV! maybe an error message of the server
-            response_maybe_csv = False
-
-        try:
-            test_json = json.loads(response)
-            # If we can raise the ValueError, the response could be transformed into json -> no csv!
-            raise ValueError
-        except JSONDecodeError:
-            # Could not create JSON -> might be regular csv
-            pass
-        except ValueError:
-            # It is JSON, no csv
-            response_maybe_csv = False
-
-        # If csv is not supported by the responding server, we are not able to read csv values.
-        # In this case, set the initial number of features to 0, since there are no features inside.
-        num_features = 0
-        if response_maybe_csv:
-            # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
-            try:
-                response = response.decode("utf-8")
-            except UnicodeDecodeError:
-                response = response.decode("latin-1")
-
-            try:
-                _input = io.StringIO(response)
-                reader = csv.reader(_input, delimiter=",")
-
-                # Set initial of num_features to -1 so we don't need to subtract the headline row afterwards
-                num_features = -1
-                for line in reader:
-                    num_features += 1
-
-            except Exception as e:
-                pass
-
-        self.response_wfs_num_features = num_features
-
-    def _log_wfs_response_geojson(self, response: str):
-        """ Evaluate the wfs response.
-
-        Args:
-            response (str): The response geojson
-        Returns:
-             nothing
-        """
-        # Initial is 0. It is possible, that the server does not support geojson. Then 0 features are delivered.
-        num_features = 0
-        try:
-            response = json.loads(response)
-            # If 'numberMatched' could not be found, we need to set an error value in here
-            num_features = response.get("numberMatched", -1)
-        except JSONDecodeError:
-            pass
-
-        self.response_wfs_num_features = num_features
-
-    def _log_wfs_response_kml(self, response: str):
-        """ Evaluate the wfs response.
-
-        References:
-            https://www.ogc.org/standards/kml
-            https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
-
-        Args:
-            response (str): The response kml
-        Returns:
-             nothing
-        """
-        num_features = 0
-        try:
-            xml = xml_helper.parse_xml(response)
-            root = xml.getroot()
-
-            # Count <Placemark> elements
-            identifier = "Placemark"
-
-            feature_elems = xml_helper.try_get_element_from_xml(
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
-                root
-            )
-            num_features = len(feature_elems)
-        except AttributeError as e:
-            pass
-
-        self.response_wfs_num_features = num_features
-
-    def _log_wfs_response(self, response: str, output_format: str):
-        """ Evaluate the wfs response.
-
-        Args:
-            xml (str): The response xml
-            output_format (str): The output format of the response
-        Returns:
-             nothing
-        """
-        used_logable_format = None
-
-        # Output_format might be None if no parameter was specified. We assume the default xml response in this case
-        if output_format is not None:
-            for _format in LOGABLE_FEATURE_RESPONSE_FORMATS:
-                if _format in output_format.lower():
-                    used_logable_format = _format
-                    break
-
-        if used_logable_format is None and output_format is None:
-            # Default case - no outputformat parameter was given. We assume a xml representation
-            self._log_wfs_response_xml(response)
-        elif used_logable_format is None:
-            raise ValueError(LOGGING_INVALID_OUTPUTFORMAT.format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
-        elif used_logable_format == "csv":
-            self._log_wfs_response_csv(response)
-        elif used_logable_format == "geojson":
-            self._log_wfs_response_geojson(response)
-        elif used_logable_format == "kml":
-            self._log_wfs_response_kml(response)
-        elif "gml" in used_logable_format:
-            # Specifies the default gml xml response
-            self._log_wfs_response_xml(response)
-        else:
-            # Should not happen!
-            raise ValueError(PARAMETER_ERROR.format("outputformat"))
-
-    def _log_wms_response(self, img):
-        """ Evaluate the wms response.
-
-        Args:
-            img: The response image (probably masked)
-        Returns:
-             nothing
-        """
-        # Catch case where image might be bytes and transform it into a RGBA image
-        if isinstance(img, bytes):
-            img = Image.open(io.BytesIO(img))
-            tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
-            tmp.paste(img)
-            img = tmp
-
-        if COUNT_DATA_PIXELS_ONLY:
-            pixels = self._count_data_pixels_only(img)
-        else:
-            h = img.height
-            w = img.width
-            pixels = h * w
-
-        # Calculation of megapixels, round up to 2 digits
-        # megapixels = width*height / 1,000,000
-        self.response_wms_megapixel = round(pixels / 1000000, 4)
-
-    def _count_data_pixels_only(self, img: Image):
-        """ Counts all pixels, besides the pure-alpha-pixels
-
-        Args:
-            img (Image): The image
-        Returns:
-             pixels (int): Amount of non-alpha pixels
-        """
-        # Get alpha channel pixel values as list
-        all_pixel_vals = list(img.getdata(3))
-
-        # Count all alpha pixel (value == 0)
-        num_alpha_pixels = all_pixel_vals.count(0)
-
-        # Compute difference
-        pixels = len(all_pixel_vals) - num_alpha_pixels
-
-        return pixels
 
 
 class RequestOperation(models.Model):
@@ -470,7 +171,64 @@ class ExternalAuthentication(models.Model):
         self.username = crypto_handler.message.decode("ascii")
 
 
-class Metadata(Resource):
+class Licence(UuidPk):
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(max_length=255, unique=True)
+    symbol_url = models.URLField(null=True)
+    description = models.TextField()
+    description_url = models.URLField(null=True)
+    is_open_data = models.BooleanField(default=False)
+
+    def __str__(self):
+        return "{} ({})".format(self.identifier, self.name)
+
+    @classmethod
+    def as_choices(cls):
+        """ Returns a list of (identifier, name) to be used as choices in a form
+
+        Returns:
+             tuple_list (list): As described above
+        """
+        return [(licence.identifier, licence.__str__()) for licence in Licence.objects.filter(is_active=True)]
+
+    @classmethod
+    def get_descriptions_help_text(cls):
+        """ Returns a string containing all Licence records for rendering as help_text in a form
+
+        Returns:
+             string (str): As described above
+        """
+        from django.db.utils import ProgrammingError
+
+        try:
+            descrs = [
+                "<a href='{}' target='_blank'>{}</a>".format(
+                    licence.description_url, licence.identifier
+                ) for licence in Licence.objects.all()
+            ]
+            descr_str = "<br>".join(descrs)
+            descr_str = _l("Explanations: <br>") + descr_str
+        except (ProgrammingError, OperationalError):
+            # This will happen on an initial installation. The Licence table won't be created yet, but this function
+            # will be called on makemigrations.
+            descr_str = ""
+        return descr_str
+
+
+class GenericUrl(UuidPk):
+    description = models.TextField(null=True, blank=True)
+    method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return "{} ({})".format(self.url, self.method)
+
+
+class ServiceUrl(GenericUrl):
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
+
+
+class Metadata(UuidPk, CommonInfo, Resource):
     from MrMap.validators import validate_metadata_enum_choices
     identifier = models.CharField(max_length=1000, null=True)
     title = models.CharField(max_length=1000, verbose_name=_l('Title'))
@@ -479,10 +237,10 @@ class Metadata(Resource):
 
     capabilities_original_uri = models.CharField(max_length=1000, blank=True, null=True)
     service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
-    additional_urls = models.ManyToManyField('GenericUrl', blank=True)
+    additional_urls = models.ManyToManyField(GenericUrl, blank=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True, verbose_name=_l('Data provider'))
-    licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
+    licence = models.ForeignKey(Licence, on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
@@ -2014,6 +1772,291 @@ class Metadata(Resource):
         return health_states
 
 
+class ProxyLog(UuidPk):
+    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    operation = models.CharField(max_length=100, null=True, blank=True)
+    uri = models.CharField(max_length=1000, null=True, blank=True)
+    post_body = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    response_wfs_num_features = models.IntegerField(null=True, blank=True)
+    response_wms_megapixel = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    @transaction.atomic
+    def log_response(self, response, request_param: str, output_format: str):
+        """ Evaluate the response.
+
+        In case of a WFS response, the number of returned features will be counted.
+        In case of a WMS response, the megapixel will be computed.
+
+        Args:
+            response: The response, could be xml or bytes
+            request_param (str): The operation that has been performed
+            output_format (str): The output format for the response
+        Returns:
+             nothing
+        """
+        start_time = time.time()
+        if self.metadata.is_service_type(OGCServiceEnum.WFS):
+            self._log_wfs_response(response, output_format)
+        elif self.metadata.is_service_type(OGCServiceEnum.WMS):
+            self._log_wms_response(response)
+        else:
+            # For future implementation
+            pass
+        self.operation = request_param
+        self.save()
+        service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
+
+    def _log_wfs_response_xml(self, xml: str):
+        """ Evaluate the wfs response.
+
+        For KML:
+        KML specification can be found here:
+        http://schemas.opengis.net/kml/
+
+        Another informative page:
+        https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
+
+        Args:
+            xml (str): The response xml
+        Returns:
+             nothing
+        """
+        num_features = 0
+        try:
+            xml = xml_helper.parse_xml(xml)
+
+            # Due to different versions of wfs, the member name changes. Since we do not know in which version the
+            # GetFeature request was performed, we simply check on both possibilites and continue with the one that
+            # delivers more features than 0. If no features are returned anyway, the value 0 will fit as well.
+            identifiers = [
+                "member",
+                "featureMember",
+            ]
+            root = xml.getroot()
+
+            num_features = -1
+            for identifier in identifiers:
+                feature_elems = xml_helper.try_get_element_from_xml(
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                    root
+                )
+                num_features = len(feature_elems)
+                if num_features > 0:
+                    break
+
+            if num_features == 0:
+                # Special case:
+                # There are services which do not follow the specification for WFS and wrap all their features in
+                # <members> or <featureMembers> elements. So we have to check if there might be one of these identifiers
+                # inside the response.
+                identifiers = [
+                    "members",
+                    "featureMembers"
+                ]
+                for identifier in identifiers:
+                    feature_elem = xml_helper.try_get_single_element_from_xml(
+                        "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                        root
+                    )
+                    if feature_elem is not None:
+                        num_features = len(feature_elem.getchildren())
+                        break
+        except AttributeError:
+            pass
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_csv(self, response: str):
+        """ Evaluate the wfs response as csv.
+
+        It's assumed, that the first line of a csv formatted wfs response contains the headlines
+        of each column.
+        All following lines are features.
+
+        Args:
+            response (str): The response csv
+        Returns:
+             nothing
+        """
+        response_maybe_csv = True
+
+        # Make sure no non-csv has been returned as response
+        # Check if we can create XML from it
+        test_xml = xml_helper.parse_xml(response)
+        if test_xml is not None:
+            # This is not CSV! maybe an error message of the server
+            response_maybe_csv = False
+
+        try:
+            test_json = json.loads(response)
+            # If we can raise the ValueError, the response could be transformed into json -> no csv!
+            raise ValueError
+        except JSONDecodeError:
+            # Could not create JSON -> might be regular csv
+            pass
+        except ValueError:
+            # It is JSON, no csv
+            response_maybe_csv = False
+
+        # If csv is not supported by the responding server, we are not able to read csv values.
+        # In this case, set the initial number of features to 0, since there are no features inside.
+        num_features = 0
+        if response_maybe_csv:
+            # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
+            try:
+                response = response.decode("utf-8")
+            except UnicodeDecodeError:
+                response = response.decode("latin-1")
+
+            try:
+                _input = io.StringIO(response)
+                reader = csv.reader(_input, delimiter=",")
+
+                # Set initial of num_features to -1 so we don't need to subtract the headline row afterwards
+                num_features = -1
+                for line in reader:
+                    num_features += 1
+
+            except Exception as e:
+                pass
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_geojson(self, response: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            response (str): The response geojson
+        Returns:
+             nothing
+        """
+        # Initial is 0. It is possible, that the server does not support geojson. Then 0 features are delivered.
+        num_features = 0
+        try:
+            response = json.loads(response)
+            # If 'numberMatched' could not be found, we need to set an error value in here
+            num_features = response.get("numberMatched", -1)
+        except JSONDecodeError:
+            pass
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_kml(self, response: str):
+        """ Evaluate the wfs response.
+
+        References:
+            https://www.ogc.org/standards/kml
+            https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
+
+        Args:
+            response (str): The response kml
+        Returns:
+             nothing
+        """
+        num_features = 0
+        try:
+            xml = xml_helper.parse_xml(response)
+            root = xml.getroot()
+
+            # Count <Placemark> elements
+            identifier = "Placemark"
+
+            feature_elems = xml_helper.try_get_element_from_xml(
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                root
+            )
+            num_features = len(feature_elems)
+        except AttributeError as e:
+            pass
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response(self, response: str, output_format: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            xml (str): The response xml
+            output_format (str): The output format of the response
+        Returns:
+             nothing
+        """
+        used_logable_format = None
+
+        # Output_format might be None if no parameter was specified. We assume the default xml response in this case
+        if output_format is not None:
+            for _format in LOGABLE_FEATURE_RESPONSE_FORMATS:
+                if _format in output_format.lower():
+                    used_logable_format = _format
+                    break
+
+        if used_logable_format is None and output_format is None:
+            # Default case - no outputformat parameter was given. We assume a xml representation
+            self._log_wfs_response_xml(response)
+        elif used_logable_format is None:
+            raise ValueError(LOGGING_INVALID_OUTPUTFORMAT.format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
+        elif used_logable_format == "csv":
+            self._log_wfs_response_csv(response)
+        elif used_logable_format == "geojson":
+            self._log_wfs_response_geojson(response)
+        elif used_logable_format == "kml":
+            self._log_wfs_response_kml(response)
+        elif "gml" in used_logable_format:
+            # Specifies the default gml xml response
+            self._log_wfs_response_xml(response)
+        else:
+            # Should not happen!
+            raise ValueError(PARAMETER_ERROR.format("outputformat"))
+
+    def _log_wms_response(self, img):
+        """ Evaluate the wms response.
+
+        Args:
+            img: The response image (probably masked)
+        Returns:
+             nothing
+        """
+        # Catch case where image might be bytes and transform it into a RGBA image
+        if isinstance(img, bytes):
+            img = Image.open(io.BytesIO(img))
+            tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            tmp.paste(img)
+            img = tmp
+
+        if COUNT_DATA_PIXELS_ONLY:
+            pixels = self._count_data_pixels_only(img)
+        else:
+            h = img.height
+            w = img.width
+            pixels = h * w
+
+        # Calculation of megapixels, round up to 2 digits
+        # megapixels = width*height / 1,000,000
+        self.response_wms_megapixel = round(pixels / 1000000, 4)
+
+    def _count_data_pixels_only(self, img: Image):
+        """ Counts all pixels, besides the pure-alpha-pixels
+
+        Args:
+            img (Image): The image
+        Returns:
+             pixels (int): Amount of non-alpha pixels
+        """
+        # Get alpha channel pixel values as list
+        all_pixel_vals = list(img.getdata(3))
+
+        # Count all alpha pixel (value == 0)
+        num_alpha_pixels = all_pixel_vals.count(0)
+
+        # Compute difference
+        pixels = len(all_pixel_vals) - num_alpha_pixels
+
+        return pixels
+
+
 class OGCOperation(models.Model):
     operation = models.CharField(primary_key=True, max_length=255, choices=OGCOperationEnum.as_choices())
 
@@ -2021,7 +2064,7 @@ class OGCOperation(models.Model):
         return self.operation
 
 
-class AllowedOperation(models.Model):
+class AllowedOperation(UuidPk):
     """Configures the operation(s) which allows one or more groups to access a :class:`service.models.Resource`.
 
     id: the id of the ``SecuredOperation`` object
@@ -2033,15 +2076,12 @@ class AllowedOperation(models.Model):
     secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
                       applies to.
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     operations = models.ManyToManyField(OGCOperation, related_name="allowed_operations")
-    allowed_groups = models.ManyToManyField(MrMapGroup, related_name="allowed_operations")
+    # todo: we removed MrMapGroup from our models. What to do here? Which kind of groups we need here?
+    allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
     allowed_area = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")
-
-    def __str__(self):
-        return str(self.id)
 
     def setup_secured_metadata(self):
         child_nodes = self.root_metadata.get_described_element().get_subelements().select_related('metadata')
@@ -2067,7 +2107,7 @@ class AllowedOperation(models.Model):
         self.setup_secured_metadata()
 
 
-class Document(Resource):
+class Document(UuidPk, CommonInfo, Resource):
 
     from MrMap.validators import validate_document_enum_choices
     # One Metadata object can be related to multiple Document objects, cause we save the original and the customized
@@ -2832,53 +2872,7 @@ class Document(Resource):
         self.save()
 
 
-class Licence(Resource):
-    name = models.CharField(max_length=255)
-    identifier = models.CharField(max_length=255, unique=True)
-    symbol_url = models.URLField(null=True)
-    description = models.TextField()
-    description_url = models.URLField(null=True)
-    is_open_data = models.BooleanField(default=False)
-
-    def __str__(self):
-        return "{} ({})".format(self.identifier, self.name)
-
-    @classmethod
-    def as_choices(cls):
-        """ Returns a list of (identifier, name) to be used as choices in a form
-
-        Returns:
-             tuple_list (list): As described above
-        """
-        return [(licence.identifier, licence.__str__()) for licence in Licence.objects.filter(is_active=True)]
-
-    @classmethod
-    def get_descriptions_help_text(cls):
-        """ Returns a string containing all active Licence records for rendering as help_text in a form
-
-        Returns:
-             string (str): As described above
-        """
-        from django.db.utils import ProgrammingError
-
-        try:
-            descrs = [
-                "<a href='{}' target='_blank'>{}</a>".format(
-                    licence.description_url, licence.identifier
-                ) for licence in Licence.objects.filter(
-                    is_active=True
-                )
-            ]
-            descr_str = "<br>".join(descrs)
-            descr_str = _l("Explanations: <br>") + descr_str
-        except (ProgrammingError, OperationalError):
-            # This will happen on an initial installation. The Licence table won't be created yet, but this function
-            # will be called on makemigrations.
-            descr_str = ""
-        return descr_str
-
-
-class Category(Resource):
+class Category(UuidPk, Resource):
     type = models.CharField(max_length=255, choices=CategoryOriginEnum.as_choices())
     title_locale_1 = models.CharField(max_length=255, null=True)
     title_locale_2 = models.CharField(max_length=255, null=True)
@@ -2912,30 +2906,15 @@ class ServiceType(models.Model):
         return self.name
 
 
-class GenericUrl(Resource):
-    description = models.TextField(null=True, blank=True)
-    method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
-
-    def __str__(self):
-        return "{} ({})".format(self.url, self.method)
-
-
-class ServiceUrl(GenericUrl):
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
-
-
-class Service(Resource):
+class Service(UuidPk, CommonInfo, Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True, verbose_name=_l('Published for'))
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
     operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
-    created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)
 
     # used to store ows linked_service_metadata until parsing is finished
@@ -2948,9 +2927,6 @@ class Service(Resource):
         self.root_layer = None
         self.feature_type_list = []
         self.categories_list = []
-
-    def __str__(self):
-        return str(self.id)
 
     @property
     def icon(self):
@@ -3158,7 +3134,7 @@ class ReferenceSystem(models.Model):
         return str(self.code)
 
 
-class Dataset(Resource):
+class Dataset(UuidPk, CommonInfo, Resource):
     """ Representation of Dataset objects.
 
     Datasets identify a real-life resource, like a shapefile. One dataset can be the source for multiple services.
@@ -3296,9 +3272,12 @@ class LegalDate(models.Model):
         return self.date_type_code
 
 
-class MimeType(Resource):
+class MimeType(models.Model):
     operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
+
+    class Meta:
+        unique_together = ('operation', 'mime_type')
 
     def __str__(self):
         return self.mime_type
@@ -3510,7 +3489,7 @@ class Style(models.Model):
         return self.layer.identifier + ": " + self.name
 
 
-class FeatureType(Resource):
+class FeatureType(UuidPk, CommonInfo, Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
     parent_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="featuretypes")
     is_searchable = models.BooleanField(default=False)
@@ -3589,7 +3568,8 @@ class FeatureType(Resource):
         """
         return FeatureType.objects.filter(pk=self.pk)
 
-class FeatureTypeElement(Resource):
+
+class FeatureTypeElement(UuidPk, CommonInfo, Resource):
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255, null=True, blank=True)
 

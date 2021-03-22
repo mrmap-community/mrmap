@@ -9,7 +9,6 @@ from MrMap.columns import MrMapColumn
 from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 
 class MrMapTable(tables.Table):
@@ -33,7 +32,7 @@ class MrMapTable(tables.Table):
         self.request = request
         self.filter_set_class = filter_set_class
         self.queryset = queryset
-        self.user = user_helper.get_user(request)
+        self.user = request.user
         self.current_view = current_view
         self.param_lead = param_lead
 

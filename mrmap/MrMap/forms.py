@@ -7,7 +7,6 @@ from django.urls import reverse, resolve
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.responses import DefaultContext
-from users.helper import user_helper
 
 CURRENT_VIEW_QUERY_PARAM = 'current-view'
 CURRENT_VIEW_ARG_QUERY_PARAM = 'current-view-arg'
@@ -51,7 +50,7 @@ class MrMapModalForm:
 
         self.form_id = uuid.uuid4()
         self.request = request
-        self.requesting_user = user_helper.get_user(request)
+        self.requesting_user = request.user
         self.form_title = format_html(form_title)
         self.has_autocomplete_fields = has_autocomplete_fields
         self.reverse_lookup = reverse_lookup
@@ -193,7 +192,7 @@ class MrMapWizardForm(forms.Form):
 
         super(MrMapWizardForm, self).__init__(*args, **kwargs)
         self.request = request
-        self.requesting_user = user_helper.get_user(request)
+        self.requesting_user = request.user
         self.instance_id = instance_id
         self.has_autocomplete_fields = has_autocomplete_fields
 

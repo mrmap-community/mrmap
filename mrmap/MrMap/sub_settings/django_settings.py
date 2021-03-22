@@ -117,6 +117,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'dealer.contrib.django.Middleware',
+    'mrmap.main.middleware.CurrentUserMiddleware',
 ]
 
 # Password hashes

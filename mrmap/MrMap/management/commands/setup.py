@@ -8,7 +8,7 @@ Created on: 06.05.19
 from getpass import getpass
 
 from dateutil.parser import parse
-from django.contrib.auth.models import Permission
+from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, call_command
 from django.db import transaction
 from django.utils import timezone
@@ -16,9 +16,7 @@ from django.utils import timezone
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from service.helper.enums import OGCOperationEnum
 from service.models import OGCOperation
-from structure.models import MrMapGroup, Organization, MrMapUser
-from structure.settings import PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, \
-    SUPERUSER_GROUP_DESCRIPTION, PUBLIC_GROUP_DESCRIPTION
+from structure.models import Organization
 from monitoring.models import MonitoringSetting
 
 
@@ -45,7 +43,7 @@ class Command(BaseCommand):
         # Check if superuser already exists
         name = input("Enter a username: ")
 
-        if MrMapUser.objects.filter(username=name).exists():
+        if get_user_model().objects.filter(username=name).exists():
             self.stdout.write(self.style.NOTICE("User with that name already exists! Please choose another one!"))
             exit()
 
@@ -57,7 +55,7 @@ class Command(BaseCommand):
             password = getpass("Enter the password: ")
             password_conf = getpass("Enter the password again: ")
 
-        superuser = MrMapUser.objects.create_superuser(
+        superuser = get_user_model().objects.create_superuser(
             name,
             "",
             password
@@ -68,25 +66,10 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
-        # handle public group
-        group = self._create_public_group(superuser)
-        # group.created_by = superuser
-        group.user_set.add(superuser)
-        group.save()
-
-        # handle root group
-        group = self._create_superuser_group(superuser)
-        # group.created_by = superuser
-        group.user_set.add(superuser)
-        group.save()
-
         # handle root organization
         orga = self._create_default_organization()
-        default_group = self._create_default_group(orga, superuser)
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser '" + name + "' added to group '" + str(group.name) + "'!"
-        self.stdout.write(self.style.SUCCESS(str(msg)))
         msg = "Superuser '" + name + "' added to organization '" + str(orga.organization_name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
@@ -102,52 +85,6 @@ class Command(BaseCommand):
         self.stdout.write((self.style.SUCCESS(msg)))
 
     @staticmethod
-    def _create_public_group(user: MrMapUser):
-        """ Creates public group
-
-        Args:
-            user (MrMapUser): The superuser object
-        Returns:
-             group (Group): The newly created group
-        """
-        try:
-            group = MrMapGroup.objects.get(
-                name=PUBLIC_GROUP_NAME,
-                description=PUBLIC_GROUP_DESCRIPTION,
-                is_public_group=True,
-                is_permission_group=True,
-            )
-        except MrMapGroup.DoesNotExist:
-            group = MrMapGroup(
-                name=PUBLIC_GROUP_NAME,
-                description=PUBLIC_GROUP_DESCRIPTION,
-                created_by=user,
-                is_public_group=True,
-                is_permission_group=True,
-            )
-            group.save()
-
-        return group
-
-    @staticmethod
-    def _create_superuser_group(user: MrMapUser):
-        """ Creates default group, default role for group and default superuser permission for role
-
-        Args:
-            user (MrMapUser): The superuser object
-        Returns:
-             group (Group): The newly created group
-        """
-        group, created = MrMapGroup.objects.get_or_create(
-            name=SUPERUSER_GROUP_NAME,
-            description=SUPERUSER_GROUP_DESCRIPTION,
-            is_permission_group=True,
-            created_by=user,
-        )
-        group.permissions.add(*Permission.objects.all())
-        return group
-
-    @staticmethod
     def _create_default_organization():
         """ Create default organization for superuser
 
@@ -157,25 +94,6 @@ class Command(BaseCommand):
         orga = Organization.objects.get_or_create(organization_name="Testorganization")[0]
 
         return orga
-
-    @staticmethod
-    def _create_default_group(org: Organization, user: MrMapUser):
-
-        try:
-            group = MrMapGroup.objects.get(
-                name="Testgroup",
-                organization=org,
-            )
-        except MrMapGroup.DoesNotExist:
-            group = MrMapGroup(
-                name="Testgroup",
-                organization=org,
-                created_by=user,
-            )
-            group.save()
-
-        group.user_set.add(user)
-        return group
 
     @staticmethod
     def _create_default_monitoring_setting():

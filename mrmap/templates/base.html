@@ -32,11 +32,6 @@
                   {% autoescape off %}{{ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Structure' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
-                    <h6 class="dropdown-header">{% trans 'Groups' %}</h6>
-                    <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %} <span class="badge badge-secondary">{{mr_map_group_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_new' %}" title="{% trans 'New Group' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
                     <div class="d-flex">
@@ -48,10 +43,6 @@
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'structure:publish_request_overview' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%} <span class="badge {% if pending_publish_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_publish_requests_count}}</span></a>
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'structure:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
-                    <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:group_invitation_request_overview' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Group invitations'%} <span class="badge {% if pending_group_invitation_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_group_invitation_requests_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_invitation_request_new' %}" title="{% trans 'New Group invitation request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Users' %}</h6>

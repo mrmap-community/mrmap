@@ -15,9 +15,9 @@ from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import RequestOperation, ExternalAuthentication, Metadata
+from service.models import RequestOperation, ExternalAuthentication, Metadata, Service
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
-from structure.models import MrMapUser
+from structure.models import Organization
 
 
 class OGCWebService:
@@ -221,7 +221,11 @@ class OGCWebService:
         self.service_bounding_box = bbox
 
     @abstractmethod
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
+    def create_service_model_instance(self,
+                                      user,
+                                      register_for_organization: Organization,
+                                      external_auth: ExternalAuthentication,
+                                      is_update_candidate_for: Service):
         pass
 
     def _process_external_authentication(self, md: Metadata, external_auth: ExternalAuthentication):

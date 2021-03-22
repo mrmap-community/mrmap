@@ -19,7 +19,6 @@ class TemplateRoleAdmin(admin.ModelAdmin):
 
 
 class OrganizationBasedTemplateRoleAdmin(admin.ModelAdmin):
-    exclude = ('permissions', )
     form = GroupAdminForm
 
 

@@ -20,7 +20,6 @@ from service.helper.enums import PendingTaskEnum
 from service.models import Metadata
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 CURRENT_VIEW_QUERY_Param = 'current-view'
 CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
@@ -45,10 +44,10 @@ def validate(request, metadata_id: str):
         return HttpResponse('Resource to be validated is not active',
                             status=status.HTTP_400_BAD_REQUEST)
 
-    user = user_helper.get_user(request)
+    user = request.user
     group = metadata.created_by
 
-    success_callback = complete_validation.s(group_id=group.id, user_id=user.id)
+    success_callback = complete_validation.s()
     error_callback = complete_validation_error.s(group_id=group.id,
                                                  user_id=user.id,
                                                  config_id=config_id,

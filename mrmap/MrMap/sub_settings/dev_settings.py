@@ -54,13 +54,16 @@ MIGRATABLE_APPS = [
 ]
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = 'structure.MrMapUser'
+AUTH_USER_MODEL = 'users.MrMapUser'
+
+OWNER_MODEL = 'structure.Organization'
 
 # Defines which authentication backends are used
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # this is default
     'guardian.backends.ObjectPermissionBackend',
 )
+
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from structure.models import MrMapUser
+from django.contrib.auth import get_user_model
 
 
 class GroupAdminForm(forms.ModelForm):
@@ -9,7 +9,7 @@ class GroupAdminForm(forms.ModelForm):
     the users in the group.
     """
     users = forms.ModelMultipleChoiceField(
-        MrMapUser.objects.all(),
+        get_user_model().objects.all(),
         widget=admin.widgets.FilteredSelectMultiple('Users', False),
         required=False,
         )

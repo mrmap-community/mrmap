@@ -9,21 +9,20 @@ import base64
 import json
 import time
 import traceback
+
+from django.contrib.auth import get_user_model
 from requests.exceptions import InvalidURL
 
 import requests
 from celery import shared_task
 from lxml.etree import XMLSyntaxError, XPathEvalError
-
-from MrMap import utils
-from MrMap.messages import SERVICE_REGISTERED
 from MrMap.settings import EXEC_TIME_PRINT
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
+from structure.models import Organization, PendingTask, ErrorReport
 from service.helper import task_helper
 from mrmap.service.helper import service_helper
-from users.helper import user_helper
+from django.conf import settings
 
 
 @shared_task(name="async_increase_hits")
@@ -40,7 +39,7 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
+def async_new_service(url_dict: dict, user_id: int, register_for_organization_id: int,
                       external_auth: dict):
     """ Async call of new service creation
 
@@ -50,7 +49,6 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     Args:
         url_dict (dict): Contains basic information about the service like connection uri
         user_id (int): Id of the performing user
-        register_group_id (int): Id of the group which wants to register
         register_for_organization_id (int): Id of the organization for which the service is registered
     Returns:
         nothing
@@ -71,15 +69,11 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         task_helper.update_progress(async_new_service, 0)
 
     # restore objects from ids
-    user = MrMapUser.objects.get(id=user_id)
+    user = get_user_model().objects.get(id=user_id)
     url_dict["service"] = service_helper.resolve_service_enum(url_dict["service"])
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
-    register_group = MrMapGroup.objects.get(id=register_group_id)
-    if utils.resolve_none_string(str(register_for_organization_id)) is not None:
-        register_for_organization = Organization.objects.get(id=register_for_organization_id)
-    else:
-        register_for_organization = None
+    register_for_organization = Organization.objects.get(pk=register_for_organization_id)
 
     try:
         t_start = time.time()
@@ -88,7 +82,6 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             url_dict.get("version"),
             url_dict.get("base_uri"),
             user,
-            register_group,
             register_for_organization,
             async_task=async_new_service,
             external_auth=external_auth
@@ -116,14 +109,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         if external_auth is not None:
             service.metadata.set_proxy(True)
 
-        metadatas = Metadata.objects.filter(pk=service.metadata.pk)
-        sub_elements = service.get_subelements().select_related('metadata')
-        for sub_element in sub_elements:
-            metadatas |= Metadata.objects.filter(pk=sub_element.metadata.pk)
-            metadatas |= sub_element.metadata.get_related_dataset_metadatas()
-
         service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-        user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, 100)
@@ -149,10 +135,10 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
 
-            register_group = MrMapGroup.objects.get(id=register_group_id)
+            register_org = Organization.objects.get(id=register_for_organization_id)
             error_report = ErrorReport(message=error_msg,
                                        traceback=traceback.format_exc(),
-                                       created_by=register_group)
+                                       created_by=register_org)
             error_report.save()
 
             descr = json.loads(pending_task.description)
@@ -162,7 +148,8 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
                     "current": "0",
                 },
                 "exception": e.__str__(),
-                "phase": "ERROR: Something went wrong! Click on generate error report to inform your serveradmin about this error.",
+                "phase": "ERROR: Something went wrong! Click on generate error report to inform your serveradmin "
+                         "about this error.",
             })
             pending_task.error_report = error_report
             pending_task.save()

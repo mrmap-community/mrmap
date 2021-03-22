@@ -5,6 +5,8 @@ For more information on this file, see
 # todo: link to the docs
 
 """
+from uuid import uuid4
+
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -13,7 +15,6 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from guardian_roles.models.template_code import EDIT_LINK_BUTTON
-from structure.models import Organization
 from django.conf import settings
 
 
@@ -38,7 +39,9 @@ class ConcreteTemplateRole(models.Model):
     """
     # do not change after generation of this instance, cause permission changing is not implemented for base_template
     # changing.
-    based_template = models.ForeignKey(to=TemplateRole, on_delete=models.CASCADE)
+    based_template = models.ForeignKey(to=TemplateRole,
+                                       on_delete=models.CASCADE,
+                                       related_name="%(app_label)s_%(class)s_concrete_template",)
     description = models.TextField(verbose_name=_("Description"),
                                    help_text=_("Describe what permissions this role shall grant"))
 
@@ -46,17 +49,14 @@ class ConcreteTemplateRole(models.Model):
         abstract = True
 
     def __str__(self):
-        return '{} | {} | {}'.format(
+        return '{} | {}'.format(
             str(self.content_object),
-            str(self.name),
-            str([perm.codename for perm in self.based_template.permissions.all()]))
+            str(self.based_template.verbose_name))
 
     def save(self, *args, **kwargs):
-        adding = self._state.adding
-        if adding:
-            self.name = f'{self.content_object} | {self.based_template.verbose_name}'
+        if self._state.adding:
             self.description = _('handle permissions based on the "').__str__() + self.based_template.__str__() + _(
-                '" `TemplateRole` for "').__str__() + self.content_object.__str__() + '"'
+                '" `TemplateRole` for owner"').__str__() + self.content_object.__str__() + '"'
         super().save(*args, **kwargs)
 
 
@@ -75,7 +75,7 @@ class OrganizationBasedTemplateRole(ConcreteTemplateRole):
     User membership:
         Is handled by the user it self.
     """
-    content_object = models.ForeignKey(to=Organization,
+    content_object = models.ForeignKey(to=settings.OWNER_MODEL,
                                        on_delete=models.CASCADE,
                                        related_name='real_organization_based_template_roles')
     users = models.ManyToManyField(
@@ -124,3 +124,8 @@ class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
     object_pk = models.CharField(_('object ID'), max_length=255)
     content_object = GenericForeignKey(fk_field='object_pk')
     content_type = models.ForeignKey(to=ContentType, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            self.name = uuid4()
+        super(ObjectBasedTemplateRole, self).save(*args, **kwargs)

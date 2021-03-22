@@ -88,11 +88,6 @@
           {{ ICONS.RESTORE|safe }}
         </a>
         {% endif %}
-        {% if perms.service.remove_metadata %}
-        <a class="btn btn-sm btn-danger" href="{{object.remove_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Remove this resource' %}">
-          {{ ICONS.DELETE|safe }}
-        </a>
-        {% endif %}
       </div>
     </div>
 </div>

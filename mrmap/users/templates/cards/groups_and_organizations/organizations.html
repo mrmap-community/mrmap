@@ -20,10 +20,5 @@
 <a class="btn btn-primary" href="{% url 'structure:organization_overview' %}" role="button">
     {% trans 'Show'%}
 </a>
-{% if 'can_create_organization' in user_permissions %}
-<a class="btn btn-success" href="{% url 'structure:organization_new' %}" role="button">
-    {% autoescape off %}{{ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
-</a>
-{% endif %}
 {% endblock %}
 

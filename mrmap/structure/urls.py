@@ -1,6 +1,5 @@
 from django.urls import path
 
-from guardian_roles.wizards import CreateOrganizationWizard, CREATE_ORGANIZATION_WIZARD_FORMS
 from structure.views import *
 
 app_name = 'structure'
@@ -12,9 +11,7 @@ urlpatterns = [
 
     # Organizations
     path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
-    path('organizations/new', CreateOrganizationWizard.as_view(form_list=CREATE_ORGANIZATION_WIZARD_FORMS,), name='organization_new'),
     path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_details'),
-    path('organizations/<pk>/remove', OrganizationDeleteView.as_view(), name='organization_remove'),
     path('organizations/<pk>/members', OrganizationMembersTableView.as_view(), name='organization_members'),
     path('organizations/<pk>/publishers', OrganizationPublishersTableView.as_view(), name='organization_publisher_overview'),
 

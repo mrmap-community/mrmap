@@ -1,26 +1,13 @@
 from guardian_roles.enums import PermissionEnum
 from django.utils.translation import gettext_lazy as _
 
+
 DEFAULT_ROLES = [
-    {
-        "verbose_name": _("Group Administrator"),
-        "description": _("Permission role. Holds permissions to administrate groups."),
-        "permissions": [
-            PermissionEnum.CAN_CREATE_GROUP,
-            PermissionEnum.CAN_DELETE_GROUP,
-            PermissionEnum.CAN_EDIT_GROUP,
-            PermissionEnum.CAN_ADD_USER_TO_GROUP,
-            PermissionEnum.CAN_REMOVE_USER_FROM_GROUP,
-            PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS,
-        ],
-    },
     {
         "verbose_name": _("Organization Administrator"),
         "description": _("Permission role. Holds permissions to administrate organizations."),
         "permissions": [
-            PermissionEnum.CAN_CREATE_ORGANIZATION,
             PermissionEnum.CAN_EDIT_ORGANIZATION,
-            PermissionEnum.CAN_DELETE_ORGANIZATION,
             PermissionEnum.CAN_REMOVE_PUBLISHER,
         ],
     },

@@ -32,12 +32,8 @@
                   {% autoescape off %}{{ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Structure' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
-                    <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
-                    <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:organization_new' %}" title="{% trans 'New Organization' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
+                    <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Pending requests' %}</h6>
                     <div class="d-flex">

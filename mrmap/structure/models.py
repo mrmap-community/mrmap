@@ -15,7 +15,7 @@ from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from MrMap.validators import validate_pending_task_enum_choices
 from main.models import UuidPk, CommonInfo
 from service.helper.enums import PendingTaskEnum
-from structure.permissionEnums import PermissionEnum
+from guardian_roles.enums import PermissionEnum
 from users.settings import default_request_activation_time
 
 
@@ -135,32 +135,13 @@ class Organization(UuidPk, Contact):
     def publishers_uri(self):
         return reverse('structure:organization_publisher_overview', args=[self.pk, ])
 
-    @classmethod
-    def get_add_action(cls):
-        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
-        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
-        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                      content=icon + _(' new organization').__str__()).render()
-        return LinkButton(content=st_text + gt_text,
-                          color=ButtonColorEnum.SUCCESS,
-                          url=reverse('structure:organization_new'),
-                          needs_perm=PermissionEnum.CAN_EDIT_GROUP.value)
-
     @property
     def detail_view_uri(self):
         return reverse('structure:organization_details', args=[self.pk, ])
 
     @property
-    def add_view_uri(self):
-        return reverse('structure:organization_new', args=[self.pk, ])
-
-    @property
     def edit_view_uri(self):
         return reverse('structure:organization_edit', args=[self.pk, ])
-
-    @property
-    def remove_view_uri(self):
-        return reverse('structure:organization_remove', args=[self.pk, ])
 
     def get_actions(self):
         add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
@@ -188,14 +169,7 @@ class Organization(UuidPk, Contact):
         st_remove_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
         gt_remove_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
                              content=remove_icon + _(' remove').__str__()).render()
-        actions.append(LinkButton(url=self.remove_view_uri,
-                                  content=st_remove_text + gt_remove_text,
-                                  color=ButtonColorEnum.DANGER,
-                                  size=ButtonSizeEnum.SMALL,
-                                  tooltip=format_html(
-                                      _(f"Remove <strong>{self.organization_name} [{self.id}]</strong> organization")),
-                                  tooltip_placement=TooltipPlacementEnum.LEFT,
-                                  needs_perm=PermissionEnum.CAN_DELETE_ORGANIZATION.value))
+
         return actions
 
 

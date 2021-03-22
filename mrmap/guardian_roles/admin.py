@@ -19,7 +19,7 @@ class TemplateRoleAdmin(admin.ModelAdmin):
 
 
 class OrganizationBasedTemplateRoleAdmin(admin.ModelAdmin):
-    form = GroupAdminForm
+    pass
 
 
 class ObjectBasedTemplateRoleAdmin(admin.ModelAdmin):

@@ -107,22 +107,6 @@ class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextM
 
 
 @method_decorator(login_required, name='dispatch')
-class OrganizationDeleteView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
-    model = Organization
-    template_name = "MrMap/detail_views/delete.html"
-    success_url = reverse_lazy('structure:organization_overview')
-    success_message = ORGANIZATION_SUCCESSFULLY_DELETED
-    queryset = Organization.objects.filter(is_auto_generated=False)
-    title = _('Delete organization')
-    permission_required = PermissionEnum.CAN_DELETE_ORGANIZATION.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
-
-    def get_msg_dict(self):
-        return {'organization_name': self.get_object().organization_name}
-
-
-@method_decorator(login_required, name='dispatch')
 class OrganizationMembersTableView(DependingListView, OrganizationDetailContextMixin, CustomSingleTableMixin, FilterView):
     model = get_user_model()
     depending_model = Organization

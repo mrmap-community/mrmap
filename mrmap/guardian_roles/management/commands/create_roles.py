@@ -3,7 +3,7 @@ from django.core.management import BaseCommand
 from django.db import transaction
 from django.db.models import Q
 from guardian_roles.models.core import TemplateRole
-from guardian_roles.settings import DEFAULT_ROLES
+from guardian_roles.conf import settings as gurdian_roles_settings
 
 
 class Command(BaseCommand):
@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         with transaction.atomic():
-            for setting in DEFAULT_ROLES:
+            for setting in gurdian_roles_settings.DEFAULT_ROLES:
                 self._create_role_from_default_setting(setting=setting)
 
     @staticmethod

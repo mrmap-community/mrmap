@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from guardian_roles.models.template_code import EDIT_LINK_BUTTON
-from django.conf import settings
+from guardian_roles.conf import settings as guardina_roles_settings
 
 
 class TemplateRole(models.Model):
@@ -64,21 +64,23 @@ class OwnerBasedTemplateRole(ConcreteTemplateRole):
     """OwnerBasedTemplateRole model to handle Role groups per organization.
 
     Creation:
-        On `settings.OWNER_MODEL` creation, one `OwnerBasedTemplateRole` per selected `TemplateRole` is generated.
+        On `guardina_roles_settings.OWNER_MODEL` creation, one `OwnerBasedTemplateRole` per selected `TemplateRole` is
+        generated.
 
     Needed cause:
-        This is necessary to configure which users of an `settings.OWNER_MODEL` should basically have which role to
-        manage objects of this organization. This makes it possible to treat users from different
-        `settings.OWNER_MODEL` have permissions to **all** objects of the specified `settings.OWNER_MODEL`.
+        This is necessary to configure which users of an `guardina_roles_settings.OWNER_MODEL` should basically have
+        which role to manage objects of this organization. This makes it possible to treat users from different
+        `guardina_roles_settings.OWNER_MODEL` have permissions to **all** objects of the specified
+        `guardina_roles_settings.OWNER_MODEL`.
 
     User membership:
         Is handled by the user it self.
     """
-    content_object = models.ForeignKey(to=settings.OWNER_MODEL,
+    content_object = models.ForeignKey(to=guardina_roles_settings.OWNER_MODEL,
                                        on_delete=models.CASCADE,
                                        related_name='real_organization_based_template_roles')
     users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
+        guardina_roles_settings.AUTH_USER_MODEL,
         verbose_name=_('users'),
         blank=True,
         help_text=_(

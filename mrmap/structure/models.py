@@ -198,7 +198,6 @@ class PendingTask(CommonInfo):
     progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
     remaining_time = models.DurationField(blank=True, null=True)
     is_finished = models.BooleanField(default=False)
-    created_by = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.DO_NOTHING)
     error_report = models.ForeignKey(ErrorReport, null=True, blank=True, on_delete=models.SET_NULL)
     type = models.CharField(max_length=500, null=True, blank=True, choices=PendingTaskEnum.as_choices(), validators=[validate_pending_task_enum_choices])
 

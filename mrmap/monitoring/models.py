@@ -20,12 +20,13 @@ from django.utils import timezone
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
 from MrMap.utils import signal_last
+from main.models import UuidPk, CommonInfo
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 from structure.permissionEnums import PermissionEnum
 
 
-class MonitoringSetting(models.Model):
+class MonitoringSetting(UuidPk):
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
     check_time = models.TimeField()
     timeout = models.IntegerField()
@@ -79,7 +80,7 @@ class MonitoringSetting(models.Model):
         super().save(force_insert, force_update, using, update_fields)
 
 
-class MonitoringRun(models.Model):
+class MonitoringRun(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Monitoring run'))
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
@@ -127,14 +128,13 @@ class MonitoringRun(models.Model):
         return reverse('monitoring:run_new')
 
     @transaction.atomic
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        super().save(force_insert, force_update, using, update_fields)
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
         from monitoring.tasks import run_manual_monitoring
         run_manual_monitoring.delay(monitoring_run=self.pk)
 
 
-class MonitoringResult(models.Model):
+class MonitoringResult(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
     timestamp = models.DateTimeField(auto_now_add=True)

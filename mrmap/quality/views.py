@@ -45,7 +45,7 @@ def validate(request, metadata_id: str):
                             status=status.HTTP_400_BAD_REQUEST)
 
     user = request.user
-    group = metadata.created_by
+    owned_by_org = metadata.owned_by_org
 
     success_callback = complete_validation.s()
     error_callback = complete_validation_error.s(group_id=group.id,
@@ -57,17 +57,16 @@ def validate(request, metadata_id: str):
                                                  link=success_callback,
                                                  link_error=error_callback)
 
-    pending_task_db = PendingTask()
-    pending_task_db.created_by = group
-    pending_task_db.task_id = pending_task.id
-    pending_task_db.description = json.dumps({
-        "status": f'Validating {metadata.title}',
-        "service": metadata.title,
-        "phase": "Validating",
-    })
-    pending_task_db.progress = 10
-    pending_task_db.type = PendingTaskEnum.VALIDATE.value
-    pending_task_db.save()
+    PendingTask.objects.create(task_id=pending_task.id,
+                               desctiption=json.dumps({
+                                            "status": f'Validating {metadata.title}',
+                                            "service": metadata.title,
+                                            "phase": "Validating",
+                                            }),
+                               progress=10,
+                               type=PendingTaskEnum.VALIDATE.value,
+                               created_by_user=user,
+                               owned_by_org=owned_by_org)
 
     if current_view is not None:
         if current_view_arg is not None:

@@ -79,7 +79,10 @@ class Monitoring:
             self.check_dataset()
 
         # all checks are done. Calculate the health state for all monitoring results
-        health_state = HealthState(monitoring_run=self.monitoring_run, metadata=self.metadata)
+        health_state = HealthState(monitoring_run=self.monitoring_run,
+                                   metadata=self.metadata,
+                                   created_by_user=self.monitoring_run.created_by_user,
+                                   owned_by_org=self.monitoring_run.owned_by_org)
         health_state.save()
         health_state.run_health_state()
 
@@ -319,6 +322,8 @@ class Monitoring:
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
+                    created_by_user=self.monitoring_run.created_by_user,
+                    owned_by_org=self.monitoring_run.owned_by_org
                 )
             else:
                 needs_update = False
@@ -326,6 +331,8 @@ class Monitoring:
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
+                    created_by_user=self.monitoring_run.created_by_user,
+                    owned_by_org=self.monitoring_run.owned_by_org
                 )
             monitoring_capability.save()
         else:
@@ -373,13 +380,16 @@ class Monitoring:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
-                monitoring_run=self.monitoring_run,
+                monitoring_run=self.monitoring_run, created_by_user=self.monitoring_run.created_by_user,
+                owned_by_org=self.monitoring_run.owned_by_org
             )
         else:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 duration=service_status.duration, monitoring_run=self.monitoring_run,
+                created_by_user=self.monitoring_run.created_by_user,
+                owned_by_org=self.monitoring_run.owned_by_org
             )
         monitoring_result.save()
 
@@ -398,5 +408,7 @@ class Monitoring:
             duration=service_status.duration,
             monitored_uri=service_status.monitored_uri,
             monitoring_run=self.monitoring_run,
+            created_by_user=self.monitoring_run.created_by_user,
+            owned_by_org=self.monitoring_run.owned_by_org
         )
         monitoring_result.save()

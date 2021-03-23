@@ -127,7 +127,7 @@ class OGCLayer:
         metadata.is_active = False
 
         # Save metadata to use id afterwards
-        metadata.save(user=user, published_for=register_for_organization)
+        metadata.save(user=user, owner=register_for_organization)
 
         # create bounding box polygon
         bounding_points = (
@@ -175,7 +175,7 @@ class OGCLayer:
         layer.parent_service = parent_service
 
         # Save model so M2M relations can be used
-        layer.save(user=user, published_for=register_for_organization)
+        layer.save(user=user, owner=register_for_organization)
 
         operation_urls = [
             ServiceUrl.objects.get_or_create(

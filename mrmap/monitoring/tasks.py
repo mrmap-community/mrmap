@@ -35,14 +35,13 @@ def init_periodic_tasks(sender, **kwargs):
 @shared_task(name='run_service_monitoring')
 @transaction.atomic
 def run_monitoring(setting_id, *args, **kwargs):
-    monitoring_run = MonitoringRun.objects.create()
-
     try:
         setting = MonitoringSetting.objects.get(pk=setting_id)
     except (ObjectDoesNotExist, MultipleObjectsReturned):
         print(f'Could not retrieve setting with id {setting_id}')
         return
     metadatas = setting.metadatas.all()
+    monitoring_run = MonitoringRun.objects.create()
     for metadata in metadatas:
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )

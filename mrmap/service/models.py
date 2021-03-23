@@ -1,7 +1,6 @@
 import csv
 import io
 import json
-import uuid
 import os
 from collections import OrderedDict
 import time
@@ -65,7 +64,7 @@ class Resource(models.Model):
         return reverse('resource:details', args=[self.pk])
 
 
-class Keyword(models.Model):
+class Keyword(UuidPk):
     keyword = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
@@ -78,7 +77,7 @@ class Keyword(models.Model):
         ]
 
 
-class RequestOperation(models.Model):
+class RequestOperation(UuidPk):
     operation_name = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
@@ -110,11 +109,15 @@ class MetadataRelation(UuidPk):
         return collector
 
 
-class ExternalAuthentication(models.Model):
+class ExternalAuthentication(UuidPk, CommonInfo):
     username = models.CharField(max_length=255)
     password = models.CharField(max_length=500)
     auth_type = models.CharField(max_length=100)
-    metadata = models.OneToOneField('Metadata', on_delete=models.CASCADE, null=True, blank=True, related_name="external_authentication")
+    metadata = models.OneToOneField('Metadata',
+                                    on_delete=models.CASCADE,
+                                    null=True,
+                                    blank=True,
+                                    related_name="external_authentication")
 
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete function
@@ -920,7 +923,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         Returns:
             current_capability_document (str): The xml document
         """
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         cap_doc = None
 
         cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
@@ -1388,7 +1391,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
              nothing
         """
         from service.helper.ogc.wms import OGCWebMapServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
@@ -1434,7 +1437,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
 
         # Prepare 'service' for further handling
         # If no identifier is provided, we deal with a root metadata
@@ -1771,7 +1774,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         return health_states
 
 
-class ProxyLog(UuidPk):
+class ProxyLog(UuidPk, CommonInfo):
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     operation = models.CharField(max_length=100, null=True, blank=True)
@@ -2063,7 +2066,7 @@ class OGCOperation(models.Model):
         return self.operation
 
 
-class AllowedOperation(UuidPk):
+class AllowedOperation(UuidPk, CommonInfo):
     """Configures the operation(s) which allows one or more groups to access a :class:`service.models.Resource`.
 
     id: the id of the ``SecuredOperation`` object
@@ -2089,8 +2092,7 @@ class AllowedOperation(UuidPk):
         self.secured_metadata.clear()
         self.secured_metadata.add(*metadatas)
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+    def save(self, *args, **kwargs):
         """
         In the `OGCOperationRequestHandler` we have some query's against the `AllowedOperation` object filtered by
         an empty `GEOSGeometry` looked up in the `allowed_area` field. The lookup is implemented with
@@ -2102,7 +2104,9 @@ class AllowedOperation(UuidPk):
         """
         if self.allowed_area.empty:
             raise ValidationError('Empty MultiPolygon is not allowed')
-        super().save(force_insert=False, force_update=force_update, using=using, update_fields=update_fields)
+        if not self.owned_by_org:
+            self.owned_by_org = self.root_metadata.owned_by_org
+        super().save(*args, **kwargs)
         self.setup_secured_metadata()
 
 
@@ -3120,7 +3124,7 @@ class Module(Service):
         return self.type
 
 
-class ReferenceSystem(models.Model):
+class ReferenceSystem(UuidPk):
     code = models.CharField(max_length=100)
     prefix = models.CharField(max_length=255, default="EPSG:")
     version = models.CharField(max_length=50, default="9.6.1")
@@ -3237,7 +3241,7 @@ class Dataset(UuidPk, CommonInfo, Resource):
         return ret_val
 
 
-class LegalReport(models.Model):
+class LegalReport(UuidPk):
     """ Representation of gmd:DQ_DomainConsistency objects.
 
     """
@@ -3249,7 +3253,7 @@ class LegalReport(models.Model):
         return self.title
 
 
-class LegalDate(models.Model):
+class LegalDate(UuidPk):
     """ Representation of CI_DateType objects.
 
     Multiple records can create a history of actions related to a database element.
@@ -3271,7 +3275,7 @@ class LegalDate(models.Model):
         return self.date_type_code
 
 
-class MimeType(models.Model):
+class MimeType(UuidPk):
     operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
 
@@ -3282,7 +3286,7 @@ class MimeType(models.Model):
         return self.mime_type
 
 
-class Dimension(models.Model):
+class Dimension(UuidPk):
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)
@@ -3475,7 +3479,7 @@ class Dimension(models.Model):
         super().save(*args, **kwargs)
 
 
-class Style(models.Model):
+class Style(UuidPk):
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
     name = models.CharField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
@@ -3533,7 +3537,7 @@ class FeatureType(UuidPk, CommonInfo, Resource):
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         if self.parent_service is None:
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.service_type.version)
@@ -3576,7 +3580,7 @@ class FeatureTypeElement(UuidPk, CommonInfo, Resource):
         return self.name
 
 
-class Namespace(models.Model):
+class Namespace(UuidPk):
     name = models.CharField(max_length=50)
     version = models.CharField(max_length=50, blank=True, null=True)
     uri = models.CharField(max_length=500)

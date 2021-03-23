@@ -21,7 +21,7 @@ from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import xml_helper, task_helper
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, RequestOperation, ExternalAuthentication, ServiceUrl
 from service.settings import ALLOWED_SRS, PROGRESS_STATUS_AFTER_PARSING
@@ -724,7 +724,7 @@ class OGCWebFeatureService(OGCWebService):
             md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
-        md.save(user=user, published_for=owner)
+        md.save(user=user, owner=owner)
 
         return md
 
@@ -755,7 +755,7 @@ class OGCWebFeatureService(OGCWebService):
         service.is_update_candidate_for = is_update_candidate_for
 
         # Save record to enable M2M relations
-        service.save(user=user, published_for=orga_published_for)
+        service.save(user=user, owner=orga_published_for)
 
         operation_urls = [
             ServiceUrl.objects.get_or_create(
@@ -907,9 +907,9 @@ class OGCWebFeatureService(OGCWebService):
 
             f_t.parent_service = service
             md = f_t.metadata
-            md.save(user=user, published_for=owner)
+            md.save(user=user, owner=owner)
             f_t.metadata = md
-            f_t.save(user=user, published_for=owner)
+            f_t.save(user=user, owner=owner)
 
             # persist featuretype keywords through metadata
             for kw in f_t.metadata.keywords_list:

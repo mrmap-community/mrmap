@@ -47,7 +47,8 @@ def log_proxy(function):
                 uri=uri,
                 operation=get_dict_value_insensitive(request.GET.dict(), "request"),
                 post_body=post_body,
-                user=logged_user
+                user=logged_user,
+                owned_by_org=md.owned_by_org
             )
             proxy_log.save()
         return function(request=request, proxy_log=proxy_log, *args, **kwargs)

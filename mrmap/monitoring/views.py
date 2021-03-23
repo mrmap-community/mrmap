@@ -34,15 +34,15 @@ class MonitoringRunNewView(LoginRequiredMixin, PermissionRequiredMixin, GenericV
     permission_denied_message = NO_PERMISSION
 
 
-@method_decorator(login_required, name='dispatch')
-class MonitoringResultTableView(CustomSingleTableMixin, FilterView):
+class MonitoringResultTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = MonitoringResult
     table_class = MonitoringResultTable
     filterset_class = MonitoringResultTableFilter
+    permission_required = [PermissionEnum.CAN_VIEW_MONITORING_RESULT.value]
 
 
 @method_decorator(login_required, name='dispatch')
-class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
+class MonitoringResultDetailView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, DetailView):
     class Meta:
         verbose_name = _('Details')
 
@@ -50,6 +50,7 @@ class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
     template_name = 'MrMap/detail_views/table_tab.html'
     queryset = MonitoringResult.objects.all()
     title = _('Details')
+    permission_required = [PermissionEnum.CAN_VIEW_MONITORING_RESULT.value]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -59,14 +60,15 @@ class MonitoringResultDetailView(GenericViewContextMixin, DetailView):
 
 
 @method_decorator(login_required, name='dispatch')
-class HealthStateTableView(CustomSingleTableMixin, FilterView):
+class HealthStateTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = HealthState
     table_class = HealthStateTable
     filterset_class = HealthStateTableFilter
+    permission_required = [PermissionEnum.CAN_VIEW_HEALTH_STATE.value]
 
 
 @method_decorator(login_required, name='dispatch')
-class HealthStateDetailView(GenericViewContextMixin, DetailView):
+class HealthStateDetailView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, DetailView):
     class Meta:
         verbose_name = _('Details')
 
@@ -74,6 +76,7 @@ class HealthStateDetailView(GenericViewContextMixin, DetailView):
     template_name = 'MrMap/detail_views/table_tab.html'
     queryset = HealthState.objects.all()
     title = _('Details')
+    permission_required = [PermissionEnum.CAN_VIEW_HEALTH_STATE.value]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

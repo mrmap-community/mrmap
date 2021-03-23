@@ -104,7 +104,8 @@ class Harvester:
                 }),
                 progress=0,
                 remaining_time=None,
-                created_by=self.harvesting_organization
+                created_by_user=self.user,
+                owned_by_org=self.harvesting_organization,
             )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by

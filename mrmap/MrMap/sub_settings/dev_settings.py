@@ -51,6 +51,7 @@ MIGRATABLE_APPS = [
     'csw',
     'monitoring',
     'quality',
+    'guardian',
     'guardian_roles',
     'api'
 ]
@@ -141,7 +142,11 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 # django-guardian
 OWNER_MODEL = 'structure.Organization'
-OWNABLE_MODELS = ['service.Metadata', ]
+OWNABLE_MODELS = ['service.Metadata',
+                  'monitoring.MonitoringRun',
+                  'monitoring.MonitoringResult',
+                  'monitoring.HealthState',
+                  'service.ProxyLog']
 OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 
@@ -173,6 +178,7 @@ DEFAULT_ROLES = [
         "verbose_name": _("Resource Administrator"),
         "description": _("Permission role. Holds permissions to administrate resources."),
         "permissions": [
+            PermissionEnum.CAN_VIEW_METADATA,
             PermissionEnum.CAN_ACTIVATE_RESOURCE,
             PermissionEnum.CAN_UPDATE_RESOURCE,
             PermissionEnum.CAN_REGISTER_RESOURCE,

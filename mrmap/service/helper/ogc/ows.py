@@ -243,7 +243,7 @@ class OGCWebService:
             key = crypt_handler.generate_key()
             crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
             external_auth.encrypt(key)
-            external_auth.save()
+            external_auth.save(user=md.created_by_user, owner=md.owned_by_org)
 
 
 class OWSException:

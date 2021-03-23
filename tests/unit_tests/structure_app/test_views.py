@@ -84,7 +84,7 @@ class StructurePendingTaskViewTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(PendingTask.objects.all().count(), 9)
+        self.assertEqual(PendingTask.objects.count(), 9)
 
 
 class StructureDetailOrganizationViewTestCase(TestCase):

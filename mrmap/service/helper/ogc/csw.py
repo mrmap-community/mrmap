@@ -9,7 +9,7 @@ from celery import Task
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper, task_helper
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
@@ -117,7 +117,7 @@ class OGCCatalogueService(OGCWebService):
             md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
-        md.save(user=user, published_for=register_for_organization)
+        md.save(user=user, owner=register_for_organization)
         md.identifier = str(md.id) if md.identifier is None else md.identifier
 
         # Keywords
@@ -157,7 +157,7 @@ class OGCCatalogueService(OGCWebService):
         service.is_update_candidate_for = is_update_candidate_for
 
         # Save record to enable M2M relations
-        service.save(user=user, published_for=orga_published_for)
+        service.save(user=user, owner=orga_published_for)
 
         operation_urls = [
             ServiceUrl.objects.get_or_create(

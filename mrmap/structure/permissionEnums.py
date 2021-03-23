@@ -51,6 +51,12 @@ class PermissionEnum(EnumChoice):
     CAN_VIEW_MONITORING_RUN = "monitoring.view_monitoringrun"
     CAN_RUN_MONITORING = "monitoring.add_monitoringrun"
 
+    # MonitoringResult
+    CAN_VIEW_MONITORING_RESULT = "monitoring.view_monitoringresult"
+
+    # HealthState
+    CAN_VIEW_HEALTH_STATE = "monitoring.view_healthstate"
+
     # ConformityCheckRun
     CAN_RUN_VALIDATION = "quality.add_conformitycheckrun"
 

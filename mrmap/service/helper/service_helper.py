@@ -275,16 +275,16 @@ def create_new_service(form, user):
     )
 
     # create db object, so we know which pending task is still ongoing
-    pending_task_db = PendingTask()
-    pending_task_db.created_by = form.cleaned_data['registering_for_organization']
-    pending_task_db.task_id = pending_task.task_id
-    pending_task_db.description = json.dumps({
-        "service": form.cleaned_data['uri'],
-        "phase": "Parsing",
-    })
-    pending_task_db.type = PendingTaskEnum.REGISTER.value
-
-    pending_task_db.save()
+    pending_task_db = PendingTask.objects.create(
+        task_id=pending_task.task_id,
+        description=json.dumps({
+            "service": form.cleaned_data['uri'],
+            "phase": "Parsing",
+        }),
+        type=PendingTaskEnum.REGISTER.value,
+        created_by_user=user,
+        owned_by_org=form.cleaned_data['registering_for_organization'],
+                                                 )
     return pending_task_db
 
 

@@ -57,7 +57,7 @@ class CommonInfo(models.Model):
     def get_current_user():
         return CurrentUserMiddleware.get_current_user()
 
-    def set_user_specific_fields(self, user, published_for):
+    def set_user_specific_fields(self, user, owner):
         """
         Set user-related fields before saving the instance.
         If no user with a primary key is given the fields are not
@@ -66,14 +66,14 @@ class CommonInfo(models.Model):
         if user and user.pk:
             if self._state.adding:
                 self.created_by_user = user
-                self.owned_by_org = published_for if published_for else user.organization
+                self.owned_by_org = owner if owner else user.organization
             self.last_modified_by = user
 
-    def save(self, user=None, update_last_modified=True, published_for=None, *args, **kwargs):
+    def save(self, user=None, update_last_modified=True, owner=None, *args, **kwargs):
         if update_last_modified:
             # We always want to have automatically the last timestamp from the latest change!
             # ONLY if the function is especially called with a False flag in update_last_modified, we will not change
             # the record's last change
             self.last_modified_at = timezone.now()
-        self.set_user_specific_fields(user=user if user else self.get_current_user(), published_for=published_for)
+        self.set_user_specific_fields(user=user if user else self.get_current_user(), owner=owner)
         super(CommonInfo, self).save(*args, **kwargs)

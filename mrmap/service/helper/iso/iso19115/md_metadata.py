@@ -7,7 +7,7 @@ Created on: 26.05.20
 ToDo: description
 """
 from service.helper.iso.iso19115.md_data_identification import create_gmd_identification_info
-from mrmap.service.helper.iso.iso19115.xml_creation import NS_GMD, create_xml_element, create_xml_doc
+from service.helper.iso.iso19115.xml_creation import NS_GMD, create_xml_element, create_xml_doc
 from service.models import Metadata
 from structure.models import Organization
 

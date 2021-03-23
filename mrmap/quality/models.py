@@ -7,6 +7,7 @@ Created on: 27.10.20
 """
 from django.db import models
 
+from main.models import UuidPk
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum
@@ -22,7 +23,7 @@ class ConformityCheckConfigurationManager(models.Manager):
             metadata_types__contains=metadata_type)
 
 
-class ConformityCheckConfiguration(models.Model):
+class ConformityCheckConfiguration(UuidPk):
     """
     Base model for ConformityCheckConfiguration classes.
     """
@@ -61,7 +62,7 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
                                                        blank=True, null=False)
 
 
-class Rule(models.Model):
+class Rule(UuidPk):
     """
     Model holding the definition of a single rule.
     """
@@ -92,7 +93,7 @@ class Rule(models.Model):
         }
 
 
-class RuleSet(models.Model):
+class RuleSet(UuidPk):
     """
     Model grouping rules and holding the result of a rule check run.
     """
@@ -135,7 +136,7 @@ class ConformityCheckRunManager(models.Manager):
         return check
 
 
-class ConformityCheckRun(models.Model):
+class ConformityCheckRun(UuidPk):
     """
     Model holding the relation of a metadata record to the results of a check.
     """

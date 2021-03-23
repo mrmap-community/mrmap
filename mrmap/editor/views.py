@@ -19,49 +19,42 @@ from MrMap.views import ConfirmView, GenericViewContextMixin, InitFormMixin, Cus
 from editor.filters import AllowedOperationFilter
 from editor.forms import MetadataEditorForm
 from editor.tables import AllowedOperationTable
+from main.views import SecuredDeleteView, SecuredUpdateView, SecuredConfirmView, SecuredListMixin
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, AllowedOperation
 from structure.permissionEnums import PermissionEnum
 
 
-class DatasetDelete(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class DatasetDelete(SecuredDeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:datasets-index')
     template_name = 'MrMap/detail_views/delete.html'
     queryset = Metadata.objects.filter(metadata_type=MetadataEnum.DATASET.value)
     success_message = _("Dataset successfully deleted.")
     permission_required = PermissionEnum.CAN_REMOVE_DATASET_METADATA.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         return _("Remove " + self.get_object().__str__())
 
 
-class EditMetadata(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class EditMetadata(SecuredUpdateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = RESOURCE_EDITED
     model = Metadata
     form_class = MetadataEditorForm
     queryset = Metadata.objects.filter(~Q(metadata_type=MetadataEnum.CATALOGUE.value) |
                                        ~Q(metadata_type=MetadataEnum.DATASET.value))
-    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         return _("Edit " + self.get_object().__str__())
 
 
-class RestoreMetadata(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, ConfirmView):
+class RestoreMetadata(SecuredConfirmView):
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
     is_custom = Q(is_custom=True)
     queryset = Metadata.objects.filter(is_custom | no_cataloge_type)
     success_message = METADATA_RESTORING_SUCCESS
-    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         return _("Restore ").__str__() + self.object.__str__()
@@ -88,13 +81,12 @@ class RestoreMetadata(LoginRequiredMixin, PermissionRequiredMixin, GenericViewCo
         return HttpResponseRedirect(success_url)
 
 
-class AllowedOperationTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
+class AllowedOperationTableView(SecuredListMixin, FilterView):
     model = AllowedOperation
     table_class = AllowedOperationTable
     filterset_class = AllowedOperationFilter
     template_name = 'generic_views/generic_list_with_base.html'
     root_metadata = None
-    permission_required = PermissionEnum.CAN_VIEW_ALLOWED_OPERATION.value
 
     def dispatch(self, request, *args, **kwargs):
         self.root_metadata = get_object_or_404(Metadata, id=kwargs.get('pk', None))

@@ -19,17 +19,15 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
-from django.views.generic.edit import UpdateView, CreateView, DeleteView
-from guardian.mixins import PermissionListMixin, LoginRequiredMixin, PermissionRequiredMixin
+from guardian.mixins import LoginRequiredMixin
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
-from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
+from main.views import SecuredUpdateView, SecuredDeleteView, SecuredCreateView, SecuredListMixin
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from structure.forms import RegistrationForm
 from structure.models import Organization, PublishRequest
-from structure.permissionEnums import PermissionEnum
 from users.forms import SubscriptionForm, MrMapUserForm
 from users.models import Subscription, UserActivation
 from users.settings import users_logger
@@ -115,7 +113,7 @@ class MrMapPasswordResetView(SuccessMessageMixin, PasswordResetView):
     success_message = PASSWORD_SENT
 
 
-class EditProfileView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class EditProfileView(SecuredUpdateView):
     template_name = 'users/views/profile/password_change.html'
     success_message = _('Profile successfully edited.')
     model = get_user_model()
@@ -127,7 +125,7 @@ class EditProfileView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixi
         return get_object_or_404(get_user_model(), username=self.request.user.username)
 
 
-class ActivateUser(DeleteView):
+class ActivateUser(SecuredDeleteView):
     template_name = "views/user_activation.html"
     model = UserActivation
     success_url = reverse_lazy('login')
@@ -152,7 +150,7 @@ class ActivateUser(DeleteView):
         return context
 
 
-class SignUpView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
+class SignUpView(SecuredCreateView):
     template_name = 'users/views/logged_out/sign_up.html'
     success_url = reverse_lazy('login')
     model = get_user_model()
@@ -177,18 +175,17 @@ class SignUpView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
         return response
 
 
-class SubscriptionTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, ListView):
+class SubscriptionTableView(SecuredListMixin, ListView):
     model = Subscription
     table_class = SubscriptionTable
     template_name = 'users/views/profile/manage_subscriptions.html'
-    permission_required = [PermissionEnum.CAN_VIEW_SUBSCRIPTION.value]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(user=self.request.user)
 
 
-class AddSubscriptionView(LoginRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, CreateView):
+class AddSubscriptionView(SecuredCreateView):
     model = Subscription
     template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
@@ -201,22 +198,19 @@ class AddSubscriptionView(LoginRequiredMixin, GenericViewContextMixin, SuccessMe
         return initial
 
 
-class UpdateSubscriptionView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, UpdateView):
+class UpdateSubscriptionView(SecuredUpdateView):
     model = Subscription
     template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
     success_message = SUBSCRIPTION_EDITING_SUCCESSFULL
-    permission_required = [PermissionEnum.CAN_EDIT_SUBSCRIPTION.value]
 
     def get_title(self):
         return format_html(_(f'Update subscription for <strong>{self.object.metadata}</strong>'))
 
 
-class DeleteSubscriptionView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class DeleteSubscriptionView(SecuredDeleteView):
     model = Subscription
     template_name = "users/views/profile/delete_subscription.html"
     success_url = reverse_lazy('manage_subscriptions')
     success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
     title = _('Delete subscription')
-    permission_required = [PermissionEnum.CAN_DELETE_SUBSCRIPTION.value]
-

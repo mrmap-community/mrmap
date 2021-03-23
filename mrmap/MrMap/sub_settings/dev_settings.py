@@ -11,8 +11,6 @@ from django.contrib import messages
 
 from MrMap.sub_settings.django_settings import BASE_DIR
 from guardian_roles.enums import PermissionEnum
-from service.models import Metadata
-from structure.models import Organization
 from django.utils.translation import gettext_lazy as _
 
 """
@@ -142,8 +140,8 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 
 # django-guardian
-OWNER_MODEL = Organization
-OWNABLE_MODELS = [Metadata]
+OWNER_MODEL = 'structure.Organization'
+OWNABLE_MODELS = ['service.Metadata', ]
 OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 

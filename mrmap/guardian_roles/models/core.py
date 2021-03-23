@@ -14,6 +14,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 from guardian_roles.models.template_code import EDIT_LINK_BUTTON
 from guardian_roles.conf import settings as guardina_roles_settings
 
@@ -80,7 +81,7 @@ class OwnerBasedTemplateRole(ConcreteTemplateRole):
                                        on_delete=models.CASCADE,
                                        related_name='real_organization_based_template_roles')
     users = models.ManyToManyField(
-        guardina_roles_settings.AUTH_USER_MODEL,
+        settings.AUTH_USER_MODEL,
         verbose_name=_('users'),
         blank=True,
         help_text=_(

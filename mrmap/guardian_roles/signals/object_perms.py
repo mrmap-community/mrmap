@@ -6,6 +6,7 @@ from guardian.shortcuts import assign_perm
 
 from guardian_roles.conf import settings as guardina_roles_settings
 from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OwnerBasedTemplateRole
+from guardian_roles.utils import get_model_from_string
 
 
 def _generate_object_based_template_roles(instance):
@@ -83,12 +84,13 @@ def handle_instance_delete(sender, instance, **kwargs):
 
 
 for model in guardina_roles_settings.OWNABLE_MODELS:
+    model_class = get_model_from_string(model)
     post_save.connect(receiver=assign_perm_to_object,
-                      sender=model,
+                      sender=model_class,
                       dispatch_uid=f"assign_perm_to_object_for_{model}")
     post_save.connect(receiver=handle_owner_change,
-                      sender=model,
+                      sender=model_class,
                       dispatch_uid=f"handle_owner_change_for_{model}")
     post_delete.connect(receiver=handle_instance_delete,
-                        sender=model,
+                        sender=model_class,
                         dispatch_uid=f"handle_instance_delete_for_{model}")

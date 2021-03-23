@@ -7,7 +7,10 @@ Created on: 28.05.19
 """
 import uuid
 import six
+from django.db.models import Q
+from guardian.shortcuts import get_objects_for_user
 
+from main.models import CommonInfo
 from service.models import Metadata
 from django.utils.translation import gettext_lazy as _l
 from django.contrib.auth.hashers import get_hasher
@@ -21,7 +24,6 @@ from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum, ButtonSizeEnum
 from MrMap.icons import IconEnum, get_icon
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import MetadataEnum
 from structure.models import Organization
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 from users.settings import default_activation_time
@@ -73,43 +75,16 @@ class MrMapUser(AbstractUser):
         return self.organization.get_publishable_organizations(include_self=include_self) if self.organization \
             else Organization.objects.none()
 
-    def get_metadatas_as_qs(self, type: MetadataEnum = None, inverse_match: bool = False):
-        """ Returns all metadatas which are related to the user
-
-        Returns:
-             md_list:
-        """
-        from service.models import Metadata
-
-        md_list = Metadata.objects.filter(
-            created_by__in=self.groups.all(),
-        ).order_by("title")
-        if type is not None:
-            if inverse_match:
-                md_list = md_list.all().exclude(metadata_type=type.name.lower())
-            else:
-                md_list = md_list.filter(metadata_type=type.name.lower())
-        return md_list
-
-    def get_datasets_as_qs(self, count=False):
-        """ Returns all datasets which are related to the user
-
-        Returns:
-             md_list:
-        """
-        from service.models import Metadata
-
-        if count:
-            md_list = Metadata.objects.filter(
-                metadata_type=MetadataEnum.DATASET.value,
-                owned_by_org__in=self.get_publishable_organizations(),
-            ).count()
+    def get_instances(self, klass, filter: Q = None, perms: str = None):
+        if not perms:
+            perms = f'{klass._meta.app_label}.view_{klass._meta.object_name.lower()}'
+        if filter:
+            queryset = klass.objects.filter(filter)
         else:
-            md_list = Metadata.objects.filter(
-                metadata_type=MetadataEnum.DATASET.value,
-                owned_by_org__in=self.get_publishable_organizations(),
-            ).order_by("title")
-        return md_list
+            queryset = klass.objects.all()
+        return get_objects_for_user(user=self,
+                                    perms=perms,
+                                    klass=queryset)
 
     def create_activation(self):
         """ Create an activation object
@@ -149,7 +124,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         )
 
 
-class Subscription(models.Model):
+class Subscription(CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE,

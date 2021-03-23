@@ -192,7 +192,7 @@ class ErrorReport(UuidPk):
         return report
 
 
-class PendingTask(models.Model):
+class PendingTask(CommonInfo):
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
     progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
@@ -282,9 +282,7 @@ class PublishRequest(BaseInternalRequest):
         unique_together = ('from_organization', 'to_organization',)
         verbose_name = _('Pending publish request')
         verbose_name_plural = _('Pending publish requests')
-        permissions = [
-            ("toggle_publish_requests", "Can toggle publish requests"),
-        ]
+
 
     @property
     def icon(self):

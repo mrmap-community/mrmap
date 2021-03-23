@@ -1,4 +1,3 @@
-from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
@@ -11,6 +10,8 @@ from django.views.generic import DeleteView, UpdateView
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
+from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
+
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
 from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, RESOURCE_EDITED, NO_PERMISSION
@@ -23,8 +24,7 @@ from service.models import Metadata, AllowedOperation
 from structure.permissionEnums import PermissionEnum
 
 
-@method_decorator(login_required, name='dispatch')
-class DatasetDelete(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class DatasetDelete(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:datasets-index')
     template_name = 'MrMap/detail_views/delete.html'
@@ -38,8 +38,7 @@ class DatasetDelete(PermissionRequiredMixin, GenericViewContextMixin, SuccessMes
         return _("Remove " + self.get_object().__str__())
 
 
-@method_decorator(login_required, name='dispatch')
-class EditMetadata(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class EditMetadata(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = RESOURCE_EDITED
     model = Metadata
@@ -54,8 +53,7 @@ class EditMetadata(PermissionRequiredMixin, GenericViewContextMixin, InitFormMix
         return _("Edit " + self.get_object().__str__())
 
 
-@method_decorator(login_required, name='dispatch')
-class RestoreMetadata(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, ConfirmView):
+class RestoreMetadata(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, ConfirmView):
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
     is_custom = Q(is_custom=True)
@@ -90,13 +88,13 @@ class RestoreMetadata(PermissionRequiredMixin, GenericViewContextMixin, SuccessM
         return HttpResponseRedirect(success_url)
 
 
-@method_decorator(login_required, name='dispatch')
-class AllowedOperationTableView(CustomSingleTableMixin, FilterView):
+class AllowedOperationTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = AllowedOperation
     table_class = AllowedOperationTable
     filterset_class = AllowedOperationFilter
     template_name = 'generic_views/generic_list_with_base.html'
     root_metadata = None
+    permission_required = PermissionEnum.CAN_VIEW_ALLOWED_OPERATION.value
 
     def dispatch(self, request, *args, **kwargs):
         self.root_metadata = get_object_or_404(Metadata, id=kwargs.get('pk', None))

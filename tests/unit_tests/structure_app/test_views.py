@@ -238,7 +238,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_valid_accept_publish_request(self):
-        perm = Permission.objects.get(codename=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value.split(".")[-1])
+        perm = Permission.objects.get(codename=PermissionEnum.CAN_DELETE_PUBLISH_REQUEST.value.split(".")[-1])
         self.user.groups.first().permissions.add(perm)
 
         post_params = {'is_accepted': 'True', }
@@ -256,7 +256,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
         self.assertEqual(response.url, reverse('structure:publish_request_overview'))
 
     def test_invalid_accept_publish_request(self):
-        perm = Permission.objects.get(codename=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value.split(".")[-1])
+        perm = Permission.objects.get(codename=PermissionEnum.CAN_DELETE_PUBLISH_REQUEST.value.split(".")[-1])
         self.user.groups.first().permissions.add(perm)
 
         post_params = {'is_accepted': "True", }
@@ -318,7 +318,7 @@ class StructurePublishRequestViewTestCase(TestCase):
                           password=self.user_password)
 
     def test_valid_publish_request(self):
-        perm = Permission.objects.get(codename=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value.split(".")[-1])
+        perm = Permission.objects.get(codename=PermissionEnum.CAN_ADD_PUBLISH_REQUEST.value.split(".")[-1])
         self.user.groups.first().permissions.add(perm)
 
         post_params = {'organization': self.user.organization.id,

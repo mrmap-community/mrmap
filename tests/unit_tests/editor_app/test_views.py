@@ -6,6 +6,7 @@ Created on: 27.04.20
 
 """
 from django.contrib.messages import get_messages
+from django.db.models import Q
 from django.test import TestCase, Client
 from django.urls import reverse
 
@@ -116,7 +117,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         Returns:
 
         """
-        datasets = self.user.get_datasets_as_qs().first()
+        datasets = self.user.get_metadatas(filter=Q(metadata_type=MetadataEnum.DATASET.value)).first()
         url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets.id])
         response = self.client.get(
             url,
@@ -192,7 +193,7 @@ class EditorDatasetRemoveInstanceViewTestCase(TestCase):
         Returns:
 
         """
-        datasets = self.user.get_datasets_as_qs()
+        datasets = self.user.get_metadatas(filter=Q(metadata_type=MetadataEnum.DATASET.value))
 
         response = self.client.post(
             reverse('resource:remove-dataset-metadata', args=(datasets[0].id, )),
@@ -219,7 +220,7 @@ class EditorRestoreDatasetViewTestCase(TestCase):
         """
         return
         # todo: currently this is not a unit test, cause ISOMetadata() resolves the metadata from remote...
-        datasets = self.user.get_datasets_as_qs()
+        datasets = self.user.get_metadatas(filter=Q(metadata_type=MetadataEnum.DATASET.value))
 
         response = self.client.post(
             reverse('resource:restore', args=(datasets[0].id,)),

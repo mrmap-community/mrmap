@@ -23,7 +23,7 @@ from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
-from guardian.mixins import PermissionListMixin, PermissionRequiredMixin
+from guardian.mixins import PermissionListMixin, PermissionRequiredMixin, LoginRequiredMixin
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
@@ -80,15 +80,14 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
     ).order_by("title")
 
 
-@method_decorator(login_required, name='dispatch')
-class PendingTaskView(CustomSingleTableMixin, ListView):
+class PendingTaskView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTable
+    permission_required = [PermissionEnum.CAN_VIEW_PENDING_TASK.value]
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
 
 
-@method_decorator(login_required, name='dispatch')
-class WmsIndexView(PermissionListMixin, CustomSingleTableMixin, FilterView):
+class WmsIndexView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
@@ -118,11 +117,12 @@ class WmsIndexView(PermissionListMixin, CustomSingleTableMixin, FilterView):
         return table
 
 
-@method_decorator(login_required, name='dispatch')
-class WfsIndexView(CustomSingleTableMixin, FilterView):
+class WfsIndexView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
+    queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.WFS)
     #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
 
@@ -136,15 +136,13 @@ class WfsIndexView(CustomSingleTableMixin, FilterView):
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
-    def get_queryset(self):
-        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.WFS)
 
-
-@method_decorator(login_required, name='dispatch')
-class CswIndexView(CustomSingleTableMixin, FilterView):
+class CswIndexView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
+    queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.CSW)
     #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
 
@@ -157,15 +155,12 @@ class CswIndexView(CustomSingleTableMixin, FilterView):
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
-    def get_queryset(self):
-        return get_queryset_filter_by_service_type(instance=self, service_type=OGCServiceEnum.CSW)
 
-
-@method_decorator(login_required, name='dispatch')
-class DatasetIndexView(CustomSingleTableMixin, FilterView):
+class DatasetIndexView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = DatasetTable
     filterset_class = DatasetFilter
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
     title = get_icon(IconEnum.DATASET) + _(' Dataset').__str__()
 
     def get_table(self, **kwargs):
@@ -177,11 +172,10 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        return self.request.user.get_datasets_as_qs()
+        return self.request.user.get_instances(klass=Metadata, filter=Q(metadata_type=MetadataEnum.DATASET.value))
 
 
-@method_decorator(login_required, name='dispatch')
-class ResourceDeleteView(PermissionRequiredMixin, SuccessMessageDeleteMixin, DeleteView):
+class ResourceDeleteView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageDeleteMixin, DeleteView):
     model = Metadata
     queryset = Metadata.objects.filter(Q(metadata_type=MetadataEnum.SERVICE.value) |
                                        Q(metadata_type=MetadataEnum.CATALOGUE.value))
@@ -197,8 +191,7 @@ class ResourceDeleteView(PermissionRequiredMixin, SuccessMessageDeleteMixin, Del
         return {'name': self.get_object()}
 
 
-@method_decorator(login_required, name='dispatch')
-class ResourceActivateDeactivateView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class ResourceActivateDeactivateView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     model = Metadata
     template_name = "MrMap/detail_views/generic_form.html"
     fields = ('is_active',)
@@ -700,11 +693,11 @@ def run_update_service(request: HttpRequest, metadata_id):
         return HttpResponseRedirect(reverse("resource:pending-update", args=(metadata_id,)), status=303)
 
 
-@method_decorator(login_required, name='dispatch')
-class ResourceDetailTableView(DetailView):
+class ResourceDetailTableView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
     queryset = Metadata.objects.all().prefetch_related('contact', 'service', 'service__layer', 'featuretype')
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -715,11 +708,11 @@ class ResourceDetailTableView(DetailView):
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-class ResourceRelatedDatasetView(DetailView):
+class ResourceRelatedDatasetView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
     queryset = Metadata.objects.all().prefetch_related('related_metadatas', )
+    permission_required = [PermissionEnum.CAN_VIEW_METADATA.value]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -763,8 +756,7 @@ def render_actions(element, render_helper):
     return element.actions
 
 
-@method_decorator(login_required, name='dispatch')
-class ResourceTreeView(PermissionRequiredMixin, DetailView):
+class ResourceTreeView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Metadata
     template_name = 'generic_views/resource.html'
     available_resources = Q(metadata_type='layer') | \
@@ -918,10 +910,11 @@ def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
 
 
 @method_decorator(login_required, name='dispatch')
-class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
+class LogsIndexView(LoginRequiredMixin, PermissionListMixin, ExportMixin, CustomSingleTableMixin, FilterView):
     model = ProxyLog
     table_class = ProxyLogTable
     filterset_class = ProxyLogTableFilter
+    permission_required = [PermissionEnum.CAN_VIEW_PROXY_LOG.value]
     export_name = f'MrMap_logs_{timezone.now().strftime("%Y-%m-%dT%H_%M_%S")}'
 
     def get_table(self, **kwargs):
@@ -942,16 +935,6 @@ class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
 
         dropdown = Dropdown(btn_value=Tag(tag='i', attrs={"class": [IconEnum.DOWNLOAD.value]}) + _(" Export as"),
                             items=[csv_download_link, json_download_link],
-                            needs_perm=PermissionEnum.CAN_ACCESS_LOGS.value)
+                            needs_perm=PermissionEnum.CAN_VIEW_PROXY_LOG.value)
         table.actions = [render_helper.render_item(item=dropdown)]
         return table
-
-    def get_queryset(self):
-        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.groups.all())
-
-        return ProxyLog.objects.filter(
-            metadata__in=group_metadatas
-        ).prefetch_related(
-            "metadata",
-            "user"
-        )

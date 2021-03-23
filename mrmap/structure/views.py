@@ -2,12 +2,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Case, When, Q
 from django.http import HttpResponseRedirect
-from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.generic import DeleteView, DetailView, UpdateView, CreateView
@@ -15,40 +13,17 @@ from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
+from guardian.mixins import LoginRequiredMixin, PermissionListMixin
 from MrMap.icons import IconEnum
 from MrMap.messages import PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
-    ORGANIZATION_SUCCESSFULLY_DELETED, PUBLISH_REQUEST_SENT, NO_PERMISSION
-from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, DependingListView, \
-    SuccessMessageDeleteMixin
+    PUBLISH_REQUEST_SENT, NO_PERMISSION
+from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, DependingListView
 from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PendingTask, ErrorReport, PublishRequest
 from structure.tables import OrganizationTable, \
     OrganizationDetailTable, OrganizationMemberTable, MrMapUserTable, \
     PublishesRequestTable, OrganizationPublishersTable
 from django.urls import reverse_lazy
-
-
-class GroupDetailContextMixin(ContextMixin):
-    object = None
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        tab_nav = [{'url': self.object.get_absolute_url,
-                    'title': _('Details')},
-                   {'url': self.object.members_view_uri,
-                    'title': _('Members ').__str__() + Badge(content=str(self.object.user_set.count()),
-                                                            color=BadgeColorEnum.SECONDARY)},
-                   {'url': self.object.publish_rights_for_uri,
-                    'title': _('Publish rights for ').__str__() +
-                             Badge(content=str(self.object.publish_for_organizations.count()),
-                                   color=BadgeColorEnum.SECONDARY)},
-                   ]
-
-        context.update({"object": self.object,
-                        'actions': self.object.get_actions(self.request),
-                        'tab_nav': tab_nav,
-                        'publisher_requests_count': PublishRequest.objects.filter(group=self.object).count()})
-        return context
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -73,13 +48,13 @@ class OrganizationDetailContextMixin(ContextMixin):
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-class OrganizationTableView(CustomSingleTableMixin, FilterView):
+class OrganizationTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = Organization
     table_class = OrganizationTable
     filterset_fields = {'organization_name': ['icontains'],
                         #'parent__organization_name': ['icontains'],
                         'is_auto_generated': ['exact']}
+    permission_required = [PermissionEnum.CAN_VIEW_ORGANIZATION.value]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -89,14 +64,13 @@ class OrganizationTableView(CustomSingleTableMixin, FilterView):
         return queryset
 
 
-@method_decorator(login_required, name='dispatch')
-class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextMixin, DetailView):
+class OrganizationDetailView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, OrganizationDetailContextMixin, DetailView):
     class Meta:
         verbose_name = _('Details')
 
     model = Organization
     template_name = 'MrMap/detail_views/table_tab.html'
-    queryset = Organization.objects.all()
+    permission_required = [PermissionEnum.CAN_VIEW_ORGANIZATION.value]
     title = _('Details')
 
     def get_context_data(self, **kwargs):
@@ -106,13 +80,13 @@ class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextM
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-class OrganizationMembersTableView(DependingListView, OrganizationDetailContextMixin, CustomSingleTableMixin, FilterView):
+class OrganizationMembersTableView(LoginRequiredMixin, PermissionListMixin, DependingListView, OrganizationDetailContextMixin, CustomSingleTableMixin, FilterView):
     model = get_user_model()
     depending_model = Organization
     table_class = OrganizationMemberTable
     filterset_fields = {'username': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
+    permission_required = [PermissionEnum.CAN_VIEW_ORGANIZATION.value]
     object = None
     title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Members')
 
@@ -123,13 +97,13 @@ class OrganizationMembersTableView(DependingListView, OrganizationDetailContextM
         return {'organization': self.object}
 
 
-@method_decorator(login_required, name='dispatch')
-class OrganizationPublishersTableView(DependingListView, OrganizationDetailContextMixin, CustomSingleTableMixin, FilterView):
+class OrganizationPublishersTableView(LoginRequiredMixin, PermissionListMixin, DependingListView, OrganizationDetailContextMixin, CustomSingleTableMixin, FilterView):
     model = Organization
     depending_model = Organization
     table_class = OrganizationPublishersTable
     filterset_fields = {'organization_name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
+    permission_required = [PermissionEnum.CAN_VIEW_ORGANIZATION.value]
     object = None
     title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Publish for list')
 
@@ -140,11 +114,11 @@ class OrganizationPublishersTableView(DependingListView, OrganizationDetailConte
         return {'organization': self.object}
 
 
-@method_decorator(login_required, name='dispatch')
-class PendingTaskDelete(DeleteView):
+class PendingTaskDelete(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = PendingTask
     success_url = reverse_lazy('resource:pending-tasks')
     template_name = 'generic_views/generic_confirm.html'
+    permission_required = [PermissionEnum.CAN_DELETE_PENDING_TASK.value]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -156,11 +130,11 @@ class PendingTaskDelete(DeleteView):
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-class ErrorReportDetailView(DetailView):
+class ErrorReportDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = ErrorReport
     content_type = "text/plain"
     template_name = "structure/views/error-reports/error.txt"
+    permission_required = [PermissionEnum.CAN_VIEW_PENDING_TASK.value]
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
@@ -168,14 +142,13 @@ class ErrorReportDetailView(DetailView):
         return response
 
 
-@method_decorator(login_required, name='dispatch')
-class PublishRequestNewView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class PublishRequestNewView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = PublishRequest
     fields = ('group', 'organization', 'message')
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('Publish request')
     success_message = PUBLISH_REQUEST_SENT
-    permission_required = PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value
+    permission_required = PermissionEnum.CAN_ADD_PUBLISH_REQUEST.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 
@@ -189,31 +162,21 @@ class PublishRequestNewView(PermissionRequiredMixin, GenericViewContextMixin, In
             return super().form_valid(form)
 
 
-@method_decorator(login_required, name='dispatch')
-class PublishRequestTableView(CustomSingleTableMixin, FilterView):
+class PublishRequestTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = PublishRequest
     table_class = PublishesRequestTable
     filterset_fields = ['group', 'organization', 'message']
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        if not self.request.user.is_superuser:
-            # show only requests for groups or organization where the user is member of
-            # superuser can see all pending requests
-            queryset.filter(Q(group__in=self.request.user.groups.all()) |
-                            Q(organization=self.request.user.organization))
-        return queryset
+    permission_required = [PermissionEnum.CAN_VIEW_PUBLISH_REQUEST.value]
 
 
-@method_decorator(login_required, name='dispatch')
-class PublishRequestAcceptView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, InitFormMixin, UpdateView):
+class PublishRequestAcceptView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, InitFormMixin, UpdateView):
     model = PublishRequest
     template_name = "MrMap/detail_views/generic_form.html"
     success_url = reverse_lazy('structure:publish_request_overview')
     fields = ('is_accepted', )
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept request')
-    permission_required = PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value
+    permission_required = PermissionEnum.CAN_EDIT_PUBLISH_REQUEST.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 
@@ -226,20 +189,18 @@ class PublishRequestAcceptView(PermissionRequiredMixin, GenericViewContextMixin,
         return response
 
 
-@method_decorator(login_required, name='dispatch')
-class PublishRequestRemoveView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class PublishRequestRemoveView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = PublishRequest
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:index')
     success_message = PUBLISH_REQUEST_DENIED
     title = _('Deny request')
-    permission_required = PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value
+    permission_required = PermissionEnum.CAN_DELETE_PUBLISH_REQUEST.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 
 
-@method_decorator(login_required, name='dispatch')
-class UserTableView(CustomSingleTableMixin, FilterView):
+class UserTableView(LoginRequiredMixin, CustomSingleTableMixin, FilterView):
     model = get_user_model()
     table_class = MrMapUserTable
     filterset_fields = {'username': ['icontains'],

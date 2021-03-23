@@ -186,8 +186,8 @@ class DatasetIdentificationForm(MrMapWizardForm):
                                                         *args,
                                                         **kwargs)
 
-        self.fields['additional_related_objects'].queryset = self.request.user.get_metadatas_as_qs(
-            type=MetadataEnum.DATASET, inverse_match=True)
+        self.fields['additional_related_objects'].queryset = self.request.user.get_metadatas(
+            filter=~Q(type=MetadataEnum.DATASET))
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
         user = kwargs.pop("request").user

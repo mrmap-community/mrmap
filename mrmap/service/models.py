@@ -311,7 +311,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             ("harvest_resource", "Can harvest a resource"),
             ("add_resource", "Can add new resources"),
             ("delete_resource", "Can delete resources"),
-
+            ("secure_resource", "Can secure resources"),
         ]
 
     def __init__(self, *args, **kwargs):

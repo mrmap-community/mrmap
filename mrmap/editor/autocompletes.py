@@ -86,7 +86,7 @@ class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
         if user is None:
             return None
 
-        records = user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
+        records = user.get_metadatas(filter=~Q(type=MetadataEnum.DATASET))
         query = ""
         if self.q:
             # There are filtering parameters!

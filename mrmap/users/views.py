@@ -8,27 +8,28 @@ Created on: 28.05.19
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sites.shortcuts import get_current_site
+from django.db.models import Q
 from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
+from guardian.mixins import PermissionListMixin, LoginRequiredMixin, PermissionRequiredMixin
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
-from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
+from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from structure.forms import RegistrationForm
 from structure.models import Organization, PublishRequest
+from structure.permissionEnums import PermissionEnum
 from users.forms import SubscriptionForm, MrMapUserForm
 from users.models import Subscription, UserActivation
 from users.settings import users_logger
@@ -56,8 +57,7 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-class HomeView(TemplateView):
+class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "users/views/home/dashboard.html"
 
     def get_context_data(self, **kwargs):
@@ -75,7 +75,7 @@ class HomeView(TemplateView):
             service__is_deleted=False,
         ).count()
 
-        datasets_count = self.request.user.get_datasets_as_qs(count=True)
+        datasets_count = self.request.user.get_instances(klass=Metadata, filter=Q(metadata_type=MetadataEnum.DATASET.value)).count()
 
         pending_requests = PublishRequest.objects.filter(to_organization=self.request.user.organization)
         context.update({
@@ -91,8 +91,7 @@ class HomeView(TemplateView):
         return context
 
 
-@method_decorator(login_required, name='dispatch')
-class ProfileView(DetailView):
+class ProfileView(LoginRequiredMixin, DetailView):
     template_name = "users/views/profile/profile.html"
     model = get_user_model()
     slug_field = "username"
@@ -178,19 +177,18 @@ class SignUpView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
         return response
 
 
-@method_decorator(login_required, name='dispatch')
-class SubscriptionTableView(CustomSingleTableMixin, ListView):
+class SubscriptionTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, ListView):
     model = Subscription
     table_class = SubscriptionTable
     template_name = 'users/views/profile/manage_subscriptions.html'
+    permission_required = [PermissionEnum.CAN_VIEW_SUBSCRIPTION.value]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(user=self.request.user)
 
 
-@method_decorator(login_required, name='dispatch')
-class AddSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, CreateView):
+class AddSubscriptionView(LoginRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, CreateView):
     model = Subscription
     template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
@@ -203,21 +201,22 @@ class AddSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, CreateVi
         return initial
 
 
-@method_decorator(login_required, name='dispatch')
-class UpdateSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, UpdateView):
+class UpdateSubscriptionView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, UpdateView):
     model = Subscription
     template_name = "users/views/profile/add_update_subscription.html"
     form_class = SubscriptionForm
     success_message = SUBSCRIPTION_EDITING_SUCCESSFULL
+    permission_required = [PermissionEnum.CAN_EDIT_SUBSCRIPTION.value]
 
     def get_title(self):
         return format_html(_(f'Update subscription for <strong>{self.object.metadata}</strong>'))
 
 
-@method_decorator(login_required, name='dispatch')
-class DeleteSubscriptionView(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class DeleteSubscriptionView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = Subscription
     template_name = "users/views/profile/delete_subscription.html"
     success_url = reverse_lazy('manage_subscriptions')
     success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
     title = _('Delete subscription')
+    permission_required = [PermissionEnum.CAN_DELETE_SUBSCRIPTION.value]
+

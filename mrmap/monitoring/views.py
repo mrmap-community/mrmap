@@ -1,9 +1,10 @@
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView
 from django_filters.views import FilterView
+from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
+
 from MrMap.messages import MONITORING_RUN_SCHEDULED, NO_PERMISSION
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
 from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
@@ -15,21 +16,20 @@ from django.utils.translation import gettext_lazy as _
 from structure.permissionEnums import PermissionEnum
 
 
-@method_decorator(login_required, name='dispatch')
-class MonitoringRunTableView(CustomSingleTableMixin, FilterView):
+class MonitoringRunTableView(LoginRequiredMixin, PermissionListMixin, CustomSingleTableMixin, FilterView):
     model = MonitoringRun
     table_class = MonitoringRunTable
     filterset_class = MonitoringRunTableFilter
+    permission_required = [PermissionEnum.CAN_VIEW_MONITORING_RUN.value]
 
 
-@method_decorator(login_required, name='dispatch')
-class MonitoringRunNewView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class MonitoringRunNewView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = MonitoringRun
     form_class = MonitoringRunForm
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New monitoring run')
     success_message = MONITORING_RUN_SCHEDULED
-    permission_required = PermissionEnum.CAN_RUN_MONITORING.value
+    permission_required = [PermissionEnum.CAN_RUN_MONITORING.value]
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 

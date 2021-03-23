@@ -11,8 +11,12 @@ from service.models import Metadata
 
 
 class MetadataUserObjectPermission(UserObjectPermissionBase):
-    content_object = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+    content_object = models.ForeignKey(to=Metadata,
+                                       on_delete=models.CASCADE,
+                                       related_name="metadata_user_object_permissions")
 
 
 class MetadataGroupObjectPermission(GroupObjectPermissionBase):
-    content_object = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+    content_object = models.ForeignKey(to=Metadata,
+                                       on_delete=models.CASCADE,
+                                       related_name="metadata_group_object_permissions")

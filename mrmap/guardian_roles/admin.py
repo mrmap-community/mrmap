@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from guardian_roles.admin_forms import GroupAdminForm
-from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OrganizationBasedTemplateRole
+from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OwnerBasedTemplateRole
 from guardian.models import UserObjectPermission, GroupObjectPermission
 from guardian_roles.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
 
@@ -28,7 +28,7 @@ class ObjectBasedTemplateRoleAdmin(admin.ModelAdmin):
 
 
 admin.site.register(TemplateRole, TemplateRoleAdmin)
-admin.site.register(OrganizationBasedTemplateRole, OrganizationBasedTemplateRoleAdmin)
+admin.site.register(OwnerBasedTemplateRole, OrganizationBasedTemplateRoleAdmin)
 admin.site.register(ObjectBasedTemplateRole, ObjectBasedTemplateRoleAdmin)
 """
 Django admin view pages for dedicated MrMap models placed in models.object_perms.py

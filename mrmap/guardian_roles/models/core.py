@@ -60,17 +60,16 @@ class ConcreteTemplateRole(models.Model):
         super().save(*args, **kwargs)
 
 
-class OrganizationBasedTemplateRole(ConcreteTemplateRole):
-    """OrganizationBasedTemplateRole model to handle Role groups per organization.
+class OwnerBasedTemplateRole(ConcreteTemplateRole):
+    """OwnerBasedTemplateRole model to handle Role groups per organization.
 
     Creation:
-        On `Organization` creation, one `OrganizationBasedTemplateRole` per selected `TemplateRole` is generated.
-        Handled by `CreateOrganizationWizard.done()`.
+        On `settings.OWNER_MODEL` creation, one `OwnerBasedTemplateRole` per selected `TemplateRole` is generated.
 
     Needed cause:
-        This is necessary to configure which users of an `Organization` should basically have which role to manage
-        objects of this organization. This makes it possible to treat users from different `Organization` have
-        permissions to **all** objects of the specified `Organization`.
+        This is necessary to configure which users of an `settings.OWNER_MODEL` should basically have which role to
+        manage objects of this organization. This makes it possible to treat users from different
+        `settings.OWNER_MODEL` have permissions to **all** objects of the specified `settings.OWNER_MODEL`.
 
     User membership:
         Is handled by the user it self.
@@ -91,13 +90,13 @@ class OrganizationBasedTemplateRole(ConcreteTemplateRole):
     )
 
     def get_absolute_url(self):
-        return reverse('guardian_roles:organization_role_detail', args=[self.pk])
+        return reverse('guardian_roles:owner_role_detail', args=[self.pk])
 
     def get_edit_url(self):
-        return reverse('guardian_roles:organization_role_edit', args=[self.pk])
+        return reverse('guardian_roles:owner_role_edit', args=[self.pk])
 
     def get_members_view_uri(self):
-        return reverse('guardian_roles:organization_role_detail_members', args=[self.pk])
+        return reverse('guardian_roles:owner_role_detail_members', args=[self.pk])
 
     def get_actions(self):
         return [format_html(EDIT_LINK_BUTTON % {'url': self.get_edit_url()})]
@@ -116,8 +115,8 @@ class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
         **specific** object.
 
     User membership:
-        Is handled by `OrganizationBasedTemplateRole` objects. If a user is added/removed to a
-        `OrganizationBasedTemplateRole` all users of this specific `OrganizationBasedTemplateRole` will be added/removed
+        Is handled by `OwnerBasedTemplateRole` objects. If a user is added/removed to a
+        `OwnerBasedTemplateRole` all users of this specific `OwnerBasedTemplateRole` will be added/removed
          to all `ObjectBasedTemplateRole` objects with the same related base_template filtered by objects of the given
         `Organization`.
     """

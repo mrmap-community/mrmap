@@ -4,7 +4,7 @@ from django_bootstrap_swt.components import Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 
 
-class OrganizationBasedTemplateRoleDetailContextMixin(ContextMixin):
+class OwnerBasedTemplateRoleDetailContextMixin(ContextMixin):
     object = None
 
     def get_context_data(self, **kwargs):

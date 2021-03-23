@@ -1,6 +1,7 @@
 from guardian_roles.enums import PermissionEnum
 from django.utils.translation import gettext_lazy as _
 
+from service.models import Metadata
 
 DEFAULT_ROLES = [
     {
@@ -41,3 +42,8 @@ DEFAULT_ROLES = [
         ],
     },
 ]
+
+OWNABLE_MODELS = [Metadata]
+
+OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
+OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'

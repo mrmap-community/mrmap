@@ -5,4 +5,6 @@ class PermissionConfig(AppConfig):
     name = 'guardian_roles'
 
     def ready(self):  # method just to import the signals
-        import guardian_roles.signals  # noqa
+        import guardian_roles.signals.core  # noqa
+        import guardian_roles.signals.object_perms  # noqa
+        import guardian_roles.settings # noqa

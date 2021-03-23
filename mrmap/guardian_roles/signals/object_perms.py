@@ -47,14 +47,15 @@ def assign_perm_to_object(sender, instance, created, **kwargs):
                 assign_perm(perm=perm, user_or_group=obj, obj=instance)
 
 
-def handle_owner_change(sender, instance, created, **kwargs):
+def handle_owner_change(sender, instance, created, update_fields, **kwargs):
     """handle owner changes for the given instance
 
     Args:
         sender: the model class of the given instance
         instance: the instance of the given sender model
         created: boolean flag which is True if the instance is new
-
+        update_fields: The set of fields to update as passed to Model.save(), or None if update_fields wasn’t passed
+                        to save().
     Returns:
         None
 
@@ -68,7 +69,10 @@ def handle_owner_change(sender, instance, created, **kwargs):
                                        f'model: {instance._meta.model}')
         owner = getattr(instance, guardina_roles_settings.OWNER_FIELD_ATTRIBUTE)
         old_owner = getattr(instance, guardina_roles_settings.OLD_OWNER_FIELD_ATTRIBUTE)
-        if owner != old_owner:
+        if old_owner and owner != old_owner:
+            print(update_fields)
+            print(owner)
+            print(old_owner)
             # owner becomes changed, move users from old owner based templates to the new
             owner_based_roles = OwnerBasedTemplateRole.objects.filter(content_object=owner)
             for owner_based_role in owner_based_roles:

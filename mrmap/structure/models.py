@@ -92,9 +92,6 @@ class Organization(UuidPk, Contact):
         ordering = ['organization_name']
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
-        permissions = [
-            ("remove_publisher", "Can remove publisher")
-        ]
 
     def __str__(self):
         return self.organization_name if self.organization_name else ""

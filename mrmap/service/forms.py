@@ -35,7 +35,7 @@ class RegisterNewResourceWizardPage2(forms.Form):
     ogc_version = forms.CharField(label=_('OGC Version'), widget=forms.TextInput(attrs={'readonly': '', }))
     uri = forms.CharField(label=_('URI'), widget=forms.TextInput(attrs={'readonly': '', }))
     registering_for_organization = forms.ModelChoiceField(
-        label=_("Registration for other organization"),
+        label=_("Registration for organization"),
         help_text=_("If you need to register for another organization, select the group which has the publisher rights and select the organization in here."),
         queryset=Organization.objects.none(),
         to_field_name='id',
@@ -62,7 +62,7 @@ class RegisterNewResourceWizardPage2(forms.Form):
             raise ImproperlyConfigured("request is needed for this form to configure fields with dependencies.")
 
         super(RegisterNewResourceWizardPage2, self).__init__(*args, **kwargs)
-        self.fields['registering_for_organization'].queryset = self.request.user.organization.get_publishable_organizations()
+        self.fields['registering_for_organization'].queryset = self.request.user.get_publishable_organizations()
 
         service_needs_authentication_key = self.prefix+"-service_needs_authentication" if self.prefix else "service_needs_authentication"
         service_needs_authentication = None

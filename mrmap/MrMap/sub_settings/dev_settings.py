@@ -51,7 +51,7 @@ MIGRATABLE_APPS = [
     'csw',
     'monitoring',
     'quality',
-    'permission',
+    'guardian_roles',
     'api'
 ]
 
@@ -151,11 +151,10 @@ DEFAULT_ROLES = [
         "description": _("Permission role. Holds permissions to administrate organizations."),
         "permissions": [
             PermissionEnum.CAN_EDIT_ORGANIZATION,
-            PermissionEnum.CAN_REMOVE_PUBLISHER,
         ],
     },
     {
-        "verbose_name": _("Editor"),
+        "verbose_name": _("Resource Editor"),
         "description": _("Permission role. Holds permissions to edit metadata or activate resources."),
         "permissions": [
             PermissionEnum.CAN_ACTIVATE_RESOURCE,

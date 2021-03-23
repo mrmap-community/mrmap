@@ -26,25 +26,27 @@ def default_context(request: HttpRequest):
         if not request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
             # superuser can see all pending requests
-            pending_publish_requests_count = PublishRequest.objects.filter(Q(group__in=request.user.groups.all()) |
-                                                                           Q(organization=request.user.organization)).count()
+            pending_publish_requests_count = PublishRequest.objects.filter(Q(from_organization=request.user.organization) |
+                                                                           Q(to_organization=request.user.organization)).count()
         else:
             pending_publish_requests_count = PublishRequest.objects.count()
 
         pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
         pending_tasks_count = PendingTask.objects.count()
 
+        publishable_orgas = request.user.get_publishable_organizations()
+
         wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
                                             service__is_root=True,
-                                            owned_by_org__in=request.user.organization.get_publishable_organizations(),
+                                            owned_by_org__in=publishable_orgas,
                                             is_deleted=False,
                                             service__is_update_candidate_for=None,).count()
         wfs_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WFS.value,
-                                            owned_by_org__in=request.user.organization.get_publishable_organizations(),
+                                            owned_by_org__in=publishable_orgas,
                                             is_deleted=False,
                                             service__is_update_candidate_for=None, ).count()
         csw_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.CSW.value,
-                                            owned_by_org__in=request.user.organization.get_publishable_organizations(),
+                                            owned_by_org__in=publishable_orgas,
                                             is_deleted=False,
                                             service__is_update_candidate_for=None, ).count()
         dataset_count = request.user.get_datasets_as_qs().count()

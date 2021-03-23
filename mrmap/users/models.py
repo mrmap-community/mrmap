@@ -67,6 +67,12 @@ class MrMapUser(AbstractUser):
     def invite_to_group_url(self):
         return f"{reverse('structure:group_invitation_request_new')}?user={self.id}"
 
+    def get_publishable_organizations(self, include_self=True):
+        if self.is_superuser:
+            return Organization.objects.filter(is_auto_generated=False)
+        return self.organization.get_publishable_organizations(include_self=include_self) if self.organization \
+            else Organization.objects.none()
+
     def get_metadatas_as_qs(self, type: MetadataEnum = None, inverse_match: bool = False):
         """ Returns all metadatas which are related to the user
 
@@ -96,12 +102,12 @@ class MrMapUser(AbstractUser):
         if count:
             md_list = Metadata.objects.filter(
                 metadata_type=MetadataEnum.DATASET.value,
-                owned_by_org__in=self.organization.get_publishable_organizations(),
+                owned_by_org__in=self.get_publishable_organizations(),
             ).count()
         else:
             md_list = Metadata.objects.filter(
                 metadata_type=MetadataEnum.DATASET.value,
-                owned_by_org__in=self.organization.get_publishable_organizations(),
+                owned_by_org__in=self.get_publishable_organizations(),
             ).order_by("title")
         return md_list
 

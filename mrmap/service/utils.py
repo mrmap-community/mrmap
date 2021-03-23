@@ -33,8 +33,8 @@ def collect_contact_data(organization: Organization):
 def collect_featuretype_data(md: Metadata):
     params = {}
 
-    if md.featuretype.parent_service.published_for is not None:
-        params['contact'] = collect_contact_data(md.featuretype.parent_service.published_for)
+    if md.featuretype.parent_service.owned_by_org is not None:
+        params['contact'] = collect_contact_data(md.featuretype.parent_service.owned_by_org)
 
     if md.featuretype.parent_service:
         params['parent_service'] = md.featuretype.parent_service
@@ -57,9 +57,8 @@ def collect_featuretype_data(md: Metadata):
 def collect_layer_data(md: Metadata, request: HttpRequest):
     params = {}
 
-    # if there is a published_for organization it will be presented
-    if md.service.published_for is not None:
-        params['contact'] = collect_contact_data(md.service.published_for)
+    # if there is a owned_by_org organization it will be presented
+    params['contact'] = collect_contact_data(md.service.owned_by_org)
 
     params['layer'] = md.service.layer
     params['name_of_the_resource'] = md.service.layer.identifier
@@ -102,9 +101,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
 def collect_wms_root_data(md: Metadata, request: HttpRequest):
     params = {}
 
-    # if there is a published_for organization it will be presented
-    if md.service.published_for is not None:
-        params['contact'] = collect_contact_data(md.service.published_for)
+    params['contact'] = collect_contact_data(md.service.owned_by_org)
 
     # first layer item
     layer = Layer.objects.get(
@@ -140,9 +137,7 @@ def collect_wms_root_data(md: Metadata, request: HttpRequest):
 def collect_wfs_root_data(md: Metadata, request: HttpRequest):
     params = {}
 
-    # if there is a published_for organization it will be presented
-    if md.service.published_for is not None:
-        params['contact'] = collect_contact_data(md.service.published_for)
+    params['contact'] = collect_contact_data(md.service.owned_by_org)
 
     params['fees'] = md.service.metadata.fees
     params['licence'] = md.service.metadata.licence

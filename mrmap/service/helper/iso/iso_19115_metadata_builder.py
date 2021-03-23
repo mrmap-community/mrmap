@@ -577,11 +577,11 @@ class Iso19115MetadataBuilder:
         if self.metadata.last_remote_change is not None:
             date = self.metadata.last_remote_change
 
-        elif self.metadata.created is not None:
-            date = self.metadata.created
+        elif self.metadata.created_at is not None:
+            date = self.metadata.created_at
 
-        elif self.metadata.last_modified is not None:
-            date = self.metadata.last_modified
+        elif self.metadata.last_modified_at is not None:
+            date = self.metadata.last_modified_at
         else:
             date = timezone.now()
 

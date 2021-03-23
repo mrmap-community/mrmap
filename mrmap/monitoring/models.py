@@ -165,7 +165,7 @@ class MonitoringResultCapability(MonitoringResult):
     diff = models.TextField(null=True, blank=True)
 
 
-class HealthState(models.Model):
+class HealthState(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
     monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Resource'))

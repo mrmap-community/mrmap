@@ -1,30 +1,18 @@
 from django.contrib.auth import get_user_model
-from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
-from django.core.exceptions import ValidationError
 from django.db.models import Case, When
-from django.http import HttpResponseRedirect
-from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
-from guardian.mixins import LoginRequiredMixin
 from MrMap.icons import IconEnum
-from MrMap.messages import PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
-    PUBLISH_REQUEST_SENT, ORGANIZATION_SUCCESSFULLY_EDITED
-from MrMap.views import CustomSingleTableMixin
+from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
 from main.buttons import DefaultActionButtons
-from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredDeleteView, \
-    SecuredCreateView, SecuredUpdateView
+from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
-from structure.permissionEnums import PermissionEnum
-from structure.models import Organization, PendingTask, ErrorReport, PublishRequest
-from structure.tables.tables import OrganizationTable, \
-    OrganizationDetailTable, OrganizationMemberTable, MrMapUserTable, \
-    PublishesRequestTable, OrganizationPublishersTable
-from django.urls import reverse_lazy
+from structure.models import Organization, PublishRequest
+from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationMemberTable, \
+    OrganizationPublishersTable
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -114,69 +102,3 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
 
     def get_table_kwargs(self):
         return {'organization': self.object}
-
-
-class PendingTaskDelete(SecuredDeleteView):
-    model = PendingTask
-    success_url = reverse_lazy('resource:pending-tasks')
-    template_name = 'generic_views/generic_confirm.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            "action_url": self.object.remove_view_uri,
-            "action": _l("Delete"),
-            "msg": _l("Are you sure you want to delete " + self.object.__str__()) + "?"
-        })
-        return context
-
-
-class ErrorReportDetailView(SecuredDetailView):
-    model = ErrorReport
-    content_type = "text/plain"
-    template_name = "structure/views/error-reports/error.txt"
-
-    def dispatch(self, request, *args, **kwargs):
-        response = super().dispatch(request, *args, **kwargs)
-        response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{self.object.timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.txt"'
-        return response
-
-
-class PublishRequestNewView(SecuredCreateView):
-    model = PublishRequest
-    fields = ('from_organization', 'to_organization', 'message')
-    template_name = 'MrMap/detail_views/generic_form.html'
-    title = _('Publish request')
-    success_message = PUBLISH_REQUEST_SENT
-
-
-class PublishRequestTableView(SecuredListMixin, FilterView):
-    model = PublishRequest
-    table_class = PublishesRequestTable
-    filterset_fields = ['from_organization', 'to_organization', 'message']
-    permission_required = [PermissionEnum.CAN_VIEW_PUBLISH_REQUEST.value]
-
-
-class PublishRequestUpdateView(SecuredUpdateView):
-    model = PublishRequest
-    template_name = "MrMap/detail_views/generic_form.html"
-    success_url = reverse_lazy('structure:publish_request_overview')
-    fields = ('is_accepted', )
-    success_message = PUBLISH_REQUEST_ACCEPTED
-    title = _('Accept request')
-
-
-class PublishRequestRemoveView(SecuredDeleteView):
-    model = PublishRequest
-    template_name = "MrMap/detail_views/delete.html"
-    success_url = reverse_lazy('structure:index')
-    success_message = PUBLISH_REQUEST_DENIED
-    title = _('Deny request')
-
-
-class UserTableView(LoginRequiredMixin, CustomSingleTableMixin, FilterView):
-    model = get_user_model()
-    table_class = MrMapUserTable
-    filterset_fields = {'username': ['icontains'],
-                        'organization__organization_name': ['icontains'],
-                        'groups__name': ['icontains']}

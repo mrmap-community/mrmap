@@ -22,14 +22,14 @@ class GenericButtonsColumn(tables.TemplateColumn):
             pk_field=self.pk_field,
         )
 
-        super().__init__(template_code=template_code, *args, **kwargs)
+        super().__init__(template_code=template_code, orderable=False, *args, **kwargs)
 
         self.extra_context.update({
             'ICONS': get_all_icons(),
         })
 
     def header(self):
-        return ''
+        return _('Actions')
 
 
 class DefaultActionButtonsColumn(tables.TemplateColumn):

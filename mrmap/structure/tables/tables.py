@@ -142,7 +142,7 @@ class OrganizationRolesTable(tables.Table):
 
     class Meta:
         model = OwnerBasedTemplateRole
-        fields = ('based_template', 'description', 'users', 'based_template__permissions__all')
+        fields = ('based_template', 'users', 'based_template__permissions__all')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
 

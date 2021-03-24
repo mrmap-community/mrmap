@@ -83,7 +83,7 @@ class HomeView(LoginRequiredMixin, TemplateView):
             "all_count": user_services_wms + user_services_wfs + datasets_count,
             "publishing_requests": pending_requests,
             "groups": user_groups,
-            "organizations": Organization.objects.filter(is_auto_generated=False),
+            "organizations": Organization.objects.all(),
             "current_view": "home",
         })
         return context

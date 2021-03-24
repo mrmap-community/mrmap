@@ -80,12 +80,6 @@ PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. P
 PUBLISH_PERMISSION_REMOVED = _("Publishing permission of {} for {} removed.")
 PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You are not a member of the organization nor a member of the publishing group!")
 
-GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
-GROUP_IS_OTHERS_PROPERTY = _("This group is owned by another user. Action denied.")
-
-GROUP_SUCCESSFULLY_DELETED = _("Group <strong>%(name)s</strong> was <strong>deleted</strong> successfully.")
-GROUP_SUCCESSFULLY_EDITED = _("Group <strong>%(name)s</strong> was <strong>edited</strong> successfully.")
-GROUP_SUCCESSFULLY_CREATED = _("Group <strong>%(name)s</strong> was <strong>created</strong> successfully.")
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization <strong>%(organization_name)s</strong> was <strong>edited</strong> successfully.")

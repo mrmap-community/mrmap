@@ -58,10 +58,6 @@ def handle_owner_creation(sender, instance, created, **kwargs):
         None
 
     """
-    # todo: find a generic way to hook in here
-    if instance.is_auto_generated:
-        # we handle only real organizations for permission/role handling
-        return
     if created:
         for template_role in TemplateRole.objects.all():
             OwnerBasedTemplateRole.objects.create(content_object=instance,

@@ -71,7 +71,7 @@ class MrMapUser(AbstractUser):
 
     def get_publishable_organizations(self, include_self=True):
         if self.is_superuser:
-            return Organization.objects.filter(is_auto_generated=False)
+            return Organization.objects.all()
         return self.organization.get_publishable_organizations(include_self=include_self) if self.organization \
             else Organization.objects.none()
 

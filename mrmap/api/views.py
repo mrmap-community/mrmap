@@ -472,7 +472,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         # filter by real or auto generated organizations
         auto_generated = self.request.query_params.get("ag", None)
         auto_generated = utils.resolve_boolean_attribute_val(auto_generated)
-        self.queryset = view_helper.filter_queryset_real_organization(self.queryset, auto_generated)
 
         # order by
         order_by = self.request.query_params.get("order", ORGANIZATION_DEFAULT_ORDER)

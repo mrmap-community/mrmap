@@ -2,7 +2,7 @@ import json
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, F
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -58,19 +58,11 @@ class Organization(UuidPk, Contact):
                                    blank=True,
                                    verbose_name=_('description'),
                                    help_text=_('Describe what this organization representing'))
-    is_auto_generated = models.BooleanField(default=True)
-    # todo: custom workflow for on_delete --> for move all objects to new group | remove all objects
-    real_organization = models.ForeignKey('self',
-                                          on_delete=models.DO_NOTHING,
-                                          blank=True,
-                                          null=True,
-                                          verbose_name=_('Related real organization'),
-                                          help_text=_('The real organization is a non auto generated organization '
-                                                      'which is verified by a user.'))
     can_publish_for = models.ManyToManyField(to='self',
                                              related_name='publishers',
                                              related_query_name='publishers',
-                                             blank=True)
+                                             blank=True,
+                                             limit_choices_to=~Q(pk=F('pk')))
 
     class Meta:
         unique_together = (
@@ -122,7 +114,7 @@ class Organization(UuidPk, Contact):
         return Organization.objects.filter(query)
 
     def get_absolute_url(self):
-        return reverse('structure:organization_details', args=[self.pk, ])
+        return reverse('structure:organization_view', args=[self.pk, ])
 
     @property
     def members_view_uri(self):
@@ -134,7 +126,7 @@ class Organization(UuidPk, Contact):
 
     @property
     def detail_view_uri(self):
-        return reverse('structure:organization_details', args=[self.pk, ])
+        return reverse('structure:organization_view', args=[self.pk, ])
 
     @property
     def edit_view_uri(self):
@@ -282,18 +274,18 @@ class PublishRequest(BaseInternalRequest):
         verbose_name = _('Pending publish request')
         verbose_name_plural = _('Pending publish requests')
 
-
     @property
     def icon(self):
         return get_icon(IconEnum.PUBLISHERS)
 
     def __str__(self):
-        return "{} > {}".format(self.from_organization.name, self.to_organization.name)
+        return f"{self.from_organization} would like to publish for {self.to_organization}"
 
     def get_absolute_url(self):
-        return f"{reverse('structure:publish_request_overview')}?group={self.group.id}&organization={self.organization.id}"
+        return f"{reverse('structure:publish_request_overview')}?from_organization={self.from_organization.pk}&to_organization={self.to_organization.pk}"
 
-    def get_accept_view_url(self):
+    @property
+    def accept_request_uri(self):
         return reverse('structure:publish_request_accept', args=[self.pk])
 
     @classmethod
@@ -307,9 +299,14 @@ class PublishRequest(BaseInternalRequest):
                           url=reverse('structure:publish_request_new'),
                           needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
 
-    @property
-    def accept_request_uri(self):
-        return reverse('structure:publish_request_accept', args=[self.pk])
+    def clean(self):
+        errors = []
+        if self.from_organization.can_publish_for.filter(id=self.to_organization.id).exists():
+            errors.append(self.from_organization.__str__() + _(f' can already publish for ').__str__() + self.to_organization.__str__())
+        if self.from_organization == self.to_organization:
+            errors.append("You can not request publishing rights for two equal organizations.")
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):

@@ -371,24 +371,6 @@ def filter_queryset_services_uuid(queryset, uuid):
     return queryset
 
 
-def filter_queryset_real_organization(queryset, auto_generated: bool):
-    """ Filters a given REST framework queryset for real (not auto generated) organizations.
-
-    Only keeps organizations that are or not auto generated.
-
-    Args:
-        queryset: A queryset containing elements
-        auto_generated (bool): Whether the real or auto generated organizations shall be returned
-    Returns:
-        queryset: The given queryset which only contains matching elements
-    """
-    if auto_generated is not None and isinstance(auto_generated, bool):
-        queryset = queryset.filter(
-            is_auto_generated=auto_generated
-        )
-    return queryset
-
-
 def filter_queryset_service_type(queryset, type):
     """ Filters a given REST framework queryset by a given query.
 

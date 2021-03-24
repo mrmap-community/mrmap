@@ -11,14 +11,15 @@ urlpatterns = [
 
     # Organizations
     path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
-    path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_details'),
+    path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_view'),
+    path('organizations/<pk>/change', OrganizationUpdateView.as_view(), name='organization_change'),
     path('organizations/<pk>/members', OrganizationMembersTableView.as_view(), name='organization_members'),
     path('organizations/<pk>/publishers', OrganizationPublishersTableView.as_view(), name='organization_publisher_overview'),
 
     # PublishRequests
     path('publish-requests', PublishRequestTableView.as_view(), name='publish_request_overview'),
     path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
-    path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
+    path('publish-requests/<pk>/accept', PublishRequestUpdateView.as_view(), name='publishrequest_change'),
 
     # users
     path('users', UserTableView.as_view(), name='users_overview'),

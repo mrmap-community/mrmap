@@ -339,13 +339,11 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
             init_organization = Organization.objects.filter(id=metadata.contact.id)
             organizations = Organization.objects.filter(
-                Q(is_auto_generated=False) &
                 Q(publishers=user_groups) |
                 Q(id=user.organization.id)
             ) | init_organization
         else:
             organizations = Organization.objects.filter(
-                Q(is_auto_generated=False) &
                 Q(publishers=user_groups) |
                 Q(id=user.organization.id)
             )

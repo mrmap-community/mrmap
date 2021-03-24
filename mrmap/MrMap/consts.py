@@ -16,7 +16,7 @@ SERVICE_ADD = "resource:add"
 
 SERVICE_INDEX_LOG = "resource:logs-view"
 
-STRUCTURE_DETAIL_ORGANIZATION = "structure:organization_details"
+STRUCTURE_DETAIL_ORGANIZATION = "structure:organization_view"
 STRUCTURE_INDEX_ORGANIZATION = "structure:organization_overview"
 
 APP_XML = "application/xml"

@@ -233,7 +233,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
 
     def test_permission_accept_publish_request(self):
         response = self.client.get(
-            PublishRequest.objects.first().get_accept_view_url()
+            PublishRequest.objects.first().accept_request_uri
         )
         self.assertEqual(response.status_code, 403)
 
@@ -245,7 +245,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
         pub_request = PublishRequest.objects.first()
 
         response = self.client.post(
-            pub_request.get_accept_view_url(),
+            pub_request.accept_request_uri,
             data=post_params,
         )
 
@@ -269,7 +269,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
                                                        message='test')
 
         response = self.client.post(
-            public_request.get_accept_view_url(),
+            public_request.accept_request_uri,
             data=post_params,
         )
 

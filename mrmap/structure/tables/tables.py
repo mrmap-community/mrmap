@@ -4,11 +4,17 @@ from django.utils.html import format_html
 from django_bootstrap_swt.components import Link, Tag, Badge, LinkButton
 from django_bootstrap_swt.enums import ButtonColorEnum, TooltipPlacementEnum
 from django_bootstrap_swt.utils import RenderHelper
+from django_tables2.utils import Accessor
+
 from MrMap.icons import IconEnum
 from MrMap.tables import ActionTableMixin
 from MrMap.utils import get_ok_nok_icon, signal_last
 from django.utils.translation import gettext_lazy as _
+
+from main.tables.columns import DefaultActionButtonsColumn
+from main.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
 from structure.models import Organization, PublishRequest
+from structure.tables.columns import PublishesRequestButtonsColumn, RemovePublisherButtonColumn
 
 
 class PublishesForTable(tables.Table):
@@ -25,12 +31,6 @@ class PublishesForTable(tables.Table):
 class PendingRequestTable(ActionTableMixin, tables.Table):
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_organization(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    def render_group(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_actions(self, record):
         ok_icon = Tag(tag='i', attrs={"class": [IconEnum.OK.value]}).render()
@@ -57,20 +57,20 @@ class PendingRequestTable(ActionTableMixin, tables.Table):
         return rendered_items
 
 
-class PublishesRequestTable(PendingRequestTable):
+class PublishesRequestTable(tables.Table):
+    from_organization = tables.TemplateColumn(
+        template_code=VALUE_ABSOLUTE_LINK,
+    )
+    to_organization = tables.TemplateColumn(
+        template_code=VALUE_ABSOLUTE_LINK,
+    )
+    actions = PublishesRequestButtonsColumn()
+
     class Meta:
         model = PublishRequest
-        fields = ('group', 'organization', 'message')
+        fields = ('from_organization', 'to_organization', 'message', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-for-table'
-
-
-class GroupInvitationRequestTable(tables.Table):
-    class Meta:
-        model = PublishRequest
-        fields = ('user', 'group', 'message')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        prefix = 'group-invitation-table'
 
 
 class OrganizationDetailTable(tables.Table):
@@ -78,7 +78,6 @@ class OrganizationDetailTable(tables.Table):
         model = Organization
         fields = ('organization_name',
                   'parent',
-                  'is_auto_generated',
                   'person_name',
                   'email',
                   'phone',
@@ -93,39 +92,15 @@ class OrganizationDetailTable(tables.Table):
         orderable = False
 
 
-class OrganizationTable(ActionTableMixin, tables.Table):
+class OrganizationTable(tables.Table):
+    organization_name = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK)
+    actions = DefaultActionButtonsColumn(model=Organization)
+
     class Meta:
         model = Organization
-        fields = ('organization_name', 'description', 'is_auto_generated', 'parent')
+        fields = ('organization_name', 'description')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'organizations-table'
-
-    caption = _("Shows all organizations which are configured in your Mr. Map environment.")
-
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_organization_name(self, value, record):
-        return Link(url=record.detail_view_uri, content=value).render(safe=True)
-
-    @staticmethod
-    def render_is_auto_generated(value):
-        """ Preprocessing for rendering of is_auto_generated value.
-
-        Due to semantic reasons, we invert this value.
-
-        Args:
-            value: The value
-        Returns:
-
-        """
-        return get_ok_nok_icon(value)
-
-    def render_actions(self, record):
-        self.render_helper.update_attrs = {"class": ["mr-1"]}
-        rendered = self.render_helper.render_list_coherent(items=record.get_actions())
-        self.render_helper.update_attrs = None
-        return format_html(rendered)
 
 
 class OrganizationMemberTable(ActionTableMixin, tables.Table):
@@ -152,7 +127,13 @@ class OrganizationMemberTable(ActionTableMixin, tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
-class OrganizationPublishersTable(ActionTableMixin, tables.Table):
+class OrganizationPublishersTable(tables.Table):
+    organization_name = tables.TemplateColumn(
+        template_code=VALUE_ABSOLUTE_LINK
+    )
+
+    actions = RemovePublisherButtonColumn()
+
     class Meta:
         model = Organization
         fields = ('organization_name', )
@@ -162,37 +143,6 @@ class OrganizationPublishersTable(ActionTableMixin, tables.Table):
     def __init__(self, organization, *args, **kwargs):
         self.organization = organization
         super().__init__(*args, **kwargs)
-
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_name(self, record, value):
-        return Link(url=record.detail_view_uri, content=value).render(safe=True)
-
-    def render_actions(self, record):
-        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
-        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
-        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                           content=remove_icon + _(' Remove').__str__()).render()
-
-        publishers_querystring = "publishers"
-        publishers_excluded_record = self.organization.publishers.exclude(pk=record.pk)
-        if publishers_excluded_record:
-            publishers_querystring = ""
-            for is_last_element, publisher in signal_last(publishers_excluded_record):
-                if is_last_element:
-                    publishers_querystring += f"publishers={publisher.pk}"
-                else:
-                    publishers_querystring += f"publishers={publisher.pk}&"
-
-        btns = [
-            LinkButton(url=f"{self.organization.edit_view_uri}?{publishers_querystring}",
-                       content=st_edit_text + gt_edit_text,
-                       color=ButtonColorEnum.DANGER,
-                       tooltip=_(f"Remove <strong>{record}</strong> from <strong>{self.organization}</strong>"),
-                       tooltip_placement=TooltipPlacementEnum.LEFT)
-        ]
-        return format_html(self.render_helper.render_list_coherent(items=btns))
 
 
 class MrMapUserTable(ActionTableMixin, tables.Table):

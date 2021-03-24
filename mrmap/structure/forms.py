@@ -1,43 +1,48 @@
-import os
-
 from captcha.fields import CaptchaField
-from dal import autocomplete
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.hashers import make_password
-from django.core.exceptions import ImproperlyConfigured
-from django.db import transaction
 from django.db.models import Q
-from django.forms import ModelForm, MultipleHiddenInput
 from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
-
-from MrMap.forms import MrMapConfirmForm
-from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY
-from django.contrib import messages
+from structure.models import Organization
 
 
-class RemoveOrganizationForm(MrMapConfirmForm):
-    def __init__(self, instance=None, *args, **kwargs):
-        self.instance = instance
-        super(RemoveOrganizationForm, self).__init__(*args, **kwargs)
+class OrganizationChangeForm(forms.ModelForm):
+    """
+    ModelForm that adds handling for reverse relation `publishers` for the given `Organization`.
+    """
+    publishers = forms.ModelMultipleChoiceField(
+        queryset=Organization.objects.none(),
+        required=False,
+    )
 
-    def clean(self):
-        cleaned_data = super(RemoveOrganizationForm, self).clean()
+    class Meta:
+        model = Organization
+        fields = '__all__'
+        exclude = ('can_publish_for', )
 
-        if self.instance.created_by != self.requesting_user:
-            self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
+    def __init__(self, *args, **kwargs):
+        super(OrganizationChangeForm, self).__init__(*args, **kwargs)
+        if self.instance.pk:
+            publishers = Organization.objects.filter(can_publish_for=self.instance).values_list('pk', flat=True)
+            self.initial['publishers'] = publishers
+            self.fields['publishers'].queryset = Organization.objects.filter(~Q(pk=self.instance.pk))
 
-        if not cleaned_data.get('is_confirmed'):
-            self.add_error('is_confirmed', _('You have to confirm the checkbox.'))
+    def save(self, *args, **kwargs):
+        saved_object = super(OrganizationChangeForm, self).save(*args, **kwargs)
 
-        return cleaned_data
+        old_publishers = Organization.objects.filter(id__in=self.initial['publishers'])
 
-    def process_remove_org(self):
-        org_name = self.instance.organization_name
-        self.instance.delete()
-        messages.success(self.request, message=_('Organization {} successfully deleted.'.format(org_name)))
+        removed_publishers = old_publishers.exclude(id__in=self.cleaned_data['publishers'])
+        added_publishers = self.cleaned_data['publishers'].exclude(id__in=self.initial['publishers'])
+
+        for publisher in removed_publishers:
+            publisher.can_publish_for.remove(self.instance)
+
+        for publisher in added_publishers:
+            publisher.can_publish_for.add(self.instance)
+
+        return saved_object
 
 
 class RegistrationForm(UserCreationForm):

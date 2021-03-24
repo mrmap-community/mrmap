@@ -13,13 +13,14 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 from MrMap.icons import IconEnum
 from MrMap.messages import PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
-    PUBLISH_REQUEST_SENT
+    PUBLISH_REQUEST_SENT, ORGANIZATION_SUCCESSFULLY_EDITED
 from MrMap.views import CustomSingleTableMixin
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredDeleteView, \
     SecuredCreateView, SecuredUpdateView
+from structure.forms import OrganizationChangeForm
 from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PendingTask, ErrorReport, PublishRequest
-from structure.tables import OrganizationTable, \
+from structure.tables.tables import OrganizationTable, \
     OrganizationDetailTable, OrganizationMemberTable, MrMapUserTable, \
     PublishesRequestTable, OrganizationPublishersTable
 from django.urls import reverse_lazy
@@ -51,8 +52,7 @@ class OrganizationTableView(SecuredListMixin, FilterView):
     model = Organization
     table_class = OrganizationTable
     filterset_fields = {'organization_name': ['icontains'],
-                        #'parent__organization_name': ['icontains'],
-                        'is_auto_generated': ['exact']}
+                        'description': ['icontains']}
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -75,6 +75,14 @@ class OrganizationDetailView(OrganizationDetailContextMixin, SecuredDetailView):
         details_table = OrganizationDetailTable(data=[self.object, ], request=self.request)
         context.update({'table': details_table})
         return context
+
+
+class OrganizationUpdateView(SecuredUpdateView):
+    model = Organization
+    template_name = "MrMap/detail_views/generic_form.html"
+    form_class = OrganizationChangeForm
+    success_message = ORGANIZATION_SUCCESSFULLY_EDITED
+    title = _('Edit organization')
 
 
 class OrganizationMembersTableView(OrganizationDetailContextMixin, SecuredDependingListMixin, FilterView):
@@ -135,43 +143,26 @@ class ErrorReportDetailView(SecuredDetailView):
 
 class PublishRequestNewView(SecuredCreateView):
     model = PublishRequest
-    fields = ('group', 'organization', 'message')
+    fields = ('from_organization', 'to_organization', 'message')
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('Publish request')
     success_message = PUBLISH_REQUEST_SENT
-
-    def form_valid(self, form):
-        group = form.cleaned_data['group']
-        organization = form.cleaned_data['organization']
-        if group.publish_for_organizations.filter(id=organization.id).exists():
-            form.add_error(None, _(f'{group} can already publish for Organization.'))
-            return self.form_invalid(form)
-        else:
-            return super().form_valid(form)
 
 
 class PublishRequestTableView(SecuredListMixin, FilterView):
     model = PublishRequest
     table_class = PublishesRequestTable
-    filterset_fields = ['group', 'organization', 'message']
+    filterset_fields = ['from_organization', 'to_organization', 'message']
     permission_required = [PermissionEnum.CAN_VIEW_PUBLISH_REQUEST.value]
 
 
-class PublishRequestAcceptView(SecuredUpdateView):
+class PublishRequestUpdateView(SecuredUpdateView):
     model = PublishRequest
     template_name = "MrMap/detail_views/generic_form.html"
     success_url = reverse_lazy('structure:publish_request_overview')
     fields = ('is_accepted', )
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept request')
-
-    def form_valid(self, form):
-        try:
-            response = super().form_valid(form)
-        except ValidationError as e:
-            messages.error(self.request, e.message)
-            response = HttpResponseRedirect(self.get_success_url())
-        return response
 
 
 class PublishRequestRemoveView(SecuredDeleteView):

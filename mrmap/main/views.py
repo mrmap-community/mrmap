@@ -108,6 +108,7 @@ class SecuredUpdateView(LoginRequiredMixin, GenericPermissionRequiredMixin, Gene
     Secured django `UpdateView` class with default permission '<app_label>.change_<model_name>'
     """
     action = 'change'
+    template_name = "MrMap/detail_views/generic_form.html"
 
     def get_success_url(self):
         if not self.success_url:

@@ -1,4 +1,10 @@
 
+PERMISSIONS = """
+{% for perm in value %}
+<span class="badge badge-info">{{perm.name}}</span>
+{% endfor %}
+"""
+
 
 class DefaultActionButtonsTemplate:
     template_code = """

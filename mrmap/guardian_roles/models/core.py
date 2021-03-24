@@ -12,10 +12,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.urls import reverse
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from guardian_roles.models.template_code import EDIT_LINK_BUTTON
 from guardian_roles.conf import settings as guardina_roles_settings
 
 
@@ -57,7 +55,7 @@ class ConcreteTemplateRole(models.Model):
     def save(self, *args, **kwargs):
         if self._state.adding:
             self.description = _('handle permissions based on the "').__str__() + self.based_template.__str__() + _(
-                '" `TemplateRole` for owner"').__str__() + self.content_object.__str__() + '"'
+                '" `TemplateRole` for owner "').__str__() + self.content_object.__str__() + '"'
         super().save(*args, **kwargs)
 
 
@@ -91,18 +89,6 @@ class OwnerBasedTemplateRole(ConcreteTemplateRole):
         related_name="role_set",
         related_query_name="role",
     )
-
-    def get_absolute_url(self):
-        return reverse('guardian_roles:owner_role_detail', args=[self.pk])
-
-    def get_edit_url(self):
-        return reverse('guardian_roles:owner_role_edit', args=[self.pk])
-
-    def get_members_view_uri(self):
-        return reverse('guardian_roles:owner_role_detail_members', args=[self.pk])
-
-    def get_actions(self):
-        return [format_html(EDIT_LINK_BUTTON % {'url': self.get_edit_url()})]
 
 
 class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):

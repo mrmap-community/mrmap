@@ -10,7 +10,7 @@ import sys
 from django.contrib import messages
 
 from MrMap.sub_settings.django_settings import BASE_DIR
-from guardian_roles.enums import PermissionEnum
+from structure.permissionEnums import PermissionEnum
 from django.utils.translation import gettext_lazy as _
 
 """
@@ -185,7 +185,6 @@ DEFAULT_ROLES = [
             PermissionEnum.CAN_REMOVE_RESOURCE,
             PermissionEnum.CAN_ADD_DATASET_METADATA,
             PermissionEnum.CAN_REMOVE_DATASET_METADATA,
-            PermissionEnum.CAN_REMOVE_PUBLISHER,
         ],
     },
 ]

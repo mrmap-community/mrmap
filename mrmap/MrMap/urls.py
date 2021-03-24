@@ -30,7 +30,6 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('csw/', include('csw.urls')),
     path('quality/', include('quality.urls')),
-    path('roles/', include('guardian_roles.urls')),
 ]
 
 if DEBUG:

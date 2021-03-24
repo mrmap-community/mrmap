@@ -134,3 +134,5 @@ SUBSCRIPTION_SUCCESSFULLY_DELETED = _("Subscription successfully deleted.")
 GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
 
 MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")
+
+ROLE_SUCCESSFULLY_EDITED = _("<strong>%(role)s</strong> successfully edited.")

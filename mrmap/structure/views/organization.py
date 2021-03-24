@@ -7,12 +7,13 @@ from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.icons import IconEnum
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
+from guardian_roles.models.core import OwnerBasedTemplateRole
 from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
 from structure.models import Organization, PublishRequest
 from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationMemberTable, \
-    OrganizationPublishersTable
+    OrganizationPublishersTable, OrganizationRolesTable
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -28,6 +29,10 @@ class OrganizationDetailContextMixin(ContextMixin):
                    {'url': self.object.publishers_uri,
                     'title': _('Publishers ').__str__() +
                              Badge(content=str(self.object.get_publishers().count()),
+                                   color=BadgeColorEnum.SECONDARY)},
+                   {'url': self.object.roles_uri,
+                    'title': _('Roles ').__str__() +
+                             Badge(content=str(self.object.get_roles().count()),
                                    color=BadgeColorEnum.SECONDARY)},
                    ]
         context.update({"object": self.object,
@@ -102,3 +107,13 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
 
     def get_table_kwargs(self):
         return {'organization': self.object}
+
+
+class OrganizationRolesTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
+    model = OwnerBasedTemplateRole
+    depending_model = Organization
+    table_class = OrganizationRolesTable
+    template_name = 'MrMap/detail_views/table_tab.html'
+
+    def get_queryset(self):
+        return self.model.objects.filter(content_object=self.object.pk)

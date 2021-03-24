@@ -10,15 +10,13 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django_bootstrap_swt.components import LinkButton, Tag
-from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, TooltipPlacementEnum, \
-    ButtonSizeEnum
+from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from MrMap.validators import validate_pending_task_enum_choices
-from main.buttons import DefaultActionButtons
 from main.models import UuidPk, CommonInfo
 from service.helper.enums import PendingTaskEnum
-from guardian_roles.enums import PermissionEnum
+from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
 
 
@@ -116,6 +114,15 @@ class Organization(UuidPk, Contact):
             query |= Q(pk=self.pk)
         return Organization.objects.filter(query)
 
+    def get_roles(self) -> QuerySet:
+        """
+
+        Returns:
+            all roles for this organization (QuerySet)
+        """
+        from guardian_roles.models.core import OwnerBasedTemplateRole
+        return OwnerBasedTemplateRole.objects.filter(content_object=self)
+
     def get_absolute_url(self) -> str:
         return reverse('structure:organization_view', args=[self.pk, ])
 
@@ -126,6 +133,10 @@ class Organization(UuidPk, Contact):
     @property
     def publishers_uri(self):
         return reverse('structure:organization_publisher_overview', args=[self.pk, ])
+
+    @property
+    def roles_uri(self):
+        return reverse('structure:organization_roles_overview', args=[self.pk, ])
 
 
 class ErrorReport(UuidPk):

@@ -15,6 +15,7 @@ from MrMap.icons import IconEnum
 from MrMap.messages import PUBLISH_REQUEST_DENIED, PUBLISH_REQUEST_ACCEPTED, \
     PUBLISH_REQUEST_SENT, ORGANIZATION_SUCCESSFULLY_EDITED
 from MrMap.views import CustomSingleTableMixin
+from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredDeleteView, \
     SecuredCreateView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
@@ -42,7 +43,7 @@ class OrganizationDetailContextMixin(ContextMixin):
                                    color=BadgeColorEnum.SECONDARY)},
                    ]
         context.update({"object": self.object,
-                        'actions': self.object.get_actions(),
+                        'actions': [DefaultActionButtons(instance=self.object, request=self.request).render()],
                         'tab_nav': tab_nav,
                         'publisher_requests_count': PublishRequest.objects.filter(from_organization=self.object).count()})
         return context

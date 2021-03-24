@@ -1,7 +1,3 @@
-import django_tables2 as tables
-
-from MrMap.icons import get_all_icons
-from MrMap.utils import signal_last
 from main.tables.columns import GenericButtonsColumn
 from structure.models import PublishRequest, Organization
 

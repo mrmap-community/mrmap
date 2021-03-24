@@ -65,10 +65,6 @@ class MrMapUser(AbstractUser):
     def get_edit_view_url(self):
         return reverse('edit_profile')
 
-    @property
-    def invite_to_group_url(self):
-        return f"{reverse('structure:group_invitation_request_new')}?user={self.id}"
-
     def get_publishable_organizations(self, include_self=True):
         if self.is_superuser:
             return Organization.objects.all()

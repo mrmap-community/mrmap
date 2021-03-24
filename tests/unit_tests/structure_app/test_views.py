@@ -177,12 +177,12 @@ class StructureEditOrganizationViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            self.orgas[0].edit_view_uri,
+            reverse('structure:organization_edit', args=[self..orgas[0], ]),
             data=params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, self.orgas[0].detail_view_uri)
+        self.assertEqual(response.url, reverse('structure:organization_view', args=[self.orgas[0], ]))
 
 
 class StructureDetailGroupViewTestCase(TestCase):

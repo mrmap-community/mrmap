@@ -1,5 +1,6 @@
 from captcha.fields import CaptchaField
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
@@ -14,6 +15,7 @@ class OrganizationChangeForm(forms.ModelForm):
     publishers = forms.ModelMultipleChoiceField(
         queryset=Organization.objects.none(),
         required=False,
+        help_text=_('All organizations which can publish for this organization')
     )
 
     class Meta:
@@ -30,10 +32,9 @@ class OrganizationChangeForm(forms.ModelForm):
 
     def save(self, *args, **kwargs):
         saved_object = super(OrganizationChangeForm, self).save(*args, **kwargs)
+        init_publishers = Organization.objects.filter(id__in=self.initial['publishers'])
 
-        old_publishers = Organization.objects.filter(id__in=self.initial['publishers'])
-
-        removed_publishers = old_publishers.exclude(id__in=self.cleaned_data['publishers'])
+        removed_publishers = init_publishers.exclude(id__in=self.cleaned_data['publishers'])
         added_publishers = self.cleaned_data['publishers'].exclude(id__in=self.initial['publishers'])
 
         for publisher in removed_publishers:

@@ -178,7 +178,7 @@ class ConfirmView(FormMixin, DetailView):
         return context
 
     def get_success_url(self):
-        return self.object.detail_view_uri
+        return self.object.get_absolute_url()
 
 
 class AsyncConfirmView(ConfirmView):

@@ -17,17 +17,6 @@ from structure.models import Organization, PublishRequest
 from structure.tables.columns import PublishesRequestButtonsColumn, RemovePublisherButtonColumn
 
 
-class PublishesForTable(tables.Table):
-    class Meta:
-        model = Organization
-        fields = ('organization_name', )
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        prefix = 'publishers-for-table'
-
-    def render_organization_name(self, record, value):
-        return Link(url=record.detail_view_uri, content=value).render(safe=True)
-
-
 class PendingRequestTable(ActionTableMixin, tables.Table):
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
@@ -148,25 +137,11 @@ class OrganizationPublishersTable(tables.Table):
 class MrMapUserTable(ActionTableMixin, tables.Table):
     class Meta:
         model = get_user_model()
-        fields = ('username', 'organization', 'groups')
+        fields = ('username', 'organization', 'groups', 'is_superuser')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
 
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_organization(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    def render_groups(self, record, value):
-        links = []
-        for group in value.all():
-            link = Link(url=group.mrmapgroup.detail_view_uri, content=group.mrmapgroup)
-            link_with_seperator = Tag(tag='span', content=link + ',')
-            links.append(link_with_seperator)
-        self.render_helper.update_attrs = {"class": ["mr-1"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=links)
-        self.render_helper.update_attrs = None
-        return format_html(renderd_actions)
 
     def render_actions(self, record):
         remove_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
@@ -174,10 +149,11 @@ class MrMapUserTable(ActionTableMixin, tables.Table):
         gt_invite_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
                              content=remove_icon + _(' Invite').__str__()).render()
         btns = [
-            LinkButton(url=f"{record.invite_to_group_url}",
+            """LinkButton(url=f"{record.invite_to_group_url}",
                        content=st_invite_text + gt_invite_text,
                        color=ButtonColorEnum.SUCCESS,
                        tooltip=_(f"Invite <strong>{record}</strong>"),
-                       tooltip_placement=TooltipPlacementEnum.LEFT)
+                       tooltip_placement=TooltipPlacementEnum.LEFT)"""
         ]
+        return []
         return format_html(self.render_helper.render_list_coherent(items=btns))

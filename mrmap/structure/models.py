@@ -1,4 +1,6 @@
 import json
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -13,6 +15,7 @@ from django_bootstrap_swt.enums import ButtonColorEnum, TextColorEnum, TooltipPl
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from MrMap.validators import validate_pending_task_enum_choices
+from main.buttons import DefaultActionButtons
 from main.models import UuidPk, CommonInfo
 from service.helper.enums import PendingTaskEnum
 from guardian_roles.enums import PermissionEnum
@@ -113,7 +116,7 @@ class Organization(UuidPk, Contact):
             query |= Q(pk=self.pk)
         return Organization.objects.filter(query)
 
-    def get_absolute_url(self):
+    def get_absolute_url(self) -> str:
         return reverse('structure:organization_view', args=[self.pk, ])
 
     @property
@@ -123,43 +126,6 @@ class Organization(UuidPk, Contact):
     @property
     def publishers_uri(self):
         return reverse('structure:organization_publisher_overview', args=[self.pk, ])
-
-    @property
-    def detail_view_uri(self):
-        return reverse('structure:organization_view', args=[self.pk, ])
-
-    @property
-    def edit_view_uri(self):
-        return reverse('structure:organization_edit', args=[self.pk, ])
-
-    def get_actions(self):
-        add_icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
-        st_pub_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=add_icon).render()
-        gt_pub_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                          content=add_icon + _(' become publisher').__str__()).render()
-        edit_icon = Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render()
-        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=edit_icon).render()
-        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                           content=edit_icon + _(' edit').__str__()).render()
-        actions = [
-            LinkButton(url=f"{reverse('structure:publish_request_new', )}?organization={self.id}",
-                       content=st_pub_text + gt_pub_text,
-                       color=ButtonColorEnum.SUCCESS,
-                       size=ButtonSizeEnum.SMALL,
-                       tooltip=format_html(
-                           _(
-                               f"Become publisher for organization <strong>{self.organization_name} [{self.id}]</strong>")),
-                       tooltip_placement=TooltipPlacementEnum.LEFT,
-                       needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value),
-
-        ]
-
-        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
-        st_remove_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
-        gt_remove_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                             content=remove_icon + _(' remove').__str__()).render()
-
-        return actions
 
 
 class ErrorReport(UuidPk):

@@ -27,7 +27,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/ngi
 If youre not installing to /opt/ you have to change the folder of the /static route in the [nginx conf](https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_nginx_ssl).
 
 ```no-highlight
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_nginx_ssl /etc/nginx/sites-available/mrmap
+cp -a /opt/mrmap/install/confs/mrmap_nginx_ssl /etc/nginx/sites-available/mrmap
 rm /etc/nginx/sites-enabled/default
 ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/mrmap
 ```

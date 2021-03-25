@@ -28,9 +28,9 @@ and a [service definition for uwsgi](https://github.com/mrmap-community/mrmap/bl
 
 ```no-highlight
 # copy uwsgi ini
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
+cp -a /opt/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
 # copy uwsgi systemd config (service file)
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
+cp -a /opt/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
 ```
 
 1. Create directory for pid file according to mrmap_uwsgi.ini

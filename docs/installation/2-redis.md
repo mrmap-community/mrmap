@@ -10,7 +10,7 @@
 ### Debian
 
 ```no-highlight
-sudo apt install -y redis-server
+apt install -y redis-server
 ```
 
 You may wish to modify the Redis configuration at `/etc/redis.conf` or `/etc/redis/redis.conf`, however in most cases the default configuration is sufficient.

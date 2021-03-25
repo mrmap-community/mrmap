@@ -1,9 +1,7 @@
-from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
-
 from guardian_roles.conf import settings as guardina_roles_settings
 from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OwnerBasedTemplateRole
 from guardian_roles.utils import get_model_from_string
@@ -40,11 +38,18 @@ def assign_perm_to_object(sender, instance, created, **kwargs):
     """
     if created:
         content_type = ContentType.objects.get_for_model(instance)
-        for obj in _generate_object_based_template_roles(instance):
-            users = get_user_model().objects.filter(role__based_template=obj.based_template)
-            obj.user_set.add(*users)
-            for perm in obj.based_template.permissions.filter(content_type=content_type):
-                assign_perm(perm=perm, user_or_group=obj, obj=instance)
+
+        for obj_role in _generate_object_based_template_roles(instance):
+            related_owner_based_template_role = OwnerBasedTemplateRole.objects.get(
+                based_template=obj_role.based_template,
+                content_object=getattr(instance, guardina_roles_settings.OWNER_FIELD_ATTRIBUTE))
+
+            related_owner_based_template_role.object_based_template_roles.add(obj_role)
+
+            # users = get_user_model().objects.filter(role__based_template=obj_role.based_template)
+            obj_role.user_set.add(*related_owner_based_template_role.users)
+            for perm in obj_role.based_template.permissions.filter(content_type=content_type):
+                assign_perm(perm=perm, user_or_group=obj_role, obj=instance)
 
 
 def handle_owner_change(sender, instance, created, update_fields, **kwargs):
@@ -61,18 +66,9 @@ def handle_owner_change(sender, instance, created, update_fields, **kwargs):
 
     """
     if not created:
-        if not hasattr(instance, guardina_roles_settings.OWNER_FIELD_ATTRIBUTE):
-            raise ImproperlyConfigured(f'You need to configure the {guardina_roles_settings.OWNER_FIELD_ATTRIBUTE} field on the given '
-                                       f'model: {instance._meta.model}')
-        if not hasattr(instance, guardina_roles_settings.OLD_OWNER_FIELD_ATTRIBUTE):
-            raise ImproperlyConfigured(f'You need to configure the {guardina_roles_settings.OLD_OWNER_FIELD_ATTRIBUTE} on the given '
-                                       f'model: {instance._meta.model}')
         owner = getattr(instance, guardina_roles_settings.OWNER_FIELD_ATTRIBUTE)
         old_owner = getattr(instance, guardina_roles_settings.OLD_OWNER_FIELD_ATTRIBUTE)
         if old_owner and owner != old_owner:
-            print(update_fields)
-            print(owner)
-            print(old_owner)
             # owner becomes changed, move users from old owner based templates to the new
             owner_based_roles = OwnerBasedTemplateRole.objects.filter(content_object=owner)
             for owner_based_role in owner_based_roles:
@@ -81,6 +77,7 @@ def handle_owner_change(sender, instance, created, update_fields, **kwargs):
                 owner_based_role.users.add(*old_owner_based_role.users)
 
 
+@receiver(post_delete, sender=guardina_roles_settings.OWNER_MODEL)
 def handle_instance_delete(sender, instance, **kwargs):
     # delete all `ObjectBasedTemplateRole` objects. This is needed cause the `GenericForeignKey` does not support
     # on_delete=models.CASCADE method.

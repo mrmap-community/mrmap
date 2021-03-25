@@ -147,16 +147,16 @@ OWNABLE_MODELS = ['service.Metadata',
                   'monitoring.MonitoringRun',
                   'monitoring.MonitoringResult',
                   'monitoring.HealthState',
-                  'service.ProxyLog',
-                  'structure.Organization']
+                  'service.ProxyLog']
 
 OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 
-
+ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
 
 DEFAULT_ROLES = [
     {
+        "name": "organization_administrator",
         "verbose_name": _("Organization Administrator"),
         "description": _("Permission role. Holds permissions to administrate organizations."),
         "permissions": [
@@ -165,6 +165,7 @@ DEFAULT_ROLES = [
         ],
     },
     {
+        "name": "resource_editor",
         "verbose_name": _("Resource Editor"),
         "description": _("Permission role. Holds permissions to edit metadata or activate resources."),
         "permissions": [
@@ -174,6 +175,7 @@ DEFAULT_ROLES = [
         ],
     },
     {
+        "name": "controller",
         "verbose_name": _("Controller"),
         "description": _("Permission role. Holds permissions to view proxylogs"
                          "an API token."),
@@ -182,6 +184,7 @@ DEFAULT_ROLES = [
         ],
     },
     {
+        "name": "resource_administrator",
         "verbose_name": _("Resource Administrator"),
         "description": _("Permission role. Holds permissions to administrate resources."),
         "permissions": [

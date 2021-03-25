@@ -1,3 +1,5 @@
+from enum import Enum
+
 from django.contrib.auth.models import Permission
 from django.core.management import BaseCommand
 from django.db import transaction
@@ -7,7 +9,7 @@ from guardian_roles.conf import settings as gurdian_roles_settings
 
 
 class Command(BaseCommand):
-    help = "Creates default `TemplateRole` objects based on the `DEFAULT_ROLES` settings from permission/settings.py"
+    help = "Creates default `TemplateRole` objects based on the `DEFAULT_ROLES` settings from settings.py"
 
     def add_arguments(self, parser):
         pass
@@ -27,8 +29,12 @@ class Command(BaseCommand):
              role (Role): The created group object
         """
         query = None
+
         for permission in setting["permissions"]:
-            perm = permission.value
+            if isinstance(permission, Enum):
+                perm = permission.value
+            else:
+                perm = permission
             try:
                 app_label, codename = perm.split('.', 1)
             except ValueError:
@@ -41,11 +47,14 @@ class Command(BaseCommand):
             else:
                 query = _query
 
-        role, created = TemplateRole.objects.get_or_create(verbose_name=setting["verbose_name"],
+        role, created = TemplateRole.objects.get_or_create(name=setting["name"],
+                                                           verbose_name=setting["verbose_name"],
                                                            description=setting["description"],)
+
         if created:
             role.permissions.add(*Permission.objects.filter(query))
         else:
-            role.permissions.clear()
+            if role.permissions.all():
+                role.permissions.clear()
             role.permissions.add(*Permission.objects.filter(query))
         return role

@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OwnerBasedTemplateRole
 from guardian_roles.utils import get_owner_model
+from guardian_roles.conf import settings as guardian_roles_settings
 
 
 @receiver(m2m_changed, sender=TemplateRole.permissions.through)
@@ -60,8 +61,9 @@ def handle_template_role_permission_change(sender, instance, action, reverse, mo
 
 
 @receiver(post_save, sender=get_owner_model())
-def handle_owner_creation(sender, instance, created, **kwargs):
-    """creates `OwnerBasedTemplateRole` objects based on the configured `TemplateRole` objects
+def handle_owner_based_template_role_creation(sender, instance, created, **kwargs):
+    """creates `OwnerBasedTemplateRole` objects based on the configured `TemplateRole` objects if new instance of
+    settings.OWNER_MODEL is created.
 
     Args:
         sender: `settings.OWNER_MODEL`
@@ -73,9 +75,31 @@ def handle_owner_creation(sender, instance, created, **kwargs):
 
     """
     if created:
+        default_roles = []
+        content_type = ContentType.objects.get_for_model(OwnerBasedTemplateRole)
         for template_role in TemplateRole.objects.all():
-            OwnerBasedTemplateRole.objects.create(content_object=instance,
-                                                  based_template=template_role)
+            owner_based_role = OwnerBasedTemplateRole.objects.create(
+                content_object=instance,
+                based_template=template_role)
+            object_based_role = ObjectBasedTemplateRole.objects.create(
+                object_pk=owner_based_role.pk,
+                content_type=content_type)
+
+            default_roles.append((owner_based_role, object_based_role))
+
+        admin_role = OwnerBasedTemplateRole.objects.get(
+            content_object=instance,
+            based_template__name=guardian_roles_settings.ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE
+        )
+
+        for owner_based_role, object_based_role in default_roles:
+            admin_role.object_based_template_roles.add(object_based_role)
+            assign_perm(perm='guardian_roles.view_ownerbasedtemplaterole',
+                        user_or_group=object_based_role,
+                        obj=owner_based_role)
+            assign_perm(perm='guardian_roles.change_ownerbasedtemplaterole',
+                        user_or_group=object_based_role,
+                        obj=owner_based_role)
 
 
 @receiver(m2m_changed, sender=OwnerBasedTemplateRole.users.through)
@@ -99,17 +123,35 @@ def handle_users_changed(sender, instance, action, reverse, model, pk_set, **kwa
     if action in unsuported_actions:
         return
 
+    content_type = ContentType.objects.get_for_model(OwnerBasedTemplateRole)
+
     if reverse:
         users = [instance, ]
-        query = Q(guardian_roles_ownerbasedtemplaterole_concrete_template__in=pk_set)
-        used_template_roles = TemplateRole.objects.filter(query)
-        object_based_template_roles = ObjectBasedTemplateRole.objects.filter(based_template__in=used_template_roles)
+        owner_based_template_roles = model.objects.filter(pk__in=pk_set).prefetch_related('object_based_template_roles')
+        obj_based_template_roles = owner_based_template_roles.object_based_template_roles.all()
+        admin_roles = owner_based_template_roles.filter(
+            based_template__name=guardian_roles_settings.ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
+        if admin_roles.exists():
+            for admin_role in admin_roles:
+                # get the `hidden` object based template roles which handles permissions for role viewing and changing
+                obj_based_template_roles |= ObjectBasedTemplateRole.objects.filter(
+                    object_pk=admin_role.pk,
+                    content_type=content_type,
+                    based_template=None)
     else:
         users = get_user_model().objects.filter(pk__in=pk_set)
-        object_based_template_roles = ObjectBasedTemplateRole.objects.filter(based_template=instance.based_template)
+        obj_based_template_roles = instance.object_based_template_roles.all()
+        if instance.based_template.name == guardian_roles_settings.ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE:
+            # get the `hidden` object based template roles which handles permissions for role viewing and changing
+            obj_based_template_roles |= ObjectBasedTemplateRole.objects.filter(
+                object_pk=instance.pk,
+                content_type=content_type,
+                based_template=None)
 
-    for object_based_template_role in object_based_template_roles:
-        if action == 'post_add':
+    if action == 'post_add':
+        for object_based_template_role in obj_based_template_roles:
             object_based_template_role.user_set.add(*users)
-        elif action == 'post_remove' or action == 'post_clear':
+
+    elif action == 'post_remove' or action == 'post_clear':
+        for object_based_template_role in obj_based_template_roles:
             object_based_template_role.user_set.remove(*users)

@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-
+from django.utils.translation import gettext_lazy as _
 from guardian_roles.utils import get_model_from_string
 
 DEFAULT_ROLES = getattr(settings, 'DEFAULT_ROLES', [])
@@ -12,6 +12,9 @@ OWNER_MODEL = getattr(settings, 'OWNER_MODEL', None)
 OLD_OWNER_FIELD_ATTRIBUTE = getattr(settings, 'OLD_OWNER_FIELD_ATTRIBUTE', None)
 
 OWNER_FIELD_ATTRIBUTE = getattr(settings, 'OWNER_FIELD_ATTRIBUTE', None)
+
+# This all users of this role grants all rights of the guardian_roles_administrator to administrate there own roles
+ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = getattr(settings, 'ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE', None)
 
 
 def check_configuration():

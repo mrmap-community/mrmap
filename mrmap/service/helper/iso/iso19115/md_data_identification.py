@@ -6,7 +6,7 @@ Created on: 26.05.20
 
 ToDo: description
 """
-from mrmap.service.helper.iso.iso19115.xml_creation import NS_GMD, create_xml_element, create_gco_character_string
+from service.helper.iso.iso19115.xml_creation import NS_GMD, create_xml_element, create_gco_character_string
 from service.models import Metadata
 
 

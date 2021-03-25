@@ -22,7 +22,7 @@ from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
 from service.helper import task_helper
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from users.helper import user_helper
 
 

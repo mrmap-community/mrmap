@@ -19,3 +19,4 @@ socket          = 127.0.0.1:8000
 # chmod-socket    = 664
 # clear environment on exit
 vacuum          = true
+safe-pidfile    = /var/run/uwsgi/mrmap.pid

@@ -120,10 +120,10 @@ chown www-data:www-data /var/run/celery/
 
 
 # copy celery environment file
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_celery_environment /etc/default/celery
+cp -a /opt/mrmap/install/confs/mrmap_celery_environment /etc/default/celery
 
 # copy celery service file
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
+cp -a /opt/mrmap/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
 
 # start celery and enable start on boot
 systemctl start celery
@@ -131,11 +131,11 @@ systemctl enable celery
 
 
 # copy celery helper service file
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_celery_helper_service /etc/systemd/system/celery-helper.service
+cp -a /opt/mrmap/install/confs/mrmap_celery_helper_service /etc/systemd/system/celery-helper.service
 systemctl enable celery-helper
 
 # copy celery flower statistics service file
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_celery_flower_service /etc/systemd/system/celery-flower.service
+cp -a /opt/mrmap/install/confs/mrmap_celery_flower_service /etc/systemd/system/celery-flower.service
 systemctl enable celery-flower
 systemctl start celery-flower
 
@@ -156,7 +156,7 @@ This can take up to 1 hour, recommended for production!y/n? \n
 You can do this later with bash /opt/MrMap/install/modsecurity_and_stronger_DH.bash " yn
     case $yn in
         [Yy]* )
-				bash /opt/mrmap/mrmap/install/modsecurity_and_stronger_DH.bash;
+				bash /opt/mrmap/install/modsecurity_and_stronger_DH.bash;
         break;;
         [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
@@ -164,7 +164,7 @@ You can do this later with bash /opt/MrMap/install/modsecurity_and_stronger_DH.b
 done
 echo "Executing initial setup"
 python /opt/mrmap/mrmap/manage.py setup
-chown -R www-data /opt/MrMap/logs
+chown -R www-data /opt/mrmap/mrmap/logs/
 
 /etc/init.d/nginx restart
 systemctl restart uwsgi

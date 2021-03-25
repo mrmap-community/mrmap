@@ -1,9 +1,9 @@
-# PostgreSQL Database Installation
+# PostgreSQL
 
-This section entails the installation and configuration of a local PostgreSQL database. If you already have a PostgreSQL database service in place, skip to [the next section](2-redis.md).
+This section entails the installation and configuration of a local PostgreSQL database.
 
 !!! warning
-    Please note that MySQL and other relational databases are **not** currently supported.
+    Please note that MySQL and other relational databases are currently **not** supported.
 
 ## Installation
 
@@ -19,7 +19,7 @@ sudo apt install -y postgresql postgresql-client postgis* postgresql-server-dev-
 ## Database Creation
 
 At a minimum, we need to create a database for MrMap and assign it a username and password for authentication. This is done with the following commands.
-We also add the postgis extension at this stage as this has to be done as the root user.
+We also add the postgis extension at this stage as this has to be done by the root user.
 
 !!! danger
     **Do not use the password from the example.** Choose a strong, random password to ensure secure database authentication for your MrMap installation.

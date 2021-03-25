@@ -18,6 +18,10 @@ nav:
           - 1. PostgreSQL: 'installation/1-postgresql.md'
           - 2. Redis: 'installation/2-redis.md'
           - 3. Mapserver: 'installation/3-mapserver.md'
+          - 4. MrMap: 'installation/4-mrmap.md'
+          - 5. Application-Server: 'installation/5-application-server.md'
+          - 6. HTTP-Server: 'installation/6-HTTP-Server.md'
+
     - Core Functionality:
           - Service registration: 'core-functionality/service-registration.md'
           - Metadata editor: 'core-functionality/metadata-editor.md'

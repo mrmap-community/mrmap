@@ -9,6 +9,8 @@ The following sections detail how to set up a new instance of MrMap:
 1. [Redis](2-redis.md)
 1. [Mapserver](3-mapserver.md)
 1. [MrMap components](4-mrmap.md)
+1. [Application Server](5-application-server.md)
+1. [HTTP Server](6-HTTP-Server.md)
 
 
 ## Requirements

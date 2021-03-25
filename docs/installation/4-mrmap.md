@@ -84,8 +84,9 @@ change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
         (venv) $ celery -A MrMap beat -l INFO
 
-1. Start up mr. map
+1. Collect Static files and start up mr. map
 
+        (venv) $ python manage.py collectstatic
         (venv) $ python manage.py runserver_plus 0.0.0.0:8000
 !!! note
     At this point you have a full working instance of MrMap running. This is sufficient if your intention is development.

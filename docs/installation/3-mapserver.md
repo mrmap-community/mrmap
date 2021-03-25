@@ -8,7 +8,7 @@
 ### Debian
 
 ```no-highlight
-sudo apt install -y cgi-mapserver
+apt install -y cgi-mapserver
 ```
 
 ## Configure

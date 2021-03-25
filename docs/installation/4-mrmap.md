@@ -1,80 +1,143 @@
 # MrMap Installation
 
 This section of the documentation discusses installing and configuring the MrMap application itself.
+You can either setup a virtualenv for python or use system python if it is above Python3.7.
+If you want to use system python just skip the step to create and activate a virtualenv.
 
 ## Install System Packages
 
 Begin by installing all system packages required by MrMap and its dependencies.
 
 !!! note
-    MrMap require Python 3.7, or 3.8.
+    MrMap requires Python 3.7, or 3.8.
 
 ### Debian
 
-```no-highlight
-sudo apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv
-```
-
-!!! note
-    To use the virtualenv run: source `PATH-TO-MrMap`/venv/bin/activate
-
-
-Before continuing with either platform, update pip (Python's package management tool) to its latest release:
+On debian 10 you have python3.7 available in the system packages, on other versions
+ or distros you might have to compile it yourself.
 
 ```no-highlight
-sudo pip3 install --upgrade pip
+  sudo apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git
 ```
 
-### Initial setup Mr. Map
-1. activate your configured virtualenv:
-        
-        $ source `PATH-TO-YOUR-VENV`/bin/activate
+## Initial setup Mr. Map
 
-1. clone the project from the repo to your preferred install directory:
-        
-        (venv) $ cd `INSTALL-DIR`
-        (venv) $ git clone https://git.osgeo.org/gitea/GDI-RP/MrMap 
-   
+1. Clone the project from the repo to your preferred install directory,
+  we use /opt/ in this example:
+
+```no-highlight
+cd /opt/
+git clone https://github.com/mrmap-community/mrmap
+```
+
+1. Create your virtualenv and activate it (skip this step if you want to use system python):
+
+```no-highlight
+virtualenv -ppython3.7 /opt/mrmap/venv
+source /opt/mrmap/venv/bin/activate
+```
+
+1. Install all requirements in to the virtualenv, make sure to use python3.7 binary if you are not using a virtualenv:
+
+```no-highlight
+(venv) $ python -m pip install -r /opt/mrmap/mrmap/requirements.txt
+```
+
+1. Set database parameters in /opt/mrmap/mrmap/MrMap/sub_settings/db_settings.py
+
+```no-highlight
+...
+'NAME': 'mrmap',
+'USER': 'mrmap',
+'PASSWORD': 'J5brHrAXFLQSif0K',
+...
+```
+
+1. Run django migrations:
+```no-highlight
+(venv) $ python /opt/mrmap/mrmap/manage.py migrate
+```
+1. (Optional) Configure proxy:  
+
+Make sure the HTTP_PROXY variable in MrMap/settings.py is set correctly for your system.  
+
+1. Run setup routine to get initialized db with admin user for mr. map:
+```no-highlight
+(venv) $ python /opt/mrmap/mrmap/manage.py setup
+```
+1. Change Hostname in case you are not localhost
+```no-highlight
+change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+```
+
+
+## Test if everything works
 !!! note
-    all following commands are from within the project root directory run.
+    You can run the following commands in background by adding a trailing &
 
-1. install all requirements:
+1. Start up celery process (celery will do async jobs for us)
 
-        (venv) $ pip install -r requirements.txt
-        
-1. run django migrations:
-
-        (venv) $ python manage.py migrate
-
-1. (Optional) Configure proxy:
-    
-    Make sure the HTTP_PROXY variable in MrMap/settings.py is set correctly for your system
-
-1. run setup routine to get initialized db with admin user for mr. map:
-        
-        (venv) $ python manage.py setup
-        
-### Start up everything we need
-!!! note
-    all following commands are run within the project root directory run by using your virtual env.
-       
-1. start up celery process (celery will do async jobs for us)
-
+        (venv) $ cd  /opt/mrmap/mrmap/
         (venv) $ celery -A MrMap worker -l INFO
-        
-1. start up mr. map
 
-        (venv) $ python manage.py runserver_plus
-!!! note
-   [runserver_plus](https://django-extensions.readthedocs.io/en/latest/runserver_plus.html) gives us more debug informations
-
-1. start up celery beat process
+1. Start up celery beat process
 
         (venv) $ celery -A MrMap beat -l INFO
-   
 
-1. you should see the login page after opening http://127.0.0.1:8000:
+1. Start up mr. map
+
+        (venv) $ python manage.py runserver_plus 0.0.0.0:8000
+!!! note
+    At this point you have a full working instance of MrMap running. This is sufficient if your intention is development.
+    In the next sections we setup system services for all the needed commands.
+    [Runserver_plus](https://django-extensions.readthedocs.io/en/latest/runserver_plus.html) gives us more debug informations.
+
+
+
+1. You should see the login page after opening http://127.0.0.1:8000 or http://YOUR-IP-ADDRESS:8000:
 
     ![login page](../installation/mrmap_loginpage.png)
-    
+
 You can now login with the user you configured in your python manage.py setup routine.
+
+## Setup system services for celery and celery beat
+
+We dont want to start celery and celery beat manually.  
+To automate this process we setup system services with systemd.
+
+1. Create directory for pid file and logs
+
+```no-highlight
+sudo mkdir /var/run/celery
+sudo mkdir /var/log/celery
+sudo chown www-data /var/run/celery
+sudo chown www-data /var/log/celery
+```
+
+1. Adjust if needed and copy the config files to their destination:  
+We need a [environment file for celery](https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_celery_environment)  
+and a [service definition for celery](https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_celery_service).  
+
+!!! note
+     If you are using a virtualenv you have to adjust celery path in the environment file.  
+     If your installation directory differs from /opt/ you have to change the working directory in the service definition of celery.
+
+```no-highlight
+# copy celery environment file
+cp -a /opt/mrmap/install/confs/mrmap_celery_environment /etc/default/celery
+# copy celery service file
+cp -a /opt/mrmap/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
+```
+
+1. Activate and start celery service
+
+```no-highlight
+sudo systemctl enable celery
+sudo systemctl start celery
+```
+
+1. Check if its running
+
+```no-highlight
+sudo systemctl status celery
+```

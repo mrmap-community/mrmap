@@ -112,7 +112,7 @@ def check_uri_provides_ogc_capabilities(value) -> ValidationError:
 
 
 def _get_request_uri_has_no_request_parameter(value):
-    from mrmap.service.helper import service_helper
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
 
     if "request" in url_dict and url_dict["request"] is not None:
@@ -128,7 +128,7 @@ def _get_request_uri_has_no_request_parameter(value):
 
 
 def _get_request_uri_has_no_version_parameter(value):
-    from mrmap.service.helper import service_helper
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
@@ -170,7 +170,7 @@ def _get_request_uri_has_no_version_parameter(value):
 
 
 def _get_request_uri_has_no_service_parameter(value):
-    from mrmap.service.helper import service_helper
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
 
     if "service" not in url_dict or url_dict["service"] is None:

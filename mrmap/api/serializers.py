@@ -16,7 +16,7 @@ from rest_framework import serializers
 from MrMap.settings import ROOT_URL
 from api.settings import API_EXCLUDE_METADATA_RELATIONS
 from service.forms import RegisterNewResourceWizardPage2
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension, MetadataRelation
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup

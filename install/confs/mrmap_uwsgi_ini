@@ -2,7 +2,7 @@
 
 # Django-related settings
 # the base directory (full path)
-chdir           = /opt/MrMap
+chdir           = /opt/mrmap/mrmap
 # Django's wsgi file
 wsgi-file       = MrMap/wsgi.py
 # run as webserver user
@@ -19,3 +19,4 @@ socket          = 127.0.0.1:8000
 # chmod-socket    = 664
 # clear environment on exit
 vacuum          = true
+safe-pidfile    = /var/run/uwsgi/mrmap.pid

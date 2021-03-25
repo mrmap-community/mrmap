@@ -1166,7 +1166,7 @@ class Metadata(Resource):
         Returns:
             current_capability_document (str): The xml document
         """
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         cap_doc = None
 
         cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
@@ -1634,7 +1634,7 @@ class Metadata(Resource):
              nothing
         """
         from service.helper.ogc.wms import OGCWebMapServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
@@ -1680,7 +1680,7 @@ class Metadata(Resource):
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
 
         # Prepare 'service' for further handling
         # If no identifier is provided, we deal with a root metadata
@@ -3558,7 +3558,7 @@ class FeatureType(Resource):
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         if self.parent_service is None:
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.service_type.version)

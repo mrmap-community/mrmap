@@ -16,7 +16,7 @@ from MrMap.validators import validate_get_capablities_uri
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
 from service.models import Service, MrMapGroup
 from service import tasks

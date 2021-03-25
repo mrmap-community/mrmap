@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
 from MrMap.views import CustomSingleTableMixin, SuccessMessageDeleteMixin, GenericViewContextMixin, InitFormMixin, \
-    ConfirmView, DependingListView
+    ConfirmView, DependingListMixin
 from django.contrib.auth.mixins import PermissionRequiredMixin as DjangoPermissionRequiredMixin
 
 
@@ -122,10 +122,11 @@ class SecuredListMixin(LoginRequiredMixin, GenericPermissionListMixin, CustomSin
     action = 'view'
 
 
-class SecuredDependingListMixin(SecuredListMixin, DependingListView):
+class SecuredDependingListMixin(LoginRequiredMixin, GenericPermissionListMixin, DependingListMixin, CustomSingleTableMixin):
     """
     Secured `DependingListView` mixin class with default permission '<app_label>.view_<model_name>'
     """
+    action = 'view'
 
 
 class SecuredConfirmView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, ConfirmView):

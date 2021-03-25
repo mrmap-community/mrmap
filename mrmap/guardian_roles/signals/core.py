@@ -25,24 +25,38 @@ def handle_template_role_permission_change(sender, instance, action, reverse, mo
     Returns:
         None
     """
-    if reverse:
-        permissions = [instance, ]
-        object_based_template_roles = ObjectBasedTemplateRole.objects.filter(based_template__pk__in=pk_set)
-    else:
-        permissions = model.objects.filter(pk__in=pk_set)
-        object_based_template_roles = ObjectBasedTemplateRole.objects.filter(based_template=instance)
+    unsuported_actions = ['pre_add', 'pre_remove', 'pre_clear']
+    if action in unsuported_actions:
+        return
 
-    for object_based_template_role in object_based_template_roles:
-        for perm in permissions:
+    if reverse:
+        object_based_template_roles = ObjectBasedTemplateRole.objects.filter(based_template__pk__in=pk_set,
+                                                                             content_type=instance.content_type)
+        for object_based_template_role in object_based_template_roles:
             if action == 'post_add':
-                assign_perm(perm=perm,
+                assign_perm(perm=instance,
                             user_or_group=object_based_template_role,
                             obj=object_based_template_role.content_object)
 
             elif action == 'post_remove' or action == 'post_clear':
-                remove_perm(perm=perm,
+                remove_perm(perm=instance,
                             user_or_group=object_based_template_role,
                             obj=object_based_template_role.content_object)
+    else:
+        permissions = model.objects.filter(pk__in=pk_set)
+        for perm in permissions:
+            object_based_template_roles = ObjectBasedTemplateRole.objects.filter(based_template=instance,
+                                                                                 content_type=perm.content_type)
+            for object_based_template_role in object_based_template_roles:
+                if action == 'post_add':
+                    assign_perm(perm=perm,
+                                user_or_group=object_based_template_role,
+                                obj=object_based_template_role.content_object)
+
+                elif action == 'post_remove' or action == 'post_clear':
+                    remove_perm(perm=perm,
+                                user_or_group=object_based_template_role,
+                                obj=object_based_template_role.content_object)
 
 
 @receiver(post_save, sender=get_owner_model())
@@ -81,6 +95,10 @@ def handle_users_changed(sender, instance, action, reverse, model, pk_set, **kwa
     Returns:
         None
     """
+    unsuported_actions = ['pre_add', 'pre_remove', 'pre_clear']
+    if action in unsuported_actions:
+        return
+
     if reverse:
         users = [instance, ]
         query = Q(guardian_roles_ownerbasedtemplaterole_concrete_template__in=pk_set)

@@ -523,7 +523,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
                                                color=ButtonColorEnum.INFO,
                                                tooltip=_l("Run health checks for this resource"),
                                                tooltip_placement=TooltipPlacementEnum.LEFT,
-                                               needs_perm=PermissionEnum.CAN_RUN_MONITORING.value),
+                                               needs_perm=PermissionEnum.CAN_ADD_MONITORING_RUN.value),
                                     LinkButton(url=self.remove_view_uri,
                                                content=get_icon(IconEnum.DELETE),
                                                color=ButtonColorEnum.DANGER,

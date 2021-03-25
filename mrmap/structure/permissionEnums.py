@@ -49,7 +49,7 @@ class PermissionEnum(EnumChoice):
 
     # MonitoringRun
     CAN_VIEW_MONITORING_RUN = "monitoring.view_monitoringrun"
-    CAN_RUN_MONITORING = "monitoring.add_monitoringrun"
+    CAN_ADD_MONITORING_RUN = "monitoring.add_monitoringrun"
 
     # MonitoringResult
     CAN_VIEW_MONITORING_RESULT = "monitoring.view_monitoringresult"

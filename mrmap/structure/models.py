@@ -43,7 +43,7 @@ class Contact(models.Model):
         abstract = True
 
 
-class Organization(UuidPk, Contact):
+class Organization(UuidPk, CommonInfo, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.

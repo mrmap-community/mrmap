@@ -104,7 +104,7 @@ class MonitoringRun(CommonInfo):
         return LinkButton(content=Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}) + _(' New run').__str__(),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('monitoring:run_new'),
-                          needs_perm=PermissionEnum.CAN_RUN_MONITORING.value)
+                          needs_perm=PermissionEnum.CAN_ADD_MONITORING_RUN.value)
 
     def get_absolute_url(self):
         return f"{reverse('monitoring:run_overview')}?uuid={self.uuid}"

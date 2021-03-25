@@ -100,10 +100,6 @@ class OrganizationMemberTable(ActionTableMixin, tables.Table):
         fields = ('username', )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
 
-    def __init__(self, organization: Organization, *args, **kwargs):
-        self.organization = organization
-        super().__init__(*args, **kwargs)
-
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
@@ -130,10 +126,6 @@ class OrganizationPublishersTable(tables.Table):
         fields = ('organization_name', )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
-
-    def __init__(self, organization, *args, **kwargs):
-        self.organization = organization
-        super().__init__(*args, **kwargs)
 
 
 class OrganizationRolesTable(tables.Table):

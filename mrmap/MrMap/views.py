@@ -3,6 +3,7 @@ import uuid
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
+from django.db.models import Q
 from django.http import JsonResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -284,8 +285,9 @@ class CustomSingleTableMixin(SingleTableMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
-class DependingListView(View):
+class DependingListMixin:
     depending_model = None
+    depending_field_name = None
     object = None
 
     def setup(self, request, *args, **kwargs):
@@ -295,3 +297,6 @@ class DependingListView(View):
         super().setup(request, *args, **kwargs)
         self.object = get_object_or_404(klass=self.depending_model, pk=kwargs.get('pk'))
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(Q(**{self.depending_field_name: self.object}))

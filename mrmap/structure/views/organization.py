@@ -2,10 +2,9 @@ from django.contrib.auth import get_user_model
 from django.db.models import Case, When
 from django.utils.translation import gettext as _
 from django.views.generic.base import ContextMixin
-from django_bootstrap_swt.components import Tag, Badge
+from django_bootstrap_swt.components import Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
-from MrMap.icons import IconEnum
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
 from guardian_roles.models.core import OwnerBasedTemplateRole
 from main.buttons import DefaultActionButtons
@@ -82,38 +81,24 @@ class OrganizationUpdateView(SecuredUpdateView):
 class OrganizationMembersTableView(OrganizationDetailContextMixin, SecuredDependingListMixin, FilterView):
     model = get_user_model()
     depending_model = Organization
+    depending_field_name = 'organization'
     table_class = OrganizationMemberTable
     filterset_fields = {'username': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
-    title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Members')
-
-    def get_queryset(self):
-        return self.object.user_set.all()
-
-    def get_table_kwargs(self):
-        return {'organization': self.object}
 
 
 class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
     model = Organization
     depending_model = Organization
+    depending_field_name = 'can_publish_for'
     table_class = OrganizationPublishersTable
     filterset_fields = {'organization_name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
-    title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Publish for list')
-
-    def get_queryset(self):
-        return Organization.objects.filter(can_publish_for__pk=self.object.pk)
-
-    def get_table_kwargs(self):
-        return {'organization': self.object}
 
 
 class OrganizationRolesTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
     model = OwnerBasedTemplateRole
     depending_model = Organization
+    depending_field_name = 'content_object'
     table_class = OrganizationRolesTable
     template_name = 'MrMap/detail_views/table_tab.html'
-
-    def get_queryset(self):
-        return self.model.objects.filter(content_object=self.object.pk)

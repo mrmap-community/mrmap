@@ -77,7 +77,7 @@ class OwnerBasedTemplateRole(ConcreteTemplateRole):
     """
     content_object = models.ForeignKey(to=guardina_roles_settings.OWNER_MODEL,
                                        on_delete=models.CASCADE,
-                                       related_name='real_organization_based_template_roles')
+                                       related_name='owner_based_template_roles')
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         verbose_name=_('users'),

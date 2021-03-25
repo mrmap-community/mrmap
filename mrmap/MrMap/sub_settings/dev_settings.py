@@ -142,19 +142,25 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 # django-guardian
 OWNER_MODEL = 'structure.Organization'
+
 OWNABLE_MODELS = ['service.Metadata',
                   'monitoring.MonitoringRun',
                   'monitoring.MonitoringResult',
                   'monitoring.HealthState',
-                  'service.ProxyLog']
+                  'service.ProxyLog',
+                  'structure.Organization']
+
 OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
+
+
 
 DEFAULT_ROLES = [
     {
         "verbose_name": _("Organization Administrator"),
         "description": _("Permission role. Holds permissions to administrate organizations."),
         "permissions": [
+            PermissionEnum.CAN_VIEW_ORGANIZATION,
             PermissionEnum.CAN_EDIT_ORGANIZATION,
         ],
     },
@@ -162,6 +168,7 @@ DEFAULT_ROLES = [
         "verbose_name": _("Resource Editor"),
         "description": _("Permission role. Holds permissions to edit metadata or activate resources."),
         "permissions": [
+            PermissionEnum.CAN_VIEW_METADATA,
             PermissionEnum.CAN_ACTIVATE_RESOURCE,
             PermissionEnum.CAN_EDIT_METADATA,
         ],
@@ -185,6 +192,10 @@ DEFAULT_ROLES = [
             PermissionEnum.CAN_REMOVE_RESOURCE,
             PermissionEnum.CAN_ADD_DATASET_METADATA,
             PermissionEnum.CAN_REMOVE_DATASET_METADATA,
+            PermissionEnum.CAN_VIEW_MONITORING_RUN,
+            PermissionEnum.CAN_ADD_MONITORING_RUN,
+            PermissionEnum.CAN_VIEW_MONITORING_RESULT,
+            PermissionEnum.CAN_VIEW_HEALTH_STATE,
         ],
     },
 ]

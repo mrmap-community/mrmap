@@ -23,13 +23,21 @@ is another configuration file for plain HTTP in the conf folder.
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 ```
 
-1. Copy Nginx config file to its place, delete the default conf and enable it by creating a symlink.
-If youre not installing to /opt/ you have to change the folder of the /static route in the [nginx conf](https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_nginx_ssl).
+1. Copy Nginx config file to its place and enable it by creating a symlink. Delete the default conf.
+
+!!! Note
+    If youre not installing to /opt/ you have to change the folder of the /static route in the [nginx conf](https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_nginx_ssl).
+    
 
 ```no-highlight
 cp -a /opt/mrmap/install/confs/mrmap_nginx_ssl /etc/nginx/sites-available/mrmap
 rm /etc/nginx/sites-enabled/default
 ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/mrmap
+```
+
+1. Change server_name to your name or ipaddress in /etc/nginx/sites-available/mrmap
+```no-highlight
+change server_name in /etc/nginx/sites-available/mrmap
 ```
 
 1. Change HTTP_OR_SSL setting in dev_settings.py

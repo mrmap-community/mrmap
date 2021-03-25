@@ -12,8 +12,8 @@ This section entails the installation and configuration of a local PostgreSQL da
 Install the PostgreSQL server and client development libraries using `apt`.
 
 ```no-highlight
-sudo apt update
-sudo apt install -y postgresql postgresql-client postgis* postgresql-server-dev-11
+apt update
+apt install -y postgresql postgresql-client postgis* postgresql-server-dev-11
 ```
 
 ## Database Creation
@@ -25,7 +25,8 @@ We also add the postgis extension at this stage as this has to be done by the ro
     **Do not use the password from the example.** Choose a strong, random password to ensure secure database authentication for your MrMap installation.
 
 ```no-highlight
-$ sudo -u postgres psql
+$ su postgres
+$ psql
 psql (11.10 (Debian 11.10-0+deb10u1))
 Type "help" for help.
 

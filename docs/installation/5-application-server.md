@@ -28,23 +28,23 @@ and a [service definition for uwsgi](https://github.com/mrmap-community/mrmap/bl
 
 ```no-highlight
 # copy uwsgi ini
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
+cp -a /opt/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
 # copy uwsgi systemd config (service file)
-cp -a /opt/mrmap/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
+cp -a /opt/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
 ```
 
 1. Create directory for pid file according to mrmap_uwsgi.ini
 
 ```no-highlight
-sudo mkdir /var/run/uwsgi
-sudo chown www-data /var/run/uwsgi
+mkdir /var/run/uwsgi
+chown www-data /var/run/uwsgi
 ```
 
 1. Activate and start uwsgi service
 
 ```no-highlight
-sudo systemctl enable uwsgi
-sudo systemctl start uwsgi
+systemctl enable uwsgi
+systemctl start uwsgi
 ```
 
 ## Verify Service Status
@@ -52,5 +52,5 @@ sudo systemctl start uwsgi
 1. Check the output of
 
 ```no-highlight
-sudo systemctl status uwsgi
+systemctl status uwsgi
 ```

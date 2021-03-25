@@ -17,7 +17,7 @@ On debian 10 you have python3.7 available in the system packages, on other versi
  or distros you might have to compile it yourself.
 
 ```no-highlight
-  sudo apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git
+ apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git gcc
 ```
 
 ## Initial setup Mr. Map
@@ -84,8 +84,9 @@ change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
         (venv) $ celery -A MrMap beat -l INFO
 
-1. Start up mr. map
+1. Collect Static files and start up mr. map
 
+        (venv) $ python manage.py collectstatic
         (venv) $ python manage.py runserver_plus 0.0.0.0:8000
 !!! note
     At this point you have a full working instance of MrMap running. This is sufficient if your intention is development.
@@ -108,10 +109,11 @@ To automate this process we setup system services with systemd.
 1. Create directory for pid file and logs
 
 ```no-highlight
-sudo mkdir /var/run/celery
-sudo mkdir /var/log/celery
-sudo chown www-data /var/run/celery
-sudo chown www-data /var/log/celery
+mkdir /var/run/celery
+mkdir /var/log/celery
+chown www-data /var/run/celery
+chown www-data /var/log/celery
+chown -R www-data /opt/mrmap/mrmap/logs/
 ```
 
 1. Adjust if needed and copy the config files to their destination:  
@@ -132,12 +134,12 @@ cp -a /opt/mrmap/install/confs/mrmap_celery_service /etc/systemd/system/celery.s
 1. Activate and start celery service
 
 ```no-highlight
-sudo systemctl enable celery
-sudo systemctl start celery
+systemctl enable celery
+systemctl start celery
 ```
 
 1. Check if its running
 
 ```no-highlight
-sudo systemctl status celery
+systemctl status celery
 ```

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save, m2m_changed
@@ -5,7 +6,6 @@ from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OwnerBasedTemplateRole
 from guardian_roles.utils import get_owner_model
-from guardian_roles.conf import settings as guardian_roles_settings
 
 
 @receiver(m2m_changed, sender=TemplateRole.permissions.through)
@@ -89,7 +89,7 @@ def handle_owner_based_template_role_creation(sender, instance, created, **kwarg
 
         admin_role = OwnerBasedTemplateRole.objects.get(
             content_object=instance,
-            based_template__name=guardian_roles_settings.ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE
+            based_template__name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE
         )
 
         for owner_based_role, object_based_role in default_roles:
@@ -130,7 +130,7 @@ def handle_users_changed(sender, instance, action, reverse, model, pk_set, **kwa
         owner_based_template_roles = model.objects.filter(pk__in=pk_set).prefetch_related('object_based_template_roles')
         obj_based_template_roles = owner_based_template_roles.object_based_template_roles.all()
         admin_roles = owner_based_template_roles.filter(
-            based_template__name=guardian_roles_settings.ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
+            based_template__name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
         if admin_roles.exists():
             for admin_role in admin_roles:
                 # get the `hidden` object based template roles which handles permissions for role viewing and changing
@@ -141,7 +141,7 @@ def handle_users_changed(sender, instance, action, reverse, model, pk_set, **kwa
     else:
         users = get_user_model().objects.filter(pk__in=pk_set)
         obj_based_template_roles = instance.object_based_template_roles.all()
-        if instance.based_template.name == guardian_roles_settings.ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE:
+        if instance.based_template.name == settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE:
             # get the `hidden` object based template roles which handles permissions for role viewing and changing
             obj_based_template_roles |= ObjectBasedTemplateRole.objects.filter(
                 object_pk=instance.pk,

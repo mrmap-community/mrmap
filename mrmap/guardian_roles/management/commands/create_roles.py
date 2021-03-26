@@ -1,5 +1,6 @@
 from enum import Enum
 
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.core.management import BaseCommand
 from django.db import transaction
@@ -16,7 +17,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         with transaction.atomic():
-            for setting in gurdian_roles_settings.DEFAULT_ROLES:
+            for setting in getattr(settings, 'GUARDIAN_ROLES_DEFAULT_ROLES', []):
                 self._create_role_from_default_setting(setting=setting)
 
     @staticmethod

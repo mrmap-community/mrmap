@@ -32,7 +32,7 @@ class CommonInfo(models.Model):
                                         blank=True, null=True,
                                         related_name="%(app_label)s_%(class)s_created",
                                         on_delete=models.SET_NULL)
-    owned_by_org = models.ForeignKey(settings.OWNER_MODEL,
+    owned_by_org = models.ForeignKey(settings.GUARDIAN_ROLES_OWNER_MODEL,
                                      verbose_name=_('Owner'),
                                      blank=True, null=True,
                                      related_name="%(app_label)s_%(class)s_owned",

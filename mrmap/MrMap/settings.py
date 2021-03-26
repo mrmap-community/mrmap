@@ -15,7 +15,9 @@ from MrMap.sub_settings.db_settings import *
 from MrMap.sub_settings.logging_settings import *
 from api.settings import REST_FRAMEWORK
 
-GUARDIAN_RAISE_403 = True
+
+from structure.permissionEnums import PermissionEnum
+from django.utils.translation import gettext_lazy as _
 
 ALLOWED_HOSTS = [
     HOST_NAME,
@@ -56,3 +58,70 @@ PROXIES = {
 # configure if you want to validate ssl certificates
 # it is highly recommend keeping this to true
 VERIFY_SSL_CERTIFICATES = True
+
+
+# django-guardian
+GUARDIAN_RAISE_403 = True
+
+# django-guardian-roles
+GUARDIAN_ROLES_OWNABLE_MODELS = ['service.Metadata',
+                                 'monitoring.MonitoringRun',
+                                 'monitoring.MonitoringResult',
+                                 'monitoring.HealthState',
+                                 'service.ProxyLog']
+
+GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
+GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
+
+GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
+GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
+
+DEFAULT_ROLES = [
+    {
+        "name": "organization_administrator",
+        "verbose_name": _("Organization Administrator"),
+        "description": _("Permission role. Holds permissions to administrate organizations."),
+        "permissions": [
+            PermissionEnum.CAN_VIEW_ORGANIZATION,
+            PermissionEnum.CAN_EDIT_ORGANIZATION,
+        ],
+    },
+    {
+        "name": "resource_editor",
+        "verbose_name": _("Resource Editor"),
+        "description": _("Permission role. Holds permissions to edit metadata or activate resources."),
+        "permissions": [
+            PermissionEnum.CAN_VIEW_METADATA,
+            PermissionEnum.CAN_ACTIVATE_RESOURCE,
+            PermissionEnum.CAN_EDIT_METADATA,
+        ],
+    },
+    {
+        "name": "controller",
+        "verbose_name": _("Controller"),
+        "description": _("Permission role. Holds permissions to view proxylogs"
+                         "an API token."),
+        "permissions": [
+            PermissionEnum.CAN_VIEW_PROXY_LOG,
+        ],
+    },
+    {
+        "name": "resource_administrator",
+        "verbose_name": _("Resource Administrator"),
+        "description": _("Permission role. Holds permissions to administrate resources."),
+        "permissions": [
+            PermissionEnum.CAN_VIEW_METADATA,
+            PermissionEnum.CAN_ACTIVATE_RESOURCE,
+            PermissionEnum.CAN_UPDATE_RESOURCE,
+            PermissionEnum.CAN_REGISTER_RESOURCE,
+            PermissionEnum.CAN_REMOVE_RESOURCE,
+            PermissionEnum.CAN_ADD_DATASET_METADATA,
+            PermissionEnum.CAN_REMOVE_DATASET_METADATA,
+            PermissionEnum.CAN_VIEW_MONITORING_RUN,
+            PermissionEnum.CAN_ADD_MONITORING_RUN,
+            PermissionEnum.CAN_VIEW_MONITORING_RESULT,
+            PermissionEnum.CAN_VIEW_HEALTH_STATE,
+        ],
+    },
+]
+

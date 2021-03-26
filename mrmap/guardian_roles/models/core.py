@@ -6,15 +6,12 @@ For more information on this file, see
 
 """
 from uuid import uuid4
-
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from guardian_roles.conf import settings as guardina_roles_settings
 
 
 class TemplateRole(models.Model):
@@ -118,7 +115,7 @@ class OwnerBasedTemplateRole(ConcreteTemplateRole):
     User membership:
         Is handled by the user it self.
     """
-    content_object = models.ForeignKey(to=guardina_roles_settings.OWNER_MODEL,
+    content_object = models.ForeignKey(to=settings.GUARDIAN_ROLES_OWNER_MODEL,
                                        on_delete=models.CASCADE,
                                        related_name='owner_based_template_roles')
     users = models.ManyToManyField(

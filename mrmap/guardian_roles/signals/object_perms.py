@@ -1,8 +1,8 @@
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
-from guardian_roles.conf import settings as guardina_roles_settings
 from guardian_roles.models.core import TemplateRole, ObjectBasedTemplateRole, OwnerBasedTemplateRole
 from guardian_roles.utils import get_model_from_string
 
@@ -42,7 +42,7 @@ def assign_perm_to_object(sender, instance, created, **kwargs):
         for obj_role in _generate_object_based_template_roles(instance):
             related_owner_based_template_role = OwnerBasedTemplateRole.objects.get(
                 based_template=obj_role.based_template,
-                content_object=getattr(instance, guardina_roles_settings.OWNER_FIELD_ATTRIBUTE))
+                content_object=getattr(instance, settings.GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE))
 
             related_owner_based_template_role.object_based_template_roles.add(obj_role)
 
@@ -66,8 +66,8 @@ def handle_owner_change(sender, instance, created, update_fields, **kwargs):
 
     """
     if not created:
-        owner = getattr(instance, guardina_roles_settings.OWNER_FIELD_ATTRIBUTE)
-        old_owner = getattr(instance, guardina_roles_settings.OLD_OWNER_FIELD_ATTRIBUTE)
+        owner = getattr(instance, settings.GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE)
+        old_owner = getattr(instance, settings.GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE)
         if old_owner and owner != old_owner:
             # owner becomes changed, move users from old owner based templates to the new
             owner_based_roles = OwnerBasedTemplateRole.objects.filter(content_object=owner)
@@ -77,14 +77,14 @@ def handle_owner_change(sender, instance, created, update_fields, **kwargs):
                 owner_based_role.users.add(*old_owner_based_role.users)
 
 
-@receiver(post_delete, sender=guardina_roles_settings.OWNER_MODEL)
+@receiver(post_delete, sender=settings.GUARDIAN_ROLES_OWNER_MODEL)
 def handle_instance_delete(sender, instance, **kwargs):
     # delete all `ObjectBasedTemplateRole` objects. This is needed cause the `GenericForeignKey` does not support
     # on_delete=models.CASCADE method.
     ObjectBasedTemplateRole.objects.filter(object_pk=instance.pk).delete()
 
 
-for model in guardina_roles_settings.OWNABLE_MODELS:
+for model in settings.GUARDIAN_ROLES_OWNABLE_MODELS:
     model_class = get_model_from_string(model)
     post_save.connect(receiver=assign_perm_to_object,
                       sender=model_class,

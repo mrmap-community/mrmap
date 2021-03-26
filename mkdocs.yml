@@ -11,6 +11,13 @@ markdown_extensions:
     - admonition:
     - markdown_include.include:
         headingOffset: 1
+    - pymdownx.arithmatex:
+        generic: true
+
+extra_javascript:
+  - javascripts/config.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 nav:
     - Introduction: 'index.md'
     - Installation:

@@ -16,6 +16,7 @@ All development of the current MrMap release occurs in the `develop` branch; rel
 MrMap components are arranged into functional subsections called _apps_ (a carryover from Django vernacular). Each app holds the models, views, and templates relevant to a particular function:
 
 * `users`: Customize the Django authentication system
+* `guardian_roles`: Adds roles on top of django-guardian
 * `structure`: todo
 * `service`: todo
 * `quality`: todo

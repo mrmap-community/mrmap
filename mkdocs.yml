@@ -24,6 +24,8 @@ nav:
           - Security engine: 'core-functionality/security-engine.md'
           - Monitoring engine: 'core-functionality/monitoring-engine.md'
           - Logging engine: 'core-functionality/logging-engine.md'
+    - Administration:
+        - Permissions: 'administration/permissions.md'
     - Development:
           - Introduction: 'development/index.md'
           - Getting Started: 'development/getting-started.md'

@@ -54,7 +54,7 @@ class ConcreteTemplateRole(models.Model):
     def __str__(self):
         return '{} | {}'.format(
             str(self.content_object),
-            str(self.based_template.verbose_name))
+            str(self.based_template.verbose_name if self.based_template else None))
 
     def save(self, *args, **kwargs):
         if self._state.adding:

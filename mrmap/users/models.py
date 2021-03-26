@@ -33,7 +33,6 @@ class MrMapUser(AbstractUser):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4,
                           editable=False)
-    # todo: handle organization deletion, what should happen with the users?
     organization = models.ForeignKey(Organization,
                                      related_name='user_set',
                                      on_delete=models.SET_NULL,

@@ -128,7 +128,10 @@ def handle_users_changed(sender, instance, action, reverse, model, pk_set, **kwa
     if reverse:
         users = [instance, ]
         owner_based_template_roles = model.objects.filter(pk__in=pk_set).prefetch_related('object_based_template_roles')
-        obj_based_template_roles = owner_based_template_roles.object_based_template_roles.all()
+
+        obj_based_template_roles = ObjectBasedTemplateRole.objects.none()
+        for owner_role in owner_based_template_roles:
+            obj_based_template_roles |= owner_role.object_based_template_roles.all()
         admin_roles = owner_based_template_roles.filter(
             based_template__name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
         if admin_roles.exists():

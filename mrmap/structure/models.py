@@ -120,8 +120,8 @@ class Organization(UuidPk, CommonInfo, Contact):
         Returns:
             all roles for this organization (QuerySet)
         """
-        from guardian_roles.models.core import OwnerBasedTemplateRole
-        return OwnerBasedTemplateRole.objects.filter(content_object=self)
+        from guardian_roles.models.core import OwnerBasedRole
+        return OwnerBasedRole.objects.filter(content_object=self)
 
     def get_absolute_url(self) -> str:
         return reverse('structure:organization_view', args=[self.pk, ])

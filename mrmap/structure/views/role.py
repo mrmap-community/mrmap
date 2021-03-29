@@ -1,13 +1,13 @@
 from django.urls import reverse_lazy, reverse
 
 from MrMap.messages import *
-from guardian_roles.models.core import OwnerBasedTemplateRole
+from guardian_roles.models.core import OwnerBasedRole
 from main.views import SecuredUpdateView
 from django.utils.translation import gettext_lazy as _
 
 
 class RoleUpdateView(SecuredUpdateView):
-    model = OwnerBasedTemplateRole
+    model = OwnerBasedRole
     fields = ('users', )
     title = _('Edit role')
 

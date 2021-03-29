@@ -6,7 +6,7 @@ from django_bootstrap_swt.components import Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
-from guardian_roles.models.core import OwnerBasedTemplateRole
+from guardian_roles.models.core import OwnerBasedRole
 from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
@@ -97,7 +97,7 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
 
 
 class OrganizationRolesTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
-    model = OwnerBasedTemplateRole
+    model = OwnerBasedRole
     depending_model = Organization
     depending_field_name = 'content_object'
     table_class = OrganizationRolesTable

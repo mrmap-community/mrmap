@@ -34,9 +34,9 @@ class TemplateRole(models.Model):
         return str(self.verbose_name)
 
 
-class ConcreteTemplateRole(models.Model):
+class ConcreteRole(models.Model):
     """
-    An abstract model to
+    An abstract model to handle `TemplateRole` references and self well known str representations and descriptions.
     """
     # do not change after generation of this instance, cause permission changing is not implemented for base_template
     # changing.
@@ -63,7 +63,7 @@ class ConcreteTemplateRole(models.Model):
         super().save(*args, **kwargs)
 
 
-class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
+class ObjectBasedRole(ConcreteRole, Group):
     """ObjectBasedTemplateRole model to handle Role groups per object.
 
     Creation:
@@ -76,9 +76,9 @@ class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
         **specific** object.
 
     User membership:
-        Is handled by `OwnerBasedTemplateRole` objects. If a user is added/removed to a
-        `OwnerBasedTemplateRole` all users of this specific `OwnerBasedTemplateRole` will be added/removed
-         to all `ObjectBasedTemplateRole` objects with the same related base_template filtered by objects of the given
+        Is handled by `OwnerBasedRole` objects. If a user is added/removed to a
+        `OwnerBasedRole` all users of this specific `OwnerBasedRole` will be added/removed
+         to all `ObjectBasedRole` objects with the same related base_template filtered by objects of the given
         owner.
     """
     object_pk = models.CharField(_('object ID'), max_length=255)
@@ -86,7 +86,7 @@ class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
     content_type = models.ForeignKey(to=ContentType, on_delete=models.CASCADE)
 
     def __str__(self):
-        if self.content_type == ContentType.objects.get_for_model(OwnerBasedTemplateRole):
+        if self.content_type == ContentType.objects.get_for_model(OwnerBasedRole):
             return '{} | {}'.format(
                 'role admin group for',
                 str(self.content_object))
@@ -96,14 +96,14 @@ class ObjectBasedTemplateRole(ConcreteTemplateRole, Group):
     def save(self, *args, **kwargs):
         if self._state.adding:
             self.name = uuid4()
-        super(ObjectBasedTemplateRole, self).save(*args, **kwargs)
+        super(ObjectBasedRole, self).save(*args, **kwargs)
 
 
-class OwnerBasedTemplateRole(ConcreteTemplateRole):
-    """OwnerBasedTemplateRole model to handle Role groups per organization.
+class OwnerBasedRole(ConcreteRole):
+    """OwnerBasedRole model to handle Role groups per organization.
 
     Creation:
-        On `guardina_roles_settings.OWNER_MODEL` creation, one `OwnerBasedTemplateRole` per selected `TemplateRole` is
+        On `guardina_roles_settings.OWNER_MODEL` creation, one `OwnerBasedRole` per selected `TemplateRole` is
         generated.
 
     Needed cause:
@@ -129,8 +129,8 @@ class OwnerBasedTemplateRole(ConcreteTemplateRole):
         related_name="role_set",
         related_query_name="role",
     )
-    object_based_template_roles = models.ManyToManyField(
-        to=ObjectBasedTemplateRole,
+    object_based_roles = models.ManyToManyField(
+        to=ObjectBasedRole,
         blank=True,
         related_name="owner_set",
         related_query_name="owner",

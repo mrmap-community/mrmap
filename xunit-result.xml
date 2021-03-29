@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?><testsuite name="nosetests" tests="1" errors="0" failures="0" skip="0"><testcase classname="mrmap.guardian_roles.tests.test_signals.SignalPostSaveOwnerTestCase" name="test_post_save_signal_on_owner_model" time="0.093"></testcase></testsuite>

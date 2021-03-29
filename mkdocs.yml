@@ -2,17 +2,22 @@ site_name: MrMap Documentation
 site_url: https://mrmap.readthedocs.io/
 repo_url: https://github.com/mrmap-community/mrmap
 python:
+    version: 3.7
     install:
         - requirements: docs/requirements.txt
 theme:
     name: readthedocs
     navigation_depth: 3
+
+
 markdown_extensions:
     - admonition:
+    - codehilite:
     - markdown_include.include:
         headingOffset: 1
     - pymdownx.arithmatex:
         generic: true
+
 
 extra_javascript:
   - javascripts/config.js

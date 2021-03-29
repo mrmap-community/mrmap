@@ -12,32 +12,35 @@ By default, there are the following roles to group permissions.
 * **Resource administrator** - Can add, edit and remove resources for his organization
 
 ## Models
-ERM
+[ ![entity–relationship model of the guardian_roles app](../media/models/guardian_roles/erm.png) ](../media/models/guardian_roles/erm.png)
+*Above: entity–relationship model of the guardian_roles app*
 
 ### TemplateRole
-A template role collects in MrMap a set of permissions. 
+A template role collects in MrMap a set of permissions.
 
-**Definition 1:** 
- 
-$P \widehat{=}  \textrm{ all permissions}$
 
-### OwnerBasedTemplateRole
+### OwnerBasedRole
 Collects a set of users to group them by a specific template role.
 
-**Definition 2:**
-
-$OwnR \widehat{=} \textrm{ user set of an OwnerBasedTemplateRole instance}$
-
-### ObjectBasedTemplateRole
+### ObjectBasedRole
 Grands a set of users a set of permissions which are inherited by the based template role.
 
-**Definition 2:** 
+### Signals
+We use [django-signals](https://docs.djangoproject.com/en/3.1/topics/signals/) to handle changes on the described models above.
 
-$ObjR \widehat{=} \textrm{ user set of an ObjectBasedTemplateRole instance}$
+The following list of handlers are implemented:
+todo:
 
 ### Correlation between the models
 
-$\forall \textrm{ role } \in \textrm{ OwnerBasedTemplateRoles }, \exists \textrm{ ObjectBasedTemplateRole}$
+!!! abstract "Lemma 1"
+    $\forall \textrm{ role } \in \textrm{ OwnerBasedRoles }, \exists \textrm{ ObjectBasedRole}$
+
+![Subsets of users in correlation between object and owner based roles.](../media/models/guardian_roles/user_sets.svg)
+
+*Above: Subsets of users in a correlation between object and owner based roles.*
+
+
 
 $user \in ObjR, \in | \notin OwnR$
 
@@ -45,4 +48,3 @@ $user \in ObjR_{1}, \in OwnR$
 
 # Publishing rights
 An organization can grant publishing rights for other organizations.
-

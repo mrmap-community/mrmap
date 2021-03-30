@@ -28,7 +28,7 @@ You can start all configured services with the command `docker-compose -f docker
 ### Start django runserver
 
 To start the django build in runserver, run the command `DJANGO_SETTINGS_MODULE=MrMap.settings_docker python mrmap/manage.py runserver 0.0.0.0:8000`
-After that you can access the django application by calling the `http://localhost:8000` url.
+After that you can access the django application by calling the `https://localhost` or `http://0.0.0.0:8000` url.
 
 ### Run django migration commands
 

@@ -41,3 +41,9 @@ the following commands should be run the first time, after docker-compose up:
 **2. run setup command:**
 
 `DJANGO_SETTINGS_MODULE=MrMap.settings_docker python mrmap/manage.py setup`
+
+### Run celery workers
+
+`DJANGO_SETTINGS_MODULE=MrMap.settings_docker celery -A MrMap worker -l INFO`
+
+`DJANGO_SETTINGS_MODULE=MrMap.settings_docker celery -A MrMap beat -l INFO`

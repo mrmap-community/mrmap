@@ -1,5 +1,6 @@
 .. _development:
 
+
 =================
 Development
 =================
@@ -12,7 +13,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    :hidden:
    :maxdepth: 3
 
-   sections/communication
-   sections/getting-started
-   sections/project-structure
-   sections/docker
+   communication
+   getting-started
+   project-structure
+   docker

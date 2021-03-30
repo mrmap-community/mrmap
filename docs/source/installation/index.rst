@@ -1,5 +1,6 @@
 .. _installation:
 
+
 ============
 Installation
 ============
@@ -18,8 +19,13 @@ The following sections detail how to set up a new instance of MrMap:
 
 
 .. toctree::
-   :glob:
    :hidden:
    :maxdepth: 3
 
-   sections/*
+   0-requirements
+   1-postgresql
+   2-redis
+   3-mapserver
+   4-mrmap
+   5-application-server
+   6-http-server

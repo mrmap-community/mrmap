@@ -115,7 +115,7 @@ Test if everything works
 
 4. You should see the login page after opening http://127.0.0.1:8000 or http://YOUR-IP-ADDRESS:8000:
 
-.. image:: ../../images/mrmap_loginpage.png
+.. image:: ../images/mrmap_loginpage.png
   :width: 800
   :alt: MrMap login page
 

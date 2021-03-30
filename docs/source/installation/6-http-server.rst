@@ -69,6 +69,6 @@ Verify Service Status
 
 2. You should see the login page after opening ``http://YOUR-IP-ADDRESS:``
 
-.. image:: ../../images/mrmap_loginpage.png
+.. image:: ../images/mrmap_loginpage.png
   :width: 800
   :alt: MrMap login page

@@ -36,7 +36,7 @@ class TemplateRole(models.Model):
 
 class ConcreteRole(models.Model):
     """
-    An abstract model to handle `TemplateRole` references and self well known str representations and descriptions.
+    An abstract model to handle ``TemplateRole`` references and self well known str representations and descriptions.
     """
     # do not change after generation of this instance, cause permission changing is not implemented for base_template
     # changing.

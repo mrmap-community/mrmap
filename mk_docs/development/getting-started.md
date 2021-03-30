@@ -2,12 +2,24 @@
 
 ## Setting up a Development Environment
 
-Getting started with MrMap development is pretty straightforward, and should feel very familiar to anyone with Django development experience. There are a few things you'll need:
+Getting started with MrMap development is pretty straightforward, and should feel very familiar to anyone with Django development experience. There are two basic things you'll need:
 
 * A Linux system or environment
+* A supported version of Python
+
+To setup all needed services you can use
+ 
+**docker compose**:
+
+* use our [docker-compose configuration](https://github.com/mrmap-community/mrmap/blob/master/mrmap/docker/docker-compose-dev.yml). The usage is described in [develop with docker](/development/docker/).
+
+or 
+
+**conventional way**:
+
 * A PostgreSQL server, which can be installed locally [per the documentation](/installation/1-postgresql/)
 * A Redis server, which can also be [installed locally](/installation/2-redis/)
-* A supported version of Python
+* A Mapserver, which can also be [installed locally](/installation/3-mapserver/)
 
 ### Fork the Repo
 

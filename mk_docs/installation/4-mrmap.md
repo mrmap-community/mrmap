@@ -17,7 +17,7 @@ On debian 10 you have python3.7 available in the system packages, on other versi
  or distros you might have to compile it yourself.
 
 ```no-highlight
- apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git gcc
+ apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
 ```
 
 ## Initial setup Mr. Map

@@ -31,3 +31,4 @@ nav:
     - Development:
           - Introduction: 'development/index.md'
           - Getting Started: 'development/getting-started.md'
+          - Develop with docker: 'development/docker.md'

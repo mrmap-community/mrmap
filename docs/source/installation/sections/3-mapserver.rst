@@ -4,8 +4,8 @@
 3. Mapserver
 ============
 
-Install
-*******
+Installation
+************
 
 `Mapserver <https://mapserver.org/>`_ is an Open Source platform for publishing spatial data and interactive mapping applications to the web.
 
@@ -26,7 +26,7 @@ Configuration of mapserver will be handled in :ref:`the webserver setup <install
 Verify Service Status
 *********************
 
-1. Use the `mapserv` utility to ensure the Mapserver service is functional:
+1. Use the ``mapserv`` utility to ensure the Mapserver service is functional:
 
 .. code-block::
 

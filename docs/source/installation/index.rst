@@ -19,6 +19,7 @@ The following sections detail how to set up a new instance of MrMap:
 
 .. toctree::
    :glob:
+   :hidden:
    :maxdepth: 3
 
    sections/*

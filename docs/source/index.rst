@@ -7,6 +7,10 @@
 Welcome to MrMap
 ================
 
+.. image:: images/mr_map.png
+  :width: 200
+  :alt: MrMap logo
+
 .. toctree::
    :glob:
    :maxdepth: 3

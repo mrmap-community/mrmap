@@ -1,77 +1,95 @@
-# MrMap Installation
+.. _installation-4-mrmap:
+
+=====================
+4. MrMap Installation
+=====================
 
 This section of the documentation discusses installing and configuring the MrMap application itself.
 You can either setup a virtualenv for python or use system python if it is above Python3.7.
 If you want to use system python just skip the step to create and activate a virtualenv.
 
-## Install System Packages
+Install System Packages
+***********************
 
 Begin by installing all system packages required by MrMap and its dependencies.
 
 !!! note
     MrMap requires Python 3.7, or 3.8.
 
-### Debian
+Debian
+======
 
 On debian 10 you have python3.7 available in the system packages, on other versions
  or distros you might have to compile it yourself.
 
-```no-highlight
- apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
-```
+.. code-block::
 
-## Initial setup Mr. Map
+   apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
 
-1. Clone the project from the repo to your preferred install directory,
-  we use /opt/ in this example:
 
-```no-highlight
-cd /opt/
-git clone https://github.com/mrmap-community/mrmap
-```
+Initial setup Mr. Map
+*********************
+
+1. Clone the project from the repo to your preferred install directory, we use /opt/ in this example:
+
+.. code-block::
+
+   cd /opt/
+   git clone https://github.com/mrmap-community/mrmap
+
 
 1. Create your virtualenv and activate it (skip this step if you want to use system python):
 
-```no-highlight
-virtualenv -ppython3.7 /opt/mrmap/venv
-source /opt/mrmap/venv/bin/activate
-```
+.. code-block::
+
+   virtualenv -ppython3.7 /opt/mrmap/venv
+   source /opt/mrmap/venv/bin/activate
+
 
 1. Install all requirements in to the virtualenv, make sure to use python3.7 binary if you are not using a virtualenv:
 
-```no-highlight
-(venv) $ python -m pip install -r /opt/mrmap/mrmap/requirements.txt
-```
+.. code-block::
+
+   (venv) $ python -m pip install -r /opt/mrmap/mrmap/requirements.txt
+
 
 1. Set database parameters in /opt/mrmap/mrmap/MrMap/sub_settings/db_settings.py
 
-```no-highlight
-...
-'NAME': 'mrmap',
-'USER': 'mrmap',
-'PASSWORD': 'J5brHrAXFLQSif0K',
-...
-```
+.. code-block::
+
+   ...
+   'NAME': 'mrmap',
+   'USER': 'mrmap',
+   'PASSWORD': 'J5brHrAXFLQSif0K',
+   ...
+
 
 1. Run django migrations:
-```no-highlight
-(venv) $ python /opt/mrmap/mrmap/manage.py migrate
-```
+.. code-block::
+
+   (venv) $ python /opt/mrmap/mrmap/manage.py migrate
+
 1. (Optional) Configure proxy:  
 
 Make sure the HTTP_PROXY variable in MrMap/settings.py is set correctly for your system.  
 
 1. Run setup routine to get initialized db with admin user for mr. map:
-```no-highlight
-(venv) $ python /opt/mrmap/mrmap/manage.py setup
-```
+
+.. code-block::
+
+   (venv) $ python /opt/mrmap/mrmap/manage.py setup
+
 1. Change Hostname in case you are not localhost
-```no-highlight
-change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
-```
+
+.. code-block::
+
+   change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
 
-## Test if everything works
+
+Test if everything works
+************************
+
 !!! note
     You can run the following commands in background by adding a trailing &
 
@@ -88,6 +106,7 @@ change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
         (venv) $ python manage.py collectstatic
         (venv) $ python manage.py runserver_plus 0.0.0.0:8000
+
 !!! note
     At this point you have a full working instance of MrMap running. This is sufficient if your intention is development.
     In the next sections we setup system services for all the needed commands.

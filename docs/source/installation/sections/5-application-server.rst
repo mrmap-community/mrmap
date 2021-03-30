@@ -1,4 +1,8 @@
-# uWSGI
+.. _installation-5-application-server:
+
+========
+5. uWSGI
+========
 
 ## Install
 

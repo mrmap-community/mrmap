@@ -1,4 +1,8 @@
-# Nginx
+.. _installation-6-http-server:
+
+========
+6. Nginx
+========
 
 ## Install
 

@@ -67,7 +67,7 @@ Verify Service Status
     systemctl restart nginx
 
 
-2. You should see the login page after opening ``http://YOUR-IP-ADDRESS:``
+2. You should see the login page after opening ``http://YOUR-IP-ADDRESS``
 
 .. image:: ../images/mrmap_loginpage.png
   :width: 800

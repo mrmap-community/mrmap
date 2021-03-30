@@ -18,7 +18,7 @@ To setup all needed services you can use
  
 **docker compose**:
 
-* use our `docker-compose configuration <https://github.com/mrmap-community/mrmap/blob/master/mrmap/docker/docker-compose-dev.yml>`_. The usage is described in `develop with docker <development-docker-compose-usage>`_.
+* use our `docker-compose configuration <https://github.com/mrmap-community/mrmap/blob/master/mrmap/docker/docker-compose-dev.yml>`_. The usage is described in :ref:`develop with docker <development-docker-compose-usage>`.
 
 or 
 

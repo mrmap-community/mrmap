@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 django.setup()
 
-import sphinx_rtd_theme
+import sphinx_rtd_theme # noqa
 
 
 # -- Project information -----------------------------------------------------
@@ -65,3 +65,6 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+linkcheck_ignore = [r'http://localhost:\d+/', r'http://YOUR-IP-ADDRESS:\d+/']
+

@@ -3,13 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+Welcome to MrMap documentation
+##############################
 
-.. image:: mr_map.png
+.. image:: images/mr_map.png
   :width: 200
   :alt: MrMap logo
 
 What is MrMap?
-##############
+**************
 
 Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services `WMS <https://www.opengeospatial.org/standards/wms>`_, web feature services `WFS <https://www.opengeospatial.org/standards/wfs>`_ and all the other `OGC <http://www.opengeospatial.org/>`_ stuff. A similar project maybe `Hypermap-Registry <http://cga-harvard.github.io/Hypermap-Registry/>`_ - but it lacks off many things which are needed in practice. The information model was inspired by the old well known `mapbender2 <https://git.osgeo.org/gitea/GDI-RP/Mapbender2.8>`_ project and somewhen will be replaced by mrmap.
 
@@ -32,7 +34,7 @@ It encompasses the following aspects:
 * CSW interface
 
 What MrMap Is Not
-#################
+*****************
 
 While MrMap strives to cover many areas of geodata infrastructure, the scope of its feature set is necessarily limited. This ensures that development focuses on core functionality and that scope creep is reasonably contained. To that end, it might help to provide some examples of functionality that MrMap does not provide:
 
@@ -45,7 +47,7 @@ Design Philosophy
 MrMap was designed with the following tenets foremost in mind.
 
 Keep it Simple
-==============
+**************
 
 When given a choice between a relatively simple `80% solution <https://en.wikipedia.org/wiki/Pareto_principle>`_ and a much more complex complete solution, the former will typically be favored. This ensures a lean codebase with a low learning curve.
 
@@ -78,28 +80,10 @@ MrMap supports Python3.7 environment currently.
 Getting Started
 ***************
 
-See the [installation guide](installation/index.md) for help getting MrMap up and running quickly.
+See the :ref:`installation guide <installation>` for help getting MrMap up and running quickly.
 
-
-Welcome to MrMap's documentation!
-=================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
-Views
-======
-
-.. autoclass:: users.models.Subscription
-   :members:
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

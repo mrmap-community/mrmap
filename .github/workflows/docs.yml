@@ -1,0 +1,22 @@
+name: Docs
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: 0 16 * * *
+jobs:
+  check-docs:
+    name: build docs
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: check-links
+        run: |
+          cd docs/ && make linkcheck && make html

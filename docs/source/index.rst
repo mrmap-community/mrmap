@@ -17,3 +17,4 @@ Welcome to MrMap
 
    introduction/*
    installation/*
+   development/*

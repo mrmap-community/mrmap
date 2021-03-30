@@ -13,9 +13,14 @@ Welcome to MrMap
   :width: 200
   :alt: MrMap logo
 
+
+Table of content
+==================
+
 .. toctree::
    :maxdepth: 3
 
    introduction/index
    installation/index
    development/index
+

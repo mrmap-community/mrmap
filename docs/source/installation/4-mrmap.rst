@@ -21,9 +21,9 @@ Debian
 
 On debian 10 you have python3.7 available in the system packages, on other versions or distros you might have to compile it yourself.
 
-.. code-block::
+.. code-block:: console
 
-   apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
+    $ apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
 
 
 Initial setup Mr. Map
@@ -31,30 +31,30 @@ Initial setup Mr. Map
 
 1. Clone the project from the repo to your preferred install directory, we use ``/opt/`` in this example:
 
-.. code-block::
+.. code-block:: console
 
-   cd /opt/
-   git clone https://github.com/mrmap-community/mrmap
+   $ cd /opt/
+   $ git clone https://github.com/mrmap-community/mrmap
 
 
 2. Create your virtualenv and activate it (skip this step if you want to use system python):
 
-.. code-block::
+.. code-block:: console
 
-   virtualenv -ppython3.7 /opt/mrmap/venv
-   source /opt/mrmap/venv/bin/activate
+   $ virtualenv -ppython3.7 /opt/mrmap/venv
+   $ source /opt/mrmap/venv/bin/activate
 
 
 3. Install all requirements in to the virtualenv, make sure to use python3.7 binary if you are not using a virtualenv:
 
-.. code-block::
+.. code-block:: console
 
    (venv) $ python -m pip install -r /opt/mrmap/mrmap/requirements.txt
 
 
 4. Set database parameters in /opt/mrmap/mrmap/MrMap/sub_settings/db_settings.py
 
-.. code-block::
+.. code-block:: python
 
    ...
    'NAME': 'mrmap',
@@ -64,9 +64,11 @@ Initial setup Mr. Map
 
 
 5. Run django migrations:
-.. code-block::
+
+.. code-block:: console
 
    (venv) $ python /opt/mrmap/mrmap/manage.py migrate
+
 
 6. (Optional) Configure proxy:
 
@@ -74,15 +76,15 @@ Make sure the ``HTTP_PROXY`` variable in ``MrMap/settings.py`` is set correctly 
 
 7. Run setup routine to get initialized db with admin user for mr. map:
 
-.. code-block::
+.. code-block:: console
 
    (venv) $ python /opt/mrmap/mrmap/manage.py setup
 
 8. Change Hostname in case you are not localhost
 
-.. code-block::
+.. code-block:: console
 
-   change hostname in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+   $ vim /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
 
 
@@ -94,14 +96,20 @@ Test if everything works
 
 1. Start up celery process (celery will do async jobs for us)
 
+.. code-block:: console
+
         (venv) $ cd  /opt/mrmap/mrmap/
         (venv) $ celery -A MrMap worker -l INFO
 
 2. Start up celery beat process
 
+.. code-block:: console
+
         (venv) $ celery -A MrMap beat -l INFO
 
 3. Collect Static files and start up mr. map
+
+.. code-block:: console
 
         (venv) $ python manage.py collectstatic
         (venv) $ python manage.py runserver_plus 0.0.0.0:8000
@@ -129,13 +137,13 @@ To automate this process we setup system services with systemd.
 
 1. Create directory for pid file and logs
 
-.. code-block::
+.. code-block:: console
 
-    mkdir /var/run/celery
-    mkdir /var/log/celery
-    chown www-data /var/run/celery
-    chown www-data /var/log/celery
-    chown -R www-data /opt/mrmap/mrmap/logs/
+    $ mkdir /var/run/celery
+    $ mkdir /var/log/celery
+    $ chown www-data /var/run/celery
+    $ chown www-data /var/log/celery
+    $ chown -R www-data /opt/mrmap/mrmap/logs/
 
 
 2. Adjust if needed and copy the config files to their destination:
@@ -146,25 +154,25 @@ and a `service definition for celery <https://github.com/mrmap-community/mrmap/b
      If you are using a virtualenv you have to adjust celery path in the environment file.  
      If your installation directory differs from /opt/ you have to change the working directory in the service definition of celery.
 
-.. code-block::
+.. code-block:: console
 
     # copy celery environment file
-    cp -a /opt/mrmap/install/confs/mrmap_celery_environment /etc/default/celery
+    $ cp -a /opt/mrmap/install/confs/mrmap_celery_environment /etc/default/celery
     # copy celery service file
-    cp -a /opt/mrmap/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
+    $ cp -a /opt/mrmap/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
 
 
 3. Activate and start celery service
 
-.. code-block::
+.. code-block:: console
 
-    systemctl enable celery
-    systemctl start celery
+    $ systemctl enable celery
+    $ systemctl start celery
 
 
 4. Check if its running
 
-.. code-block::
+.. code-block:: console
 
-    systemctl status celery
+    $ systemctl status celery
 

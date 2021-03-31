@@ -14,10 +14,10 @@ We use `uWSGI server <https://uwsgi-docs.readthedocs.io>`_ for serving the appli
 
 1. If you use a virtualenv, activate it before installing uwsgi
 
-.. code-block::
+.. code-block:: console
 
-    source /opt/mrmap/venv/bin/activate
-    (venv) python -m pip install uwsgi
+    $ source /opt/mrmap/venv/bin/activate
+    (venv) $ python -m pip install uwsgi
 
 
 Configure
@@ -33,28 +33,28 @@ and a `service definition for uwsgi <https://github.com/mrmap-community/mrmap/bl
     If your installation directory differs from /opt/, you have to change it in the `ini file for uwsgi <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uwsgi_ini>`_
 
 
-.. code-block::
+.. code-block:: console
 
     # copy uwsgi ini
-    cp -a /opt/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
+    $ cp -a /opt/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
     # copy uwsgi systemd config (service file)
-    cp -a /opt/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
+    $ cp -a /opt/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
 
 
 2. Create directory for pid file according to mrmap_uwsgi.ini
 
-.. code-block::
+.. code-block:: console
 
-    mkdir /var/run/uwsgi
-    chown www-data /var/run/uwsgi
+    $ mkdir /var/run/uwsgi
+    $ chown www-data /var/run/uwsgi
 
 
 3. Activate and start uwsgi service
 
-.. code-block::
+.. code-block:: console
 
-    systemctl enable uwsgi
-    systemctl start uwsgi
+    $ systemctl enable uwsgi
+    $ systemctl start uwsgi
 
 
 Verify Service Status
@@ -62,7 +62,7 @@ Verify Service Status
 
 1. Check the output of
 
-.. code-block::
+.. code-block:: console
 
-    systemctl status uwsgi
+   $ systemctl status uwsgi
 

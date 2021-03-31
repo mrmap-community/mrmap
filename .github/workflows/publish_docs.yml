@@ -27,6 +27,11 @@ jobs:
           postgresql-13-postgis-3 \
           postgresql-13-postgis-3-scripts \
           redis-server
+      # Install sphinx local
+      # ===============================
+      - name: Install sphinx
+        run: |
+          sudo apt-get install python3-sphinx
       # Upgrade pip, setuptools and wheel
       # ===============================
       - name: Upgrade pip, setuptools and wheel

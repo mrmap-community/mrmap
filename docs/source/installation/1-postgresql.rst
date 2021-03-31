@@ -17,10 +17,10 @@ Debian
 
 Install the PostgreSQL server and client development libraries using ``apt``.
 
-.. code-block::
+.. code-block:: console
 
-   apt update
-   apt install -y postgresql postgresql-client postgis* postgresql-server-dev-11
+   $ apt update
+   $ apt install -y postgresql postgresql-client postgis* postgresql-server-dev-11
 
 
 Database Creation
@@ -32,7 +32,7 @@ We also add the postgis extension at this stage as this has to be done by the ro
 .. warning::
     **Do not use the password from the example.** Choose a strong, random password to ensure secure database authentication for your MrMap installation.
 
-.. code-block::
+.. code-block:: console
 
    $ su postgres
    $ psql
@@ -57,7 +57,7 @@ Verify Service Status
 
 You can verify that authentication works issuing the following command and providing the configured password. (Replace `localhost` with your database server if using a remote database.)
 
-.. code-block::
+.. code-block:: console
 
     $ psql --username mrmap --password --host localhost mrmap
     Password for user mrmap:

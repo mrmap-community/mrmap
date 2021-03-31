@@ -33,7 +33,7 @@ Fork the Repo
 
 Assuming you'll be working on your own fork, your first step will be to fork the `official git repository <https://github.com/mrmap-community/mrmap>`_. (If you're a maintainer who's going to be working directly with the official repo, skip this step.) You can then clone your GitHub fork locally for development:
 
-.. code-block::
+.. code-block:: console
 
     $ git clone https://github.com/youruseraccount/mrmap.git
     Cloning into 'mrmap'...
@@ -61,7 +61,7 @@ Enable Pre-Commit Hooks
 
 MrMap ships with a `git pre-commit hook <https://githooks.com/>`_ script that automatically checks for style compliance and missing database migrations prior to committing changes. This helps avoid erroneous commits that result in CI test failures. You are encouraged to enable it by creating a link to ``scripts/git-hooks/pre-commit``:
 
-.. code-block::
+.. code-block:: console
 
     $ cd .git/hooks/
     $ ln -s ../../scripts/git-hooks/pre-commit
@@ -74,7 +74,7 @@ A `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ is like 
 
 Create a virtual environment using the ``venv`` Python module:
 
-.. code-block::
+.. code-block:: console
 
     $ mkdir ~/.venv
     $ python3 -m venv ~/.venv/mrmap
@@ -87,7 +87,7 @@ This will create a directory named ``.venv/mrmap`` in your home directory, which
 
 Once created, activate the virtual environment:
 
-.. code-block::
+.. code-block:: console
 
     $ source ~/.venv/mrmap/bin/activate
     (mrmap) $
@@ -100,12 +100,12 @@ Install Dependencies
 
 With the virtual environment activated, install the project's required Python packages using the ``pip`` module:
 
-.. code-block::
+.. code-block:: console
 
     (mrmap) $ python -m pip install -r requirements.txt
     Collecting Django==3.1 (from -r requirements.txt (line 1))
-      Cache entry deserialization failed, entry ignored
-      Using cached https://files.pythonhosted.org/packages/2b/5a/4bd5624546912082a1bd2709d0edc0685f5c7827a278d806a20cf6adea28/Django-3.1-py3-none-any.whl
+    Cache entry deserialization failed, entry ignored
+    Using cached https://files.pythonhosted.org/packages/2b/5a/4bd5624546912082a1bd2709d0edc0685f5c7827a278d806a20cf6adea28/Django-3.1-py3-none-any.whl
     ...
 
 
@@ -125,7 +125,7 @@ Start the Development Server
 
 Django provides a lightweight, auto-updating HTTP/WSGI server for development use. MrMap extends this slightly to automatically import models and other utilities. Run the MrMap development server with the command:
 
-.. code-block::
+.. code-block:: console
 
     $ python mrmap/manage.py runserver
     Performing system checks...
@@ -144,14 +144,14 @@ Running Tests
 
 Throughout the course of development, it's a good idea to occasionally run MrMap's test suite to catch any potential errors. Tests are run using the ``test`` management command:
 
-.. code-block::
+.. code-block:: console
 
     $ python ./mrmap/manage.py test
 
 
 In cases where you haven't made any changes to the database (which is most of the time), you can append the ``--keepdb`` argument to this command to reuse the test database between runs. This cuts down on the time it takes to run the test suite since the database doesn't have to be rebuilt each time. (Note that this argument will cause errors if you've modified any model fields since the previous test run.)
 
-.. code-block::
+.. code-block:: console
 
     $ python ./mrmap/manage.py test --keepdb
 
@@ -161,7 +161,7 @@ Submitting Pull Requests
 
 Once you're happy with your work and have verified that all tests pass, commit your changes and push it upstream to your fork. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.
 
-.. code-block::
+.. code-block:: console
 
     $ git commit -m "Closes #1234: Add wms support"
     $ git push origin

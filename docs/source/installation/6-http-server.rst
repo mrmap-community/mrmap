@@ -12,9 +12,9 @@ For hosting our web application we will use `the most popular web server on the 
 Debian
 ======
 
-.. code-block::
+.. code-block:: console
 
-    apt install -y nginx fcgiwrap
+   $ apt install -y nginx fcgiwrap
 
 
 Configure
@@ -25,9 +25,9 @@ is another configuration file for plain HTTP in the conf folder.
 
 1. Create a certificate:
 
-.. code-block::
+.. code-block:: console
 
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
+    $ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 
 
 2. Copy Nginx config file to its place and enable it by creating a symlink. Delete the default conf.
@@ -36,25 +36,25 @@ is another configuration file for plain HTTP in the conf folder.
     If youre not installing to ``/opt/`` you have to change the folder of the ``/static`` route in the `nginx conf <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_nginx_ssl>`_.
     
 
-.. code-block::
+.. code-block:: console
 
-    cp -a /opt/mrmap/install/confs/mrmap_nginx_ssl /etc/nginx/sites-available/mrmap
-    rm /etc/nginx/sites-enabled/default
-    ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/mrmap
+    $ cp -a /opt/mrmap/install/confs/mrmap_nginx_ssl /etc/nginx/sites-available/mrmap
+    $ rm /etc/nginx/sites-enabled/default
+    $ ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/mrmap
 
 
 3. Change server_name to your name or ipaddress in /etc/nginx/sites-available/mrmap
 
-.. code-block::
+.. code-block:: console
 
-    change server_name in /etc/nginx/sites-available/mrmap
+    $ vim /etc/nginx/sites-available/mrmap
 
 
-4. Change ``HTTP_OR_SSL`` setting in ``dev_settings.py``
+4. Change ``HTTP_OR_SSL`` setting to "https://" in ``dev_settings.py``
 
-.. code-block::
+.. code-block:: console
 
-    change HTTP_OR_SSL to "https://" in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+    $ vim /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
 
 Verify Service Status
@@ -62,9 +62,9 @@ Verify Service Status
 
 1. Restart webserver and test
 
-.. code-block::
+.. code-block:: console
 
-    systemctl restart nginx
+   $ systemctl restart nginx
 
 
 2. You should see the login page after opening ``http://YOUR-IP-ADDRESS``

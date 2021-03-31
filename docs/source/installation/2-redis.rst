@@ -15,9 +15,9 @@ Installation
 Debian
 ======
 
-.. code-block::
+.. code-block:: console
 
-   apt install -y redis-server
+   $ apt install -y redis-server
 
 
 You may wish to modify the Redis configuration at ``/etc/redis.conf`` or ``/etc/redis/redis.conf``, however in most cases the default configuration is sufficient.
@@ -27,7 +27,7 @@ Verify Service Status
 
 Use the ``redis-cli`` utility to ensure the Redis service is functional:
 
-.. code-block::
+.. code-block:: console
 
    $ redis-cli ping
    PONG

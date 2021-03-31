@@ -89,8 +89,8 @@ celerybeat-schedule
 venv/
 ENV/
 
-# sphinx
-docs/build
+# sphinx builded docs
+/docs/build/
 
 # Spyder project settings
 .spyderproject
@@ -123,3 +123,4 @@ mrmap/docker/postgis/postgresql_data/coverage-report.xml
 coverage-report.xml
 tests/unit_tests/xunit-result.xml
 /mrmap/docker/postgis/postgresql_data/
+

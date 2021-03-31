@@ -1,6 +1,5 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_mrmap&metric=coverage)](https://sonarcloud.io/dashboard?id=mrmap-community_mrmap)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_mrmap&metric=alert_status)](https://sonarcloud.io/dashboard?id=mrmap-community_mrmap)
-[![Documentation Status](https://readthedocs.org/projects/mrmap/badge/?version=latest)](https://mrmap.readthedocs.io/en/latest/?badge=latest)
 
 <img src="https://github.com/mrmap-community/mrmap/blob/master/mrmap/MrMap/static/images/mr_map.png" width="200">
 
@@ -12,7 +11,7 @@ MrMap runs as a web application atop the [Django](https://www.djangoproject.com/
 Python framework with a [PostgreSQL](https://www.postgresql.org/) database. For a
 complete list of requirements, see `requirements.txt`. The code is available [on GitHub](https://github.com/mrmap-community/mrmap).
 
-The complete documentation for MrMap can be found at [Read the Docs](https://mrmap.readthedocs.io/en/master/).
+The complete documentation for MrMap can be found at [github page](https://mrmap-community.github.io/mrmap/).
 
 ### Screenshots
 
@@ -26,7 +25,7 @@ The complete documentation for MrMap can be found at [Read the Docs](https://mrm
 
 ## Installation
 
-Please see [the documentation](https://mrmap.readthedocs.io/en/latest/) for
+Please see [the documentation](https://mrmap-community.github.io/mrmap/) for
 instructions on installing MrMap.
 
 ## Providing Feedback

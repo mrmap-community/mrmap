@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      # Install all system dependencies for the MrMap project
+      # ===============================
       - name: Install System Dependencies for MrMap project
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends \
@@ -25,16 +27,34 @@ jobs:
           postgresql-13-postgis-3 \
           postgresql-13-postgis-3-scripts \
           redis-server
+      # ===============================
+      # Install depending pip packages
+      # ===============================
       - name: Install dependencies of MrMap application
         run: |
           pip3 install -r ./mrmap/requirements.txt
-      - name: Install dependencies of documentation
+      - uses: ammaraskar/sphinx-action@master
+        with:
+          docs-folder: "docs/"
+      # ===============================
+      # Publish built docs to gh-pages branch.
+      # ===============================
+      - name: Commit documentation changes
         run: |
-          pip3 install -r ./docs/requirements.txt
-      - name: publish docs
-        env:
-           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          chmod +x ./docs/publish_docs.sh
-          ./docs/publish_docs.sh
-        shell: bash
+            git remote add deploy "https://token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git clone https://github.com/${GITHUB_REPOSITORY}.git --branch gh-pages --single-branch gh-pages
+            cp -r docs/build/html/* gh-pages/
+            cd gh-pages
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "Update documentation" -a || true
+            # The above command will fail if no changes were present, so we ignore
+            # the return code.
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: gh-pages
+          directory: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        # ===============================

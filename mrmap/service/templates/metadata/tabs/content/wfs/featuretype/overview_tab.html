@@ -1,0 +1,44 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
+<table class="table">
+    <caption class="d-none">{% trans 'Overview of the featuretype for ' %}{{ title }}</caption>
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td itemprop="about headline" class="col">
+            {{ title }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Kind of resource' %}</th>
+        <td>
+            {% autoescape off %}{{ICONS.WFS}}{% endautoescape %} - Featuretype
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Parent Service' %}</th>
+        <td><a href="{% url 'resource:get-metadata-html' parent_service.metadata.id %}">{{ parent_service.metadata.title }}</a>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Name of resource' %}</th>
+        <td>{{ name_of_the_resource }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            {% comment %} TODO: Mapbender presents here a logo {% endcomment %}
+            {{ contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ abstract }}
+        </td>
+    </tr>
+    </tbody>
+</table>

@@ -1,0 +1,42 @@
+{% load bootstrap4 %}
+{% load i18n %}
+<div class="modal {% if fade %}fade{% endif %}" tabindex="-1" role="dialog" id="{{id}}_modal">
+  <div class="modal-dialog {{size}}" role="document">
+    <div class="modal-content">
+<div class="modal-header">
+    <h5 class="modal-title" id="{{id_modal}}_title">
+        {{ title }}
+    </h5>
+</div>
+<form action="{{action_url}}" method="post" id="{{id}}_form">
+    {% csrf_token %}
+    <div class="modal-body"><!-- <modal-body> -->
+        {{ form.media }}
+        {% bootstrap_form form %}
+    </div><!-- </modal-body> -->
+    <div class="modal-footer"><!-- <modal-footer> -->
+        <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm">
+                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
+            </div>
+            <div class="col-sm">
+                <div class="float-right">
+                    <button id="{{id}}_btn_save" type="submit" class="btn btn-primary">
+                        <span class="submit_btn_txt">{% autoescape off %}{{ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</span>
+                        <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+</form>
+    </div>
+  </div>
+</div>
+{% if show %}
+    <script type="application/javascript">
+        $('#{{id}}_modal').modal('show');
+    </script>
+{% endif %}

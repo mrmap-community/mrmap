@@ -1,0 +1,42 @@
+{% extends 'users/views/logged_out/base.html' %}
+{% load i18n %}
+{% block body %}
+{% load i18n static %}
+{% load bootstrap4 %}
+<div class="container">
+    <div class="row">
+        <div class="col-md mt-5 text-dark">
+            <h1>{{ login_article_title }}</h1>
+            <article class="login-article">{{ login_article }}</article>
+        </div>
+        <div class="col-md mt-5 mb-5">
+            <div class="card bg-light mt-3">
+                <div class="card-body">
+                    <h4 class="card-title text-center">{% trans 'Sign in' %}</h4>
+                    <hr>
+                    <div class="media">
+                        <img class="align-self-start w-25 mr-3" src="{% static '/images/mr_map.png' %}" alt="mr. map">
+                        <div class="media-body w-75">
+                            <form method="post" action="{% url 'login' %}{% if next %}?next={{next}}{% endif %}">
+                                {% csrf_token %}
+                                {{ form.media }}
+                                {% bootstrap_form form %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% autoescape off %}{{ICONS.SIGNIN}}{% endautoescape %} {% trans 'Sign in' %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span>{% trans 'Don`t have an account?' %} </span>
+                        <a href="{% url 'signup' %}">{% autoescape off %}{{ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
+                        <a href="{% url 'password_reset' %}">{% autoescape off %}{{ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
+                    </div>
+                </div>
+
+            </div> <!-- card.// -->
+        </div>
+    </div>
+</div>
+{% endblock %}

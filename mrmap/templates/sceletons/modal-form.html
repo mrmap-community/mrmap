@@ -1,0 +1,44 @@
+<!-- Modal -->
+{% load bootstrap4 %}
+{# Usage: use with parameter on expanding template to declare show_modal, id_modal and form variable  #}
+<div class="modal {% if form.errors|length > 0  %} animated shake {% endif %} {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
+     aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content bg-light">
+            <div class="modal-header">
+                <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
+                    {{form.form_title}}
+                    {% block modal-title %}
+                    {% endblock %}
+                </h5>
+                <a href="{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}" role="button" class="close" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </a>
+                {% block modal-header %}
+                {% endblock %}
+            </div>
+            <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    {% bootstrap_form form %}
+                    {% if form.has_autocomplete_fields %}
+                        {% include 'sceletons/autocomplete_form_media.html' %}
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    {% block modal-footer %}
+                    {% endblock %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% if form.show_modal %}
+    <script type="application/javascript">
+        $('#id_modal_{{id_modal}}').modal('show');
+    </script>
+{% endif %}
+
+{% with current_view=form.current_view current_view_arg=form.current_view_arg%}
+{% include "includes/form-logic.html" %}
+{% endwith %}

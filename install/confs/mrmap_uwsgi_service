@@ -1,0 +1,13 @@
+[Unit]
+Description=uwsgi service for mrmap
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/uwsgi --ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
+#Restart=on-failure
+ExecStop=/usr/local/bin/uwsgi --stop /var/run/uwsgi/mrmap.pid
+ExecReload=/usr/local/bin/uwsgi --stop /var/run/uwsgi/mrmap.pid;/usr/local/bin/uwsgi --ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
+
+
+[Install]
+WantedBy=multi-user.target

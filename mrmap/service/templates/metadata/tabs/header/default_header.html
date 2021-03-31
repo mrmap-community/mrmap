@@ -1,0 +1,56 @@
+{% load i18n %}
+
+{% include 'metadata/tabs/header/default_title_header.html' %}
+
+{% block tab_header %}
+<li class="nav-item">
+        <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab"
+           aria-controls="home"
+           aria-selected="true">
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="bottom" data-html="true" title="{% trans 'Click to switch to overview tab'%}">
+                {% trans 'Overview' %}
+            </span>
+        </a>
+</li>
+<li class="nav-item">
+        <a class="nav-link" id="properties-tab" data-toggle="tab" href="#properties" role="tab"
+           aria-controls="properties" aria-selected="false">
+                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="bottom" data-html="true" title="{% trans 'Click to switch to properties tab'%}">
+                    {% trans 'Properties' %}
+                </span>
+        </a>
+</li>
+<li class="nav-item">
+        <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab"
+           aria-controls="contact" aria-selected="false">
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="bottom" data-html="true" title="{% trans 'Click to switch to contact tab'%}">
+                {% trans 'Contact' %}
+            </span>
+        </a>
+</li>
+<li class="nav-item">
+        <a class="nav-link" id="terms-of-use-tab" data-toggle="tab" href="#terms-of-use" role="tab"
+           aria-controls="terms-of-use" aria-selected="false">
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="bottom" data-html="true" title="{% trans 'Click to switch to terms of use tab'%}">
+                {% trans 'Terms Of Use' %}
+            </span>
+        </a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" id="quality-tab" data-toggle="tab" href="#quality" role="tab"
+       aria-controls="quality"
+       aria-selected="false">
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="bottom" data-html="true" title="{% trans 'Click to switch to quality tab'%}">
+                {% trans 'Quality' %}
+            </span>
+    </a>
+</li>
+<li class="nav-item">
+        <a class="nav-link" id="interfaces-tab" data-toggle="tab" href="#interfaces" role="tab"
+           aria-controls="interfaces" aria-selected="false">
+                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="bottom" data-html="true" title="{% trans 'Click to switch to interfaces tab'%}">
+                    {% trans 'Interfaces' %}
+                </span>
+        </a>
+</li>
+{% endblock %}

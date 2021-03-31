@@ -1,0 +1,61 @@
+name: Sonar
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: 0 16 * * *
+jobs:
+  sonarcloud:
+    name: Sonar
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Extract branch name
+        uses: nelonoel/branch-name@v1.0.1
+        id: extract_branch
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+          libssl-dev \
+          libcurl4-openssl-dev \
+          gdal-bin \
+          postgresql \
+          postgresql-client \
+          postgis \
+          postgresql-server-dev-13 \
+          postgresql-13-postgis-3 \
+          postgresql-13-postgis-3-scripts \
+          redis-server
+      - name: Set up postgres
+        run: |
+          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
+          sudo systemctl start postgresql
+      - name: Set up redis
+        run: |
+          sudo sed -i "s/supervised no/supervised systemd/g" /etc/redis/redis.conf && \
+          sudo systemctl restart redis
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          pip3 install -r ./mrmap/requirements.txt
+      - name: Run unit tests
+        run: |
+          python ./mrmap/manage.py test
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          args: >
+            -Dsonar.branch.name=${env.BRANCH_NAME}
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}'

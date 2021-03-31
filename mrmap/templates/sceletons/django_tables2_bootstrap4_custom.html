@@ -1,0 +1,238 @@
+{% load django_tables2 %}
+{% load i18n %}
+{% load fontawesome_5 %}
+{% block table-wrapper %}
+{% load bootstrap4 %}
+{% load mr_map_filters %}
+    <div class="row"><!--<t-head-->
+        <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
+            {% if table.filter_set.form %}
+            <div id="id_filter_accordion_{{table.table_id}}">
+                <div class="card">
+                    <div class="card-header" id="id_filter_card_header_{{table.table_id}}">
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Click to open filter options' %}">
+                            <button id="id_filter_btn_{{table.table_id}}" class="btn btn-info" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
+                                {% autoescape off %}{{table.context.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
+                            </button>
+                        </span>
+                    </div>
+                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter_set.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
+                            <div class="card-body">
+                                <form action="" method="get" class="form {% if table.filter_set.inline %} form-inline {% endif %}">
+                                    <div class="col">
+                                        <div class="row">
+                                            {% for field in table.filter_set.form %}
+                                            <div class="col">
+                                                {% if table.filter_set.inline %}
+                                                    {% bootstrap_field field layout='horizontal' show_label='sr-only' %}
+                                                {% else %}
+                                                    {% bootstrap_field field %}
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                            <div class="col">
+                                                <div class="d-flex align-items-end flex-column mt-auto">
+                                                    <div class="row mb-1">
+                                                    <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Filter the table' %}">
+                                                        <button type="submit" class="btn btn-info">{% autoescape off %}{{table.context.ICONS.SEARCH}}{% endautoescape %}</button>
+                                                    </span>
+                                                    </div>
+                                                    <div class="row">
+                                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Dismiss all filters' %}">
+                                                            <a class="btn btn-info" href="{{ request.path }}">{% autoescape off %}{{table.context.ICONS.UNDO}}{% endautoescape %}</a>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% if table.pagination %}
+        <div class="col-md-5 col-lg-3 col-xl-2"><!--pagination-->
+            <div class="d-flex align-items-end flex-column mt-auto">
+            {% if table.pagination.page_size %}
+                <div class="dropdown d-inline-block">
+                    {% trans 'Show' %}
+                        <button class="btn btn-info dropdown-toggle" type="button" id="wmsPagingButton"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Switch the items per page' %}">
+                                {{ table.pagination.page_size }}
+                            </span>
+
+                        </button>
+                    {% trans 'entries' %}
+                    <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
+                        {% for page_size in table.pagination.page_size_options %}
+                        <a class="dropdown-item"
+                           href="{% if table.pagination.page_name in request.GET %}
+                                    {% querystring table.pagination.page_size_param=page_size table.pagination.page_name=1%}
+                                {% else %}
+                                    {% querystring table.pagination.page_size_param=page_size %}
+                                {% endif %}">{{ page_size }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            </div>
+        </div><!--</pagination-->
+        {% endif %}
+    </div><!--</t-head-->
+<div class="mt-3"><!--<t-content-->
+    <div class="row">
+    <div class="col">
+        <div class="overflow-auto">
+        <div class="table-container">
+            {% block table %}
+                <table id="id_{{table.table_id}}" class="table table-hover bg-light" {% render_attrs table.attrs %}>
+                    <caption class="d-none">{{table.caption}}</caption>
+                    {% block table.thead %}
+                    {% if table.show_header %}
+                        <thead {{ table.attrs.thead.as_html }}>
+                        <tr>
+                        {% for column in table.columns %}
+                            <th scope="col" {{ column.attrs.th.as_html }}>
+                                {% if column.orderable %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        {% if column.column.tooltip %}
+                                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{{ column.column.tooltip }}" data-placement="left">
+                                                {{ column.header }}
+                                            </span>
+                                        {% else %}
+                                            {{ column.header }}
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        {% if request.GET|get_order_by_alias_from_request:table.order_by_field is None%}
+                                        <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
+                                            <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
+                                            class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success  {% endif %}">
+                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %}
+                                            </a>
+                                        </span>
+                                        {% elif '-' not in column.order_by_alias.next%}
+                                            {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
+                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a class="btn-info" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.ICONS.UNDO}}{% endautoescape %}</a>
+                                                </span>
+                                            {% endif %}
+                                        <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
+                                            <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
+                                            class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success {% endif %}">
+                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_UP}}{% endautoescape %}
+                                            </a>
+                                        </span>
+                                        {% else %}
+                                            {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
+                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a class="{{table.context.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.ICONS.UNDO}}{% endautoescape %}</a>
+                                                </span>
+                                            {% endif %}
+                                        <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
+                                            <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
+                                            class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success {% endif %}">
+                                                {% autoescape off %}{{table.context.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %}
+                                            </a>
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    {% if column.column.tooltip %}
+                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{{ column.column.tooltip }}">
+                                            {{ column.header }}
+                                        </span>
+                                    {% else %}
+                                        {{ column.header }}
+                                    {% endif %}
+                                {% endif %}
+                                </div>
+                            </th>
+                        {% endfor %}
+                        </tr>
+                        </thead>
+                    {% endif %}
+                    {% endblock table.thead %}
+                    {% block table.tbody %}
+                        <tbody {{ table.attrs.tbody.as_html }}>
+                        {% for row in table.paginated_rows %}
+                            {% block table.tbody.row %}
+                            <tr {{ row.attrs.as_html }}>
+                                {% for column, cell in row.items %}
+                                    <td {{ column.attrs.td.as_html }}>{% if column.localize == None %}{{ cell }}{% else %}{% if column.localize %}{{ cell|localize }}{% else %}{{ cell|unlocalize }}{% endif %}{% endif %}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endblock table.tbody.row %}
+                        {% empty %}
+                            {% if table.empty_text %}
+                            {% block table.tbody.empty_text %}
+                                <tr><td colspan="{{ table.columns|length }}">{{ table.empty_text }}</td></tr>
+                            {% endblock table.tbody.empty_text %}
+                            {% endif %}
+                        {% endfor %}
+                        </tbody>
+                    {% endblock table.tbody %}
+                    {% block table.tfoot %}
+                    {% if table.has_footer %}
+                    <tfoot {{ table.attrs.tfoot.as_html }}>
+                        <tr>
+                        {% for column in table.columns %}
+                            <td {{ column.attrs.tf.as_html }}>{{ column.footer }}</td>
+                        {% endfor %}
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                    {% endblock table.tfoot %}
+                </table>
+            {% endblock table %}
+
+            {% block pagination %}
+                {% if table.page and table.paginator.num_pages > 1 %}
+                <nav aria-label="Table navigation">
+                    <ul class="pagination justify-content-center">
+                    {% if table.page.has_previous %}
+                        {% block pagination.previous %}
+                        <li class="previous page-item">
+                            <a href="{% querystring table.prefixed_page_field=table.page.previous_page_number %}" class="page-link">
+                                <span aria-hidden="true">&laquo;</span>
+                                {% trans 'previous' %}
+                            </a>
+                        </li>
+                        {% endblock pagination.previous %}
+                    {% endif %}
+                    {% if table.page.has_previous or table.page.has_next %}
+                    {% block pagination.range %}
+                    {% for p in table.page|table_page_range:table.paginator %}
+                        <li class="page-item{% if table.page.number == p %} active{% endif %} ">
+                            <a class="page-link" {% if p != '...' %}href="{% querystring table.prefixed_page_field=p %}"{% endif %}>
+                                {{ p }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                    {% endblock pagination.range %}
+                    {% endif %}
+                    {% if table.page.has_next %}
+                        {% block pagination.next %}
+                        <li class="next page-item">
+                            <a href="{% querystring table.prefixed_page_field=table.page.next_page_number %}" class="page-link">
+                                {% trans 'next' %}
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% endblock pagination.next %}
+                    {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% endblock pagination %}
+        </div>
+    </div>
+    </div>
+</div>
+</div><!--</t-content-->
+{% endblock table-wrapper %}

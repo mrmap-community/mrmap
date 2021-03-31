@@ -1,0 +1,22 @@
+{% extends 'skeletons/modal.html' %}
+{% block ajax_script %}
+<script type="application/javascript">
+$('#{{modal_id}}').on('shown.bs.modal', function (e) {
+    $( '{{modal_id}}_body [data-toggle="tooltip"]' ).tooltip("hide");
+    $( '#{{modal_id}}_body' ).html( `{% include 'skeletons/ajax_loading_spinner.html' %}` );
+    $.ajax({
+      url: "{{ fetch_url }}",
+      success: function( data ) {
+        $( '#{{modal_id}}_body' ).html( data );
+        $( '#{{modal_id}}_body [data-toggle="tooltip"]' ).tooltip();
+      },
+      error: function() {
+        $( '#{{modal_id}}_body' ).html( `{% include 'skeletons/ajax_error.html' %}` );
+      },
+    });
+})
+$('#{{modal_id}}_body').on('hidden.bs.modal', function (e) {
+  $( '#{{modal_id}}_body' ).html( '' );
+})
+</script>
+{% endblock %}

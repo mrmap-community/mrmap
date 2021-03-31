@@ -1,0 +1,15 @@
+CELERYD_NODES="w1 w2 w3"
+CELERY_BIN="/usr/local/bin/celery"
+CELERY_APP="MrMap"
+CELERYD_MULTI="multi"
+CELERYD_OPTS="--time-limit=3000 --concurrency=8"
+
+# - %n will be replaced with the first part of the nodename.
+# - %I will be replaced with the current child process index
+CELERYD_PID_FILE="/var/run/celery/%n.pid"
+CELERYD_LOG_FILE="/var/log/celery/%n%I.log"
+CELERYD_LOG_LEVEL="INFO"
+
+# may be needed later !!
+CELERYBEAT_PID_FILE="/var/run/celery/beat.pid"
+CELERYBEAT_LOG_FILE="/var/log/celery/beat.log"

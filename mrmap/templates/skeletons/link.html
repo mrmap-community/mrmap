@@ -1,0 +1,11 @@
+{% if tooltip %}
+<span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" {% if tooltip_placement %}data-placement="{{tooltip_placement}}{% endif %}" data-html="true" title="{{tooltip}}">
+    <a class="{% if color %}{{color}}{% endif %} {{dropdown_item}}" {% if open_in_new_tab %}target="_blank"{%endif%} href="{{url}}">
+        {{value|safe}}
+    </a>
+</span>
+{% else %}
+<a class="{% if color %}{{color}}{% endif %} {{dropdown_item}} {% if size %}{{size}}{% endif %}" {% if open_in_new_tab %}target="_blank"{%endif%} href="{{url}}">
+    {{value|safe}}
+</a>
+{% endif %}

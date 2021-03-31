@@ -1,0 +1,18 @@
+{% extends 'sceletons/card-dash.html' %}
+{% load i18n %}
+{% block card-header %}
+<div class="text-center">
+<h3>{% autoescape off %}{{ICONS.HISTORY}}{% endautoescape %} {% trans 'Last activities' %}</h3>
+</div>
+{% endblock %}
+{% block card-body %}
+<div style="height: 400px;" class="overflow-auto">
+    <div class="container">
+        {% for group_activity in group_activities %}
+            {% include 'cards/last_activities/last_activities_element.html' %}
+        {% empty %}
+            {% include 'cards/last_activities/empty.html' %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

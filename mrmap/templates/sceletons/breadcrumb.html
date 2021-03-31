@@ -1,0 +1,15 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+      {% for crumb in BREADCRUMB %}
+        <li class="breadcrumb-item {% if not crumb.is_last %}active{% endif %}" {% if crumb.is_last %}aria-current="page"{% endif %}>
+            {% if crumb.is_last %}
+                <a href="{{ROOT_URL}}/{{crumb.path}}">
+                    {{crumb.item}}
+                </a>
+            {% else %}
+                {{crumb.item}}
+            {% endif %}
+        </li>
+      {% endfor %}
+  </ol>
+</nav>

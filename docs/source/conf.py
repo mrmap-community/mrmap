@@ -22,17 +22,6 @@ import django
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 
-from mock import Mock as MagicMock
-
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return Mock()
-
-
-MOCK_MODULES = ['pycurl', ]
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 django.setup()
 

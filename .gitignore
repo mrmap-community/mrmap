@@ -89,6 +89,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# sphinx
+docs/build
+
 # Spyder project settings
 .spyderproject
 

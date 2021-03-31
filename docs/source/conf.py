@@ -76,6 +76,6 @@ html_theme = "sphinx_rtd_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 #html_static_path = ['_static']
 
-linkcheck_ignore = [r'http://localhost:\d+/', r'http://YOUR-IP-ADDRESS:\d+/', ]
+linkcheck_ignore = [r'http://localhost:\d+/', r'http://127.0.0.1:\d+/', r'https://127.0.0.1:\d+/', r'http://YOUR-IP-ADDRESS:\d+/', ]
 
 master_doc = "index"

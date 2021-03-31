@@ -81,4 +81,3 @@ popd # return to main repo sandbox root
 # exit cleanly
 exit 0
 EEOOFF
-chmod +x publish_docs.sh

@@ -16,8 +16,10 @@ jobs:
       - name: publish docs2
         env:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sudo docs/publish_docs.sh
-        shell: bash    
+        run: |
+          chmod +x ./docs/publish_docs.sh
+          ./docs/publish_docs.sh
+        shell: bash
       - name: Install System Dependencies for MrMap project
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends \

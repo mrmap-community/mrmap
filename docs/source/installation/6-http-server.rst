@@ -50,7 +50,7 @@ is another configuration file for plain HTTP in the conf folder.
     $ vim /etc/nginx/sites-available/mrmap
 
 
-4. Change ``HTTP_OR_SSL`` setting to "https://" in ``dev_settings.py``
+4. Change ``HTTP_OR_SSL`` setting to ``https://`` in ``dev_settings.py``
 
 .. code-block:: console
 

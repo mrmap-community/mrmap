@@ -104,7 +104,7 @@ ENV/
 
 .idea/
 
-redis/
+redis/redis_data/
 
 # Sonar
 .scannerwork/

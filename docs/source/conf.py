@@ -18,12 +18,25 @@
 import os
 import sys
 import django
+
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
+
+from mock import Mock as MagicMock
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return Mock()
+
+
+MOCK_MODULES = ['pycurl', ]
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 django.setup()
 
-import sphinx_rtd_theme # noqa
-
+import sphinx_rtd_theme  # noqa
 
 # -- Project information -----------------------------------------------------
 
@@ -33,7 +46,6 @@ author = 'mrmap-community'
 
 # The full version, including alpha/beta/rc tags
 release = 'v0.0.0'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -53,7 +65,6 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -67,4 +78,3 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ['_static']
 
 linkcheck_ignore = [r'http://localhost:\d+/', r'http://YOUR-IP-ADDRESS:\d+/']
-

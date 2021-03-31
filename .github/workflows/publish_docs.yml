@@ -28,13 +28,11 @@ jobs:
           postgresql-13-postgis-3-scripts \
           redis-server
       # ===============================
-      # Install depending pip packages
+      # Build documentation
       # ===============================
-      - name: Install dependencies of MrMap application
-        run: |
-          pip3 install -r ./mrmap/requirements.txt
       - uses: ammaraskar/sphinx-action@master
         with:
+          pre-build-command: "pip3 install -r ../mrmap/requirements.txt"
           docs-folder: "docs/"
       # ===============================
       # Publish built docs to gh-pages branch.

@@ -16,7 +16,7 @@ The complete documentation for MrMap can be found at [github page](https://mrmap
 
 ### Screenshots
 
-<img src="https://github.com/mrmap-community/mrmap/blob/master/docs/installation/mrmap_loginpage.png">
+<img src="https://github.com/mrmap-community/mrmap/blob/master/docs/source/images/mrmap_loginpage.png">
 
 
 ### Discussion

@@ -1,0 +1,287 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Docker compose usage &mdash; MrMap v0.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Project Structure" href="project-structure.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> MrMap
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Docker compose usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#post-usage-steps">Post-usage steps</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#start-services">Start services</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-django-commands">Running django commands</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#start-django-runserver">Start django runserver</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#run-django-migration-commands">Run django migration commands</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#run-celery-workers">Run celery workers</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Development</a> &raquo;</li>
+        
+      <li>Docker compose usage</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/development/docker.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="docker-compose-usage">
+<span id="development-docker-compose-usage"></span><h1>Docker compose usage<a class="headerlink" href="#docker-compose-usage" title="Permalink to this headline">¶</a></h1>
+<p>All needed services you need to get up running a full MrMap instance are configured in the <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/mrmap/docker/docker-compose-dev.yml">docker-compose-dev.yml</a> YAML configuration file.</p>
+<table border="1" class="colwidths-given docutils">
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Dependency</th>
+<th class="head">Minimum Version</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><a class="reference external" href="https://docs.docker.com/engine/install">docker</a></td>
+<td>20</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://docs.docker.com/compose/install">docker compose</a></td>
+<td>1.28</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="post-usage-steps">
+<h2>Post-usage steps<a class="headerlink" href="#post-usage-steps" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li>Install <a class="reference external" href="https://docs.docker.com/engine/install">docker engine</a></li>
+<li>Install <a class="reference external" href="https://docs.docker.com/compose/install">docker compose</a></li>
+</ol>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Make sure that the user you running docker-compose from, has managing rights for docker. For linux developers see <a class="reference external" href="https://docs.docker.com/engine/install/linux-postinstall/">Post-installation steps for Linux</a></p>
+</div>
+</div>
+<div class="section" id="start-services">
+<h2>Start services<a class="headerlink" href="#start-services" title="Permalink to this headline">¶</a></h2>
+<p>You can start all configured services with the command <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">-f</span> <span class="pre">docker-compose-dev.yml</span> <span class="pre">up</span> <span class="pre">--build</span></code>. After that, all services should be started properly.</p>
+</div>
+<div class="section" id="running-django-commands">
+<h2>Running django commands<a class="headerlink" href="#running-django-commands" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Run the manage.py always with the docker specific settings from <code class="docutils literal notranslate"><span class="pre">MrMap.settings_docker.py</span></code> by passing the environment variable like <code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE=MrMap.settings_docker</span></code> as prefixed parameter for example.</p>
+</div>
+<div class="section" id="start-django-runserver">
+<h3>Start django runserver<a class="headerlink" href="#start-django-runserver" title="Permalink to this headline">¶</a></h3>
+<p>To start the django build in runserver, run the command <code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE=MrMap.settings_docker</span> <span class="pre">python</span> <span class="pre">mrmap/manage.py</span> <span class="pre">runserver</span> <span class="pre">0.0.0.0:8000</span></code>
+After that you can access the django application by calling the <code class="docutils literal notranslate"><span class="pre">https://localhost</span></code> or <code class="docutils literal notranslate"><span class="pre">http://0.0.0.0:8000</span></code> url.</p>
+</div>
+<div class="section" id="run-django-migration-commands">
+<h3>Run django migration commands<a class="headerlink" href="#run-django-migration-commands" title="Permalink to this headline">¶</a></h3>
+<p>the following commands should be run the first time, after docker-compose up:</p>
+<p><strong>1. run migrate command:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE=MrMap.settings_docker</span> <span class="pre">python</span> <span class="pre">mrmap/manage.py</span> <span class="pre">migrate</span></code></p>
+<p><strong>2. run setup command:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE=MrMap.settings_docker</span> <span class="pre">python</span> <span class="pre">mrmap/manage.py</span> <span class="pre">setup</span></code></p>
+</div>
+<div class="section" id="run-celery-workers">
+<h3>Run celery workers<a class="headerlink" href="#run-celery-workers" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE=MrMap.settings_docker</span> <span class="pre">celery</span> <span class="pre">-A</span> <span class="pre">MrMap</span> <span class="pre">worker</span> <span class="pre">-l</span> <span class="pre">INFO</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">DJANGO_SETTINGS_MODULE=MrMap.settings_docker</span> <span class="pre">celery</span> <span class="pre">-A</span> <span class="pre">MrMap</span> <span class="pre">beat</span> <span class="pre">-l</span> <span class="pre">INFO</span></code></p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="project-structure.html" class="btn btn-neutral float-left" title="Project Structure" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, mrmap-community.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

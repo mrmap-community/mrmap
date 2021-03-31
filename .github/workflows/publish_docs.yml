@@ -34,5 +34,5 @@ jobs:
       - name: publish docs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "docs/publish_docs.sh"
+        run: "sudo docs/publish_docs.sh"
         shell: bash

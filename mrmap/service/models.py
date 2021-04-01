@@ -2918,10 +2918,10 @@ class ServiceType(models.Model):
 class GenericUrl(Resource):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
+    url = models.URLField()
 
     def __str__(self):
-        return "{} ({})".format(self.url, self.method)
+        return "{} | {} ({})".format(self.pk, self.url, self.method)
 
 
 class ServiceUrl(GenericUrl):

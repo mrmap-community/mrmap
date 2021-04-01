@@ -93,8 +93,6 @@ INTERNAL_IPS = [
     "127.0.0.1"
 ]
 
-# DEALER Settings
-DEALER_PATH = BASE_DIR
 
 # Defines xml namespaces used for xml parsing and creating
 XML_NAMESPACES = {

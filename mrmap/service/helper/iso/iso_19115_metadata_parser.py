@@ -343,7 +343,7 @@ class ISOMetadata:
         language = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj,
                                                               elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:language/gmd:LanguageCode".format(
                                                               xpath_type))
-        if language and language.text is not None:
+        if len(language) and language.text is not None:
             self.language = xml_helper.try_get_text_from_xml_element(language)
 
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))

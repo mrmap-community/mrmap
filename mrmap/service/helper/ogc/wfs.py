@@ -7,6 +7,7 @@ import time
 
 from celery import Task
 from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.db import IntegrityError
 from lxml.etree import _Element
 
 from service.settings import DEFAULT_SRS, service_logger
@@ -60,51 +61,6 @@ class OGCWebFeatureService(OGCWebService):
             service_type=service_type,
             external_auth=external_auth
         )
-        # wfs specific attributes
-        self.get_capabilities_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.describe_feature_type_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.get_feature_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.transaction_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.lock_feature_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.get_feature_with_lock_uri = {
-            "get": None,
-            "post": None,
-        }
-
-        # wms 1.1.0
-        self.get_gml_object_uri = {
-            "get": None,
-            "post": None,
-        }
-
-        # wms 2.0.0
-        self.list_stored_queries_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.get_property_value_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.describe_stored_queries_uri = {
-            "get": None,
-            "post": None,
-        }
 
         self.feature_type_list = {}
         self.service_mime_type_list = []
@@ -355,35 +311,35 @@ class OGCWebFeatureService(OGCWebService):
                     if action == OGCOperationEnum.GET_FEATURE.value:
                         self.service_mime_type_get_feature_list.append(mime_type)
 
-        self.get_capabilities_uri["get"] = get.get(get_cap, None)
-        self.get_capabilities_uri["post"] = post.get(get_cap, None)
+        self.get_capabilities_uri_GET = get.get(get_cap, None)
+        self.get_capabilities_uri_POST = post.get(get_cap, None)
 
-        self.describe_feature_type_uri["get"] = get.get(descr_feat, None)
-        self.describe_feature_type_uri["post"] = post.get(descr_feat, None)
+        self.describe_feature_type_uri_GET = get.get(descr_feat, None)
+        self.describe_feature_type_uri_POST = post.get(descr_feat, None)
 
-        self.get_feature_uri["get"] = get.get(get_feat, None)
-        self.get_feature_uri["post"] = post.get(get_feat, None)
+        self.get_feature_uri_GET = get.get(get_feat, None)
+        self.get_feature_uri_POST = post.get(get_feat, None)
 
-        self.transaction_uri["get"] = get.get(trans, None)
-        self.transaction_uri["post"] = post.get(trans, None)
+        self.transaction_uri_GET = get.get(trans, None)
+        self.transaction_uri_POST = post.get(trans, None)
 
-        self.lock_feature_uri["get"] = get.get(lock_feat, None)
-        self.lock_feature_uri["post"] = post.get(lock_feat, None)
+        self.lock_feature_uri_GET = get.get(lock_feat, None)
+        self.lock_feature_uri_POST = post.get(lock_feat, None)
 
-        self.get_feature_with_lock_uri["get"] = get.get(get_feat_lock, None)
-        self.get_feature_with_lock_uri["post"] = post.get(get_feat_lock, None)
+        self.get_feature_with_lock_uri_GET = get.get(get_feat_lock, None)
+        self.get_feature_with_lock_uri_POST = post.get(get_feat_lock, None)
 
-        self.get_gml_object_uri["get"] = get.get(get_gml, None)
-        self.get_gml_object_uri["post"] = post.get(get_gml, None)
+        self.get_gml_object_uri_GET = get.get(get_gml, None)
+        self.get_gml_object_uri_POST = post.get(get_gml, None)
 
-        self.list_stored_queries_uri["get"] = get.get(list_stored_queries, None)
-        self.list_stored_queries_uri["post"] = post.get(list_stored_queries, None)
+        self.list_stored_queries_uri_GET = get.get(list_stored_queries, None)
+        self.list_stored_queries_uri_POST = post.get(list_stored_queries, None)
 
-        self.get_property_value_uri["get"] = get.get(get_prop_val, None)
-        self.get_property_value_uri["post"] = post.get(get_prop_val, None)
+        self.get_property_value_uri_GET = get.get(get_prop_val, None)
+        self.get_property_value_uri_POST = post.get(get_prop_val, None)
 
-        self.describe_stored_queries_uri["get"] = get.get(descr_stored_queries, None)
-        self.describe_stored_queries_uri["post"] = post.get(descr_stored_queries, None)
+        self.describe_stored_queries_uri_GET = get.get(descr_stored_queries, None)
+        self.describe_stored_queries_uri_POST = post.get(descr_stored_queries, None)
 
     def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None, external_auth: ExternalAuthentication = None):
         """ Get featuretype metadata of a single featuretype
@@ -580,13 +536,13 @@ class OGCWebFeatureService(OGCWebService):
         """
         element_list = []
         ns_list = []
-        if self.describe_feature_type_uri.get("get") is not None:
+        if self.describe_feature_type_uri_GET is not None:
             XML_NAMESPACES["default"] = XML_NAMESPACES["xsd"]
             descr_feat_root = xml_helper.get_feature_type_elements_xml(
                 title=feature_type.metadata.identifier,
                 service_type="wfs",
                 service_type_version=service_type_version,
-                uri=self.describe_feature_type_uri.get("get", ""),
+                uri=self.describe_feature_type_uri_GET,
                 external_auth=external_auth,
             )
             if descr_feat_root is not None:
@@ -756,96 +712,20 @@ class OGCWebFeatureService(OGCWebService):
         # Save record to enable M2M relations
         service.save()
 
-        operation_urls = [
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri.get("post", None),
-                method="Post"
-            )[0],
+        operation_urls = []
 
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
-                url=self.describe_feature_type_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
-                url=self.describe_feature_type_uri.get("post", None),
-                method="Post"
-            )[0],
+        for operation, parsed_operation_url, method in self.operation_urls:
+            # todo: optimize as bulk create
+            try:
+                operation_urls.append(ServiceUrl.objects.get_or_create(
+                    operation=operation,
+                    url=getattr(self, parsed_operation_url),
+                    method=method
+                )[0])
+            except IntegrityError:
+                # empty/None url values will be ignored
+                pass
 
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE.value,
-                url=self.get_feature_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE.value,
-                url=self.get_feature_uri.get("post", None),
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.TRANSACTION.value,
-                url=self.transaction_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.TRANSACTION.value,
-                url=self.transaction_uri.get("post", None),
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_PROPERTY_VALUE.value,
-                url=self.get_property_value_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_PROPERTY_VALUE.value,
-                url=self.get_property_value_uri.get("post", None),
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.LIST_STORED_QUERIES.value,
-                url=self.list_stored_queries_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.LIST_STORED_QUERIES.value,
-                url=self.list_stored_queries_uri.get("post", None),
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value,
-                url=self.describe_stored_queries_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value,
-                url=self.describe_stored_queries_uri.get("post", None),
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_GML_OBJECT.value,
-                url=self.get_gml_object_uri.get("get", None),
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_GML_OBJECT.value,
-                url=self.get_gml_object_uri.get("post", None),
-                method="Post"
-            )[0],
-
-        ]
         service.operation_urls.add(*operation_urls)
 
         # Persist capabilities document
@@ -1130,23 +1010,23 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             )
         del cap_node
 
-        self.get_capabilities_uri["get"] = get.get(get_cap, None)
-        self.get_capabilities_uri["post"] = post.get(get_cap, None)
+        self.get_capabilities_uri_GET = get.get(get_cap, None)
+        self.get_capabilities_uri_POST = post.get(get_cap, None)
 
-        self.describe_feature_type_uri["get"] = get.get(descr_feat, None)
-        self.describe_feature_type_uri["post"] = post.get(descr_feat, None)
+        self.describe_feature_type_uri_GET = get.get(descr_feat, None)
+        self.describe_feature_type_uri_POST = post.get(descr_feat, None)
 
-        self.get_feature_uri["get"] = get.get(get_feat, None)
-        self.get_feature_uri["post"] = post.get(get_feat, None)
+        self.get_feature_uri_GET = get.get(get_feat, None)
+        self.get_feature_uri_POST = post.get(get_feat, None)
 
-        self.transaction_uri["get"] = get.get(trans, None)
-        self.transaction_uri["post"] = post.get(trans, None)
+        self.transaction_uri_GET = get.get(trans, None)
+        self.transaction_uri_POST = post.get(trans, None)
 
-        self.lock_feature_uri["get"] = get.get(lock_feat, None)
-        self.lock_feature_uri["post"] = post.get(lock_feat, None)
+        self.lock_feature_uri_GET = get.get(lock_feat, None)
+        self.lock_feature_uri_POST = post.get(lock_feat, None)
 
-        self.get_feature_with_lock_uri["get"] = get.get(get_feat_lock, None)
-        self.get_feature_with_lock_uri["post"] = post.get(get_feat_lock, None)
+        self.get_feature_with_lock_uri_GET = get.get(get_feat_lock, None)
+        self.get_feature_with_lock_uri_POST = post.get(get_feat_lock, None)
 
     def get_feature_type_metadata(self, xml_obj, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Parse the wfs <Service> metadata into the self object

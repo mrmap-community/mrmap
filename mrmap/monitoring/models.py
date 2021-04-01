@@ -126,12 +126,11 @@ class MonitoringRun(models.Model):
     def add_view_uri(self):
         return reverse('monitoring:run_new')
 
-    @transaction.atomic
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        super().save(force_insert, force_update, using, update_fields)
-        from monitoring.tasks import run_manual_monitoring
-        run_manual_monitoring.delay(monitoring_run=self.pk)
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            from monitoring.tasks import run_manual_service_monitoring
+            transaction.on_commit(lambda: run_manual_service_monitoring.delay(self.pk))
+        super().save(*args, **kwargs)
 
 
 class MonitoringResult(models.Model):
@@ -147,8 +146,6 @@ class MonitoringResult(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
-        # unique_together --> avoids from celery multiple checks bug
-        unique_together = ("metadata", "monitored_uri", "monitoring_run")
         verbose_name = _('Monitoring result')
         verbose_name_plural = _('Monitoring results')
 
@@ -160,7 +157,8 @@ class MonitoringResult(models.Model):
         return reverse('monitoring:result_details', args=[self.uuid, ])
 
 
-class MonitoringResultCapability(MonitoringResult):
+class MonitoringResultDocument(MonitoringResult):
+    """Model used to signal if a given document differs from the remote document and needs an update"""
     needs_update = models.BooleanField(null=True, blank=True)
     diff = models.TextField(null=True, blank=True)
 

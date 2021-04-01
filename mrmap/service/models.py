@@ -834,7 +834,7 @@ class Metadata(Resource):
             icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = LinkButton(url=self.health_state.get_absolute_url(),
+            icon = LinkButton(url=self.health_state.last().get_absolute_url(),
                               content=icon.render(),
                               color=btn_color,
                               tooltip=tooltip,

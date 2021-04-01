@@ -47,7 +47,7 @@ admin.site.register(HealthStateReason, HealthStateReasonAdmin)
 admin.site.register(HealthState, HealthStateAdmin)
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)
 admin.site.register(MonitoringResult, MonitoringAdmin)
-admin.site.register(MonitoringResultCapability, MonitoringCapabilityAdmin)
+admin.site.register(MonitoringResultDocument, MonitoringCapabilityAdmin)
 
 # Should not be visible for daily use
 admin.site.register(MonitoringRun, MonitoringRunAdmin)

@@ -59,10 +59,11 @@ def run_monitoring(setting_id, *args, **kwargs):
 
 
 @shared_task(name='run_manual_service_monitoring')
-@transaction.atomic
-def run_manual_monitoring(monitoring_run, *args, **kwargs):
+def run_manual_service_monitoring(monitoring_run, *args, **kwargs):
+    print(monitoring_run)
     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
     monitoring_run.start = timezone.now()
+    print(monitoring_run.metadatas.all())
     for metadata in monitoring_run.metadatas.all():
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )

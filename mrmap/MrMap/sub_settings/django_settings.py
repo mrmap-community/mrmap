@@ -114,7 +114,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.RemoteUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'dealer.contrib.django.Middleware',
 ]
 
 # Password hashes
@@ -142,7 +141,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'dealer.contrib.django.context_processor',
                 'MrMap.context_processors.default_context',
                 'breadcrumb.context_processors.breadcrumb_renderer',
             ],

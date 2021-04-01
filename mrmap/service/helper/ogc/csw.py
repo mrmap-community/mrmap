@@ -6,6 +6,7 @@ Created on: 14.07.20
 
 """
 from celery import Task
+from django.db import IntegrityError
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper, task_helper
@@ -28,22 +29,6 @@ class OGCCatalogueService(OGCWebService):
             external_auth=external_auth
         )
 
-        self.get_capabilities_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.describe_record_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.get_records_uri = {
-            "get": None,
-            "post": None,
-        }
-        self.get_record_by_id_uri = {
-            "get": None,
-            "post": None,
-        }
         self.formats_list = []
 
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
@@ -161,48 +146,19 @@ class OGCCatalogueService(OGCWebService):
         # Save record to enable M2M relations
         service.save()
 
-        operation_urls = [
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                method="Get",
-                url=self.get_capabilities_uri.get("get", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                method="Post",
-                url=self.get_capabilities_uri.get("post", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_RECORD.value,
-                method="Get",
-                url=self.describe_record_uri.get("get", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_RECORD.value,
-                method="Post",
-                url=self.describe_record_uri.get("post", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_RECORDS.value,
-                method="Get",
-                url=self.get_records_uri.get("get", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_RECORDS.value,
-                method="Post",
-                url=self.get_records_uri.get("post", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_RECORD_BY_ID.value,
-                method="Get",
-                url=self.get_record_by_id_uri.get("get", None)
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_RECORD_BY_ID.value,
-                method="Post",
-                url=self.get_record_by_id_uri.get("post", None)
-            )[0],
-        ]
+        operation_urls = []
+        for operation, parsed_operation_url, method in self.operation_urls:
+            # todo: optimize as bulk create
+            try:
+                operation_urls.append(ServiceUrl.objects.get_or_create(
+                    operation=operation,
+                    url=getattr(self, parsed_operation_url),
+                    method=method
+                )[0])
+            except IntegrityError:
+                # empty/None url values will be ignored
+                pass
+
         service.operation_urls.add(*operation_urls)
 
         # Persist capabilities document
@@ -362,11 +318,11 @@ class OGCCatalogueService(OGCWebService):
             upper_elem
         )
 
-        operation_map = {
-            OGCOperationEnum.GET_CAPABILITIES.value: self.get_capabilities_uri,
-            OGCOperationEnum.DESCRIBE_RECORD.value: self.describe_record_uri,
-            OGCOperationEnum.GET_RECORDS.value: self.get_records_uri,
-            OGCOperationEnum.GET_RECORD_BY_ID.value: self.get_record_by_id_uri,
+        attribute_map = {
+            OGCOperationEnum.GET_CAPABILITIES.value: 'get_capabilities_uri',
+            OGCOperationEnum.DESCRIBE_RECORD.value: 'describe_record_uri',
+            OGCOperationEnum.GET_RECORDS.value: 'get_records_uri',
+            OGCOperationEnum.GET_RECORD_BY_ID.value: 'get_record_by_id_uri',
         }
 
         for operation in operations_objs:
@@ -386,9 +342,12 @@ class OGCCatalogueService(OGCWebService):
             )
             post_uri = xml_helper.get_href_attribute(post_uri) if post_uri is not None else None
 
-            uri_dict = operation_map.get(operation_name, {})
-            uri_dict["get"] = get_uri
-            uri_dict["post"] = post_uri
+            if attribute_map.get(operation_name):
+                setattr(self, attribute_map.get(operation_name)+'_GET', get_uri)
+                setattr(self, attribute_map.get(operation_name)+'_POST', post_uri)
+            else:
+                # the given operation is not supported for now
+                pass
 
             parameters = self._parse_parameter_metadata(operation)
             output_format = parameters.get("outputFormat", None)

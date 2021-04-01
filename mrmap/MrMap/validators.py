@@ -190,11 +190,11 @@ def validate_get_capablities_uri(value):
     validation_errors = []
 
     validate_funcs = [
-        check_uri_is_reachable,
         check_uri_provides_ogc_capabilities,
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,
+        check_uri_is_reachable,
     ]
 
     skip_check_uri_provides_ogc_capabilities = False

@@ -834,7 +834,7 @@ class Metadata(Resource):
             icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = LinkButton(url=self.health_state.get_absolute_url(),
+            icon = LinkButton(url=self.health_state.last().get_absolute_url(),
                               content=icon.render(),
                               color=btn_color,
                               tooltip=tooltip,
@@ -2918,10 +2918,10 @@ class ServiceType(models.Model):
 class GenericUrl(Resource):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
+    url = models.URLField()
 
     def __str__(self):
-        return "{} ({})".format(self.url, self.method)
+        return "{} | {} ({})".format(self.pk, self.url, self.method)
 
 
 class ServiceUrl(GenericUrl):

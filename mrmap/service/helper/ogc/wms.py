@@ -13,7 +13,7 @@ import time
 from threading import Thread
 
 from celery import Task
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from MrMap.messages import SERVICE_NO_ROOT_LAYER
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, PROGRESS_STATUS_AFTER_PARSING, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, service_logger
@@ -823,74 +823,19 @@ class OGCWebMapService(OGCWebService):
         service.service_type = service_type
         service.published_for = orga_published_for
         service.created_by = group
-        operation_urls = [
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri_POST,
-                method="Post"
-            )[0],
+        operation_urls = []
+        for operation, parsed_operation_url, method in self.operation_urls:
+            # todo: optimize as bulk create
+            try:
+                operation_urls.append(ServiceUrl.objects.get_or_create(
+                    operation=operation,
+                    url=getattr(self, parsed_operation_url),
+                    method=method
+                )[0])
 
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                url=self.get_feature_info_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                url=self.get_feature_info_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
-                url=self.describe_layer_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
-                url=self.describe_layer_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_STYLES.value,
-                url=self.get_styles_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_STYLES.value,
-                url=self.get_styles_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
-                url=self.get_legend_graphic_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
-                url=self.get_legend_graphic_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_MAP.value,
-                url=self.get_map_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_MAP.value,
-                url=self.get_map_uri_POST,
-                method="Post"
-            )[0],
-
-        ]
+            except IntegrityError:
+                # empty/None url values will be ignored
+                pass
 
         service.operation_urls.add(*operation_urls)
         service.metadata = metadata

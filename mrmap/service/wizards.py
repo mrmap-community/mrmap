@@ -13,8 +13,8 @@ from service.helper import service_helper
 from service.settings import service_logger
 from structure.permissionEnums import PermissionEnum
 
-FIRST_STEP_ID = _("URL")
-SECOND_STEP_ID = _("Overview")
+FIRST_STEP_ID = "URL"
+SECOND_STEP_ID = "Overview"
 
 NEW_RESOURCE_WIZARD_FORMS = [
     (FIRST_STEP_ID, RegisterNewResourceWizardPage1),

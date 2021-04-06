@@ -24,7 +24,7 @@ from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
 from editor.tasks import async_process_securing_access
 from MrMap.forms import MrMapWizardForm
-from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
+from MrMap.widgets import BootstrapDatePickerInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, Keyword, Category, Dataset, ReferenceSystem, Licence, AllowedOperation
 from service.settings import ISO_19115_LANG_CHOICES
@@ -152,7 +152,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
     language_code = forms.ChoiceField(label=_('Language'), choices=ISO_19115_LANG_CHOICES)
     character_set_code = forms.ChoiceField(label=_('Character Encoding'), choices=Dataset.CHARACTER_SET_CHOICES)
     date_stamp = forms.DateTimeField(label=_('Metadata creation date'),
-                                 widget=BootstrapDatePickerInput())
+                                     widget=BootstrapDatePickerInput())
     reference_system = ReferenceSystemModelMultipleChoiceField(
         queryset=ReferenceSystem.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
@@ -275,33 +275,14 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
             self.fields['access_constraints'].initial = metadata.access_constraints
 
 
-class DatasetSpatialExtentForm(MrMapWizardForm):
+class DatasetSpatialExtentForm(ModelForm):
     bounding_geometry = forms.CharField(label=_('Bounding box'),
                                         required=False,
-                                        widget=LeafletGeometryInput(),
-                                        help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),)
+                                        widget=LeafletWidget())
 
-    def __init__(self, *args, **kwargs):
-        super(DatasetSpatialExtentForm, self).__init__(*args, **kwargs)
-
-        data_for_bounding_geometry = None
-        for key, value in self.data.items():
-            if 'bounding_geometry' in key.lower():
-                data_for_bounding_geometry = value
-
-        self.fields['bounding_geometry'].widget = LeafletGeometryInput(geojson=data_for_bounding_geometry,
-                                                                       request=self.request,)
-
-        if self.instance_id:
-            metadata = Metadata.objects.get(id=self.instance_id)
-            bbox = metadata.find_max_bounding_box()
-
-            self.fields['bounding_geometry'].widget = LeafletGeometryInput(bbox=bbox,
-                                                                           geojson=metadata.allowed_area.geojson
-                                                                           if data_for_bounding_geometry is None
-                                                                           else data_for_bounding_geometry,
-                                                                           request=self.request,)
-            self.fields['bounding_geometry'].initial = metadata.allowed_area.geojson
+    class Meta:
+        model = Metadata
+        fields = ('bounding_geometry', )
 
 
 class DatasetQualityForm(MrMapWizardForm):
@@ -341,13 +322,13 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
             init_organization = Organization.objects.filter(id=metadata.contact.id)
             organizations = Organization.objects.filter(
                 Q(is_auto_generated=False) &
-                Q(publishers=user_groups) |
+                Q(publishers__in=user_groups) |
                 Q(id=user.organization.id)
             ) | init_organization
         else:
             organizations = Organization.objects.filter(
                 Q(is_auto_generated=False) &
-                Q(publishers=user_groups) |
+                Q(publishers__in=user_groups) |
                 Q(id=user.organization.id)
             )
 

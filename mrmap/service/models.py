@@ -10,7 +10,7 @@ from json import JSONDecodeError
 from PIL import Image
 from dateutil.parser import parse
 from django.contrib.auth.models import Group
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction, OperationalError
 from django.contrib.gis.db import models
@@ -536,7 +536,7 @@ class Metadata(Resource):
     # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
     # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
     related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to', blank=True)
-    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE, blank=True, null=True)
     has_dataset_metadatas = models.BooleanField(default=False)
     origin = None
 
@@ -1394,9 +1394,10 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        adding = self._state.adding
         super().save(*args, **kwargs)
 
-        if not self._state.adding:
+        if not adding:
             if self.__is_active != self.is_active:
                 # the active sate of this and all descendant metadatas shall be changed to the new value. Bulk update
                 # is the most efficient way to do it.
@@ -1505,11 +1506,11 @@ class Metadata(Resource):
                 return v
         return service_version
 
-    def find_max_bounding_box(self):
+    def find_max_bounding_box(self) -> GEOSGeometry:
         """ Returns the largest bounding box of all children
 
         Returns:
-
+            bounding box with the greatest area (GEOSGeometry)
         """
         if self.metadata_type == MetadataEnum.SERVICE.value:
             if self.service.service_type.name.value == OGCServiceEnum.WMS.value:
@@ -1791,6 +1792,7 @@ class Metadata(Resource):
             service_logger.error(
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
+        self.is_custom = False
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None, restore_children=True):
         """ Load original metadata from capabilities and ISO metadata
@@ -1817,7 +1819,7 @@ class Metadata(Resource):
             self._restore_wms(external_auth=external_auth)
             if restore_children:
                 for children in Metadata.objects.filter(service__parent_service__metadata=self, is_custom=True):
-                    children.restor(external_auth=external_auth, restore_children=False)
+                    children.restore(external_auth=external_auth, restore_children=False)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
         self.clear_cached_documents()

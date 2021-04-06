@@ -442,7 +442,7 @@ class MetadataHtml(DetailView):
 
         if self.object.is_metadata_type(MetadataEnum.DATASET):
             context['contact'] = collect_contact_data(self.object.contact)
-            context['bounding_box'] = self.object.allowed_area
+            context['bounding_box'] = self.object.bounding_geometry
             context['dataset_metadata'] = self.object
             context['fees'] = self.object.fees
             context['licence'] = self.object.licence

@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.decorators import login_required
@@ -95,7 +95,10 @@ class RestoreMetadata(PermissionRequiredMixin, GenericViewContextMixin, SuccessM
                                               "{}: {}".format(self.object.get_root_metadata().title,
                                                               self.object.title))
 
-        success_url = self.get_success_url()
+        if self.object.is_dataset_metadata:
+            success_url = reverse('resource:datasets-index')
+        else:
+            success_url = self.get_success_url()
 
         return HttpResponseRedirect(success_url)
 

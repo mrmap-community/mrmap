@@ -2,6 +2,7 @@ from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.test import TestCase
 
+from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import AllowedOperation, Metadata, Service, Layer, FeatureType
 from tests.baker_recipes.db_setup import create_wms_service, create_superadminuser, create_wfs_service
 
@@ -65,6 +66,37 @@ class MetadataTestCase(TestCase):
         self.wfs_metadata = create_wfs_service(group=self.user.groups.first(),
                                                how_much_featuretypes=10,
                                                how_much_services=2)
+
+    def test_is_service_type(self):
+        """ Check the is_service_type function of Metadata class """
+        self.assertTrue(self.wms_metadata[0].is_service_type(OGCServiceEnum.WMS))
+        self.assertFalse(self.wms_metadata[0].is_service_type(OGCServiceEnum.WFS))
+        self.assertTrue(self.wfs_metadata[0].is_service_type(OGCServiceEnum.WFS))
+        self.assertFalse(self.wfs_metadata[0].is_service_type(OGCServiceEnum.WMS))
+
+    def test_is_metadata_type(self):
+        """ Check the is_metadata_type function of Metadata class """
+        self.assertTrue(self.wms_metadata[0].is_metadata_type(MetadataEnum.SERVICE))
+        self.assertFalse(self.wms_metadata[0].is_metadata_type(MetadataEnum.LAYER))
+        self.assertTrue(self.wfs_metadata[0].is_metadata_type(MetadataEnum.SERVICE))
+        self.assertFalse(self.wfs_metadata[0].is_metadata_type(MetadataEnum.FEATURETYPE))
+
+    def test_get_described_element(self):
+        """ Check the get_described_element function of Metadata class """
+
+        # check wms service type
+        wms_service_obj = self.wms_metadata[0].service
+        self.assertEqual(wms_service_obj, wms_service_obj.metadata.get_described_element())
+
+        layer_obj = wms_service_obj.get_subelements().first()
+        self.assertEqual(layer_obj, layer_obj.metadata.get_described_element())
+
+        # check wfs service type
+        wfs_service_object = self.wfs_metadata[0].service
+        self.assertEqual(wfs_service_object, wfs_service_object.metadata.get_described_element())
+
+        feature_type_obj = wfs_service_object.metadata.get_descendant_metadatas().first()
+        self.assertEqual(feature_type_obj, feature_type_obj.metadata.get_described_element())
 
     def test_wms_delete(self):
         """

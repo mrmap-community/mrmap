@@ -1,4 +1,5 @@
 from django.contrib.gis.geos import MultiPolygon
+from django.db import transaction
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
@@ -55,12 +56,14 @@ def create_superadminuser(groups: QuerySet = None, ):
     return superuser
 
 
+@transaction.atomic
 def create_wms_service(group: MrMapGroup,
                        is_update_candidate_for: Service = None,
                        user: MrMapUser = None,
                        contact: Organization = None,
                        how_much_services: int = 1,
                        how_much_sublayers: int = 1,
+                       how_much_subsublayers: int = 1,
                        md_relation_origin: str = None):
     service_md_type = MetadataEnum.SERVICE.value
 
@@ -149,7 +152,7 @@ def create_wms_service(group: MrMapGroup,
         )
 
         for sublayer_metadata in sublayer_metadatas:
-            baker.make_recipe(
+            parent = baker.make_recipe(
                 'tests.baker_recipes.service_app.active_wms_sublayer',
                 created_by=group,
                 parent_service=root_service,
@@ -158,9 +161,28 @@ def create_wms_service(group: MrMapGroup,
                 identifier=sublayer_metadata.identifier,
             )
 
+            subsublayer_metadatas = baker.make_recipe(
+                'tests.baker_recipes.service_app.active_wms_layer_metadata',
+                created_by=group,
+                _quantity=how_much_subsublayers,
+                metadata_type=layer_md_type,
+                contact=contact,
+            )
+
+            for subsublayer_metadata in subsublayer_metadatas:
+                baker.make_recipe(
+                    'tests.baker_recipes.service_app.active_wms_sublayer',
+                    created_by=group,
+                    parent_service=root_service,
+                    metadata=subsublayer_metadata,
+                    parent=parent,
+                    identifier=subsublayer_metadata.identifier,
+                )
+
     return root_service_metadatas
 
 
+@transaction.atomic
 def create_wfs_service(group: MrMapGroup,
                        is_update_candidate_for: Service = None,
                        user: MrMapUser = None,

@@ -9,6 +9,7 @@ from datetime import datetime
 from json import JSONDecodeError
 from PIL import Image
 from dateutil.parser import parse
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -18,7 +19,6 @@ from django.db.models import Q, QuerySet, F, Count
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django_bootstrap_swt.components import LinkButton, Badge, Tag
@@ -32,7 +32,7 @@ from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
-from MrMap.validators import not_uuid, geometry_is_empty
+from MrMap.validators import geometry_is_empty
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
 from monitoring.enums import HealthStateEnum
@@ -89,9 +89,8 @@ class Keyword(models.Model):
 
 
 class ProxyLog(models.Model):
-    from structure.models import MrMapUser
     metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE)
-    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True, blank=True)
     operation = models.CharField(max_length=100, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
     post_body = models.TextField(null=True, blank=True)
@@ -1013,7 +1012,7 @@ class Metadata(Resource):
         """
         return self.metadata_type == enum.value
 
-    def is_service_type(self, enum: OGCServiceEnum):
+    def is_service_type(self, enum: OGCServiceEnum) -> bool:
         """ Returns whether the described service element of this metadata is of the given OGCServiceEnum
 
         Args:
@@ -1023,7 +1022,7 @@ class Metadata(Resource):
         """
         return self.service_type == enum
 
-    def get_described_element(self) -> Resource:
+    def get_described_element(self):
         """ Simple getter to return the 'real' described element.
 
         Described elements are .service, .layer or .featuretype. Instead of doing these if-else checks
@@ -1043,8 +1042,6 @@ class Metadata(Resource):
         elif self.is_featuretype_metadata:
             ret_val = self.featuretype
         return ret_val
-
-
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -2979,13 +2976,16 @@ class Service(Resource):
         qs = Service.objects.none()
         if self.is_service_type(OGCServiceEnum.WMS):
             if self.metadata.is_layer_metadata:
+                print('1')
                 # this is a layer instance
                 qs = Layer.objects.get(metadata=self.metadata).get_descendants(include_self=include_self)
             else:
+                print('2')
                 # this is a service instance
                 qs = Layer.objects.get(parent_service=self, parent=None).get_descendants(include_self=include_self)
         elif self.is_service_type(OGCServiceEnum.WFS):
             qs = self.featuretypes.all()
+        print(qs)
         return qs
 
     @property
@@ -3593,6 +3593,7 @@ class FeatureType(Resource):
              self as (QuerySet)
         """
         return FeatureType.objects.filter(pk=self.pk)
+
 
 class FeatureTypeElement(Resource):
     name = models.CharField(max_length=255)

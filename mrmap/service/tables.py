@@ -13,7 +13,7 @@ from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
 from structure.models import PendingTask
-
+from structure.template_codes import PENDING_TASK_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
 TOOLTIP_ACTIVE = _('Shows whether the resource is active or not.')
@@ -43,9 +43,9 @@ class PendingTaskTable(tables.Table):
                           attrs={"th": {"class": "col-sm-4"}})
     progress = tables.Column(verbose_name=_('Progress'),
                              attrs={"th": {"class": "col-sm-3"}})
-    actions = tables.Column(verbose_name=_('Actions'),
-                            accessor='action_buttons',
-                            attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
+    actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    template_code=PENDING_TASK_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     class Meta:
         model = PendingTask
@@ -59,12 +59,6 @@ class PendingTaskTable(tables.Table):
 
     def render_status(self, value):
         return format_html(self.render_helper.render_list_coherent(value))
-
-    def render_actions(self, value):
-        self.render_helper.update_attrs = {"class": ["btn-sm"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=value)
-        self.render_helper.update_attrs = None
-        return format_html(renderd_actions)
 
     @staticmethod
     def render_progress(value):

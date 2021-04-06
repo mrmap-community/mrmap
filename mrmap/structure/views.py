@@ -243,10 +243,11 @@ class GroupMembersTableView(DependingListView, GroupDetailContextMixin, CustomSi
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskDelete(DeleteView):
+class PendingTaskDelete(SuccessMessageMixin, DeleteView):
     model = PendingTask
     success_url = reverse_lazy('resource:pending-tasks')
-    template_name = 'generic_views/generic_confirm.html'
+    template_name = 'generic_views/base_extended/delete.html'
+    success_message = _('Task canceled.')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

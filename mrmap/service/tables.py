@@ -55,8 +55,7 @@ class PendingTaskTable(tables.Table):
         orderable = False
 
     def before_render(self, request):
-        permissions = request.user.get_all_permissions() if request else []
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, permissions)))
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_status(self, value):
         return format_html(self.render_helper.render_list_coherent(value))

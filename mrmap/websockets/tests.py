@@ -4,8 +4,9 @@ from asgiref.sync import async_to_sync, sync_to_async
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.core import serializers
-from django.test import Client, TransactionTestCase
+from django.test import Client, TransactionTestCase, RequestFactory
 
+from service.tables import PendingTaskTable
 from structure.models import PendingTask
 from tests.baker_recipes.db_setup import create_superadminuser, create_pending_task, create_guest_groups
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -41,20 +42,34 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
     def serialize_pending_tasks(self, pending_tasks):
         return serializers.serialize('json', pending_tasks)
 
+    @sync_to_async
+    def render_pending_task_table(self, pending_tasks, request):
+        pending_task_table = PendingTaskTable(data=pending_tasks)
+        return pending_task_table.as_html(request=request)
+
     async def test_pending_task_consumer(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
-                                             path="/ws/pending-task/",
+                                             path="/ws/pending-tasks/",
                                              headers=self.headers)
         connected, subprotocol = await communicator.connect()
         self.assertTrue(connected)
 
-        # if a PendingTask is created/modified, we shall receive the updated pending task list as json
+        # if a PendingTask is created/modified, we shall receive the updated pending task list as json and html
         pending_task = await self.create_pending_task()
         response = await communicator.receive_json_from()
         all_pending_tasks = await self.all_pending_tasks()
         pending_tasks_json = await self.serialize_pending_tasks(all_pending_tasks)
-        self.assertJSONEqual(pending_tasks_json, json.loads(response))
+        self.assertJSONEqual(pending_tasks_json, json.loads(response).get('json'))
+
+        # create dummy request to render table as html
+        request = RequestFactory().get('')
+        request.user = self.user
+
+        # render the table
+        rendered_table = await self.render_pending_task_table(all_pending_tasks, request)
+        self.assertEqual(rendered_table, json.loads(response).get('html'))
+        print(json.loads(response).get('html'))
 
         # Close
         await communicator.disconnect()

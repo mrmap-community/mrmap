@@ -88,6 +88,7 @@ class PendingTaskView(CustomSingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTable
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
+    template_name = 'service/views/pending_tasks.html'
 
 
 @method_decorator(login_required, name='dispatch')

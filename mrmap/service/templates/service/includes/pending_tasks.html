@@ -1,0 +1,31 @@
+{% extends 'skeletons/card.html'%}
+{% load render_table from django_tables2 %}
+{% load i18n %}
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">{{table.title|safe}}</h4>
+{% endblock %}
+{% block card-header-title-right %}
+{% for action in table.actions %}
+    {{action|safe}}
+{% endfor %}
+{% endblock %}
+{% block card-body %}
+<div id="id_pending_tasks_div">
+{% render_table table %}
+</div>
+<script type="application/javascript">
+    var pending_tasks_socket = new WebSocket('ws://localhost:8000/ws/pending-tasks/');
+
+    pending_tasks_socket.onopen = function open() {
+    	console.log('WebSockets connection created.');
+    };
+
+    pending_tasks_socket.onmessage = function message(event) {
+    	$( "#id_pending_tasks_div" ).html( event.data );
+    };
+
+    pending_tasks_socket.onclose = function(e) {
+    	console.error('pending tasks socket closed unexpectedly');
+    };
+</script>
+{% endblock %}

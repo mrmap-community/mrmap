@@ -1,5 +1,7 @@
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
+from django.core import serializers
+from structure.models import PendingTask
 
 
 class PendingTaskConsumer(JsonWebsocketConsumer):
@@ -9,24 +11,25 @@ class PendingTaskConsumer(JsonWebsocketConsumer):
         if "user" in self.scope:
             self.user = self.scope["user"]
             if self.user.is_authenticated:
-                print('authenticated user')
                 async_to_sync(self.channel_layer.group_add)("pending_task_observers", self.channel_name)
-
-                # Make a database row with our channel name
-                #Clients.objects.create(channel_name=self.channel_name, consumer='PendingTaskConsumer')
                 self.accept()
 
     def disconnect(self, code):
         async_to_sync(self.channel_layer.group_discard)("pending_task_observers", self.channel_name)
-        # Note that in some rare cases (power loss, etc) disconnect may fail
-        # to run; this naive example would leave zombie channel names around.
-        #Clients.objects.filter(channel_name=self.channel_name, consumer='PendingTaskConsumer').delete()
         self.close()
 
-    def send_message(self, event):
+    def send_rendered_table(self, event):
         """
-        Call back function to send message to the client
+        Call back function to send the changed rendered table to the client
         """
-        print('send_message called')
-        self.send_json(content=event["text"])
+        # todo: for now we send all pending tasks serialized as json
+        #  further changes:
+        #   * filter by the user object based permissions to show only pending tasks for that the user
+        #     has permissions
+        #   * check if the self.user has permissions for the instance that is created/modified. If not skip sending
 
+        instance_pk = event['instance_pk']  # the created/modified instance
+
+        pending_tasks = PendingTask.objects.all()
+        pending_tasks_qs = serializers.serialize('json', pending_tasks)
+        self.send_json(content=pending_tasks_qs)

@@ -3,6 +3,7 @@ import json
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from django.core import serializers
 from django.test import Client, TransactionTestCase
 
 from structure.models import PendingTask
@@ -32,19 +33,28 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
     def count_pending_tasks(self):
         return PendingTask.objects.count()
 
+    @sync_to_async
+    def all_pending_tasks(self):
+        return PendingTask.objects.all()
+
+    @sync_to_async
+    def serialize_pending_tasks(self, pending_tasks):
+        return serializers.serialize('json', pending_tasks)
+
     async def test_pending_task_consumer(self):
+        # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
                                              path="/ws/pending-task/",
                                              headers=self.headers)
         connected, subprotocol = await communicator.connect()
         self.assertTrue(connected)
 
+        # if a PendingTask is created/modified, we shall receive the updated pending task list as json
         pending_task = await self.create_pending_task()
-        print(pending_task)
-        print(await self.count_pending_tasks())
         response = await communicator.receive_json_from()
-        print(response)
-        self.assertEqual(pending_task.pk, json.loads(response).get('instance_id'))
+        all_pending_tasks = await self.all_pending_tasks()
+        pending_tasks_json = await self.serialize_pending_tasks(all_pending_tasks)
+        self.assertJSONEqual(pending_tasks_json, json.loads(response))
 
         # Close
         await communicator.disconnect()

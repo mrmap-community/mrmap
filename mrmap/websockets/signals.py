@@ -14,6 +14,8 @@ def update_pending_task_listeners(signal, instance, **kwargs):
     Args:
         instance: the created/modified/deleted instance of PendingTask Model
     """
+    print('update_pending_task_listeners called')
+
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "pending_task_observers",

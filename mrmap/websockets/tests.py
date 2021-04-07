@@ -23,7 +23,8 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         self.client.login(username=self.user.username, password=PASSWORD)
         # workaround to login a user for WebsocketCommunicator since login is not implemented for this
         # ApplicationCommunicator (see: https://github.com/django/channels/issues/903#issuecomment-365448451)
-        self.headers = [(b'origin', b'...'), (b'cookie', self.client.cookies.output(header='', sep='; ').encode())]
+        # self.headers = [(b'origin', b'...'), (b'cookie', self.client.cookies.output(header='', sep='; ').encode())]
+        # self.headers = [('user', self.user.username)]
 
     @sync_to_async
     def create_pending_task(self):
@@ -50,8 +51,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
     async def test_pending_task_consumer(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
-                                             path="/ws/pending-tasks/",
-                                             headers=self.headers)
+                                             path=f"/ws/pending-tasks/?username={self.user.username}")
         connected, subprotocol = await communicator.connect()
         self.assertTrue(connected)
 

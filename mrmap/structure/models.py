@@ -64,7 +64,10 @@ class PendingTask(models.Model):
     type = models.CharField(max_length=500, null=True, blank=True, choices=PendingTaskEnum.as_choices(), validators=[validate_pending_task_enum_choices])
 
     def __str__(self):
-        return self.task_id
+        if self.task_id:
+            return self.task_id
+        else:
+            return f"empty task id for pending task object with id {self.pk}"
 
     @property
     def icon(self):

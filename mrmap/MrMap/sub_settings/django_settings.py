@@ -34,6 +34,8 @@ DEBUG = True
 
 # Application definition
 INSTALLED_APPS = [
+    'channels',
+    'websockets',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
@@ -71,6 +73,7 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
+
 ]
 if DEBUG:
     INSTALLED_APPS.append(
@@ -197,3 +200,14 @@ STATIC_ROOT = BASE_DIR + "/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
 ]
+
+ASGI_APPLICATION = 'MrMap.asgi.application'
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+

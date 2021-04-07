@@ -29,3 +29,6 @@ django-nose~=1.4.7
 model-bakery~=1.2.1
 coverage~=5.5
 sphinx_rtd_theme~=0.5.1
+
+channels~=3.0.3
+channels-redis~=3.2.0

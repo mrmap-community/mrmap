@@ -14,18 +14,19 @@
 {% render_table table %}
 </div>
 <script type="application/javascript">
-    var pending_tasks_socket = new WebSocket('ws://localhost:8000/ws/pending-tasks/?username={{request.user.username}}&');
+    var pending_tasks_socket = new WebSocket('{{WS_OR_WSS}}{{HOST_NAME}}/ws/pending-tasks/?username={{request.user.username}}&');
 
     pending_tasks_socket.onopen = function open() {
-    	console.log('WebSockets connection created.');
+    	console.debug('WebSockets connection created.');
     };
 
     pending_tasks_socket.onmessage = function message(event) {
-        console.log('message received');
-        console.log(event);
+        $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
+
         var json_data = JSON.parse(JSON.parse(event.data));
-        console.log(json_data);
-    	$( "#id_pending_tasks_div" ).html( json_data.html );
+    	$( "#id_pending_tasks_div" ).html( json_data.rendered_table );
+
+    	$('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
     };
 
     pending_tasks_socket.onclose = function(e) {

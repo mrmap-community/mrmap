@@ -7,21 +7,39 @@ from structure.models import PendingTask
 
 @receiver(post_save, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_save')
 @receiver(post_delete, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_delete')
-def update_pending_task_listeners(signal, instance, **kwargs):
+def update_pending_task_listeners(instance, **kwargs):
     """
     Send the information to the channel group when a PendingTask is created/modified
 
     Args:
         instance: the created/modified/deleted instance of PendingTask Model
     """
-    print('update_pending_task_listeners called')
+    notify_observers = False
+    if 'created' in kwargs:
+        signal_type = 'post_save'
+        if kwargs['created']:
+            # always notify observers if a new pending task was created
+            notify_observers = True
+        else:
+            # only notify observers if something significant was changed on this pending task object
+            for significant_field in instance.significant_fields:
+                old_value = getattr(instance, f'_{significant_field}')
+                new_value = getattr(instance, significant_field)
+                if old_value != new_value:
+                    notify_observers = True
+                    break
+    else:
+        signal_type = 'post_delete'
+        # always notify observers if a pending task was deleted
+        notify_observers = True
 
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        "pending_task_observers",
-        {
-            #"type": "send.table.as.json",
-            "type": "send.table.as.html",
-            "instance_pk": instance.pk,
-        },
-    )
+    if notify_observers:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "pending_task_observers",
+            {
+                "type": "send.table.as.html",
+                "signal_type": signal_type,
+                "instance_pk": instance.pk,
+            },
+        )

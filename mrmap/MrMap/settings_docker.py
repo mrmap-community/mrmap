@@ -15,14 +15,4 @@ DATABASES['default']['PORT'] = '5555'
 
 CACHES['default']['LOCATION'] = 'redis://localhost:5556/1'
 
-BROKER_URL = 'redis://localhost:5556'
-CELERY_RESULT_BACKEND = 'redis://localhost:5556'
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 5556)],
-        },
-    },
-}
+REDIS_PORT = '5556'

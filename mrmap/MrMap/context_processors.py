@@ -2,7 +2,7 @@ from django.db.models import Q
 from django.http import HttpRequest
 from MrMap.icons import get_all_icons
 from MrMap.settings import GIT_REPO_URI, GIT_GRAPH_URI
-from MrMap.sub_settings.dev_settings import ROOT_URL
+from MrMap.sub_settings.dev_settings import ROOT_URL, WS_OR_WSS, HOST_NAME
 from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
@@ -54,6 +54,8 @@ def default_context(request: HttpRequest):
 
     return {
         "ROOT_URL": ROOT_URL,
+        "HOST_NAME": HOST_NAME,
+        "WS_OR_WSS": WS_OR_WSS,
         "PATH": request.path.split("/")[1],
         "FULL_PATH": request.path,
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
@@ -71,5 +73,4 @@ def default_context(request: HttpRequest):
         "wfs_count": wfs_count,
         "csw_count": csw_count,
         "dataset_count": dataset_count,
-
     }

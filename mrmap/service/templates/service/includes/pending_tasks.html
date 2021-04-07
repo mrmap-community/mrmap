@@ -14,7 +14,8 @@
 {% render_table table %}
 </div>
 <script type="application/javascript">
-    var pending_tasks_socket = new WebSocket('{{WS_OR_WSS}}{{HOST_NAME}}/ws/pending-tasks/?username={{request.user.username}}&');
+    var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
+    var pending_tasks_socket = new WebSocket(ws_scheme + '://{{HOST_NAME}}/ws/pending-tasks/?username={{request.user.username}}&');
 
     pending_tasks_socket.onopen = function open() {
     	console.debug('WebSockets connection created.');

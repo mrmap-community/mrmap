@@ -22,6 +22,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         # ApplicationCommunicator (see: https://github.com/django/channels/issues/903#issuecomment-365448451)
         # self.headers = [(b'origin', b'...'), (b'cookie', self.client.cookies.output(header='', sep='; ').encode())]
         # self.headers = [('user', self.user.username)]
+        self.headers = [(b'origin', b'http://127.0.0.1:8000')]
 
     @sync_to_async
     def create_pending_task(self):
@@ -48,7 +49,8 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
     async def test_pending_task_consumer(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
-                                             path=f"/ws/pending-tasks/?username={self.user.username}")
+                                             path=f"/ws/pending-tasks/?username={self.user.username}",
+                                             headers=self.headers)
         connected, subprotocol = await communicator.connect()
         self.assertTrue(connected)
 

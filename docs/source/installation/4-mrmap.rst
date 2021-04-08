@@ -52,16 +52,19 @@ Initial setup Mr. Map
    (venv) $ python -m pip install -r /opt/mrmap/mrmap/requirements.txt
 
 
-4. Set database parameters in /opt/mrmap/mrmap/MrMap/sub_settings/db_settings.py
+4. Set database parameters in `/opt/mrmap/mrmap/MrMap/settings.py`
 
 .. code-block:: python
 
-   ...
-   'NAME': 'mrmap',
-   'USER': 'mrmap',
-   'PASSWORD': 'J5brHrAXFLQSif0K',
-   ...
-
+   DATABASES = {
+        'default': {
+            ...
+            'NAME': 'mrmap',
+            'USER': 'mrmap',
+            'PASSWORD': 'J5brHrAXFLQSif0K',
+            ...
+        }
+   }
 
 5. Run django migrations:
 
@@ -80,11 +83,11 @@ Make sure the ``HTTP_PROXY`` variable in ``MrMap/settings.py`` is set correctly 
 
    (venv) $ python /opt/mrmap/mrmap/manage.py setup
 
-8. Change Hostname in case you are not localhost
+8. Change Hostname in case you are not localhost in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
 .. code-block:: console
 
-   $ vim /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+   HOST_NAME = 'example.de'
 
 
 
@@ -112,7 +115,7 @@ Test if everything works
 .. code-block:: console
 
         (venv) $ python manage.py collectstatic
-        (venv) $ python manage.py runserver_plus 0.0.0.0:8000
+        (venv) $ python manage.py runserver 0.0.0.0:8000
 
 .. note::
     At this point you have a full working instance of MrMap running. This is sufficient if your intention is development.

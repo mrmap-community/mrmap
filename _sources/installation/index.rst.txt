@@ -18,6 +18,14 @@ The following sections detail how to set up a new instance of MrMap:
 #. :ref:`HTTP Server <installation-6-http-server>`
 
 
+**Application stack**
+
+Below is a simplified overview of the MrMap application stack for reference:
+
+.. image:: ../images/app_stack.png
+  :width: 800
+  :alt: MrMap application stack
+
 .. toctree::
    :hidden:
    :maxdepth: 3

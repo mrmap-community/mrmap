@@ -39,7 +39,7 @@
     
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="5. uWSGI" href="5-application-server.html" />
+    <link rel="next" title="5. daphne" href="5-application-server.html" />
     <link rel="prev" title="3. Mapserver" href="3-mapserver.html" /> 
 </head>
 
@@ -102,7 +102,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#setup-system-services-for-celery-and-celery-beat">Setup system services for celery and celery beat</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="5-application-server.html">5. uWSGI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5-application-server.html">5. daphne</a></li>
 <li class="toctree-l2"><a class="reference internal" href="6-http-server.html">6. Nginx</a></li>
 </ul>
 </li>
@@ -191,7 +191,7 @@ If you want to use system python just skip the step to create and activate a vir
 <div class="section" id="debian">
 <h3>Debian<a class="headerlink" href="#debian" title="Permalink to this headline">¶</a></h3>
 <p>On debian 10 you have python3.7 available in the system packages, on other versions or distros you might have to compile it yourself.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git gcc libpq-dev
 </pre></div>
 </div>
 </div>
@@ -219,13 +219,17 @@ If you want to use system python just skip the step to create and activate a vir
 </pre></div>
 </div>
 <ol class="arabic simple" start="4">
-<li>Set database parameters in /opt/mrmap/mrmap/MrMap/sub_settings/db_settings.py</li>
+<li>Set database parameters in <cite>/opt/mrmap/mrmap/MrMap/settings.py</cite></li>
 </ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
-<span class="s1">&#39;NAME&#39;</span><span class="p">:</span> <span class="s1">&#39;mrmap&#39;</span><span class="p">,</span>
-<span class="s1">&#39;USER&#39;</span><span class="p">:</span> <span class="s1">&#39;mrmap&#39;</span><span class="p">,</span>
-<span class="s1">&#39;PASSWORD&#39;</span><span class="p">:</span> <span class="s1">&#39;J5brHrAXFLQSif0K&#39;</span><span class="p">,</span>
-<span class="o">...</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">DATABASES</span> <span class="o">=</span> <span class="p">{</span>
+     <span class="s1">&#39;default&#39;</span><span class="p">:</span> <span class="p">{</span>
+         <span class="o">...</span>
+         <span class="s1">&#39;NAME&#39;</span><span class="p">:</span> <span class="s1">&#39;mrmap&#39;</span><span class="p">,</span>
+         <span class="s1">&#39;USER&#39;</span><span class="p">:</span> <span class="s1">&#39;mrmap&#39;</span><span class="p">,</span>
+         <span class="s1">&#39;PASSWORD&#39;</span><span class="p">:</span> <span class="s1">&#39;J5brHrAXFLQSif0K&#39;</span><span class="p">,</span>
+         <span class="o">...</span>
+     <span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="5">
@@ -245,9 +249,9 @@ If you want to use system python just skip the step to create and activate a vir
 </pre></div>
 </div>
 <ol class="arabic simple" start="8">
-<li>Change Hostname in case you are not localhost</li>
+<li>Change Hostname in case you are not localhost in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py</li>
 </ol>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> vim /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">HOST_NAME = &#39;example.de&#39;</span>
 </pre></div>
 </div>
 </div>
@@ -274,7 +278,7 @@ If you want to use system python just skip the step to create and activate a vir
 <li>Collect Static files and start up mr. map</li>
 </ol>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">(venv) $</span> python manage.py collectstatic
-<span class="gp">(venv) $</span> python manage.py runserver_plus <span class="m">0</span>.0.0.0:8000
+<span class="gp">(venv) $</span> python manage.py runserver <span class="m">0</span>.0.0.0:8000
 </pre></div>
 </div>
 <div class="admonition note">
@@ -308,7 +312,7 @@ We need a <a class="reference external" href="https://github.com/mrmap-community
 and a <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_celery_service">service definition for celery</a>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">If you are using a virtualenv you have to adjust celery path in the environment file.
+<p class="last">If you are using a virtualenv you have to adjust celery path in the environment file. For example if your virtualenv is located under <cite>/opt/mrmap/venv/</cite>, then you has to change the <cite>CELERY_BIN</cite> setting to <cite>/opt/mrmap/venv/bin/celery</cite>.
 If your installation directory differs from /opt/ you have to change the working directory in the service definition of celery.</p>
 </div>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> copy celery environment file
@@ -339,7 +343,7 @@ If your installation directory differs from /opt/ you have to change the working
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="5-application-server.html" class="btn btn-neutral float-right" title="5. uWSGI" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="5-application-server.html" class="btn btn-neutral float-right" title="5. daphne" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
         <a href="3-mapserver.html" class="btn btn-neutral float-left" title="3. Mapserver" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 

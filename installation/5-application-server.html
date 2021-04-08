@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>5. uWSGI &mdash; MrMap v0.0.0 documentation</title>
+  <title>5. daphne &mdash; MrMap v0.0.0 documentation</title>
   
 
   
@@ -93,7 +93,7 @@
 <li class="toctree-l2"><a class="reference internal" href="2-redis.html">2. Redis</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3-mapserver.html">3. Mapserver</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4-mrmap.html">4. MrMap Installation</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">5. uWSGI</a><ul>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">5. daphne</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#configure">Configure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#verify-service-status">Verify Service Status</a></li>
@@ -153,7 +153,7 @@
         
           <li><a href="index.html">Installation</a> &raquo;</li>
         
-      <li>5. uWSGI</li>
+      <li>5. daphne</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -172,52 +172,36 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="uwsgi">
-<span id="installation-5-application-server"></span><h1>5. uWSGI<a class="headerlink" href="#uwsgi" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="daphne">
+<span id="installation-5-application-server"></span><h1>5. daphne<a class="headerlink" href="#daphne" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
-<p>We use <a class="reference external" href="https://uwsgi-docs.readthedocs.io">uWSGI server</a> for serving the application.</p>
+<p>We use <a class="reference external" href="https://github.com/django/daphne">daphne server</a> for serving the application.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">You can also use other popular wsgi application servers such as <a class="reference external" href="https://gunicorn.org">gunicorn</a> .</p>
+<p class="last">You can also split into serving normal http by use popular wsgi application servers such as <a class="reference external" href="https://gunicorn.org">gunicorn</a> or <a class="reference external" href="https://uwsgi-docs.readthedocs.io/en/latest/">uWSGI</a> .</p>
 </div>
 <ol class="arabic simple">
-<li>If you use a virtualenv, activate it before installing uwsgi</li>
+<li>If you use a virtualenv, activate it before installing daphne</li>
 </ol>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">source</span> /opt/mrmap/venv/bin/activate
-<span class="gp">(venv) $</span> python -m pip install uwsgi
+<span class="gp">(venv) $</span> python -m pip install daphne
 </pre></div>
 </div>
 </div>
 <div class="section" id="configure">
 <h2>Configure<a class="headerlink" href="#configure" title="Permalink to this headline">¶</a></h2>
 <p>1. Adjust if needed and copy the config files to their destination:
-We need a <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uwsgi_ini">ini file for uwsgi</a>
-and a <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uwsgi_service">service definition for uwsgi</a></p>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If you are using a virtualenv, you have to change the path to the uwsgi binary in <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uwsgi_service">uwsgi service file</a>
-to the one in the virtualenv eg. <code class="docutils literal notranslate"><span class="pre">/opt/mrmap/venv/bin/uwsgi</span></code>
-If your installation directory differs from /opt/, you have to change it in the <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uwsgi_ini">ini file for uwsgi</a></p>
-</div>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> copy uwsgi ini
-<span class="gp">$</span> cp -a /opt/mrmap/install/confs/mrmap_uwsgi_ini /opt/mrmap/mrmap/MrMap/mrmap_uwsgi.ini
-<span class="gp">#</span> copy uwsgi systemd config <span class="o">(</span>service file<span class="o">)</span>
-<span class="gp">$</span> cp -a /opt/mrmap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
-</pre></div>
-</div>
-<ol class="arabic simple" start="2">
-<li>Create directory for pid file according to mrmap_uwsgi.ini</li>
-</ol>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> mkdir /var/run/uwsgi
-<span class="gp">$</span> chown www-data /var/run/uwsgi
+We need a <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_daphne_service">service definition for daphne</a></p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> copy daphne systemd config <span class="o">(</span>service file<span class="o">)</span>
+<span class="gp">$</span> cp -a /opt/mrmap/install/confs/mrmap_daphne_service /etc/systemd/system/daphne.service
 </pre></div>
 </div>
 <ol class="arabic simple" start="3">
-<li>Activate and start uwsgi service</li>
+<li>Activate and start daphne service</li>
 </ol>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> systemctl <span class="nb">enable</span> uwsgi
-<span class="gp">$</span> systemctl start uwsgi
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> systemctl <span class="nb">enable</span> daphne
+<span class="gp">$</span> systemctl start daphne
 </pre></div>
 </div>
 </div>
@@ -226,7 +210,7 @@ If your installation directory differs from /opt/, you have to change it in the 
 <ol class="arabic simple">
 <li>Check the output of</li>
 </ol>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> systemctl status uwsgi
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> systemctl status daphne
 </pre></div>
 </div>
 </div>

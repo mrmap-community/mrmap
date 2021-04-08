@@ -23,7 +23,7 @@ On debian 10 you have python3.7 available in the system packages, on other versi
 
 .. code-block:: console
 
-    $ apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
+    $ apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git gcc libpq-dev
 
 
 Initial setup Mr. Map
@@ -52,16 +52,19 @@ Initial setup Mr. Map
    (venv) $ python -m pip install -r /opt/mrmap/mrmap/requirements.txt
 
 
-4. Set database parameters in /opt/mrmap/mrmap/MrMap/sub_settings/db_settings.py
+4. Set database parameters in `/opt/mrmap/mrmap/MrMap/settings.py`
 
 .. code-block:: python
 
-   ...
-   'NAME': 'mrmap',
-   'USER': 'mrmap',
-   'PASSWORD': 'J5brHrAXFLQSif0K',
-   ...
-
+   DATABASES = {
+        'default': {
+            ...
+            'NAME': 'mrmap',
+            'USER': 'mrmap',
+            'PASSWORD': 'J5brHrAXFLQSif0K',
+            ...
+        }
+   }
 
 5. Run django migrations:
 
@@ -80,11 +83,11 @@ Make sure the ``HTTP_PROXY`` variable in ``MrMap/settings.py`` is set correctly 
 
    (venv) $ python /opt/mrmap/mrmap/manage.py setup
 
-8. Change Hostname in case you are not localhost
+8. Change Hostname in case you are not localhost in /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
 
 .. code-block:: console
 
-   $ vim /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+   HOST_NAME = 'example.de'
 
 
 
@@ -112,7 +115,7 @@ Test if everything works
 .. code-block:: console
 
         (venv) $ python manage.py collectstatic
-        (venv) $ python manage.py runserver_plus 0.0.0.0:8000
+        (venv) $ python manage.py runserver 0.0.0.0:8000
 
 .. note::
     At this point you have a full working instance of MrMap running. This is sufficient if your intention is development.
@@ -151,7 +154,7 @@ We need a `environment file for celery <https://github.com/mrmap-community/mrmap
 and a `service definition for celery <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_celery_service>`_.
 
 .. note::
-     If you are using a virtualenv you have to adjust celery path in the environment file.  
+     If you are using a virtualenv you have to adjust celery path in the environment file. For example if your virtualenv is located under `/opt/mrmap/venv/`, then you has to change the `CELERY_BIN` setting to `/opt/mrmap/venv/bin/celery`.
      If your installation directory differs from /opt/ you have to change the working directory in the service definition of celery.
 
 .. code-block:: console

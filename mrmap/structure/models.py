@@ -54,6 +54,8 @@ class ErrorReport(models.Model):
 
 
 class PendingTask(models.Model):
+    significant_fields = ['description', 'progress', 'is_finished']
+
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
     progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
@@ -63,8 +65,17 @@ class PendingTask(models.Model):
     error_report = models.ForeignKey('ErrorReport', null=True, blank=True, on_delete=models.SET_NULL)
     type = models.CharField(max_length=500, null=True, blank=True, choices=PendingTaskEnum.as_choices(), validators=[validate_pending_task_enum_choices])
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._description = self.description
+        self._progress = self.progress
+        self._is_finished = self.is_finished
+
     def __str__(self):
-        return self.task_id
+        if self.task_id:
+            return self.task_id
+        else:
+            return f"empty task id for pending task object with id {self.pk}"
 
     @property
     def icon(self):

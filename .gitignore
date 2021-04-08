@@ -123,4 +123,5 @@ mrmap/docker/postgis/postgresql_data/coverage-report.xml
 coverage-report.xml
 **/xunit-result.xml
 /mrmap/docker/postgis/postgresql_data/
+/mrmap/docker/redis/redis_data/
 

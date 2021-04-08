@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 # Include other settings files (DO NOT TOUCH THESE!)
 from MrMap.sub_settings.django_settings import *
 from MrMap.sub_settings.dev_settings import *
-from MrMap.sub_settings.db_settings import *
 from MrMap.sub_settings.logging_settings import *
 from api.settings import REST_FRAMEWORK
 
@@ -54,3 +53,65 @@ PROXIES = {
 # configure if you want to validate ssl certificates
 # it is highly recommend keeping this to true
 VERIFY_SSL_CERTIFICATES = True
+
+################################################################
+# Database settings
+# https://docs.djangoproject.com/en/2.1/ref/settings/#databases
+################################################################
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'MrMap',
+        'USER': 'postgres',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+    }
+}
+
+################################################################
+# Redis settings
+################################################################
+REDIS_HOST = 'localhost'
+REDIS_PORT = '6379'
+BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
+
+# Cache
+# Use local redis installation as cache
+# The "regular" redis cache will be set to work in redis table 1 (see LOCATION)
+# The default table (0) is preserved for celery task management
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+        }
+    }
+}
+
+################################################################
+# Celery settings
+################################################################
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
+
+################################################################
+# django channels settings
+################################################################
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "capacity": 1500,  # default 100
+            "expiry": 10,  # default 60
+        },
+    },
+}

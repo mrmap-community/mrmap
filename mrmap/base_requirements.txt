@@ -63,6 +63,11 @@ django-redis~=4.12.1
 # used from django to hash passwords
 argon2-cffi~=20.1.0
 
+# django specific implementation for websockets. channels is the asgi framework and channel-redis adds support for
+# saving channel objects in redis db
+channels~=3.0.3
+channels-redis~=3.2.0
+
 ###################
 # used for testing
 ###################

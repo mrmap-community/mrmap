@@ -88,6 +88,7 @@ class PendingTaskView(CustomSingleTableMixin, ListView):
     model = PendingTask
     table_class = PendingTaskTable
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
+    template_name = 'service/views/pending_tasks.html'
 
 
 @method_decorator(login_required, name='dispatch')
@@ -95,7 +96,6 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
 
     def get_filterset_kwargs(self, *args):
@@ -127,7 +127,6 @@ class WfsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
 
     def get_table(self, **kwargs):
@@ -149,7 +148,6 @@ class CswIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
 
     def get_table(self, **kwargs):

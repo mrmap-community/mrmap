@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
 from django_bootstrap_swt.utils import RenderHelper
 from MrMap.columns import MrMapColumn
-from MrMap.icons import IconEnum
+from MrMap.icons import IconEnum, get_all_icons
 from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
@@ -45,6 +45,8 @@ class PendingTaskTable(tables.Table):
                              attrs={"th": {"class": "col-sm-3"}})
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     template_code=PENDING_TASK_ACTIONS,
+                                    # extra_context is needed to use table.as_html() in websockets/consumers.py
+                                    extra_context={'ICONS': get_all_icons()},
                                     attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     class Meta:

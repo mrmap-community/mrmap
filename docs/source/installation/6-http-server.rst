@@ -43,7 +43,7 @@ is another configuration file for plain HTTP in the conf folder.
     $ ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/mrmap
 
 
-3. Change server_name to your name or ipaddress in `/etc/nginx/sites-available/mrmap`
+3. Change server_name to your name or ipaddress in `/etc/nginx/sites-available/mrmap`. In the following example the server is available under `10.0.10.10`
 
 .. code-block:: console
 

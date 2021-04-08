@@ -154,7 +154,7 @@ We need a `environment file for celery <https://github.com/mrmap-community/mrmap
 and a `service definition for celery <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_celery_service>`_.
 
 .. note::
-     If you are using a virtualenv you have to adjust celery path in the environment file.  
+     If you are using a virtualenv you have to adjust celery path in the environment file. For example if your virtualenv is located under `/opt/mrmap/venv/`, then you has to change the `CELERY_BIN` setting to `/opt/mrmap/venv/bin/celery`.
      If your installation directory differs from /opt/ you have to change the working directory in the service definition of celery.
 
 .. code-block:: console

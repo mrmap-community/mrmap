@@ -27,6 +27,18 @@
         var json_data = JSON.parse(JSON.parse(event.data));
     	$( "#id_pending_tasks_div" ).html( json_data.rendered_table );
 
+    	// insert csrf token hidden field, cause the rendered_table from websocket cant generate csrf token field (no request)
+    	var prending_tasks_div = document.getElementById("id_pending_tasks_div");
+    	var forms_collection = prending_tasks_div.getElementsByTagName("form");
+        for(var i=0;i<forms_collection.length;i++)
+        {
+           var csrf_token_field = document.createElement("input");
+           csrf_token_field.type = "hidden";
+           csrf_token_field.name = "csrfmiddlewaretoken";
+           csrf_token_field.value = csrftoken;
+           forms_collection[i].appendChild(csrf_token_field);
+        }
+
     	$('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
     };
 
@@ -34,4 +46,5 @@
     	console.error('pending tasks socket closed unexpectedly');
     };
 </script>
+
 {% endblock %}

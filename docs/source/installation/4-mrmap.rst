@@ -23,7 +23,7 @@ On debian 10 you have python3.7 available in the system packages, on other versi
 
 .. code-block:: console
 
-    $ apt install -y libcurl4-openssl-dev libssl-dev python3.8-dev gdal-bin virtualenv git gcc libpq-dev
+    $ apt install -y libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv git gcc libpq-dev
 
 
 Initial setup Mr. Map

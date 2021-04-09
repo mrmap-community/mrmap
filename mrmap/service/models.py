@@ -3132,6 +3132,8 @@ class Layer(Service, MPTTModel):
         Returns:
              bounding_geometry (Polygon): A geometry object
         """
+        bounding_geometry = self.metadata.bounding_geometry
+
         ancestors = self.get_ancestors(ascending=True).select_related('metadata')
         # todo: maybe GEOS can get the object with the greatest geometry from the db directly?
         for ancestor in ancestors:

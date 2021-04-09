@@ -22,9 +22,9 @@ def async_process_securing_access(md_id, use_proxy: bool, log_proxy: bool, restr
     Returns:
 
     """
-    metadata = Metadata.objects.get(
+    metadata = Metadata.objects.select_related('service', 'featuretype').get(
         id=md_id
-    ).select_related('service', 'featuretype')
+    )
 
     # Create list of main and sub metadatas for later use
     subelements = metadata.get_described_element().get_subelements().select_related('metadata') # could be list of layers or featuretypes

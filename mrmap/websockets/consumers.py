@@ -1,16 +1,12 @@
 import json
 
-from channels.exceptions import DenyConnection
-from channels.generic.websocket import JsonWebsocketConsumer
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
 from django.test import RequestFactory
 from service.tables import PendingTaskTable
 from structure.models import PendingTask
+from websockets.auth import NonAnonymousJsonWebsocketConsumer
 
 
-class PendingTaskConsumer(JsonWebsocketConsumer):
-    user = None
+class PendingTaskConsumer(NonAnonymousJsonWebsocketConsumer):
     groups = ['pending_task_observers']
 
     def send_table_as_html(self, event):

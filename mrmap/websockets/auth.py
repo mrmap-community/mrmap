@@ -1,17 +1,19 @@
-from channels.auth import AuthMiddleware
 from channels.exceptions import DenyConnection
-from channels.sessions import CookieMiddleware, SessionMiddleware
+from channels.generic.websocket import JsonWebsocketConsumer
+from django.contrib.auth import get_user_model
 
 
-class OnlyAuthUserMiddleware(AuthMiddleware):
-    def __call__(self, scope, receive, send):
-        ret = super().__call__(scope, receive, send)
-        print(scope)
-        if scope['user'].is_anonymous:
+class NonAnonymousJsonWebsocketConsumer(JsonWebsocketConsumer):
+    """
+    Only allows non anonymous users to connect
+    """
+
+    user = None
+
+    def connect(self):
+        if self.scope['user'].is_anonymous:
             raise DenyConnection
-        return ret
+        else:
+            super().connect()
+            self.user = get_user_model().objects.get(username=self.scope['user'].username)
 
-
-# Handy shortcut for applying all three layers at once
-def OnlyAuthMiddlewareStack(inner):
-    return CookieMiddleware(SessionMiddleware(OnlyAuthUserMiddleware(inner)))

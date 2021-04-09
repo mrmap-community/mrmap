@@ -14,37 +14,49 @@
 {% render_table table %}
 </div>
 <script type="application/javascript">
-    var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
-    var pending_tasks_socket = new WebSocket(ws_scheme + '://{{HOST_NAME}}/ws/pending-tasks/?username={{request.user.username}}');
+    function connect() {
+        const ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        var pending_tasks_socket = new WebSocket(ws_scheme + '://' + hostname + ':' + port +'/ws/pending-tasks/');
 
-    pending_tasks_socket.onopen = function open() {
-    	console.debug('WebSockets connection created.');
-    };
+        pending_tasks_socket.onopen = function open() {
+            // do nothing if the websocket is correctly opened
+        };
 
-    pending_tasks_socket.onmessage = function message(event) {
-        $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
+        pending_tasks_socket.onmessage = function message(event) {
+            $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip("hide");
 
-        var json_data = JSON.parse(JSON.parse(event.data));
-    	$( "#id_pending_tasks_div" ).html( json_data.rendered_table );
+            var json_data = JSON.parse(JSON.parse(event.data));
+            $( "#id_pending_tasks_div" ).html( json_data.rendered_table );
 
-    	// insert csrf token hidden field, cause the rendered_table from websocket cant generate csrf token field (no request)
-    	var prending_tasks_div = document.getElementById("id_pending_tasks_div");
-    	var forms_collection = prending_tasks_div.getElementsByTagName("form");
-        for(var i=0;i<forms_collection.length;i++)
-        {
-           var csrf_token_field = document.createElement("input");
-           csrf_token_field.type = "hidden";
-           csrf_token_field.name = "csrfmiddlewaretoken";
-           csrf_token_field.value = csrftoken;
-           forms_collection[i].appendChild(csrf_token_field);
-        }
+            // insert csrf token hidden field, cause the rendered_table from websocket cant generate csrf token field (no request)
+            var prending_tasks_div = document.getElementById("id_pending_tasks_div");
+            var forms_collection = prending_tasks_div.getElementsByTagName("form");
+            for(var i=0;i<forms_collection.length;i++)
+            {
+               var csrf_token_field = document.createElement("input");
+               csrf_token_field.type = "hidden";
+               csrf_token_field.name = "csrfmiddlewaretoken";
+               csrf_token_field.value = csrftoken;
+               forms_collection[i].appendChild(csrf_token_field);
+            }
 
-    	$('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
-    };
+            $('#id_pending_tasks_div [data-toggle="tooltip"]').tooltip();
+        };
 
-    pending_tasks_socket.onclose = function(e) {
-    	console.error('pending tasks socket closed unexpectedly');
-    };
+        pending_tasks_socket.onclose = function(e) {
+            if (e.code > 1000){
+                console.error('pending tasks socket closed unexpectedly');
+                console.error(e);
+            }
+            // start reconnecting every 5 secs
+            setTimeout(function() {
+              connect();
+            }, 5000);
+        };
+    }
+    connect();
 </script>
 
 {% endblock %}

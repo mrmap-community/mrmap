@@ -20,9 +20,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         self.client.login(username=self.user.username, password=PASSWORD)
         # workaround to login a user for WebsocketCommunicator since login is not implemented for this
         # ApplicationCommunicator (see: https://github.com/django/channels/issues/903#issuecomment-365448451)
-        # self.headers = [(b'origin', b'...'), (b'cookie', self.client.cookies.output(header='', sep='; ').encode())]
-        # self.headers = [('user', self.user.username)]
-        self.headers = [(b'origin', b'http://127.0.0.1:8000')]
+        self.headers = [(b'origin', b'http://127.0.0.1:8000'), (b'cookie', self.client.cookies.output(header='', sep='; ').encode())]
 
     @sync_to_async
     def create_pending_task(self):
@@ -46,12 +44,12 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         pending_task_table = PendingTaskTable(data=pending_tasks)
         return pending_task_table.as_html(request=request)
 
-    async def test_pending_task_consumer(self):
+    async def test_pending_task_consumer_with_session_id(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
-                                             path=f"/ws/pending-tasks/?username={self.user.username}",
+                                             path=f"/ws/pending-tasks/",
                                              headers=self.headers)
-        connected, subprotocol = await communicator.connect()
+        connected, exit_code = await communicator.connect()
         self.assertTrue(connected)
 
         # if a PendingTask is created/modified, we shall receive the updated pending task list as json and html
@@ -66,6 +64,17 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         # render the table
         rendered_table = await self.render_pending_task_table(all_pending_tasks, request)
         self.assertEqual(rendered_table, json.loads(response).get('rendered_table'))
+
+        # Close
+        await communicator.disconnect()
+
+    async def test_pending_task_consumer_without_session_id(self):
+        # test connection established for authenticated user
+        communicator = WebsocketCommunicator(application=application,
+                                             path=f"/ws/pending-tasks/")
+        connected, exit_code = await communicator.connect()
+        self.assertFalse(connected)
+        self.assertEqual(1000, exit_code)
 
         # Close
         await communicator.disconnect()

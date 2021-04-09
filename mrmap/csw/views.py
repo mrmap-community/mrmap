@@ -46,7 +46,7 @@ def get_csw_results(request: HttpRequest):
 
 @login_required
 @permission_required(
-    PermissionEnum.CAN_HARVEST,
+    [PermissionEnum.CAN_HARVEST.value],
     raise_exception=True
 )
 def harvest_catalogue(request: HttpRequest, metadata_id: str):

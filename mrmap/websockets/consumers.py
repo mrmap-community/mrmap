@@ -1,34 +1,13 @@
 import json
-from channels.generic.websocket import JsonWebsocketConsumer
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
+
 from django.test import RequestFactory
 from service.tables import PendingTaskTable
 from structure.models import PendingTask
-from urllib.parse import parse_qs
+from websockets.auth import NonAnonymousJsonWebsocketConsumer
 
 
-class PendingTaskConsumer(JsonWebsocketConsumer):
-    user = None
+class PendingTaskConsumer(NonAnonymousJsonWebsocketConsumer):
     groups = ['pending_task_observers']
-
-    def connect(self):
-        query_string = parse_qs(self.scope['query_string'].decode("utf-8"))
-        try:
-            # try to get the user object from db. For further usage we need to get the user which opened the
-            # ws connection. Use cases are: filter PendingTask objects by user.organization membership
-
-            # WARNING !!!: this is not secure. Anyone with username knowledge could pass the username in the header and
-            # get all data based on the given username.
-
-            self.user = get_user_model().objects.get(username=query_string['username'][0])
-            self.accept()
-        except ObjectDoesNotExist:
-            # provided username does not exist
-            self.close()
-        except KeyError:
-            # no user provided with the header
-            self.close()
 
     def send_table_as_html(self, event):
         """

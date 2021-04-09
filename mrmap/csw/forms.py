@@ -24,7 +24,7 @@ class HarvestGroupForm(MrMapForm):
         self.instance = instance
         super(HarvestGroupForm, self).__init__(*args, **kwargs)
         self.fields["harvest_with_group"].queryset = self.requesting_user.groups\
-            .filter(is_public_group=False, is_permission_group=False)
+            .filter(mrmapgroup__is_public_group=False, mrmapgroup__is_permission_group=False)
 
     def process_harvest_catalogue(self):
         # Check if the catalogue exists

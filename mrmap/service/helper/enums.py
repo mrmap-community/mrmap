@@ -153,3 +153,4 @@ class PendingTaskEnum(EnumChoice):
     HARVEST = "harvest"
     REGISTER = "register"
     VALIDATE = "validate"
+    SECURE = "secure"

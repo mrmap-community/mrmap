@@ -1894,7 +1894,7 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            self.get_current_capability_xml(self.service.service_type.version)
+            # self.get_current_capability_xml(self.service.service_type.version)
             root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,

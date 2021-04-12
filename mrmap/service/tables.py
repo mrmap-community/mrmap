@@ -55,6 +55,9 @@ class PendingTaskTable(tables.Table):
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
+        row_attrs = {
+            'class': lambda record: 'table-success' if record.is_finished else ''
+        }
 
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))

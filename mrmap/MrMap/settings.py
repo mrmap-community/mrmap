@@ -255,6 +255,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
+CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 
 ################################################################
 # django channels settings

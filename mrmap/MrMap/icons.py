@@ -93,6 +93,7 @@ class IconEnum(EnumChoice):
     BOOK = 'fas fa-book'
     CODE = "fas fa-code"
     BOOK_OPEN = 'fas fa-book-open'
+    PENDING = 'fas fa-ellipsis-h'
 
 
 def get_icon(enum: IconEnum) -> SafeString:

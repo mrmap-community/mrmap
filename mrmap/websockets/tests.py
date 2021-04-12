@@ -3,9 +3,9 @@ import json
 from asgiref.sync import sync_to_async
 from django.core import serializers
 from django.test import Client, TransactionTestCase, RequestFactory
+from django_celery_results.models import TaskResult
 
 from service.tables import PendingTaskTable
-from structure.models import PendingTask
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from channels.testing import WebsocketCommunicator
@@ -24,16 +24,16 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
 
     @sync_to_async
     def create_pending_task(self):
-        pending_task = PendingTask.objects.create(description='Test')
+        pending_task = TaskResult.objects.create(description='Test')
         return pending_task
 
     @sync_to_async
     def count_pending_tasks(self):
-        return PendingTask.objects.count()
+        return TaskResult.objects.count()
 
     @sync_to_async
     def all_pending_tasks(self):
-        return PendingTask.objects.all()
+        return TaskResult.objects.all()
 
     @sync_to_async
     def serialize_pending_tasks(self, pending_tasks):
@@ -52,7 +52,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         connected, exit_code = await communicator.connect()
         self.assertTrue(connected)
 
-        # if a PendingTask is created/modified, we shall receive the updated pending task list as json and html
+        # if a TaskResult is created/modified, we shall receive the updated pending task list as json and html
         pending_task = await self.create_pending_task()
         response = await communicator.receive_json_from()
         all_pending_tasks = await self.all_pending_tasks()

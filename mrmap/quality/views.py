@@ -7,6 +7,7 @@ Created on: 27.10.20
 """
 import json
 
+from celery import current_task, states
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -16,9 +17,7 @@ from rest_framework import status
 from quality.models import ConformityCheckRun
 from quality.tasks import run_quality_check, complete_validation, \
     complete_validation_error
-from service.helper.enums import PendingTaskEnum
 from service.models import Metadata
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -58,17 +57,13 @@ def validate(request, metadata_id: str):
                                                  link=success_callback,
                                                  link_error=error_callback)
 
-    pending_task_db = PendingTask()
-    pending_task_db.created_by = group
-    pending_task_db.task_id = pending_task.id
-    pending_task_db.description = json.dumps({
-        "status": f'Validating {metadata.title}',
-        "service": metadata.title,
-        "phase": "Validating",
-    })
-    pending_task_db.progress = 10
-    pending_task_db.type = PendingTaskEnum.VALIDATE.value
-    pending_task_db.save()
+    current_task.update_state(
+        state=states.STARTED,
+        meta={
+            "current": 10,
+            "phase": f"Validating {metadata.title}",
+        }
+    )
 
     if current_view is not None:
         if current_view_arg is not None:

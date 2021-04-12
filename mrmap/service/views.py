@@ -58,7 +58,6 @@ from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 from django.urls import reverse, reverse_lazy

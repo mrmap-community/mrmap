@@ -1,12 +1,18 @@
+import json
+
 import django_tables2 as tables
+from celery import states
+from celery.result import AsyncResult
 from django.urls import reverse
 from django.utils.html import format_html
 from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
+from django_bootstrap_swt.enums import ProgressColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_celery_results.models import TaskResult
 
+from MrMap.celery import app
 from MrMap.columns import MrMapColumn
-from MrMap.icons import IconEnum, get_all_icons
+from MrMap.icons import IconEnum, get_all_icons, get_icon
 from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
@@ -14,7 +20,7 @@ from csw.models import HarvestResult
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
-from structure.models import PendingTask
+from service.settings import service_logger
 from structure.template_codes import PENDING_TASK_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
@@ -33,18 +39,32 @@ TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 
+def get_row_color(record):
+    if record.status == states.SUCCESS:
+        return 'table-success'
+    elif record.status == states.FAILURE:
+        return 'table-danger'
+    elif record.status == states.PENDING:
+        return 'table-warning'
+    else:
+        return ''
+
+
 class PendingTaskTable(tables.Table):
     bs4helper = None
     status = tables.Column(verbose_name=_('Status'),
-                           accessor='status_icons',
                            attrs={"th": {"class": "col-sm-1"}})
-    service = tables.Column(verbose_name=_('Service'),
-                            accessor='service_uri',
-                            attrs={"th": {"class": "col-sm-3"}})
+    type = tables.Column(verbose_name=_('Type'),
+                         accessor='task_name',
+                         attrs={"th": {"class": "col-sm-2"}})
     phase = tables.Column(verbose_name=_('Phase'),
-                          attrs={"th": {"class": "col-sm-4"}})
+                          accessor='result',
+                          attrs={"th": {"class": "col-sm-5"}},
+                          empty_values=[])
     progress = tables.Column(verbose_name=_('Progress'),
-                             attrs={"th": {"class": "col-sm-3"}})
+                             accessor='result',
+                             attrs={"th": {"class": "col-sm-3"}},
+                             empty_values=[])
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     template_code=PENDING_TASK_ACTIONS,
                                     # extra_context is needed to use table.as_html() in websockets/consumers.py
@@ -53,23 +73,68 @@ class PendingTaskTable(tables.Table):
 
     class Meta:
         model = TaskResult
-        fields = ('status', 'service', 'phase', 'progress', 'actions')
+        fields = ('status', 'type', 'phase', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
         row_attrs = {
-            'class': lambda record: 'table-success' if record.is_finished else ''
+            'class': lambda record: get_row_color(record)
         }
 
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_status(self, value):
-        return format_html(self.render_helper.render_list_coherent(value))
+        icon = ''
+        if value == states.PENDING:
+            icon = get_icon(IconEnum.PENDING)
+        elif value == states.STARTED:
+            icon = get_icon(IconEnum.PLAY)
+        elif value == states.SUCCESS:
+            icon = get_icon(IconEnum.OK)
+        elif value == states.FAILURE:
+            icon = get_icon(IconEnum.CRITICAL)
+        return format_html(icon)
+
+    def render_type(self, value):
+        if value == 'async_new_service_task':
+            return _('Register new service')
+        elif value == 'async_process_securing_access':
+            return _('Securing service')
+
+    def render_phase(self, record, value):
+        phase = ' '
+        try:
+            result = json.loads(value)
+            if record.status == states.STARTED:
+                phase = result.get('phase')
+            elif record.status == states.SUCCESS:
+                phase = f'{result.get("msg", "")} {result.get("absolute_url_html", "")}'
+            elif record.status == states.FAILURE:
+                phase = _('Task failed unexpected. See error log for details.')
+        except (AttributeError, KeyError) as e:
+            service_logger.warn(msg=e)
+        except TypeError:
+            # value is None or something else happens
+            pass
+        return format_html(phase)
 
     @staticmethod
-    def render_progress(value):
-        return ProgressBar(progress=round(value, 2)).render(safe=True)
+    def render_progress(record, value):
+        progress = 0
+        color = None
+        if record.status == states.STARTED:
+            result = json.loads(value)
+            try:
+                progress = result['current']
+            except KeyError:
+                pass
+        if record.status == states.SUCCESS:
+            progress = 100
+            color = ProgressColorEnum.SUCCESS
+        if record.status == states.FAILURE:
+            color = ProgressColorEnum.DANGER
+        return ProgressBar(progress=round(progress, 2), color=color).render(safe=True)
 
 
 class OgcServiceTable(tables.Table):

@@ -8,6 +8,7 @@ Created on: 27.10.20
 import time
 
 import requests
+from celery import current_task, states
 from django.utils import timezone
 from django_celery_beat.utils import now
 
@@ -17,8 +18,7 @@ from quality.models import ConformityCheckConfigurationExternal, \
 from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata
-from structure.celery_helper import get_task_id, runs_as_async_task
-from structure.models import PendingTask
+from structure.celery_helper import runs_as_async_task
 
 
 class EtfClient:
@@ -224,22 +224,18 @@ class QualityEtf:
 
     def update_progress(self):
         """Update the progress of the pending task."""
-        task_id = get_task_id()
         try:
             max_val = self.client.__getattribute__('progress_max_val')
             val = self.client.__getattribute__('progress_val')
-            pending_task = PendingTask.objects.get(task_id=task_id)
             # We reserve the first 10 percent for the calling method
             progress = 10 + (val / max_val * 100)
             progress = progress if progress <= 90 else 90
-            # We reserve the last 10 percent for the calling method
-            pending_task.progress = progress
-            pending_task.save()
-        except PendingTask.DoesNotExist:
-            quality_logger.error(
-                f'Could not update pending task. Task with id {task_id} does '
-                f'not '
-                f'exist.')
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    "current": progress,
+                }
+            )
         except ZeroDivisionError as e:
             quality_logger.error(
                 f'Could not update pending task with id {task_id}. ', e)

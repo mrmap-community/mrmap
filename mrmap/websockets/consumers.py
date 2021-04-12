@@ -1,8 +1,9 @@
 import json
 
 from django.test import RequestFactory
+from django_celery_results.models import TaskResult
+
 from service.tables import PendingTaskTable
-from structure.models import PendingTask
 from websockets.auth import NonAnonymousJsonWebsocketConsumer
 
 
@@ -18,10 +19,9 @@ class PendingTaskConsumer(NonAnonymousJsonWebsocketConsumer):
         #   * filter by the user object based permissions to show only pending tasks for that the user
         #     has permissions
         #   * check if the self.user has permissions for the instance that is created/modified. If not skip sending
-        instance_pk = event['instance_pk']  # the created/modified instance pk
 
         # create dummy request to render table as html
-        pending_tasks = PendingTask.objects.all()
+        pending_tasks = TaskResult.objects.all()
         request = RequestFactory().get('')
         request.user = self.user
 

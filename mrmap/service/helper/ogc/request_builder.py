@@ -8,7 +8,7 @@ Created on: 20.01.20
 from lxml import etree
 
 from MrMap.messages import PARAMETER_ERROR
-from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
+from MrMap.settings import XML_NAMESPACES
 
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum

@@ -12,24 +12,25 @@ import time
 
 from threading import Thread
 
-from celery import Task
+from celery import current_task, states, Task
+from celery.result import AsyncResult
 from django.db import transaction, IntegrityError
+from django.utils import timezone
 
 from MrMap.messages import SERVICE_NO_ROOT_LAYER
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, PROGRESS_STATUS_AFTER_PARSING, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, service_logger
+from service.settings import PROGRESS_STATUS_AFTER_PARSING, service_logger
 from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap import utils
 from MrMap.utils import execute_threads
-from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
-    MetadataRelationEnum, OGCServiceEnum
+    MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
-from service.helper import xml_helper, task_helper
+from service.helper import xml_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl, RequestOperation
 from structure.models import Organization, MrMapGroup
@@ -92,7 +93,7 @@ class OGCWebMapService(OGCWebService):
         return self._start_single_layer_parsing(layer_xml)
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
+    def create_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -102,12 +103,12 @@ class OGCWebMapService(OGCWebService):
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         start_time = time.time()
-        self.get_service_metadata_from_capabilities(xml_obj=xml_obj, async_task=async_task)
+        self.get_service_metadata_from_capabilities(xml_obj=xml_obj)
 
         # check if 'real' service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
         if service_metadata_uri is not None:
-            self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
+            self.get_service_metadata(uri=service_metadata_uri)
 
         service_logger.debug(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
@@ -125,7 +126,7 @@ class OGCWebMapService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self._parse_layers(xml_obj=xml_obj, async_task=async_task)
+            self._parse_layers(xml_obj=xml_obj)
             service_logger.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     def get_service_operations_and_formats(self, xml_obj):
@@ -477,7 +478,7 @@ class OGCWebMapService(OGCWebService):
 
         return layer_obj
 
-    def _parse_single_layer(self, layer, parent, step_size: float = None, async_task: Task = None):
+    def _parse_single_layer(self, layer, parent, step_size: float = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
 
         Runs recursive through own children for further parsing
@@ -491,9 +492,13 @@ class OGCWebMapService(OGCWebService):
         # iterate over all top level layer and find their children
         layer_obj = self._start_single_layer_parsing(layer)
 
-        if step_size is not None and async_task is not None:
-            task_helper.update_progress_by_step(async_task, step_size)
-            task_helper.update_service_description(async_task, None, "Parsing {}".format(layer_obj.title))
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': AsyncResult(current_task.request.id).info.get("current", 0) + step_size,
+                'phase': "Parsing {}".format(layer_obj.title),
+            }
+        )
 
         layer_obj.parent = parent
         if self.layers is None:
@@ -506,9 +511,9 @@ class OGCWebMapService(OGCWebService):
         if parent is not None:
             parent.child_layers.append(layer_obj)
 
-        self._parse_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
+        self._parse_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size)
 
-    def _parse_layers_recursive(self, layers, parent=None, step_size: float = None, async_task: Task = None):
+    def _parse_layers_recursive(self, layers, parent=None, step_size: float = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -519,21 +524,10 @@ class OGCWebMapService(OGCWebService):
         Returns:
             nothing
         """
+        for layer in layers:
+            self._parse_single_layer(layer, parent, step_size=step_size)
 
-        # decide whether to user multithreading or iterative approach
-        if len(layers) > MULTITHREADING_THRESHOLD:
-            thread_list = []
-            for layer in layers:
-                thread_list.append(
-                    Thread(target=self._parse_single_layer,
-                           args=(layer, parent))
-                )
-            execute_threads(thread_list)
-        else:
-            for layer in layers:
-                self._parse_single_layer(layer, parent, step_size=step_size, async_task=async_task)
-
-    def _parse_layers(self, xml_obj, async_task: Task = None):
+    def _parse_layers(self, xml_obj):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
@@ -563,14 +557,13 @@ class OGCWebMapService(OGCWebService):
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
         service_logger.debug("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
-        self._parse_layers_recursive(layers, step_size=step_size, async_task=async_task)
+        self._parse_layers_recursive(layers, step_size=step_size)
 
-    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj):
         """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
 
         Args:
             xml_obj: The iterable xml object tree
-            async_task: The task object
         Returns:
             Nothing
         """
@@ -592,8 +585,13 @@ class OGCWebMapService(OGCWebService):
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
 
-        if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'service': self.service_identification_title,
+                'phase': "Parsing main capabilities",
+            }
+        )
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
             service_xml,
@@ -714,6 +712,13 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': PROGRESS_STATUS_AFTER_PARSING,
+                'phase': 'Persisting...',
+            }
+        )
         orga_published_for = register_for_organization
         group = register_group
 

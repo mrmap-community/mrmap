@@ -1,10 +1,13 @@
+from celery import states
 from django.db.models import Q
 from django.http import HttpRequest
+from django_celery_results.models import TaskResult
+
 from MrMap.icons import get_all_icons
 from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
-from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization, PendingTask
+from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization
 from django.conf import settings
 
 
@@ -34,7 +37,9 @@ def default_context(request: HttpRequest):
                                                                                         Q(group__in=request.user.groups.all())).count()
 
         pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
-        pending_tasks_count = PendingTask.objects.count()
+        pending_tasks_count = TaskResult.objects.filter(Q(status=states.PENDING)|
+                                                        Q(status=states.STARTED)|
+                                                        Q(status=states.RECEIVED)).count()
 
         wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
                                             service__is_root=True,

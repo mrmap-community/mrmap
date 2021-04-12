@@ -5,15 +5,16 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 14.07.20
 
 """
-from celery import Task
+from celery import Task, current_task, states
 from django.db import IntegrityError
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
-from service.helper import xml_helper, task_helper
+from service.helper import xml_helper
 from service.helper import service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
+from service.settings import PROGRESS_STATUS_AFTER_PARSING
 from structure.models import MrMapUser, Organization, MrMapGroup
 
 
@@ -31,7 +32,7 @@ class OGCCatalogueService(OGCWebService):
 
         self.formats_list = []
 
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
+    def create_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
         """ Load data from capabilities document
 
         Args:
@@ -44,7 +45,7 @@ class OGCCatalogueService(OGCWebService):
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         # parse service metadata
-        self.get_service_metadata_from_capabilities(xml_obj, async_task)
+        self.get_service_metadata_from_capabilities(xml_obj)
 
         # Parse <OperationsMetadata>
         self.get_service_operations_and_formats(xml_obj)
@@ -81,6 +82,14 @@ class OGCCatalogueService(OGCWebService):
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': PROGRESS_STATUS_AFTER_PARSING,
+                'phase': 'Persisting...',
+            }
+        )
+
         md = Metadata()
         md_type = MetadataEnum.CATALOGUE.value
         md.metadata_type = md_type
@@ -166,7 +175,7 @@ class OGCCatalogueService(OGCWebService):
 
         return service
 
-    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj):
         """ Parse the capability document <Service> metadata into the self object
 
         Args:
@@ -183,8 +192,10 @@ class OGCCatalogueService(OGCWebService):
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
 
-        if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
+        current_task.update_state(
+            state=states.STARTED,
+            meta={'service': self.service_identification_title, 'phase': 'Parsing main capabilities'}
+        )
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
             xml_elem=service_xml,

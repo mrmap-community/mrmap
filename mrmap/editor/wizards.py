@@ -55,6 +55,7 @@ class AccessEditorWizard(PermissionRequiredMixin, MrMapWizard):
     permission_required = PermissionEnum.CAN_EDIT_METADATA.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
+    success_url = reverse_lazy('resource:pending-tasks')
 
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)

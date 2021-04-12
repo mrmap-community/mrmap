@@ -6,7 +6,8 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Case, When, QuerySet
+from django.db.models import Case, When, QuerySet, Q
+from django.db.models.functions import datetime
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
@@ -53,17 +54,30 @@ class ErrorReport(models.Model):
         return report
 
 
+class PendingTaskManager(models.Manager):
+    def get_queryset(self):
+        now = timezone.now()
+        max_created_at = now - timezone.timedelta(seconds=30)
+        finished_tasks = Q(created_at__lt=max_created_at, is_finished=True)
+        running_tasks = Q(is_finished=False)
+        qs = super(PendingTaskManager, self).get_queryset().filter(running_tasks | finished_tasks)
+        return qs
+
+
 class PendingTask(models.Model):
     significant_fields = ['description', 'progress', 'is_finished']
 
+    created_at = models.DateField(auto_now_add=True, db_index=True)
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
-    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0)
+    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)], default=0.0, )
     remaining_time = models.DurationField(blank=True, null=True)
     is_finished = models.BooleanField(default=False)
     created_by = models.ForeignKey(Group, null=True, blank=True, on_delete=models.DO_NOTHING)
     error_report = models.ForeignKey('ErrorReport', null=True, blank=True, on_delete=models.SET_NULL)
     type = models.CharField(max_length=500, null=True, blank=True, choices=PendingTaskEnum.as_choices(), validators=[validate_pending_task_enum_choices])
+
+    objects = PendingTaskManager()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

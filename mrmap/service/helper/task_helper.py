@@ -56,12 +56,12 @@ def update_progress_by_step(task: Task, step: float):
         pass
 
 
-def update_progress(task: Task, new_status: int):
+def update_progress(task: Task, new_status: float):
     """ Set the current progress for the task object (celery)
 
     Args:
         task (Task):
-        new_status (int): The progress bar
+        new_status (float): The progress bar
     Returns:
 
     """
@@ -74,6 +74,7 @@ def update_progress(task: Task, new_status: int):
         )
         pending_task.progress = new_status
         pending_task.save()
+        print(new_status)
     except ObjectDoesNotExist:
         pass
 

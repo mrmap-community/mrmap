@@ -9,6 +9,8 @@ import base64
 import json
 import time
 import traceback
+
+import celery.states as states
 from requests.exceptions import InvalidURL
 
 import requests
@@ -39,8 +41,8 @@ def async_increase_hits(metadata_id: int):
     md.increase_hits()
 
 
-@shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
+@shared_task(name="async_new_service_task", bind=True)
+def async_new_service(self, url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
                       external_auth: dict):
     """ Async call of new service creation
 
@@ -48,6 +50,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     their ids, since the objects are not easily serializable using json
 
     Args:
+        self (Task): the task it self
         url_dict (dict): Contains basic information about the service like connection uri
         user_id (int): Id of the performing user
         register_group_id (int): Id of the group which wants to register
@@ -55,6 +58,14 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     Returns:
         nothing
     """
+    self.update_state(
+        state=states.STARTED,
+        meta={
+            'current': 0,
+            'total': 100,
+        }
+    )
+
     # create ExternalAuthentication object
     if external_auth is not None:
         external_auth = ExternalAuthentication(
@@ -64,11 +75,13 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         )
 
     # get current task id
-    curr_task_id = async_new_service.request.id
+    curr_task_id = self.request.id
+
+
 
     # set progress for current task to 0
-    if curr_task_id is not None:
-        task_helper.update_progress(async_new_service, 0)
+    # if curr_task_id is not None:
+    #    task_helper.update_progress(async_new_service, 0)
 
     # restore objects from ids
     user = MrMapUser.objects.get(id=user_id)

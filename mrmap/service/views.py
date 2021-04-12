@@ -22,11 +22,14 @@ from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
+from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
+from redis import StrictRedis
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
+from MrMap.celery import app
 from MrMap.consts import *
 from MrMap.decorators import log_proxy
 from MrMap.forms import get_current_view_args
@@ -85,10 +88,14 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) 
 
 @method_decorator(login_required, name='dispatch')
 class PendingTaskView(CustomSingleTableMixin, ListView):
-    model = PendingTask
+    model = TaskResult
     table_class = PendingTaskTable
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
     template_name = 'service/views/pending_tasks.html'
+
+    def get_queryset(self):
+        qs = super(PendingTaskView, self).get_queryset()
+        return qs
 
 
 @method_decorator(login_required, name='dispatch')

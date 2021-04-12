@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
+from django_celery_results.models import TaskResult
 
 from service.models import *
 from django.urls import reverse

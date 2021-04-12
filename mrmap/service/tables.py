@@ -3,6 +3,8 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
 from django_bootstrap_swt.utils import RenderHelper
+from django_celery_results.models import TaskResult
+
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum, get_all_icons
 from MrMap.tables import MrMapTable
@@ -50,7 +52,7 @@ class PendingTaskTable(tables.Table):
                                     attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     class Meta:
-        model = PendingTask
+        model = TaskResult
         fields = ('status', 'service', 'phase', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'

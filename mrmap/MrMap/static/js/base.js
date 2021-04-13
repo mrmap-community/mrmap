@@ -178,6 +178,18 @@ function update_pending_task_count(){
     };
 }
 
+function handle_toast(){
+    var ws_socket = ws_connect('/ws/toasts/', '')
+
+    ws_socket.onmessage = function message(event) {
+        var json_data = JSON.parse(JSON.parse(event.data));
+        var toast_container = document.getElementById("id_toast_container");
+        toast_container.insertAdjacentHTML('beforeend', json_data.toast);
+        console.log('something');
+        $('.toast').toast('show')
+    };
+}
+
 $(document).ready(function(){
     var eeRotation = 0;
 
@@ -215,4 +227,5 @@ $(document).ready(function(){
     })
 
     update_pending_task_count();
+    handle_toast();
 });

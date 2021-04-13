@@ -16,6 +16,6 @@ DATABASES['default']['PORT'] = '5555'
 CACHES['default']['LOCATION'] = 'redis://localhost:5556/1'
 
 BROKER_URL = f'redis://localhost:5556'
-CELERY_RESULT_BACKEND = 'redis://localhost:5556'
+# CELERY_RESULT_BACKEND = 'redis://localhost:5556'
 
 CHANNEL_LAYERS['default']['CONFIG']['hosts'] = [('localhost', '5556')]

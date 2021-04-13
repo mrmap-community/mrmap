@@ -6,6 +6,8 @@ Created on: 26.02.2020
 
 """
 import uuid
+
+from django.conf import settings
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -129,7 +131,7 @@ class MonitoringRun(models.Model):
     def save(self, *args, **kwargs):
         if self._state.adding:
             from monitoring.tasks import run_manual_service_monitoring
-            transaction.on_commit(lambda: run_manual_service_monitoring.delay(self.pk))
+            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.pk, ), countdown=settings.CELERY_DEFAULT_COUNTDOWN))
         super().save(*args, **kwargs)
 
 

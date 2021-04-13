@@ -148,8 +148,8 @@
     {% endfor %}
     {% endif %}
 
-    <div id="id_toast_container" style="position: relative;">
-        <div class="toast mr-5 border border-info" data-autohide="false" style="position: absolute; top: 0; right: 0; z-index:1;">
+    <div id="id_toast_container" class="mt-5 mr-5" style="position: fixed; top: 0; right:0; z-index:1; width: 300px;">
+        <div class="toast" data-autohide="false" style="position: absolute; top: 0; right: 0; ">
             <div class="toast-header">
                 <svg class=" rounded mr-2" width="20" height="20" xmlns="http://www.w3.org/2000/svg"
                     preserveAspectRatio="xMidYMid slice" focusable="false" role="img">
@@ -164,6 +164,7 @@
                 Hello, world! This is a toast message.
             </div>
         </div>
+    </div>
 
     <div id="body-content" class="mt-3">
         {% include 'includes/ee-overlay.html' %}

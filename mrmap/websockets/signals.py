@@ -6,6 +6,15 @@ from django.dispatch import receiver
 from django_celery_results.models import TaskResult
 
 
+def update_count(channel_layer):
+    async_to_sync(channel_layer.group_send)(
+        "pending_task_count_observers",
+        {
+            "type": "send.count",
+        },
+    )
+
+
 @receiver(post_save, sender=TaskResult, dispatch_uid='update_pending_task_listeners_on_post_save')
 @receiver(post_delete, sender=TaskResult, dispatch_uid='update_pending_task_listeners_on_post_delete')
 def update_pending_task_listeners(**kwargs):
@@ -13,8 +22,17 @@ def update_pending_task_listeners(**kwargs):
     Send the information to the channel group when a TaskResult is created/modified
     """
     channel_layer = get_channel_layer()
+
+    if 'created' in kwargs:
+        if kwargs['created']:
+            # post_save signal --> new TaskResult object
+            update_count(channel_layer)
+    else:
+        # post_delete signal
+        update_count(channel_layer)
+
     async_to_sync(channel_layer.group_send)(
-        "pending_task_observers",
+        "pending_task_table_observers",
         {
             "type": "send.table.as.html",
         },

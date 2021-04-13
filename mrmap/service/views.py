@@ -42,7 +42,7 @@ from MrMap.messages import SERVICE_UPDATED, \
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import update_helper
 from service.helper import service_helper
@@ -86,9 +86,10 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) 
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskView(CustomSingleTableMixin, ListView):
+class PendingTaskView(CustomSingleTableMixin, FilterView):
     model = TaskResult
     table_class = PendingTaskTable
+    filterset_class = TaskResultFilter
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
     template_name = 'service/views/pending_tasks.html'
 

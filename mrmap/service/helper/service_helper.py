@@ -262,11 +262,12 @@ def create_new_service(form, user: MrMapUser):
         "request": form.cleaned_data["ogc_request"],
     }
 
-    tasks.async_new_service.apply_async((uri_dict,
-                                        user.id,
-                                        form.cleaned_data['registering_with_group'].id,
-                                        register_for_other_org,
-                                        external_auth), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
+    return tasks.async_new_service.apply_async((uri_dict,
+                                                user.id,
+                                                form.cleaned_data['registering_with_group'].id,
+                                                register_for_other_org,
+                                                external_auth), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
+
 
 
 def get_resource_capabilities(request: HttpRequest, md: Metadata):

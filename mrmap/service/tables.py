@@ -63,7 +63,7 @@ class PendingTaskTable(tables.Table):
 
     class Meta:
         model = TaskResult
-        fields = ('status', 'type', 'phase', 'progress', 'actions')
+        fields = ('status', 'task_id', 'type', 'phase', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False

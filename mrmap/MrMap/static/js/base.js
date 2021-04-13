@@ -24,51 +24,11 @@ function toggleOverlay(html){
     overlay.toggleClass("show");
 }
 
-
 $(document).on("click", "#eeImg", function(){
     toggleOverlay("");
     // restore rotation
     var elem = $("#ee-trggr");
     elem.css({"transform": "rotate(0deg)"});
-});
-
-
-$(document).ready(function(){
-    var eeRotation = 0;
-
-    $("#ee-trggr").mousemove(function(event){
-        var element = $(this);
-        // check if ctrl key is pressed
-        eeRotation += 2;
-        element.css({"transform": "rotate(" + eeRotation +"deg)"});
-        if(eeRotation == 360){
-            var eeSound = $("#ee-audio")[0];
-            var img = $("<img/>").attr("src", "/static/images/mr_map.png")
-            .attr("class", "rotating-image")
-            .attr("style", "object-fit: contain;")
-            .attr("id", "eeImg");
-            toggleOverlay(img);
-            eeSound.addEventListener("ended", function(){
-                // remove overlay
-                if($("#overlay").hasClass("show")){
-                    toggleOverlay("");
-                }
-            });
-            eeSound.play();
-            eeRotation = 0;
-        }
-    });
-
-    $("#navbar-logo").mouseleave(function(){
-        var elem = $(this);
-        eeRotation = 0;
-        elem.css({"transform": "rotate(" + eeRotation +"deg)"});
-    });
-
-    $(function () {
-      $('[data-toggle="tooltip"]').tooltip();
-    })
-
 });
 
 function toggleBusyState( form ) {
@@ -177,3 +137,82 @@ function markFormAsDelete( submitter ){
     parentContainer.classList.add("d-none");
 
 }
+
+function ws_connect(path, search) {
+    const ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    var ws_socket = new WebSocket(ws_scheme + '://' + hostname + ':' + port + path + search);
+
+    ws_socket.onopen = function open() {
+        // do nothing if the websocket is correctly opened
+    };
+
+    ws_socket.onclose = function(e) {
+        if (e.code > 1000){
+            console.error('pending tasks socket closed unexpectedly');
+            console.error(e);
+        }
+        // start reconnecting every 5 secs
+        setTimeout(function() {
+          connect();
+        }, 5000);
+    };
+
+    return ws_socket
+}
+
+function update_pending_task_count(){
+    var ws_socket = ws_connect('/ws/pending-tasks-count/', '')
+
+    ws_socket.onmessage = function message(event) {
+        var json_data = JSON.parse(JSON.parse(event.data));
+        var span = document.getElementById("id_pending_tasks_count_nav_badge");
+        span.textContent = json_data.running_tasks_count;
+
+        if (json_data.running_tasks_count > 0){
+            span.classList.remove("d-none");
+        } else {
+            span.classList.add("d-none");
+        }
+    };
+}
+
+$(document).ready(function(){
+    var eeRotation = 0;
+
+    $("#ee-trggr").mousemove(function(event){
+        var element = $(this);
+        // check if ctrl key is pressed
+        eeRotation += 2;
+        element.css({"transform": "rotate(" + eeRotation +"deg)"});
+        if(eeRotation == 360){
+            var eeSound = $("#ee-audio")[0];
+            var img = $("<img/>").attr("src", "/static/images/mr_map.png")
+            .attr("class", "rotating-image")
+            .attr("style", "object-fit: contain;")
+            .attr("id", "eeImg");
+            toggleOverlay(img);
+            eeSound.addEventListener("ended", function(){
+                // remove overlay
+                if($("#overlay").hasClass("show")){
+                    toggleOverlay("");
+                }
+            });
+            eeSound.play();
+            eeRotation = 0;
+        }
+    });
+
+    $("#navbar-logo").mouseleave(function(){
+        var elem = $(this);
+        eeRotation = 0;
+        elem.css({"transform": "rotate(" + eeRotation +"deg)"});
+    });
+
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+    })
+
+    update_pending_task_count();
+});

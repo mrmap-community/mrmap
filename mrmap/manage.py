@@ -24,5 +24,6 @@ if __name__ == '__main__':
             "forget to activate a virtual environment?"
         ) from exc
     execute_from_command_line(sys.argv)
-    settings.root_logger.warning('MrMap was stopped.')
+    from MrMap.settings import ROOT_LOGGER
+    ROOT_LOGGER.warning('MrMap was stopped.')
 

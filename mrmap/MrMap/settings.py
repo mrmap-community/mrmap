@@ -393,7 +393,7 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 ################################################################
 # Logger settings
 ################################################################
-root_logger = logging.getLogger('MrMap.root')
+ROOT_LOGGER = logging.getLogger('MrMap.root')
 
 LOG_DIR = BASE_DIR + '/logs'
 LOG_SUB_DIRS = {

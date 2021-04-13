@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView
 from django_filters.views import FilterView
@@ -32,6 +33,7 @@ class MonitoringRunNewView(PermissionRequiredMixin, GenericViewContextMixin, Ini
     permission_required = PermissionEnum.CAN_RUN_MONITORING.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
+    success_url = reverse_lazy('resource:pending-tasks')
 
 
 @method_decorator(login_required, name='dispatch')

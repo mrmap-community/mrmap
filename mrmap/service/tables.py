@@ -2,20 +2,21 @@ import json
 
 import django_tables2 as tables
 from celery import states
-from celery.result import AsyncResult
+from django.template import Template, Context
 from django.urls import reverse
 from django.utils.html import format_html
-from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
+from django_bootstrap_swt.components import Link, Tag, Badge, Accordion
 from django_bootstrap_swt.enums import ProgressColorEnum
 from django_bootstrap_swt.utils import RenderHelper
 from django_celery_results.models import TaskResult
 
-from MrMap.celery import app
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum, get_all_icons, get_icon
 from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
+
+from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
 from csw.models import HarvestResult
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
@@ -37,17 +38,6 @@ TOOLTIP_STATUS = _(
     'Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
-
-
-def get_row_color(record):
-    if record.status == states.SUCCESS:
-        return 'table-success'
-    elif record.status == states.FAILURE:
-        return 'table-danger'
-    elif record.status == states.PENDING:
-        return 'table-warning'
-    else:
-        return ''
 
 
 class PendingTaskTable(tables.Table):
@@ -77,9 +67,6 @@ class PendingTaskTable(tables.Table):
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
-        row_attrs = {
-            'class': lambda record: get_row_color(record)
-        }
 
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
@@ -87,20 +74,30 @@ class PendingTaskTable(tables.Table):
     def render_status(self, value):
         icon = ''
         if value == states.PENDING:
-            icon = get_icon(IconEnum.PENDING)
+            icon = get_icon(IconEnum.PENDING, 'text-warning')
+            tooltip = _('Task is pending')
         elif value == states.STARTED:
-            icon = get_icon(IconEnum.PLAY)
+            icon = get_icon(IconEnum.PLAY, 'text-success')
+            tooltip = _('Task is running')
         elif value == states.SUCCESS:
-            icon = get_icon(IconEnum.OK)
+            icon = get_icon(IconEnum.OK, 'text-success')
+            tooltip = _('Task successfully done')
         elif value == states.FAILURE:
-            icon = get_icon(IconEnum.CRITICAL)
-        return format_html(icon)
+            icon = get_icon(IconEnum.CRITICAL, 'text-danger')
+            tooltip = _('Task unexpected stopped')
+        # use Template with templatecode to speed up rendering
+        context = Context()
+        context.update({'content': icon,
+                        'tooltip': tooltip})
+        return Template(TOOLTIP).render(context)
 
     def render_type(self, value):
         if value == 'async_new_service_task':
             return _('Register new service')
         elif value == 'async_process_securing_access':
             return _('Securing service')
+        elif value == 'run_manual_service_monitoring':
+            return _('Monitor service')
 
     def render_phase(self, record, value):
         phase = ' '
@@ -123,6 +120,7 @@ class PendingTaskTable(tables.Table):
     def render_progress(record, value):
         progress = 0
         color = None
+        animated = True
         if record.status == states.STARTED:
             result = json.loads(value)
             try:
@@ -132,9 +130,17 @@ class PendingTaskTable(tables.Table):
         if record.status == states.SUCCESS:
             progress = 100
             color = ProgressColorEnum.SUCCESS
+            animated = False
         if record.status == states.FAILURE:
             color = ProgressColorEnum.DANGER
-        return ProgressBar(progress=round(progress, 2), color=color).render(safe=True)
+            animated = False
+        # use Template with templatecode to speed up rendering
+        context = Context()
+        context.update({'value': round(progress, 2),
+                        'color': color.value if color else None,
+                        'animated': animated,
+                        'striped': animated})
+        return Template(PROGRESS_BAR).render(context)
 
 
 class OgcServiceTable(tables.Table):

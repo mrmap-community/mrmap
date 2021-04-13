@@ -5,7 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-from celery import shared_task
+from celery import shared_task, current_task, states
 from celery.signals import beat_init
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
@@ -44,6 +44,14 @@ def run_monitoring(setting_id, *args, **kwargs):
         return
     metadatas = setting.metadatas.all()
     for metadata in metadatas:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': 0,
+                'total': 100,
+                'phase': f'start monitoring checks for {metadata}',
+            }
+        )
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
@@ -57,12 +65,25 @@ def run_monitoring(setting_id, *args, **kwargs):
     monitoring_run.duration = duration
     monitoring_run.save()
 
+    return {'msg': 'Done. Service(s) successfully monitored.',
+            'id': str(monitoring_run.pk),
+            'absolute_url': monitoring_run.get_absolute_url(),
+            'absolute_url_html': f'<a href={monitoring_run.get_absolute_url()}>{monitoring_run.__str__()}</a>'}
+
 
 @shared_task(name='run_manual_service_monitoring')
 def run_manual_service_monitoring(monitoring_run, *args, **kwargs):
     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
     monitoring_run.start = timezone.now()
     for metadata in monitoring_run.metadatas.all():
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': 0,
+                'total': 100,
+                'phase': f'start monitoring checks for {metadata}',
+            }
+        )
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
@@ -76,3 +97,8 @@ def run_manual_service_monitoring(monitoring_run, *args, **kwargs):
     monitoring_run.end = end_time
     monitoring_run.duration = duration
     monitoring_run.save()
+
+    return {'msg': 'Done. Service(s) successfully monitored.',
+            'id': str(monitoring_run.pk),
+            'absolute_url': monitoring_run.get_absolute_url(),
+            'absolute_url_html': f'<a href={monitoring_run.get_absolute_url()}>{monitoring_run.__str__()}</a>'}

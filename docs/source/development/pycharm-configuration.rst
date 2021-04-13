@@ -25,7 +25,7 @@ You need at least:
 
 Docker setup is described in:
 
-:ref:`docker setup <development-docker>`
+`docker setup <https://mrmap-community.github.io/mrmap/development/docker.html`_
 
 
 Configuration of Pycharm and Docker
@@ -56,20 +56,20 @@ create service configurations for the project.
 
 * On the upper right of the pycharm interface you should see a button with "Add configuration"
 
-.. image:: ../images/add_pycharm_settings.png
+.. image:: ../images/add_pycharm_configuration.png
   :width: 800
   :alt: add pycharm settings
 
 * Create a runserver configuration in Pycharm
 
-.. image:: ../images/runserver_pycharm_settings.png
+.. image:: ../images/runserver_pycharm_configuration.png
   :width: 800
   :alt: runserver pycharm settings
 
 
 * Create a celery configuration in Pycharm
 
-.. image:: ../images/celery_pycharm_settings.png
+.. image:: ../images/celery_pycharm_configuration.png
   :width: 800
   :alt: celery pycharm settings
 

@@ -68,7 +68,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         all_pending_tasks = await self.all_pending_tasks()
 
         # create dummy request to render table as html
-        request = RequestFactory().get('')
+        request = RequestFactory().get('/ws/pending-tasks-table/')
         request.user = self.user
 
         # render the table

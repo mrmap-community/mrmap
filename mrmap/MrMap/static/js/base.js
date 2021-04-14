@@ -128,7 +128,6 @@ function isFormUpdateEventHandler( event ){
 }
 
 // adds formset delete form functionality to the frontend
-
 function markFormAsDelete( submitter ){
 
     const formDeleteCheckbox = document.querySelector(submitter.dataset.target);
@@ -173,6 +172,4 @@ $(document).ready(function(){
     $(function () {
       $('[data-toggle="tooltip"]').tooltip();
     })
-
-
 });

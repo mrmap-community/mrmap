@@ -13,7 +13,7 @@ TOAST = """
             preserveAspectRatio="xMidYMid slice" focusable="false" role="img">
             <rect fill="#007aff" width="100%" height="100%" /></svg>
         <strong class="mr-auto">{{title}}</strong>
-        <small class="ml-1 text-muted">11 mins ago</small>
+        <small class="ml-1 text-muted">{{ timestamp|date:"r" }}</small>
         <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
             <span aria-hidden="true">&times;</span>
         </button>

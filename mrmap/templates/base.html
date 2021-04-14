@@ -64,7 +64,7 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <h6 class="dropdown-header">{% trans 'Pending tasks' %}</h6>
-                    <a class="dropdown-item" href="{% url 'resource:pending-tasks' %}">{% autoescape off %}{{ICONS.PENDING_TASKS}}{% endautoescape %} {% trans 'Pending tasks'%} <span class="badge {% if pending_tasks_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}">{{pending_tasks_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resource:pending-tasks' %}">{% autoescape off %}{{ICONS.PENDING_TASKS}}{% endautoescape %} {% trans 'Pending tasks'%} <span data-bind="text: pendingTaskCount" class="badge {% if pending_tasks_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                     <h6 class="dropdown-header">{% trans 'Services' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>

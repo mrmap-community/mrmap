@@ -22,22 +22,6 @@ function ws_connect(path, search) {
     return ws_socket
 }
 
-function update_pending_task_count(){
-    var ws_socket = ws_connect('/ws/pending-tasks-count/', '')
-
-    ws_socket.onmessage = function message(event) {
-        var json_data = JSON.parse(JSON.parse(event.data));
-        var span = document.getElementById("id_pending_tasks_count_nav_badge");
-        span.textContent = json_data.running_tasks_count;
-
-        if (json_data.running_tasks_count > 0){
-            span.classList.remove("d-none");
-        } else {
-            span.classList.add("d-none");
-        }
-    };
-}
-
 function handle_toast(){
     var ws_socket = ws_connect('/ws/toasts/', '')
 
@@ -50,9 +34,24 @@ function handle_toast(){
     };
 }
 
+
+function AppViewModel() {
+    var appViewModel = this;
+    this.pendingTaskCount = ko.observable();
+
+    var ws_socket = ws_connect('/ws/app-view-model/', '')
+    ws_socket.onmessage = function message(event) {
+        var json_data = JSON.parse(event.data);
+        for (const observable of Object.getOwnPropertyNames(appViewModel)) {
+            appViewModel[observable](json_data[observable]);
+        }
+    };
+}
+
 window.addEventListener('load', function () {
-  update_pending_task_count();
-  handle_toast();
+  // Activates knockout.js
+  var appViewModel = new AppViewModel();
+  ko.applyBindings(appViewModel);
 })
 
 

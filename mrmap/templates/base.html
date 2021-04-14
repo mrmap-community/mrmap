@@ -115,13 +115,10 @@
                 </a>
             </li>
         </ul>
-
-
         <div>
-
-        <a class="navbar-text mr-2" type="button" href="{% url 'resource:pending-tasks' %}">
+        <a data-bind="visible: pendingTaskCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'resource:pending-tasks' %}">
             <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'There are pending tasks' %}">
-               {{ICONS.PENDING_TASKS}} <span id="id_pending_tasks_count_nav_badge" class="badge badge-pill badge-light fading d-none">0</span>
+               {{ICONS.PENDING_TASKS}} <span data-bind="text: pendingTaskCount" class="badge badge-pill badge-light fading"></span>
             </span>
         </a>
             <a class="btn btn-outline-light" href="{% url 'password_change_done' %}" title="{% trans 'Account' %}" role="button">

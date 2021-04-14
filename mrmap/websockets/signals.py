@@ -1,4 +1,5 @@
 from asgiref.sync import async_to_sync
+from celery import states
 from celery.signals import after_task_publish
 from channels.layers import get_channel_layer
 from django.db.models.signals import post_save, post_delete
@@ -6,11 +7,19 @@ from django.dispatch import receiver
 from django_celery_results.models import TaskResult
 
 
-def update_count(channel_layer):
+def update_count(channel_layer, instance):
+    # todo: for now we send all pending tasks serialized as json
+    #  further changes:
+    #   * filter by the created_by object show only pending tasks for that the user
+    #     has permissions
+    tasks_count = TaskResult.objects.filter(status__in=[states.STARTED, states.PENDING]).count()
+    response = {'pendingTaskCount': tasks_count}
+
     async_to_sync(channel_layer.group_send)(
-        "pending_task_count_observers",
+        "app_view_model_observers",
         {
-            "type": "send.count",
+            "type": "send.update",
+            "msg": response,
         },
     )
 
@@ -26,10 +35,10 @@ def update_pending_task_listeners(**kwargs):
     if 'created' in kwargs:
         if kwargs['created']:
             # post_save signal --> new TaskResult object
-            update_count(channel_layer)
+            update_count(channel_layer, kwargs['instance'])
     else:
         # post_delete signal
-        update_count(channel_layer)
+        update_count(channel_layer, kwargs['instance'])
 
     async_to_sync(channel_layer.group_send)(
         "pending_task_table_observers",

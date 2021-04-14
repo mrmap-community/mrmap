@@ -92,12 +92,11 @@ class StructurePendingTaskViewTestCase(TestCase):
 
     def test_remove_pending_task(self):
         response = self.client.post(
-            self.pending_tasks[0].remove_view_uri,
+            reverse('structure:remove-task', args=[self.pending_tasks[0].pk]),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(TaskResult.objects.all().count(), 9)
 
 
 class StructureDetailOrganizationViewTestCase(TestCase):
@@ -661,16 +660,6 @@ class StructureGroupInvitationRequestViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username,
                           password=self.user_password)
-
-    def test_create_group_invitation_not_logged_in(self):
-        # User is not logged in
-        client = copy(self.client)
-        client.logout()
-        url = str(reverse('structure:group_invitation_request_new'))
-        response = client.get(url)
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, "{}?next={}".format(reverse("login"), url))
 
     def test_missing_permission_create_group_invitation(self):
         # User is missing permission

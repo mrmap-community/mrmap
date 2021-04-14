@@ -17,7 +17,7 @@ urlpatterns = [
     path('accounts/login/', MrMapLoginView.as_view(), name="login"),
     path('accounts/login/', MrMapLoginView.as_view(), name="password_reset_done"),
     path('accounts/login/', MrMapLoginView.as_view(), name="password_reset_complete"),
-    path('accounts/logout/', LogoutView.as_view(), name='logout'),
+    path('accounts/logout', LogoutView.as_view(), name='logout'),
     path('accounts/password_reset/', MrMapPasswordResetView.as_view(), name='password_reset'),
     path('accounts/reset/<uidb64>/<token>/',
          PasswordResetConfirmView.as_view(template_name='users/views/logged_out/password_reset_or_confirm.html'),

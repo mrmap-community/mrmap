@@ -144,14 +144,15 @@ class QualityInternal:
 
     def update_progress(self):
         """Update the progress of the pending task."""
-        progress = AsyncResult(current_task.request.id).info.get("current", 0) + self.step_size
-        # we should only set the progress to max 90
-        # as the calling method might also update the progress
-        progress = progress if progress <= 90 else 90
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                "current": progress,
-            }
-        )
+        if current_task:
+            progress = AsyncResult(current_task.request.id).info.get("current", 0) + self.step_size
+            # we should only set the progress to max 90
+            # as the calling method might also update the progress
+            progress = progress if progress <= 90 else 90
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    "current": progress,
+                }
+            )
 

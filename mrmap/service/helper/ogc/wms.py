@@ -491,14 +491,14 @@ class OGCWebMapService(OGCWebService):
         """
         # iterate over all top level layer and find their children
         layer_obj = self._start_single_layer_parsing(layer)
-
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': AsyncResult(current_task.request.id).info.get("current", 0) + step_size,
-                'phase': "Parsing {}".format(layer_obj.title),
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': AsyncResult(current_task.request.id).info.get("current", 0) + step_size,
+                    'phase': "Parsing {}".format(layer_obj.title),
+                }
+            )
 
         layer_obj.parent = parent
         if self.layers is None:
@@ -584,14 +584,14 @@ class OGCWebMapService(OGCWebService):
             service_xml,
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
-
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'service': self.service_identification_title,
-                'phase': "Parsing main capabilities",
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': self.service_identification_title,
+                    'phase': "Parsing main capabilities",
+                }
+            )
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
             service_xml,
@@ -712,13 +712,14 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': PROGRESS_STATUS_AFTER_PARSING,
-                'phase': 'Persisting...',
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': PROGRESS_STATUS_AFTER_PARSING,
+                    'phase': 'Persisting...',
+                }
+            )
         orga_published_for = register_for_organization
         group = register_group
 

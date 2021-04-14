@@ -504,3 +504,4 @@ def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
         ret_val = [perform_catalogue_entry_serialization(md) for md in md_queryset]
 
     return ret_val
+

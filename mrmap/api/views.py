@@ -775,8 +775,8 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     def list(self, request):
         qs = self.get_queryset()
         qs = self.filter_queryset(qs)
-        tmp = self.paginate_queryset(qs)
-        data = serialize_catalogue_metadata(tmp)
+        qs = self.paginate_queryset(qs)
+        data = serialize_catalogue_metadata(qs)
         resp = self.get_paginated_response(data)
         return resp
 

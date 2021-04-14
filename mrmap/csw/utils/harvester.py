@@ -88,13 +88,14 @@ class Harvester:
         Returns:
 
         """
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'service': self.metadata.title,
-                'phase': "Connecting...",
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': self.metadata.title,
+                    'phase': "Connecting...",
+                }
+            )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
@@ -124,14 +125,14 @@ class Harvester:
         except TypeError:
             csw_logger.error("Malicious Harvest response: {}".format(hits_response))
             raise AttributeError(_("Harvest response is missing important data!"))
-
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'service': self.metadata.title,
-                'phase': "Start harvesting..."
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': self.metadata.title,
+                    'phase': "Start harvesting..."
+                }
+            )
 
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
 
@@ -173,15 +174,15 @@ class Harvester:
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = timezone.timedelta(seconds=seconds_for_rest)
-
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    'current': AsyncResult(current_task.request.id).info.get("current", 0) + progress_step_per_request,
-                    'phase': _("Harvesting {} of {}").format(self.start_position, total_number_to_harvest),
-                    'time_remaining': estimated_time_for_all,
-                }
-            )
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': AsyncResult(current_task.request.id).info.get("current", 0) + progress_step_per_request,
+                        'phase': _("Harvesting {} of {}").format(self.start_position, total_number_to_harvest),
+                        'time_remaining': estimated_time_for_all,
+                    }
+                )
 
         # Add HarvestResult infos
         self.harvest_result.timestamp_end = timezone.now()

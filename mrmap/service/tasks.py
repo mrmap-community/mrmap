@@ -53,14 +53,15 @@ def async_new_service(url_dict: dict,
     Returns:
         nothing
     """
-    current_task.update_state(
-        state=states.STARTED,
-        meta={
-            'current': 0,
-            'total': 100,
-            'phase': 'pre configure task...',
-        }
-    )
+    if current_task:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': 0,
+                'total': 100,
+                'phase': 'pre configure task...',
+            }
+        )
 
     # create ExternalAuthentication object
     if external_auth is not None:
@@ -95,14 +96,15 @@ def async_new_service(url_dict: dict,
     # after service AND documents have been persisted, we can now set the service being secured if needed
     if external_auth is not None:
         #todo: check this......
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': PROGRESS_STATUS_AFTER_PARSING,
-                'phase': 'Securing...',
-                'service': service.metadata.title
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': PROGRESS_STATUS_AFTER_PARSING,
+                    'phase': 'Securing...',
+                    'service': service.metadata.title
+                }
+            )
         service.metadata.set_proxy(True)
 
     service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))

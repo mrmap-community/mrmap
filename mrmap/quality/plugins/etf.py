@@ -9,6 +9,7 @@ import time
 
 import requests
 from celery import current_task, states
+from celery.result import AsyncResult
 from django.utils import timezone
 from django_celery_beat.utils import now
 
@@ -230,12 +231,14 @@ class QualityEtf:
             # We reserve the first 10 percent for the calling method
             progress = 10 + (val / max_val * 100)
             progress = progress if progress <= 90 else 90
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    "current": progress,
-                }
-            )
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        "current": progress,
+                    }
+                )
         except ZeroDivisionError as e:
-            quality_logger.error(
-                f'Could not update pending task with id {task_id}. ', e)
+            if current_task:
+                quality_logger.error(
+                    f'Could not update pending task with id {current_task.id}. ', e)

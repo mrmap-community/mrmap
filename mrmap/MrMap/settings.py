@@ -13,6 +13,8 @@ import sys
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 import logging
+from api.settings import REST_FRAMEWORK # noqa
+
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -161,10 +163,10 @@ ALLOWED_HOSTS = [
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
 GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
-#LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "home"
 # Defines where to redirect a user, that has to be logged in for a certain route
-#LOGIN_URL = "/"
-
+LOGIN_URL = "accounts/login/"
+LOGOUT_REDIRECT_URL = "/"
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -315,6 +317,7 @@ PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
 PAGE_SIZE_DEFAULT = 5
 PAGE_SIZE_MAX = 100
 PAGE_DEFAULT = 1
+
 
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
@@ -531,3 +534,4 @@ LOGGING = {
         },
     },
 }
+

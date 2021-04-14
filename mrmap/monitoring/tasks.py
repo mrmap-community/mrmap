@@ -44,14 +44,15 @@ def run_monitoring(setting_id, *args, **kwargs):
         return
     metadatas = setting.metadatas.all()
     for metadata in metadatas:
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': 0,
-                'total': 100,
-                'phase': f'start monitoring checks for {metadata}',
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': 0,
+                    'total': 100,
+                    'phase': f'start monitoring checks for {metadata}',
+                }
+            )
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
@@ -76,14 +77,15 @@ def run_manual_service_monitoring(monitoring_run, *args, **kwargs):
     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
     monitoring_run.start = timezone.now()
     for metadata in monitoring_run.metadatas.all():
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': 0,
-                'total': 100,
-                'phase': f'start monitoring checks for {metadata}',
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': 0,
+                    'total': 100,
+                    'phase': f'start monitoring checks for {metadata}',
+                }
+            )
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()

@@ -82,13 +82,14 @@ class OGCCatalogueService(OGCWebService):
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': PROGRESS_STATUS_AFTER_PARSING,
-                'phase': 'Persisting...',
-            }
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': PROGRESS_STATUS_AFTER_PARSING,
+                    'phase': 'Persisting...',
+                }
+            )
 
         md = Metadata()
         md_type = MetadataEnum.CATALOGUE.value
@@ -191,11 +192,11 @@ class OGCCatalogueService(OGCWebService):
             xml_elem=service_xml,
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
-
-        current_task.update_state(
-            state=states.STARTED,
-            meta={'service': self.service_identification_title, 'phase': 'Parsing main capabilities'}
-        )
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={'service': self.service_identification_title, 'phase': 'Parsing main capabilities'}
+            )
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
             xml_elem=service_xml,

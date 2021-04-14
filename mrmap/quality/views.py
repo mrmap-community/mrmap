@@ -56,14 +56,14 @@ def validate(request, metadata_id: str):
     pending_task = run_quality_check.apply_async(args=(config_id, metadata_id),
                                                  link=success_callback,
                                                  link_error=error_callback)
-
-    current_task.update_state(
-        state=states.STARTED,
-        meta={
-            "current": 10,
-            "phase": f"Validating {metadata.title}",
-        }
-    )
+    if current_task:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                "current": 10,
+                "phase": f"Validating {metadata.title}",
+            }
+        )
 
     if current_view is not None:
         if current_view_arg is not None:

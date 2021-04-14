@@ -121,7 +121,7 @@ class PendingTaskTable(tables.Table):
         progress = 0
         color = None
         animated = True
-        if record.status == states.STARTED:
+        if record.status == states.STARTED and value:
             result = json.loads(value)
             try:
                 progress = result['current']

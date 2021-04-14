@@ -165,7 +165,7 @@ GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
 LOGIN_REDIRECT_URL = "home"
 # Defines where to redirect a user, that has to be logged in for a certain route
-LOGIN_URL = "accounts/login/"
+LOGIN_URL = "/accounts/login/"
 LOGOUT_REDIRECT_URL = "/"
 
 # Internationalization

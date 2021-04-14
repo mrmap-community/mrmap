@@ -1,3 +1,5 @@
+from celery import states
+from celery.worker.control import revoke
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
@@ -13,6 +15,7 @@ from django.views.generic import DeleteView, DetailView, UpdateView, CreateView
 from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
+from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from MrMap.icons import IconEnum
 from MrMap.messages import GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, \
@@ -23,7 +26,7 @@ from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTabl
     SuccessMessageDeleteMixin
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm
-from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
+from structure.models import MrMapGroup, Organization, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublishesForTable, GroupDetailTable, \
     OrganizationDetailTable, PublishersTable, OrganizationMemberTable, MrMapUserTable, \
@@ -243,8 +246,8 @@ class GroupMembersTableView(DependingListView, GroupDetailContextMixin, CustomSi
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskDelete(SuccessMessageMixin, DeleteView):
-    model = PendingTask
+class PendingTaskDelete(SuccessMessageMixin, DetailView):
+    model = TaskResult
     success_url = reverse_lazy('resource:pending-tasks')
     template_name = 'generic_views/base_extended/delete.html'
     success_message = _('Task canceled.')
@@ -258,16 +261,21 @@ class PendingTaskDelete(SuccessMessageMixin, DeleteView):
         })
         return context
 
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        revoke(task_id=self.object.task_id, state=states.REVOKED, terminate=True)
+        return HttpResponseRedirect(self.success_url)
+
 
 @method_decorator(login_required, name='dispatch')
 class ErrorReportDetailView(DetailView):
-    model = ErrorReport
+    model = TaskResult
     content_type = "text/plain"
     template_name = "structure/views/error-reports/error.txt"
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
-        response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{self.object.timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.txt"'
+        response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{self.object.task_id}.txt"'
         return response
 
 

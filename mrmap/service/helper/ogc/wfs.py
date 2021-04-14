@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import time
 
-from celery import Task
+from celery import current_task, states
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.db import IntegrityError
 from lxml.etree import _Element
@@ -21,7 +21,7 @@ from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
-from service.helper import xml_helper, task_helper
+from service.helper import xml_helper
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, RequestOperation, ExternalAuthentication, ServiceUrl
@@ -73,7 +73,7 @@ class OGCWebFeatureService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
+    def create_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -83,7 +83,7 @@ class OGCWebFeatureService(OGCWebService):
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         # parse service metadata
-        self.get_service_metadata_from_capabilities(xml_obj, async_task)
+        self.get_service_metadata_from_capabilities(xml_obj)
         self.get_capability_metadata(xml_obj)
 
         # check if 'real' linked service metadata exist
@@ -95,11 +95,11 @@ class OGCWebFeatureService(OGCWebService):
                  "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL")
         )
         if service_metadata_uri is not None:
-            self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
+            self.get_service_metadata(uri=service_metadata_uri)
 
         if not metadata_only:
             start_time = time.time()
-            self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
+            self.get_feature_type_metadata(xml_obj=xml_obj, external_auth=external_auth)
             service_logger.debug(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
@@ -107,7 +107,7 @@ class OGCWebFeatureService(OGCWebService):
         self.get_version_specific_metadata(xml_obj)
 
     @abstractmethod
-    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj):
         """ Parse the capability document <Service> metadata into the self object
 
         Args:
@@ -123,9 +123,14 @@ class OGCWebFeatureService(OGCWebService):
             xml_elem=service_xml,
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
-
-        if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': self.service_identification_title,
+                    'phase': 'Parsing main capabilities...',
+                }
+            )
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
             xml_elem=service_xml,
@@ -341,7 +346,7 @@ class OGCWebFeatureService(OGCWebService):
         self.describe_stored_queries_uri_GET = get.get(descr_stored_queries, None)
         self.describe_stored_queries_uri_POST = post.get(descr_stored_queries, None)
 
-    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None, external_auth: ExternalAuthentication = None):
+    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, step_size: float = None, external_auth: ExternalAuthentication = None):
         """ Get featuretype metadata of a single featuretype
 
         Args:
@@ -361,11 +366,14 @@ class OGCWebFeatureService(OGCWebService):
             xml_elem=feature_type,
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
-
-        # update async task if this is called async
-        if async_task is not None and step_size is not None:
-            task_helper.update_progress_by_step(async_task, step_size)
-            task_helper.update_service_description(async_task, None, "Parsing {}".format(md.title))
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': step_size,
+                    'phase': "Parsing {}".format(md.title),
+                }
+            )
 
         md.identifier = xml_helper.try_get_text_from_xml_element(
             xml_elem=feature_type,
@@ -481,14 +489,13 @@ class OGCWebFeatureService(OGCWebService):
         }
 
     @abstractmethod
-    def get_feature_type_metadata(self, xml_obj, async_task: Task = None, external_auth: ExternalAuthentication = None):
+    def get_feature_type_metadata(self, xml_obj, external_auth: ExternalAuthentication = None):
         """ Parse the capabilities document <FeatureTypeList> metadata into the self object
 
         This abstract implementation follows the wfs specification for version 1.1.0
 
         Args:
             xml_obj: A minidom object which holds the xml content
-            async_task: The async task object
         Returns:
              Nothing
         """
@@ -517,11 +524,11 @@ class OGCWebFeatureService(OGCWebService):
         # decide whether to use multithreading or iterative approach
         if len_ft_list > MULTITHREADING_THRESHOLD:
             for xml_feature_type in feature_type_list:
-                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, async_task, step_size, external_auth)))
+                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, step_size, external_auth)))
             execute_threads(thread_list)
         else:
             for xml_feature_type in feature_type_list:
-                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, async_task, step_size, external_auth)
+                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, step_size, external_auth)
 
 
     @abstractmethod
@@ -605,6 +612,14 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': PROGRESS_STATUS_AFTER_PARSING,
+                    'phase': 'Persisting...',
+                }
+            )
 
         orga_published_for = register_for_organization
         group = register_group
@@ -910,7 +925,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 operation_name=operation.tag,
             )
 
-    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:
@@ -1028,7 +1043,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         self.get_feature_with_lock_uri_GET = get.get(get_feat_lock, None)
         self.get_feature_with_lock_uri_POST = post.get(get_feat_lock, None)
 
-    def get_feature_type_metadata(self, xml_obj, async_task: Task = None, external_auth: ExternalAuthentication = None):
+    def get_feature_type_metadata(self, xml_obj, external_auth: ExternalAuthentication = None):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:
@@ -1174,11 +1189,14 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "ns_list": elements_namespaces["ns_list"],
                 "dataset_md_list": feature_type.dataset_md_list,
             }
-
-            # update async task if this is called async
-            if async_task is not None and step_size is not None:
-                task_helper.update_progress_by_step(async_task, step_size)
-                task_helper.update_service_description(async_task, None, "Parsing {}".format(metadata.title))
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': step_size,
+                        'phase': "Parsing {}".format(metadata.title),
+                    }
+                )
 
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):

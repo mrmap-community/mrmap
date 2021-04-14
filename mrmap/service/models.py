@@ -541,6 +541,7 @@ class Metadata(Resource):
     origin = None
 
     class Meta:
+        ordering = ['-created']
         indexes = [
             models.Index(
                 fields=[

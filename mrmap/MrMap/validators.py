@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum, PendingTaskEnum
+from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum
 
 password_has_lower_case_letter = RegexValidator(
     regex='[a-z]',
@@ -217,10 +217,6 @@ def validate_document_enum_choices(value):
 
 def validate_metadata_enum_choices(value):
     return validate_choice(value, MetadataEnum.as_choices())
-
-
-def validate_pending_task_enum_choices(value):
-    return validate_choice(value, PendingTaskEnum.as_choices())
 
 
 def validate_choice(value, choices: list):

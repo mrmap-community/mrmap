@@ -178,7 +178,7 @@ class LoginLogoutTestCase(TestCase):
         response = client.get(reverse('logout',), data={"user": self.user})
         self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
-        self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
+        self.assertEqual(response.url, "/", msg=REDIRECT_WRONG)
 
         # case 2: user not activated -> user will not be logged in
         # make sure the user is not activated

@@ -24,7 +24,7 @@ function ws_connect(path, search) {
 
 function handle_toast(){
     var ws_socket = ws_connect('/ws/toasts/', '')
-
+    console.log(ws_socket);
     ws_socket.onmessage = function message(event) {
         var json_data = JSON.parse(event.data);
         var toast_container = document.getElementById("id_toast_container");

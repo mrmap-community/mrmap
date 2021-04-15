@@ -140,3 +140,6 @@ SUBSCRIPTION_SUCCESSFULLY_DELETED = _("Subscription successfully deleted.")
 GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
 
 MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")
+
+HARVEST_RUN_SCHEDULED = _("Harvest run for %(metadata)s scheduled.")
+

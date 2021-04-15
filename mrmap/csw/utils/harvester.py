@@ -26,7 +26,6 @@ from MrMap.cacher import PageCacher
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from api.settings import API_CACHE_KEY_PREFIX
-from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
     CSW_CACHE_PREFIX, HARVEST_GET_REQUEST_OUTPUT_SCHEMA
 from service.helper import xml_helper
@@ -34,15 +33,15 @@ from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataR
 from service.models import Metadata, Dataset, Keyword, Category, MimeType, \
     GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import MrMapGroup, Organization
+from structure.models import Organization
 
 
 class Harvester:
-    def __init__(self, metadata: Metadata, group: MrMapGroup, max_records_per_request: int = 200):
-        self.metadata = metadata
-        self.harvesting_group = group
+    def __init__(self, harvest_result, max_records_per_request: int = 200):
+        self.metadata = harvest_result.metadata
+        self.harvesting_group = self.metadata.service.created_by.mrmapgroup
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
-        self.harvest_url = metadata.service.operation_urls.filter(
+        self.harvest_url = self.metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
         ).exclude(
             url=None
@@ -52,11 +51,12 @@ class Harvester:
 
         self.version = self.metadata.get_service_version().value
         self.max_records_per_request = max_records_per_request
+        self.progress_step_per_result = 0
         self.start_position = 1
 
         self.method = self.harvest_url.method
 
-        self.harvest_result = HarvestResult(service=self.metadata.service)
+        self.harvest_result = harvest_result
 
         self.harvest_url = getattr(self.harvest_url, "url", None)
         if self.harvest_url is None:
@@ -88,12 +88,15 @@ class Harvester:
         Returns:
 
         """
+        absolute_url = f'<a href="{self.metadata.get_absolute_url()}">{self.metadata.title}</a>'
+        service_json = {'id': self.metadata.pk,
+                        'absolute_url': absolute_url},
         if current_task:
             current_task.update_state(
                 state=states.STARTED,
                 meta={
-                    'service': self.metadata.title,
-                    'phase': "Connecting...",
+                    'service': service_json,
+                    'phase': f"Connecting to {absolute_url}",
                 }
             )
 
@@ -117,6 +120,13 @@ class Harvester:
             raise ConnectionError(_("Response is not a valid xml: \n{}".format(hits_response)))
 
         try:
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': f"calculating harvesting time",
+                    }
+                )
             total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
                 xml_response,
                 "numberOfRecordsMatched",
@@ -129,12 +139,12 @@ class Harvester:
             current_task.update_state(
                 state=states.STARTED,
                 meta={
-                    'service': self.metadata.title,
+                    'service': service_json,
                     'phase': "Start harvesting..."
                 }
             )
 
-        progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
+        self.progress_step_per_result = float(1 / total_number_to_harvest) * 100
 
         # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
         # nextRecord=1. We need to prevent endless loops by checking whether, we already worked on these positions and
@@ -151,10 +161,25 @@ class Harvester:
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
         while True:
+            estimated_time_for_all = 'unknown'
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': _("Harvesting first {} of {}. Time remaining: {}").format(self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                    }
+                )
             processed_start_positions.add(self.start_position)
             # Get response
             next_response, status_code = self._get_harvest_response(result_type="results")
 
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': _("Processing harvested results for the first {} of {}. Time remaining: {}").format(self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                    }
+                )
             found_entries = self._process_harvest_response(next_response)
 
             # Calculate time since loop started
@@ -169,20 +194,10 @@ class Harvester:
             page_cacher.remove_pages(CSW_CACHE_PREFIX)
             if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
-                estimated_time_for_all = timezone.timedelta(seconds=0)
                 break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = timezone.timedelta(seconds=seconds_for_rest)
-            if current_task:
-                current_task.update_state(
-                    state=states.STARTED,
-                    meta={
-                        'current': AsyncResult(current_task.request.id).info.get("current", 0) + progress_step_per_request,
-                        'phase': _("Harvesting {} of {}").format(self.start_position, total_number_to_harvest),
-                        'time_remaining': estimated_time_for_all,
-                    }
-                )
 
         # Add HarvestResult infos
         self.harvest_result.timestamp_end = timezone.now()
@@ -406,6 +421,13 @@ class Harvester:
             md = Metadata.objects.get(
                 identifier=_id,
             )
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': f"Persisting metadata with file identifier {md.identifier}",
+                    }
+                )
             is_new = False
             if md.last_remote_change == md_data_entry["date_stamp"]:
                 # Nothing to do here!
@@ -491,6 +513,14 @@ class Harvester:
                     self.metadata.title,
                     e
                 )
+            )
+            csw_logger.exception(e)
+        finally:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': AsyncResult(current_task.request.id).info.get("current", 0) + self.progress_step_per_result,
+                }
             )
 
     @transaction.atomic

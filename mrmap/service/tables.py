@@ -98,6 +98,8 @@ class PendingTaskTable(tables.Table):
             return _('Securing service')
         elif value == 'run_manual_service_monitoring':
             return _('Monitor service')
+        elif value == 'async_harvest':
+            return _('Harvest catalogue')
 
     def render_phase(self, record, value):
         phase = ' '
@@ -151,8 +153,8 @@ class OgcServiceTable(tables.Table):
                                    accessor='service__parent_service__metadata')
     status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
-    last_harvest = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
-    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], )
+    harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
+    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
     actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
                             attrs={"td": {"style": "white-space:nowrap;"}})
 
@@ -165,7 +167,7 @@ class OgcServiceTable(tables.Table):
                   'status',
                   'health',
                   'service__service_type__version',
-                  'last_harvest',
+                  'harvest_results',
                   'collected_harvest_records',
                   'contact',
                   'service__created_by__mrmapgroup',
@@ -181,14 +183,21 @@ class OgcServiceTable(tables.Table):
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
-    def render_last_haverest(self, value):
-        harvest_result = HarvestResult.objects.filter(
-            service=value
+    def render_harvest_results(self, record, value):
+        last_harvest_result = value.filter(
+            metadata=record
         ).order_by(
             "-created"
         ).first()
+        return last_harvest_result.timestamp_start if last_harvest_result is not None else _('Never')
 
-        return harvest_result.timestamp_start if harvest_result is not None else None
+    def render_collected_harvest_records(self, record, value):
+        last_harvest_result = value.filter(
+            metadata=record
+        ).order_by(
+            "-created"
+        ).first()
+        return last_harvest_result.number_results if last_harvest_result is not None else '-'
 
     # todo
     def render_wms_validation(self, record):

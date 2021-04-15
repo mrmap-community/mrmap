@@ -184,8 +184,9 @@ class ServiceSerializer(serializers.Serializer):
             request=request
         )
         if form.is_valid():
-            service_helper.create_new_service(form, user)
-        return None
+            pending_task = service_helper.create_new_service(form, user)
+            return pending_task
+        return form
 
 
 class LayerSerializer(ServiceSerializer):

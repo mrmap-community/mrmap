@@ -6,12 +6,12 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import sys
 
-host="https://127.0.0.1"
+host="http://127.0.0.1:8000"
 # generate a token on the web interface and insert it here
-token="" # example:e165337d7cb46cd625d4f23435962a344d5f1aa0
+token="26f91c14e069beaa98e478a48f2769ec70cd07ef" # example:e165337d7cb46cd625d4f23435962a344d5f1aa0
 
 # register parameters
-group = 1 #int
+group = 8 #int
 registering_for_other_organization =  "" # int
 external_authentication = False # bool
 external_username = "" # str
@@ -40,5 +40,6 @@ data = {
 for url in lines:
     data['uri'] = url
     r = requests.post(host+'/api/service/', data=data, headers={'Authorization': 'Token '+token}, verify=False)
+    print(r.status_code)
     #req = session.post(host+"/service/add", data={'REQUEST': 'GetCapabilities' ,'SERVICE': 'WMS','page': 2, 'is_form_update': False, 'ogc_request': 'GetCapabilities', 'ogc_service': 'wms','ogc_version': '1.1.1','registering_with_group': 1,'registering_for_other_organization': '','uri': url}, verify=False)
     print("registering: " +url)

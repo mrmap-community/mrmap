@@ -182,7 +182,7 @@
 <li>docker-compose &gt; 1.20</li>
 </ul>
 <p>Docker setup is described in:</p>
-<p><a href="#id1"><span class="problematic" id="id2">`docker setup &lt;https://mrmap-community.github.io/mrmap/development/docker.html`_</span></a></p>
+<p><a class="reference external" href="https://mrmap-community.github.io/mrmap/development/docker.html">docker setup</a></p>
 </div>
 <div class="section" id="configuration-of-pycharm-and-docker">
 <h2>Configuration of Pycharm and Docker<a class="headerlink" href="#configuration-of-pycharm-and-docker" title="Permalink to this headline">¶</a></h2>
@@ -193,9 +193,10 @@
 <p>Configure docker in pycharm:</p>
 <ul class="simple">
 <li>Open Pycharm and point it to the root directory of mrmap, eg. /opt/mrmap/</li>
+<li>Goto File-&gt;Settings-&gt;Plugins and search for docker to install it.</li>
 <li>Goto File-&gt;Settings-&gt;Build,Execution,Development-&gt;Docker</li>
-<li>Click on the plus sign to add a docker configuation</li>
-<li>Use the default settings and click on apply, it should say “Connection successful”</li>
+<li>Click on the plus sign to add a docker configuation.</li>
+<li>Use the default settings and click on apply, it should say “Connection successful”.</li>
 </ul>
 <a class="reference internal image-reference" href="../_images/docker_pycharm_settings.png"><img alt="docker pycharm settings" src="../_images/docker_pycharm_settings.png" style="width: 800px;" /></a>
 <p>Next we have to mark the mrmap folder as source folder and
@@ -203,19 +204,23 @@ create service configurations for the project.</p>
 <ul class="simple">
 <li>Right click on the mrmap folder in the pycharm directory tree, eg. /opt/mrmap/mrap
 and select “Mark Directory as -&gt; Source Folder”</li>
-<li>On the upper right of the pycharm interface you should see a button with “Add configuration”</li>
+<li>On the upper right of the pycharm interface you should see a button with “Add configuration”.</li>
 </ul>
 <a class="reference internal image-reference" href="../_images/add_pycharm_configuration.png"><img alt="add pycharm settings" src="../_images/add_pycharm_configuration.png" style="width: 800px;" /></a>
 <ul class="simple">
-<li>Create a runserver configuration in Pycharm</li>
+<li>Create a docker configuration in Pycharm.</li>
+</ul>
+<a class="reference internal image-reference" href="../_images/docker_pycharm_configuration.png"><img alt="add pycharm settings" src="../_images/docker_pycharm_configuration.png" style="width: 800px;" /></a>
+<ul class="simple">
+<li>Create a runserver configuration in Pycharm.</li>
 </ul>
 <a class="reference internal image-reference" href="../_images/runserver_pycharm_configuration.png"><img alt="runserver pycharm settings" src="../_images/runserver_pycharm_configuration.png" style="width: 800px;" /></a>
 <ul class="simple">
-<li>Create a celery configuration in Pycharm</li>
+<li>Create a celery configuration in Pycharm.</li>
 </ul>
 <a class="reference internal image-reference" href="../_images/celery_pycharm_configuration.png"><img alt="celery pycharm settings" src="../_images/celery_pycharm_configuration.png" style="width: 800px;" /></a>
 <ul class="simple">
-<li>Create a compound configuration in Pycharm to bundle all the services</li>
+<li>Create a compound configuration in Pycharm to bundle all the services.</li>
 </ul>
 <a class="reference internal image-reference" href="../_images/compound_pycharm_configuration.png"><img alt="compound pycharm configuration" src="../_images/compound_pycharm_configuration.png" style="width: 800px;" /></a>
 </div>

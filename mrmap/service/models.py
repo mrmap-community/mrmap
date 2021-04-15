@@ -917,7 +917,7 @@ class Metadata(Resource):
 
     @property
     def harvest_view_uri(self):
-        return reverse('csw:harvest-catalogue', args=[self.pk]) if self.service_type == OGCServiceEnum.CSW else ''
+        return f"{reverse('csw:harvest-catalogue')}?metadata={self.pk}" if self.service_type == OGCServiceEnum.CSW else ''
 
     @property
     def run_monitoring_view_uri(self):
@@ -2921,7 +2921,8 @@ class ServiceType(models.Model):
 class GenericUrl(Resource):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
-    url = models.URLField()
+    # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
+    url = models.URLField(max_length=2048)
 
     def __str__(self):
         return "{} | {} ({})".format(self.pk, self.url, self.method)

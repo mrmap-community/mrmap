@@ -2,6 +2,7 @@ import django_filters
 from dal import autocomplete
 from django import forms
 from django.db.models import Q
+from django_celery_results.models import TaskResult
 
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
@@ -9,6 +10,12 @@ from service.helper.enums import OGCServiceEnum
 from service.models import Metadata, Layer, FeatureType, ProxyLog
 from django.utils.translation import gettext_lazy as _
 from structure.models import MrMapGroup, MrMapUser
+
+
+class TaskResultFilter(django_filters.FilterSet):
+    class Meta:
+        model = TaskResult
+        fields = ['task_id', 'status']
 
 
 class OgcWmsFilter(django_filters.FilterSet):

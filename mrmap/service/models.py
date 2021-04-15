@@ -541,6 +541,7 @@ class Metadata(Resource):
     origin = None
 
     class Meta:
+        ordering = ['-created']
         indexes = [
             models.Index(
                 fields=[
@@ -1846,7 +1847,7 @@ class Metadata(Resource):
             nothing
         """
         try:
-            cap_doc = self.docuents.get(
+            cap_doc = self.documents.get(
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
             )

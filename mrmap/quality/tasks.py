@@ -5,8 +5,6 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from time import sleep
-
 from celery import shared_task
 from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
@@ -21,7 +19,7 @@ from quality.plugins.etf import QualityEtf, ValidationDocumentProvider, \
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
 from structure.AbortedException import AbortedException
-from structure.models import MrMapUser, MrMapGroup, PendingTask
+from structure.models import MrMapUser, MrMapGroup
 from users.helper.user_helper import create_group_activity
 
 logger = get_task_logger(__name__)
@@ -88,18 +86,6 @@ def complete_validation(self, run_id: int, user_id: int = None,
         Returns:
             nothing
     """
-    parent_task_id = complete_validation.request.parent_id
-
-    if parent_task_id is not None:
-        try:
-            pt = PendingTask.objects.get(task_id=parent_task_id)
-            pt.progress = 100
-            pt.save()
-            sleep(2)
-            pt.delete()
-        except PendingTask.DoesNotExist:
-            pass
-
     try:
         run = ConformityCheckRun.objects.get(pk=run_id)
         # task is still running
@@ -151,17 +137,6 @@ def complete_validation_error(request, exc, traceback, user_id: int = None,
         Returns:
             nothing
     """
-    parent_task_id = complete_validation_error.request.parent_id
-
-    if parent_task_id is not None:
-        try:
-            pt = PendingTask.objects.get(task_id=parent_task_id)
-            pt.delete()
-        except PendingTask.DoesNotExist:
-            logger.info(
-                f'Could not delete PendingTask. Object with task_id '
-                f'{parent_task_id} does not exist.')
-
     try:
         config = ConformityCheckConfiguration.objects.get(pk=config_id)
         metadata = Metadata.objects.get(pk=metadata_id)

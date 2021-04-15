@@ -10,10 +10,6 @@ from django.template.defaultfilters import escape
 from structure.models import *
 
 
-class PendingTaskAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in PendingTask._meta.fields]
-
-
 class RoleAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description')
     search_fields = ['id', 'name', 'description', ]
@@ -124,7 +120,6 @@ admin.site.register(GroupInvitationRequest, GroupInvitationAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(GroupActivity, GroupActivityAdmin)
 admin.site.register(Organization, OrganizationAdmin)
-admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(MrMapUser, MrMapUserAdmin)
 admin.site.register(MrMapGroup, GroupAdmin)

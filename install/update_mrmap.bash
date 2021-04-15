@@ -80,10 +80,6 @@ cd ${installation_folder}MrMap/
 echo "Backing up Django Configs"
 cp -av ${installation_folder}MrMap/MrMap/settings.py /tmp/settings.py_$(date +"%m_%d_%Y")
 cp -av ${installation_folder}MrMap/service/settings.py /tmp/service_settings.py_$(date +"%m_%d_%Y")
-cp -av ${installation_folder}MrMap/MrMap/sub_settings/dev_settings.py /tmp/dev_settings.py_$(date +"%m_%d_%Y")
-cp -av ${installation_folder}MrMap/MrMap/sub_settings/db_settings.py /tmp/db_settings.py_$(date +"%m_%d_%Y")
-cp -av ${installation_folder}MrMap/MrMap/sub_settings/django_settings.py /tmp/dj_settings.py_$(date +"%m_%d_%Y")
-cp -av ${installation_folder}MrMap/MrMap/sub_settings/logging_settings.py /tmp/log_settings.py_$(date +"%m_%d_%Y")
 
 git reset --hard
 git pull
@@ -91,10 +87,6 @@ git pull
 echo "Restoring Django Configs"
 cp -av /tmp/settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/MrMap/settings.py
 cp -av /tmp/service_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/service/settings.py
-cp -av /tmp/dev_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/MrMap/sub_settings/dev_settings.py
-cp -av /tmp/db_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/MrMap/sub_settings/db_settings.py
-cp -av /tmp/dj_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/MrMap/sub_settings/django_settings.py
-cp -av /tmp/log_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/MrMap/sub_settings/logging_settings.py
 
 #uncomment if you have dropped db
 #find ${installation_folder}MrMap -path "*/migrations/*.py" -not -name "__init__.py" -delete

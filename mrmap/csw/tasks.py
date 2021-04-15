@@ -6,7 +6,9 @@ Created on: 15.07.20
 
 """
 from celery import shared_task
+from celery.exceptions import Reject
 from django.db import IntegrityError
+from django_celery_results.models import TaskResult
 
 from csw.settings import csw_logger, CSW_GENERIC_ERROR_TEMPLATE
 from csw.utils.harvester import Harvester
@@ -25,6 +27,10 @@ def async_harvest(catalogue_metadata_id: int, harvesting_group_id: int):
     Returns:
 
     """
+    if TaskResult.objects.filter(task_name='async_harvest',
+                                 task_args=f"({catalogue_metadata_id}, {harvesting_group_id})").exists():
+        raise Reject("Harvesting task for this csw is already running", requeue=False)
+
     md = Metadata.objects.get(
         id=catalogue_metadata_id,
         metadata_type=MetadataEnum.CATALOGUE.value

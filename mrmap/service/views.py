@@ -22,11 +22,14 @@ from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
+from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
+from redis import StrictRedis
 from requests.exceptions import ReadTimeout
 from django.utils import timezone
 from MrMap.cacher import PreviewImageCacher
+from MrMap.celery import app
 from MrMap.consts import *
 from MrMap.decorators import log_proxy
 from MrMap.forms import get_current_view_args
@@ -39,7 +42,7 @@ from MrMap.messages import SERVICE_UPDATED, \
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import update_helper
 from service.helper import service_helper
@@ -55,7 +58,6 @@ from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 from django.urls import reverse, reverse_lazy
@@ -84,11 +86,16 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) 
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskView(CustomSingleTableMixin, ListView):
-    model = PendingTask
+class PendingTaskView(CustomSingleTableMixin, FilterView):
+    model = TaskResult
     table_class = PendingTaskTable
+    filterset_class = TaskResultFilter
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
     template_name = 'service/views/pending_tasks.html'
+
+    def get_queryset(self):
+        qs = super(PendingTaskView, self).get_queryset()
+        return qs
 
 
 @method_decorator(login_required, name='dispatch')

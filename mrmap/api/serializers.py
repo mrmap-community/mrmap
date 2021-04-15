@@ -89,15 +89,6 @@ class PermissionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class PendingTaskSerializer(serializers.Serializer):
-    """ Serializer for PendingTask model
-
-    """
-    description = serializers.CharField()
-    progress = serializers.FloatField()
-    is_finished = serializers.BooleanField()
-
-
 class MetadataRelationMetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata records inside MetadataRelation model
 
@@ -155,7 +146,7 @@ class ServiceSerializer(serializers.Serializer):
         Args:
             validated_data (dict): The validated data from a POST request
         Returns:
-             pending_task (PendingTask) or None
+             None
         """
         # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
         user = user_helper.get_user(request=request)
@@ -193,8 +184,7 @@ class ServiceSerializer(serializers.Serializer):
             request=request
         )
         if form.is_valid():
-            pending_task = service_helper.create_new_service(form, user)
-            return pending_task
+            service_helper.create_new_service(form, user)
         return None
 
 
@@ -514,3 +504,4 @@ def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
         ret_val = [perform_catalogue_entry_serialization(md) for md in md_queryset]
 
     return ret_val
+

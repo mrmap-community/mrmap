@@ -6,18 +6,16 @@ Created on: 02.11.20
 
 """
 import json
-from datetime import datetime
-
+from celery import states, current_task
+from celery.result import AsyncResult
 from django.utils import timezone
 
 from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \
     ConformityCheckConfiguration, ConformityCheckConfigurationInternal, \
     ConformityCheckRun
-from quality.settings import quality_logger
 from service.models import Metadata
-from structure.celery_helper import get_task_id, runs_as_async_task
-from structure.models import PendingTask
+from structure.celery_helper import runs_as_async_task
 
 
 class QualityInternal:
@@ -146,16 +144,15 @@ class QualityInternal:
 
     def update_progress(self):
         """Update the progress of the pending task."""
-        task_id = get_task_id()
-        try:
-            pending_task = PendingTask.objects.get(task_id=task_id)
-            progress = pending_task.progress + self.step_size
+        if current_task:
+            progress = AsyncResult(current_task.request.id).info.get("current", 0) + self.step_size
             # we should only set the progress to max 90
             # as the calling method might also update the progress
-            pending_task.progress = progress if progress <= 90 else 90
-            pending_task.save()
-        except PendingTask.DoesNotExist:
-            quality_logger.error(
-                f'Could not update pending task. Task with id {task_id} does '
-                f'not '
-                f'exist.')
+            progress = progress if progress <= 90 else 90
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    "current": progress,
+                }
+            )
+

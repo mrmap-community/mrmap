@@ -1,12 +1,14 @@
+from celery import states
 from django.db.models import Q
 from django.http import HttpRequest
+from django_celery_results.models import TaskResult
+
 from MrMap.icons import get_all_icons
-from MrMap.settings import GIT_REPO_URI, GIT_GRAPH_URI
-from MrMap.sub_settings.dev_settings import ROOT_URL, HOST_NAME
 from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
-from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization, PendingTask
+from structure.models import MrMapGroup, MrMapUser, PublishRequest, GroupInvitationRequest, Organization
+from django.conf import settings
 
 
 def default_context(request: HttpRequest):
@@ -35,7 +37,9 @@ def default_context(request: HttpRequest):
                                                                                         Q(group__in=request.user.groups.all())).count()
 
         pending_monitoring_count = MonitoringRun.objects.filter(end=None).count()
-        pending_tasks_count = PendingTask.objects.count()
+        pending_tasks_count = TaskResult.objects.filter(Q(status=states.PENDING)|
+                                                        Q(status=states.STARTED)|
+                                                        Q(status=states.RECEIVED)).count()
 
         wms_count = Metadata.objects.filter(service__service_type__name=OGCServiceEnum.WMS.value,
                                             service__is_root=True,
@@ -53,13 +57,13 @@ def default_context(request: HttpRequest):
         dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.groups.all()).count()
 
     return {
-        "ROOT_URL": ROOT_URL,
-        "HOST_NAME": HOST_NAME,
+        "ROOT_URL": settings.ROOT_URL,
+        "HOST_NAME": settings.HOST_NAME,
         "PATH": request.path.split("/")[1],
         "FULL_PATH": request.path,
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
-        "GIT_REPO_URI": GIT_REPO_URI,
-        "GIT_GRAPH_URI": GIT_GRAPH_URI,
+        "GIT_REPO_URI": settings.GIT_REPO_URI,
+        "GIT_GRAPH_URI": settings.GIT_GRAPH_URI,
         "ICONS": get_all_icons(),
         "mr_map_group_count": mr_map_group_count,
         "mr_map_organization_count": mr_map_organization_count,

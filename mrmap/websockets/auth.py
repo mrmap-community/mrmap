@@ -17,3 +17,8 @@ class NonAnonymousJsonWebsocketConsumer(JsonWebsocketConsumer):
             super().connect()
             self.user = get_user_model().objects.get(username=self.scope['user'].username)
 
+    def send_msg(self, event):
+        """
+        Default call back function to send messages to the client from the event['msg'] dict attribute.
+        """
+        self.send_json(content=event['msg'])

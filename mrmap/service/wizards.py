@@ -36,6 +36,9 @@ class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
             *args,
             **kwargs)
 
+    def get_success_url(self):
+        return reverse('resource:pending-tasks') + f'?task_id={self.task.id}'
+
     def get_form_kwargs(self, step=None):
         if step == SECOND_STEP_ID:
             return {'request': self.request}
@@ -93,7 +96,7 @@ class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
         for form in form_list:
             if isinstance(form, RegisterNewResourceWizardPage2):
                 try:
-                    service_helper.create_new_service(form, self.request.user)
+                    self.task = service_helper.create_new_service(form, self.request.user)
                     messages.success(self.request, 'Async task was created to create new resource.')
                 except Exception as e:
                     service_logger.exception(e, stack_info=True, exc_info=True)

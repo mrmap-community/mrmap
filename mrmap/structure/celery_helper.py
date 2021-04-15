@@ -5,8 +5,6 @@ Contact: suleiman@terrestris.de
 Created on: 10.11.20
 
 """
-from celery import Task
-
 
 def runs_as_async_task() -> bool:
     """Check if a method is currently running in a worker.
@@ -27,8 +25,3 @@ def runs_as_async_task() -> bool:
     else:
         return True
 
-
-def get_task_id() -> Task:
-    """Get the id of the current_task."""
-    from celery import current_task
-    return current_task.request.id

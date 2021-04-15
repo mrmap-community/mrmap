@@ -3,7 +3,6 @@
 from abc import abstractmethod
 from urllib.parse import urlencode
 
-from celery import Task
 from django.contrib.gis.geos import Polygon
 from lxml.etree import Element
 from requests.exceptions import ReadTimeout
@@ -228,14 +227,14 @@ class OGCWebService:
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
+    def create_from_capabilities(self, metadata_only: bool = False):
         pass
 
     @abstractmethod
-    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj):
         pass
 
-    def get_service_metadata(self, uri: str, async_task: Task = None):
+    def get_service_metadata(self, uri: str):
         """ Parses all service related information from the linked metadata document
 
         This does not fill the information into the main metadata record, but creates a new one, which will be linked

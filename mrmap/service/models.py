@@ -2922,7 +2922,7 @@ class GenericUrl(Resource):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
-    url = models.URLField(max_length=2048)
+    url = models.URLField(max_length=4096)
 
     def __str__(self):
         return "{} | {} ({})".format(self.pk, self.url, self.method)

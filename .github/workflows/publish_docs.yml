@@ -19,14 +19,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends \
           libssl-dev \
           libcurl4-openssl-dev \
-          gdal-bin \
-          postgresql \
-          postgresql-client \
-          postgis \
-          postgresql-server-dev-11 \
-          postgresql-11-postgis-3 \
-          postgresql-11-postgis-3-scripts \
-          redis-server
+          gdal-bin
       # Install sphinx local
       # ===============================
       - name: Install sphinx

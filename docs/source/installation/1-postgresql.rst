@@ -41,7 +41,7 @@ We also add the postgis extension at this stage as this has to be done by the ro
 
    postgres=# CREATE DATABASE mrmap;
    CREATE DATABASE
-   postgres=# CREATE USER mrmap WITH PASSWORD 'J5brHrAXFLQSif0K';
+   postgres=# CREATE USER mrmap WITH PASSWORD 'mrmap';
    CREATE ROLE
    postgres=# GRANT ALL PRIVILEGES ON DATABASE mrmap TO mrmap;
    GRANT

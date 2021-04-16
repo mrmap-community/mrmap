@@ -117,9 +117,9 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+            table.exclude = ('layers', 'featuretypes', 'harvest_results', 'collected_harvest_records',)
         else:
-            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+            table.exclude = ('parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -139,7 +139,7 @@ class WfsIndexView(CustomSingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
+        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))

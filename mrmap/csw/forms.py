@@ -1,32 +1,25 @@
-from django import forms
-from MrMap.forms import MrMapForm
+from django.forms import ModelForm
+from dal import autocomplete
 from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
-from csw.tasks import async_harvest
-from structure.models import MrMapGroup
+from csw.models import HarvestResult
+from service.helper.enums import MetadataEnum
+from service.models import Metadata
 
 
-class HarvestGroupForm(MrMapForm):
-    harvest_with_group = forms.ModelChoiceField(
-        label=_("Harvest with group"),
-        queryset=MrMapGroup.objects.none(),
-        initial=1
-    )
+class HarvestRunForm(ModelForm):
+    class Meta:
+        model = HarvestResult
+        fields = ('metadata', )
+        widgets = {
+            'metadata': autocomplete.ModelSelect2(url='resource:autocomplete_metadata_catalouge')
+        }
+        labels = {
+            'metadata': _('Resource'),
+        }
+        help_texts = {
+            'metadata': _('Select one which will be harvested.'),
+        }
 
-    def __init__(self, instance, *args, **kwargs):
-        self.instance = instance
-        super(HarvestGroupForm, self).__init__(*args, **kwargs)
-        self.fields["harvest_with_group"].queryset = self.requesting_user.groups\
-            .filter(mrmapgroup__is_public_group=False, mrmapgroup__is_permission_group=False)
-
-    def process_harvest_catalogue(self):
-        # Check if the catalogue exists
-        async_harvest.delay(
-            self.instance.id,
-            self.cleaned_data['harvest_with_group'].id,
-        )
-        messages.success(
-            self.request,
-            "Harvesting starts!"
-        )
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['metadata'].queryset = Metadata.objects.filter(metadata_type=MetadataEnum.CATALOGUE.value)

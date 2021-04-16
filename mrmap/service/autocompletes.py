@@ -55,3 +55,10 @@ class MetadataFeaturetypeAutocomplete(MetadataAutocomplete):
 
     """
     metadata_type = MetadataEnum.FEATURETYPE
+
+
+class MetadataCatalougeAutocomplete(MetadataAutocomplete):
+    """ Provides an autocomplete functionality for dataset metadata records
+
+    """
+    metadata_type = MetadataEnum.CATALOGUE

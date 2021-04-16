@@ -1,5 +1,6 @@
 # Create your views here.
 from django.contrib.auth.decorators import permission_required
+from django.forms import Form
 from django.utils import timezone
 from collections import OrderedDict
 
@@ -221,15 +222,18 @@ class ServiceViewSet(viewsets.GenericViewSet):
         """
         service_serializer = ServiceSerializer()
         params = request.POST.dict()
+        response = APIResponse()
         pending_task = service_serializer.create(validated_data=params, request=request)
 
-        response = APIResponse()
-        response.data["success"] = pending_task is not None
-        response.data["pending_task_id"] = pending_task.id
-        if pending_task:
-            status = 200
+        if isinstance(pending_task,Form):
+            status = 400
+            response.data["success"] = "false"
+            response.data["message"] = pending_task.errors
         else:
-            status = 500
+            status = 202
+            response.data["success"] = pending_task is not None
+            response.data["pending_task_id"] = pending_task.id
+
         response = Response(data=response.data, status=status)
         return response
 

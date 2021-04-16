@@ -7,9 +7,11 @@ Created on: 15.07.20
 """
 from celery import shared_task
 from celery.exceptions import Reject
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
 from django_celery_results.models import TaskResult
 
+from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_GENERIC_ERROR_TEMPLATE
 from csw.utils.harvester import Harvester
 from service.helper.enums import MetadataEnum
@@ -18,34 +20,32 @@ from structure.models import MrMapGroup
 
 
 @shared_task(name="async_harvest")
-def async_harvest(catalogue_metadata_id: int, harvesting_group_id: int):
+def async_harvest(harvest_result_id: int):
     """ Performs the harvesting procedure in a background celery task
 
     Args:
-        catalogue_metadata_id (int):
-        harvesting_group_id (int):
+        harvest_result_id (int):
     Returns:
 
     """
-    if TaskResult.objects.filter(task_name='async_harvest',
-                                 task_args=f"({catalogue_metadata_id}, {harvesting_group_id})").exists():
-        raise Reject("Harvesting task for this csw is already running", requeue=False)
-
-    md = Metadata.objects.get(
-        id=catalogue_metadata_id,
-        metadata_type=MetadataEnum.CATALOGUE.value
-    )
-    harvesting_group = MrMapGroup.objects.get(
-        id=harvesting_group_id
-    )
     try:
-        harvester = Harvester(md, harvesting_group, max_records_per_request=1000)
-        harvester.harvest(task_id=async_harvest.request.id)
+        harvest_result = HarvestResult.objects\
+            .select_related('metadata',
+                            'metadata__service__created_by__mrmapgroup')\
+            .get(pk=harvest_result_id)
+        try:
+            harvester = Harvester(harvest_result,
+                                  max_records_per_request=1000)
+            harvester.harvest()
 
-    except IntegrityError as e:
-        csw_logger.error(
-            CSW_GENERIC_ERROR_TEMPLATE.format(
-                md.title,
-                e
+        except IntegrityError as e:
+            csw_logger.error(
+                CSW_GENERIC_ERROR_TEMPLATE.format(
+                    harvest_result.metadata.title,
+                    e
+                )
             )
-        )
+    except ObjectDoesNotExist:
+        # todo: logging
+        pass
+

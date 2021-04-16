@@ -20,12 +20,20 @@ jobs:
         # Docker Hub image
         image: postgres
         env:
-          POSTGRES_DB: mrmap
           POSTGRES_USER: mrmap
           POSTGRES_PASSWORD: mrmap
         # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -44,16 +52,7 @@ jobs:
           gdal-bin \
           postgresql \
           postgresql-client \
-          postgis \
-          redis-server
-      - name: Set up postgres
-        run: |
-          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
-          sudo systemctl start postgresql
-      - name: Set up redis
-        run: |
-          sudo sed -i "s/supervised no/supervised systemd/g" /etc/redis/redis.conf && \
-          sudo systemctl restart redis
+          postgis
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:

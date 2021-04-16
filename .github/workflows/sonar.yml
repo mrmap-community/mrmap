@@ -13,6 +13,18 @@ jobs:
   sonarcloud:
     name: Sonar
     runs-on: ubuntu-20.04
+    # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v2
         with:
@@ -29,9 +41,6 @@ jobs:
           postgresql \
           postgresql-client \
           postgis \
-          postgresql-server-dev-13 \
-          postgresql-13-postgis-3 \
-          postgresql-13-postgis-3-scripts \
           redis-server
       - name: Set up postgres
         run: |

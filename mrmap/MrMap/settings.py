@@ -304,6 +304,7 @@ STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
 ]
 
+WSGI_APPLICATION = 'MrMap.wsgi.application'
 ASGI_APPLICATION = 'MrMap.asgi.application'
 
 # Extends the number of GET/POST parameters

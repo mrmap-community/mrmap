@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata
-from websockets.messages import Toast
+from ws.messages import Toast
 
 
 def update_count(channel_layer, instance):

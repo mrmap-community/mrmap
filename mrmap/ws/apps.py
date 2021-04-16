@@ -2,7 +2,7 @@ from django.apps import AppConfig
 
 
 class WebsocketsConfig(AppConfig):
-    name = 'websockets'
+    name = 'ws'
 
     def ready(self):  # method just to import the signals
-        import websockets.signals  # noqa
+        import ws.signals  # noqa

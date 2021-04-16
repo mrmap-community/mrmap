@@ -57,7 +57,7 @@ class PendingTaskTable(tables.Table):
                              empty_values=[])
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     template_code=PENDING_TASK_ACTIONS,
-                                    # extra_context is needed to use table.as_html() in websockets/consumers.py
+                                    # extra_context is needed to use table.as_html() in ws/consumers.py
                                     extra_context={'ICONS': get_all_icons()},
                                     attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 

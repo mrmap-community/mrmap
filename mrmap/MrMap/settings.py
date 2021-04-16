@@ -218,8 +218,9 @@ VERIFY_SSL_CERTIFICATES = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'MrMap',
-        'USER': 'postgres',
+        'NAME': 'mrmap',
+        'USER': 'mrmap',
+        'PASSWORD': 'mrmap',
         'HOST': '127.0.0.1',
         'PORT': '5432',
     }

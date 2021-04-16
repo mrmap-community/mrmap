@@ -6,8 +6,8 @@ from django_tables2 import RequestConfig
 
 from service.filters import TaskResultFilter
 from service.tables import PendingTaskTable
-from websockets.auth import NonAnonymousJsonWebsocketConsumer
-from websockets.utils import get_initial_app_view_model
+from ws.auth import NonAnonymousJsonWebsocketConsumer
+from ws.utils import get_initial_app_view_model
 
 
 class AppViewModelConsumer(NonAnonymousJsonWebsocketConsumer):

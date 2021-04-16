@@ -21,6 +21,16 @@ services:
       - 5557:80
     volumes:
       - ./mapserver/mapfiles:/etc/mapserver
+  #mrmap-wsgi:
+  #  build:
+  #    context: ./wsgi
+  #  command: bash -c "python manage.py makemigrations && python manage.py migrate && gunicorn mydjango.wsgi -b 0.0.0.0:8000"
+  #  depends_on:
+  #    - mrmap-postgis
+  #  volumes:
+  #    - ../:/src
+  #  expose:
+  #    - "8000"
   mrmap-nginx:
     build:
       context: ./nginx
@@ -29,6 +39,7 @@ services:
       - 443:443
     volumes:
       - ./nginx/mrmap.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/static:/opt/mrmap/mrmap/static
     extra_hosts:
       - host.docker.internal:host-gateway
 

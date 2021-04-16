@@ -1,42 +1,42 @@
 .. _installation-5-application-server:
 
-=========
-5. daphne
-=========
+=====================
+5. Application server
+=====================
 
-Installation
-************
+wsgi application server
+#######################
 
-We use `daphne server <https://github.com/django/daphne>`_ for serving the application.
+We use `gunicorn server <https://github.com/benoitc/gunicorn>`_ for serving the wsgi application.
 
 .. note::
-    You can also split into serving normal http by use popular wsgi application servers such as `gunicorn <https://gunicorn.org>`_ or `uWSGI <https://uwsgi-docs.readthedocs.io/en/latest/>`_ .
+    You can also use other wsgi application servers such as `uWSGI <https://uwsgi-docs.readthedocs.io/en/latest/>`_ .
 
-1. If you use a virtualenv, activate it before installing daphne
+1. If you use a virtualenv, activate it before installing gunicorn
 
 .. code-block:: console
 
     $ source /opt/mrmap/venv/bin/activate
-    (venv) $ python -m pip install daphne
+    (venv) $ python -m pip install gunicorn
 
 
 Configure
 *********
 
 1. Adjust if needed and copy the config files to their destination:
-We need a `service definition for daphne <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_daphne_service>`_
+We need a `service definition for gunicorn <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_gunicorn_service>`_
 
 .. code-block:: console
 
     # copy daphne systemd config (service file)
-    $ cp -a /opt/mrmap/install/confs/mrmap_daphne_service /etc/systemd/system/daphne.service
+    $ cp -a /opt/mrmap/install/confs/mrmap_gunicorn_service /etc/systemd/system/gunicorn.service
 
-3. Activate and start daphne service
+3. Activate and start gunicorn service
 
 .. code-block:: console
 
-    $ systemctl enable daphne
-    $ systemctl start daphne
+    $ systemctl enable gunicorn
+    $ systemctl start gunicorn
 
 
 Verify Service Status
@@ -46,5 +46,51 @@ Verify Service Status
 
 .. code-block:: console
 
-   $ systemctl status daphne
+   $ systemctl status gunicorn
+
+
+asgi application server
+#######################
+
+We use `uvicorn server <https://github.com/encode/uvicorn>`_ for serving the asgi application.
+
+.. note::
+    You can also use other asgi application servers such as `daphne <https://github.com/django/daphne>`_ .
+
+1. If you use a virtualenv, activate it before installing gunicorn
+
+.. code-block:: console
+
+    $ source /opt/mrmap/venv/bin/activate
+    (venv) $ python -m pip install uvicorn
+    (venv) $ python -m pip install websockets
+
+
+Configure
+*********
+
+1. Adjust if needed and copy the config files to their destination:
+We need a `service definition for uvicorn <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uvicorn_service>`_
+
+.. code-block:: console
+
+    # copy daphne systemd config (service file)
+    $ cp -a /opt/mrmap/install/confs/mrmap_uvicorn_service /etc/systemd/system/uvicorn.service
+
+3. Activate and start uvicorn service
+
+.. code-block:: console
+
+    $ systemctl enable uvicorn
+    $ systemctl start uvicorn
+
+
+Verify Service Status
+*********************
+
+1. Check the output of
+
+.. code-block:: console
+
+   $ systemctl status uvicorn
 

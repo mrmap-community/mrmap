@@ -15,23 +15,6 @@ jobs:
     runs-on: ubuntu-20.04
     # Service containers to run with `container-job`
     services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_USER: mrmap
-          POSTGRES_PASSWORD: mrmap
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps tcp port 5432 on service container to the host
-          - 5432:5432
       redis:
         # Docker Hub image
         image: redis
@@ -42,6 +25,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      - uses: huaxk/postgis-action@v1
+        with:
+          postgresql version: '11'  # See https://https://hub.docker.com/r/mdillon/postgis for available versions, if it is not specified, use the default value 'latest'
+          postgresql password: 'mrmap'   # This environment variable sets the superuser password for PostgreSQL, maybe string or secrets, the default superuser is defined by the input environment variable: postgresql user.
+          postgresql user: 'mrmap'  # This optional environment variable is used in conjunction with postgresql password to set a user and its password. This variable will create the specified user with superuser power and a database with the same name. If it is not specified, then the default user of 'postgres' will be used.
+          postgresql db: 'mrmap'
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0

@@ -28,7 +28,7 @@ DEBUG = True
 # Application definition
 INSTALLED_APPS = [
     'channels',
-    'websockets',
+    'ws',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',

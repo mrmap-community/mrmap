@@ -55,7 +55,6 @@ jobs:
           pip3 install -r ./mrmap/requirements.txt
       - name: Run unit tests
         run: |
-          echo $POSTGRES_HOST
           python ./mrmap/manage.py test
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master

@@ -8,7 +8,7 @@ on:
 jobs:
   check-docs:
     name: build docs
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -21,13 +21,6 @@ jobs:
           libssl-dev \
           libcurl4-openssl-dev \
           gdal-bin \
-          postgresql \
-          postgresql-client \
-          postgis \
-          postgresql-server-dev-11 \
-          postgresql-11-postgis-3 \
-          postgresql-11-postgis-3-scripts \
-          redis-server
       # Install sphinx local
       # ===============================
       - name: Install sphinx

@@ -1,4 +1,6 @@
 from django.contrib.gis.geos import Polygon
+from django.db import IntegrityError
+
 from service.helper.enums import MetadataEnum, OGCOperationEnum, MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, Dimension, ServiceUrl
@@ -34,6 +36,7 @@ class OGCLayer:
         self.capability_bbox_srs = {}
 
         self.format_list = {}
+
         self.get_capabilities_uri_GET = None
         self.get_capabilities_uri_POST = None
         self.get_map_uri_GET = None
@@ -46,6 +49,20 @@ class OGCLayer:
         self.get_legend_graphic_uri_POST = None
         self.get_styles_uri_GET = None
         self.get_styles_uri_POST = None
+
+        self.operation_urls = [(OGCOperationEnum.GET_CAPABILITIES.value, 'get_capabilities_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_CAPABILITIES.value, 'get_capabilities_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_MAP.value, 'get_map_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_MAP.value, 'get_map_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_FEATURE_INFO.value, 'get_feature_info_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_FEATURE_INFO.value, 'get_feature_info_uri_POST', 'Post'),
+                               (OGCOperationEnum.DESCRIBE_LAYER.value, 'describe_layer_uri_GET', 'Get'),
+                               (OGCOperationEnum.DESCRIBE_LAYER.value, 'describe_layer_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_LEGEND_GRAPHIC.value, 'get_legend_graphic_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_LEGEND_GRAPHIC.value, 'get_legend_graphic_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_STYLES.value, 'get_styles_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_STYLES.value, 'get_styles_uri_POST', 'Post')]
+
         self.dimension_list = []
         self.style = None
         self.child_layers = []
@@ -177,74 +194,18 @@ class OGCLayer:
         # Save model so M2M relations can be used
         layer.save(user=user, owner=register_for_organization)
 
-        operation_urls = [
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri_POST,
-                method="Post"
-            )[0],
+        operation_urls = []
 
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                url=self.get_feature_info_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                url=self.get_feature_info_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
-                url=self.describe_layer_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
-                url=self.describe_layer_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_STYLES.value,
-                url=self.get_styles_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_STYLES.value,
-                url=self.get_styles_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
-                url=self.get_legend_graphic_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
-                url=self.get_legend_graphic_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_MAP.value,
-                url=self.get_map_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_MAP.value,
-                url=self.get_map_uri_POST,
-                method="Post"
-            )[0],
-
-        ]
+        for operation, parsed_operation_url, method in self.operation_urls:
+            # todo: optimize as bulk create
+            try:
+                operation_urls.append(ServiceUrl.objects.get_or_create(
+                    operation=operation,
+                    url=getattr(self, parsed_operation_url),
+                    method=method
+                )[0])
+            except IntegrityError:
+                pass
 
         layer.operation_urls.add(*operation_urls)
 

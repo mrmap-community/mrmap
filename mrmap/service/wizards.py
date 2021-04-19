@@ -13,8 +13,8 @@ from service.helper import service_helper
 from service.settings import service_logger
 from structure.permissionEnums import PermissionEnum
 
-FIRST_STEP_ID = _("URL")
-SECOND_STEP_ID = _("Overview")
+FIRST_STEP_ID = "URL"
+SECOND_STEP_ID = "Overview"
 
 NEW_RESOURCE_WIZARD_FORMS = [
     (FIRST_STEP_ID, RegisterNewResourceWizardPage1),
@@ -35,6 +35,9 @@ class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
             title=_(format_html('<b>Add New Resource</b>')),
             *args,
             **kwargs)
+
+    def get_success_url(self):
+        return reverse('resource:pending-tasks') + f'?task_id={self.task.id}'
 
     def get_form_kwargs(self, step=None):
         if step == SECOND_STEP_ID:
@@ -93,7 +96,7 @@ class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
         for form in form_list:
             if isinstance(form, RegisterNewResourceWizardPage2):
                 try:
-                    service_helper.create_new_service(form, self.request.user)
+                    self.task = service_helper.create_new_service(form, self.request.user)
                     messages.success(self.request, 'Async task was created to create new resource.')
                 except Exception as e:
                     service_logger.exception(e, stack_info=True, exc_info=True)

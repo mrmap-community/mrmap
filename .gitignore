@@ -65,8 +65,11 @@ instance/
 # Scrapy stuff:
 .scrapy
 
+<<<<<<< HEAD
 # Sphinx documentation
 _docs/_build/
+=======
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 # PyBuilder
 target/
@@ -91,6 +94,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# sphinx builded docs
+/docs/build/
+
 # Spyder project settings
 .spyderproject
 
@@ -103,7 +109,7 @@ ENV/
 
 .idea/
 
-redis/
+redis/redis_data/
 
 # Sonar
 .scannerwork/
@@ -120,4 +126,7 @@ mrmap/docker/geoserver/
 mrmap/docker/inspire-validator/
 mrmap/docker/postgis/postgresql_data/coverage-report.xml
 coverage-report.xml
-tests/unit_tests/xunit-result.xml
+**/xunit-result.xml
+/mrmap/docker/postgis/postgresql_data/
+/mrmap/docker/redis/redis_data/
+

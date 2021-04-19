@@ -1,9 +1,9 @@
 # Create your views here.
 from django.contrib.auth.decorators import permission_required
+from django.forms import Form
 from django.utils import timezone
 from collections import OrderedDict
 
-from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
@@ -28,14 +28,15 @@ from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer, \
+    MetadataSerializer, CatalogueMetadataSerializer, CategorySerializer, \
     MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
 from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
-from structure.models import Organization, PendingTask
+
+from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
 
 
@@ -130,40 +131,6 @@ class APIPagination(PageNumberPagination):
     page_size_query_param = "rpp"
 
 
-class PendingTaskViewSet(viewsets.GenericViewSet):
-    """ ViewSet for PendingTask records
-
-    """
-    serializer_class = PendingTaskSerializer
-    http_method_names = ["get"]
-    pagination_class = APIPagination
-
-    permission_classes = (IsAuthenticated,)
-
-    def retrieve(self, request, pk=None):
-        """ Returns a single PendingTask record information
-
-        Args:
-            request (HttpRequet): The incoming request
-            pk (int): The primary_key (id) of the PendingTask
-        Returns:
-             response (Response): Contains the json serialized information about the pending task
-        """
-        response = APIResponse()
-        try:
-            tmp = PendingTask.objects.get(id=pk)
-            celery_task = AsyncResult(tmp.task_id)
-            progress = float(celery_task.info.get("current", -1))
-            serializer = PendingTaskSerializer(tmp)
-
-            response.data.update(serializer.data)
-            response.data["progress"] = progress
-            response.data["success"] = True
-        except ObjectDoesNotExist:
-            response.data["msg"] = RESOURCE_NOT_FOUND
-        return Response(data=response.data)
-
-
 class ServiceViewSet(viewsets.GenericViewSet):
     """ Overview of all services matching the given parameters
 
@@ -255,15 +222,18 @@ class ServiceViewSet(viewsets.GenericViewSet):
         """
         service_serializer = ServiceSerializer()
         params = request.POST.dict()
+        response = APIResponse()
         pending_task = service_serializer.create(validated_data=params, request=request)
 
-        response = APIResponse()
-        response.data["success"] = pending_task is not None
-        response.data["pending_task_id"] = pending_task.id
-        if pending_task:
-            status = 200
+        if isinstance(pending_task,Form):
+            status = 400
+            response.data["success"] = "false"
+            response.data["message"] = pending_task.errors
         else:
-            status = 500
+            status = 202
+            response.data["success"] = pending_task is not None
+            response.data["pending_task_id"] = pending_task.id
+
         response = Response(data=response.data, status=status)
         return response
 
@@ -735,8 +705,8 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     def list(self, request):
         qs = self.get_queryset()
         qs = self.filter_queryset(qs)
-        tmp = self.paginate_queryset(qs)
-        data = serialize_catalogue_metadata(tmp)
+        qs = self.paginate_queryset(qs)
+        data = serialize_catalogue_metadata(qs)
         resp = self.get_paginated_response(data)
         return resp
 

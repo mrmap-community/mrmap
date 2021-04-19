@@ -1,15 +1,10 @@
-from django import forms
-from django.core.exceptions import ObjectDoesNotExist
-
-from MrMap.forms import MrMapForm
+from django.forms import ModelForm
+from dal import autocomplete
 from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
-
-from MrMap.messages import RESOURCE_NOT_FOUND
-from csw.tasks import async_harvest
-
+from csw.models import HarvestResult
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
+<<<<<<< HEAD
 from structure.models import PendingTask, Organization
 
 
@@ -57,3 +52,24 @@ class HarvestGroupForm(MrMapForm):
                 self.request,
                 RESOURCE_NOT_FOUND
             )
+=======
+
+
+class HarvestRunForm(ModelForm):
+    class Meta:
+        model = HarvestResult
+        fields = ('metadata', )
+        widgets = {
+            'metadata': autocomplete.ModelSelect2(url='resource:autocomplete_metadata_catalouge')
+        }
+        labels = {
+            'metadata': _('Resource'),
+        }
+        help_texts = {
+            'metadata': _('Select one which will be harvested.'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['metadata'].queryset = Metadata.objects.filter(metadata_type=MetadataEnum.CATALOGUE.value)
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14

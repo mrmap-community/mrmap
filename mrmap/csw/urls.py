@@ -12,5 +12,5 @@ from csw.views import *
 app_name = 'csw'
 urlpatterns = [
     path('', get_csw_results, name='get-csw-results'),
-    path('harvest/<metadata_id>', harvest_catalogue, name='harvest-catalogue'),
+    path('harvest', HarvestRunNewView.as_view(), name='harvest-catalogue'),
 ]

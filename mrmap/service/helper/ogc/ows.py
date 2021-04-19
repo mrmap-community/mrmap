@@ -3,7 +3,6 @@
 from abc import abstractmethod
 from urllib.parse import urlencode
 
-from celery import Task
 from django.contrib.gis.geos import Polygon
 from lxml.etree import Element
 from requests.exceptions import ReadTimeout
@@ -74,9 +73,11 @@ class OGCWebService:
         # other
         self.linked_service_metadata = None
 
-        # Capability
+        # ServiceUrls:
         self.get_capabilities_uri_GET = None
         self.get_capabilities_uri_POST = None
+
+        # wms specific
         self.get_map_uri_GET = None
         self.get_map_uri_POST = None
         self.get_feature_info_uri_GET = None
@@ -87,6 +88,78 @@ class OGCWebService:
         self.get_legend_graphic_uri_POST = None
         self.get_styles_uri_GET = None
         self.get_styles_uri_POST = None
+
+        # wfs specific
+        self.describe_feature_type_uri_GET = None
+        self.describe_feature_type_uri_POST = None
+        self.get_feature_uri_GET = None
+        self.get_feature_uri_POST = None
+        self.transaction_uri_GET = None
+        self.transaction_uri_POST = None
+        self.lock_feature_uri_GET = None
+        self.lock_feature_uri_POST = None
+        self.get_feature_with_lock_uri_GET = None
+        self.get_feature_with_lock_uri_POST = None
+        # wms 1.1.0 specific
+        self.get_gml_object_uri_GET = None
+        self.get_gml_object_uri_POST = None
+
+        # wms 2.0.0
+        self.list_stored_queries_uri_GET = None
+        self.list_stored_queries_uri_POST = None
+        self.get_property_value_uri_GET = None
+        self.get_property_value_uri_POST = None
+        self.describe_stored_queries_uri_GET = None
+        self.describe_stored_queries_uri_POST = None
+
+        # csw specific uris
+        self.describe_record_uri_GET = None
+        self.describe_record_uri_POST = None
+        self.get_records_uri_GET = None
+        self.get_records_uri_POST = None
+        self.get_record_by_id_uri_GET = None
+        self.get_record_by_id_uri_POST = None
+
+        self.operation_urls = [(OGCOperationEnum.GET_CAPABILITIES.value, 'get_capabilities_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_CAPABILITIES.value, 'get_capabilities_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_MAP.value, 'get_map_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_MAP.value, 'get_map_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_FEATURE_INFO.value, 'get_feature_info_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_FEATURE_INFO.value, 'get_feature_info_uri_POST', 'Post'),
+                               (OGCOperationEnum.DESCRIBE_LAYER.value, 'describe_layer_uri_GET', 'Get'),
+                               (OGCOperationEnum.DESCRIBE_LAYER.value, 'describe_layer_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_LEGEND_GRAPHIC.value, 'get_legend_graphic_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_LEGEND_GRAPHIC.value, 'get_legend_graphic_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_STYLES.value, 'get_styles_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_STYLES.value, 'get_styles_uri_POST', 'Post'),
+                               # wfs specific
+                               (OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, 'describe_feature_type_uri_GET', 'Get'),
+                               (OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, 'describe_feature_type_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_FEATURE.value, 'get_feature_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_FEATURE.value, 'get_feature_uri_POST', 'Post'),
+                               (OGCOperationEnum.TRANSACTION.value, 'transaction_uri_GET', 'Get'),
+                               (OGCOperationEnum.TRANSACTION.value, 'transaction_uri_POST', 'Post'),
+                               (OGCOperationEnum.LOCK_FEATURE.value, 'lock_feature_uri_GET', 'Get'),
+                               (OGCOperationEnum.LOCK_FEATURE.value, 'lock_feature_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_FEATURE_WITH_LOCK.value, 'get_feature_with_lock_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_FEATURE_WITH_LOCK.value, 'get_feature_with_lock_uri_POST', 'Post'),
+                               # wms 1.1.0 specific
+                               (OGCOperationEnum.GET_GML_OBJECT.value, 'get_gml_object_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_GML_OBJECT.value, 'get_gml_object_uri_POST', 'Post'),
+                               # wms 2.0.0
+                               (OGCOperationEnum.LIST_STORED_QUERIES.value, 'list_stored_queries_uri_GET', 'Get'),
+                               (OGCOperationEnum.LIST_STORED_QUERIES.value, 'list_stored_queries_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_PROPERTY_VALUE.value, 'get_property_value_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_PROPERTY_VALUE.value, 'get_property_value_uri_POST', 'Post'),
+                               (OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, 'describe_stored_queries_uri_GET', 'Get'),
+                               (OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, 'describe_stored_queries_uri_POST', 'Post'),
+                               # csw specific
+                               (OGCOperationEnum.DESCRIBE_RECORD.value, 'describe_record_uri_GET', 'Get'),
+                               (OGCOperationEnum.DESCRIBE_RECORD.value, 'describe_record_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_RECORDS.value, 'get_records_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_RECORDS.value, 'get_records_uri_POST', 'Post'),
+                               (OGCOperationEnum.GET_RECORD_BY_ID.value, 'get_record_by_id_uri_GET', 'Get'),
+                               (OGCOperationEnum.GET_RECORD_BY_ID.value, 'get_record_by_id_uri_POST', 'Post')]
 
         self.operation_format_map = {}
 
@@ -154,14 +227,14 @@ class OGCWebService:
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
+    def create_from_capabilities(self, metadata_only: bool = False):
         pass
 
     @abstractmethod
-    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj):
         pass
 
-    def get_service_metadata(self, uri: str, async_task: Task = None):
+    def get_service_metadata(self, uri: str):
         """ Parses all service related information from the linked metadata document
 
         This does not fill the information into the main metadata record, but creates a new one, which will be linked

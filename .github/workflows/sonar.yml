@@ -13,7 +13,27 @@ jobs:
   sonarcloud:
     name: Sonar
     runs-on: ubuntu-20.04
+    # Service containers to run with `container-job`
+    services:
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
     steps:
+      - uses: huaxk/postgis-action@v1
+        with:
+          postgresql version: '11'  # See https://https://hub.docker.com/r/mdillon/postgis for available versions, if it is not specified, use the default value 'latest'
+          postgresql password: 'mrmap'   # This environment variable sets the superuser password for PostgreSQL, maybe string or secrets, the default superuser is defined by the input environment variable: postgresql user.
+          postgresql user: 'mrmap'  # This optional environment variable is used in conjunction with postgresql password to set a user and its password. This variable will create the specified user with superuser power and a database with the same name. If it is not specified, then the default user of 'postgres' will be used.
+          postgresql db: 'mrmap'
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -26,21 +46,6 @@ jobs:
           libssl-dev \
           libcurl4-openssl-dev \
           gdal-bin \
-          postgresql \
-          postgresql-client \
-          postgis \
-          postgresql-server-dev-13 \
-          postgresql-13-postgis-3 \
-          postgresql-13-postgis-3-scripts \
-          redis-server
-      - name: Set up postgres
-        run: |
-          sudo sed -i "s/md5/trust/g" /etc/postgresql/13/main/pg_hba.conf && \
-          sudo systemctl start postgresql
-      - name: Set up redis
-        run: |
-          sudo sed -i "s/supervised no/supervised systemd/g" /etc/redis/redis.conf && \
-          sudo systemctl restart redis
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:

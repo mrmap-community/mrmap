@@ -6,10 +6,6 @@ from structure.models import *
 from users.models import MrMapUser, UserActivation
 
 
-class PendingTaskAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in PendingTask._meta.fields]
-
-
 class RoleAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description')
     search_fields = ['id', 'name', 'description', ]
@@ -59,6 +55,5 @@ class PublishRequestAdmin(admin.ModelAdmin):
 admin.site.register(PublishRequest, PublishRequestAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(Organization, OrganizationAdmin)
-admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(MrMapUser, MrMapUserAdmin)

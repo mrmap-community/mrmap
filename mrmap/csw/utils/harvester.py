@@ -5,11 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.07.20
 
 """
-import json
 from time import time
 from urllib.parse import urlparse, parse_qs
+
+from celery import current_task, states
+from celery.result import AsyncResult
 from django.utils import timezone
-import pytz
 from billiard.context import Process
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
@@ -25,7 +26,6 @@ from MrMap.cacher import PageCacher
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from api.settings import API_CACHE_KEY_PREFIX
-from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
     CSW_CACHE_PREFIX, HARVEST_GET_REQUEST_OUTPUT_SCHEMA
 from service.helper import xml_helper
@@ -33,6 +33,7 @@ from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataR
 from service.models import Metadata, Dataset, Keyword, Category, MimeType, \
     GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+<<<<<<< HEAD
 from structure.models import PendingTask, Organization
 
 
@@ -41,8 +42,17 @@ class Harvester:
         self.metadata = metadata
         self.user = user
         self.harvesting_organization = harvesting_organization
+=======
+from structure.models import Organization
+
+
+class Harvester:
+    def __init__(self, harvest_result, max_records_per_request: int = 200):
+        self.metadata = harvest_result.metadata
+        self.harvesting_group = self.metadata.service.created_by.mrmapgroup
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
-        self.harvest_url = metadata.service.operation_urls.filter(
+        self.harvest_url = self.metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
         ).exclude(
             url=None
@@ -52,11 +62,12 @@ class Harvester:
 
         self.version = self.metadata.get_service_version().value
         self.max_records_per_request = max_records_per_request
+        self.progress_step_per_result = 0
         self.start_position = 1
 
         self.method = self.harvest_url.method
 
-        self.harvest_result = HarvestResult(service=self.metadata.service)
+        self.harvest_result = harvest_result
 
         self.harvest_url = getattr(self.harvest_url, "url", None)
         if self.harvest_url is None:
@@ -82,12 +93,13 @@ class Harvester:
         # Used to map parent results of a csw to it's children
         self.parent_child_map = {}
 
-    def harvest(self, task_id: str = None):
+    def harvest(self):
         """ Starts harvesting procedure
 
         Returns:
 
         """
+<<<<<<< HEAD
         # Create a pending task record for the database first!
         task_exists = PendingTask.objects.filter(
             description__icontains=self.metadata.title
@@ -106,6 +118,18 @@ class Harvester:
                 remaining_time=None,
                 created_by_user=self.user,
                 owned_by_org=self.harvesting_organization,
+=======
+        absolute_url = f'<a href="{self.metadata.get_absolute_url()}">{self.metadata.title}</a>'
+        service_json = {'id': self.metadata.pk,
+                        'absolute_url': absolute_url},
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': service_json,
+                    'phase': f"Connecting to {absolute_url}",
+                }
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
             )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
@@ -120,20 +144,21 @@ class Harvester:
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
         hits_response, status_code = self._get_harvest_response(result_type="hits")
-        descr = json.loads(self.pending_task.description)
+
         if status_code != 200:
-            descr["phase"] = "Harvest failed: HTTP Code {}"
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.save()
             raise ConnectionError(_("Harvest failed: Code {}\n{}").format(status_code, hits_response))
         xml_response = xml_helper.parse_xml(hits_response)
         if xml_response is None:
-            descr["phase"] = "Response is not a valid xml"
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.save()
             raise ConnectionError(_("Response is not a valid xml: \n{}".format(hits_response)))
 
         try:
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': f"calculating harvesting time",
+                    }
+                )
             total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
                 xml_response,
                 "numberOfRecordsMatched",
@@ -141,15 +166,17 @@ class Harvester:
                 ))
         except TypeError:
             csw_logger.error("Malicious Harvest response: {}".format(hits_response))
-            descr["phase"] = "Harvest response incorrect. Inform an administrator!"
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.save()
             raise AttributeError(_("Harvest response is missing important data!"))
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': service_json,
+                    'phase': "Start harvesting..."
+                }
+            )
 
-        descr["phase"] = "Start harvesting..."
-        self.pending_task.description = json.dumps(descr)
-        self.pending_task.save()
-        progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
+        self.progress_step_per_result = float(1 / total_number_to_harvest) * 100
 
         # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
         # nextRecord=1. We need to prevent endless loops by checking whether, we already worked on these positions and
@@ -165,11 +192,26 @@ class Harvester:
         page_cacher = PageCacher()
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
-        while self.pending_task is not None:
+        while True:
+            estimated_time_for_all = 'unknown'
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': _("Harvesting first {} of {}. Time remaining: {}").format(self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                    }
+                )
             processed_start_positions.add(self.start_position)
             # Get response
             next_response, status_code = self._get_harvest_response(result_type="results")
 
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': _("Processing harvested results for the first {} of {}. Time remaining: {}").format(self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                    }
+                )
             found_entries = self._process_harvest_response(next_response)
 
             # Calculate time since loop started
@@ -184,13 +226,10 @@ class Harvester:
             page_cacher.remove_pages(CSW_CACHE_PREFIX)
             if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
-                estimated_time_for_all = timezone.timedelta(seconds=0)
                 break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = timezone.timedelta(seconds=seconds_for_rest)
-
-            self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Add HarvestResult infos
         self.harvest_result.timestamp_end = timezone.now()
@@ -199,12 +238,10 @@ class Harvester:
 
         # Delete Metadata records which could not be found in the catalogue anymore
         # This has to be done if the harvesting run completely. Skip this part if the user aborted the harvest!
-        if self.pending_task is not None:
-            deleted_metadatas = Metadata.objects.filter(
-                identifier__in=self.deleted_metadata
-            )
-            deleted_metadatas.delete()
-            self.pending_task.delete()
+        deleted_metadatas = Metadata.objects.filter(
+            identifier__in=self.deleted_metadata
+        )
+        deleted_metadatas.delete()
 
         # Remove cached pages of API and CSW
         page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
@@ -257,28 +294,6 @@ class Harvester:
         )
         post_content = xml_helper.xml_to_string(root_elem)
         return post_content
-
-    def _update_pending_task(self, next_record: int, total_records: int, progress_step: float, remaining_time):
-        """ Updates the PendingTask object
-
-        Args:
-            next_record (int): The nextRecord value
-            total_records (int): The totalRecord value
-            progress_step (int): The increment for the next step
-            remaining_time: The timedelta for the remaining time
-        Returns:
-
-        """
-        try:
-            self.pending_task.refresh_from_db()
-            descr = json.loads(self.pending_task.description)
-            descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.remaining_time = remaining_time
-            self.pending_task.progress += progress_step
-            self.pending_task.save()
-        except ObjectDoesNotExist:
-            self.pending_task = None
 
     def _get_harvest_response(self, result_type: str = "results") -> (bytes, int):
         """ Fetch a response for the harvesting (GetRecords)
@@ -438,6 +453,13 @@ class Harvester:
             md = Metadata.objects.get(
                 identifier=_id,
             )
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': f"Persisting metadata with file identifier {md.identifier}",
+                    }
+                )
             is_new = False
             if md.last_remote_change == md_data_entry["date_stamp"]:
                 # Nothing to do here!
@@ -522,6 +544,14 @@ class Harvester:
                     self.metadata.title,
                     e
                 )
+            )
+            csw_logger.exception(e)
+        finally:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': AsyncResult(current_task.request.id).info.get("current", 0) + self.progress_step_per_result,
+                }
             )
 
     @transaction.atomic

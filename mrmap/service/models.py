@@ -10,7 +10,7 @@ from PIL import Image
 from dateutil.parser import parse
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction, OperationalError
 from django.contrib.gis.db import models
@@ -293,11 +293,12 @@ class Metadata(UuidPk, CommonInfo, Resource):
     # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
     # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
     related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to', blank=True)
-    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE, blank=True, null=True)
     has_dataset_metadatas = models.BooleanField(default=False)
     origin = None
 
     class Meta:
+        ordering = ['-created']
         indexes = [
             models.Index(
                 fields=[
@@ -591,7 +592,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = LinkButton(url=self.health_state.get_absolute_url(),
+            icon = LinkButton(url=self.health_state.last().get_absolute_url(),
                               content=icon.render(),
                               color=btn_color,
                               tooltip=tooltip,
@@ -673,7 +674,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
 
     @property
     def harvest_view_uri(self):
-        return reverse('csw:harvest-catalogue', args=[self.pk]) if self.service_type == OGCServiceEnum.CSW else ''
+        return f"{reverse('csw:harvest-catalogue')}?metadata={self.pk}" if self.service_type == OGCServiceEnum.CSW else ''
 
     @property
     def run_monitoring_view_uri(self):
@@ -1151,9 +1152,10 @@ class Metadata(UuidPk, CommonInfo, Resource):
         Returns:
             nothing
         """
+        adding = self._state.adding
         super().save(*args, **kwargs)
 
-        if not self._state.adding:
+        if not adding:
             if self.__is_active != self.is_active:
                 # the active sate of this and all descendant metadatas shall be changed to the new value. Bulk update
                 # is the most efficient way to do it.
@@ -1262,11 +1264,11 @@ class Metadata(UuidPk, CommonInfo, Resource):
                 return v
         return service_version
 
-    def find_max_bounding_box(self):
+    def find_max_bounding_box(self) -> GEOSGeometry:
         """ Returns the largest bounding box of all children
 
         Returns:
-
+            bounding box with the greatest area (GEOSGeometry)
         """
         if self.metadata_type == MetadataEnum.SERVICE.value:
             if self.service.service_type.name.value == OGCServiceEnum.WMS.value:
@@ -1548,6 +1550,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             service_logger.error(
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
+        self.is_custom = False
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None, restore_children=True):
         """ Load original metadata from capabilities and ISO metadata
@@ -1574,7 +1577,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             self._restore_wms(external_auth=external_auth)
             if restore_children:
                 for children in Metadata.objects.filter(service__parent_service__metadata=self, is_custom=True):
-                    children.restor(external_auth=external_auth, restore_children=False)
+                    children.restore(external_auth=external_auth, restore_children=False)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
         self.clear_cached_documents()
@@ -1601,7 +1604,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             nothing
         """
         try:
-            cap_doc = self.docuents.get(
+            cap_doc = self.documents.get(
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
             )
@@ -1649,7 +1652,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            self.get_current_capability_xml(self.service.service_type.version)
+            # self.get_current_capability_xml(self.service.service_type.version)
             root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,
@@ -2909,7 +2912,25 @@ class ServiceType(models.Model):
         return self.name
 
 
+<<<<<<< HEAD
 class Service(UuidPk, CommonInfo, Resource):
+=======
+class GenericUrl(Resource):
+    description = models.TextField(null=True, blank=True)
+    method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
+    # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
+    url = models.URLField(max_length=4096)
+
+    def __str__(self):
+        return "{} | {} ({})".format(self.pk, self.url, self.method)
+
+
+class ServiceUrl(GenericUrl):
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
+
+
+class Service(Resource):
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
@@ -3106,6 +3127,8 @@ class Layer(Service, MPTTModel):
         Returns:
              bounding_geometry (Polygon): A geometry object
         """
+        bounding_geometry = self.metadata.bounding_geometry
+
         ancestors = self.get_ancestors(ascending=True).select_related('metadata')
         # todo: maybe GEOS can get the object with the greatest geometry from the db directly?
         for ancestor in ancestors:

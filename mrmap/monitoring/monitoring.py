@@ -16,7 +16,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT
-from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultCapability, MonitoringRun, MonitoringSetting, \
+from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, MonitoringSetting, \
     HealthState
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
@@ -79,11 +79,15 @@ class Monitoring:
             self.check_dataset()
 
         # all checks are done. Calculate the health state for all monitoring results
+<<<<<<< HEAD
         health_state = HealthState(monitoring_run=self.monitoring_run,
                                    metadata=self.metadata,
                                    created_by_user=self.monitoring_run.created_by_user,
                                    owned_by_org=self.monitoring_run.owned_by_org)
         health_state.save()
+=======
+        health_state = HealthState.objects.create(monitoring_run=self.monitoring_run, metadata=self.metadata)
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
         health_state.run_health_state()
 
     def check_wfs(self, service: Service):
@@ -318,7 +322,7 @@ class Monitoring:
             if diff_obj is not None:
                 needs_update = True
                 diff = ''.join(diff_obj)
-                monitoring_capability = MonitoringResultCapability(
+                monitoring_document = MonitoringResultDocument(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
@@ -327,14 +331,14 @@ class Monitoring:
                 )
             else:
                 needs_update = False
-                monitoring_capability = MonitoringResultCapability(
+                monitoring_document = MonitoringResultDocument(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
                     owned_by_org=self.monitoring_run.owned_by_org
                 )
-            monitoring_capability.save()
+            monitoring_document.save()
         else:
             self.handle_service_error(service_status)
 

@@ -10,8 +10,8 @@ from structure.views.role import *
 app_name = 'structure'
 urlpatterns = [
 
-    # PendingTask
-    path('tasks/<pk>/remove', PendingTaskDelete.as_view(), name='remove-task'),
+    # TaskResult
+    path('tasks/<pk>/revoke', PendingTaskDelete.as_view(), name='remove-task'),
     path('error-reports/<pk>', ErrorReportDetailView.as_view(), name='generate-error-report'),
 
     # Organizations

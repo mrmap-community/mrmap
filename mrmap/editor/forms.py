@@ -6,6 +6,7 @@ Created on: 09.07.19
 
 """
 from dal import autocomplete
+from django.conf import settings
 from django.db.models import Q
 from django.forms import ModelMultipleChoiceField, ModelForm
 from django.forms import BaseModelFormSet
@@ -17,14 +18,14 @@ from django import forms
 from leaflet.forms.widgets import LeafletWidget
 
 from MrMap.cacher import PageCacher
-from MrMap.forms import MrMapConfirmForm, MrMapForm
+from MrMap.forms import MrMapConfirmForm
 from MrMap.messages import METADATA_IS_ORIGINAL, \
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
 from editor.tasks import async_process_securing_access
 from MrMap.forms import MrMapWizardForm
-from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
+from MrMap.widgets import BootstrapDatePickerInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, Keyword, Category, Dataset, ReferenceSystem, Licence, AllowedOperation
 from service.settings import ISO_19115_LANG_CHOICES
@@ -146,12 +147,12 @@ class ReferenceSystemModelMultipleChoiceField(ModelMultipleChoiceField):
 
 
 class DatasetIdentificationForm(MrMapWizardForm):
-    title = forms.CharField(label=_('Title'),)
+    title = forms.CharField(label=_('Title'), )
     abstract = forms.CharField(label=_('Abstract'), )
     language_code = forms.ChoiceField(label=_('Language'), choices=ISO_19115_LANG_CHOICES)
     character_set_code = forms.ChoiceField(label=_('Character Encoding'), choices=Dataset.CHARACTER_SET_CHOICES)
     date_stamp = forms.DateTimeField(label=_('Metadata creation date'),
-                                 widget=BootstrapDatePickerInput())
+                                     widget=BootstrapDatePickerInput())
     reference_system = ReferenceSystemModelMultipleChoiceField(
         queryset=ReferenceSystem.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
@@ -163,7 +164,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
                 }
             }
         ),
-        required=False,)
+        required=False, )
 
     additional_related_objects = MetadataModelMultipleChoiceField(
         queryset=Metadata.objects.none(),
@@ -205,7 +206,8 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['language_code'].initial = dataset.language_code
             self.fields['character_set_code'].initial = dataset.character_set_code
 
-            self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
+            self.fields['additional_related_objects'].queryset = self.fields[
+                'additional_related_objects'].queryset.exclude(id=self.instance_id)
 
             exclusions = {'to_metadatas__origin': ResourceOriginEnum.CAPABILITIES.value}
             related_metadatas = metadata.get_related_metadatas(exclusions=exclusions)
@@ -238,13 +240,13 @@ class DatasetClassificationForm(MrMapWizardForm):
                 },
             },
         ),
-        required=False,)
+        required=False, )
 
     def __init__(self, *args, **kwargs):
         super(DatasetClassificationForm, self).__init__(
-                                                        has_autocomplete_fields=True,
-                                                        *args,
-                                                        **kwargs,)
+            has_autocomplete_fields=True,
+            *args,
+            **kwargs, )
 
         if self.instance_id:
             metadata = Metadata.objects.get(id=self.instance_id)
@@ -274,33 +276,14 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
             self.fields['access_constraints'].initial = metadata.access_constraints
 
 
-class DatasetSpatialExtentForm(MrMapWizardForm):
+class DatasetSpatialExtentForm(ModelForm):
     bounding_geometry = forms.CharField(label=_('Bounding box'),
                                         required=False,
-                                        widget=LeafletGeometryInput(),
-                                        help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),)
+                                        widget=LeafletWidget())
 
-    def __init__(self, *args, **kwargs):
-        super(DatasetSpatialExtentForm, self).__init__(*args, **kwargs)
-
-        data_for_bounding_geometry = None
-        for key, value in self.data.items():
-            if 'bounding_geometry' in key.lower():
-                data_for_bounding_geometry = value
-
-        self.fields['bounding_geometry'].widget = LeafletGeometryInput(geojson=data_for_bounding_geometry,
-                                                                       request=self.request,)
-
-        if self.instance_id:
-            metadata = Metadata.objects.get(id=self.instance_id)
-            bbox = metadata.find_max_bounding_box()
-
-            self.fields['bounding_geometry'].widget = LeafletGeometryInput(bbox=bbox,
-                                                                           geojson=metadata.allowed_area.geojson
-                                                                           if data_for_bounding_geometry is None
-                                                                           else data_for_bounding_geometry,
-                                                                           request=self.request,)
-            self.fields['bounding_geometry'].initial = metadata.allowed_area.geojson
+    class Meta:
+        model = Metadata
+        fields = ('bounding_geometry',)
 
 
 class DatasetQualityForm(MrMapWizardForm):
@@ -329,7 +312,8 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
         label=_('Organization'),
         queryset=Organization.objects.none(),
         required=False,
-        help_text=_('Select an other Organization to overwrite the original. You can select your organization and the ones you are allowed to publish for.')
+        help_text=_(
+            'Select an other Organization to overwrite the original. You can select your organization and the ones you are allowed to publish for.')
     )
 
     def __init__(self, *args, **kwargs):
@@ -339,12 +323,22 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
             init_organization = Organization.objects.filter(id=metadata.contact.id)
             organizations = Organization.objects.filter(
+<<<<<<< HEAD
                 Q(publishers=user_groups) |
+=======
+                Q(is_auto_generated=False) &
+                Q(publishers__in=user_groups) |
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
                 Q(id=user.organization.id)
             ) | init_organization
         else:
             organizations = Organization.objects.filter(
+<<<<<<< HEAD
                 Q(publishers=user_groups) |
+=======
+                Q(is_auto_generated=False) &
+                Q(publishers__in=user_groups) |
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
                 Q(id=user.organization.id)
             )
 
@@ -373,7 +367,6 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
 
 
 class GeneralAccessSettingsForm(forms.ModelForm):
-
     class Meta:
         model = Metadata
         fields = ('use_proxy_uri', 'log_proxy_access', 'is_secured')
@@ -402,7 +395,8 @@ class GeneralAccessSettingsForm(forms.ModelForm):
 
         # log_proxy and restrict_access can only be activated in combination with use_proxy!
         if log_proxy and not use_proxy or restrict_access and not use_proxy:
-            self.add_error("use_proxy_uri", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
+            self.add_error("use_proxy_uri", forms.ValidationError(
+                _('Log proxy or restrict access without using proxy is\'nt possible!')))
 
         # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
         if self.instance.has_external_authentication and not use_proxy:
@@ -411,7 +405,6 @@ class GeneralAccessSettingsForm(forms.ModelForm):
         return cleaned_data
 
     def save(self, commit=True):
-
         # todo: just save the fields and implement a signal which detects if one of the three fields become changed.
         #  the signal can then fire the async task.
         # todo: maybe we could merge the async_proccess from step 1 and two of the wizard
@@ -419,16 +412,13 @@ class GeneralAccessSettingsForm(forms.ModelForm):
         log_proxy = self.cleaned_data.get("log_proxy_access", False)
         restrict_access = self.cleaned_data.get("is_secured", False)
 
-        async_process_securing_access.delay(
-            self.instance.id,
-            use_proxy,
-            log_proxy,
-            restrict_access
-        )
+        async_process_securing_access.apply_async((self.instance.id,
+                                                   use_proxy,
+                                                   log_proxy,
+                                                   restrict_access), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
 
 
 class AllowedOperationForm(forms.ModelForm):
-
     class Meta:
         model = AllowedOperation
         fields = ('operations', 'allowed_groups', 'allowed_area', 'root_metadata')
@@ -453,10 +443,10 @@ class AllowedOperationForm(forms.ModelForm):
                 },
             ),
             'allowed_area': LeafletWidget(attrs={
-                                            'map_height': '500px',
-                                            'map_width': '100%',
-                                            #'display_raw': 'true',
-                                            'map_srid': 4326,
-                                        }),
+                'map_height': '500px',
+                'map_width': '100%',
+                # 'display_raw': 'true',
+                'map_srid': 4326,
+            }),
             'root_metadata': forms.HiddenInput(),
         }

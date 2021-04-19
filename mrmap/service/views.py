@@ -13,11 +13,12 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, DetailView
+from django.views.generic import DetailView
 from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
+from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
 from requests.exceptions import ReadTimeout
@@ -34,7 +35,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import update_helper
 from service.helper import service_helper
@@ -50,7 +51,6 @@ from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from django.urls import reverse, reverse_lazy
 from users.models import Subscription
@@ -75,10 +75,16 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
     ).order_by("title")
 
 
-class PendingTaskView(SecuredListMixin, ListView):
-    model = PendingTask
+class PendingTaskView(SecuredListMixin, FilterView):
+    model = TaskResult
     table_class = PendingTaskTable
+    filterset_class = TaskResultFilter
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
+    template_name = 'service/views/pending_tasks.html'
+
+    def get_queryset(self):
+        qs = super(PendingTaskView, self).get_queryset()
+        return qs
 
 
 class WmsIndexView(SecuredListMixin, FilterView):
@@ -86,7 +92,6 @@ class WmsIndexView(SecuredListMixin, FilterView):
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
     queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.WMS)
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
 
     def get_filterset_kwargs(self, *args):
@@ -101,9 +106,9 @@ class WmsIndexView(SecuredListMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+            table.exclude = ('layers', 'featuretypes', 'harvest_results', 'collected_harvest_records',)
         else:
-            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+            table.exclude = ('parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -115,13 +120,12 @@ class WfsIndexView(SecuredListMixin, FilterView):
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
     queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.WFS)
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
+        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
@@ -134,7 +138,6 @@ class CswIndexView(SecuredListMixin, FilterView):
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
     queryset = get_queryset_filter_by_service_type(service_type=OGCServiceEnum.CSW)
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
 
     def get_table(self, **kwargs):
@@ -416,7 +419,7 @@ class MetadataHtml(DetailView):
 
         if self.object.is_metadata_type(MetadataEnum.DATASET):
             context['contact'] = collect_contact_data(self.object.contact)
-            context['bounding_box'] = self.object.allowed_area
+            context['bounding_box'] = self.object.bounding_geometry
             context['dataset_metadata'] = self.object
             context['fees'] = self.object.fees
             context['licence'] = self.object.licence

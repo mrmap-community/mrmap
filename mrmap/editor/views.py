@@ -1,6 +1,6 @@
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.decorators import login_required
@@ -76,7 +76,23 @@ class RestoreMetadata(SecuredConfirmView):
         ext_auth = self.object.get_external_authentication_object()
         self.object.restore(self.object.identifier, external_auth=ext_auth)
 
+<<<<<<< HEAD
         success_url = self.get_success_url()
+=======
+        # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
+        if self.object.is_metadata_type(MetadataEnum.DATASET):
+            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
+                                              "{}".format(self.object.title, ))
+        else:
+            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
+                                              "{}: {}".format(self.object.get_root_metadata().title,
+                                                              self.object.title))
+
+        if self.object.is_dataset_metadata:
+            success_url = reverse('resource:datasets-index')
+        else:
+            success_url = self.get_success_url()
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
         return HttpResponseRedirect(success_url)
 

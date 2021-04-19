@@ -284,7 +284,8 @@ def create_publish_request(group: Organization, orga: Organization,
 
 def create_pending_task(group: Organization, how_much_pending_tasks: int = 1):
     return baker.make_recipe('tests.baker_recipes.structure_app.pending_task',
-                             created_by=group,
+                             task_id=seq(1),
+                             #created_by=group,
                              _quantity=how_much_pending_tasks)
 
 

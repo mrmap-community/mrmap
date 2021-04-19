@@ -145,11 +145,3 @@ class MetadataRelationEnum(EnumChoice):
     HARVESTED_THROUGH = "harvestedThrough"
     HARVESTED_PARENT = "harvestedParent"
 
-
-class PendingTaskEnum(EnumChoice):
-    """ Defines all pending task types
-
-    """
-    HARVEST = "harvest"
-    REGISTER = "register"
-    VALIDATE = "validate"

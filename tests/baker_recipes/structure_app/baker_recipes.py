@@ -1,9 +1,22 @@
 import os
+<<<<<<< HEAD
+=======
+import random
+
+from celery import states
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from django.contrib.auth.hashers import make_password
+from django_celery_results.models import TaskResult
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
+<<<<<<< HEAD
 from structure.models import Organization, PendingTask, PublishRequest
 from structure.models import MrMapUser
+=======
+from structure.models import Organization, PublishRequest, GroupInvitationRequest
+from structure.models import MrMapUser, MrMapGroup
+from structure.settings import SUPERUSER_GROUP_NAME, PUBLIC_GROUP_NAME
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from tests.test_data import get_password_data
 
 
@@ -70,7 +83,7 @@ group_invitation_request = Recipe(
 )
 
 pending_task = Recipe(
-    PendingTask,
-    description='{"description": "test task", "phase": "ERROR"}',
+    TaskResult,
+    status=states.STARTED,
     task_id=1
 )

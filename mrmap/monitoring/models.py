@@ -6,6 +6,8 @@ Created on: 26.02.2020
 
 """
 import uuid
+
+from django.conf import settings
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -127,11 +129,19 @@ class MonitoringRun(CommonInfo):
     def add_view_uri(self):
         return reverse('monitoring:run_new')
 
+<<<<<<< HEAD
     @transaction.atomic
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         from monitoring.tasks import run_manual_monitoring
         run_manual_monitoring.delay(monitoring_run=self.pk)
+=======
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            from monitoring.tasks import run_manual_service_monitoring
+            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.pk, ), countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+        super().save(*args, **kwargs)
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 class MonitoringResult(CommonInfo):
@@ -147,8 +157,6 @@ class MonitoringResult(CommonInfo):
 
     class Meta:
         ordering = ["-timestamp"]
-        # unique_together --> avoids from celery multiple checks bug
-        unique_together = ("metadata", "monitored_uri", "monitoring_run")
         verbose_name = _('Monitoring result')
         verbose_name_plural = _('Monitoring results')
 
@@ -160,7 +168,8 @@ class MonitoringResult(CommonInfo):
         return reverse('monitoring:result_details', args=[self.uuid, ])
 
 
-class MonitoringResultCapability(MonitoringResult):
+class MonitoringResultDocument(MonitoringResult):
+    """Model used to signal if a given document differs from the remote document and needs an update"""
     needs_update = models.BooleanField(null=True, blank=True)
     diff = models.TextField(null=True, blank=True)
 

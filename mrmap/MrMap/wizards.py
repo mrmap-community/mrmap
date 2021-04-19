@@ -33,7 +33,11 @@ class MrMapWizard(SessionWizardView, ABC):
     success_url = ""
 
     def get_success_url(self):
-        return self.success_url
+        if self.success_url:
+            return self.success_url
+        else:
+            raise ImproperlyConfigured(
+                "No URL to redirect to. Provide a success_url.")
 
     def get_context_data(self, form, **kwargs):
         context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
@@ -150,7 +154,4 @@ class MrMapWizard(SessionWizardView, ABC):
         return form
 
     def done(self, form_list, **kwargs):
-        if self.success_url:
-            return redirect(to=self.get_success_url())
-        else:
-            raise ImproperlyConfigured('No success_url served.')
+        return redirect(to=self.get_success_url())

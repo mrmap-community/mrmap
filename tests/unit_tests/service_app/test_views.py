@@ -215,7 +215,7 @@ class ServicePendingTaskViewTestCase(TestCase):
             reverse('resource:pending-tasks', ),
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="generic_views/generic_list.html")
+        self.assertTemplateUsed(response=response, template_name="service/views/pending_tasks.html")
         self.assertIsInstance(response.context["table"], PendingTaskTable)
         self.assertEqual(len(response.context["table"].rows), 10)
 

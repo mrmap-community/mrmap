@@ -5,10 +5,9 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
-import json
 import urllib
 
-from celery import Task
+from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpRequest
 
@@ -17,14 +16,18 @@ from MrMap.utils import resolve_boolean_attribute_val
 from service import tasks
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum, PendingTaskEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication, Metadata, Document
 from service.helper.crypto_handler import CryptoHandler
+<<<<<<< HEAD
 from structure.models import PendingTask, Organization
+=======
+from structure.models import MrMapUser
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 def resolve_version_enum(version: str):
@@ -160,6 +163,7 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
+<<<<<<< HEAD
 def create_service(service_type,
                    version,
                    base_uri,
@@ -168,6 +172,9 @@ def create_service(service_type,
                    async_task: Task = None,
                    external_auth: ExternalAuthentication = None,
                    is_update_candidate_for: Service = None):
+=======
+def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -203,7 +210,8 @@ def create_service(service_type,
         pass
 
     service.get_capabilities()
-    service.create_from_capabilities(async_task=async_task, external_auth=external_auth)
+    service.create_from_capabilities(external_auth=external_auth)
+
     with transaction.atomic():
         service = service.create_service_model_instance(
             user,
@@ -244,13 +252,9 @@ def capabilities_are_different(cap_url_1, cap_url_2):
 def create_new_service(form, user):
     """ Creates a service from a filled RegisterNewServiceWizardPage2 form object.
 
-    Returns the PendingTask record for the registration process
-
     Args:
         form (RegisterNewServiceWizardPage2): The filled form instance
         user (MrMapUser): The performing user
-    Returns:
-         pending_task_db (PendingTask): The PendingTask record for the registration
     """
     external_auth = None
     if form.cleaned_data['service_needs_authentication']:
@@ -267,6 +271,7 @@ def create_new_service(form, user):
         "request": form.cleaned_data["ogc_request"],
     }
 
+<<<<<<< HEAD
     pending_task = tasks.async_new_service.delay(
         uri_dict,
         user.id,
@@ -286,6 +291,14 @@ def create_new_service(form, user):
         owned_by_org=form.cleaned_data['registering_for_organization'],
                                                  )
     return pending_task_db
+=======
+    return tasks.async_new_service.apply_async((uri_dict,
+                                                user.id,
+                                                form.cleaned_data['registering_with_group'].id,
+                                                register_for_other_org,
+                                                external_auth), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
+
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 def get_resource_capabilities(request: HttpRequest, md: Metadata):

@@ -1,3 +1,12 @@
+<<<<<<< HEAD
+=======
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.messages.views import SuccessMessageMixin
+from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
+from django.views.generic import CreateView, DetailView
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from django_filters.views import FilterView
 from MrMap.messages import MONITORING_RUN_SCHEDULED
 from main.views import SecuredListMixin, SecuredCreateView, SecuredDetailView
@@ -21,6 +30,13 @@ class MonitoringRunNewView(SecuredCreateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New monitoring run')
     success_message = MONITORING_RUN_SCHEDULED
+<<<<<<< HEAD
+=======
+    permission_required = PermissionEnum.CAN_RUN_MONITORING.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+    success_url = reverse_lazy('resource:pending-tasks')
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 class MonitoringResultTableView(SecuredListMixin, FilterView):

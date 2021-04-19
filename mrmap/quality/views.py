@@ -7,6 +7,7 @@ Created on: 27.10.20
 """
 import json
 
+from celery import current_task, states
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -16,9 +17,7 @@ from rest_framework import status
 from quality.models import ConformityCheckRun
 from quality.tasks import run_quality_check, complete_validation, \
     complete_validation_error
-from service.helper.enums import PendingTaskEnum
 from service.models import Metadata
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 
 CURRENT_VIEW_QUERY_Param = 'current-view'
@@ -56,6 +55,7 @@ def validate(request, metadata_id: str):
     pending_task = run_quality_check.apply_async(args=(config_id, metadata_id),
                                                  link=success_callback,
                                                  link_error=error_callback)
+<<<<<<< HEAD
 
     PendingTask.objects.create(task_id=pending_task.id,
                                desctiption=json.dumps({
@@ -67,6 +67,16 @@ def validate(request, metadata_id: str):
                                type=PendingTaskEnum.VALIDATE.value,
                                created_by_user=user,
                                owned_by_org=owned_by_org)
+=======
+    if current_task:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                "current": 10,
+                "phase": f"Validating {metadata.title}",
+            }
+        )
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
     if current_view is not None:
         if current_view_arg is not None:

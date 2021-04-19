@@ -33,24 +33,12 @@ from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataR
 from service.models import Metadata, Dataset, Keyword, Category, MimeType, \
     GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-<<<<<<< HEAD
-from structure.models import PendingTask, Organization
-
-
-class Harvester:
-    def __init__(self, metadata: Metadata, user, harvesting_organization: Organization, max_records_per_request: int = 200):
-        self.metadata = metadata
-        self.user = user
-        self.harvesting_organization = harvesting_organization
-=======
-from structure.models import Organization
 
 
 class Harvester:
     def __init__(self, harvest_result, max_records_per_request: int = 200):
         self.metadata = harvest_result.metadata
         self.harvesting_group = self.metadata.service.created_by.mrmapgroup
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
         self.harvest_url = self.metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
@@ -99,26 +87,6 @@ class Harvester:
         Returns:
 
         """
-<<<<<<< HEAD
-        # Create a pending task record for the database first!
-        task_exists = PendingTask.objects.filter(
-            description__icontains=self.metadata.title
-        ).exists()
-        if task_exists:
-            raise ProcessLookupError(_("Harvesting is currently performed"))
-        else:
-            async_task_id = task_id or self.metadata.id
-            self.pending_task = PendingTask.objects.create(
-                task_id=async_task_id,
-                description=json.dumps({
-                    "service": self.metadata.title,
-                    "phase": "Connecting...",
-                }),
-                progress=0,
-                remaining_time=None,
-                created_by_user=self.user,
-                owned_by_org=self.harvesting_organization,
-=======
         absolute_url = f'<a href="{self.metadata.get_absolute_url()}">{self.metadata.title}</a>'
         service_json = {'id': self.metadata.pk,
                         'absolute_url': absolute_url},
@@ -129,7 +97,6 @@ class Harvester:
                     'service': service_json,
                     'phase': f"Connecting to {absolute_url}",
                 }
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
             )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by

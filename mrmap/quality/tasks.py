@@ -5,10 +5,6 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-<<<<<<< HEAD
-from time import sleep
-=======
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from celery import shared_task
 from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
@@ -20,12 +16,6 @@ from quality.plugins.etf import QualityEtf, ValidationDocumentProvider, \
 from quality.plugins.internal import QualityInternal
 from service.models import Metadata
 from structure.AbortedException import AbortedException
-<<<<<<< HEAD
-from structure.models import PendingTask
-=======
-from structure.models import MrMapUser, MrMapGroup
-from users.helper.user_helper import create_group_activity
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 logger = get_task_logger(__name__)
 

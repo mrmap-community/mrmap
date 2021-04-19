@@ -47,27 +47,14 @@ def validate(request, metadata_id: str):
     owned_by_org = metadata.owned_by_org
 
     success_callback = complete_validation.s()
-    error_callback = complete_validation_error.s(group_id=group.id,
-                                                 user_id=user.id,
+    error_callback = complete_validation_error.s(user_id=user.id,
                                                  config_id=config_id,
                                                  metadata_id=metadata.id)
 
     pending_task = run_quality_check.apply_async(args=(config_id, metadata_id),
                                                  link=success_callback,
                                                  link_error=error_callback)
-<<<<<<< HEAD
 
-    PendingTask.objects.create(task_id=pending_task.id,
-                               desctiption=json.dumps({
-                                            "status": f'Validating {metadata.title}',
-                                            "service": metadata.title,
-                                            "phase": "Validating",
-                                            }),
-                               progress=10,
-                               type=PendingTaskEnum.VALIDATE.value,
-                               created_by_user=user,
-                               owned_by_org=owned_by_org)
-=======
     if current_task:
         current_task.update_state(
             state=states.STARTED,
@@ -76,7 +63,6 @@ def validate(request, metadata_id: str):
                 "phase": f"Validating {metadata.title}",
             }
         )
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
     if current_view is not None:
         if current_view_arg is not None:

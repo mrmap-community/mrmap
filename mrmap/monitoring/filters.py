@@ -3,7 +3,6 @@ from django.db.models import Q
 import django_filters
 from django_filters import FilterSet, CharFilter, ModelMultipleChoiceFilter
 
-from MrMap.widgets import BootstrapDatePickerRangeWidget, BootstrapDateTimePickerInput
 from monitoring.models import HealthState, MonitoringRun, MonitoringResult
 from service.helper.enums import MetadataEnum
 from service.models import Metadata

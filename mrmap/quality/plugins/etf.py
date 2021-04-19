@@ -6,16 +6,11 @@ Created on: 27.10.20
 
 """
 import time
-
 import requests
 from celery import current_task, states
-from celery.result import AsyncResult
 from django.utils import timezone
-from django_celery_beat.utils import now
-
 from quality.helper.mappingHelper import map_parameters
-from quality.models import ConformityCheckConfigurationExternal, \
-    ConformityCheckRun
+from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
 from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata

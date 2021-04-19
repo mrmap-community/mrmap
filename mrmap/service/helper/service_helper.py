@@ -10,7 +10,6 @@ import urllib
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpRequest
-
 from MrMap.messages import SERVICE_DISABLED, PARAMETER_ERROR
 from MrMap.utils import resolve_boolean_attribute_val
 from service import tasks
@@ -21,13 +20,9 @@ from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, ExternalAuthentication, Metadata, Document
+from service.models import Service, ExternalAuthentication, Document, Metadata
 from service.helper.crypto_handler import CryptoHandler
-<<<<<<< HEAD
-from structure.models import PendingTask, Organization
-=======
-from structure.models import MrMapUser
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
+from structure.models import Organization
 
 
 def resolve_version_enum(version: str):
@@ -163,18 +158,8 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-<<<<<<< HEAD
-def create_service(service_type,
-                   version,
-                   base_uri,
-                   user,
-                   register_for_organization: Organization = None,
-                   async_task: Task = None,
-                   external_auth: ExternalAuthentication = None,
-                   is_update_candidate_for: Service = None):
-=======
-def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
+
+def create_service(service_type, version, base_uri, user, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -271,34 +256,11 @@ def create_new_service(form, user):
         "request": form.cleaned_data["ogc_request"],
     }
 
-<<<<<<< HEAD
-    pending_task = tasks.async_new_service.delay(
-        uri_dict,
-        user.id,
-        form.cleaned_data['registering_for_organization'].id,
-        external_auth
-    )
-
-    # create db object, so we know which pending task is still ongoing
-    pending_task_db = PendingTask.objects.create(
-        task_id=pending_task.task_id,
-        description=json.dumps({
-            "service": form.cleaned_data['uri'],
-            "phase": "Parsing",
-        }),
-        type=PendingTaskEnum.REGISTER.value,
-        created_by_user=user,
-        owned_by_org=form.cleaned_data['registering_for_organization'],
-                                                 )
-    return pending_task_db
-=======
     return tasks.async_new_service.apply_async((uri_dict,
                                                 user.id,
                                                 form.cleaned_data['registering_with_group'].id,
-                                                register_for_other_org,
+                                                user.register_for_other_org,
                                                 external_auth), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
-
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 def get_resource_capabilities(request: HttpRequest, md: Metadata):

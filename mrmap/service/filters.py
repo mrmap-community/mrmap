@@ -2,10 +2,7 @@ import django_filters
 from dal import autocomplete
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
-from django.db.models import Q
 from django_celery_results.models import TaskResult
-
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.helper.enums import OGCServiceEnum

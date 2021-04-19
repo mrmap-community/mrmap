@@ -21,16 +21,12 @@ from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
-<<<<<<< HEAD
-from service.helper import xml_helper, task_helper
-=======
 from service.helper import xml_helper
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, RequestOperation, ExternalAuthentication, ServiceUrl
 from service.settings import ALLOWED_SRS, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import Organization, Contact, Organization
+from structure.models import Contact, Organization
 
 
 class OGCWebFeatureServiceFactory:

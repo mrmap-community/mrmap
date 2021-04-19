@@ -8,8 +8,7 @@ from MrMap.icons import get_all_icons
 from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import Metadata
-from structure.models import Organization, PendingTask, PublishRequest
-from structure.models import MrMapGroup, MrMapUser, PublishRequest, Organization
+from structure.models import PublishRequest, Organization
 from django.conf import settings
 
 

@@ -714,8 +714,7 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-<<<<<<< HEAD
-=======
+
         if current_task:
             current_task.update_state(
                 state=states.STARTED,
@@ -724,10 +723,7 @@ class OGCWebMapService(OGCWebService):
                     'phase': 'Persisting...',
                 }
             )
-        orga_published_for = register_for_organization
-        group = register_group
 
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
         # Contact
         contact = self._create_organization_contact_record()
 
@@ -818,7 +814,6 @@ class OGCWebMapService(OGCWebService):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
-            group (Organization): The owner/creator group
             orga_published_for (Organization): The organization for which the service is published
             metadata (Metadata): The describing metadata
         Returns:
@@ -834,76 +829,8 @@ class OGCWebMapService(OGCWebService):
         service.availability = 0.0
         service.is_available = False
         service.service_type = service_type
-<<<<<<< HEAD
-        operation_urls = [
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-                url=self.get_capabilities_uri_POST,
-                method="Post"
-            )[0],
 
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                url=self.get_feature_info_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                url=self.get_feature_info_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
-                url=self.describe_layer_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
-                url=self.describe_layer_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_STYLES.value,
-                url=self.get_styles_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_STYLES.value,
-                url=self.get_styles_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
-                url=self.get_legend_graphic_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
-                url=self.get_legend_graphic_uri_POST,
-                method="Post"
-            )[0],
-
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_MAP.value,
-                url=self.get_map_uri_GET,
-                method="Get"
-            )[0],
-            ServiceUrl.objects.get_or_create(
-                operation=OGCOperationEnum.GET_MAP.value,
-                url=self.get_map_uri_POST,
-                method="Post"
-            )[0],
-=======
         service.published_for = orga_published_for
-        service.created_by = group
         operation_urls = []
         for operation, parsed_operation_url, method in self.operation_urls:
             # todo: optimize as bulk create
@@ -913,7 +840,6 @@ class OGCWebMapService(OGCWebService):
                     url=getattr(self, parsed_operation_url),
                     method=method
                 )[0])
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
             except IntegrityError:
                 # empty/None url values will be ignored

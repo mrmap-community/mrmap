@@ -9,16 +9,10 @@ from django import forms
 from django.core.exceptions import ObjectDoesNotExist, ImproperlyConfigured
 from django.urls import reverse_lazy
 from django.utils.html import format_html
-
 from MrMap.forms import MrMapForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE
 from MrMap.validators import validate_get_capablities_uri
 from django.utils.translation import gettext_lazy as _
-<<<<<<< HEAD
-=======
-from django.contrib import messages
-
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
 from service.models import Service

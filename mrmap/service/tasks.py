@@ -6,37 +6,15 @@ Created on: 12.08.19
 
 """
 import base64
-import json
 import time
-<<<<<<< HEAD
-import traceback
-
 from django.contrib.auth import get_user_model
-from requests.exceptions import InvalidURL
-
-import requests
-from celery import shared_task
-from lxml.etree import XMLSyntaxError, XPathEvalError
-from MrMap.settings import EXEC_TIME_PRINT
-from service.models import Metadata, ExternalAuthentication, ProxyLog
-from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import Organization, PendingTask, ErrorReport
-from service.helper import task_helper
-from service.helper import service_helper
-from django.conf import settings
-=======
-
 import celery.states as states
 from celery import shared_task, current_task
-from MrMap import utils
-from MrMap.messages import SERVICE_REGISTERED
 from MrMap.settings import EXEC_TIME_PRINT
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import MrMapUser, MrMapGroup, Organization
+from structure.models import Organization
 from service.helper import service_helper
-from users.helper import user_helper
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 @shared_task(name="async_increase_hits")
@@ -53,14 +31,9 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_new_service_task")
-<<<<<<< HEAD
-def async_new_service(url_dict: dict, user_id: int, register_for_organization_id: int,
-=======
 def async_new_service(url_dict: dict,
                       user_id: int,
-                      register_group_id: int,
                       register_for_organization_id: int,
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
                       external_auth: dict):
     """ Async call of new service creation
 
@@ -99,95 +72,12 @@ def async_new_service(url_dict: dict,
 
     register_for_organization = Organization.objects.get(pk=register_for_organization_id)
 
-<<<<<<< HEAD
-    try:
-        t_start = time.time()
-        service = service_helper.create_service(
-            url_dict.get("service"),
-            url_dict.get("version"),
-            url_dict.get("base_uri"),
-            user,
-            register_for_organization,
-            async_task=async_new_service,
-            external_auth=external_auth
-        )
-
-        # update progress
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)
-
-        # get db object
-        if curr_task_id is not None:
-            pending_task = PendingTask.objects.get(task_id=curr_task_id)
-            # update db pending task information
-            pending_task.description = json.dumps({
-                "service": service.metadata.title,
-                "phase": "Persisting",
-            })
-            pending_task.save()
-
-        # update progress
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, 95)
-
-        # after service AND documents have been persisted, we can now set the service being secured if needed
-        if external_auth is not None:
-            service.metadata.set_proxy(True)
-
-        service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, 100)
-
-        # delete pending task from db
-        if curr_task_id is not None:
-            pending_task = PendingTask.objects.get(task_id=curr_task_id)
-            pending_task.delete()
-
-    except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
-        url = url_dict['base_uri'] + f"SERVICE={url_dict['service'].value}&VERSION={url_dict['version'].value}&request={url_dict['request']}"
-        error_msg = f"Error while trying to register new resource for url: {url}\n"
-
-        response = requests.get(url)
-        if response.status_code == 200:
-            cap_doc = "-----------------------------------------------------------\n"\
-                      f"We could receive the following capabilities document:\n{response.text}"
-            error_msg += cap_doc
-
-        service_logger.error(msg=error_msg)
-        service_logger.exception(e, stack_info=True, exc_info=True)
-
-        if curr_task_id is not None:
-            pending_task = PendingTask.objects.get(task_id=curr_task_id)
-
-            register_org = Organization.objects.get(id=register_for_organization_id)
-            error_report = ErrorReport(message=error_msg,
-                                       traceback=traceback.format_exc(),
-                                       created_by=register_org)
-            error_report.save()
-
-            descr = json.loads(pending_task.description)
-            pending_task.description = json.dumps({
-                "service": descr.get("service", None),
-                "info": {
-                    "current": "0",
-                },
-                "exception": e.__str__(),
-                "phase": "ERROR: Something went wrong! Click on generate error report to inform your serveradmin "
-                         "about this error.",
-            })
-            pending_task.error_report = error_report
-            pending_task.save()
-
-        raise e
-=======
     t_start = time.time()
     service = service_helper.create_service(
         url_dict.get("service"),
         url_dict.get("version"),
         url_dict.get("base_uri"),
         user,
-        register_group,
         register_for_organization,
         external_auth=external_auth
     )
@@ -207,13 +97,11 @@ def async_new_service(url_dict: dict,
         service.metadata.set_proxy(True)
 
     service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-    user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
     return {'msg': 'Done. New service registered.',
             'id': str(service.metadata.pk),
             'absolute_url': service.metadata.get_absolute_url(),
             'absolute_url_html': f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title}</a>'}
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 @shared_task(name="async_log_response")

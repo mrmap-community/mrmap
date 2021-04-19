@@ -7,7 +7,6 @@ Created on: 13.02.2020
 
 This file holds all global constants
 """
-from django.utils.html import format_html
 
 DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
 

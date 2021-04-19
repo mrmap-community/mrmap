@@ -7,23 +7,14 @@ Created on: 14.07.20
 """
 from celery import Task, current_task, states
 from django.db import IntegrityError
-
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
-<<<<<<< HEAD
-from service.helper import xml_helper, task_helper
-=======
 from service.helper import xml_helper
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from service.helper import service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
-<<<<<<< HEAD
-from structure.models import Organization
-=======
 from service.settings import PROGRESS_STATUS_AFTER_PARSING
-from structure.models import MrMapUser, Organization, MrMapGroup
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
+from structure.models import Organization
 
 
 class OGCCatalogueService(OGCWebService):

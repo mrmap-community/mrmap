@@ -20,10 +20,14 @@ class HarvestResult(models.Model):
     number_results = models.IntegerField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True, null=True)
 
+    class Meta:
+        unique_together = ('metadata', 'timestamp_end')
+
     def __str__(self):
         return "Harvest Result ({})".format(self.metadata.title)
 
     def save(self, *args, **kwargs):
+        i=0
         if self._state.adding:
             from csw.tasks import async_harvest
             transaction.on_commit(lambda: async_harvest.apply_async(args=(self.pk, ), countdown=settings.CELERY_DEFAULT_COUNTDOWN))

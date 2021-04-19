@@ -298,7 +298,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
     origin = None
 
     class Meta:
-        ordering = ['-created']
+        ordering = ['-created_at']
         indexes = [
             models.Index(
                 fields=[

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.db import IntegrityError
 from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
@@ -26,8 +27,16 @@ def handle_template_role_permission_change(sender, instance, action, reverse, mo
     Returns:
         None
     """
-    unsuported_actions = ['pre_add', 'pre_remove', 'pre_clear']
-    if action in unsuported_actions:
+    if action == 'pre_clear':
+        # while the pk_set will be None if clear() is called, we losing track of removed permissions. So we can't allow
+        # the clear() function.
+        # Remove call example (role ==> TemplateRole instance): role.permissions.remove(*role.permissions.all())
+        raise IntegrityError('clear() function is not supported. If you like to remove all permissions, you have to '
+                             'remove them by using the remove() function like '
+                             'role.permissions.remove(*role.permissions.all().')
+
+    skip_actions = ['pre_add', 'pre_remove']
+    if action in skip_actions:
         return
 
     if reverse:
@@ -87,7 +96,7 @@ def handle_owner_based_role_creation(sender, instance, created, **kwargs):
 
             default_roles.append((owner_based_role, object_based_role))
 
-        admin_role = OwnerBasedRole.objects.get(
+        admin_role, created = OwnerBasedRole.objects.get_or_create(
             content_object=instance,
             based_template__name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE
         )

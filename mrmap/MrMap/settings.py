@@ -29,6 +29,8 @@ DEBUG = True
 INSTALLED_APPS = [
     'channels',
     'ws',
+    'guardian',
+    'guardian_roles',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
@@ -216,6 +218,13 @@ PROXIES = {
 VERIFY_SSL_CERTIFICATES = True
 
 # django-guardian
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # default
+    'guardian.backends.ObjectPermissionBackend',
+)
+
+
 GUARDIAN_RAISE_403 = True
 
 # django-guardian-roles
@@ -231,7 +240,7 @@ GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
 GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
 
-DEFAULT_ROLES = [
+GUARDIAN_ROLES_DEFAULT_ROLES = [
     {
         "name": "organization_administrator",
         "verbose_name": _("Organization Administrator"),
@@ -394,7 +403,7 @@ PAGE_DEFAULT = 1
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = 'structure.MrMapUser'
+AUTH_USER_MODEL = 'users.MrMapUser'
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60

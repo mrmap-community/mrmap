@@ -6,7 +6,6 @@ from django.core.management import BaseCommand
 from django.db import transaction
 from django.db.models import Q
 from guardian_roles.models.core import TemplateRole
-from guardian_roles.conf import settings as gurdian_roles_settings
 
 
 class Command(BaseCommand):
@@ -20,8 +19,7 @@ class Command(BaseCommand):
             for setting in getattr(settings, 'GUARDIAN_ROLES_DEFAULT_ROLES', []):
                 self._create_role_from_default_setting(setting=setting)
 
-    @staticmethod
-    def _create_role_from_default_setting(setting: dict):
+    def _create_role_from_default_setting(self, setting: dict):
         """ Creates default `Role` objects
 
         Args:
@@ -54,8 +52,10 @@ class Command(BaseCommand):
 
         if created:
             role.permissions.add(*Permission.objects.filter(query))
+            self.stdout.write(self.style.SUCCESS(f"Template role '{role.name}' created."))
         else:
             if role.permissions.all():
-                role.permissions.clear()
+                role.permissions.remove(*role.permissions.all())
             role.permissions.add(*Permission.objects.filter(query))
+            self.stdout.write(self.style.SUCCESS(f"Permission list updated for template role '{role.name}'."))
         return role

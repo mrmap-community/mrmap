@@ -24,7 +24,7 @@ class MonitoringRunNewView(SecuredCreateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New monitoring run')
     success_message = MONITORING_RUN_SCHEDULED
-    permission_required = PermissionEnum.CAN_RUN_MONITORING.value
+    permission_required = PermissionEnum.CAN_ADD_MONITORING_RUN.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
     success_url = reverse_lazy('resource:pending-tasks')

@@ -1,4 +1,4 @@
-from django.urls import reverse_lazy, reverse
+from django.urls import reverse
 
 from MrMap.messages import *
 from guardian_roles.models.core import OwnerBasedRole

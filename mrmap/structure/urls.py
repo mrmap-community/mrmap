@@ -1,7 +1,7 @@
 from django.urls import path
 
+from structure.views.error_report import ErrorReportDetailView
 from structure.views.pending_task import *
-from structure.views.error_report import *
 from structure.views.organization import *
 from structure.views.publish_request import *
 from structure.views.auth_user import *

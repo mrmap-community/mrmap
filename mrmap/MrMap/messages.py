@@ -25,8 +25,6 @@ SERVICE_MD_RESTORED = _("Service metadata restored")
 GROUP_EDITED = _("Group edited")
 DATASET_MD_EDITED = _("Dataset metadata edited")
 
-####################
-
 PARAMETER_ERROR = _("The parameter '{}' is invalid.")
 
 FORM_INPUT_INVALID = _("The input was not valid.")
@@ -135,9 +133,5 @@ GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
 
 MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")
 
-<<<<<<< HEAD
 ROLE_SUCCESSFULLY_EDITED = _("<strong>%(role)s</strong> successfully edited.")
-=======
 HARVEST_RUN_SCHEDULED = _("Harvest run for %(metadata)s scheduled.")
-
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14

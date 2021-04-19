@@ -79,15 +79,11 @@ class Monitoring:
             self.check_dataset()
 
         # all checks are done. Calculate the health state for all monitoring results
-<<<<<<< HEAD
         health_state = HealthState(monitoring_run=self.monitoring_run,
                                    metadata=self.metadata,
                                    created_by_user=self.monitoring_run.created_by_user,
                                    owned_by_org=self.monitoring_run.owned_by_org)
         health_state.save()
-=======
-        health_state = HealthState.objects.create(monitoring_run=self.monitoring_run, metadata=self.metadata)
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
         health_state.run_health_state()
 
     def check_wfs(self, service: Service):

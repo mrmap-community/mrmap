@@ -129,19 +129,11 @@ class MonitoringRun(CommonInfo):
     def add_view_uri(self):
         return reverse('monitoring:run_new')
 
-<<<<<<< HEAD
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        from monitoring.tasks import run_manual_monitoring
-        run_manual_monitoring.delay(monitoring_run=self.pk)
-=======
     def save(self, *args, **kwargs):
         if self._state.adding:
             from monitoring.tasks import run_manual_service_monitoring
             transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.pk, ), countdown=settings.CELERY_DEFAULT_COUNTDOWN))
         super().save(*args, **kwargs)
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 
 class MonitoringResult(CommonInfo):

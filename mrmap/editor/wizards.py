@@ -1,27 +1,10 @@
-<<<<<<< HEAD
-import json
-from json import JSONDecodeError
-from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
-from django.core.exceptions import ObjectDoesNotExist
-from django.forms import modelformset_factory
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from django.urls import reverse
-from django.utils.html import format_html
-from django_bootstrap_swt.components import Alert
-from django_bootstrap_swt.enums import AlertEnum
-from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin
-
-=======
-from django.contrib.auth.decorators import login_required
+from guardian.mixins import LoginRequiredMixin
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import modelformset_factory
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
-from django.utils.decorators import method_decorator
 from django.utils.html import format_html
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from MrMap.messages import NO_PERMISSION
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
@@ -31,12 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, Document, AllowedOperation
-<<<<<<< HEAD
-from service.settings import DEFAULT_SRS
 from structure.models import Organization
-=======
-from structure.models import Organization, MrMapUser
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 from structure.permissionEnums import PermissionEnum
 from django.forms import BaseFormSet
 

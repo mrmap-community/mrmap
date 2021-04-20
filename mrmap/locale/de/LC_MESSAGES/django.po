@@ -3,9 +3,12 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
+msgid ""
+msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-20 15:53+0200\n"
+"POT-Creation-Date: 2021-04-20 19:47+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -270,8 +273,8 @@ msgid ""
 "Publish request from <strong>%(group)s</strong> has been sent to the "
 "organization <strong>%(organization)s</strong>"
 msgstr ""
-"Veröffentlichungsanfrage der Gruppe <strong>%(group)s</strong> wurde and die Organization "
-" <strong>%(organization)s</strong> gesendet"
+"Veröffentlichungsanfrage der Gruppe <strong>%(group)s</strong> wurde and die "
+"Organization  <strong>%(organization)s</strong> gesendet"
 
 #: MrMap/messages.py:74
 #, fuzzy
@@ -357,8 +360,8 @@ msgid ""
 "Organization <strong>%(organization_name)s</strong> was <strong>edited</"
 "strong> successfully."
 msgstr ""
-"Organisation <strong>%(organization_name)s</strong> wurde erfolgreich <strong>geändert</"
-"strong>."
+"Organisation <strong>%(organization_name)s</strong> wurde erfolgreich "
+"<strong>geändert</strong>."
 
 #: MrMap/messages.py:92
 #, python-format
@@ -366,8 +369,8 @@ msgid ""
 "Organization <strong>%(organization_name)s</strong> was <strong>created</"
 "strong> successfully."
 msgstr ""
-"Organisation <strong>%(organization_name)s</strong> wurde erfolgreich <strong>erstellt</"
-"strong>."
+"Organisation <strong>%(organization_name)s</strong> wurde erfolgreich "
+"<strong>erstellt</strong>."
 
 #: MrMap/messages.py:93
 #, python-format
@@ -375,8 +378,8 @@ msgid ""
 "Organization <strong>%(organization_name)s</strong> was <strong>deleted</"
 "strong> successfully."
 msgstr ""
-"Organisation <strong>%(organization_name)s</strong> wurde erfolgreich <strong>erstellt</"
-"strong>."
+"Organisation <strong>%(organization_name)s</strong> wurde erfolgreich "
+"<strong>erstellt</strong>."
 
 #: MrMap/messages.py:95
 #, fuzzy
@@ -661,7 +664,8 @@ msgid ""
 "You need to define a depending model class by setting the depending_model "
 "attribute."
 msgstr ""
-"Sie müssen die abhängige Model klasse definieren. Dies können Sie mit dem Attribut depending_model tun."
+"Sie müssen die abhängige Model klasse definieren. Dies können Sie mit dem "
+"Attribut depending_model tun."
 
 #: MrMap/wizards.py:28
 msgid "Wizard"
@@ -746,7 +750,9 @@ msgstr "Die ersten {} von {} werden geerntet. Verbleibende Zeit: {}"
 
 #: csw/utils/harvester.py:180
 msgid "Processing harvested results for the first {} of {}. Time remaining: {}"
-msgstr "Verarbeite geerntete Resultate für die ersten {} von {}. Verbleibende Zeit: {}"
+msgstr ""
+"Verarbeite geerntete Resultate für die ersten {} von {}. Verbleibende Zeit: "
+"{}"
 
 #: csw/views.py:57
 #, fuzzy
@@ -756,7 +762,9 @@ msgstr "Zeige Harvests"
 
 #: editor/autocompletes.py:36
 msgid "If you provide add functionality you need to define `add_perm` param"
-msgstr "Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut `add_perm` setzen."
+msgstr ""
+"Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
+"`add_perm` setzen."
 
 #: editor/forms.py:60 editor/forms.py:151
 #: service/templates/metadata/tabs/content/dataset/overview_tab.html:9
@@ -1525,7 +1533,8 @@ msgstr "Harvest mit Gruppe"
 
 #: service/tables.py:117
 msgid "Task failed unexpected. See error log for details."
-msgstr "Aufgabe unerwartet beendet. Sehen Sie den Fehler-Bericht für einzelheiten."
+msgstr ""
+"Aufgabe unerwartet beendet. Sehen Sie den Fehler-Bericht für einzelheiten."
 
 #: service/tables.py:154
 msgid "Layers"
@@ -2599,8 +2608,8 @@ msgid ""
 "If set, a group will be automatically created for this organization. Groups "
 "are needed for e.g. registration of services."
 msgstr ""
-"Wenn gesetzt, dann wird eine Gruppe für diese Organisation automatisch erstellt. Gruppen werden für die "
-"Registrierung von Diensten benötigt."
+"Wenn gesetzt, dann wird eine Gruppe für diese Organisation automatisch "
+"erstellt. Gruppen werden für die Registrierung von Diensten benötigt."
 
 #: structure/forms.py:267
 msgid "{} group"
@@ -2763,7 +2772,9 @@ msgstr "Sie müssen das Feld `created_by` ausfüllen."
 
 #: structure/models.py:246
 msgid "Group {} is an important main group and therefore can not be removed."
-msgstr "Gruppe {} ist eine bedeutende Hauptgruppe und kann daher nicht gelöscht werden."
+msgstr ""
+"Gruppe {} ist eine bedeutende Hauptgruppe und kann daher nicht gelöscht "
+"werden."
 
 #: structure/models.py:258
 #, fuzzy
@@ -3721,6 +3732,3 @@ msgstr "Aufgabe erledigt"
 #: ws/signals.py:36
 msgid "details"
 msgstr "Einzelheiten"
-
-msgstr ""
-

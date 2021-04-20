@@ -5004,19 +5004,19 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:63
 msgid "Latitude"
-msgstr ""
+msgstr "Breitengrad"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:64
 msgid "Run the task when the event happens at this latitude"
-msgstr ""
+msgstr "Aufgabe ausführen, wenn das Ereignis an diesem Breitengrad eintritt"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:69
 msgid "Longitude"
-msgstr ""
+msgstr "Längengrad"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:70
 msgid "Run the task when the event happens at this longitude"
-msgstr ""
+msgstr "Die Aufgabe ausführen, wenn das Ereignis an diesem Längengrad eintritt"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:77
 msgid "solar event"
@@ -5028,146 +5028,152 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:127
 msgid "Number of Periods"
-msgstr ""
+msgstr "Anzahl der Perioden"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:128
 msgid "Number of interval periods to wait before running the task again"
-msgstr ""
+msgstr "Anzahl der Intervallperioden, die gewartet werden, bevor die Aufgabe erneut ausgeführt wird"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:134
 msgid "Interval Period"
-msgstr ""
+msgstr "Intervall Periode"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:135
 msgid "The type of period between task runs (Example: days)"
-msgstr ""
+msgstr "Die Art des Zeitraums zwischen laufen Aufgaben (Beispiel: Tage)"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:141
 msgid "interval"
-msgstr ""
+msgstr "Intevall"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:142
 msgid "intervals"
-msgstr ""
+msgstr "intervalle"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:170
 msgid "every {}"
-msgstr ""
+msgstr "jede {}"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:175
 msgid "every {} {}"
-msgstr ""
+msgstr "jede {} {}"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:186
 msgid "Clock Time"
-msgstr ""
+msgstr "Uhrzeit"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:187
 msgid "Run the task at clocked time"
-msgstr ""
+msgstr "Die Aufgabe zur Uhrzeit ausführen"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:192
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:492
 msgid "Enabled"
-msgstr ""
+msgstr "Freigeschaltet"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:193
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:493
 msgid "Set to False to disable the schedule"
-msgstr ""
+msgstr "Auf False setzen, um den Zeitplan zu deaktivieren"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:199
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:200
 msgid "clocked"
-msgstr ""
+msgstr "getaktet"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:242
 msgid "Minute(s)"
-msgstr ""
+msgstr "Minute(n)"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:244
 msgid "Cron Minutes to Run. Use \"*\" for \"all\". (Example: \"0,30\")"
-msgstr ""
+msgstr "Cronjob-Minuten zum Ausführen. Verwende \"*\" für \"all\". (Beispiel: \"0,30\")"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:249
 msgid "Hour(s)"
-msgstr ""
+msgstr "Stunde(n)"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:251
 msgid "Cron Hours to Run. Use \"*\" for \"all\". (Example: \"8,20\")"
-msgstr ""
+msgstr "Cronjob-Stunden zum Ausführen. Verwende \"*\" für \"all\". (Beispiel: \"8,20\")"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:256
 msgid "Day(s) Of The Week"
-msgstr ""
+msgstr "Wochentag(e)"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:258
 msgid "Cron Days Of The Week to Run. Use \"*\" for \"all\". (Example: \"0,5\")"
-msgstr ""
+msgstr "Cronjob-Wochentage zum Ausführen. Verwende \"*\" für \"all\". (Beispiel: \"0,5\")"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:264
 msgid "Day(s) Of The Month"
-msgstr ""
+msgstr "Tag(e) im Monat"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:266
 msgid ""
 "Cron Days Of The Month to Run. Use \"*\" for \"all\". (Example: \"1,15\")"
-msgstr ""
+msgstr "Cronjob-Monatstage zum Ausführen. Verwende \"*\" für \"all\". (Beispiel: \"1,15\")"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:272
 msgid "Month(s) Of The Year"
-msgstr ""
+msgstr "Monat(e) im Jahr"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:274
 msgid ""
 "Cron Months Of The Year to Run. Use \"*\" for \"all\". (Example: \"0,6\")"
-msgstr ""
+msgstr "Cronjob-Montate zum Ausführen. Verwende \"*\" für \"all\". (Beispiel: \"0,6\")"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:281
 msgid "Cron Timezone"
-msgstr ""
+msgstr "Cronjob Zeitzone"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:283
-msgid "Timezone to Run the Cron Schedule on.  Default is UTC."
-msgstr ""
+msgid "Timezone to Run the Cron Schedule on. Default is UTC."
+msgstr "Zeitzone, in der der Cronjob-Zeitplan ausgeführt werden soll. Standard ist UTC."
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:289
 msgid "crontab"
-msgstr ""
+msgstr "Crontab"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:290
 msgid "crontabs"
-msgstr ""
+msgstr "Crontabs"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:376
 msgid "Short Description For This Task"
-msgstr ""
+msgstr "Kurzbeschreibung für diese Aufgabe"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:381
 msgid ""
 "The Name of the Celery Task that Should be Run.  (Example: \"proj.tasks."
 "import_contacts\")"
 msgstr ""
+"Der Name der Celery-Aufgabe, die ausgeführt werden soll.  (Example: \"proj.tasks."
+"import_contacts\")"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:389
 msgid "Interval Schedule"
-msgstr ""
+msgstr "Intervallzeitplan"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:390
 msgid ""
 "Interval Schedule to run the task on.  Set only one schedule type, leave the "
 "others null."
 msgstr ""
+"Intervall Zeitplan in dem die Aufgabe ausgeführt werden soll.  Stellen Sie nur einen Zeitplantyp ein, lassen Sie die "
+"andere null".
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:395
 msgid "Crontab Schedule"
-msgstr ""
+msgstr "Crontab Zeitplan"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:396
 msgid ""
 "Crontab Schedule to run the task on.  Set only one schedule type, leave the "
 "others null."
 msgstr ""
+"Crontab Zeitplan in dem die Aufgabe ausgeführt werden soll.  Stellen Sie nur einen Zeitplantyp ein, lassen Sie die "
+"andere null".
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:401
 msgid "Solar Schedule"
@@ -5179,47 +5185,50 @@ msgid ""
 "others null."
 msgstr ""
 
+
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:407
 msgid "Clocked Schedule"
-msgstr ""
+msgstr "Getakteter Zeitplan"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:408
 msgid ""
 "Clocked Schedule to run the task on.  Set only one schedule type, leave the "
 "others null."
 msgstr ""
+"Getakteter Zeitplan in dem die Aufgabe ausgeführt werden soll.  Stellen Sie nur einen Zeitplantyp ein, lassen Sie die "
+"andere null".
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:414
 msgid "Positional Arguments"
-msgstr ""
+msgstr "Positionsbezogene Argumente"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:416
 msgid "JSON encoded positional arguments (Example: [\"arg1\", \"arg2\"])"
-msgstr ""
+msgstr "JSON kodierte positionsbezogene Argumente"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:421
 msgid "Keyword Arguments"
-msgstr ""
+msgstr "Schlüsselwort Argumente"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:423
 msgid "JSON encoded keyword arguments (Example: {\"argument\": \"value\"})"
-msgstr ""
+msgstr "JSON kodierte Schlüsselwort Argumente"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:429
 msgid "Queue Override"
-msgstr ""
+msgstr "Warteschlangenüberschreibung"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:431
 msgid "Queue defined in CELERY_TASK_QUEUES. Leave None for default queuing."
-msgstr ""
+msgstr "Warteschlangen-Definition in der CELERY_TASK_QUEUES. Lassen Sie None für die Standard-Warteschlange."
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:440
 msgid "Exchange"
-msgstr ""
+msgstr "Austausch"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:441
 msgid "Override Exchange for low-level AMQP routing"
-msgstr ""
+msgstr "Austausch überschreibung für AMQP-Routing auf niedriger Ebene"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:445
 msgid "Routing Key"
@@ -5227,117 +5236,125 @@ msgstr ""
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:446
 msgid "Override Routing Key for low-level AMQP routing"
-msgstr ""
+msgstr "Routing-Taste überschreibung für AMQP-Routing auf niedriger Ebene"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:450
 msgid "AMQP Message Headers"
-msgstr ""
+msgstr "AMQP Nachrichten Kopfzeile"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:451
 msgid "JSON encoded message headers for the AMQP message."
-msgstr ""
+msgstr "JSON kodierte Kopfzeile für die AMQP Nachrichten"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:457
 msgid "Priority"
-msgstr ""
+msgstr "Priorität"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:459
 msgid ""
 "Priority Number between 0 and 255. Supported by: RabbitMQ, Redis (priority "
 "reversed, 0 is highest)."
 msgstr ""
+"Prioritätsnummer zwischen 0 und 255. Unterstützt von: RabbitMQ, Redis (Priorität "
+"umgedreht, 0 ist die höchste)."
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:464
 msgid "Expires Datetime"
-msgstr ""
+msgstr "Abgelaufen Datum"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:466
 msgid ""
 "Datetime after which the schedule will no longer trigger the task to run"
 msgstr ""
+"Datum im Zeitplan, nachdem die Aufgabe nicht mehr ausgeführt werden soll."
+
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:471
 msgid "Expires timedelta with seconds"
-msgstr ""
+msgstr "Ablaufen der Zeitdifferenz in Sekunden."
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:473
 msgid ""
 "Timedelta with seconds which the schedule will no longer trigger the task to "
 "run"
 msgstr ""
+"Zeitdifferenz in Sekunden, in welcher der Zeitplan nicht mehr die Aufgaben"
+"ausführt"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:479
 msgid "One-off Task"
-msgstr ""
+msgstr "Einmalige Aufgabe"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:481
 msgid "If True, the schedule will only run the task a single time"
-msgstr ""
+msgstr "Wenn "True", führt der Zeitplan den Task nur ein einziges Mal aus"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:485
 msgid "Start Datetime"
-msgstr ""
+msgstr "Startzeitpunkt"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:487
 msgid "Datetime when the schedule should begin triggering the task to run"
-msgstr ""
+msgstr "Zeitpunkt, zu dem der Zeitplan beginnen soll, die Aufgabe auszuführen"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:498
 msgid "Last Run Datetime"
-msgstr ""
+msgstr "Datum des letzten Laufs"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:500
 msgid ""
 "Datetime that the schedule last triggered the task to run. Reset to None if "
 "enabled is set to False."
 msgstr ""
+"Letzter Zeitpunkt im Zeitplan zum Ausführen der Aufgabe. Wird auf None zurückgesetzt, wenn "
+"False aktiviert ist."
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:505
 msgid "Total Run Count"
-msgstr ""
+msgstr "Gesamtlaufzahl"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:507
 msgid "Running count of how many times the schedule has triggered the task"
-msgstr ""
+msgstr "Laufende Zählung, wie oft der Zeitplan die Aufgabe ausgelöst hat"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:512
 msgid "Last Modified"
-msgstr ""
+msgstr "Zuletzt geändert"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:513
-msgid "Datetime that this PeriodicTask was last modified"
-msgstr ""
+msgid "Datetime that this Periodic Task was last modified"
+msgstr "Zeitpunkt an dem diese periodische Aufgabe zuletzt geändert wurde"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:519
 msgid "Detailed description about the details of this Periodic Task"
-msgstr ""
+msgstr "Ausführliche Beschreibung zu den Details dieser periodischen Aufgabe"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:528
 msgid "periodic task"
-msgstr ""
+msgstr "periodische Aufgabe"
 
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:529
 msgid "periodic tasks"
-msgstr ""
+msgstr "periodische Aufgaben"
 
 #: venv/lib/python3.7/site-packages/fontawesome_5/fields.py:16
 msgid "A fontawesome icon field"
-msgstr ""
+msgstr "Ein FontAwesome Icon-Feld"
 
 #: venv/lib/python3.7/site-packages/kombu/transport/qpid.py:1301
 #, python-format
 msgid "Attempting to connect to qpid with SASL mechanism %s"
-msgstr ""
+msgstr "Verbindungsversuch zu qpid mit SASL-Mechanismus %s"
 
 #: venv/lib/python3.7/site-packages/kombu/transport/qpid.py:1306
 #, python-format
 msgid "Connected to qpid with SASL mechanism %s"
-msgstr ""
+msgstr "Verbunden zu qpid mit SASL-Mechanismus %s"
 
 #: venv/lib/python3.7/site-packages/kombu/transport/qpid.py:1324
 #, python-format
 msgid "Unable to connect to qpid with SASL mechanism %s"
-msgstr ""
+msgstr "Verbindung nicht möglich zu qpid mit SASL-Mechanismus %s"
 
 #~ msgid "Publisher Requests"
 #~ msgstr "Veröffentlichungsanfragen"
@@ -5353,3 +5370,4 @@ msgstr ""
 
 #~ msgid "Users"
 #~ msgstr "Nutzer"
+

@@ -11,6 +11,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django_celery_results.models import TaskResult
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
@@ -19,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MrMap import utils
+from MrMap.settings import HOST_NAME, HTTP_OR_SSL
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
@@ -29,7 +31,7 @@ from api.permissions import CanRegisterService, CanRemoveService, CanActivateSer
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, CategorySerializer, \
-    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata
+    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata, TaskSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
@@ -233,6 +235,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
             status = 202
             response.data["success"] = pending_task is not None
             response.data["pending_task_id"] = pending_task.id
+            response.data["status_url"] = HTTP_OR_SSL + HOST_NAME + "/api/pending-tasks/?task_id=" + pending_task.id
 
         response = Response(data=response.data, status=status)
         return response
@@ -410,7 +413,6 @@ class LayerViewSet(viewsets.GenericViewSet):
     def destroy(self, request, pk=None):
         # Not supported
         pass
-
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     """ Overview of all organizations matching the given parameters
@@ -937,3 +939,32 @@ class CategoryViewSet(viewsets.GenericViewSet):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = CategorySerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
+
+
+class PendingTasksViewSet(viewsets.ModelViewSet):
+    """ Overview of all metadata matching the given parameters
+
+        Query parameters:
+
+            id: optional, id of the task
+            state:  optional, success, failure, pending
+            date-created:  optional, dd-mm-jjjj
+    """
+    serializer_class = TaskSerializer
+    permission_classes = (
+        IsAuthenticated,
+        CanRegisterService,
+        CanRemoveService,
+        CanActivateService,
+    )
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned purchases to a given user,
+        by filtering against a `username` query parameter in the URL.
+        """
+        queryset = TaskResult.objects.all()
+        task_id = self.request.query_params.get('task_id')
+        if task_id is not None:
+            queryset = queryset.filter(task_id=task_id)
+        return queryset

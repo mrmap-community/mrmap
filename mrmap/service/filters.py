@@ -13,6 +13,11 @@ from structure.models import MrMapGroup, MrMapUser
 
 
 class TaskResultFilter(django_filters.FilterSet):
+    date_created = django_filters.DateTimeFromToRangeFilter(
+        label=_("Date Created:"),
+        widget=BootstrapDatePickerRangeWidget(),
+        help_text=_("Search in a date range."),
+    )
     class Meta:
         model = TaskResult
         fields = ['task_id', 'status']

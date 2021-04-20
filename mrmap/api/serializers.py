@@ -11,6 +11,7 @@ from django.contrib.auth.models import Permission
 from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.urls import reverse
+from django_celery_results.models import TaskResult
 from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL
@@ -72,6 +73,25 @@ class GroupSerializer(serializers.ModelSerializer):
         # improves performance by 300%!
         # check out https://hakibenita.com/django-rest-framework-slow for more information
         read_only_fields = fields
+
+class TaskSerializer(serializers.HyperlinkedModelSerializer):
+    """ Serializer for Tasks model
+
+    """
+    class Meta:
+        model = TaskResult
+        fields = [
+            "task_id",
+            "task_name",
+            "date_created",
+            "status",
+            "worker",
+        ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
 
 
 class PermissionSerializer(serializers.ModelSerializer):

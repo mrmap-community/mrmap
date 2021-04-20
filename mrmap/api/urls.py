@@ -26,6 +26,7 @@ router.register('service', ServiceViewSet, basename="service")
 router.register('layer', LayerViewSet, basename="layer")
 router.register('group', GroupViewSet, basename="group")
 router.register('monitoring', MonitoringViewSet, basename="monitoring")
+router.register('pending-tasks', PendingTasksViewSet, basename="pending-tasks")
 
 app_name = "api"
 urlpatterns = [

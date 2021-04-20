@@ -49,7 +49,11 @@ class PendingTaskTable(tables.Table):
                          attrs={"th": {"class": "col-sm-2"}})
     phase = tables.Column(verbose_name=_('Phase'),
                           accessor='result',
-                          attrs={"th": {"class": "col-sm-5"}},
+                          attrs={"th": {"class": "col-sm-3"}},
+                          empty_values=[])
+    date_created = tables.Column(verbose_name=_('Date Created:'),
+                          accessor='date_created',
+                          attrs={"th": {"class": "col-sm-2"}},
                           empty_values=[])
     progress = tables.Column(verbose_name=_('Progress'),
                              accessor='result',
@@ -63,7 +67,7 @@ class PendingTaskTable(tables.Table):
 
     class Meta:
         model = TaskResult
-        fields = ('status', 'task_id', 'type', 'phase', 'progress', 'actions')
+        fields = ('status', 'task_id', 'type', 'phase', 'date_created', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False

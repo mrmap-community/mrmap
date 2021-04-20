@@ -11,6 +11,7 @@ from django.contrib.auth.models import Permission
 from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.urls import reverse
+from django_celery_results.models import TaskResult
 from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL

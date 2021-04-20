@@ -1,3 +1,4 @@
+import json
 from celery import states
 from celery.worker.control import revoke
 from django.contrib.auth.mixins import PermissionRequiredMixin
@@ -269,6 +270,7 @@ class PendingTaskDelete(SuccessMessageMixin, DetailView):
 
 @method_decorator(login_required, name='dispatch')
 class ErrorReportDetailView(DetailView):
+
     model = TaskResult
     content_type = "text/plain"
     template_name = "structure/views/error-reports/error.txt"
@@ -277,6 +279,7 @@ class ErrorReportDetailView(DetailView):
         response = super().dispatch(request, *args, **kwargs)
         response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{self.object.task_id}.txt"'
         return response
+
 
 
 @method_decorator(login_required, name='dispatch')

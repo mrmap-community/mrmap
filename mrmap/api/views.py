@@ -166,7 +166,10 @@ class ServiceViewSet(viewsets.GenericViewSet):
         Returns:
              The queryset
         """
-        self.queryset = Service.objects.all()
+        self.queryset = Service.objects.filter(
+            metadata__is_active=True,
+            is_root=True
+        )
 
         """ Layer as service is deactivated, since there is an own layer API
         

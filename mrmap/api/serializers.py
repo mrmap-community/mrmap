@@ -484,3 +484,20 @@ def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
 
     return ret_val
 
+class TaskSerializer(serializers.HyperlinkedModelSerializer):
+    """ Serializer for Tasks model
+
+    """
+    class Meta:
+        model = TaskResult
+        fields = [
+            "task_id",
+            "task_name",
+            "date_created",
+            "status",
+            "worker",
+        ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields

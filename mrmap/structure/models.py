@@ -134,16 +134,20 @@ class Organization(UuidPk, CommonInfo, Contact):
 
 class BaseInternalRequest(UuidPk, CommonInfo):
     message = models.TextField(null=True, blank=True)
-    activation_until = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=default_request_activation_time))
+    activation_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         abstract = True
 
     def save(self, *args, **kwargs):
-        if not self._state.adding:
+        if self._state.adding:
+            if not self.activation_until:
+                self.activation_until = timezone.now() + timezone.timedelta(days=default_request_activation_time)
+        else:
             if timezone.now() > self.activation_until:
                 self.delete()
                 raise ValidationError(REQUEST_ACTIVATION_TIMEOVER)
+
         super().save(*args, **kwargs)
 
 

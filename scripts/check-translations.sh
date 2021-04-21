@@ -1,3 +1,7 @@
+#!/bin/bash
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd $parent_path
+
 python ../mrmap/manage.py dev_messages
 
 case `pcregrep -Mn 'msgstr "".*\n\n' ../mrmap/locale/de/LC_MESSAGES/django.po >/dev/null; echo $?` in

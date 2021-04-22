@@ -652,9 +652,10 @@ class Harvester:
 
                 # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
                 # Using get_or_create increases runtime on existing metadata too much!
-                if is_new:
-                    md.add_metadata_relation(to_metadata=self.metadata,
-                                             relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+                #TODO:
+
+                self.metadata.add_metadata_relation(to_metadata=md,
+                                             relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
                                              origin=ResourceOriginEnum.CATALOGUE.value)
 
             parent_id = md_data_entry["parent_id"]

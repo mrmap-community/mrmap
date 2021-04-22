@@ -587,15 +587,17 @@ class Harvester:
                         'phase': f"Persisting metadata with file identifier {md.identifier}",
                     }
                 )
-            is_new = False
             if md.last_remote_change == md_data_entry["date_stamp"]:
+                self.metadata.add_metadata_relation(to_metadata=md,
+                                                    relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
+                                                    origin=ResourceOriginEnum.CATALOGUE.value)
+
                 # Nothing to do here!
                 return
         except ObjectDoesNotExist:
             md = Metadata(
                 identifier=_id
             )
-            is_new = True
         md.access_constraints = md_data_entry.get("access_constraints", None)
         md.created_by = self.harvesting_group
         md.origin = ResourceOriginEnum.CATALOGUE.value
@@ -646,17 +648,12 @@ class Harvester:
                     md.additional_urls.add(generic_url)
 
                 md.save(add_monitoring=False)
+                self.metadata.add_metadata_relation(to_metadata=md,
+                                                    relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
+                                                    origin=ResourceOriginEnum.CATALOGUE.value)
                 md.keywords.add(*kws)
                 md.categories.add(*categories)
                 md.formats.add(*formats)
-
-                # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
-                # Using get_or_create increases runtime on existing metadata too much!
-                #TODO:
-
-                self.metadata.add_metadata_relation(to_metadata=md,
-                                             relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
-                                             origin=ResourceOriginEnum.CATALOGUE.value)
 
             parent_id = md_data_entry["parent_id"]
             # Add the found parent_id to the parent_child map!

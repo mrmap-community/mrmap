@@ -217,7 +217,6 @@ class OgcServiceTable(tables.Table):
         '''
 
         return "not yet implemented"
-        pass
 
     # todo
     def render_wms_validation(self, record):

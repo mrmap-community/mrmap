@@ -4,7 +4,7 @@ cd $parent_path
 
 python ../mrmap/manage.py dev_messages
 
-case `pcregrep -Mn 'msgstr "".*\n\n' ../mrmap/locale/de/LC_MESSAGES/django.po >/dev/null; echo $?` in
+case `grep -zoP 'msgstr "".*\n\n' ../mrmap/locale/de/LC_MESSAGES/django.po >/dev/null; echo $?` in
   0)
     echo "empty translation found."
     exit 1

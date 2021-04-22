@@ -111,7 +111,7 @@ class PendingTaskTable(tables.Table):
         try:
             result = json.loads(value)
             if record.status == states.STARTED:
-                phase = result.get('phase')
+                phase = result.get('phase', '')
             elif record.status == states.SUCCESS:
                 phase = f'{result.get("msg", "")} {result.get("absolute_url_html", "")}'
             elif record.status == states.FAILURE:

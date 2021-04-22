@@ -158,7 +158,7 @@ class OgcServiceTable(tables.Table):
     status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
     harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
-    harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], )
+    harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], accessor='harvest_results')
     collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
     actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
                             attrs={"td": {"style": "white-space:nowrap;"}})
@@ -189,34 +189,17 @@ class OgcServiceTable(tables.Table):
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
-    def render_harvest_results(self, record, value):
-        last_harvest_result = value.filter(
-            metadata=record
-        ).order_by(
-            "-created"
-        ).first()
+    def render_harvest_results(self, value):
+        last_harvest_result = value.all().order_by("-created").first()
         return last_harvest_result.timestamp_start if last_harvest_result is not None else _('Never')
 
-    def render_collected_harvest_records(self, record, value):
-        last_harvest_result = value.filter(
-            metadata=record
-        ).order_by(
-            "-created"
-        ).first()
+    def render_collected_harvest_records(self, value):
+        last_harvest_result = value.all().order_by("-created").first()
         return last_harvest_result.number_results if last_harvest_result is not None else '-'
 
-    def render_harvest_duration(self, record, value):
-
-        '''
-        last_harvest_duration = value.filter(
-            metadata=record
-        ).order_by(
-            "-created"
-        ).first()
-        return last_harvest_duration.timestamp_end - last_harvest_duration.timestamp_start if last_harvest_duration is not None else '-'
-        '''
-
-        return "not yet implemented"
+    def render_harvest_duration(self, value):
+        last_harvest_result = value.all().order_by("-created").first()
+        return last_harvest_result.timestamp_end - last_harvest_result.timestamp_start if last_harvest_result is not None else '-'
 
     # todo
     def render_wms_validation(self, record):

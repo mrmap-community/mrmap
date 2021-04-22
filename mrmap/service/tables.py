@@ -194,14 +194,17 @@ class OgcServiceTable(tables.Table):
         last_harvest_result = value.all().first()
         return last_harvest_result.timestamp_start if last_harvest_result is not None else _('Never')
 
-    def render_collected_harvest_records(self, value):
+    def render_collected_harvest_records(self, record, value):
         last_harvest_result = value.all().first()
-        return last_harvest_result.number_results if last_harvest_result is not None else '-'
+        dataset_count = record.get_related_metadatas().filter(metadata_type=MetadataEnum.DATASET.value).count()
+        link = f"<a data-toggle='tooltip' title='{_('Number of dataset metadata harvested')}'href='{reverse('resource:datasets-index')}?dataset-filter-related_to={record.pk}'>{dataset_count}</a>"
+        return format_html(f"{last_harvest_result.number_results} ({link})") if last_harvest_result is not None else '-'
 
     def render_harvest_duration(self, value):
         last_harvest_result = value.all().first()
         if last_harvest_result and last_harvest_result.timestamp_end and last_harvest_result.timestamp_start:
-            return last_harvest_result.timestamp_end - last_harvest_result.timestamp_start
+            time_delta = last_harvest_result.timestamp_end - last_harvest_result.timestamp_start
+            return f"{time_delta.days}d  {time_delta.seconds//3600}h {(time_delta.seconds//60)%60}m {(time_delta.seconds)%60}s"
         else:
             return '-'
 

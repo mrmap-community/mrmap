@@ -321,8 +321,10 @@ class Harvester:
             "{}Query".format(csw_ns),
             None,
             attrib={
-                "typenames": "csw:Record",
-                "typeNames": "csw:Record", #depends on how we will handle the results - maybe gmd:Metadata - typenames normally caseinsensitive
+                #"typenames": "csw:Record",
+                "typenames": "gmd:MD_Metadata",
+                "typeNames": "gmd:MD_Metadata",
+                #"typeNames": "csw:Record", #depends on how we will handle the results - maybe gmd:Metadata - typenames normally caseinsensitive
             },
             nsmap=namespaces,
         )
@@ -358,8 +360,8 @@ class Harvester:
             if (result_type == 'hits'):
                 params = {
                     "service": "CSW",
-                    #"typenames": "gmd:MD_Metadata", # normally case insensitive !
-                    "typenames": "csw:Record",
+                    "typenames": "gmd:MD_Metadata", # normally case insensitive !
+                    #"typenames": "csw:Record",
                     "resultType": result_type,
                     #"outputFormat": self.output_format,
                     "version": self.version,
@@ -371,8 +373,8 @@ class Harvester:
             else:
                 params = {
                     "service": "CSW",
-                    #"typenames": "gmd:MD_Metadata", # normally case insensitive !
-                    "typenames": "csw:Record",
+                    "typenames": "gmd:MD_Metadata", # normally case insensitive !
+                    #"typenames": "csw:Record",
                     "resultType": result_type,
                     "startPosition": self.start_position,
                     #"outputFormat": self.output_format,
@@ -445,7 +447,7 @@ class Harvester:
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         ) or []
-        #csw_logger.error("XML Response: {}".format(next_response))
+        csw_logger.debug("XML Response: {}".format(next_response))
 
         next_record_position_result = xml_helper.try_get_attribute_from_xml_element(
             xml_response,

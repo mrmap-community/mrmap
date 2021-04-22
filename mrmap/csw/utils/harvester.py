@@ -9,7 +9,7 @@ https://portal.ogc.org/files/?artifact_id=20555
 
 Actually the interfaces are implemented not in a consistent way
 therefor the client will try to solve the problems.
-Test are done for following csw software solutions:
+Test are done for following csw software solutions by hand:
 * https://geonetwork-opensource.org/
 * https://pycsw.org/
 * https://www.conterra.de/portfolio/con-terra-technologies/smartfinder-sdi

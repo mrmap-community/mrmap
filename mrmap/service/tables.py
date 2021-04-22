@@ -158,6 +158,7 @@ class OgcServiceTable(tables.Table):
     status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
     harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
+    harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], )
     collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
     actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
                             attrs={"td": {"style": "white-space:nowrap;"}})
@@ -172,6 +173,7 @@ class OgcServiceTable(tables.Table):
                   'health',
                   'service__service_type__version',
                   'harvest_results',
+                  'harvest_duration',
                   'collected_harvest_records',
                   'contact',
                   'service__created_by__mrmapgroup',
@@ -202,6 +204,20 @@ class OgcServiceTable(tables.Table):
             "-created"
         ).first()
         return last_harvest_result.number_results if last_harvest_result is not None else '-'
+
+    def render_harvest_duration(self, record, value):
+
+        '''
+        last_harvest_duration = value.filter(
+            metadata=record
+        ).order_by(
+            "-created"
+        ).first()
+        return last_harvest_duration.timestamp_end - last_harvest_duration.timestamp_start if last_harvest_duration is not None else '-'
+        '''
+
+        return "not yet implemented"
+        pass
 
     # todo
     def render_wms_validation(self, record):

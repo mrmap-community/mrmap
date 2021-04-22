@@ -4,9 +4,26 @@ Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.07.20
 
+Will implement a harvesting solution for catalogue interfaces which are based on
+https://portal.ogc.org/files/?artifact_id=20555
+
+Actually the interfaces are implemented not in a consistent way
+therefor the client will try to solve the problems.
+Test are done for following csw software solutions:
+* https://geonetwork-opensource.org/
+* https://pycsw.org/
+* https://www.conterra.de/portfolio/con-terra-technologies/smartfinder-sdi
+* https://www.disy.net/de/produkte/
+* https://www.delphi-imm.de/
+* https://fbinter.stadt-berlin.de/fb/csw
+Problems:
+BB: harvester only accepts maximum of 1000 record per GetRecords request - but if set to
+exactly 1000 ist give back an error message
+
 """
 from time import time
-from urllib.parse import urlparse, parse_qs
+from math import floor
+from urllib.parse import urlparse, parse_qs, urlencode
 
 from celery import current_task, states
 from celery.result import AsyncResult
@@ -68,10 +85,13 @@ class Harvester:
             "mime_type",
             None
         )
-
+        '''
+        TODO: Adopt the model 
+        output_format should be not a part of the metadata record, but linked to the service_operation model
+        Cause the parsing had problems, don't use it as a filter here
         if self.output_format is None:
             raise ValueError(_("No XML output format available"))
-
+        '''
         self.pending_task = None  # will be initialized in harvest()
 
         # used for generating a list of already persisted metadata -
@@ -110,7 +130,7 @@ class Harvester:
         # Use a set instead of list to increase lookup afterwards
         self.deleted_metadata.update(all_persisted_metadata_identifiers)
 
-        # Perform the initial "hits" request to get an overview of how many data will be fetched
+        # Perform the initial request with resultType=hits to get an overview of how many data may be available
         hits_response, status_code = self._get_harvest_response(result_type="hits")
 
         if status_code != 200:
@@ -118,6 +138,14 @@ class Harvester:
         xml_response = xml_helper.parse_xml(hits_response)
         if xml_response is None:
             raise ConnectionError(_("Response is not a valid xml: \n{}".format(hits_response)))
+        root_element = xml_response.getroot()
+        if (root_element.tag == "{}ExceptionReport".format("{http://www.opengis.net/ows}")):
+            csw_logger.error(
+                "The catalogue answered with an ows exception report: {}".format(
+                    hits_response,
+                )
+            )
+            raise ConnectionError(_("The catalogue answered with an ows exception report:: \n{}".format(hits_response)))
 
         try:
             if current_task:
@@ -146,7 +174,7 @@ class Harvester:
 
         self.progress_step_per_result = float(1 / total_number_to_harvest) * 100
 
-        # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
+        # There are wrongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
         # nextRecord=1. We need to prevent endless loops by checking whether, we already worked on these positions and
         # simply end it there!
         processed_start_positions = set()
@@ -160,24 +188,31 @@ class Harvester:
         page_cacher = PageCacher()
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
+        estimated_time_for_all = 'unknown'
+        current_percentage = 0
+        total_percentage = 100
         while True:
-            estimated_time_for_all = 'unknown'
+            #estimated_time_for_all = 'unknown'
             if current_task:
                 current_task.update_state(
                     state=states.STARTED,
                     meta={
-                        'phase': _("Harvesting first {} of {}. Time remaining: {}").format(self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                        'current': current_percentage,
+                        'total': total_percentage,
+                        'phase': _("Harvesting {} to {} of {}. Time remaining: {}").format(self.start_position, self.start_position + self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
                     }
                 )
             processed_start_positions.add(self.start_position)
-            # Get response
+            # Get response - this may take a while
             next_response, status_code = self._get_harvest_response(result_type="results")
 
             if current_task:
                 current_task.update_state(
                     state=states.STARTED,
                     meta={
-                        'phase': _("Processing harvested results for the first {} of {}. Time remaining: {}").format(self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                        'current': current_percentage,
+                        'total': total_percentage,
+                        'phase': _("Processing harvested results for {} to {} of {}. Time remaining: {}").format(self.start_position, self.start_position + self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
                     }
                 )
             found_entries = self._process_harvest_response(next_response)
@@ -187,6 +222,10 @@ class Harvester:
             number_rest_to_harvest -= self.max_records_per_request
             number_of_harvested += found_entries
             self.harvest_result.number_results = number_of_harvested
+
+            current_percentage = floor(float(number_of_harvested / total_number_to_harvest) * 100)
+
+            #persist to database
             self.harvest_result.save()
 
             # Remove cached pages of API and CSW
@@ -237,29 +276,68 @@ class Harvester:
             None: "http://www.opengis.net/cat/csw/{}".format(self.version),
         }
         csw_ns = "{" + namespaces["csw"] + "}"
-
-        root_elem = Element(
-            "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
-            attrib={
-                "version": self.version,
-                "service": "CSW",
-                "resultType": result_type,
-                "outputFormat": self.output_format,
-                "startPosition": str(start_position),
-                "maxRecords": str(self.max_records_per_request),
-                "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
-                #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
-            },
-            nsmap=namespaces
+        #some catalogues don't allow maxRecords > than 1000 even if resultType=hits
+        if (result_type == 'hits'):
+            root_elem = Element(
+                "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
+                attrib={
+                    "version": self.version,
+                    "service": "CSW",
+                    "resultType": result_type,
+                    "outputFormat": self.output_format,
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    #"ElementSetName": "brief", #needed for pycsw!
+                    #"CONSTRAINTLANGUAGE": "FILTER",
+                    #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
+                },
+                nsmap=namespaces
+            )
+        else:
+            root_elem = Element(
+                "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
+                attrib={
+                    "version": self.version,
+                    "service": "CSW",
+                    "resultType": result_type,
+                    #"outputFormat": self.output_format,
+                    "startPosition": str(start_position),
+                    "maxRecords": str(self.max_records_per_request),
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    #"ElementSetName": "brief", #needed for pycsw!
+                    #"CONSTRAINTLANGUAGE": "FILTER",
+                    #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
+                },
+                nsmap=namespaces
+            )
+        csw_logger.debug(
+            "Harvesting resultType: '{}', http method: {}".format(
+                result_type,
+                "POST",
+            )
         )
+        #Add the typeNames value - see the standard
         xml_helper.create_subelement(
             root_elem,
             "{}Query".format(csw_ns),
             None,
-            {
-                "typeNames": "gmd:MD_Metadata"
-            }
+            attrib={
+                "typenames": "csw:Record",
+                "typeNames": "csw:Record", #depends on how we will handle the results - maybe gmd:Metadata - typenames normally caseinsensitive
+            },
+            nsmap=namespaces,
         )
+
+        #The following things are not needed normally - but some catalogues maybe need the ElementSetName element
+        xml_helper.create_childelement(
+            root_elem,
+            "{}ElementSetName".format(csw_ns),
+            "csw:Query", #to do a right xpath query the full qualified name is needed
+            None,
+            nsmap=namespaces,
+        )
+        #here the full xpath is needed - TODO: adopt the documentation
+        xml_helper.write_text_to_element(root_elem, ".//csw:ElementSetName", "full")
+
         post_content = xml_helper.xml_to_string(root_elem)
         return post_content
 
@@ -277,23 +355,53 @@ class Harvester:
             url=self.harvest_url
         )
         if self.method.upper() == "GET":
-            params = {
-                "service": "CSW",
-                "typeNames": "gmd:MD_Metadata",
-                "resultType": result_type,
-                "startPosition": self.start_position,
-                "outputFormat": self.output_format,
-                "maxRecords": self.max_records_per_request,
-                "version": self.version,
-                "request": OGCOperationEnum.GET_RECORDS.value,
-                "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
-            }
+            if (result_type == 'hits'):
+                params = {
+                    "service": "CSW",
+                    #"typenames": "gmd:MD_Metadata", # normally case insensitive !
+                    "typenames": "csw:Record",
+                    "resultType": result_type,
+                    #"outputFormat": self.output_format,
+                    "version": self.version,
+                    "request": OGCOperationEnum.GET_RECORDS.value,
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    "constraintLanguage": "FILTER",
+                    "ElementSetName": "full", #needed for pycsw!
+                }
+            else:
+                params = {
+                    "service": "CSW",
+                    #"typenames": "gmd:MD_Metadata", # normally case insensitive !
+                    "typenames": "csw:Record",
+                    "resultType": result_type,
+                    "startPosition": self.start_position,
+                    #"outputFormat": self.output_format,
+                    "maxRecords": self.max_records_per_request,
+                    "version": self.version,
+                    "request": OGCOperationEnum.GET_RECORDS.value,
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    "constraintLanguage": "FILTER",
+                    "ElementSetName": "full", #needed for pycsw!
+                }
+            csw_logger.debug(
+                "Harvesting resultType: '{}', http method: {}, url: {}".format(
+                    result_type,
+                    "GET",
+                    self.harvest_url + "?" + urlencode(params),
+                )
+            )
             connector.load(params=params)
             harvest_response = connector.content
         elif self.method.upper() == "POST":
             post_body = self._generate_request_POST_body(self.start_position, result_type=result_type)
             connector.post(
                 data=post_body
+            )
+            #Set following to ERROR to see the POST in the logs
+            csw_logger.debug(
+                "Harvesting request POST: {}".format(
+                    post_body
+                )
             )
             harvest_response = connector.content
         else:
@@ -323,16 +431,65 @@ class Harvester:
             # Abort!
             self.start_position = 0
             return
+        #check for ows exception
+        root_element = xml_response.getroot()
+        if (root_element.tag == "{}ExceptionReport".format("{http://www.opengis.net/ows}")):
+            csw_logger.error(
+                "The catalogue answered with an ows exception report: {}".format(
+                    next_response,
+                )
+            )
+            raise ConnectionError(_("The catalogue answered with an ows exception report:: \n{}".format(next_response)))
 
         md_metadata_entries = xml_helper.try_get_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         ) or []
-        next_record_position = int(xml_helper.try_get_attribute_from_xml_element(
+        #csw_logger.error("XML Response: {}".format(next_response))
+
+        next_record_position_result = xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "nextRecord",
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
-        ))
+        )
+
+        if (next_record_position_result is None):
+            csw_logger.debug("CSW Harvesting: Could not get value for nextRecord to iterate further")
+            #get numberOfRecordsReturned
+            number_of_records_returned = int(xml_helper.try_get_attribute_from_xml_element(
+                xml_response,
+                "numberOfRecordsReturned",
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+            ))
+            csw_logger.debug(
+                "CSW Harvesting: Number of records returned: {}".format(
+                    number_of_records_returned,
+                )
+            )
+            number_of_records_matched = int(xml_helper.try_get_attribute_from_xml_element(
+                xml_response,
+                "numberOfRecordsMatched",
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+            ))
+            csw_logger.debug(
+                "CSW Harvesting: Number of records matched: {}".format(
+                    number_of_records_matched,
+                )
+            )
+            if (self.max_records_per_request > number_of_records_returned and self.start_position == 1 and number_of_records_returned != number_of_records_matched):
+                self.max_records_per_request = number_of_records_returned
+                csw_logger.debug("CSW Harvesting: Reduce max_records_per_request to: {}".format(number_of_records_returned))
+
+            if (number_of_records_returned == self.max_records_per_request):
+                next_record_position = self.start_position + number_of_records_returned
+                csw_logger.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
+            else:
+                next_record_position = 0
+                csw_logger.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
+
+        else:
+            next_record_position = int(next_record_position_result)
+
         self.start_position = next_record_position
 
         # Fetch found identifiers in parent process, so self.deleted_metadata can be edited easily

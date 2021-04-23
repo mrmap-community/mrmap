@@ -20,7 +20,7 @@ def handle_organization_creation(instance, created, **kwargs):
             query |= Q(content_type__app_label=app_label, codename=codename)
 
         all_permissions = Permission.objects.filter(query)
-        acl = AccessControlList.objects.create(name=f"{instance.organization_name} administrator",
+        acl = AccessControlList.objects.create(name=f"{instance.organization_name} administrators",
                                                description='')
         acl.permissions.add(*all_permissions)
         acl.add_secured_object(instance)

@@ -39,6 +39,7 @@ def perform_permission_change(action, perm, acl):
 
 
 def perform_secured_object_change(action, permissions, secured_object, acl):
+    secured_object = secured_object.content_object  # only for better ready
     content_type = ContentType.objects.get_for_model(secured_object)
     for perm in permissions:
         if perm.content_type != content_type:

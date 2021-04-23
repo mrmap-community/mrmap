@@ -3,7 +3,7 @@ from django.core.checks import register, Tags, Error
 from guardian_roles.utils import get_model_from_string
 
 
-@register(Tags.compatibility)
+#@register(Tags.compatibility)
 def check_settings(app_configs, **kwargs):
     """ Check that settings are implemented properly
         :param app_configs: a list of apps to be checks or None for all

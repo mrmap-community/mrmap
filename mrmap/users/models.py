@@ -33,11 +33,6 @@ class MrMapUser(AbstractUser):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4,
                           editable=False)
-    organization = models.ForeignKey(Organization,
-                                     related_name='user_set',
-                                     on_delete=models.SET_NULL,
-                                     null=True,
-                                     blank=True)
     confirmed_newsletter = models.BooleanField(default=False,
                                                verbose_name=_("I want to sign up for the newsletter"))
     confirmed_survey = models.BooleanField(default=False,

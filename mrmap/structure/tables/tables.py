@@ -11,6 +11,7 @@ from MrMap.tables import ActionTableMixin
 from MrMap.utils import get_ok_nok_icon, signal_last
 from django.utils.translation import gettext_lazy as _
 
+from guardian_roles.models.acl import AccessControlList
 from main.tables.columns import DefaultActionButtonsColumn
 from main.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
 from main.template_codes.template_codes import PERMISSIONS
@@ -93,26 +94,6 @@ class OrganizationTable(tables.Table):
         prefix = 'organizations-table'
 
 
-class OrganizationMemberTable(ActionTableMixin, tables.Table):
-    class Meta:
-        model = get_user_model()
-        fields = ('username', )
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_actions(self):
-        remove_icon = Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render()
-        st_edit_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=remove_icon).render()
-        gt_edit_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                           content=remove_icon + _(' Remove').__str__()).render()
-        btns = [
-
-        ]
-        return format_html(self.render_helper.render_list_coherent(items=btns))
-
-
 class OrganizationPublishersTable(tables.Table):
     organization_name = tables.TemplateColumn(
         template_code=VALUE_ABSOLUTE_LINK
@@ -125,6 +106,17 @@ class OrganizationPublishersTable(tables.Table):
         fields = ('organization_name', )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
+
+
+class OrganizationAccessControlListTable(tables.Table):
+    class Meta:
+        model = AccessControlList
+        fields = ('name', 'user_set')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        prefix = 'publishers-table'
+
+    def render_user_set(self, value):
+        return value.count()
 
 
 class MrMapUserTable(ActionTableMixin, tables.Table):

@@ -6,12 +6,13 @@ from django_bootstrap_swt.components import Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
+from guardian_roles.models.acl import AccessControlList
 from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
 from structure.models import Organization, PublishRequest
-from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationMemberTable, \
-    OrganizationPublishersTable
+from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationPublishersTable, \
+    OrganizationAccessControlListTable
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -21,9 +22,6 @@ class OrganizationDetailContextMixin(ContextMixin):
         context = super().get_context_data(**kwargs)
         tab_nav = [{'url': self.object.get_absolute_url,
                     'title': _('Details')},
-                   {'url': self.object.members_view_uri,
-                    'title': _('Members ').__str__() + Badge(content=str(self.object.user_set.count()),
-                                                             color=BadgeColorEnum.SECONDARY)},
                    {'url': self.object.publishers_uri,
                     'title': _('Publishers ').__str__() +
                              Badge(content=str(self.object.get_publishers().count()),
@@ -42,13 +40,6 @@ class OrganizationTableView(SecuredListMixin, FilterView):
     table_class = OrganizationTable
     filterset_fields = {'organization_name': ['icontains'],
                         'description': ['icontains']}
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        queryset = queryset.order_by(
-            Case(When(id=self.request.user.organization.id if self.request.user.organization is not None else 0, then=0), default=1),
-            'organization_name')
-        return queryset
 
 
 class OrganizationDetailView(OrganizationDetailContextMixin, SecuredDetailView):
@@ -74,15 +65,6 @@ class OrganizationUpdateView(SecuredUpdateView):
     title = _('Edit organization')
 
 
-class OrganizationMembersTableView(OrganizationDetailContextMixin, SecuredDependingListMixin, FilterView):
-    model = get_user_model()
-    depending_model = Organization
-    depending_field_name = 'organization'
-    table_class = OrganizationMemberTable
-    filterset_fields = {'username': ['icontains']}
-    template_name = 'MrMap/detail_views/table_tab.html'
-
-
 class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
     model = Organization
     depending_model = Organization
@@ -91,3 +73,11 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
     filterset_fields = {'organization_name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
 
+
+class OrganizationAccessControlListTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
+    model = AccessControlList
+    depending_model = Organization
+    depending_field_name = 'owned_by_org'
+    table_class = OrganizationAccessControlListTable
+    #filterset_fields = {'organization_name': ['icontains']}
+    template_name = 'MrMap/detail_views/table_tab.html'

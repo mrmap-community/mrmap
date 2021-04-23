@@ -2,14 +2,13 @@
 Core models to implement the possibility of ACLs
 """
 from uuid import uuid4
-
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
 from main.models import CommonInfo
+from structure.models import Organization
 
 
 class GenericObjectRelation(models.Model):

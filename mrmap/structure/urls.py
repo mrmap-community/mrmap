@@ -17,8 +17,8 @@ urlpatterns = [
     path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
     path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_view'),
     path('organizations/<pk>/change', OrganizationUpdateView.as_view(), name='organization_change'),
-    path('organizations/<pk>/members', OrganizationMembersTableView.as_view(), name='organization_members'),
     path('organizations/<pk>/publishers', OrganizationPublishersTableView.as_view(), name='organization_publisher_overview'),
+    path('organizations/<pk>/acls', OrganizationAccessControlListTableView.as_view(), name='organization_acl_overview'),
 
     # PublishRequests
     path('publish-requests', PublishRequestTableView.as_view(), name='publish_request_overview'),

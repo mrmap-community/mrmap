@@ -42,9 +42,6 @@ class OrganizationDetailContextMixin(ContextMixin):
         context = super().get_context_data(**kwargs)
         tab_nav = [{'url': self.object.get_absolute_url,
                     'title': _('Details')},
-                   {'url': self.object.members_view_uri,
-                    'title': _('Members ').__str__() + Badge(content=str(self.object.primary_users.count()),
-                                                             color=BadgeColorEnum.SECONDARY)},
                    {'url': self.object.publishers_uri,
                     'title': _('Publishers ').__str__() +
                              Badge(content=str(self.object.publishers.count()),

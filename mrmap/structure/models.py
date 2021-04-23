@@ -107,21 +107,8 @@ class Organization(UuidPk, CommonInfo, Contact):
             query |= Q(pk=self.pk)
         return Organization.objects.filter(query)
 
-    def get_roles(self) -> QuerySet:
-        """
-
-        Returns:
-            all roles for this organization (QuerySet)
-        """
-        from guardian_roles.models.acl import OwnerBasedRole
-        return OwnerBasedRole.objects.filter(content_object=self)
-
     def get_absolute_url(self) -> str:
         return reverse('structure:organization_view', args=[self.pk, ])
-
-    @property
-    def members_view_uri(self):
-        return reverse('structure:organization_members', args=[self.pk, ])
 
     @property
     def publishers_uri(self):

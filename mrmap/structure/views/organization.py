@@ -28,10 +28,7 @@ class OrganizationDetailContextMixin(ContextMixin):
                     'title': _('Publishers ').__str__() +
                              Badge(content=str(self.object.get_publishers().count()),
                                    color=BadgeColorEnum.SECONDARY)},
-                   {'url': self.object.roles_uri,
-                    'title': _('Roles ').__str__() +
-                             Badge(content=str(self.object.get_roles().count()),
-                                   color=BadgeColorEnum.SECONDARY)},
+
                    ]
         context.update({"object": self.object,
                         'actions': [DefaultActionButtons(instance=self.object, request=self.request).render()],

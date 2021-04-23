@@ -9,8 +9,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from main.models import CommonInfo
 
-class ObjectRelation(models.Model):
+
+class GenericObjectRelation(models.Model):
     """Helper Model to implement GenericManyToMany relation between AccessControlList and secured_objects.
 
     We disable editing of all fields, cause we won't implement logic to handle updating this instances.
@@ -30,9 +32,23 @@ class ObjectRelation(models.Model):
         return self.content_object.__str__()
 
 
-class AccessControlList(Group):
+class AccessControlList(Group, CommonInfo):
     """
 
     """
     uuid = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-    secured_objects = models.ManyToManyField(to=ObjectRelation, blank=True)
+    description = models.CharField(max_length=256, null=True, blank=True)
+    secured_objects = models.ManyToManyField(to=GenericObjectRelation, blank=True)
+
+    def add_secured_object(self, secured_object):
+        _secured_object = GenericObjectRelation.objects.create(object_pk=secured_object.pk,
+                                                               content_type=ContentType.objects.get_for_model(secured_object))
+        self.secured_objects.add(_secured_object)
+
+    def add_secured_objects(self, secured_objects):
+        _secured_objects = []
+        for secured_object in secured_objects:
+            _secured_objects.append(GenericObjectRelation(object_pk=secured_object.pk,
+                                                          content_type=ContentType.objects.get_for_model(secured_object)))
+        GenericObjectRelation.objects.bulk_create(objs=_secured_objects)
+        self.secured_objects.add(*_secured_objects)

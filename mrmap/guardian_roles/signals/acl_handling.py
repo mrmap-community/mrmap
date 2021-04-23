@@ -1,9 +1,10 @@
 from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
-from guardian_roles.models.acl import AccessControlList, ObjectRelation
+from guardian_roles.models.acl import AccessControlList, GenericObjectRelation
 
 
 def catch_unsupported_actions(action):
@@ -23,6 +24,10 @@ def catch_unsupported_actions(action):
 def perform_permission_change(action, perm, acl):
     for secured_object in acl.secured_objects.all():
         secured_object = secured_object.content_object  # only for better ready
+
+        if perm.content_type != ContentType.objects.get_for_model(secured_object):
+            break
+
         if action == 'post_add':
             assign_perm(perm=perm,
                         user_or_group=acl,
@@ -34,7 +39,10 @@ def perform_permission_change(action, perm, acl):
 
 
 def perform_secured_object_change(action, permissions, secured_object, acl):
+    content_type = ContentType.objects.get_for_model(secured_object)
     for perm in permissions:
+        if perm.content_type != content_type:
+            break
         if action == 'post_add':
             assign_perm(perm=perm,
                         user_or_group=acl,
@@ -109,5 +117,5 @@ def handle_secured_objects_changed(sender, instance, action, reverse, model, pk_
         # multiple secured_object where changed in one AccessControlList
         acl = instance  # only for better ready
         permissions = acl.permissions.all()
-        for secured_object in ObjectRelation.objects.filter(pk__in=pk_set):
+        for secured_object in GenericObjectRelation.objects.filter(pk__in=pk_set):
             perform_secured_object_change(action, permissions, secured_object, acl)

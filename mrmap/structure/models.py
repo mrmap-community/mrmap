@@ -127,10 +127,6 @@ class Organization(UuidPk, CommonInfo, Contact):
     def publishers_uri(self):
         return reverse('structure:organization_publisher_overview', args=[self.pk, ])
 
-    @property
-    def roles_uri(self):
-        return reverse('structure:organization_roles_overview', args=[self.pk, ])
-
 
 class BaseInternalRequest(UuidPk, CommonInfo):
     message = models.TextField(null=True, blank=True)

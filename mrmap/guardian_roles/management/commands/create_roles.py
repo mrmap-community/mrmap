@@ -5,7 +5,7 @@ from django.contrib.auth.models import Permission
 from django.core.management import BaseCommand
 from django.db import transaction
 from django.db.models import Q
-from guardian_roles.models.core import TemplateRole
+from guardian_roles.models.acl import TemplateRole
 
 
 class Command(BaseCommand):

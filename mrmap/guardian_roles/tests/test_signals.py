@@ -4,7 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from guardian.core import ObjectPermissionChecker
 
-from guardian_roles.models.core import TemplateRole, OwnerBasedRole, ObjectBasedRole
+from guardian_roles.models.acl import TemplateRole, OwnerBasedRole, ObjectBasedRole
 from guardian_roles.utils import get_owner_model
 
 

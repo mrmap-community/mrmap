@@ -113,7 +113,7 @@ class Organization(UuidPk, CommonInfo, Contact):
         Returns:
             all roles for this organization (QuerySet)
         """
-        from guardian_roles.models.core import OwnerBasedRole
+        from guardian_roles.models.acl import OwnerBasedRole
         return OwnerBasedRole.objects.filter(content_object=self)
 
     def get_absolute_url(self) -> str:

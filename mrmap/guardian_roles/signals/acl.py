@@ -3,7 +3,7 @@ from django.db import IntegrityError
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
-from guardian_roles.models.core import AccessControlList, ObjectRelation
+from guardian_roles.models.acl import AccessControlList, ObjectRelation
 
 
 def catch_unsupported_actions(action):

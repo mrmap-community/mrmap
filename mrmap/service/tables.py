@@ -22,6 +22,7 @@ from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
 from service.settings import service_logger
+from service.templatecodes import RESOURCE_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
@@ -110,7 +111,7 @@ class PendingTaskTable(tables.Table):
         try:
             result = json.loads(value)
             if record.status == states.STARTED:
-                phase = result.get('phase')
+                phase = result.get('phase', '')
             elif record.status == states.SUCCESS:
                 phase = f'{result.get("msg", "")} {result.get("absolute_url_html", "")}'
             elif record.status == states.FAILURE:
@@ -158,9 +159,10 @@ class OgcServiceTable(tables.Table):
     status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
     harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
+    harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], accessor='harvest_results')
     collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
-    actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
-                            attrs={"td": {"style": "white-space:nowrap;"}})
+    actions = tables.TemplateColumn(verbose_name=_('Actions'), empty_values=[], orderable=False, template_code=RESOURCE_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}})
 
     class Meta:
         model = Metadata
@@ -172,6 +174,7 @@ class OgcServiceTable(tables.Table):
                   'health',
                   'service__service_type__version',
                   'harvest_results',
+                  'harvest_duration',
                   'collected_harvest_records',
                   'contact',
                   'service__created_by__mrmapgroup',
@@ -187,21 +190,23 @@ class OgcServiceTable(tables.Table):
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
-    def render_harvest_results(self, record, value):
-        last_harvest_result = value.filter(
-            metadata=record
-        ).order_by(
-            "-created"
-        ).first()
+    def render_harvest_results(self, value):
+        last_harvest_result = value.all().first()
         return last_harvest_result.timestamp_start if last_harvest_result is not None else _('Never')
 
     def render_collected_harvest_records(self, record, value):
-        last_harvest_result = value.filter(
-            metadata=record
-        ).order_by(
-            "-created"
-        ).first()
-        return last_harvest_result.number_results if last_harvest_result is not None else '-'
+        last_harvest_result = value.all().first()
+        dataset_count = record.get_related_metadatas().filter(metadata_type=MetadataEnum.DATASET.value).count()
+        link = f"<a data-toggle='tooltip' title='{_('Number of dataset metadata harvested')}'href='{reverse('resource:datasets-index')}?dataset-filter-related_to={record.pk}'>{dataset_count}</a>"
+        return format_html(f"{last_harvest_result.number_results} ({link})") if last_harvest_result is not None else '-'
+
+    def render_harvest_duration(self, value):
+        last_harvest_result = value.all().first()
+        if last_harvest_result and last_harvest_result.timestamp_end and last_harvest_result.timestamp_start:
+            time_delta = last_harvest_result.timestamp_end - last_harvest_result.timestamp_start
+            return f"{time_delta.days}d  {time_delta.seconds//3600}h {(time_delta.seconds//60)%60}m {(time_delta.seconds)%60}s"
+        else:
+            return '-'
 
     # todo
     def render_wms_validation(self, record):
@@ -236,12 +241,6 @@ class OgcServiceTable(tables.Table):
 
     def render_service__published_for(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    def render_actions(self, record):
-        self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
-        self.render_helper.update_attrs = None
-        return format_html(renderd_actions)
 
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(

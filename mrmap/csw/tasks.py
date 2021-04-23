@@ -35,8 +35,14 @@ def async_harvest(harvest_result_id: int):
             .get(pk=harvest_result_id)
         try:
             harvester = Harvester(harvest_result,
-                                  max_records_per_request=1000)
+                                  max_records_per_request=500)
             harvester.harvest()
+
+            return {'msg': 'Done. Catalogue harvested successful.',
+                'id': str(harvest_result.metadata.pk),
+                'absolute_url': harvest_result.metadata.get_absolute_url(),
+                'absolute_url_html': f'<a href={harvest_result.metadata.get_absolute_url()}>{harvest_result.metadata.title}</a>'}
+
 
         except IntegrityError as e:
             csw_logger.error(

@@ -144,4 +144,5 @@ class MetadataRelationEnum(EnumChoice):
     DESCRIBES = "describes"
     HARVESTED_THROUGH = "harvestedThrough"
     HARVESTED_PARENT = "harvestedParent"
+    PUBLISHED_BY = "publishedBy"
 

@@ -180,7 +180,7 @@ class PublishRequestNewView(PermissionRequiredMixin, GenericViewContextMixin, In
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('Publish request')
     success_message = PUBLISH_REQUEST_SENT
-    permission_required = PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value
+    permission_required = PermissionEnum.CAN_ADD_PUBLISH_REQUEST.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 

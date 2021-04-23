@@ -258,8 +258,7 @@ def create_new_service(form, user):
 
     return tasks.async_new_service.apply_async((uri_dict,
                                                 user.id,
-                                                form.cleaned_data['registering_with_group'].id,
-                                                user.register_for_other_org,
+                                                form.cleaned_data['registering_for_organization'].id,
                                                 external_auth), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
 
 

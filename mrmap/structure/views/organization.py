@@ -6,13 +6,12 @@ from django_bootstrap_swt.components import Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
-from guardian_roles.models.core import OwnerBasedRole
 from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
 from structure.models import Organization, PublishRequest
 from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationMemberTable, \
-    OrganizationPublishersTable, OrganizationRolesTable
+    OrganizationPublishersTable
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -95,10 +94,3 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
     filterset_fields = {'organization_name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
 
-
-class OrganizationRolesTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):
-    model = OwnerBasedRole
-    depending_model = Organization
-    depending_field_name = 'content_object'
-    table_class = OrganizationRolesTable
-    template_name = 'MrMap/detail_views/table_tab.html'

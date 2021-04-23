@@ -11,7 +11,6 @@ from MrMap.tables import ActionTableMixin
 from MrMap.utils import get_ok_nok_icon, signal_last
 from django.utils.translation import gettext_lazy as _
 
-from guardian_roles.models.core import OwnerBasedRole
 from main.tables.columns import DefaultActionButtonsColumn
 from main.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
 from main.template_codes.template_codes import PERMISSIONS
@@ -124,17 +123,6 @@ class OrganizationPublishersTable(tables.Table):
     class Meta:
         model = Organization
         fields = ('organization_name', )
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        prefix = 'publishers-table'
-
-
-class OrganizationRolesTable(tables.Table):
-    based_template__permissions__all = tables.TemplateColumn(template_code=PERMISSIONS)
-    actions = EditRoleButtonColumn()
-
-    class Meta:
-        model = OwnerBasedRole
-        fields = ('based_template', 'users', 'based_template__permissions__all')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
 

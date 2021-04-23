@@ -228,7 +228,7 @@ class OgcServiceTable(tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=record.get_health_icons(), safe=True))
 
     def render_contact(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+        return Link(url=value.get_absolute_url(), content=value).render(safe=True)
 
     def render_service__owned_by_org(self, value):
         return Link(url=value.get_absolute_url(), content=value).render(safe=True)

@@ -192,7 +192,7 @@ class PublishRequest(BaseInternalRequest):
         return LinkButton(content=st_text + gt_text,
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('structure:publish_request_new'),
-                          needs_perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value)
+                          needs_perm=PermissionEnum.CAN_ADD_PUBLISH_REQUEST.value)
 
     def clean(self):
         errors = []

@@ -62,7 +62,7 @@ class Command(BaseCommand):
             pass
         else:
             call_command('migrate')
-        call_command('create_roles')
+        #call_command('create_roles')
 
     def _run_superuser_default_setup(self):
         """ Encapsules the main setup for creating all default objects and the superuser

@@ -1,35 +1,15 @@
 from django.contrib import admin
 
-from guardian_roles.admin_forms import GroupAdminForm
-from guardian_roles.models.core import TemplateRole, ObjectBasedRole, OwnerBasedRole
 from guardian.models import UserObjectPermission, GroupObjectPermission
+
+from guardian_roles.models.core import ObjectRelation, AccessControlList
 from guardian_roles.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
 
-"""
-Django admin view pages for core models placed models.core.py
 
-For more information on this file, see
-# todo: link to the docs
-
-"""
+admin.site.register(ObjectRelation)
+admin.site.register(AccessControlList)
 
 
-class TemplateRoleAdmin(admin.ModelAdmin):
-    filter_horizontal = ('permissions',)
-
-
-class OrganizationBasedTemplateRoleAdmin(admin.ModelAdmin):
-    pass
-
-
-class ObjectBasedTemplateRoleAdmin(admin.ModelAdmin):
-    exclude = ('permissions',)
-    form = GroupAdminForm
-
-
-admin.site.register(TemplateRole, TemplateRoleAdmin)
-admin.site.register(OwnerBasedRole, OrganizationBasedTemplateRoleAdmin)
-admin.site.register(ObjectBasedRole, ObjectBasedTemplateRoleAdmin)
 """
 Django admin view pages for dedicated MrMap models placed in models.object_perms.py
 

@@ -11,11 +11,11 @@ def handle_instance_delete():
 
 
 def handle_instance_creation(instance, created, **kwargs):
-    """append the created instance to the default acl's secured objects list."""
+    """append the created instance to the default acl's accessible objects list."""
     if created:
         default_acls = AccessControlList.objects.filter(default_acl=True, owned_by_org=instance.owned_by_org)
         for acl in default_acls:
-            acl.add_secured_object(instance)
+            acl.add_accessible_object(instance)
 
 
 for model in OWNABLE_MODELS:

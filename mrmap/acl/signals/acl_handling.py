@@ -9,7 +9,7 @@ from acl.models.acl import AccessControlList, GenericObjectRelation
 
 def catch_unsupported_actions(action):
     if action == 'pre_clear':
-        # while the pk_set will be None if clear() is called, we losing track of removed permissions/secured_objects.
+        # while the pk_set will be None if clear() is called, we losing track of removed permissions/accessible_object.
         # So we can't allow the clear() function.
         raise IntegrityError('clear() function is not supported. If you like to remove all objects, you have to '
                              'remove them by using the remove() function like '
@@ -22,34 +22,34 @@ def catch_unsupported_actions(action):
 
 
 def perform_permission_change(action, perm, acl):
-    for secured_object in acl.secured_objects.all():
-        secured_object = secured_object.content_object  # only for better ready
-        if perm.content_type != ContentType.objects.get_for_model(secured_object):
+    for accessible_object in acl.accessible_objects.all():
+        accessible_object = accessible_object.content_object  # only for better ready
+        if perm.content_type != ContentType.objects.get_for_model(accessible_object):
             continue
         if action == 'post_add':
             assign_perm(perm=perm,
                         user_or_group=acl,
-                        obj=secured_object)
+                        obj=accessible_object)
         elif action == 'post_remove':
             remove_perm(perm=perm,
                         user_or_group=acl,
-                        obj=secured_object)
+                        obj=accessible_object)
 
 
-def perform_secured_object_change(action, permissions, secured_object, acl):
-    secured_object = secured_object.content_object  # only for better ready
-    content_type = ContentType.objects.get_for_model(secured_object)
+def perform_accessible_object_change(action, permissions, accessible_object, acl):
+    accessible_object = accessible_object.content_object  # only for better ready
+    content_type = ContentType.objects.get_for_model(accessible_object)
     for perm in permissions:
         if perm.content_type != content_type:
             continue
         if action == 'post_add':
             assign_perm(perm=perm,
                         user_or_group=acl,
-                        obj=secured_object)
+                        obj=accessible_object)
         elif action == 'post_remove':
             remove_perm(perm=perm,
                         user_or_group=acl,
-                        obj=secured_object)
+                        obj=accessible_object)
 
 
 @receiver(m2m_changed, sender=AccessControlList.permissions.through)
@@ -74,7 +74,7 @@ def handle_permission_changed(sender, instance, action, reverse, model, pk_set, 
 
     if reverse:
         # one permission where changed on multiple AccessControlList
-        acls = AccessControlList.objects.filter(pk__in=pk_set).prefetch_related('secured_objects')
+        acls = AccessControlList.objects.filter(pk__in=pk_set).prefetch_related('accessible_objects')
         perm = instance  # only for better ready
         for acl in acls:
             perform_permission_change(action, perm, acl)
@@ -86,15 +86,15 @@ def handle_permission_changed(sender, instance, action, reverse, model, pk_set, 
             perform_permission_change(action, perm, acl)
 
 
-@receiver(m2m_changed, sender=AccessControlList.secured_objects.through)
-def handle_secured_objects_changed(sender, instance, action, reverse, model, pk_set, **kwargs):
+@receiver(m2m_changed, sender=AccessControlList.accessible_objects.through)
+def handle_accessible_objects_changed(sender, instance, action, reverse, model, pk_set, **kwargs):
     """handle the change of permissions on `AccessControlList` instances.
 
     If a permission is added or removed, all `GroupObjectPermission` that related to all given `AccessControlList`
     instances need to become edited.
 
     Args:
-        sender: the secured_objects field of `AccessControlList` instance
+        sender: the accessible_objects field of `AccessControlList` instance
         instance: instance of model `ObjectRelation` (reverse) | `AccessControlList` (! reverse)
         action (str): pre_add | post_add | pre_remove | post_remove | pre_clear | post_clear
         reverse: boolean flag which is True if reverse relation was used
@@ -107,14 +107,14 @@ def handle_secured_objects_changed(sender, instance, action, reverse, model, pk_
         return
 
     if reverse:
-        # one secured_object where changed on multiple AccessControlList
-        secured_object = instance.content_object  # only for better ready
+        # one accessible_object where changed on multiple AccessControlList
+        accessible_object = instance.content_object  # only for better ready
         for acl in AccessControlList.objects.filter(pk__in=pk_set).prefetch_related('permissions'):
-            perform_secured_object_change(action, acl.permissions.all(), secured_object, acl)
+            perform_accessible_object_change(action, acl.permissions.all(), accessible_object, acl)
 
     else:
-        # multiple secured_object where changed in one AccessControlList
+        # multiple accessible_object where changed in one AccessControlList
         acl = instance  # only for better ready
         permissions = acl.permissions.all()
-        for secured_object in GenericObjectRelation.objects.filter(pk__in=pk_set):
-            perform_secured_object_change(action, permissions, secured_object, acl)
+        for accessible_object in GenericObjectRelation.objects.filter(pk__in=pk_set):
+            perform_accessible_object_change(action, permissions, accessible_object, acl)

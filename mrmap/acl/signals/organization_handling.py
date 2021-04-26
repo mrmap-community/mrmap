@@ -12,7 +12,7 @@ def create_acl(name: str, owned_by_org: Organization, permissions, description: 
                                            owned_by_org=owned_by_org,
                                            default_acl=True)
     acl.permissions.add(*permissions)
-    acl.add_secured_object(owned_by_org)
+    acl.add_accessible_object(owned_by_org)
 
 
 @receiver(post_save, sender=Organization)

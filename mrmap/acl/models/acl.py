@@ -11,7 +11,8 @@ from main.models import CommonInfo
 
 
 class GenericObjectRelation(models.Model):
-    """Helper Model to implement GenericManyToMany relation between AccessControlList and secured_objects.
+    """
+    Helper Model to implement GenericManyToMany relation between AccessControlList and secured_objects.
 
     We disable editing of all fields, cause we won't implement logic to handle updating this instances.
     """
@@ -32,22 +33,31 @@ class GenericObjectRelation(models.Model):
 
 class AccessControlList(Group, CommonInfo):
     """
-
+    Access control list model to store group based lists of users with sets of permissions and objects which shall
+    be accessible.
     """
     uuid = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     description = models.CharField(max_length=256, null=True, blank=True)
-    secured_objects = models.ManyToManyField(to=GenericObjectRelation, blank=True)
+    accessible_objects = models.ManyToManyField(to=GenericObjectRelation, blank=True)
     default_acl = models.BooleanField(default=False)
 
-    def add_secured_object(self, secured_object):
-        _secured_object, created = GenericObjectRelation.objects.get_or_create(object_pk=secured_object.pk,
-                                                                               content_type=ContentType.objects.get_for_model(secured_object))
-        self.secured_objects.add(_secured_object)
+    def add_accessible_object(self, accessible_object):
+        """
+        helper method to generate GenericObjectRelation object or get them if they exist and adds them to the
+        accessible_objects list.
+        """
+        _accessible_object, created = GenericObjectRelation.objects.get_or_create(object_pk=accessible_object.pk,
+                                                                                  content_type=ContentType.objects.get_for_model(accessible_object))
+        self.accessible_objects.add(_accessible_object)
 
-    def add_secured_objects(self, secured_objects):
-        _secured_objects = []
-        for secured_object in secured_objects:
-            _secured_objects.append(GenericObjectRelation(object_pk=secured_object.pk,
-                                                          content_type=ContentType.objects.get_for_model(secured_object)))
-        GenericObjectRelation.objects.bulk_create(objs=_secured_objects)
-        self.secured_objects.add(*_secured_objects)
+    def add_accessible_objects(self, accessible_objects):
+        """
+        helper method to generate GenericObjectRelation objects, generates them in bulk mode and adds them to the
+        accessible_objects list.
+        """
+        _accessible_object = []
+        for accessible_object in accessible_objects:
+            _accessible_object.append(GenericObjectRelation(object_pk=accessible_object.pk,
+                                                            content_type=ContentType.objects.get_for_model(accessible_object)))
+        GenericObjectRelation.objects.bulk_create(objs=_accessible_object)
+        self.accessible_objects.add(*_accessible_object)

@@ -3634,3 +3634,18 @@ class MapContext(Resource):
     # resource
     # contextMetadata
     # extension
+
+    @classmethod
+    def get_add_action(cls):
+        return LinkButton(content=get_icon(IconEnum.ADD) + _(' New Map Context').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('resource:mapcontexts-add'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+
+    @property
+    def edit_view_uri(self):
+        return reverse("resource:mapcontexts-remove", args=[self.pk])
+
+    @property
+    def remove_view_uri(self):
+        return reverse("resource:mapcontexts-remove", args=[self.pk])

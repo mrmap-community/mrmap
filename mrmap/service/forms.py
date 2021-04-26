@@ -16,11 +16,12 @@ from MrMap.validators import validate_get_capablities_uri
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 
+from MrMap.widgets import BootstrapDatePickerInput
 from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
 from service.models import Service, MrMapGroup
 from service import tasks
-from service.settings import NONE_UUID
+from service.settings import NONE_UUID, ISO_19115_LANG_CHOICES
 from structure.models import Organization
 
 
@@ -189,3 +190,19 @@ class UpdateOldToNewElementsForm(forms.Form):
         if choices is not None:
             for identifier, choice in choices.items():
                 self.fields['new_elem_{}'.format(identifier)].initial = choice
+
+
+# TODO
+class MapContextForm(forms.Form):
+    title = forms.CharField(label=_('Title'))
+    abstract = forms.CharField(label=_('Abstract'))
+    # layer = MetadataModelChoiceField(
+    #     queryset=Metadata.objects.none(),
+    #     widget=autocomplete.ModelSelect2(
+    #         url='editor:layer-autocomplete',
+    #     ),
+    #     required=False, )
+    language_code = forms.ChoiceField(label=_('Language'), choices=ISO_19115_LANG_CHOICES)
+    date_stamp = forms.DateTimeField(label=_('Metadata creation date'),
+                                     widget=BootstrapDatePickerInput())
+    layer_tree = forms.CharField(widget=forms.HiddenInput)

@@ -16,6 +16,7 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, DetailView, DeleteView, UpdateView
 from django.views.generic.detail import BaseDetailView
@@ -38,12 +39,12 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION, GROUP_SUCCESSFULLY_DELETED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
-from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
+from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
 from service.helper import update_helper
 from service.helper import service_helper
 from service.helper.common_connector import CommonConnector
@@ -84,6 +85,7 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) 
         "service__child_services",
     ).order_by("title")
 
+
 @method_decorator(login_required, name='dispatch')
 class PendingTaskView(CustomSingleTableMixin, FilterView):
     model = TaskResult
@@ -116,9 +118,11 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
+            table.exclude = (
+            'layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
         else:
-            table.exclude = ('parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
+            table.exclude = (
+            'parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -138,7 +142,7 @@ class WfsIndexView(CustomSingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records','harvest_duration')
+        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records', 'harvest_duration')
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
@@ -225,7 +229,8 @@ class ResourceDeleteView(PermissionRequiredMixin, SuccessMessageDeleteMixin, Del
 
 
 @method_decorator(login_required, name='dispatch')
-class ResourceActivateDeactivateView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class ResourceActivateDeactivateView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin,
+                                     SuccessMessageMixin, UpdateView):
     model = Metadata
     template_name = "MrMap/detail_views/generic_form.html"
     fields = ('is_active',)
@@ -294,13 +299,14 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
 class DatasetMetadataXmlView(BaseDetailView):
     model = Metadata
     # a dataset metadata without a document is broken
-    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents__isnull=False)\
-                               .prefetch_related('documents')
+    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents__isnull=False) \
+        .prefetch_related('documents')
     content_type = 'application/xml'
     object = None
 
     def get(self, request, *args, **kwargs):
-        document = self.object.documents.get(is_original=False) if self.object.documents.filter(is_original=False).exists() else self.object.documents.get(
+        document = self.object.documents.get(is_original=False) if self.object.documents.filter(
+            is_original=False).exists() else self.object.documents.get(
             is_original=True)
         return HttpResponse(document.content, content_type=self.content_type)
 
@@ -491,6 +497,7 @@ class MetadataHtml(DetailView):
             pass
 
         return context
+
 
 @login_required
 # @permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
@@ -1005,7 +1012,60 @@ class MapContextIndexView(CustomSingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(MapContextIndexView, self).get_table(**kwargs)
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=MapContext.get_add_action())]
         return table
 
     def get_queryset(self):
         return MapContext.objects.all()
+
+
+# TODO
+class MapContextView(View):
+
+    @staticmethod
+    def get(request, context_id=None):
+        form = MapContextForm()
+        if context_id:
+            context = get_object_or_404(MapContext, id=context_id)
+            form = MapContextForm(
+                initial={'title': context.title, 'abstract': context.abstract, 'date_stamp': context.update_date,
+                         'layer_tree': context.layer_tree})
+        return render(request, "views/map_context_add.html", {'form_mapcontext': form, 'form': form})
+
+    @staticmethod
+    def post(request, context_id=None):
+        form = MapContextForm(request.POST)
+        if not form.is_valid():
+            form = MapContextForm()
+            return render(request, "views/map_context_add.html", {'form_mapcontext': form, 'form': form})
+        if context_id:
+            context = get_object_or_404(MapContext, id=context_id)
+            context.title = form.cleaned_data['title']
+            context.abstract = form.cleaned_data['abstract']
+            context.layer_tree = form.cleaned_data['layer_tree']
+            context.save()
+        else:
+            MapContext.objects.create(title=form.cleaned_data['title'],
+                                      abstract=form.cleaned_data['abstract'],
+                                      # language_code=form.cleaned_data['language_code'],
+                                      layer_tree=form.cleaned_data['layer_tree'])
+        return HttpResponseRedirect(reverse("resource:mapcontexts-index"), status=303)
+
+
+@method_decorator(login_required, name='dispatch')
+class MapContextDeleteView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
+    model = MapContext
+    template_name = "MrMap/detail_views/delete.html"
+    success_url = reverse_lazy('resource:mapcontexts-index')
+    success_message = GROUP_SUCCESSFULLY_DELETED
+    # queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
+    title = _('Delete Map Context')
+    # TODO
+    permission_required = PermissionEnum.CAN_DELETE_GROUP.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+
+    def get_msg_dict(self):
+        return {'name': self.get_object().title}

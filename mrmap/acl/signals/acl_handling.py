@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
-from guardian_roles.models.acl import AccessControlList, GenericObjectRelation
+from acl.models.acl import AccessControlList, GenericObjectRelation
 
 
 def catch_unsupported_actions(action):
@@ -24,10 +24,8 @@ def catch_unsupported_actions(action):
 def perform_permission_change(action, perm, acl):
     for secured_object in acl.secured_objects.all():
         secured_object = secured_object.content_object  # only for better ready
-
         if perm.content_type != ContentType.objects.get_for_model(secured_object):
-            break
-
+            continue
         if action == 'post_add':
             assign_perm(perm=perm,
                         user_or_group=acl,
@@ -43,7 +41,7 @@ def perform_secured_object_change(action, permissions, secured_object, acl):
     content_type = ContentType.objects.get_for_model(secured_object)
     for perm in permissions:
         if perm.content_type != content_type:
-            break
+            continue
         if action == 'post_add':
             assign_perm(perm=perm,
                         user_or_group=acl,

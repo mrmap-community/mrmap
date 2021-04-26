@@ -2,8 +2,8 @@ from django.contrib import admin
 
 from guardian.models import UserObjectPermission, GroupObjectPermission
 
-from guardian_roles.models.acl import GenericObjectRelation, AccessControlList
-from guardian_roles.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
+from acl.models.acl import GenericObjectRelation, AccessControlList
+from acl.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
 
 
 admin.site.register(GenericObjectRelation)

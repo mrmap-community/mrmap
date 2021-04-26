@@ -30,7 +30,7 @@ INSTALLED_APPS = [
     'channels',
     'ws',
     'guardian',
-    'guardian_roles',
+    'acl',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',

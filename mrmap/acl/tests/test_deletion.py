@@ -1,8 +1,8 @@
 from django.conf import settings
 from django.test import TestCase
 
-from guardian_roles.models.acl import TemplateRole, OwnerBasedRole
-from guardian_roles.utils import get_owner_model
+from acl.models.acl import TemplateRole, OwnerBasedRole
+from acl.utils import get_owner_model
 
 
 class OwnerDeletionTestCase(TestCase):

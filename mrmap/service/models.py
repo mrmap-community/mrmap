@@ -2912,9 +2912,6 @@ class ServiceType(models.Model):
         return self.name
 
 
-
-
-
 class Service(UuidPk, CommonInfo, Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
@@ -3018,6 +3015,7 @@ class Service(UuidPk, CommonInfo, Resource):
         """
         if not self.is_root and not keep_parents:
             # call only delete for the parent_service. All related objects will CASCADE
+            # todo: layers will not be deleted... fix it!
             self.metadata.delete()
             self.parent_service.delete()
         else:

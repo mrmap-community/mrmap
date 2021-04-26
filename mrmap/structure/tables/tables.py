@@ -11,7 +11,7 @@ from MrMap.tables import ActionTableMixin
 from MrMap.utils import get_ok_nok_icon, signal_last
 from django.utils.translation import gettext_lazy as _
 
-from guardian_roles.models.acl import AccessControlList
+from acl.models.acl import AccessControlList
 from main.tables.columns import DefaultActionButtonsColumn
 from main.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
 from main.template_codes.template_codes import PERMISSIONS

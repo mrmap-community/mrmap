@@ -8,7 +8,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from main.models import CommonInfo
-from structure.models import Organization
 
 
 class GenericObjectRelation(models.Model):
@@ -38,10 +37,11 @@ class AccessControlList(Group, CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     description = models.CharField(max_length=256, null=True, blank=True)
     secured_objects = models.ManyToManyField(to=GenericObjectRelation, blank=True)
+    default_acl = models.BooleanField(default=False)
 
     def add_secured_object(self, secured_object):
-        _secured_object = GenericObjectRelation.objects.create(object_pk=secured_object.pk,
-                                                               content_type=ContentType.objects.get_for_model(secured_object))
+        _secured_object, created = GenericObjectRelation.objects.get_or_create(object_pk=secured_object.pk,
+                                                                               content_type=ContentType.objects.get_for_model(secured_object))
         self.secured_objects.add(_secured_object)
 
     def add_secured_objects(self, secured_objects):

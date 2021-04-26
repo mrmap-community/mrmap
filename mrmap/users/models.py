@@ -59,11 +59,11 @@ class MrMapUser(AbstractUser):
     def get_edit_view_url(self):
         return reverse('edit_profile')
 
-    def get_publishable_organizations(self, include_self=True):
+    def get_publishable_organizations(self):
         if self.is_superuser:
             return Organization.objects.all()
-        return self.organization.get_publishable_organizations(include_self=include_self) if self.organization \
-            else Organization.objects.none()
+        else:
+            return Organization.objects.filter(user_set__in=self)
 
     def get_instances(self, klass, filter: Q = None, perms: str = None):
         if not perms:

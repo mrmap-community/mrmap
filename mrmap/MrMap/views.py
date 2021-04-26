@@ -215,7 +215,10 @@ class GenericViewContextMixin(ContextMixin):
     title = None
 
     def get_title(self):
-        return self.title
+        if self.title:
+            return self.title
+        else:
+            return _('Edit ') + self.object._meta.verbose_name
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

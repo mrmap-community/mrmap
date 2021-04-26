@@ -6,7 +6,8 @@ from django_bootstrap_swt.components import Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
-from guardian_roles.models.acl import AccessControlList
+from acl.models.acl import AccessControlList
+from acl.tables import AccessControlListTable
 from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
@@ -26,7 +27,10 @@ class OrganizationDetailContextMixin(ContextMixin):
                     'title': _('Publishers ').__str__() +
                              Badge(content=str(self.object.get_publishers().count()),
                                    color=BadgeColorEnum.SECONDARY)},
-
+                   {'url': self.object.acls_uri,
+                    'title': _('ACLs ').__str__() +
+                             Badge(content=str(self.object.get_acls().count()),
+                                   color=BadgeColorEnum.SECONDARY)},
                    ]
         context.update({"object": self.object,
                         'actions': [DefaultActionButtons(instance=self.object, request=self.request).render()],
@@ -78,6 +82,9 @@ class OrganizationAccessControlListTableView(SecuredDependingListMixin, Organiza
     model = AccessControlList
     depending_model = Organization
     depending_field_name = 'owned_by_org'
-    table_class = OrganizationAccessControlListTable
+    table_class = AccessControlListTable
     #filterset_fields = {'name': ['icontains']}
+    """filterset_fields = {'name': ['icontains'],
+                        'description': ['icontains'],
+                        'owned_by_org': ['exact']}"""
     template_name = 'MrMap/detail_views/table_tab.html'

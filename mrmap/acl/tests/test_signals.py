@@ -4,8 +4,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from guardian.core import ObjectPermissionChecker
 
-from guardian_roles.models.acl import TemplateRole, OwnerBasedRole, ObjectBasedRole
-from guardian_roles.utils import get_owner_model
+from acl.models.acl import TemplateRole, OwnerBasedRole, ObjectBasedRole
+from acl.utils import get_owner_model
 
 
 class SignalPostSaveOwnerTestCase(TestCase):
@@ -27,7 +27,7 @@ class SignalPostSaveOwnerTestCase(TestCase):
 
         * Additionally the generated `OwnerBasedRole` which is generated from the `TemplateRole` with the name
           which is configured in `settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE` shall grant
-          'guardian_roles.view_ownerbasedtemplaterole' and 'guardian_roles.change_ownerbasedtemplaterole' permissions.
+          'acl.view_ownerbasedtemplaterole' and 'acl.change_ownerbasedtemplaterole' permissions.
 
         * Additionally the generated `OwnerBasedRole` shall relate to depending `ObjectBasedRole`
           instances.
@@ -52,8 +52,8 @@ class SignalPostSaveOwnerTestCase(TestCase):
 
             # CONDITION 3: check if permissions are granted
             checker = ObjectPermissionChecker(user_or_group=obj_role[0])
-            self.assertTrue(checker.has_perm(perm='guardian_roles.view_ownerbasedrole', obj=owner_role[0]))
-            self.assertTrue(checker.has_perm(perm='guardian_roles.change_ownerbasedrole', obj=owner_role[0]))
+            self.assertTrue(checker.has_perm(perm='acl.view_ownerbasedrole', obj=owner_role[0]))
+            self.assertTrue(checker.has_perm(perm='acl.change_ownerbasedrole', obj=owner_role[0]))
 
         owner_role = OwnerBasedRole.objects.get(
             content_object=owner,

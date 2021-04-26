@@ -5,6 +5,8 @@ from django.db.models import Q, QuerySet, F
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+from acl.models.acl import AccessControlList
 from main.models import UuidPk, CommonInfo
 from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum
@@ -86,6 +88,9 @@ class Organization(Group, UuidPk, CommonInfo, Contact):
         """
         return Organization.objects.filter(can_publish_for__pk=self.pk)
 
+    def get_acls(self) -> QuerySet:
+        return AccessControlList.objects.filter(owned_by_org=self)
+
     def get_publishable_organizations(self, include_self=True) -> QuerySet:
         """
         return all `Organization` objects where this `Organization` can publish for.
@@ -104,6 +109,10 @@ class Organization(Group, UuidPk, CommonInfo, Contact):
     @property
     def publishers_uri(self):
         return reverse('structure:organization_publisher_overview', args=[self.pk, ])
+
+    @property
+    def acls_uri(self):
+        return reverse('structure:organization_acl_overview', args=[self.pk, ])
 
 
 class BaseInternalRequest(UuidPk, CommonInfo):

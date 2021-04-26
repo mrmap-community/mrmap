@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 
 from structure.views.error_report import ErrorReportDetailView
 from structure.views.pending_task import *
@@ -8,7 +8,6 @@ from structure.views.auth_user import *
 
 app_name = 'structure'
 urlpatterns = [
-
     # TaskResult
     path('tasks/<pk>/revoke', PendingTaskDelete.as_view(), name='remove-task'),
     path('error-reports/<pk>', ErrorReportDetailView.as_view(), name='generate-error-report'),

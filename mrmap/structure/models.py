@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, QuerySet, F
@@ -36,17 +37,11 @@ class Contact(models.Model):
         abstract = True
 
 
-class Organization(UuidPk, CommonInfo, Contact):
+class Organization(Group, UuidPk, CommonInfo, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.
     """
-    organization_name = models.CharField(max_length=255,
-                                         null=True,
-                                         default="",
-                                         verbose_name=_('Organization name'),
-                                         help_text=_('The name of the organization'),
-                                         )
     description = models.TextField(default="",
                                    null=True,
                                    blank=True,
@@ -60,7 +55,6 @@ class Organization(UuidPk, CommonInfo, Contact):
 
     class Meta:
         unique_together = (
-            "organization_name",
             "person_name",
             "email",
             "phone",
@@ -75,12 +69,9 @@ class Organization(UuidPk, CommonInfo, Contact):
         # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
         # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
         # the right default way here...
-        ordering = ['organization_name']
+        ordering = ['name']
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
-
-    def __str__(self):
-        return self.organization_name if self.organization_name else ""
 
     @property
     def icon(self):

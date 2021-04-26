@@ -57,7 +57,7 @@ class OGCCatalogueService(OGCWebService):
         """
         ## contact
         contact = Organization.objects.get_or_create(
-            organization_name=self.service_provider_providername,
+            name=self.service_provider_providername,
             person_name=self.service_provider_responsibleparty_individualname,
             email=self.service_provider_address_electronicmailaddress,
             phone=self.service_provider_telephone_voice,

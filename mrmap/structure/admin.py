@@ -12,8 +12,8 @@ class RoleAdmin(admin.ModelAdmin):
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'organization_name', 'person_name', 'country', 'city', 'postal_code']
-    search_fields = ['id', 'organization_name', 'country', 'city', 'postal_code']
+    list_display = ['id', 'name', 'person_name', 'country', 'city', 'postal_code']
+    search_fields = ['id', 'name', 'country', 'city', 'postal_code']
     form = GroupAdminForm
 
 

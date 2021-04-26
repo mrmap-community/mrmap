@@ -38,7 +38,7 @@ class OrganizationDetailContextMixin(ContextMixin):
 class OrganizationTableView(SecuredListMixin, FilterView):
     model = Organization
     table_class = OrganizationTable
-    filterset_fields = {'organization_name': ['icontains'],
+    filterset_fields = {'name': ['icontains'],
                         'description': ['icontains']}
 
 
@@ -70,7 +70,7 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
     depending_model = Organization
     depending_field_name = 'can_publish_for'
     table_class = OrganizationPublishersTable
-    filterset_fields = {'organization_name': ['icontains']}
+    filterset_fields = {'name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
 
 
@@ -79,5 +79,5 @@ class OrganizationAccessControlListTableView(SecuredDependingListMixin, Organiza
     depending_model = Organization
     depending_field_name = 'owned_by_org'
     table_class = OrganizationAccessControlListTable
-    #filterset_fields = {'organization_name': ['icontains']}
+    #filterset_fields = {'name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'

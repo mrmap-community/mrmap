@@ -80,9 +80,9 @@ PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You 
 
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
-ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization <strong>%(organization_name)s</strong> was <strong>edited</strong> successfully.")
-ORGANIZATION_SUCCESSFULLY_CREATED = _("Organization <strong>%(organization_name)s</strong> was <strong>created</strong> successfully.")
-ORGANIZATION_SUCCESSFULLY_DELETED = _("Organization <strong>%(organization_name)s</strong> was <strong>deleted</strong> successfully.")
+ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization <strong>%(name)s</strong> was <strong>edited</strong> successfully.")
+ORGANIZATION_SUCCESSFULLY_CREATED = _("Organization <strong>%(name)s</strong> was <strong>created</strong> successfully.")
+ORGANIZATION_SUCCESSFULLY_DELETED = _("Organization <strong>%(name)s</strong> was <strong>deleted</strong> successfully.")
 
 SERVICE_PENDING_TASK_ABORTED = _("{} for resource '{}' was canceled.")
 SERVICE_SUCCESSFULLY_DELETED = _("Resource <strong>%(name)s</strong> was successfully deleted.")

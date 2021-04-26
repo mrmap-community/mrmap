@@ -296,7 +296,7 @@ class DatasetWizard(LoginRequiredMixin, PermissionRequiredMixin, MrMapWizard):
         if org is None:
             # A new org has to be created with minimal contact details
             org = Organization.objects.get_or_create(
-                organization_name=data.get("organization_name"),
+                name=data.get("name"),
                 person_name=data.get("person_name"),
                 phone=data.get("phone"),
                 email=data.get("mail"),

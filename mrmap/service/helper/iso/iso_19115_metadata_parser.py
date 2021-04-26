@@ -659,14 +659,14 @@ class ISOMetadata:
 
         try:
             metadata.contact = Organization.objects.get_or_create(
-                organization_name=self.responsible_party,
+                name=self.responsible_party,
                 email=self.contact_email,
             )[0]
         except MultipleObjectsReturned:
             # okay, we need to create a unique organization
-            # "unique" since it will only be identified using organization_name and email
+            # "unique" since it will only be identified using name and email
             metadata.contact = Organization.objects.get_or_create(
-                organization_name="{}#1".format(self.responsible_party),
+                name="{}#1".format(self.responsible_party),
                 email=self.contact_email,
             )[0]
 

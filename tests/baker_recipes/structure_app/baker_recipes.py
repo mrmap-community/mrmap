@@ -36,7 +36,7 @@ god_user = Recipe(
 
 superadmin_orga = Recipe(
     Organization,
-    organization_name=seq("SuperOrganization"),
+    name=seq("SuperOrganization"),
 )
 
 

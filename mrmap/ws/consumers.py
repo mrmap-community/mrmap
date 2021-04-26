@@ -16,7 +16,7 @@ class AppViewModelConsumer(NonAnonymousJsonWebsocketConsumer):
         self.groups = ['app_view_model_observers']
         # todo: set groups by organization name to group them;
         #  waiting for pr https://github.com/mrmap-community/mrmap/pull/71
-        # self.groups = [f'app_view_model_{self.user.organization.organization_name}_observers']
+        # self.groups = [f'app_view_model_{self.user.organization.name}_observers']
 
     def connect(self):
         super().connect()

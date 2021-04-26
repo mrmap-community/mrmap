@@ -16,7 +16,7 @@ default_page = 1
 
 
 def collect_contact_data(organization: Organization):
-    contact = {'organization_name': organization.organization_name, 'email': organization.email,
+    contact = {'name': organization.name, 'email': organization.email,
                'address_country': organization.country, 'street_address': organization.address,
                'address_region': organization.state_or_province, 'postal_code': organization.postal_code,
                'address_locality': organization.city, 'person_name': organization.person_name,

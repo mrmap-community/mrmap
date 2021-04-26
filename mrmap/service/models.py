@@ -1497,7 +1497,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         self.title = original_metadata_document.title
 
         self.contact = Organization.objects.get_or_create(
-            organization_name=original_metadata_document.responsible_party,
+            name=original_metadata_document.responsible_party,
             email=original_metadata_document.contact_email,
             person_name=original_metadata_document.contact_person,
             phone=original_metadata_document.contact_phone
@@ -2155,7 +2155,7 @@ class Document(UuidPk, CommonInfo, Resource):
 
         # Organization
         org_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("organisationName"), xml)
-        ret_dict["organization_name"] = xml_helper.try_get_text_from_xml_element(org_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+        ret_dict["name"] = xml_helper.try_get_text_from_xml_element(org_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
         del org_elem
 
         # Language

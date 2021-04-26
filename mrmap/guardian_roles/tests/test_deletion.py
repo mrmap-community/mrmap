@@ -10,7 +10,7 @@ class OwnerDeletionTestCase(TestCase):
     def setUp(self) -> None:
         TemplateRole.objects.create(name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
         TemplateRole.objects.create(name='some_other_role')
-        self.owner = get_owner_model().objects.create(organization_name='owner-1')
+        self.owner = get_owner_model().objects.create(name='owner-1')
 
     def test_owner_deletion(self) -> None:
         """
@@ -32,7 +32,7 @@ class ContentObjectDeletionTestCase(TestCase):
     def setUp(self) -> None:
         TemplateRole.objects.create(name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
         TemplateRole.objects.create(name='some_other_role')
-        self.owner = get_owner_model().objects.create(organization_name='owner-1')
+        self.owner = get_owner_model().objects.create(name='owner-1')
 
     def test_related_content_object_deletion(self) -> None:
         """

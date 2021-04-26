@@ -67,7 +67,7 @@ class PublishesRequestTable(tables.Table):
 class OrganizationDetailTable(tables.Table):
     class Meta:
         model = Organization
-        fields = ('organization_name',
+        fields = ('name',
                   'parent',
                   'person_name',
                   'email',
@@ -84,18 +84,18 @@ class OrganizationDetailTable(tables.Table):
 
 
 class OrganizationTable(tables.Table):
-    organization_name = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK)
+    name = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK)
     actions = DefaultActionButtonsColumn(model=Organization)
 
     class Meta:
         model = Organization
-        fields = ('organization_name', 'description')
+        fields = ('name', 'description')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'organizations-table'
 
 
 class OrganizationPublishersTable(tables.Table):
-    organization_name = tables.TemplateColumn(
+    name = tables.TemplateColumn(
         template_code=VALUE_ABSOLUTE_LINK
     )
 
@@ -103,7 +103,7 @@ class OrganizationPublishersTable(tables.Table):
 
     class Meta:
         model = Organization
-        fields = ('organization_name', )
+        fields = ('name', )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
 

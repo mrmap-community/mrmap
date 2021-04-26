@@ -23,7 +23,7 @@ def handle_organization_creation(instance, created, **kwargs):
         else:
             all_permissions = Permission.objects.none
 
-        acl = AccessControlList.objects.create(name=f"{organization.organization_name} administrators",
+        acl = AccessControlList.objects.create(name=f"{organization.name} administrators",
                                                description='',
                                                owned_by_org=organization)
         acl.permissions.add(*all_permissions)

@@ -44,7 +44,7 @@ class OrganizationSerializer(serializers.Serializer):
 
     """
     id = serializers.IntegerField()
-    organization_name = serializers.CharField()
+    name = serializers.CharField()
     person_name = serializers.CharField()
     email = serializers.EmailField()
     phone = serializers.CharField()
@@ -323,7 +323,7 @@ def serialize_contact(md: Metadata) -> OrderedDict:
         return None
 
     contact["id"] = md_contact.id
-    contact["organization_name"] = md_contact.organization_name
+    contact["name"] = md_contact.name
     contact["person_name"] = md_contact.person_name
     contact["email"] = md_contact.email
     contact["phone"] = md_contact.phone

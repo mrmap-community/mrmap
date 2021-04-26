@@ -420,7 +420,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         Query parameters:
 
             ag:     optional, filter for auto_generated organizations vs. real organizations
-            order:  optional, orders by an attribute (e.g. id, email, default is organization_name)
+            order:  optional, orders by an attribute (e.g. id, email, default is name)
             rpp:    optional, Number of results per page
     """
     serializer_class = OrganizationSerializer

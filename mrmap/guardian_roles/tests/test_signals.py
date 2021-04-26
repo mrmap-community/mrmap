@@ -34,7 +34,7 @@ class SignalPostSaveOwnerTestCase(TestCase):
 
         """
         # create one owner
-        owner = get_owner_model().objects.create(organization_name='owner-1')
+        owner = get_owner_model().objects.create(name='owner-1')
 
         content_type = ContentType.objects.get_for_model(OwnerBasedRole)
         for template_role in TemplateRole.objects.all():
@@ -69,7 +69,7 @@ class SignalM2MChangedOwnerTestCase(TestCase):
 
     def setUp(self) -> None:
         self.role = TemplateRole.objects.create(name=settings.GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE)
-        self.owner = get_owner_model().objects.create(organization_name='owner-1')
+        self.owner = get_owner_model().objects.create(name='owner-1')
         self.owner_role = OwnerBasedRole.objects.get(based_template=self.role)
         self.depending_groups = self.owner_role.object_based_roles.all()
 

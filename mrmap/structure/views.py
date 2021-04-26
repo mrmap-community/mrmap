@@ -58,7 +58,7 @@ class OrganizationDetailContextMixin(ContextMixin):
 class OrganizationTableView(CustomSingleTableMixin, FilterView):
     model = Organization
     table_class = OrganizationTable
-    filterset_fields = {'organization_name': ['icontains'],
+    filterset_fields = {'name': ['icontains'],
                         'parent__organization_name': ['icontains'],
                         'is_auto_generated': ['exact']}
 
@@ -66,7 +66,7 @@ class OrganizationTableView(CustomSingleTableMixin, FilterView):
         queryset = super().get_queryset()
         queryset = queryset.order_by(
             Case(When(id=self.request.user.organization.id if self.request.user.organization is not None else 0, then=0), default=1),
-            'organization_name')
+            'name')
         return queryset
 
 
@@ -133,7 +133,7 @@ class OrganizationDeleteView(PermissionRequiredMixin, GenericViewContextMixin, S
     permission_denied_message = NO_PERMISSION
 
     def get_msg_dict(self):
-        return {'organization_name': self.get_object().organization_name}
+        return {'name': self.get_object().name}
 
 
 @method_decorator(login_required, name='dispatch')

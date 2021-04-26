@@ -100,7 +100,7 @@ class Command(BaseCommand):
         orga = self._create_default_organization()
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser '" + name + "' added to organization '" + str(orga.organization_name) + "'!"
+        msg = "Superuser '" + name + "' added to organization '" + str(orga.name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()
@@ -121,7 +121,7 @@ class Command(BaseCommand):
         Returns:
             orga (Organization): The default organization
         """
-        orga = Organization.objects.get_or_create(organization_name="Testorganization")[0]
+        orga = Organization.objects.get_or_create(name="Testorganization")[0]
 
         return orga
 

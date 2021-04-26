@@ -90,6 +90,8 @@ class HomeView(TemplateView):
         ).count()
 
         datasets_count = self.request.user.get_datasets_as_qs(count=True)
+        # TODO count from db
+        map_contexts_count = 99
 
         activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
         group_activities = GroupActivity.objects.filter(group__in=user_groups,
@@ -101,7 +103,8 @@ class HomeView(TemplateView):
             "wms_count": user_services_wms,
             "wfs_count": user_services_wfs,
             "datasets_count": datasets_count,
-            "all_count": user_services_wms + user_services_wfs + datasets_count,
+            "map_contexts_count": map_contexts_count,
+            "all_count": user_services_wms + user_services_wfs + datasets_count + map_contexts_count,
             "publishing_requests": pending_requests,
             "group_invitation_requests": group_invitation_requests,
             "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),

@@ -14,6 +14,8 @@ urlpatterns = [
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
     path('csw/', CswIndexView.as_view(), name='csw-index'),
     path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
+    # TODO view
+    path('mapcontexts/', DatasetIndexView.as_view(), name='mapcontexts-index'),
     path('logs/', LogsIndexView.as_view(), name='logs-view'),
 
     # PendingTasks

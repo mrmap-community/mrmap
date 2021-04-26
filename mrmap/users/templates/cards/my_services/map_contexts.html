@@ -1,0 +1,29 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+
+{% block card-header-title-left %}
+<h5 class="card-title">{% autoescape off %}{{ICONS.MAP_CONTEXT}}{% endautoescape %}</h5>
+{% endblock %}
+
+{% block card-header-title-center %}
+<h5 class="card-title">{% trans 'Map Contexts' %}</h5>
+{% endblock%}
+
+{% block card-header-title-right %}
+<h5><span class="badge badge-pill badge-light">{{ map_contexts_count }}</span></h5>
+{% endblock %}
+
+{% block card-body %}
+<p class="card-text">
+    {% trans 'Your map contexts' %}
+</p>
+<a class="btn btn-primary" href="{% url 'resource:mapcontexts-index' %}" role="button">
+    {% trans 'Show'%}
+</a>
+{% if 'can_register_resource' in user_permissions %}
+<!-- TODO: url -->
+<a class="btn btn-success" href="{% url 'editor:dataset-metadata-wizard-new' %}?current-view={{current_view}}" role="button">
+    {% autoescape off %}{{ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
+</a>
+{% endif %}
+{% endblock %}

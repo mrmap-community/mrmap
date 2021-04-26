@@ -53,9 +53,9 @@ from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
-    ProxyLogTable
+    ProxyLogTable, MapContextTable
 from service.tasks import async_log_response
-from service.models import Metadata, Layer, Service, Style, ProxyLog
+from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.permissionEnums import PermissionEnum
@@ -179,6 +179,26 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(DatasetIndexView, self).get_table(**kwargs)
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
+        return table
+
+    def get_queryset(self):
+        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.groups.all())
+
+
+# TODO check if more changes are needed
+@method_decorator(login_required, name='dispatch')
+class MapContextIndexView(CustomSingleTableMixin, FilterView):
+    model = Metadata
+    table_class = DatasetTable
+    filterset_class = DatasetFilter
+    title = get_icon(IconEnum.MAP_CONTEXT) + _(' Map Context').__str__()
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(MapContextIndexView, self).get_table(**kwargs)
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
@@ -972,3 +992,20 @@ class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
             "metadata",
             "user"
         )
+
+
+# TODO
+@method_decorator(login_required, name='dispatch')
+class MapContextIndexView(CustomSingleTableMixin, FilterView):
+    model = MapContext
+    table_class = MapContextTable
+    filterset_fields = {'title': ['icontains'], }
+    title = get_icon(IconEnum.MAP_CONTEXT) + _(' Map Contexts').__str__()
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(MapContextIndexView, self).get_table(**kwargs)
+        return table
+
+    def get_queryset(self):
+        return MapContext.objects.all()

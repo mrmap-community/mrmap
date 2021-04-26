@@ -3613,3 +3613,24 @@ class Namespace(models.Model):
 
     def __str__(self):
         return self.name + " (" + self.uri + ")"
+
+
+# TODO
+class MapContext(Resource):
+    title = models.CharField(max_length=1000, null=False, blank=False)
+    abstract = models.TextField(null=False, blank=False)
+    update_date = models.DateTimeField(auto_now_add=True)
+    layer_tree = models.TextField(null=False, blank=False)
+    # Additional possible parameters:
+    # specReference
+    # language
+    # author
+    # publisher
+    # creator
+    # rights
+    # areaOfInterest
+    # timeIntervalOfInterest
+    # keyword
+    # resource
+    # contextMetadata
+    # extension

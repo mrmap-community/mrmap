@@ -20,7 +20,7 @@ from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
 from csw.models import HarvestResult
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
+from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
 from service.settings import service_logger
 from service.templatecodes import RESOURCE_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
@@ -549,3 +549,14 @@ class ProxyLogTable(tables.Table):
         sequence = ('metadata__id', 'metadata__title', 'user', '...')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'proxy-log-table'
+
+
+# TODO
+class MapContextTable(tables.Table):
+
+    class Meta:
+        model = MapContext
+        fields = ('title', 'abstract')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'map-context-table'

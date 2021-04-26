@@ -75,13 +75,13 @@ class HomeView(LoginRequiredMixin, TemplateView):
 
         datasets_count = self.request.user.get_instances(klass=Metadata, filter=Q(metadata_type=MetadataEnum.DATASET.value)).count()
 
-        pending_requests = PublishRequest.objects.filter(to_organization=self.request.user.organization)
+        # pending_requests = PublishRequest.objects.filter(to_organization=self.request.user.organization)
         context.update({
             "wms_count": user_services_wms,
             "wfs_count": user_services_wfs,
             "datasets_count": datasets_count,
             "all_count": user_services_wms + user_services_wfs + datasets_count,
-            "publishing_requests": pending_requests,
+            #"publishing_requests": pending_requests,
             "groups": user_groups,
             "organizations": Organization.objects.all(),
             "current_view": "home",

@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from acl.models.acl import AccessControlList
-from acl.utils import collect_default_permissions, construct_permission_query
+from acl.utils import collect_default_permissions
 from structure.models import Organization
 from django.utils.translation import gettext_lazy as _
 
@@ -21,10 +21,7 @@ def handle_organization_creation(instance, created, **kwargs):
     if created:
         organization = instance  # only for better reading
 
-        admin_perms, member_perms = collect_default_permissions()
-
-        admin_permissions = construct_permission_query(perms=admin_perms)
-        member_permissions = construct_permission_query(perms=member_perms)
+        admin_permissions, member_permissions = collect_default_permissions()
 
         create_acl(name=f"{organization.name} administrators",
                    description=_('Organization administrators can administrate all objects which are owned by the organization it self'),

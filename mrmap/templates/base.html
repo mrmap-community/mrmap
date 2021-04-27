@@ -87,7 +87,7 @@
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Map Contexts' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resource:mapcontexts-index' %}">{% autoescape off %}{{ICONS.MAP_CONTEXT}}{% endautoescape %} {% trans 'Map Contexts' %} <span class="badge badge-secondary">{{map_contexts_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resource:mapcontexts-index' %}">{% autoescape off %}{{ICONS.MAP_CONTEXT}}{% endautoescape %} {% trans 'Map Contexts' %} <span class="badge badge-secondary">{{map_context_count}}</span></a>
                         <!-- TODO: url -->
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resource:mapcontexts-add' %}" title="{% trans 'Create new map context' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>

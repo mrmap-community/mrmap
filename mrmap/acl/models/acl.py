@@ -26,11 +26,6 @@ class AccessControlList(Group, CommonInfo):
                                                  blank=True,
                                                  verbose_name=_('Accessible resource'),
                                                  help_text=_('Select which resource shall be accessible with the configured permissions.'))
-    accessible_monitoring_run = models.ManyToManyField(to='monitoring.MonitoringRun',
-                                                 blank=True,
-                                                 verbose_name=_('Accessible resource'),
-                                                 help_text=_(
-                                                     'Select which resource shall be accessible with the configured permissions.'))
     accessible_accesscontrollist = models.ManyToManyField(to='self',
                                                           blank=True,
                                                           verbose_name=_('Accessible access control lists'),

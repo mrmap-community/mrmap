@@ -7,7 +7,7 @@ from acl.settings import DEFAULT_MEMBER_PERMISSIONS, DEFAULT_ORGANIZATION_ADMIN_
 
 def collect_default_permissions():
     # collect configured default permissions for admin acl and member acl
-    admin_perms = Permission.objects.none
+    admin_perms = Permission.objects.none()
     member_perms = []
     for model in AccessControlList.get_ownable_models():
         admin_perms |= Permission.objects.filter(content_type=ContentType.objects.get_for_model(model))
@@ -16,7 +16,7 @@ def collect_default_permissions():
             member_perms.append(f'{model._meta.app_label}.{default_perm}_{model.__name__.lower()}')
 
     for default_perm in DEFAULT_ORGANIZATION_ADMIN_PERMISSIONS:
-        admin_perms.append(f'structure.{default_perm}_organization')
+        admin_perms |= get_perms_for_perm_list(f'structure.{default_perm}_organization')
 
     for default_perm in DEFAULT_MEMBER_PERMISSIONS:
         member_perms.append(f'structure.{default_perm}_organization')
@@ -25,6 +25,8 @@ def collect_default_permissions():
 
 def get_perms_for_perm_list(perms) -> QuerySet:
     query = None
+    if isinstance(perms, str):
+        perms = [perms]
     for perm in perms:
         if not query:
             query = Q()
@@ -33,5 +35,5 @@ def get_perms_for_perm_list(perms) -> QuerySet:
     if query:
         permissions = Permission.objects.filter(query)
     else:
-        permissions = Permission.objects.none
+        permissions = Permission.objects.none()
     return permissions

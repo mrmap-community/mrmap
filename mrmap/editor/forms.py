@@ -156,7 +156,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
     reference_system = ReferenceSystemModelMultipleChoiceField(
         queryset=ReferenceSystem.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:reference-system-autocomplete',
+            url='autocompletes:reference_system',
             attrs={
                 "data-containercss": {
                     "height": "3em",
@@ -415,7 +415,7 @@ class AllowedOperationForm(forms.ModelForm):
 
         widgets = {
             'operations': autocomplete.ModelSelect2Multiple(
-                url='editor:operations-autocomplete',
+                url='autocompletes:operations',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -424,7 +424,7 @@ class AllowedOperationForm(forms.ModelForm):
                 },
             ),
             'allowed_groups': autocomplete.ModelSelect2Multiple(
-                url='editor:groups',
+                url='autocompletes:groups',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",

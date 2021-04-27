@@ -2,12 +2,15 @@ from django.contrib import admin
 
 from guardian.models import UserObjectPermission, GroupObjectPermission
 
-from acl.models.acl import GenericObjectRelation, AccessControlList
+from acl.models.acl import AccessControlList
 from acl.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
 
 
-admin.site.register(GenericObjectRelation)
-admin.site.register(AccessControlList)
+class AccessControlListAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['permissions']
+
+
+admin.site.register(AccessControlList, AccessControlListAdmin)
 
 
 """

@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
+    'autocompletes',
 
 ]
 

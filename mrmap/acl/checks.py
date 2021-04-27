@@ -1,7 +1,5 @@
 from django.core.checks import register, Tags, Error
-
-from acl.settings import OWNABLE_MODELS
-from acl.utils import get_model_from_string
+from acl.models.acl import AccessControlList
 
 
 @register(Tags.compatibility)
@@ -12,13 +10,9 @@ def check_settings(app_configs, **kwargs):
         :return: a list of errors
         """
     errors = []
-    if not OWNABLE_MODELS:
-        msg = "You need to configure the GUARDIAN_ROLES_OWNER_MODEL setting."
-        errors.append(Error(msg))
 
-    for model in OWNABLE_MODELS:
-        model_class = get_model_from_string(model)
-        model_instance = model_class()
+    for model in AccessControlList.get_ownable_models():
+        model_instance = model()
         if not hasattr(model_instance, 'owned_by_org'):
             msg = f"'{model}' need to implement 'owned_by_org' attribute."
             errors.append(Error(msg))

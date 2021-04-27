@@ -24,25 +24,34 @@ class CommonInfo(models.Model):
     An abstract model which adds fields to store the creation and last-updated times for an object. All fields can be
     null to facilitate adding these fields to existing instances via a database migration.
     """
-    created_at = models.DateTimeField(verbose_name='Created at',
+    created_at = models.DateTimeField(verbose_name=_('Created at'),
+                                      help_text=_('The timestamp of the creation date of this object.'),
                                       auto_now_add=True,
+                                      editable=False,
                                       db_index=True)
     created_by_user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                                        verbose_name='Created by',
+                                        verbose_name=_('Created by'),
+                                        help_text=_('The user who has created this object.'),
+                                        editable=False,
                                         blank=True, null=True,
                                         related_name="%(app_label)s_%(class)s_created",
                                         on_delete=models.SET_NULL)
     owned_by_org = models.ForeignKey(settings.GUARDIAN_ROLES_OWNER_MODEL,
                                      verbose_name=_('Owner'),
+                                     help_text=_('The organization which is the owner of this object.'),
                                      blank=True, null=True,
                                      related_name="%(app_label)s_%(class)s_owned",
                                      on_delete=models.SET_NULL)
-    last_modified_at = models.DateTimeField(verbose_name='Last modified at',
+    last_modified_at = models.DateTimeField(verbose_name=_('Last modified at'),
+                                            help_text=_('The timestamp of the last modification of this object'),
+                                            editable=False,
                                             auto_now=True,
                                             db_index=True)
     last_modified_by = models.ForeignKey(settings.AUTH_USER_MODEL,
-                                         verbose_name='Last modified by',
+                                         verbose_name=_('Last modified by'),
+                                         help_text=_('The last user who has modified this object.'),
                                          blank=True, null=True,
+                                         editable=False,
                                          related_name="%(app_label)s_%(class)s_lastmodified",
                                          on_delete=models.SET_NULL)
 

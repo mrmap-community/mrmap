@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
-from acl.models.acl import AccessControlList, GenericObjectRelation
+from acl.models.acl import AccessControlList
 
 
 def catch_unsupported_actions(action):
@@ -22,22 +22,22 @@ def catch_unsupported_actions(action):
 
 
 def perform_permission_change(action, perm, acl):
-    for accessible_object in acl.accessible_objects.all():
-        accessible_object = accessible_object.content_object  # only for better ready
-        if perm.content_type != ContentType.objects.get_for_model(accessible_object):
-            continue
-        if action == 'post_add':
-            assign_perm(perm=perm,
-                        user_or_group=acl,
-                        obj=accessible_object)
-        elif action == 'post_remove':
-            remove_perm(perm=perm,
-                        user_or_group=acl,
-                        obj=accessible_object)
+    for accessible_field in acl.get_accessible_fields():
+        _accessible_field = getattr(acl, accessible_field.name)
+        for accessible_object in _accessible_field.all():
+            if perm.content_type != ContentType.objects.get_for_model(accessible_object):
+                continue
+            if action == 'post_add':
+                assign_perm(perm=perm,
+                            user_or_group=acl,
+                            obj=accessible_object)
+            elif action == 'post_remove':
+                remove_perm(perm=perm,
+                            user_or_group=acl,
+                            obj=accessible_object)
 
 
 def perform_accessible_object_change(action, permissions, accessible_object, acl):
-    accessible_object = accessible_object.content_object  # only for better ready
     content_type = ContentType.objects.get_for_model(accessible_object)
     for perm in permissions:
         if perm.content_type != content_type:
@@ -86,7 +86,7 @@ def handle_permission_changed(sender, instance, action, reverse, model, pk_set, 
             perform_permission_change(action, perm, acl)
 
 
-@receiver(m2m_changed, sender=AccessControlList.accessible_objects.through)
+@receiver(m2m_changed, sender=AccessControlList.accessible_metadata.through)
 def handle_accessible_objects_changed(sender, instance, action, reverse, model, pk_set, **kwargs):
     """handle the change of permissions on `AccessControlList` instances.
 
@@ -95,11 +95,11 @@ def handle_accessible_objects_changed(sender, instance, action, reverse, model, 
 
     Args:
         sender: the accessible_objects field of `AccessControlList` instance
-        instance: instance of model `ObjectRelation` (reverse) | `AccessControlList` (! reverse)
+        instance: instance of the changed related model (reverse) | `AccessControlList` (! reverse)
         action (str): pre_add | post_add | pre_remove | post_remove | pre_clear | post_clear
         reverse: boolean flag which is True if reverse relation was used
-        model: `AccessControlList` (reverse) | `ObjectRelation` (! reverse)
-        pk_set: list of `AccessControlList` (reverse) | list of `ObjectRelation` (! reverse)
+        model: `AccessControlList` (reverse) | The model of `instance` (! reverse)
+        pk_set: list of `AccessControlList` (reverse) | list of pk's of the given `model` (! reverse)
     Returns:
         None
     """
@@ -108,7 +108,7 @@ def handle_accessible_objects_changed(sender, instance, action, reverse, model, 
 
     if reverse:
         # one accessible_object where changed on multiple AccessControlList
-        accessible_object = instance.content_object  # only for better ready
+        accessible_object = instance  # only for better ready
         for acl in AccessControlList.objects.filter(pk__in=pk_set).prefetch_related('permissions'):
             perform_accessible_object_change(action, acl.permissions.all(), accessible_object, acl)
 
@@ -116,5 +116,5 @@ def handle_accessible_objects_changed(sender, instance, action, reverse, model, 
         # multiple accessible_object where changed in one AccessControlList
         acl = instance  # only for better ready
         permissions = acl.permissions.all()
-        for accessible_object in GenericObjectRelation.objects.filter(pk__in=pk_set):
+        for accessible_object in model.objects.filter(pk__in=pk_set):
             perform_accessible_object_change(action, permissions, accessible_object, acl)

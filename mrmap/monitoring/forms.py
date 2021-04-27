@@ -11,7 +11,7 @@ class MonitoringRunForm(ModelForm):
         model = MonitoringRun
         fields = ('metadatas', )
         widgets = {
-            'metadatas': autocomplete.ModelSelect2Multiple(url='resource:autocomplete_metadata_service')
+            'metadatas': autocomplete.ModelSelect2Multiple(url='autocompletes:metadata_service')
         }
         labels = {
             'metadatas': _('Resources'),

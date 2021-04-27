@@ -299,6 +299,8 @@ class Metadata(UuidPk, CommonInfo, Resource):
 
     class Meta:
         ordering = ['-created_at']
+        verbose_name = _('Metadata')
+        verbose_name_plural = _('Metadatas')
         indexes = [
             models.Index(
                 fields=[

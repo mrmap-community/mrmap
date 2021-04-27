@@ -2,6 +2,7 @@ import django_tables2 as tables
 from django.template import Template, Context
 from django.utils.html import format_html
 from acl.models.acl import AccessControlList
+from main.tables.columns import DefaultActionButtonsColumn
 from main.tables.template_code import RECORD_ABSOLUTE_LINK, VALUE_BADGE, VALUE_ABSOLUTE_LINK
 from django.utils.translation import gettext as _
 
@@ -10,7 +11,7 @@ class AccessControlListTable(tables.Table):
     name = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK)
     user_set = tables.Column(verbose_name=_('Users'))
     owned_by_org = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK)
-#    actions = DefaultActionButtonsColumn(model=Organization)
+    actions = DefaultActionButtonsColumn(model=AccessControlList)
 
     class Meta:
         model = AccessControlList

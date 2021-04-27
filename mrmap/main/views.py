@@ -1,6 +1,6 @@
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, NoReverseMatch
 from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
 from MrMap.views import CustomSingleTableMixin, SuccessMessageDeleteMixin, GenericViewContextMixin, InitFormMixin, \
@@ -65,12 +65,13 @@ class GenericGlobalPermissionRequiredMixin(GenericPermissionMixin, DjangoPermiss
         return (self.get_default_permission(), )
 
 
-class SecuredCreateView(LoginRequiredMixin, GenericGlobalPermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageDeleteMixin, CreateView):
+class SecuredCreateView(LoginRequiredMixin, GenericGlobalPermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     """
     Secured django `CreateView` class with default permission '<app_label>.add_<model_name>'
     """
     action = 'add'
     accept_global_perms = True
+    template_name = 'MrMap/detail_views/generic_form.html'
 
     def get_required_permissions(self, request=None):
         """return the default view permission of the given model in format: 'app_label.model_name' if
@@ -82,7 +83,12 @@ class SecuredCreateView(LoginRequiredMixin, GenericGlobalPermissionRequiredMixin
 
     def get_success_url(self):
         if not self.success_url:
-            return reverse_lazy(f'{self.app_label}:{self.model_name}_view', args=[self.object.pk])
+            try:
+                url = reverse_lazy(f'{self.app_label}:{self.model_name}_view', args=[self.object.pk])
+            except NoReverseMatch:
+                raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
+
+            return url
 
 
 class SecuredDetailView(LoginRequiredMixin, GenericPermissionRequiredMixin, GenericViewContextMixin, DetailView):

@@ -136,4 +136,5 @@ MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")
 ROLE_SUCCESSFULLY_EDITED = _("<strong>%(role)s</strong> successfully edited.")
 HARVEST_RUN_SCHEDULED = _("Harvest run for %(metadata)s scheduled.")
 
-ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED = _("<strong>%(role)s</strong> successfully edited.")
+ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED = _("<strong>%(name)s</strong> successfully edited.")
+ACCESS_CONTROL_LIST_SUCCESSFULLY_CREATED = _("<strong>%(name)s</strong> successfully created.")

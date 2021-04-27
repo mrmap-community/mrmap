@@ -1,10 +1,9 @@
 from django_filters.views import FilterView
-
-from MrMap.messages import ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED
+from MrMap.messages import ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED, ACCESS_CONTROL_LIST_SUCCESSFULLY_CREATED
 from acl.forms import AccessControlListChangeForm
 from acl.models.acl import AccessControlList
 from acl.tables import AccessControlListTable
-from main.views import SecuredListMixin, SecuredUpdateView
+from main.views import SecuredListMixin, SecuredUpdateView, SecuredCreateView
 
 
 class AccessControlListTableView(SecuredListMixin, FilterView):
@@ -13,8 +12,13 @@ class AccessControlListTableView(SecuredListMixin, FilterView):
     filterset_fields = {'__all__'}
 
 
+class AccessControlListCreateView(SecuredCreateView):
+    model = AccessControlList
+    form_class = AccessControlListChangeForm
+    success_message = ACCESS_CONTROL_LIST_SUCCESSFULLY_CREATED
+
+
 class AccessControlListUpdateView(SecuredUpdateView):
     model = AccessControlList
-    template_name = "MrMap/detail_views/generic_form.html"
     form_class = AccessControlListChangeForm
     success_message = ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED

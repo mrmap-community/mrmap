@@ -31,7 +31,7 @@ from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PublishRequest
 from django.urls import reverse_lazy
 
-from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationMemberTable, \
+from structure.tables.tables import OrganizationTable, OrganizationDetailTable, \
     OrganizationPublishersTable, PublishesRequestTable, MrMapUserTable
 
 
@@ -134,23 +134,6 @@ class OrganizationDeleteView(PermissionRequiredMixin, GenericViewContextMixin, S
 
     def get_msg_dict(self):
         return {'name': self.get_object().name}
-
-
-@method_decorator(login_required, name='dispatch')
-class OrganizationMembersTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, CustomSingleTableMixin, FilterView):
-    model = get_user_model()
-    depending_model = Organization
-    table_class = OrganizationMemberTable
-    filterset_fields = {'username': ['icontains']}
-    template_name = 'MrMap/detail_views/table_tab.html'
-    object = None
-    title = Tag(tag='i', attrs={"class": [IconEnum.PENDING_TASKS.value]}) + _(' Members')
-
-    def get_queryset(self):
-        return self.object.primary_users.all()
-
-    def get_table_kwargs(self):
-        return {'organization': self.object}
 
 
 @method_decorator(login_required, name='dispatch')

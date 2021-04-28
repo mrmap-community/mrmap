@@ -5,6 +5,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 from guardian.mixins import LoginRequiredMixin
+from guardian.shortcuts import get_objects_for_user
 
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from service.helper.enums import MetadataEnum
@@ -28,6 +29,13 @@ class CreateObjectMixin:
             raise ImproperlyConfigured(_('If you provide add functionality you need to define `add_perm` param'))
         user = request.user
         return user.has_perm(perm=self.add_perm)
+
+
+class SecuredAutocompleteMixin:
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qs = get_objects_for_user(user=self.request.user, perms=f'view_{self.model.__name__.lower()}', klass=qs)
+        return qs
 
 
 class KeywordAutocomplete(LoginRequiredMixin, CreateObjectMixin, autocomplete.Select2QuerySetView):
@@ -63,7 +71,7 @@ class UsersAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
     search_fields = ['username']
 
 
-class OrganizationAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
+class OrganizationAutocomplete(LoginRequiredMixin, SecuredAutocompleteMixin, autocomplete.Select2QuerySetView):
     model = Organization
     search_fields = ['name']
 
@@ -76,7 +84,7 @@ class PermissionsAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetVi
         return result.name
 
 
-class MetadataAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
+class MetadataAutocomplete(LoginRequiredMixin, SecuredAutocompleteMixin, autocomplete.Select2QuerySetView):
     model = Metadata
     search_fields = ['title', 'id']
     metadata_type = None

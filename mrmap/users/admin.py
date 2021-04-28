@@ -21,7 +21,7 @@ class MrMapUserAdmin(UserAdmin):
     ) + UserAdmin.fieldsets
     readonly_fields = (
         "confirmed_dsgvo",
-        "user_permissions",  # Prevent accidental changes on user_permissions (inherited from AbstractUser) since groups manage permissions!
+        #"user_permissions",  # Prevent accidental changes on user_permissions (inherited from AbstractUser) since groups manage permissions!
     )
 
 

@@ -9,13 +9,15 @@ from main.views import SecuredListMixin, SecuredUpdateView, SecuredCreateView
 class AccessControlListTableView(SecuredListMixin, FilterView):
     model = AccessControlList
     table_class = AccessControlListTable
-    filterset_fields = {'__all__'}
+    filterset_fields = ('__all__')
+    accept_global_perms = False
 
 
 class AccessControlListCreateView(SecuredCreateView):
     model = AccessControlList
     form_class = AccessControlListChangeForm
     success_message = ACCESS_CONTROL_LIST_SUCCESSFULLY_CREATED
+    accept_global_perms = True
 
 
 class AccessControlListUpdateView(SecuredUpdateView):

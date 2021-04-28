@@ -22,7 +22,7 @@ class MonitoringRunTableFilter(django_filters.FilterSet):
     health_state = django_filters.ModelMultipleChoiceFilter(
         label=_('Health state'),
         queryset=MonitoringResult.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:health_state')
+        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring.healthstate')
     )
 
     class Meta:

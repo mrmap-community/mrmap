@@ -5,6 +5,8 @@ from uuid import uuid4
 from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+from MrMap.icons import get_icon, IconEnum
 from main.models import CommonInfo
 
 
@@ -44,6 +46,10 @@ class AccessControlList(Group, CommonInfo):
     class Meta:
         verbose_name = _('Access Control List')
         verbose_name_plural = _('Access Control Lists')
+
+    @property
+    def icon(self):
+        return get_icon(IconEnum.COGS)
 
     @classmethod
     def get_accessible_fields(cls):

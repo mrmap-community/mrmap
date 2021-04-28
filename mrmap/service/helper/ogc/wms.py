@@ -760,7 +760,7 @@ class OGCWebMapService(OGCWebService):
         Returns:
              contact (Organization): The persisted organization contact record
         """
-        contact = Organization.objects.get_or_create(
+        contact, created = Organization.objects.get_or_create(
             name=self.service_provider_providername,
             person_name=self.service_provider_responsibleparty_individualname,
             email=self.service_provider_address_electronicmailaddress,
@@ -771,7 +771,7 @@ class OGCWebMapService(OGCWebService):
             postal_code=self.service_provider_address_postalcode,
             state_or_province=self.service_provider_address_state_or_province,
             country=self.service_provider_address_country,
-        )[0]
+        )
         return contact
 
     def _create_metadata_record(self, user, contact: Organization, register_for_organization: Organization):

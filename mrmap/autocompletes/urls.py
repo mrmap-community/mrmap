@@ -24,6 +24,6 @@ urlpatterns = [
 
     path('monitoring-run/', MonitoringRunAutocomplete.as_view(), name="monitoring_run"),
     path('monitoring-res/', MonitoringResultAutocomplete.as_view(), name="monitoring_result"),
-    path('monitoring-hs/', HealthStateAutocomplete.as_view(), name="monitoring_health_state"),
+    path('monitoring-hs/', HealthStateAutocomplete.as_view(), name="monitoring.healthstate"),
 
 ]

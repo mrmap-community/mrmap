@@ -4,6 +4,19 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from main.middleware import CurrentUserMiddleware
 from django.utils import timezone
+from django.urls import reverse
+
+
+class GenericUriMixin:
+
+    def get_absolute_url(self) -> str:
+        return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_view', args=[self.pk, ])
+
+    def get_change_url(self) -> str:
+        return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_change', args=[self.pk, ])
+
+    def get_delete_url(self) -> str:
+        return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_delete', args=[self.pk, ])
 
 
 class UuidPk(models.Model):

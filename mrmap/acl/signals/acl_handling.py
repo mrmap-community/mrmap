@@ -86,7 +86,7 @@ def handle_permission_changed(sender, instance, action, reverse, model, pk_set, 
             perform_permission_change(action, perm, acl)
 
 
-@receiver(m2m_changed, sender=AccessControlList.accessible_metadata.through)
+#@receiver(m2m_changed, sender=AccessControlList.accessible_metadata.through)
 def handle_accessible_objects_changed(sender, instance, action, reverse, model, pk_set, **kwargs):
     """handle the change of permissions on `AccessControlList` instances.
 
@@ -118,3 +118,10 @@ def handle_accessible_objects_changed(sender, instance, action, reverse, model, 
         permissions = acl.permissions.all()
         for accessible_object in model.objects.filter(pk__in=pk_set):
             perform_accessible_object_change(action, permissions, accessible_object, acl)
+
+
+for field in AccessControlList.get_accessible_fields():
+    _field = getattr(AccessControlList, field.name)
+    m2m_changed.connect(receiver=handle_accessible_objects_changed,
+                        sender=_field.through,
+                        dispatch_uid=f"handle_instance_creation_for_{_field}")

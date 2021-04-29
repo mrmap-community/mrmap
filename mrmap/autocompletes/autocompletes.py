@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from guardian.mixins import LoginRequiredMixin
 from guardian.shortcuts import get_objects_for_user
 
+from acl.models.acl import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from service.helper.enums import MetadataEnum
 from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
@@ -136,3 +137,8 @@ class MonitoringResultAutocomplete(LoginRequiredMixin, autocomplete.Select2Query
 class HealthStateAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = HealthState
     search_fields = ['uuid']
+
+
+class AccessControlListAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = AccessControlList
+    search_fields = ['uuid', 'name']

@@ -10,9 +10,9 @@ def create_acl(name: str, owned_by_org: Organization, permissions, description: 
     acl = AccessControlList.objects.create(name=name,
                                            description=description,
                                            owned_by_org=owned_by_org,
-                                           default_acl=True,
-                                           accessible_organization=owned_by_org)
+                                           default_acl=True)
     acl.permissions.add(*permissions)
+    acl.accessible_organizations.add(owned_by_org)
 
 
 @receiver(post_save, sender=Organization)

@@ -5,17 +5,15 @@ from uuid import uuid4
 from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
 from MrMap.icons import get_icon, IconEnum
-from main.models import CommonInfo
+from main.models import CommonInfo, GenericUriMixin
 
 
-class AccessControlList(Group, CommonInfo):
+class AccessControlList(GenericUriMixin, Group, CommonInfo):
     """
     Access control list model to store group based lists of users with sets of permissions and objects which shall
     be accessible.
     """
-
     uuid = models.UUIDField(primary_key=True,
                             default=uuid4,
                             editable=False)
@@ -24,21 +22,19 @@ class AccessControlList(Group, CommonInfo):
                                    blank=True,
                                    verbose_name=_('Description'),
                                    help_text=_('Describe what this acl shall allow.'))
+    # todo: proof if we could setup limit_choices_to for m2m fields based on user here
     accessible_metadata = models.ManyToManyField(to='service.Metadata',
                                                  blank=True,
                                                  verbose_name=_('Accessible resource'),
                                                  help_text=_('Select which resource shall be accessible with the configured permissions.'))
-    accessible_accesscontrollist = models.ManyToManyField(to='self',
-                                                          blank=True,
-                                                          verbose_name=_('Accessible access control lists'),
-                                                          help_text=_('Select which acl shall be accessible with the configured permissions.'))
-    accessible_organization = models.ForeignKey(to='structure.Organization',
-                                                null=True,
-                                                blank=True,
-                                                editable=False,
-                                                verbose_name=_('Accessible organization'),
-                                                help_text=_('Select which organization shall be accessible with the configured permissions.'),
-                                                on_delete=models.SET_NULL)
+    accessible_accesscontrollists = models.ManyToManyField(to='self',
+                                                           blank=True,
+                                                           verbose_name=_('Accessible access control lists'),
+                                                           help_text=_('Select which acl\'s shall be accessible with the configured permissions.'))
+    accessible_organizations = models.ManyToManyField(to='structure.Organization',
+                                                      blank=True,
+                                                      verbose_name=_('Accessible organizations'),
+                                                      help_text=_('Select which organizations shall be accessible with the configured permissions.'))
 
     default_acl = models.BooleanField(default=False,
                                       editable=False)

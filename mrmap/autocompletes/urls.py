@@ -18,6 +18,8 @@ urlpatterns = [
 
     path('orga/', OrganizationAutocomplete.as_view(), name="organizations"),
 
+    path('acl/', AccessControlListAutocomplete.as_view(), name="accesscontrollists"),
+
     path('rs/', ReferenceSystemAutocomplete.as_view(), name="reference_system"),
     path('ops/', OperationsAutocomplete.as_view(), name="operations"),
     path('users/', UsersAutocomplete.as_view(), name="users"),

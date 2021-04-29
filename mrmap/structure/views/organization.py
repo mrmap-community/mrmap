@@ -1,5 +1,3 @@
-from django.contrib.auth import get_user_model
-from django.db.models import Case, When
 from django.utils.translation import gettext as _
 from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Badge
@@ -12,8 +10,7 @@ from main.buttons import DefaultActionButtons
 from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
 from structure.models import Organization, PublishRequest
-from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationPublishersTable, \
-    OrganizationAccessControlListTable
+from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationPublishersTable
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -47,9 +44,6 @@ class OrganizationTableView(SecuredListMixin, FilterView):
 
 
 class OrganizationDetailView(OrganizationDetailContextMixin, SecuredDetailView):
-    class Meta:
-        verbose_name = _('Details')
-
     model = Organization
     template_name = 'MrMap/detail_views/table_tab.html'
     title = _('Details')
@@ -63,10 +57,8 @@ class OrganizationDetailView(OrganizationDetailContextMixin, SecuredDetailView):
 
 class OrganizationUpdateView(SecuredUpdateView):
     model = Organization
-    template_name = "MrMap/detail_views/generic_form.html"
     form_class = OrganizationChangeForm
     success_message = ORGANIZATION_SUCCESSFULLY_EDITED
-    title = _('Edit organization')
 
 
 class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDetailContextMixin, FilterView):

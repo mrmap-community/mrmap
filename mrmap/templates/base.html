@@ -102,10 +102,7 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarAclsDropdown">
                     <h6 class="dropdown-header">{% trans 'Acls' %}</h6>
-                    <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'acl:accesscontrollist_overview' %}">{% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'acl:accesscontrollist_create' %}" title="{% trans 'New Access Control List' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'acl:accesscontrollist_overview' %}">{% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">

@@ -9,5 +9,4 @@ class UserTableView(LoginRequiredMixin, CustomSingleTableMixin, FilterView):
     model = get_user_model()
     table_class = MrMapUserTable
     filterset_fields = {'username': ['icontains'],
-                        'organization__organization_name': ['icontains'],
                         'groups__name': ['icontains']}

@@ -16,7 +16,6 @@ from django.views.generic import DeleteView, DetailView, UpdateView, CreateView
 from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
-from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from MrMap.icons import IconEnum
 from MrMap.messages import PUBLISH_REQUEST_DENIED, \
@@ -25,13 +24,13 @@ from MrMap.messages import PUBLISH_REQUEST_DENIED, \
     ORGANIZATION_SUCCESSFULLY_EDITED, NO_PERMISSION
 from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from main.views import SecuredDependingListMixin
+from main.views import SecuredDependingListMixin, SecuredCreateView, SecuredDetailView
 from structure.forms import OrganizationChangeForm
 from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PublishRequest
 from django.urls import reverse_lazy
 
-from structure.tables.tables import OrganizationTable, OrganizationDetailTable, \
+from structure.tables.tables import OrganizationDetailTable, \
     OrganizationPublishersTable, PublishesRequestTable, MrMapUserTable
 
 
@@ -55,23 +54,7 @@ class OrganizationDetailContextMixin(ContextMixin):
 
 
 @method_decorator(login_required, name='dispatch')
-class OrganizationTableView(CustomSingleTableMixin, FilterView):
-    model = Organization
-    table_class = OrganizationTable
-    filterset_fields = {'name': ['icontains'],
-                        'parent__organization_name': ['icontains'],
-                        'is_auto_generated': ['exact']}
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        queryset = queryset.order_by(
-            Case(When(id=self.request.user.organization.id if self.request.user.organization is not None else 0, then=0), default=1),
-            'name')
-        return queryset
-
-
-@method_decorator(login_required, name='dispatch')
-class OrganizationNewView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, CreateView):
+class OrganizationCreateView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, SecuredCreateView):
     model = Organization
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New organization')
@@ -87,7 +70,7 @@ class OrganizationNewView(PermissionRequiredMixin, InitFormMixin, GenericViewCon
 
 
 @method_decorator(login_required, name='dispatch')
-class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextMixin, DetailView):
+class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextMixin, SecuredDetailView):
     class Meta:
         verbose_name = _('Details')
 
@@ -228,5 +211,4 @@ class UserTableView(CustomSingleTableMixin, FilterView):
     model = get_user_model()
     table_class = MrMapUserTable
     filterset_fields = {'username': ['icontains'],
-                        'organization__organization_name': ['icontains'],
                         'groups__name': ['icontains']}

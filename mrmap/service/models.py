@@ -804,8 +804,6 @@ class Metadata(UuidPk, CommonInfo, Resource):
             ret_val = self.featuretype
         return ret_val
 
-
-
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
 

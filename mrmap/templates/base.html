@@ -55,15 +55,21 @@
                     <h6 class="dropdown-header">{% trans 'Services' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
+                        {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
+                        {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span class="badge badge-secondary">{{csw_count}}</span></a>
+                        {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Resource request logging' %}</h6>
@@ -74,7 +80,9 @@
                     <h6 class="dropdown-header">{% trans 'Datasets' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %} <span class="badge badge-secondary">{{dataset_count}}</span></a>
+                        {% if "service.add_dataset_metadata" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                 </div>
             </li>
@@ -86,7 +94,9 @@
                     <h6 class="dropdown-header">{% trans 'Runs' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item flex-grow-1" href="{% url 'monitoring:run_overview' %}">{% trans 'Runs' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
+                        {% if "monitoring.add_monitoringrun" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'monitoring:run_new' %}" title="{% trans 'New run' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Results' %}</h6>

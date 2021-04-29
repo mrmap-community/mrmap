@@ -81,10 +81,9 @@ class SecuredCreateView(LoginRequiredMixin, DjangoGenericPermissionRequiredMixin
     def get_success_url(self):
         if not self.success_url:
             try:
-                url = reverse_lazy(f'{self.app_label}:{self.model_name}_view', args=[self.object.pk])
+                url = self.object.get_absolute_url()
             except NoReverseMatch:
                 raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
-
             return url
 
 

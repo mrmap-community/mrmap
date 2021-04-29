@@ -10,6 +10,7 @@ import six
 from django.db.models import Q
 from guardian.shortcuts import get_objects_for_user
 
+from acl.models.acl import AccessControlList
 from main.models import CommonInfo
 from service.models import Metadata
 from django.utils.translation import gettext_lazy as _l
@@ -59,11 +60,25 @@ class MrMapUser(AbstractUser):
     def get_edit_view_url(self):
         return reverse('edit_profile')
 
+    def get_organizations(self):
+        return Organization.objects.prefetch_related('acl_accesscontrollist_owned_by_org',
+                                                     'acl_accesscontrollist_owned_by_org__user_set',
+                                                     'acl_accesscontrollist_owned_by_org__permissions')\
+            .filter(
+                    acl_accesscontrollist_owned_by_org__permissions__codename='view_organization')\
+            .distinct('name')
+
     def get_publishable_organizations(self):
         if self.is_superuser:
             return Organization.objects.all()
         else:
-            return Organization.objects.filter(user_set__in=self)
+            organizations = Organization.objects.\
+                filter(acl_accesscontrollist_owned_by_org__in=AccessControlList.objects.
+                       filter(user=self, permissions__codename='add_resource'))\
+                .prefetch_related('can_publish_for')
+            for org in organizations:
+                organizations |= org.can_publish_for.all()
+            return organizations.distinct('name', 'pk')
 
     def get_instances(self, klass, filter: Q = None, perms: str = None):
         if not perms:

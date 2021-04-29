@@ -31,6 +31,9 @@ class PublishRequestUpdateView(SecuredUpdateView):
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept request')
 
+    def get_success_url(self):
+        return self.object.to_organization.get_absolute_url()
+
 
 class PublishRequestRemoveView(SecuredDeleteView):
     model = PublishRequest

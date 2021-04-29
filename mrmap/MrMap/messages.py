@@ -68,7 +68,7 @@ RESOURCE_NOT_FOUND_OR_NOT_OWNER = _("The requested resource does not exist or yo
 
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 
-PUBLISH_REQUEST_SENT = _("Publish request from <strong>%(group)s</strong> has been sent to the organization <strong>%(organization)s</strong>")
+PUBLISH_REQUEST_SENT = _("Publish request from <strong>%(from_organization)s</strong> has been sent to the organization <strong>%(to_organization)s</strong>")
 PUBLISH_REQUEST_ACCEPTED = _("Publish request has been <strong>accepted</strong>.")
 PUBLISH_REQUEST_DENIED = _("Publish request has been <strong>denied</strong>.")
 PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER = _("Your group already is a publisher for this organization!")

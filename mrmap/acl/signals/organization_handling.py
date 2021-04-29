@@ -2,8 +2,11 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from acl.models.acl import AccessControlList
 from acl.utils import collect_default_permissions
+from service.models import Metadata
 from structure.models import Organization
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 
 
 def create_acl(name: str, owned_by_org: Organization, permissions, description: str = ''):
@@ -34,3 +37,7 @@ def handle_organization_creation(instance, created, **kwargs):
                    description=_('Organization members can view all objects which are owned by the organization it self'),
                    owned_by_org=organization,
                    permissions=member_permissions)
+        create_acl(name=f"{organization.name} resource administrators",
+                   description=_('Resource administrators can perform all actions for all resources which are owned by the organization it self'),
+                   owned_by_org=organization,
+                   permissions=Permission.objects.filter(content_type=ContentType.objects.get_for_model(Metadata)))

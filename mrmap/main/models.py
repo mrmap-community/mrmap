@@ -47,13 +47,13 @@ class CommonInfo(models.Model):
                                         help_text=_('The user who has created this object.'),
                                         editable=False,
                                         blank=True, null=True,
-                                        related_name="%(app_label)s_%(class)s_created",
+                                        related_name="%(app_label)s_%(class)s_created_by_user",
                                         on_delete=models.SET_NULL)
     owned_by_org = models.ForeignKey(settings.GUARDIAN_ROLES_OWNER_MODEL,
                                      verbose_name=_('Owner'),
                                      help_text=_('The organization which is the owner of this object.'),
                                      blank=True, null=True,
-                                     related_name="%(app_label)s_%(class)s_owned",
+                                     related_name="%(app_label)s_%(class)s_owned_by_org",
                                      on_delete=models.SET_NULL)
     last_modified_at = models.DateTimeField(verbose_name=_('Last modified at'),
                                             help_text=_('The timestamp of the last modification of this object'),
@@ -65,7 +65,7 @@ class CommonInfo(models.Model):
                                          help_text=_('The last user who has modified this object.'),
                                          blank=True, null=True,
                                          editable=False,
-                                         related_name="%(app_label)s_%(class)s_lastmodified",
+                                         related_name="%(app_label)s_%(class)s_last_modified_by",
                                          on_delete=models.SET_NULL)
 
     class Meta:

@@ -13,7 +13,8 @@ def collect_default_permissions():
         admin_perms |= Permission.objects.filter(content_type=ContentType.objects.get_for_model(model))
 
         for default_perm in DEFAULT_MEMBER_PERMISSIONS:
-            member_perms.append(f'{model._meta.app_label}.{default_perm}_{model.__name__.lower()}')
+            if not issubclass(model, AccessControlList):
+                member_perms.append(f'{model._meta.app_label}.{default_perm}_{model.__name__.lower()}')
 
     for default_perm in DEFAULT_ORGANIZATION_ADMIN_PERMISSIONS:
         admin_perms |= get_perms_for_perm_list(f'structure.{default_perm}_organization')

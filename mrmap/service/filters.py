@@ -2,22 +2,23 @@ import django_filters
 from dal import autocomplete
 from django import forms
 from django.contrib.auth import get_user_model
-from django_celery_results.models import TaskResult
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata, Layer, FeatureType, ProxyLog
 from django.utils.translation import gettext_lazy as _
+from structure.models import PendingTask
 
 
-class TaskResultFilter(django_filters.FilterSet):
+class PendingTaskFilter(django_filters.FilterSet):
     date_created = django_filters.DateTimeFromToRangeFilter(
         label=_("Date Created:"),
         widget=BootstrapDatePickerRangeWidget(),
         help_text=_("Search in a date range."),
     )
+
     class Meta:
-        model = TaskResult
+        model = PendingTask
         fields = ['task_id', 'status']
 
 

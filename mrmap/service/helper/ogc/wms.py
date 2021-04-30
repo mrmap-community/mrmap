@@ -7,29 +7,21 @@
 """
 import uuid
 from abc import abstractmethod
-
 import time
-
-from threading import Thread
-
-from celery import current_task, states, Task
+from celery import current_task, states
 from celery.result import AsyncResult
 from django.db import transaction, IntegrityError
-from django.utils import timezone
-
 from MrMap.messages import SERVICE_NO_ROOT_LAYER
 from service.settings import PROGRESS_STATUS_AFTER_PARSING, service_logger
-from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
+from MrMap.settings import EXEC_TIME_PRINT, \
     XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap import utils
-from MrMap.utils import execute_threads
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
     MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
-
 from service.helper import xml_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl, RequestOperation
@@ -145,9 +137,16 @@ class OGCWebMapService(OGCWebService):
         )
         operations = cap_request.getchildren()
         for operation in operations:
-            RequestOperation.objects.get_or_create(
-                operation_name=operation.tag,
-            )
+            try:
+                RequestOperation.objects.get_or_create(
+                    operation_name=operation.tag,
+                )
+            except IntegrityError:
+                # get_or_create is not thread-safe
+                # If multiple registering tasks running parallel it is possible that more than one
+                # RequestOperation will be created. So we add a unique constraint on field `operation_name`.
+                # One or more threads will fail here, so we catch the IntegrityError
+                pass
             # Parse formats
             formats = xml_helper.try_get_element_from_xml(
                 "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),

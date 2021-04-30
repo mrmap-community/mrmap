@@ -7,6 +7,8 @@ Created on: 12.08.19
 """
 import base64
 import time
+import uuid
+
 from django.contrib.auth import get_user_model
 import celery.states as states
 from celery import shared_task, current_task
@@ -31,9 +33,9 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict,
-                      user_id: int,
-                      register_for_organization_id: int,
+def async_new_service(created_by_user: str,
+                      owned_by_org: str,
+                      url_dict: dict,
                       external_auth: dict):
     """ Async call of new service creation
 
@@ -41,9 +43,10 @@ def async_new_service(url_dict: dict,
     their ids, since the objects are not easily serializable using json
 
     Args:
+        created_by_user (str): pk of the user which creates this task
+        owned_by_org (str): pk of the organization which shall own this service
         url_dict (dict): Contains basic information about the service like connection uri
-        user_id (int): Id of the performing user
-        register_for_organization_id (int): Id of the organization for which the service is registered
+        external_auth (dict): ExternalAuthentication object as dict
     Returns:
         nothing
     """
@@ -66,11 +69,11 @@ def async_new_service(url_dict: dict,
         )
 
     # restore objects from ids
-    user = get_user_model().objects.get(id=user_id)
+    user = get_user_model().objects.get(id=created_by_user)
     url_dict["service"] = service_helper.resolve_service_enum(url_dict["service"])
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
-    register_for_organization = Organization.objects.get(pk=register_for_organization_id)
+    register_for_organization = Organization.objects.get(pk=owned_by_org)
 
     t_start = time.time()
     service = service_helper.create_service(

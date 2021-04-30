@@ -7,7 +7,7 @@ from django.test import Client, TransactionTestCase, RequestFactory
 from django_celery_results.models import TaskResult
 from django_tables2 import RequestConfig
 
-from service.filters import TaskResultFilter
+from service.filters import PendingTaskFilter
 from service.tables import PendingTaskTable
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -44,7 +44,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
 
     @sync_to_async
     def render_pending_task_table(self, pending_tasks, request):
-        pending_tasks_filterset = TaskResultFilter(data=request.GET, queryset=pending_tasks)
+        pending_tasks_filterset = PendingTaskFilter(data=request.GET, queryset=pending_tasks)
         # render the table only if the filtered qs in not empty
         pending_task_table = PendingTaskTable(data=pending_tasks_filterset.qs)
         pending_task_table.context = Context()

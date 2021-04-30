@@ -1,8 +1,9 @@
 from celery import states
-from django_celery_results.models import TaskResult
+from django.db.models import Q
+from structure.models import PendingTask
 
 
-def get_initial_app_view_model():
-    tasks_count = TaskResult.objects.filter(status__in=[states.STARTED, states.PENDING]).count()
+def get_app_view_model(user):
+    tasks_count = user.get_instances(klass=PendingTask, filter=Q(status__in=[states.STARTED, states.PENDING])).count()
     response = {'pendingTaskCount': tasks_count}
     return response

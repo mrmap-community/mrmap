@@ -1,4 +1,3 @@
-from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, QuerySet, F
@@ -14,6 +13,7 @@ from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
+from django_celery_results.models import TaskResult
 
 
 class Contact(models.Model):
@@ -216,3 +216,8 @@ class PublishRequest(BaseInternalRequest):
                 self.delete()
         else:
             super().save(*args, **kwargs)
+
+
+class PendingTask(CommonInfo, TaskResult):
+    class Meta:
+        ordering = ['-date_done']

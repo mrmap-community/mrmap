@@ -77,8 +77,8 @@ class Keyword(UuidPk):
         ]
 
 
-class RequestOperation(UuidPk):
-    operation_name = models.CharField(max_length=255, null=True, blank=True)
+class RequestOperation(models.Model):
+    operation_name = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     def __str__(self):
         return self.operation_name

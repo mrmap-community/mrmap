@@ -27,7 +27,7 @@ from MrMap.icons import IconEnum, get_icon
 from service.helper.crypto_handler import CryptoHandler
 from structure.models import Organization
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
-from users.settings import default_activation_time, default_request_activation_time
+from users.settings import default_request_activation_time
 
 
 class MrMapUser(AbstractUser):
@@ -80,7 +80,7 @@ class MrMapUser(AbstractUser):
                 organizations |= org.can_publish_for.all()
             return organizations.distinct('name', 'pk')
 
-    def get_instances(self, klass, filter: Q = None, perms: str = None):
+    def get_instances(self, klass, filter: Q = None, perms: str = None, accept_global_perms: bool = False):
         if not perms:
             perms = f'{klass._meta.app_label}.view_{klass._meta.object_name.lower()}'
         if filter:
@@ -89,7 +89,8 @@ class MrMapUser(AbstractUser):
             queryset = klass.objects.all()
         return get_objects_for_user(user=self,
                                     perms=perms,
-                                    klass=queryset)
+                                    klass=queryset,
+                                    accept_global_perms=accept_global_perms)
 
     def create_activation(self):
         """ Create an activation object

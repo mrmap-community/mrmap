@@ -241,55 +241,6 @@ GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
 GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
 
-GUARDIAN_ROLES_DEFAULT_ROLES = [
-    {
-        "name": "organization_administrator",
-        "verbose_name": _("Organization Administrator"),
-        "description": _("Permission role. Holds permissions to administrate organizations."),
-        "permissions": [
-            PermissionEnum.CAN_VIEW_ORGANIZATION,
-            PermissionEnum.CAN_EDIT_ORGANIZATION,
-        ],
-    },
-    {
-        "name": "resource_editor",
-        "verbose_name": _("Resource Editor"),
-        "description": _("Permission role. Holds permissions to edit metadata or activate resources."),
-        "permissions": [
-            PermissionEnum.CAN_VIEW_METADATA,
-            PermissionEnum.CAN_ACTIVATE_RESOURCE,
-            PermissionEnum.CAN_EDIT_METADATA,
-        ],
-    },
-    {
-        "name": "controller",
-        "verbose_name": _("Controller"),
-        "description": _("Permission role. Holds permissions to view proxylogs"
-                         "an API token."),
-        "permissions": [
-            PermissionEnum.CAN_VIEW_PROXY_LOG,
-        ],
-    },
-    {
-        "name": "resource_administrator",
-        "verbose_name": _("Resource Administrator"),
-        "description": _("Permission role. Holds permissions to administrate resources."),
-        "permissions": [
-            PermissionEnum.CAN_VIEW_METADATA,
-            PermissionEnum.CAN_ACTIVATE_RESOURCE,
-            PermissionEnum.CAN_UPDATE_RESOURCE,
-            PermissionEnum.CAN_REGISTER_RESOURCE,
-            PermissionEnum.CAN_REMOVE_RESOURCE,
-            PermissionEnum.CAN_ADD_DATASET_METADATA,
-            PermissionEnum.CAN_REMOVE_DATASET_METADATA,
-            PermissionEnum.CAN_VIEW_MONITORING_RUN,
-            PermissionEnum.CAN_ADD_MONITORING_RUN,
-            PermissionEnum.CAN_VIEW_MONITORING_RESULT,
-            PermissionEnum.CAN_VIEW_HEALTH_STATE,
-        ],
-    },
-]
-
 ################################################################
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases

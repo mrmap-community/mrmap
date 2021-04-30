@@ -31,5 +31,5 @@ admin.site.register(PublishRequest, PublishRequestAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(OrganizationPublishRelation)
-
+admin.site.register(PendingTask)
 admin.site.register(Permission, PermissionAdmin)

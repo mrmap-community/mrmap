@@ -1,5 +1,4 @@
 import json
-
 import django_tables2 as tables
 from celery import states
 from django.template import Template, Context
@@ -8,20 +7,17 @@ from django.utils.html import format_html
 from django_bootstrap_swt.components import Link, Tag, Badge, Accordion
 from django_bootstrap_swt.enums import ProgressColorEnum
 from django_bootstrap_swt.utils import RenderHelper
-from django_celery_results.models import TaskResult
-
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum, get_all_icons, get_icon
 from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
-
 from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
-from csw.models import HarvestResult
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
 from service.settings import service_logger
+from structure.models import PendingTask
 from structure.template_codes import PENDING_TASK_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
@@ -44,17 +40,20 @@ class PendingTaskTable(tables.Table):
     bs4helper = None
     status = tables.Column(verbose_name=_('Status'),
                            attrs={"th": {"class": "col-sm-1"}})
+    created_by_user = tables.Column(attrs={"th": {"class": "col-sm-1"}})
     type = tables.Column(verbose_name=_('Type'),
                          accessor='task_name',
-                         attrs={"th": {"class": "col-sm-2"}})
+                         attrs={"th": {"class": "col-sm-1"}})
     phase = tables.Column(verbose_name=_('Phase'),
                           accessor='result',
                           attrs={"th": {"class": "col-sm-3"}},
                           empty_values=[])
     date_created = tables.Column(verbose_name=_('Date Created:'),
-                          accessor='date_created',
-                          attrs={"th": {"class": "col-sm-2"}},
-                          empty_values=[])
+                                 attrs={"th": {"class": "col-sm-1"}},
+                                 empty_values=[])
+    date_done = tables.Column(verbose_name=_('Date Done:'),
+                              attrs={"th": {"class": "col-sm-1"}},
+                              empty_values=[])
     progress = tables.Column(verbose_name=_('Progress'),
                              accessor='result',
                              attrs={"th": {"class": "col-sm-3"}},
@@ -66,8 +65,8 @@ class PendingTaskTable(tables.Table):
                                     attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     class Meta:
-        model = TaskResult
-        fields = ('status', 'task_id', 'type', 'phase', 'date_created', 'progress', 'actions')
+        model = PendingTask
+        fields = ('status', 'created_by_user', 'task_id', 'type', 'phase', 'date_created', 'date_done', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False

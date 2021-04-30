@@ -12,14 +12,14 @@ TOAST = """
         <svg class=" rounded mr-2" width="20" height="20" xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMidYMid slice" focusable="false" role="img">
             <rect fill="#007aff" width="100%" height="100%" /></svg>
-        <strong class="mr-auto">{{title}}</strong>
+        <strong class="mr-auto">{{title|safe}}</strong>
         <small class="ml-1 text-muted">{{ timestamp|date:"r" }}</small>
         <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
             <span aria-hidden="true">&times;</span>
         </button>
     </div>
     <div class="toast-body">
-        {{body}}
+        {{body|safe}}
     </div>
 </div>
 """

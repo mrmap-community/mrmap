@@ -35,7 +35,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, PendingTaskFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import update_helper
 from service.helper import service_helper
@@ -51,6 +51,7 @@ from service.tasks import async_log_response
 from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
+from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from django.urls import reverse, reverse_lazy
 from users.models import Subscription
@@ -76,15 +77,11 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
 
 
 class PendingTaskView(SecuredListMixin, FilterView):
-    model = TaskResult
+    model = PendingTask
     table_class = PendingTaskTable
-    filterset_class = TaskResultFilter
+    filterset_class = PendingTaskFilter
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
     template_name = 'service/views/pending_tasks.html'
-
-    def get_queryset(self):
-        qs = super(PendingTaskView, self).get_queryset()
-        return qs
 
 
 class WmsIndexView(SecuredListMixin, FilterView):

@@ -295,7 +295,6 @@ class OGCWebService:
 
     @abstractmethod
     def create_service_model_instance(self,
-                                      user,
                                       register_for_organization: Organization,
                                       external_auth: ExternalAuthentication,
                                       is_update_candidate_for: Service):

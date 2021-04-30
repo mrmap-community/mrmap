@@ -159,7 +159,7 @@ def generate_name(srs_list: list=[]):
 
 
 
-def create_service(service_type, version, base_uri, user, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
+def create_service(service_type, version, base_uri, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -199,7 +199,6 @@ def create_service(service_type, version, base_uri, user, register_for_organizat
 
     with transaction.atomic():
         service = service.create_service_model_instance(
-            user,
             register_for_organization,
             external_auth,
             is_update_candidate_for
@@ -256,10 +255,11 @@ def create_new_service(form, user):
         "request": form.cleaned_data["ogc_request"],
     }
 
-    return tasks.async_new_service.apply_async((user.pk,
-                                                form.cleaned_data['registering_for_organization'].pk,
+    return tasks.async_new_service.apply_async((form.cleaned_data['registering_for_organization'].pk,
                                                 uri_dict,
-                                                external_auth), countdown=settings.CELERY_DEFAULT_COUNTDOWN)
+                                                external_auth),
+                                               kwargs={'created_by_user_pk': user.pk},
+                                               countdown=settings.CELERY_DEFAULT_COUNTDOWN)
 
 
 def get_resource_capabilities(request: HttpRequest, md: Metadata):

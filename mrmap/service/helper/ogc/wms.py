@@ -699,14 +699,12 @@ class OGCWebMapService(OGCWebService):
 
     @transaction.atomic
     def create_service_model_instance(self,
-                                      user,
                                       register_for_organization: Organization,
                                       external_auth: ExternalAuthentication = None,
                                       is_update_candidate_for: Service = None):
         """ Persists the web map service and all of its related content and data
 
         Args:
-            user (MrMapUser): The action performing user
             register_for_organization (Organization): The organization for which the service shall be registered
             external_auth (ExternalAuthentication): An external authentication object holding information
         Returns:
@@ -727,13 +725,13 @@ class OGCWebMapService(OGCWebService):
         contact = self._create_organization_contact_record()
 
         # Metadata
-        metadata = self._create_metadata_record(user, contact, register_for_organization)
+        metadata = self._create_metadata_record(contact, register_for_organization)
 
         # Process external authentication
         self._process_external_authentication(metadata, external_auth)
 
         # Service
-        service = self._create_service_record(user, register_for_organization, metadata, is_update_candidate_for)
+        service = self._create_service_record(register_for_organization, metadata, is_update_candidate_for)
 
         # Additionals (keywords, mimetypes, ...)
         self._create_additional_records(service, metadata)
@@ -744,7 +742,6 @@ class OGCWebMapService(OGCWebService):
             root_layer = self.layers[0]
             root_layer.create_layer_record(
                 parent_service=service,
-                user=user,
                 register_for_organization=register_for_organization,
                 parent=None,
                 epsg_api=self.epsg_api
@@ -773,7 +770,7 @@ class OGCWebMapService(OGCWebService):
         )
         return contact
 
-    def _create_metadata_record(self, user, contact: Organization, register_for_organization: Organization):
+    def _create_metadata_record(self, contact: Organization, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCWebMapService
 
         Args:
@@ -801,12 +798,11 @@ class OGCWebMapService(OGCWebService):
         metadata.contact = contact
 
         # Save metadata instance to be able to add M2M entities
-        metadata.save(user=user, owner=register_for_organization)
+        metadata.save(owner=register_for_organization)
 
         return metadata
 
     def _create_service_record(self,
-                               user,
                                orga_published_for: Organization,
                                metadata: Metadata,
                                is_update_candidate_for: Service):
@@ -849,7 +845,7 @@ class OGCWebMapService(OGCWebService):
         service.is_root = True
         service.is_update_candidate_for = is_update_candidate_for
 
-        service.save(user=user, owner=orga_published_for)
+        service.save(owner=orga_published_for)
 
         # Persist capabilities document
         service.persist_original_capabilities_doc(self.service_capabilities_xml)

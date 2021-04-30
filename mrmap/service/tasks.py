@@ -7,9 +7,6 @@ Created on: 12.08.19
 """
 import base64
 import time
-import uuid
-
-from django.contrib.auth import get_user_model
 import celery.states as states
 from celery import shared_task, current_task
 from MrMap.settings import EXEC_TIME_PRINT
@@ -17,6 +14,14 @@ from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
 from service.helper import service_helper
+from crum import set_current_user
+from django.contrib.auth import get_user_model
+
+
+def default_task_handler(**kwargs):
+    if 'created_by_user_pk' in kwargs:
+        user = get_user_model().objects.get(id=kwargs['created_by_user_pk'])
+        set_current_user(user)
 
 
 @shared_task(name="async_increase_hits")
@@ -33,23 +38,23 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(created_by_user: str,
-                      owned_by_org: str,
+def async_new_service(owned_by_org: str,
                       url_dict: dict,
-                      external_auth: dict):
+                      external_auth: dict,
+                      **kwargs):
     """ Async call of new service creation
 
     Since redis is used as broker, the objects can not be passed directly into the function. They have to be resolved using
     their ids, since the objects are not easily serializable using json
 
     Args:
-        created_by_user (str): pk of the user which creates this task
         owned_by_org (str): pk of the organization which shall own this service
         url_dict (dict): Contains basic information about the service like connection uri
         external_auth (dict): ExternalAuthentication object as dict
     Returns:
         nothing
     """
+    default_task_handler(**kwargs)
     if current_task:
         current_task.update_state(
             state=states.STARTED,
@@ -69,7 +74,6 @@ def async_new_service(created_by_user: str,
         )
 
     # restore objects from ids
-    user = get_user_model().objects.get(id=created_by_user)
     url_dict["service"] = service_helper.resolve_service_enum(url_dict["service"])
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
@@ -80,7 +84,6 @@ def async_new_service(created_by_user: str,
         url_dict.get("service"),
         url_dict.get("version"),
         url_dict.get("base_uri"),
-        user,
         register_for_organization,
         external_auth=external_auth
     )

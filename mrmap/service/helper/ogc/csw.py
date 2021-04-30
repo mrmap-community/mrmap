@@ -71,14 +71,12 @@ class OGCCatalogueService(OGCWebService):
         return contact
 
     def create_service_model_instance(self,
-                                      user,
                                       register_for_organization,
                                       external_auth,
                                       is_update_candidate_for):
         """ Map all data from the OGCCatalogueService class to their database models
 
         Args:
-            user (MrMapUser): The user which performs the action
             register_for_organization (Organization): The organization for which this service is being registered
             external_auth (ExternalAuthentication): The external authentication object
         Returns:
@@ -111,7 +109,7 @@ class OGCCatalogueService(OGCWebService):
             md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
-        md.save(user=user, owner=register_for_organization)
+        md.save(owner=register_for_organization)
         md.identifier = str(md.id) if md.identifier is None else md.identifier
 
         # Keywords
@@ -124,11 +122,11 @@ class OGCCatalogueService(OGCWebService):
         md.formats.add(*self.formats_list)
         md.save()
 
-        service = self._create_service_record(user, register_for_organization, md, is_update_candidate_for)
+        service = self._create_service_record(register_for_organization, md, is_update_candidate_for)
 
         return service
 
-    def _create_service_record(self, user, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
+    def _create_service_record(self, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
@@ -151,7 +149,7 @@ class OGCCatalogueService(OGCWebService):
         service.is_update_candidate_for = is_update_candidate_for
 
         # Save record to enable M2M relations
-        service.save(user=user, owner=orga_published_for)
+        service.save(owner=orga_published_for)
 
         operation_urls = []
         for operation, parsed_operation_url, method in self.operation_urls:

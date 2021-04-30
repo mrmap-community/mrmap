@@ -71,7 +71,6 @@ class OGCLayer:
 
     def create_layer_record(self,
                             parent_service: Service,
-                            user,
                             epsg_api: EpsgApi,
                             register_for_organization: Organization,
                             parent: Layer=None):
@@ -80,20 +79,18 @@ class OGCLayer:
         Args:
             parent_service (Service): The root or parent service which holds all these layers
             group (Organization): The group that started the registration process
-            user (MrMapUser): The performing user
             epsg_api (EpsgApi): A EpsgApi object
             parent (Layer): The parent layer object to this layer
         Returns:
             nothing
         """
         # Metadata
-        metadata = self._create_metadata_record(parent_service, user, register_for_organization)
+        metadata = self._create_metadata_record(parent_service, register_for_organization)
 
         # Layer
         layer = self._create_layer_record(
             metadata,
             parent_service,
-            user,
             register_for_organization,
             parent
         )
@@ -102,7 +99,6 @@ class OGCLayer:
         self._create_additional_records(
             metadata,
             layer,
-            user,
             register_for_organization,
             epsg_api
         )
@@ -116,12 +112,11 @@ class OGCLayer:
             child.create_layer_record(
                 parent_service=parent_service,
                 parent=layer,
-                user=user,
                 register_for_organization=register_for_organization,
                 epsg_api=epsg_api
             )
 
-    def _create_metadata_record(self, parent_service: Service, user, register_for_organization: Organization):
+    def _create_metadata_record(self, parent_service: Service, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCLayer object
 
         Args:
@@ -144,7 +139,7 @@ class OGCLayer:
         metadata.is_active = False
 
         # Save metadata to use id afterwards
-        metadata.save(user=user, owner=register_for_organization)
+        metadata.save(owner=register_for_organization)
 
         # create bounding box polygon
         bounding_points = (
@@ -163,7 +158,6 @@ class OGCLayer:
     def _create_layer_record(self,
                              metadata: Metadata,
                              parent_service: Service,
-                             user,
                              register_for_organization: Organization,
                              parent: Layer):
         """ Creates a Layer record from the OGCLayer object
@@ -192,7 +186,7 @@ class OGCLayer:
         layer.parent_service = parent_service
 
         # Save model so M2M relations can be used
-        layer.save(user=user, owner=register_for_organization)
+        layer.save(owner=register_for_organization)
 
         operation_urls = []
 
@@ -229,7 +223,6 @@ class OGCLayer:
     def _create_additional_records(self,
                                    metadata: Metadata,
                                    layer: Layer,
-                                   user,
                                    register_for_organization: Organization,
                                    epsg_api: EpsgApi):
         """ Creates additional records such as Keywords, ReferenceSystems, Dimensions, ...
@@ -256,7 +249,7 @@ class OGCLayer:
             metadata.reference_system.add(ref_sys)
 
         for iso_md in self.iso_metadata:
-            iso_md = iso_md.to_db_model(user=user, created_by=register_for_organization)
+            iso_md = iso_md.to_db_model(created_by=register_for_organization)
             metadata.add_metadata_relation(to_metadata=iso_md,
                                            relation_type=MetadataRelationEnum.DESCRIBES.value,
                                            origin=iso_md.origin)

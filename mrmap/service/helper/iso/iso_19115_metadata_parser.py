@@ -553,7 +553,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self, type=MetadataEnum.DATASET.value, user = None, created_by: Organization = None):
+    def to_db_model(self, type=MetadataEnum.DATASET.value, created_by: Organization = None):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -589,8 +589,8 @@ class ISOMetadata:
                 metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
 
             metadata = self._fill_metadata_db_model(metadata)
-            metadata.save(user=user, publish_for=created_by)
-            metadata.dataset.save(user=user, publish_for=created_by)
+            metadata.save(publish_for=created_by)
+            metadata.dataset.save(publish_for=created_by)
 
             orig_document = Document.objects.get_or_create(
                 metadata=metadata,

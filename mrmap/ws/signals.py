@@ -10,6 +10,7 @@ from django_celery_results.models import TaskResult
 from django.utils.translation import gettext as _
 from structure.models import PendingTask
 from django.contrib.contenttypes.models import ContentType
+from crum import get_current_user
 
 
 def update_count(channel_layer, instance):
@@ -90,12 +91,11 @@ def task_send_handler(sender=None, headers=None, body=None, **kwargs):
 
     info = headers if 'task' in headers else body
 
-    created_by_user_pk = body[0][0]
-    owned_by_org_pk = body[0][1]
+    owned_by_org_pk = body[0][0]
     try:
         PendingTask.objects.create(task_id=info['id'],
                                    task_name=sender,
-                                   created_by_user_id=created_by_user_pk,
+                                   created_by_user=get_current_user(),
                                    owned_by_org_id=owned_by_org_pk,
                                    meta={
                                        "phase": "Pending..."

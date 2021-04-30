@@ -602,14 +602,12 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     def create_service_model_instance(self,
-                                      user,
                                       register_for_organization: Organization,
                                       external_auth: ExternalAuthentication,
                                       is_update_candidate_for: Service):
         """ Map all data from the WebFeatureService classes to their database models
 
         Args:
-            user (MrMapUser): The user which performs the action
             register_for_organization (Organization): The organization for which this service is being registered
             external_auth (ExternalAuthentication): The external authentication object
         Returns:
@@ -630,19 +628,19 @@ class OGCWebFeatureService(OGCWebService):
         contact = self._create_contact_organization_record()
 
         # Metadata
-        md = self._create_metadata_record(user, contact, register_for_organization)
+        md = self._create_metadata_record(contact, register_for_organization)
 
         # Process external authentication data, if provided
         self._process_external_authentication(md, external_auth)
 
         # Service
-        service = self._create_service_record(user, orga_published_for, md, is_update_candidate_for)
+        service = self._create_service_record(orga_published_for, md, is_update_candidate_for)
 
         # Additional (Keywords, linked metadata, MimeTypes, ...)
         self._create_additional_records(service, md)
 
         # feature types
-        self._create_feature_types(service, user, contact, orga_published_for)
+        self._create_feature_types(service, contact, orga_published_for)
 
         return service
 
@@ -667,7 +665,7 @@ class OGCWebFeatureService(OGCWebService):
         )[0]
         return contact
 
-    def _create_metadata_record(self, user, contact: Organization, owner: Organization):
+    def _create_metadata_record(self, contact: Organization, owner: Organization):
         """ Creates a Metadata record from the OGCWebFeatureService object
 
         Args:
@@ -695,12 +693,11 @@ class OGCWebFeatureService(OGCWebService):
             md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
-        md.save(user=user, owner=owner)
+        md.save(owner=owner)
 
         return md
 
     def _create_service_record(self,
-                               user,
                                orga_published_for: Organization,
                                md: Metadata,
                                is_update_candidate_for: Service):
@@ -726,7 +723,7 @@ class OGCWebFeatureService(OGCWebService):
         service.is_update_candidate_for = is_update_candidate_for
 
         # Save record to enable M2M relations
-        service.save(user=user, owner=orga_published_for)
+        service.save(owner=orga_published_for)
 
         operation_urls = []
 
@@ -777,7 +774,7 @@ class OGCWebFeatureService(OGCWebService):
         for mime_type in self.service_mime_type_list:
             md.formats.add(mime_type)
 
-    def _create_feature_types(self, service: Service, user, contact: Contact, owner: Organization):
+    def _create_feature_types(self, service: Service, contact: Contact, owner: Organization):
         """ Iterates over parsed feature types and creates DB records for each
 
         Args:
@@ -802,9 +799,9 @@ class OGCWebFeatureService(OGCWebService):
 
             f_t.parent_service = service
             md = f_t.metadata
-            md.save(user=user, owner=owner)
+            md.save(owner=owner)
             f_t.metadata = md
-            f_t.save(user=user, owner=owner)
+            f_t.save(owner=owner)
 
             # persist featuretype keywords through metadata
             for kw in f_t.metadata.keywords_list:
@@ -812,7 +809,7 @@ class OGCWebFeatureService(OGCWebService):
 
             # dataset_md of feature types
             for dataset_md in f_t.dataset_md_list:
-                dataset_record = dataset_md.to_db_model(user=user, created_by=owner)
+                dataset_record = dataset_md.to_db_model(created_by=owner)
                 dataset_record.save()
                 f_t.metadata.add_metadata_relation(to_metadata=dataset_record,
                                                    relation_type=MetadataRelationEnum.DESCRIBES.value,

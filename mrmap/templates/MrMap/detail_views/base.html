@@ -15,7 +15,7 @@
         <div class="col">
             {% if object %}
             <h2 class="card-title">{{object.icon|safe}} {{object}}</h2>
-            <h6 class="card-subtitle mb-2 text-muted">{% trans 'created by' %} <a href="{{object.created_by_user.get_absolute_url}}">{{object.created_by_user}}</a></h6>
+            <h6 class="card-subtitle mb-2 text-muted">{% trans 'created by' %} <a href="{{object.created_by_user.get_absolute_url}}">{{object.created_by_user}}</a> {% trans 'on' %} {{object.created_at}}</h6>
             {% endif %}
         </div>
         {% if actions %}

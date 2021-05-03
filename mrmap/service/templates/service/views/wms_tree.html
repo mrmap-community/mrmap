@@ -4,10 +4,12 @@
 {% load guardian_tags %}
 {% block card_body %}
 {% recursetree nodes %}
+
 <div id="id_accordion_{{node.pk}}">
   <div class="card">
     <div class="card-header" id="id_accordion_header_{{node.pk}}">
       {% with object=node.metadata %}
+      {% get_obj_perms request.user for object as "perms" %}
       <div class="row">
     <div class="col-7 col-md text-left">
       <h5 class="mb-0">
@@ -56,7 +58,6 @@
       </a>
       {% endif %}
     </div>
-    {% get_obj_perms request.user for object as "perms" %}
     <div class="col-7 col-md text-left text-md-right">
       <div class="d-inline-flex">
         {% if "activate_resource" in perms %}
@@ -74,7 +75,7 @@
           {{ ICONS.ACCESS|safe }}
         </a>
         {% endif %}
-        {% if object.is_custom and change_metadata in perms %}
+        {% if object.is_custom and "change_metadata" in perms %}
         <a class="btn btn-sm btn-danger mr-1" href="{{object.restore_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Restore the metadata of this resource' %}">
           {{ ICONS.RESTORE|safe }}
         </a>

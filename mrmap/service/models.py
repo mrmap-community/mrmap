@@ -318,6 +318,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             ("add_resource", "Can add new resources"),
             ("delete_resource", "Can delete resources"),
             ("secure_resource", "Can secure resources"),
+            ("add_monitoringrun", "Can run monitoring for this resource"),
         ]
 
     def __init__(self, *args, **kwargs):

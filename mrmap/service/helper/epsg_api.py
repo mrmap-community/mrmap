@@ -86,10 +86,7 @@ class EpsgApi:
         if type == "projected":
             cartes_elem = xml_helper.try_get_single_element_from_xml("//gml:cartesianCS", response)
             second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=cartes_elem)
-        elif type == "geographic 2D":
-            geogr_elem = xml_helper.try_get_single_element_from_xml("//gml:ellipsoidalCS", response)
-            second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=geogr_elem)
-        elif type == "geographic 2d":
+        elif type in ["geographic 2D", "geographic 2d"]:
             geogr_elem = xml_helper.try_get_single_element_from_xml("//gml:ellipsoidalCS", response)
             second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=geogr_elem)
         else:

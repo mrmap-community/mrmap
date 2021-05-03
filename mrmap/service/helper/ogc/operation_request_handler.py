@@ -1537,7 +1537,6 @@ class OGCOperationRequestHandler:
                                               allowed_groups__id__in=self.user_groups.values_list('id'),
                                               operations__operation__iexact=self.request_param)
         allowed_area_is_empty = Q(allowed_area=None)
-        full_query = None
         if self.bbox_param is not None:
             allowed_area_covers_bbox = Q(allowed_area__covers=self.bbox_param['geom'])
             allowed_area_intersects_bbox = Q(allowed_area__intersects=self.bbox_param['geom'])

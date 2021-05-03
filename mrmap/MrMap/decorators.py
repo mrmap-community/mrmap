@@ -38,7 +38,7 @@ def log_proxy(function):
         if request.method.lower() == "post":
             post_body = request.POST.dict()
         elif request.method.lower() == "get":
-            uri += "?" + request.environ.get("QUERY_STRING")
+            uri += "?" + request.META.get("QUERY_STRING")
         post_body = json.dumps(post_body)
 
         proxy_log = None

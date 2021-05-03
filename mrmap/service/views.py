@@ -838,7 +838,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
          A redirect to the GetMap uri
     """
     # get request type and requested layer
-    get_query_string = request.environ.get("QUERY_STRING", "")
+    get_query_string = request.META.get("QUERY_STRING", "")
 
     try:
         # redirects request to parent service, if the given id is not the root of the service
@@ -910,8 +910,8 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
     except ReadTimeout:
         return HttpResponse(status=408, content=CONNECTION_TIMEOUT.format(request.build_absolute_uri()))
-    except Exception as e:
-        return HttpResponse(status=500, content=e)
+    #except Exception as e:
+    #    return HttpResponse(status=500, content=e)
 
 
 def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):

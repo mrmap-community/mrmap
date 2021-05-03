@@ -3,6 +3,7 @@ Author: Michel Peltriaux
 Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 29.04.19
+Changed on: 02.05.2021 - adoptions for the new epsg-registry api since october 2020
 
 """
 import json
@@ -17,7 +18,8 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum
 
 class EpsgApi:
     def __init__(self):
-        self.registry_uri = "http://www.epsg-registry.org/export.htm?gml="
+        self.registry_uri = "https://apps.epsg.org/api/v1/CoordRefSystem/{CRS_IDENTIFIER}/export/?format=gml"
+
         self.id_prefix = "urn:ogc:def:crs:EPSG::"
 
         # Cacher
@@ -74,22 +76,25 @@ class EpsgApi:
             return axis_order
 
         XML_NAMESPACES["gml"] = "http://www.opengis.net/gml/3.2"
-
-        uri = self.registry_uri + self.id_prefix + str(id)
-        response = requests.request("Get", url=uri, proxies=PROXIES)
+        XML_NAMESPACES["epsg"] = "urn:x-ogp:spec:schema-xsd:EPSG:2.2:dataset"
+        uri = self.registry_uri.replace("{CRS_IDENTIFIER}", str(id))
+        # change header
+        headers = {'Accept': 'application/xml'}
+        response = requests.request("Get", url=uri, proxies=PROXIES, headers=headers)
         response = xml_helper.parse_xml(str(response.content.decode()))
         type = xml_helper.try_get_text_from_xml_element(xml_elem=response, elem="//epsg:type")
         if type == "projected":
             cartes_elem = xml_helper.try_get_single_element_from_xml("//gml:cartesianCS", response)
             second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=cartes_elem)
-        elif type == "geographic 2D":
+        elif type in ["geographic 2D", "geographic 2d"]:
             geogr_elem = xml_helper.try_get_single_element_from_xml("//gml:ellipsoidalCS", response)
             second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=geogr_elem)
         else:
             second_level_srs_uri = ""
 
-        uri = self.registry_uri + second_level_srs_uri
-        response = requests.request("Get", url=uri, proxies=PROXIES)
+        uri = second_level_srs_uri
+        headers = {'Accept': 'application/xml'}
+        response = requests.request("Get", url=uri, proxies=PROXIES, headers=headers)
         response = xml_helper.parse_xml(str(response.content.decode()))
         axis = xml_helper.try_get_element_from_xml("//gml:axisDirection", response)
         order = []

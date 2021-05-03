@@ -70,7 +70,7 @@ class MetadataEditorForm(ModelForm):
             "language_code": _("Edit the language which the metadata is represented."),
             "access_constraints": _("Edit the access constraints."),
             "licence": Licence.get_descriptions_help_text(),
-            "keywords": _(""),  # Since keywords are handled differently, this can be empty
+            "keywords": "",  # Since keywords are handled differently, this can be empty
             "categories": _("Select categories for this resource."),
         }
         widgets = {

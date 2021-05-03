@@ -103,9 +103,9 @@ class WmsIndexView(SecuredListMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'harvest_results', 'collected_harvest_records',)
+            table.exclude = ('layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
         else:
-            table.exclude = ('parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records',)
+            table.exclude = ('parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -122,7 +122,7 @@ class WfsIndexView(SecuredListMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records',)
+        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records','harvest_duration')
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
@@ -140,7 +140,7 @@ class CswIndexView(SecuredListMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(CswIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'featuretypes', 'health', 'service__published_for')
+        table.exclude = ('parent_service', 'layers', 'featuretypes', 'service__published_for')
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -744,7 +744,8 @@ class ResourceTreeView(SecuredDetailView):
     available_resources = Q(metadata_type='layer') | \
                           Q(metadata_type='featureType') | \
                           Q(service__service_type__name='wms') | \
-                          Q(service__service_type__name='wfs') & \
+                          Q(service__service_type__name='wfs') | \
+                          Q(service__service_type__name='csw') & \
                           Q(service__is_update_candidate_for=None)
     queryset = Metadata.objects. \
         select_related('service', 'service__service_type', 'featuretype', 'owned_by_org'). \
@@ -773,6 +774,9 @@ class ResourceTreeView(SecuredDetailView):
             self.template_name = 'service/views/wms_tree.html'
             context.update({'nodes': sub_elements,
                             'root_node': self.object.service})
+        elif self.object.is_service_type(enum=OGCServiceEnum.CSW):
+            self.template_name = 'service/views/csw.html'
+            pass
         return context
 
 

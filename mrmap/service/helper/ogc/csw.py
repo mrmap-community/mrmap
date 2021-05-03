@@ -15,6 +15,7 @@ from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
 from service.settings import PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
+from csw.settings import csw_logger
 
 
 class OGCCatalogueService(OGCWebService):
@@ -187,6 +188,8 @@ class OGCCatalogueService(OGCWebService):
             xml_elem=service_xml,
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
+        if not self.service_identification_title:
+            self.service_identification_title = "no title given for this csw"
         if current_task:
             current_task.update_state(
                 state=states.STARTED,
@@ -341,12 +344,27 @@ class OGCCatalogueService(OGCWebService):
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
                 operation
             )
-            get_uri = xml_helper.get_href_attribute(get_uri) if get_uri is not None else None
+            csw_logger.error("Type of returned object of get_uri: {}".format(type(get_uri)))
 
-            post_uri = xml_helper.try_get_single_element_from_xml(
+            get_uri = xml_helper.get_href_attribute(get_uri) if get_uri is not None else None
+            post_uris = xml_helper.try_get_element_from_xml(
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
                 operation
             )
+            number_of_post_endpoints = post_uris.__len__()
+            if (number_of_post_endpoints > 1):
+                post_uri = xml_helper.try_get_single_element_from_xml(
+                    ".//*[local-name()='Post'][.//ows:Constraint/ows:Value='XML']",
+                    operation
+                )
+            else:
+                post_uri = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    operation
+                )
+            csw_logger.error("Number of Entries of Post endpoints: {} for operation {}".format(number_of_post_endpoints,
+                                                                                             operation_name))
+            csw_logger.error("Type of returned object of post_uri: {}".format(type(post_uri)))
             post_uri = xml_helper.get_href_attribute(post_uri) if post_uri is not None else None
 
             if attribute_map.get(operation_name):
@@ -391,3 +409,30 @@ class OGCCatalogueService(OGCWebService):
             parameter_map[param_name] = param_val
 
         return parameter_map
+
+
+class CswClient():
+
+    '''
+
+    TODO: Do something as it is already available in:
+    https://git.osgeo.org/gitea/GDI-RP/Mapbender2.8/src/branch/master/http/classes/class_cswClient.php
+
+    '''
+
+    def __init__(self):
+        version = "2.0.2"
+        operation_list = {
+            "getcapabilities": "",
+            "counthits": "",
+            "getrecords": "",
+            "getrecordspaging": "",
+            "getrecordsresolvecoupling": "",
+            "getrecordbyid": "",
+            "transactioninsert": "",
+            "transactionupdate": "",
+        }
+        pass
+    '''
+    
+    '''

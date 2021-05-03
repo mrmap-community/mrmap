@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import CreateView
 
 from MrMap.messages import HARVEST_RUN_SCHEDULED, NO_PERMISSION
@@ -26,7 +27,7 @@ from csw.utils.request_resolver import RequestResolver
 from service.helper.ogc.ows import OWSException
 from structure.permissionEnums import PermissionEnum
 
-
+@csrf_exempt
 @cache_page(CSW_CACHE_TIME, key_prefix=CSW_CACHE_PREFIX)
 def get_csw_results(request: HttpRequest):
     """ Wraps incoming csw request

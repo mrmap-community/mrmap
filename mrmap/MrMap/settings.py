@@ -421,6 +421,7 @@ XML_NAMESPACES = {
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
     "fes": "http://www.opengis.net/fes/2.0",
+    "csw": "http://www.opengis.net/cat/csw/2.0.2",
 }
 
 # Defines a generic template for xml element fetching without caring about the correct namespace

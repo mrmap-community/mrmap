@@ -20,6 +20,10 @@ class HarvestResult(models.Model):
     number_results = models.IntegerField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True, null=True)
 
+    class Meta:
+        ordering = ['-created']
+
+
     def __str__(self):
         return "Harvest Result ({})".format(self.metadata.title)
 

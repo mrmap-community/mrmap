@@ -172,7 +172,7 @@ class StructureEditOrganizationViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            reverse('structure:organization_edit', args=[self..orgas[0], ]),
+            reverse('structure:organization_edit', args=[self.orgas[0], ]),
             data=params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )

@@ -7,7 +7,7 @@ Created on: 22.04.20
 """
 from django.test import TestCase, RequestFactory
 
-from MrMap.consts import STRUCTURE_INDEX_GROUP, STRUCTURE_INDEX_ORGANIZATION
+from MrMap.consts import STRUCTURE_INDEX_ORGANIZATION
 from structure.models import Organization
 from structure.tables import OrganizationTable
 from tests import utils

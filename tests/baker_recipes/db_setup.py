@@ -7,7 +7,8 @@ from model_bakery import baker, seq
 
 from monitoring.models import MonitoringRun
 from monitoring.settings import WARNING_RESPONSE_TIME
-from structure.models import MrMapUser, Organization
+from structure.models import Organization
+from users.models import MrMapUser
 from service.models import OGCOperation
 from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.models import Service, Metadata

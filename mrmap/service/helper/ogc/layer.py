@@ -137,9 +137,10 @@ class OGCLayer:
         metadata.contact = parent_service.metadata.contact
         metadata.access_constraints = parent_service.metadata.access_constraints
         metadata.is_active = False
+        metadata.owned_by_org = register_for_organization
 
         # Save metadata to use id afterwards
-        metadata.save(owner=register_for_organization)
+        metadata.save()
 
         # create bounding box polygon
         bounding_points = (
@@ -184,9 +185,10 @@ class OGCLayer:
         layer.scale_max = self.capability_scale_hint.get("max")
         layer.bbox_lat_lon = metadata.bounding_geometry
         layer.parent_service = parent_service
+        layer.owned_by_org = register_for_organization
 
         # Save model so M2M relations can be used
-        layer.save(owner=register_for_organization)
+        layer.save()
 
         operation_urls = []
 

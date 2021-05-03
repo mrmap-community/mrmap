@@ -24,6 +24,7 @@ from csw.models import HarvestResult
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
 from csw.utils.parameter import ParameterResolver
 from csw.utils.request_resolver import RequestResolver
+from main.views import SecuredCreateView
 from service.helper.ogc.ows import OWSException
 from structure.permissionEnums import PermissionEnum
 
@@ -51,14 +52,9 @@ def get_csw_results(request: HttpRequest):
     return HttpResponse(content, content_type=content_type)
 
 
-class HarvestRunNewView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class HarvestRunNewView(SecuredCreateView):
     model = HarvestResult
     form_class = HarvestRunForm
-    template_name = 'MrMap/detail_views/generic_form.html'
-    title = _('New harvest run')
     success_message = HARVEST_RUN_SCHEDULED
-    permission_required = PermissionEnum.CAN_HARVEST.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
     success_url = reverse_lazy('resource:pending-tasks')
 

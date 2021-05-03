@@ -1,21 +1,14 @@
-from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy, reverse
-from django.utils.decorators import method_decorator
+from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.db.models import Q
-from django.views.generic import DeleteView, UpdateView
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
-from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
-
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
-from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, RESOURCE_EDITED, NO_PERMISSION
-from MrMap.views import ConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
+from MrMap.messages import METADATA_RESTORING_SUCCESS, RESOURCE_EDITED
 from editor.filters import AllowedOperationFilter
 from editor.forms import MetadataEditorForm
 from editor.tables import AllowedOperationTable

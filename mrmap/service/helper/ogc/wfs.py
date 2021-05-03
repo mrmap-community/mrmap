@@ -691,9 +691,9 @@ class OGCWebFeatureService(OGCWebService):
         md.capabilities_original_uri = self.service_connect_url
         if self.service_bounding_box is not None:
             md.bounding_geometry = self.service_bounding_box
-
+        md.owned_by_org = owner
         # Save metadata record so we can use M2M or id of record later
-        md.save(owner=owner)
+        md.save()
 
         return md
 
@@ -722,8 +722,10 @@ class OGCWebFeatureService(OGCWebService):
         md.service = service
         service.is_update_candidate_for = is_update_candidate_for
 
+        service.owned_by_org = orga_published_for
+
         # Save record to enable M2M relations
-        service.save(owner=orga_published_for)
+        service.save()
 
         operation_urls = []
 
@@ -799,9 +801,12 @@ class OGCWebFeatureService(OGCWebService):
 
             f_t.parent_service = service
             md = f_t.metadata
-            md.save(owner=owner)
+            md.owned_by_org = owner
+            md.save()
+
             f_t.metadata = md
-            f_t.save(owner=owner)
+            f_t.owned_by_org = owner
+            f_t.save()
 
             # persist featuretype keywords through metadata
             for kw in f_t.metadata.keywords_list:

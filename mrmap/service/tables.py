@@ -160,7 +160,10 @@ class OgcServiceTable(tables.Table):
     harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
     harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], accessor='harvest_results')
     collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
-    actions = tables.TemplateColumn(verbose_name=_('Actions'), empty_values=[], orderable=False, template_code=RESOURCE_TABLE_ACTIONS,
+    actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    template_code=RESOURCE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}})
 
     class Meta:

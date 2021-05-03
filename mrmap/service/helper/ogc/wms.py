@@ -796,9 +796,10 @@ class OGCWebMapService(OGCWebService):
         metadata.identifier = self.service_file_identifier
         metadata.is_active = False
         metadata.contact = contact
+        metadata.owned_by_org = register_for_organization
 
         # Save metadata instance to be able to add M2M entities
-        metadata.save(owner=register_for_organization)
+        metadata.save()
 
         return metadata
 
@@ -844,8 +845,8 @@ class OGCWebMapService(OGCWebService):
         service.metadata = metadata
         service.is_root = True
         service.is_update_candidate_for = is_update_candidate_for
-
-        service.save(owner=orga_published_for)
+        service.owned_by_org = orga_published_for
+        service.save()
 
         # Persist capabilities document
         service.persist_original_capabilities_doc(self.service_capabilities_xml)

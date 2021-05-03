@@ -3,77 +3,41 @@
 {% load bootstrap4 %}
 {% block body %}
 
-<div class="container">
-{% include 'breadcrumb/breadcrumb.html' %}
-<div class="modal hide {% if wizard.form.errors|length > 0  %} animated shake {% endif %} {% if fade_modal %} fade {% endif %}"
-    id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
-    aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
-    <!-- <modal> -->
-    <div class="modal-dialog modal-lg" role="document">
-        <!-- <modal-dialog> -->
-        <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}">
-            <!-- <modal-content> -->
-            <div class="modal-header">
-                <!-- <modal-header> -->
-                <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
-                    <!-- <modal-title> -->
-                    Add Map Context
-                </h5><!-- </modal-title> -->
-                <a role="button" class="close" aria-label="Close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                </a>
-                {% block modal-header %}
-                {% endblock %}
-            </div><!-- </modal-header> -->
+<div class="container-fluid px-5">
+    {% include 'sceletons/breadcrumb.html'%}
 
-            <form id="id_mapcontext_form" action="{{form_mapcontext.action_url}}" method="post">
-                {% csrf_token %}
-                <div class="modal-body">
-                    {% if form_mapcontext.errors %}
-                    {% for field in form_mapcontext %}
-                    {% for error in field.errors %}
-                    <div class="alert alert-danger">
-                        <strong>{{field.name}} {{ error|escape }}</strong>
+    <form id="id_mapcontext_form" action="{{form_mapcontext.action_url}}" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+            {% bootstrap_form form %}
+            <label for="mapcontext_tree">Ebenen und Datenangebote</label>
+            <div id="mapcontext_tree"
+                 style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
+                 class="form-group" data-mapcontext-id="{{ context_id }}">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <!-- <modal-footer> -->
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-sm">
+                        <a href="{% url 'resource:mapcontexts-index' %}" class="btn btn-warning" role="button" aria-pressed="true">
+                            <i class="fas fa-trash"></i> Abbrechen
+                        </a>
                     </div>
-                    {% endfor %}
-                    {% endfor %}
-                    {% for error in form_mapcontext.non_field_errors %}
-                    <div class="alert alert-danger">
-                        <strong>{{ error|escape }}</strong>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-                    {% bootstrap_form form_mapcontext %}
-                    <label for="mapcontext_tree">Ebenen und Datenangebote</label>
-                    <div id="mapcontext_tree"
-                        style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
-                        class="form-group" data-mapcontext-id="{{ context_id }}">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <!-- <modal-footer> -->
-                    <div class="container-fluid">
-                        <div class="row">
-                            <div class="col-sm">
-                                <a href="/home" class="btn btn-warning" role="button" aria-pressed="true">
-                                    <i class="fas fa-trash"></i> Abbrechen
-                                </a>
-                            </div>
-                            <div class="col-sm">
-                                <div class="float-right">
-                                    <button id="id_add_new_dataset_wizard_btn_save" name="wizard_save" value="True"
-                                        type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save"></i> Speichern
-                                    </button>
-                                </div>
-                            </div>
+                    <div class="col-sm">
+                        <div class="float-right">
+                            <button id="id_add_new_dataset_wizard_btn_save" name="wizard_save" value="True"
+                                    type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Speichern
+                            </button>
                         </div>
                     </div>
                 </div>
-            </form>
-        </div><!-- </modal-content> -->
-    </div><!-- </modal-dialog> -->
-</div><!-- </modal> -->
+            </div>
+        </div>
+    </form>
+</div>
 
 <div id="id_modal_owsresource" class="modal hide fade" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -86,9 +50,6 @@
             </div>
             <form>
                 <div class="modal-body">
-                    {% bootstrap_form form %}
-                    {% include 'sceletons/autocomplete_form_media.html' %}
-<!--
                     <div class="form-group">
                         <label for="id_owsresource_name">Name</label>
                         <input type="text" name="name" class="form-control" placeholder="Name" title="" required
@@ -99,7 +60,6 @@
                         <input type="text" name="wms_layer" class="form-control" placeholder="WMS Layer" title=""
                             required id="id_wms_offering">
                     </div>
--->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -114,9 +74,11 @@
     $('#id_modal_{{id_modal}}').modal('show');
 </script>
 
+<link rel="stylesheet" type="text/css" href="{% static '/css/jstree-default/style.min.css' %}" media="all" />
+<link rel="stylesheet" type="text/css" href="{% static '/service/css/folder-style.css' %}" media="all" />
+
 <script type="text/javascript" src="{% static '/js/jstree.min.js' %}"></script>
 <script type="text/javascript" src="{% static '/js/jstree-actions.min.js' %}"></script>
-<script type="text/javascript" src="{% static '/js/draggable_tree.js' %}"></script>
+<script type="text/javascript" src="{% static '/service/js/draggable_tree.js' %}"></script>
 
-</div>
 {% endblock body %}

@@ -1,4 +1,3 @@
-import base64
 import io
 from io import BytesIO
 
@@ -13,12 +12,13 @@ from django.db.models import QuerySet, Q
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
-from django.views import View
+from django.utils.translation import gettext_lazy as _l
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, DetailView, DeleteView, UpdateView
+from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
@@ -26,11 +26,9 @@ from django_bootstrap_swt.utils import RenderHelper
 from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
-from redis import StrictRedis
 from requests.exceptions import ReadTimeout
-from django.utils import timezone
+
 from MrMap.cacher import PreviewImageCacher
-from MrMap.celery import app
 from MrMap.consts import *
 from MrMap.decorators import log_proxy
 from MrMap.forms import get_current_view_args
@@ -39,29 +37,29 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION, GROUP_SUCCESSFULLY_DELETED
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION, GROUP_SUCCESSFULLY_DELETED, MAP_CONTEXT_SUCCESSFULLY_CREATED, \
+    MAP_CONTEXT_SUCCESSFULLY_EDITED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
-from service.helper import update_helper
 from service.helper import service_helper
+from service.helper import update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
+from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
     ProxyLogTable, MapContextTable
 from service.tasks import async_log_response
-from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
-from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 
 
@@ -119,10 +117,10 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
             table.exclude = (
-            'layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
+                'layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
         else:
             table.exclude = (
-            'parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
+                'parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -183,26 +181,6 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(DatasetIndexView, self).get_table(**kwargs)
-        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
-                                     update_url_qs=get_current_view_args(self.request))
-        table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
-        return table
-
-    def get_queryset(self):
-        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.groups.all())
-
-
-# TODO check if more changes are needed
-@method_decorator(login_required, name='dispatch')
-class MapContextIndexView(CustomSingleTableMixin, FilterView):
-    model = Metadata
-    table_class = DatasetTable
-    filterset_class = DatasetFilter
-    title = get_icon(IconEnum.MAP_CONTEXT) + _(' Map Context').__str__()
-
-    def get_table(self, **kwargs):
-        # set some custom attributes for template rendering
-        table = super(MapContextIndexView, self).get_table(**kwargs)
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_dataset_action())]
@@ -1021,37 +999,32 @@ class MapContextIndexView(CustomSingleTableMixin, FilterView):
         return MapContext.objects.all()
 
 
-# TODO
-class MapContextView(View):
+@method_decorator(login_required, name='dispatch')
+class MapContextCreateView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin,
+                           CreateView):
+    model = MapContext
+    form_class = MapContextForm
+    template_name = 'views/map_context_add.html'
+    title = _('New map context')
+    success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
+    success_url = reverse_lazy('resource:mapcontexts-index')
+    permission_required = 'service.add_mapcontext'
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
-    @staticmethod
-    def get(request, context_id=None):
-        form = MapContextForm()
-        if context_id:
-            context = get_object_or_404(MapContext, id=context_id)
-            form = MapContextForm(
-                initial={'title': context.title, 'abstract': context.abstract, 'date_stamp': context.update_date,
-                         'layer_tree': context.layer_tree})
-        return render(request, "views/map_context_add.html", {'form_mapcontext': form, 'form': form})
 
-    @staticmethod
-    def post(request, context_id=None):
-        form = MapContextForm(request.POST)
-        if not form.is_valid():
-            form = MapContextForm()
-            return render(request, "views/map_context_add.html", {'form_mapcontext': form, 'form': form})
-        if context_id:
-            context = get_object_or_404(MapContext, id=context_id)
-            context.title = form.cleaned_data['title']
-            context.abstract = form.cleaned_data['abstract']
-            context.layer_tree = form.cleaned_data['layer_tree']
-            context.save()
-        else:
-            MapContext.objects.create(title=form.cleaned_data['title'],
-                                      abstract=form.cleaned_data['abstract'],
-                                      # language_code=form.cleaned_data['language_code'],
-                                      layer_tree=form.cleaned_data['layer_tree'])
-        return HttpResponseRedirect(reverse("resource:mapcontexts-index"), status=303)
+@method_decorator(login_required, name='dispatch')
+class MapContextEditView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin,
+                         UpdateView):
+    template_name = 'views/map_context_add.html'
+    success_message = MAP_CONTEXT_SUCCESSFULLY_EDITED
+    success_url = reverse_lazy('resource:mapcontexts-index')
+    model = MapContext
+    form_class = MapContextForm
+    title = _('Edit map context')
+    permission_required = 'service.change_mapcontext'
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
 
 @method_decorator(login_required, name='dispatch')

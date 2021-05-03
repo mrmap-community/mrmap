@@ -46,8 +46,8 @@ urlpatterns = [
     path('metadata/<metadata_id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
     # map context urls
-    path('mapcontexts/add/', MapContextView.as_view(), name='mapcontexts-add'),
-    #path('mapcontexts/<pk>/edit', MapContextEditView.as_view(), name='mapcontexts-edit'),
+    path('mapcontexts/add/', MapContextCreateView.as_view(), name='mapcontexts-add'),
+    path('mapcontexts/<pk>/edit', MapContextEditView.as_view(), name='mapcontexts-edit'),
     path('mapcontexts/<pk>/remove', MapContextDeleteView.as_view(), name='mapcontexts-remove'),
 
     # detail view

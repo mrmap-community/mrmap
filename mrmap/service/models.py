@@ -3617,8 +3617,8 @@ class Namespace(models.Model):
 
 # TODO
 class MapContext(Resource):
-    title = models.CharField(max_length=1000, null=False, blank=False)
-    abstract = models.TextField(null=False, blank=False)
+    title = models.CharField(max_length=1000, null=False, blank=False, verbose_name=_('Title'))
+    abstract = models.TextField(null=False, blank=False, verbose_name=_('Abstract'))
     update_date = models.DateTimeField(auto_now_add=True)
     layer_tree = models.TextField(null=False, blank=False)
     # Additional possible parameters:
@@ -3644,7 +3644,7 @@ class MapContext(Resource):
 
     @property
     def edit_view_uri(self):
-        return reverse("resource:mapcontexts-remove", args=[self.pk])
+        return reverse("resource:mapcontexts-edit", args=[self.pk])
 
     @property
     def remove_view_uri(self):

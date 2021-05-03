@@ -65,20 +65,6 @@ class HomeView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         user_groups = self.request.user.groups.all()
-        user_services_wms = Metadata.objects.filter(
-            service__service_type__name="wms",
-            service__is_root=True,
-            created_by__in=user_groups,
-            service__is_deleted=False,
-        ).count()
-        user_services_wfs = Metadata.objects.filter(
-            service__service_type__name="wfs",
-            service__is_root=True,
-            created_by__in=user_groups,
-            service__is_deleted=False,
-        ).count()
-
-        datasets_count = self.request.user.get_datasets_as_qs(count=True)
 
         activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
         group_activities = GroupActivity.objects.filter(group__in=user_groups,
@@ -87,11 +73,6 @@ class HomeView(TemplateView):
         pending_requests = PublishRequest.objects.filter(organization=self.request.user.organization)
         group_invitation_requests = GroupInvitationRequest.objects.filter(user=self.request.user)
         context.update({
-            # TODO check if wms_count, wfs_count and dataset(s)_count can be removed (already added to context by
-            #  context_processors.py)
-            "wms_count": user_services_wms,
-            "wfs_count": user_services_wfs,
-            "datasets_count": datasets_count,
             "publishing_requests": pending_requests,
             "group_invitation_requests": group_invitation_requests,
             "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),

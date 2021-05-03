@@ -6,6 +6,7 @@ from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, Permiss
 from MrMap.views import CustomSingleTableMixin, SuccessMessageDeleteMixin, GenericViewContextMixin, InitFormMixin, \
     ConfirmView, DependingListMixin
 from django.contrib.auth.mixins import PermissionRequiredMixin as DjangoPermissionRequiredMixin
+from django.utils.translation import gettext_lazy as _
 
 
 class GenericPermissionMixin:
@@ -115,6 +116,9 @@ class SecuredUpdateView(LoginRequiredMixin, GenericPermissionRequiredMixin, Gene
     def get_success_url(self):
         if not self.success_url:
             return reverse_lazy(f'{self.app_label}:{self.model_name}_view', args=[self.object.pk])
+
+    def get_title(self):
+        return _("Edit ") + self.get_object().__str__()
 
 
 class SecuredListMixin(LoginRequiredMixin, GenericPermissionListMixin, CustomSingleTableMixin):

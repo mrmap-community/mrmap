@@ -75,7 +75,7 @@ class MetadataEditorForm(ModelForm):
         }
         widgets = {
             "categories": autocomplete.ModelSelect2Multiple(
-                url='editor:category-autocomplete',
+                url='autocompletes:category',
                 attrs={
                     "select2-container-css-style": {
                         "height": "auto",
@@ -83,7 +83,7 @@ class MetadataEditorForm(ModelForm):
                 },
             ),
             'keywords': autocomplete.ModelSelect2Multiple(
-                url='editor:keyword-autocomplete',
+                url='autocompletes:keyword',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -169,7 +169,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
     additional_related_objects = MetadataModelMultipleChoiceField(
         queryset=Metadata.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:metadata-autocomplete',
+            url='autocompletes:metadata',
 
         ),
         required=False, )
@@ -187,14 +187,11 @@ class DatasetIdentificationForm(MrMapWizardForm):
                                                         *args,
                                                         **kwargs)
 
-        self.fields['additional_related_objects'].queryset = self.request.user.get_metadatas(
-            filter=~Q(type=MetadataEnum.DATASET))
+        self.fields['additional_related_objects'].queryset = self.request.user.get_instances(klass=Metadata,
+            filter=~Q(metadata_type=MetadataEnum.DATASET))
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
-        user = kwargs.pop("request").user
-        user_groups = user.groups.filter(mrmapgroup__is_public_group=False)
-        self.fields["created_by"].queryset = user_groups
-        self.fields["created_by"].initial = user_groups.first()
+        self.fields["created_by"].queryset = self.request.user.get_publishable_organizations()
 
         if self.instance_id:
             metadata = Metadata.objects.get(pk=self.instance_id)
@@ -219,7 +216,7 @@ class DatasetClassificationForm(MrMapWizardForm):
         label=_('Keywords'),
         queryset=Keyword.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:keyword-autocomplete',
+            url='autocompletes:keyword',
             attrs={
                 "data-containercss": {
                     "height": "3em",
@@ -232,7 +229,7 @@ class DatasetClassificationForm(MrMapWizardForm):
         label=_('Categories'),
         queryset=Category.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:category-autocomplete',
+            url='autocompletes:category',
             attrs={
                 "data-containercss": {
                     "height": "3em",
@@ -423,15 +420,7 @@ class AllowedOperationForm(forms.ModelForm):
                     }
                 },
             ),
-            'allowed_groups': autocomplete.ModelSelect2Multiple(
-                url='autocompletes:groups',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
+
             'allowed_area': LeafletWidget(attrs={
                 'map_height': '500px',
                 'map_width': '100%',

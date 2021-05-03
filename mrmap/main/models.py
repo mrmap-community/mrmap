@@ -75,7 +75,7 @@ class CommonInfo(models.Model):
         super(CommonInfo, self).__init__(*args, **kwargs)
         self._owned_by_org = self.owned_by_org
 
-    def save(self, user=None, update_last_modified=True, owner=None, *args, **kwargs):
+    def save(self, update_last_modified=True, *args, **kwargs):
         if self._state.adding:
             user = get_current_user()
             self.created_by_user = user

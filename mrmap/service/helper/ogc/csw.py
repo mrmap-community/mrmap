@@ -108,9 +108,9 @@ class OGCCatalogueService(OGCWebService):
         md.capabilities_original_uri = self.service_connect_url
         if self.service_bounding_box is not None:
             md.bounding_geometry = self.service_bounding_box
-
+        md.owned_by_org = register_for_organization
         # Save metadata record so we can use M2M or id of record later
-        md.save(owner=register_for_organization)
+        md.save()
         md.identifier = str(md.id) if md.identifier is None else md.identifier
 
         # Keywords
@@ -149,8 +149,10 @@ class OGCCatalogueService(OGCWebService):
         md.service = service
         service.is_update_candidate_for = is_update_candidate_for
 
+        service.owned_by_org = orga_published_for
+
         # Save record to enable M2M relations
-        service.save(owner=orga_published_for)
+        service.save()
 
         operation_urls = []
         for operation, parsed_operation_url, method in self.operation_urls:

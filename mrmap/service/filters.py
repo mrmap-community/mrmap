@@ -48,7 +48,7 @@ class DatasetFilter(django_filters.FilterSet):
     related_to = django_filters.ModelMultipleChoiceFilter(
         label=_('Related objects'),
         queryset=Metadata.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:metadata_all')
+        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:metadata')
     )
 
     def __init__(self, *args, **kwargs):

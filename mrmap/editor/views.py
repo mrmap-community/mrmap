@@ -38,9 +38,6 @@ class EditMetadata(SecuredUpdateView):
     queryset = Metadata.objects.filter(~Q(metadata_type=MetadataEnum.CATALOGUE.value) |
                                        ~Q(metadata_type=MetadataEnum.DATASET.value))
 
-    def get_title(self):
-        return _("Edit " + self.get_object().__str__())
-
 
 class RestoreMetadata(SecuredConfirmView):
     model = Metadata

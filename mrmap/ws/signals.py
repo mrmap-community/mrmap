@@ -1,3 +1,5 @@
+import logging
+
 from asgiref.sync import async_to_sync
 from celery import states
 from celery.signals import after_task_publish
@@ -16,7 +18,7 @@ from crum import get_current_user
 def update_count(channel_layer, instance):
     if instance.owned_by_org:
         async_to_sync(channel_layer.group_send)(
-            f"appviewmodelconsumer_{instance.owned_by_org.name}_observers",
+            f"appviewmodelconsumer_{instance.owned_by_org.pk}_observers",
             {
                 "type": "update.app.view.model",
             },
@@ -31,7 +33,7 @@ def send_task_toast(channel_layer, started, instance):
         content_type = ContentType.objects.get_for_model(instance)
 
         async_to_sync(channel_layer.group_send)(
-            f"toastconsumer_{instance.owned_by_org.name}_observers",
+            f"toastconsumer_{instance.owned_by_org.pk}_observers",
             {
                 "type": "send.toast",
                 "content_type": content_type.pk,
@@ -73,7 +75,7 @@ def update_pending_task_listeners(instance, **kwargs):
             update_count(channel_layer, kwargs['instance'])
 
         async_to_sync(channel_layer.group_send)(
-            f"pendingtasktableconsumer_{instance.owned_by_org.name}_observers",
+            f"pendingtasktableconsumer_{instance.owned_by_org.pk}_observers",
             {
                 "type": "send.table.as.html",
             },

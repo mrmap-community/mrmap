@@ -14,6 +14,7 @@ from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
 from django_celery_results.models import TaskResult
+from django.db.models import Case, When
 
 
 class Contact(models.Model):
@@ -220,4 +221,8 @@ class PublishRequest(BaseInternalRequest):
 
 class PendingTask(CommonInfo, TaskResult):
     class Meta:
-        ordering = ['-date_done']
+        ordering = [Case(When(status='STARTED', then=0),
+                         When(status='PENDING', then=1),
+                         When(status='FAILURE', then=2),
+                         When(status='SUCCESS', then=3)),
+                    '-date_done', ]

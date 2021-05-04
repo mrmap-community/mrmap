@@ -38,3 +38,15 @@ RESOURCE_TABLE_ACTIONS = """
     {% endif %}
 </div>
 """
+
+MAP_CONTEXT_TABLE_ACTIONS = """
+{% load i18n %}
+<div class="d-inline-flex">
+    <a class="btn btn-sm btn-warning mr-1" href="{{record.edit_view_uri}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit the map context' %}">
+      {{ ICONS.EDIT|safe }}
+    </a>
+    <a class="btn btn-sm btn-danger" href="{{record.remove_view_uri}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Remove this map context' %}">
+      {{ ICONS.DELETE|safe }}
+    </a>
+</div>
+"""

@@ -13,6 +13,7 @@ class IconEnum(EnumChoice):
     LAYER = "fas fa-layer-group"
     CSW = "fas fa-book"
     DATASET = "fas fa-clipboard-list"
+    MAP_CONTEXT = "fas fa-map-marked-alt"
     PASSWORD = "fas fa-lock"
     HEARTBEAT = "fas fa-heartbeat"
     PENDING_TASKS = "fas fa-tasks"

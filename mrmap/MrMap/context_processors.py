@@ -25,6 +25,8 @@ def default_context(request: HttpRequest):
         wfs_count = None
         csw_count = None
         dataset_count = None
+        map_context_count = None
+        all_count = None
     else:
         if not request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
@@ -55,6 +57,9 @@ def default_context(request: HttpRequest):
                                             is_deleted=False,
                                             service__is_update_candidate_for=None, ).count()
         dataset_count = request.user.get_datasets_as_qs(user_groups=request.user.groups.all()).count()
+        # TODO
+        map_context_count = 99
+        all_count = wms_count + wfs_count + csw_count + map_context_count
 
     return {
         "ROOT_URL": settings.ROOT_URL,
@@ -76,4 +81,6 @@ def default_context(request: HttpRequest):
         "wfs_count": wfs_count,
         "csw_count": csw_count,
         "dataset_count": dataset_count,
+        "map_context_count": map_context_count,
+        "all_count": all_count
     }

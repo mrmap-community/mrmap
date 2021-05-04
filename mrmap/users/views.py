@@ -6,32 +6,22 @@ Created on: 28.05.19
 
 """
 
-from collections import OrderedDict
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
-from django.http import HttpRequest
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_bytes
 from django.utils.html import format_html
-from django.utils.http import urlsafe_base64_encode
-from django.utils.translation import gettext_lazy as _, gettext
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
-from django_bootstrap_swt.components import Tag
-from django_bootstrap_swt.utils import RenderHelper
-from django_filters.views import FilterView
-from django_tables2 import SingleTableMixin
-from MrMap.icons import IconEnum
-from MrMap.messages import ACTIVATION_LINK_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
+
+from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
 from MrMap.settings import LAST_ACTIVITY_DATE_RANGE
@@ -41,7 +31,6 @@ from structure.forms import RegistrationForm
 from structure.models import MrMapUser, UserActivation, GroupActivity, Organization, \
     PublishRequest, GroupInvitationRequest
 from users.forms import SubscriptionForm, MrMapUserForm
-from users.helper import user_helper
 from users.models import Subscription
 from users.settings import users_logger
 from users.tables import SubscriptionTable
@@ -76,20 +65,6 @@ class HomeView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         user_groups = self.request.user.groups.all()
-        user_services_wms = Metadata.objects.filter(
-            service__service_type__name="wms",
-            service__is_root=True,
-            created_by__in=user_groups,
-            service__is_deleted=False,
-        ).count()
-        user_services_wfs = Metadata.objects.filter(
-            service__service_type__name="wfs",
-            service__is_root=True,
-            created_by__in=user_groups,
-            service__is_deleted=False,
-        ).count()
-
-        datasets_count = self.request.user.get_datasets_as_qs(count=True)
 
         activities_since = timezone.now() - timezone.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
         group_activities = GroupActivity.objects.filter(group__in=user_groups,
@@ -98,10 +73,6 @@ class HomeView(TemplateView):
         pending_requests = PublishRequest.objects.filter(organization=self.request.user.organization)
         group_invitation_requests = GroupInvitationRequest.objects.filter(user=self.request.user)
         context.update({
-            "wms_count": user_services_wms,
-            "wfs_count": user_services_wfs,
-            "datasets_count": datasets_count,
-            "all_count": user_services_wms + user_services_wfs + datasets_count,
             "publishing_requests": pending_requests,
             "group_invitation_requests": group_invitation_requests,
             "no_requests": not group_invitation_requests.exists() and not pending_requests.exists(),

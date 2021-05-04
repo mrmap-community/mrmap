@@ -44,7 +44,7 @@ class PendingTaskTableConsumer(NonAnonymousJsonWebsocketConsumer):
             pending_task_table.context = Context()
             pending_task_table.context.update({'filter': pending_tasks_filterset})
 
-            RequestConfig(request=request).configure(table=pending_task_table)
+            RequestConfig(request=request, paginate={"per_page": request.GET.get('per_page', 5)}).configure(table=pending_task_table)
 
             rendered_table = pending_task_table.as_html(request=request)
             self.send_json(content=json.dumps({'rendered_table': rendered_table}))

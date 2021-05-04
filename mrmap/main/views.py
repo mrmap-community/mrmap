@@ -27,6 +27,18 @@ class GenericPermissionMixin:
         return f"{self.app_label}.{self.action}_{self.model_name}"
 
 
+class GenericSuccessUrlMixin:
+    def get_success_url(self):
+        if not self.success_url:
+            try:
+                url = self.object.get_absolute_url()
+            except NoReverseMatch:
+                raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
+            return url
+        else:
+            return self.success_url
+
+
 class DjangoGenericPermissionRequiredMixin(GenericPermissionMixin, DjangoPermissionRequiredMixin):
     raise_exception = True
 
@@ -64,7 +76,13 @@ class GenericPermissionListMixin(GenericPermissionMixin, PermissionListMixin):
         return super().get_required_permissions(request=request)
 
 
-class SecuredCreateView(LoginRequiredMixin, DjangoGenericPermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class SecuredCreateView(LoginRequiredMixin,
+                        GenericSuccessUrlMixin,
+                        DjangoGenericPermissionRequiredMixin,
+                        GenericViewContextMixin,
+                        InitFormMixin,
+                        SuccessMessageMixin,
+                        CreateView):
     """
     Secured django `CreateView` class with default permission '<app_label>.add_<model_name>'
     """
@@ -79,14 +97,6 @@ class SecuredCreateView(LoginRequiredMixin, DjangoGenericPermissionRequiredMixin
             return super().get_required_permissions(request=request)
         return [self.get_default_permission()]
 
-    def get_success_url(self):
-        if not self.success_url:
-            try:
-                url = self.object.get_absolute_url()
-            except NoReverseMatch:
-                raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
-            return url
-
 
 class SecuredDetailView(LoginRequiredMixin, GenericPermissionRequiredMixin, GenericViewContextMixin, DetailView):
     """
@@ -95,7 +105,11 @@ class SecuredDetailView(LoginRequiredMixin, GenericPermissionRequiredMixin, Gene
     action = 'view'
 
 
-class SecuredDeleteView(LoginRequiredMixin, GenericPermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
+class SecuredDeleteView(LoginRequiredMixin,
+                        GenericPermissionRequiredMixin,
+                        GenericViewContextMixin,
+                        SuccessMessageDeleteMixin,
+                        DeleteView):
     """
     Secured django `DeleteView` class with default permission '<app_label>.delete_<model_name>'
     """
@@ -104,18 +118,22 @@ class SecuredDeleteView(LoginRequiredMixin, GenericPermissionRequiredMixin, Gene
     def get_success_url(self):
         if not self.success_url:
             return reverse_lazy(f'{self.app_label}:{self.model_name}_overview')
+        else:
+            return super().get_success_url()
 
 
-class SecuredUpdateView(LoginRequiredMixin, GenericPermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class SecuredUpdateView(LoginRequiredMixin,
+                        GenericSuccessUrlMixin,
+                        GenericPermissionRequiredMixin,
+                        GenericViewContextMixin,
+                        InitFormMixin,
+                        SuccessMessageMixin,
+                        UpdateView):
     """
     Secured django `UpdateView` class with default permission '<app_label>.change_<model_name>'
     """
     action = 'change'
     template_name = "MrMap/detail_views/generic_form.html"
-
-    def get_success_url(self):
-        if not self.success_url:
-            return reverse_lazy(f'{self.app_label}:{self.model_name}_view', args=[self.object.pk])
 
     def get_title(self):
         return _("Edit ") + self.get_object().__str__()

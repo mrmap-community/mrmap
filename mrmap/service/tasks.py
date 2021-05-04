@@ -10,18 +10,11 @@ import time
 import celery.states as states
 from celery import shared_task, current_task
 from MrMap.settings import EXEC_TIME_PRINT
+from main.tasks import default_task_handler
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
 from service.helper import service_helper
-from crum import set_current_user
-from django.contrib.auth import get_user_model
-
-
-def default_task_handler(**kwargs):
-    if 'created_by_user_pk' in kwargs:
-        user = get_user_model().objects.get(id=kwargs['created_by_user_pk'])
-        set_current_user(user)
 
 
 @shared_task(name="async_increase_hits")

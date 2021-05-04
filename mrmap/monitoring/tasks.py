@@ -10,10 +10,11 @@ from celery.signals import beat_init
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 from django.utils import timezone
+
+from main.tasks import default_task_handler
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.monitoring import Monitoring as Monitor
 from monitoring.settings import monitoring_logger
-from service.models import Metadata
 from django.utils.translation import gettext_lazy as _
 
 
@@ -72,7 +73,9 @@ def run_monitoring(setting_id, *args, **kwargs):
 
 
 @shared_task(name='run_manual_service_monitoring')
-def run_manual_service_monitoring(monitoring_run, *args, **kwargs):
+def run_manual_service_monitoring(owned_by_org: str, monitoring_run, *args, **kwargs):
+    default_task_handler(**kwargs)
+
     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
     monitoring_run.start = timezone.now()
     for metadata in monitoring_run.metadatas.all():

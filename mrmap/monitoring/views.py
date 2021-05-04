@@ -19,7 +19,6 @@ class MonitoringRunTableView(SecuredListMixin, FilterView):
 class MonitoringRunNewView(SecuredCreateView):
     model = MonitoringRun
     form_class = MonitoringRunForm
-    template_name = 'MrMap/detail_views/generic_form.html'
     success_message = MONITORING_RUN_SCHEDULED
     success_url = reverse_lazy('resource:pending-tasks')
 

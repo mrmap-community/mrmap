@@ -64,8 +64,7 @@ class MrMapUser(AbstractUser):
         return Organization.objects.prefetch_related('acl_accesscontrollist_owned_by_org',
                                                      'acl_accesscontrollist_owned_by_org__user_set',
                                                      'acl_accesscontrollist_owned_by_org__permissions')\
-            .filter(
-                    acl_accesscontrollist_owned_by_org__permissions__codename='view_organization')\
+            .filter(acl_accesscontrollist_owned_by_org__permissions__codename='view_organization')\
             .distinct('name')
 
     def get_publishable_organizations(self):

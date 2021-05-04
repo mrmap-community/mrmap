@@ -10,9 +10,13 @@ from django.db import IntegrityError
 from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_GENERIC_ERROR_TEMPLATE
 from csw.utils.harvester import Harvester
+from celery import shared_task
+
+from main.tasks import default_task_handler
 
 
-def async_harvest(harvest_result_id: int):
+@shared_task(name='async_harvest')
+def async_harvest(owned_by_org: str, harvest_result_id: int, **kwargs):
     """ Performs the harvesting procedure in a background celery task
 
     Args:
@@ -20,10 +24,11 @@ def async_harvest(harvest_result_id: int):
     Returns:
 
     """
+    default_task_handler(**kwargs)
+
     try:
-        harvest_result = HarvestResult.objects\
-            .select_related('metadata',
-                            'metadata__service__created_by__mrmapgroup')\
+        harvest_result = HarvestResult.objects \
+            .select_related('metadata') \
             .get(pk=harvest_result_id)
         try:
             harvester = Harvester(harvest_result,
@@ -31,10 +36,9 @@ def async_harvest(harvest_result_id: int):
             harvester.harvest()
 
             return {'msg': 'Done. Catalogue harvested successful.',
-                'id': str(harvest_result.metadata.pk),
-                'absolute_url': harvest_result.metadata.get_absolute_url(),
-                'absolute_url_html': f'<a href={harvest_result.metadata.get_absolute_url()}>{harvest_result.metadata.title}</a>'}
-
+                    'id': str(harvest_result.metadata.pk),
+                    'absolute_url': harvest_result.metadata.get_absolute_url(),
+                    'absolute_url_html': f'<a href={harvest_result.metadata.get_absolute_url()}>{harvest_result.metadata.title}</a>'}
 
         except IntegrityError as e:
             csw_logger.error(
@@ -46,4 +50,3 @@ def async_harvest(harvest_result_id: int):
     except ObjectDoesNotExist:
         # todo: logging
         pass
-

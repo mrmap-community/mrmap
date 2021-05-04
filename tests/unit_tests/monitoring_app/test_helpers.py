@@ -19,7 +19,7 @@ from monitoring.helper.wmsHelper import WmsHelper
 from service.helper import service_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.models import Metadata
-from structure.models import MrMapUser
+from users.models import MrMapUser
 
 
 class MonitoringTests(TestCase):

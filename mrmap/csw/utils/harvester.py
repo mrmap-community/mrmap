@@ -56,7 +56,7 @@ from structure.models import Organization
 class Harvester:
     def __init__(self, harvest_result, max_records_per_request: int = 200):
         self.metadata = harvest_result.metadata
-        self.harvesting_group = self.metadata.service.created_by.mrmapgroup
+        self.harvesting_organization = self.metadata.owned_by_org
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
         self.harvest_url = self.metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,

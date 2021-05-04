@@ -1,3 +1,4 @@
+import base64
 import io
 from io import BytesIO
 from PIL import Image, UnidentifiedImageError
@@ -9,20 +10,16 @@ from django.db.models import QuerySet, Q
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
-from django.utils.translation import gettext_lazy as _l
-from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import DetailView
 from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
-from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
 from requests.exceptions import ReadTimeout
@@ -36,18 +33,14 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, PendingTaskFilter
-from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
-from service.helper import update_helper
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION, GROUP_SUCCESSFULLY_DELETED, MAP_CONTEXT_SUCCESSFULLY_CREATED, \
-    MAP_CONTEXT_SUCCESSFULLY_EDITED
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, MAP_CONTEXT_SUCCESSFULLY_CREATED, MAP_CONTEXT_SUCCESSFULLY_EDITED, \
+    MAP_CONTEXT_SUCCESSFULLY_DELETED
+from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView, SecuredCreateView
+from service.filters import PendingTaskFilter
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
 from service.helper import service_helper
 from service.helper import update_helper
@@ -66,7 +59,6 @@ from service.utils import collect_contact_data, collect_metadata_related_objects
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from django.urls import reverse, reverse_lazy
-from users.helper import user_helper
 from users.models import Subscription
 
 
@@ -194,7 +186,6 @@ class ResourceDeleteView(SecuredDeleteView):
 
 class ResourceActivateDeactivateView(SecuredUpdateView):
     model = Metadata
-    template_name = "MrMap/detail_views/generic_form.html"
     fields = ('is_active',)
     permission_required = PermissionEnum.CAN_ACTIVATE_RESOURCE.value
 
@@ -960,45 +951,29 @@ class MapContextIndexView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-class MapContextCreateView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin,
-                           CreateView):
+class MapContextCreateView(SecuredCreateView):
     model = MapContext
     form_class = MapContextForm
     template_name = 'views/map_context_add.html'
-    title = _('New map context')
     success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
     success_url = reverse_lazy('resource:mapcontexts-index')
-    permission_required = 'service.add_mapcontext'
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
 
 @method_decorator(login_required, name='dispatch')
-class MapContextEditView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin,
-                         UpdateView):
+class MapContextEditView(SecuredUpdateView):
     template_name = 'views/map_context_add.html'
     success_message = MAP_CONTEXT_SUCCESSFULLY_EDITED
     success_url = reverse_lazy('resource:mapcontexts-index')
     model = MapContext
     form_class = MapContextForm
-    title = _('Edit map context')
-    permission_required = 'service.change_mapcontext'
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
 
 @method_decorator(login_required, name='dispatch')
-class MapContextDeleteView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
+class MapContextDeleteView(SecuredDeleteView):
     model = MapContext
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('resource:mapcontexts-index')
-    success_message = GROUP_SUCCESSFULLY_DELETED
-    # queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
-    title = _('Delete Map Context')
-    # TODO
-    permission_required = PermissionEnum.CAN_DELETE_GROUP.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
+    success_message = MAP_CONTEXT_SUCCESSFULLY_DELETED
 
     def get_msg_dict(self):
         return {'name': self.get_object().title}

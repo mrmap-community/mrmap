@@ -33,7 +33,7 @@ def create_testuser(groups=None):
         return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
 
 
-def create_superadminuser(groups: QuerySet = None, ):
+def create_superadminuser(groups=None):
     # Check if superadminuser already exists
     try:
         superuser = MrMapUser.objects.get(
@@ -49,9 +49,6 @@ def create_superadminuser(groups: QuerySet = None, ):
                                       groups=groups)
     else:
         superuser = baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user')
-
-    public_group = baker.make_recipe('tests.baker_recipes.structure_app.public_group', created_by=superuser)
-    public_group.user_set.add(superuser)
 
     return superuser
 
@@ -71,7 +68,6 @@ def create_wms_service(group: Organization,
 
     root_service_metadatas = baker.make_recipe(
         'tests.baker_recipes.service_app.active_wms_service_metadata',
-        created_by=group,
         _quantity=how_much_services,
         metadata_type=service_md_type,
         contact=contact,
@@ -81,21 +77,18 @@ def create_wms_service(group: Organization,
 
         dataset_metadata = baker.make_recipe(
             'tests.baker_recipes.service_app.active_dataset_metadata',
-            created_by=group,
             metadata_type=dataset_md_type,
             contact=contact,
         )
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.active_dataset',
-            created_by=group,
             metadata=dataset_metadata,
         )
 
         obj = baker.make_recipe(
             'tests.baker_recipes.service_app.metadata_document',
             metadata=dataset_metadata,
-            created_by=group,
         )
 
         if md_relation_origin:
@@ -110,20 +103,16 @@ def create_wms_service(group: Organization,
         baker.make_recipe(
             'tests.baker_recipes.service_app.capability_document',
             metadata=root_service_metadata,
-            created_by=group,
         )
 
         root_service = baker.make_recipe(
             'tests.baker_recipes.service_app.active_root_wms_service',
-            created_by=group,
             metadata=root_service_metadata,
             is_update_candidate_for=is_update_candidate_for,
-            created_by_user=user,
         )
 
         root_layer_metadata = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wms_layer_metadata',
-            created_by=group,
             _quantity=how_much_sublayers,
             metadata_type=layer_md_type,
             contact=contact,
@@ -131,7 +120,6 @@ def create_wms_service(group: Organization,
 
         root_layer = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wms_sublayer',
-            created_by=group,
             parent_service=root_service,
             metadata=root_layer_metadata[0],
             identifier=root_layer_metadata[0].identifier,
@@ -142,7 +130,6 @@ def create_wms_service(group: Organization,
 
         sublayer_metadatas = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wms_layer_metadata',
-            created_by=group,
             _quantity=how_much_sublayers,
             metadata_type=layer_md_type,
             contact=contact,
@@ -152,7 +139,6 @@ def create_wms_service(group: Organization,
         for sublayer_metadata in sublayer_metadatas:
             baker.make_recipe(
                 'tests.baker_recipes.service_app.active_wms_sublayer',
-                created_by=group,
                 parent_service=root_service,
                 metadata=sublayer_metadata,
                 parent=root_layer,
@@ -178,7 +164,6 @@ def create_wfs_service(group: Organization,
 
     root_service_metadatas = baker.make_recipe(
         'tests.baker_recipes.service_app.active_wfs_service_metadata',
-        created_by=group,
         _quantity=how_much_services,
         metadata_type=service_md_type,
         contact=contact,
@@ -187,21 +172,18 @@ def create_wfs_service(group: Organization,
     for root_service_metadata in root_service_metadatas:
         dataset_metadata = baker.make_recipe(
             'tests.baker_recipes.service_app.active_dataset_metadata',
-            created_by=group,
             metadata_type=dataset_md_type,
             contact=contact,
         )
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.active_dataset',
-            created_by=group,
             metadata=dataset_metadata,
         )
 
         baker.make_recipe(
             'tests.baker_recipes.service_app.metadata_document',
             metadata=dataset_metadata,
-            created_by=group,
         )
 
         if md_relation_origin:
@@ -216,20 +198,16 @@ def create_wfs_service(group: Organization,
         baker.make_recipe(
             'tests.baker_recipes.service_app.capability_document',
             metadata=root_service_metadata,
-            created_by=group,
         )
 
         root_service = baker.make_recipe(
             'tests.baker_recipes.service_app.active_root_wfs_service',
-            created_by=group,
             metadata=root_service_metadata,
             is_update_candidate_for=is_update_candidate_for,
-            created_by_user=user,
         )
 
         featuretype_metadatas = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wfs_featuretype_metadata',
-            created_by=group,
             _quantity=how_much_featuretypes,
             metadata_type=feature_type_md_type,
             contact=contact,
@@ -238,7 +216,6 @@ def create_wfs_service(group: Organization,
         for featuretype_metadata in featuretype_metadatas:
             baker.make_recipe(
                 'tests.baker_recipes.service_app.active_wfs_featuretype',
-                created_by=group,
                 parent_service=root_service,
                 metadata=featuretype_metadata,
             )
@@ -248,7 +225,6 @@ def create_wfs_service(group: Organization,
 
 def create_non_autogenerated_orgas(user: MrMapUser, how_much_orgas: int = 1):
     return baker.make_recipe('tests.baker_recipes.structure_app.non_autogenerated_orga',
-                             created_by=user,
                              _quantity=how_much_orgas)
 
 
@@ -258,7 +234,6 @@ def create_random_named_orgas(user: MrMapUser, how_much_orgas: int = 1):
     for i in range(0, how_much_orgas):
         orga_list += baker.make_recipe(
             'tests.baker_recipes.structure_app.non_autogenerated_orga',
-            created_by=user,
             _quantity=1,
             name=generate_random_string(5)
         )
@@ -269,7 +244,6 @@ def create_random_named_orgas(user: MrMapUser, how_much_orgas: int = 1):
 def create_public_organization(user: MrMapUser):
     return baker.make_recipe(
         'tests.baker_recipes.structure_app.non_autogenerated_orga',
-        created_by=user,
         _quantity=1,
         name="Publicity"
     )
@@ -286,7 +260,6 @@ def create_publish_request(group: Organization, orga: Organization,
 def create_pending_task(group: Organization, how_much_pending_tasks: int = 1):
     return baker.make_recipe('tests.baker_recipes.structure_app.pending_task',
                              task_id=seq(1),
-                             #created_by=group,
                              _quantity=how_much_pending_tasks)
 
 

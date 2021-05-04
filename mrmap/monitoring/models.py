@@ -87,7 +87,9 @@ class MonitoringRun(CommonInfo):
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
-    metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_runs', verbose_name=_('Checked resources'))
+    metadatas = models.ManyToManyField('service.Metadata',
+                                       related_name='monitoring_runs',
+                                       verbose_name=_('Checked resources'))
 
     class Meta:
         ordering = ["-end"]
@@ -130,10 +132,16 @@ class MonitoringRun(CommonInfo):
         return reverse('monitoring:run_new')
 
     def save(self, *args, **kwargs):
+        adding = False
         if self._state.adding:
-            from monitoring.tasks import run_manual_service_monitoring
-            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.pk, ), countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+            adding = True
         super().save(*args, **kwargs)
+        if adding:
+            from monitoring.tasks import run_manual_service_monitoring
+            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.owned_by_org.pk if self.owned_by_org else None,
+                                                                                          self.pk,),
+                                                                                    kwargs={'created_by_user_pk': self.created_by_user.pk},
+                                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN))
 
 
 class MonitoringResult(CommonInfo):

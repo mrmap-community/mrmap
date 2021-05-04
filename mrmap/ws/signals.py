@@ -14,30 +14,32 @@ from crum import get_current_user
 
 
 def update_count(channel_layer, instance):
-    async_to_sync(channel_layer.group_send)(
-        f"appviewmodelconsumer_{instance.owned_by_org.name}_observers",
-        {
-            "type": "update.app.view.model",
-        },
-    )
+    if instance.owned_by_org:
+        async_to_sync(channel_layer.group_send)(
+            f"appviewmodelconsumer_{instance.owned_by_org.name}_observers",
+            {
+                "type": "update.app.view.model",
+            },
+        )
 
 
 def send_task_toast(channel_layer, started, instance):
-    title = _('New task scheduled') if started else _('Task done')
-    body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?task_id={instance.task_id}', _('details'))
+    if instance.owned_by_org:
+        title = _('New task scheduled') if started else _('Task done')
+        body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?task_id={instance.task_id}', _('details'))
 
-    content_type = ContentType.objects.get_for_model(instance)
+        content_type = ContentType.objects.get_for_model(instance)
 
-    async_to_sync(channel_layer.group_send)(
-        f"toastconsumer_{instance.owned_by_org.name}_observers",
-        {
-            "type": "send.toast",
-            "content_type": content_type.pk,
-            "object_id": instance.pk,
-            "title": title,
-            "body": body
-        },
-    )
+        async_to_sync(channel_layer.group_send)(
+            f"toastconsumer_{instance.owned_by_org.name}_observers",
+            {
+                "type": "send.toast",
+                "content_type": content_type.pk,
+                "object_id": instance.pk,
+                "title": title,
+                "body": body
+            },
+        )
 
 
 @receiver(post_save, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_save')
@@ -51,27 +53,31 @@ def update_pending_task_listeners(instance, **kwargs):
     channel_layer = get_channel_layer()
 
     if isinstance(instance, TaskResult):
-        instance = instance.pendingtask
+        try:
+            instance = instance.pendingtask
+        except Exception:
+            return
 
-    if 'created' in kwargs:
-        if kwargs['created']:
-            # post_save signal --> new TaskResult object
-            update_count(channel_layer, instance)
-            send_task_toast(channel_layer, True, instance)
-        else:
-            if instance.status in [states.SUCCESS, states.FAILURE]:
+    if instance.owned_by_org:
+        if 'created' in kwargs:
+            if kwargs['created']:
+                # post_save signal --> new PendingTask/TaskResult object
                 update_count(channel_layer, instance)
-                send_task_toast(channel_layer, False, instance)
-    else:
-        # post_delete signal
-        update_count(channel_layer, kwargs['instance'])
+                send_task_toast(channel_layer, True, instance)
+            else:
+                if instance.status in [states.SUCCESS, states.FAILURE]:
+                    update_count(channel_layer, instance)
+                    send_task_toast(channel_layer, False, instance)
+        else:
+            # post_delete signal
+            update_count(channel_layer, kwargs['instance'])
 
-    async_to_sync(channel_layer.group_send)(
-        f"pendingtasktableconsumer_{instance.owned_by_org.name}_observers",
-        {
-            "type": "send.table.as.html",
-        },
-    )
+        async_to_sync(channel_layer.group_send)(
+            f"pendingtasktableconsumer_{instance.owned_by_org.name}_observers",
+            {
+                "type": "send.table.as.html",
+            },
+        )
 
 
 @after_task_publish.connect

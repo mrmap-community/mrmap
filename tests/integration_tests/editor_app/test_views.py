@@ -64,6 +64,7 @@ class EditorTestCase(TestCase):
             cls.user,
             cls.group
         )
+
         activate_service(service, True)
         cls.service_wms = service
 

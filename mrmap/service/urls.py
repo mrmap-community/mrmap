@@ -12,6 +12,7 @@ urlpatterns = [
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
     path('csw/', CswIndexView.as_view(), name='csw-index'),
     path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
+    path('mapcontexts/', MapContextIndexView.as_view(), name='mapcontexts-index'),
     path('logs/', LogsIndexView.as_view(), name='logs-view'),
 
     # PendingTasks
@@ -41,6 +42,11 @@ urlpatterns = [
     path('metadata/dataset/<pk>', DatasetMetadataXmlView.as_view(), name='get-dataset-metadata'),
     path('metadata/<metadata_id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<metadata_id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
+
+    # map context urls
+    path('mapcontexts/add/', MapContextCreateView.as_view(), name='mapcontexts-add'),
+    path('mapcontexts/<pk>/edit', MapContextEditView.as_view(), name='mapcontexts-edit'),
+    path('mapcontexts/<pk>/remove', MapContextDeleteView.as_view(), name='mapcontexts-remove'),
 
     # detail view
     # todo: implement detail view for csw

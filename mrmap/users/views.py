@@ -20,6 +20,12 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from guardian.mixins import LoginRequiredMixin
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import DetailView, ListView, TemplateView
+from django.views.generic.edit import UpdateView, CreateView, DeleteView
+
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
@@ -30,6 +36,7 @@ from structure.forms import RegistrationForm
 from structure.models import Organization, PublishRequest
 from users.forms import SubscriptionForm, MrMapUserForm
 from users.models import Subscription, UserActivation
+from users.models import Subscription
 from users.settings import users_logger
 from users.tables import SubscriptionTable
 
@@ -62,29 +69,11 @@ class HomeView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         user_groups = self.request.user.groups.all()
-        user_services_wms = Metadata.objects.filter(
-            service__service_type__name="wms",
-            service__is_root=True,
-            service__is_deleted=False,
-        ).count()
-        user_services_wfs = Metadata.objects.filter(
-            service__service_type__name="wfs",
-            service__is_root=True,
-            service__is_deleted=False,
-        ).count()
-
-        datasets_count = self.request.user.get_instances(klass=Metadata, filter=Q(metadata_type=MetadataEnum.DATASET.value)).count()
 
         # pending_requests = PublishRequest.objects.filter(to_organization=self.request.user.organization)
         context.update({
-            "wms_count": user_services_wms,
-            "wfs_count": user_services_wfs,
-            "datasets_count": datasets_count,
-            "all_count": user_services_wms + user_services_wfs + datasets_count,
-            #"publishing_requests": pending_requests,
-            "groups": user_groups,
+            "publishing_requests": pending_requests,
             "organizations": Organization.objects.all(),
-            "current_view": "home",
         })
         return context
 

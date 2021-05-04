@@ -3594,3 +3594,39 @@ class Namespace(UuidPk):
 
     def __str__(self):
         return self.name + " (" + self.uri + ")"
+
+
+# TODO
+class MapContext(Resource):
+    title = models.CharField(max_length=1000, null=False, blank=False, verbose_name=_('Title'))
+    abstract = models.TextField(null=False, blank=False, verbose_name=_('Abstract'))
+    update_date = models.DateTimeField(auto_now_add=True)
+    layer_tree = models.TextField(null=False, blank=False)
+    # Additional possible parameters:
+    # specReference
+    # language
+    # author
+    # publisher
+    # creator
+    # rights
+    # areaOfInterest
+    # timeIntervalOfInterest
+    # keyword
+    # resource
+    # contextMetadata
+    # extension
+
+    @classmethod
+    def get_add_action(cls):
+        return LinkButton(content=get_icon(IconEnum.ADD) + _(' New Map Context').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('resource:mapcontexts-add'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+
+    @property
+    def edit_view_uri(self):
+        return reverse("resource:mapcontexts-edit", args=[self.pk])
+
+    @property
+    def remove_view_uri(self):
+        return reverse("resource:mapcontexts-remove", args=[self.pk])

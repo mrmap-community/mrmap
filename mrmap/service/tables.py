@@ -1,9 +1,11 @@
 import json
 import django_tables2 as tables
 from celery import states
+from django.db.models import Count
 from django.template import Template, Context
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from django_bootstrap_swt.components import Link, Tag, Badge, Accordion
 from django_bootstrap_swt.enums import ProgressColorEnum
 from django_bootstrap_swt.utils import RenderHelper
@@ -15,10 +17,11 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
+from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
 from service.settings import service_logger
 from structure.models import PendingTask
 from service.templatecodes import RESOURCE_TABLE_ACTIONS
+from service.templatecodes import RESOURCE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
@@ -547,3 +550,17 @@ class ProxyLogTable(tables.Table):
         sequence = ('metadata__id', 'metadata__title', 'user', '...')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'proxy-log-table'
+
+
+# TODO
+class MapContextTable(tables.Table):
+
+    actions = tables.TemplateColumn(verbose_name=_('Actions'), empty_values=[], orderable=False, template_code=MAP_CONTEXT_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}})
+
+    class Meta:
+        model = MapContext
+        fields = ('title', 'abstract', 'actions')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'map-context-table'

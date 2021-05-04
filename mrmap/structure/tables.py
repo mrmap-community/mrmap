@@ -163,7 +163,7 @@ class GroupDetailTable(tables.Table):
 
     def render_permissions(self, record):
         perms = []
-        for perm in self.request.user.get_all_permissions(record):
+        for perm in record.permissions.all():
             perms.append(Badge(content=perm if perm else _('None'), pill=True))
 
         self.render_helper.update_attrs = {"class": ["mr-1"]}
@@ -175,7 +175,7 @@ class GroupDetailTable(tables.Table):
         inherited_permission = []
         parent = record.parent_group
         while parent is not None:
-            permissions = self.request.user.get_all_permissions(parent)
+            permissions = parent.permissions.all()
             perm_dict = {
                 "group": parent,
                 "permissions": permissions,

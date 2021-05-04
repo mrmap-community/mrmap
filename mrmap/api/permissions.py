@@ -7,12 +7,10 @@ Created on: 14.04.20
 """
 from rest_framework.permissions import BasePermission
 
-from structure.models import Permission
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
-
-class CanRegisterService(BasePermission):
+class DefaultPermission(BasePermission):
     """
     Allows access only to users with this permission.
 
@@ -22,17 +20,19 @@ class CanRegisterService(BasePermission):
 
     """
 
+    view_action = 'create'
+    needed_perm = '' # PermissionEnum.CAN_REGISTER_RESOURCE
+
     def has_permission(self, request, view):
-        if view.action == "create":
-            user = user_helper.get_user(request)
-            needed_perm = PermissionEnum.CAN_REGISTER_RESOURCE
-            has_perm = user.has_perm(permission_needed=needed_perm)
+        if view.action == self.view_action:
+            user = request.user
+            needed_perm = self.needed_perm
+            has_perm = user.has_perm(perm=needed_perm)
             return has_perm
         else:
             return True
 
-
-class CanRemoveService(BasePermission):
+class CanRegisterService(DefaultPermission):
     """
     Allows access only to users with this permission.
 
@@ -42,17 +42,11 @@ class CanRemoveService(BasePermission):
 
     """
 
-    def has_permission(self, request, view):
-        if view.action == "destroy":
-            user = user_helper.get_user(request)
-            needed_perm = PermissionEnum.CAN_REMOVE_RESOURCE
-            has_perm = user.has_perm(permission_needed=needed_perm)
-            return has_perm
-        else:
-            return True
+    view_action = 'create'
+    needed_perm = PermissionEnum.CAN_REGISTER_RESOURCE
 
 
-class CanActivateService(BasePermission):
+class CanRemoveService(DefaultPermission):
     """
     Allows access only to users with this permission.
 
@@ -62,11 +56,19 @@ class CanActivateService(BasePermission):
 
     """
 
-    def has_permission(self, request, view):
-        if view.action == "active_state":
-            user = user_helper.get_user(request)
-            needed_perm = PermissionEnum.CAN_ACTIVATE_RESOURCE
-            has_perm = user.has_perm(permission_needed=needed_perm)
-            return has_perm
-        else:
-            return True
+    view_action = 'destroy'
+    needed_perm = PermissionEnum.CAN_REMOVE_RESOURCE
+
+
+class CanActivateService(DefaultPermission):
+    """
+    Allows access only to users with this permission.
+
+    Since we use ViewSets, we can only set permission classes for the whole ViewSet class and not single methods.
+    So we check whether the requested view action equals the one, we have to permission-check and perform our check,
+    or otherwise we skip, since here is no permission-check needed.
+
+    """
+    view_action = 'active_state'
+    needed_perm = PermissionEnum.CAN_ACTIVATE_RESOURCE
+

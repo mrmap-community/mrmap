@@ -9,7 +9,8 @@ from datetime import datetime
 from json import JSONDecodeError
 from PIL import Image
 from dateutil.parser import parse
-from django.contrib.gis.geos import Polygon
+from django.contrib.auth.models import Group
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction, OperationalError
 from django.contrib.gis.db import models
@@ -52,9 +53,8 @@ from structure.permissionEnums import PermissionEnum
 
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True, verbose_name=_l('Created on'))
-    created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     # todo: check if we still need this two boolean flags
     is_deleted = models.BooleanField(default=False)
@@ -101,6 +101,9 @@ class ProxyLog(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
+        permissions = [
+            ("download_logs", "Can download logs"),
+        ]
 
     def __str__(self):
         return str(self.id)
@@ -533,19 +536,29 @@ class Metadata(Resource):
     # access to the Metadata models. This means, if you access this field, the db will always returns Metadata objects
     # instead of MetadataRelation objects. To get specific MetadataRelation objects, you need to access MetadataRelation
     related_metadatas = models.ManyToManyField('self', through='MetadataRelation', symmetrical=False, related_name='related_to', blank=True)
-    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE, blank=True, null=True)
     has_dataset_metadatas = models.BooleanField(default=False)
     origin = None
 
     class Meta:
+        ordering = ['-created']
         indexes = [
             models.Index(
                 fields=[
                     "id",
-                    "public_id",
                     "identifier"
                 ]
             )
+        ]
+        permissions = [
+            ("delete_dataset_metadata", "Can delete dataset metadata"),
+            ("add_dataset_metadata", "Can add dataset metadata"),
+            ("activate_resource", "Can activate a resource"),
+            ("update_resource", "Can update a resource"),
+            ("harvest_resource", "Can harvest a resource"),
+            ("add_resource", "Can add new resources"),
+            ("delete_resource", "Can delete resources"),
+
         ]
 
     def __init__(self, *args, **kwargs):
@@ -822,7 +835,7 @@ class Metadata(Resource):
             icon = Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value, TextColorEnum.SECONDARY.value]})
 
         if health_state and not health_state.health_state_code == HealthStateEnum.UNKNOWN.value:
-            icon = LinkButton(url=self.health_state.get_absolute_url(),
+            icon = LinkButton(url=self.health_state.last().get_absolute_url(),
                               content=icon.render(),
                               color=btn_color,
                               tooltip=tooltip,
@@ -904,7 +917,7 @@ class Metadata(Resource):
 
     @property
     def harvest_view_uri(self):
-        return reverse('csw:harvest-catalogue', args=[self.pk]) if self.service_type == OGCServiceEnum.CSW else ''
+        return f"{reverse('csw:harvest-catalogue')}?metadata={self.pk}" if self.service_type == OGCServiceEnum.CSW else ''
 
     @property
     def run_monitoring_view_uri(self):
@@ -917,10 +930,9 @@ class Metadata(Resource):
         Returns:
              capabilities_uri (str)
         """
-        p_id = self.public_id or self.id
         return "{}{}{}".format(
             ROOT_URL,
-            reverse("resource:metadata-proxy-operation", args=(str(p_id),)),
+            reverse("resource:metadata-proxy-operation", args=(str(self.pk),)),
             "?request={}".format(OGCOperationEnum.GET_CAPABILITIES.value),
         ) if not self.is_dataset_metadata else None
 
@@ -931,11 +943,10 @@ class Metadata(Resource):
         Returns:
              metadata_uri (str)
         """
-        p_id = self.public_id or self.id
         if not self.is_dataset_metadata:
-            url_name = reverse("resource:get-service-metadata", args=(str(p_id),))
+            url_name = reverse("resource:get-service-metadata", args=(str(self.pk),))
         else:
-            url_name = reverse("resource:get-dataset-metadata", args=(str(p_id),))
+            url_name = reverse("resource:get-dataset-metadata", args=(str(self.pk),))
         return "{}{}".format(ROOT_URL, url_name)
 
     @property
@@ -945,8 +956,7 @@ class Metadata(Resource):
         Returns:
              metadata_uri (str)
         """
-        p_id = self.public_id or self.id
-        url_name = reverse("resource:get-metadata-html", args=(str(p_id),))
+        url_name = reverse("resource:get-metadata-html", args=(str(self.pk),))
         return "{}{}".format(ROOT_URL, url_name)
 
     @property
@@ -1157,7 +1167,7 @@ class Metadata(Resource):
         Returns:
             current_capability_document (str): The xml document
         """
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         cap_doc = None
 
         cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
@@ -1374,37 +1384,6 @@ class Metadata(Resource):
             # todo
             pass
 
-    def generate_public_id(self, stump: str = None):
-        """ Generates a public_id for a Metadata entry.
-
-        If no stump was provided, the title attribute will be used as stump.
-
-        Args:
-            stump (str): The base string input, which will be incremented if already taken
-        Returns:
-             public_id (str): The generated public id
-        """
-        if stump is None:
-            stump = "{} {}".format(self.title, self.metadata_type)
-
-        slug_stump = slugify(stump)
-        # To prevent too long public ids (keep them < 255 character)
-        # we need to make sure the stump itself isn't longer than 200 characters! So we have enough space left for numbers in the end
-        slug_stump = slug_stump[:225]
-        exists = Metadata.objects.filter(
-            public_id=slug_stump
-        ).exists()
-        public_id = slug_stump
-
-        counter = 1
-        while exists:
-            public_id = "{}-{}".format(slug_stump, counter)
-            counter += 1
-            exists = Metadata.objects.filter(
-                public_id=public_id
-            ).exists()
-        return public_id
-
     def save(self, add_monitoring: bool = True, *args, **kwargs):
         """ Overwriting the regular save function
 
@@ -1416,9 +1395,10 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        adding = self._state.adding
         super().save(*args, **kwargs)
 
-        if not self._state.adding:
+        if not adding:
             if self.__is_active != self.is_active:
                 # the active sate of this and all descendant metadatas shall be changed to the new value. Bulk update
                 # is the most efficient way to do it.
@@ -1527,11 +1507,11 @@ class Metadata(Resource):
                 return v
         return service_version
 
-    def find_max_bounding_box(self):
+    def find_max_bounding_box(self) -> GEOSGeometry:
         """ Returns the largest bounding box of all children
 
         Returns:
-
+            bounding box with the greatest area (GEOSGeometry)
         """
         if self.metadata_type == MetadataEnum.SERVICE.value:
             if self.service.service_type.name.value == OGCServiceEnum.WMS.value:
@@ -1656,7 +1636,7 @@ class Metadata(Resource):
              nothing
         """
         from service.helper.ogc.wms import OGCWebMapServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
@@ -1702,7 +1682,7 @@ class Metadata(Resource):
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
 
         # Prepare 'service' for further handling
         # If no identifier is provided, we deal with a root metadata
@@ -1813,6 +1793,7 @@ class Metadata(Resource):
             service_logger.error(
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
+        self.is_custom = False
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None, restore_children=True):
         """ Load original metadata from capabilities and ISO metadata
@@ -1839,7 +1820,7 @@ class Metadata(Resource):
             self._restore_wms(external_auth=external_auth)
             if restore_children:
                 for children in Metadata.objects.filter(service__parent_service__metadata=self, is_custom=True):
-                    children.restor(external_auth=external_auth, restore_children=False)
+                    children.restore(external_auth=external_auth, restore_children=False)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
         self.clear_cached_documents()
@@ -1866,7 +1847,7 @@ class Metadata(Resource):
             nothing
         """
         try:
-            cap_doc = self.docuents.get(
+            cap_doc = self.documents.get(
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
             )
@@ -1914,7 +1895,7 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            self.get_current_capability_xml(self.service.service_type.version)
+            # self.get_current_capability_xml(self.service.service_type.version)
             root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,
@@ -2940,10 +2921,11 @@ class ServiceType(models.Model):
 class GenericUrl(Resource):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
+    # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
+    url = models.URLField(max_length=4096)
 
     def __str__(self):
-        return "{} ({})".format(self.url, self.method)
+        return "{} | {} ({})".format(self.pk, self.url, self.method)
 
 
 class ServiceUrl(GenericUrl):
@@ -3152,6 +3134,8 @@ class Layer(Service, MPTTModel):
         Returns:
              bounding_geometry (Polygon): A geometry object
         """
+        bounding_geometry = self.metadata.bounding_geometry
+
         ancestors = self.get_ancestors(ascending=True).select_related('metadata')
         # todo: maybe GEOS can get the object with the greatest geometry from the db directly?
         for ancestor in ancestors:
@@ -3580,7 +3564,7 @@ class FeatureType(Resource):
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from mrmap.service.helper import service_helper
+        from service.helper import service_helper
         if self.parent_service is None:
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.service_type.version)
@@ -3629,3 +3613,39 @@ class Namespace(models.Model):
 
     def __str__(self):
         return self.name + " (" + self.uri + ")"
+
+
+# TODO
+class MapContext(Resource):
+    title = models.CharField(max_length=1000, null=False, blank=False, verbose_name=_('Title'))
+    abstract = models.TextField(null=False, blank=False, verbose_name=_('Abstract'))
+    update_date = models.DateTimeField(auto_now_add=True)
+    layer_tree = models.TextField(null=False, blank=False)
+    # Additional possible parameters:
+    # specReference
+    # language
+    # author
+    # publisher
+    # creator
+    # rights
+    # areaOfInterest
+    # timeIntervalOfInterest
+    # keyword
+    # resource
+    # contextMetadata
+    # extension
+
+    @classmethod
+    def get_add_action(cls):
+        return LinkButton(content=get_icon(IconEnum.ADD) + _(' New Map Context').__str__(),
+                          color=ButtonColorEnum.SUCCESS,
+                          url=reverse('resource:mapcontexts-add'),
+                          needs_perm=PermissionEnum.CAN_REGISTER_RESOURCE.value)
+
+    @property
+    def edit_view_uri(self):
+        return reverse("resource:mapcontexts-edit", args=[self.pk])
+
+    @property
+    def remove_view_uri(self):
+        return reverse("resource:mapcontexts-remove", args=[self.pk])

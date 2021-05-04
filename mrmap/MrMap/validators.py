@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum, PendingTaskEnum
+from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum
 
 password_has_lower_case_letter = RegexValidator(
     regex='[a-z]',
@@ -112,7 +112,7 @@ def check_uri_provides_ogc_capabilities(value) -> ValidationError:
 
 
 def _get_request_uri_has_no_request_parameter(value):
-    from mrmap.service.helper import service_helper
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
 
     if "request" in url_dict and url_dict["request"] is not None:
@@ -128,7 +128,7 @@ def _get_request_uri_has_no_request_parameter(value):
 
 
 def _get_request_uri_has_no_version_parameter(value):
-    from mrmap.service.helper import service_helper
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
@@ -170,7 +170,7 @@ def _get_request_uri_has_no_version_parameter(value):
 
 
 def _get_request_uri_has_no_service_parameter(value):
-    from mrmap.service.helper import service_helper
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
 
     if "service" not in url_dict or url_dict["service"] is None:
@@ -190,11 +190,11 @@ def validate_get_capablities_uri(value):
     validation_errors = []
 
     validate_funcs = [
-        check_uri_is_reachable,
         check_uri_provides_ogc_capabilities,
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,
+        check_uri_is_reachable,
     ]
 
     skip_check_uri_provides_ogc_capabilities = False
@@ -217,10 +217,6 @@ def validate_document_enum_choices(value):
 
 def validate_metadata_enum_choices(value):
     return validate_choice(value, MetadataEnum.as_choices())
-
-
-def validate_pending_task_enum_choices(value):
-    return validate_choice(value, PendingTaskEnum.as_choices())
 
 
 def validate_choice(value, choices: list):

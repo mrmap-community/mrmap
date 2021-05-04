@@ -178,7 +178,7 @@ class LoginLogoutTestCase(TestCase):
         response = client.get(reverse('logout',), data={"user": self.user})
         self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
-        self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
+        self.assertEqual(response.url, "/", msg=REDIRECT_WRONG)
 
         # case 2: user not activated -> user will not be logged in
         # make sure the user is not activated
@@ -390,7 +390,7 @@ class SubscriptionViewsTestCases(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=self.user_password)
-        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
+        create_wms_service(group=self.user.groups.first(), how_much_services=10)
         self.service_md = Metadata.objects.filter(
             metadata_type=MetadataEnum.SERVICE.value
         ).first()
@@ -413,7 +413,7 @@ class SubscriptionViewsTestCases(TestCase):
             path=Subscription.get_add_view_url(),
             data=post_params
         )
-        post_count_subscriptions = Subscription.objects.all().count()
+        post_count_subscriptions = Subscription.objects.count()
         self.assertEqual(response.status_code, 302)
         self.assertEqual(pre_count_subscriptions + 1, post_count_subscriptions)
         try:

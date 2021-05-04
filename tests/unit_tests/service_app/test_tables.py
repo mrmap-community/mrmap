@@ -5,9 +5,7 @@ from django_tables2 import RequestConfig
 
 from MrMap.consts import SERVICE_INDEX_LOG
 from service.models import Metadata, ProxyLog
-from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable, ProxyLogTable, OgcServiceTable, \
-    PendingTaskTable
-from structure.models import PendingTask
+from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable, ProxyLogTable, OgcServiceTable
 from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs, create_testuser
 from tests.utils import check_table_sorting
 

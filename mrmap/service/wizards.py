@@ -1,20 +1,20 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html
-
-from MrMap.decorators import permission_required
+from MrMap.messages import NO_PERMISSION
 from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
 from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from service.settings import service_logger
 from structure.permissionEnums import PermissionEnum
 
-FIRST_STEP_ID = _("URL")
-SECOND_STEP_ID = _("Overview")
+FIRST_STEP_ID = "URL"
+SECOND_STEP_ID = "Overview"
 
 NEW_RESOURCE_WIZARD_FORMS = [
     (FIRST_STEP_ID, RegisterNewResourceWizardPage1),
@@ -23,9 +23,11 @@ NEW_RESOURCE_WIZARD_FORMS = [
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(PermissionEnum.CAN_REGISTER_RESOURCE.value), name='dispatch')
-class NewResourceWizard(MrMapWizard):
+class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
     success_url = reverse_lazy('resource:pending-tasks')
+    permission_required = PermissionEnum.CAN_REGISTER_RESOURCE.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -33,6 +35,9 @@ class NewResourceWizard(MrMapWizard):
             title=_(format_html('<b>Add New Resource</b>')),
             *args,
             **kwargs)
+
+    def get_success_url(self):
+        return reverse('resource:pending-tasks') + f'?task_id={self.task.id}'
 
     def get_form_kwargs(self, step=None):
         if step == SECOND_STEP_ID:
@@ -91,7 +96,7 @@ class NewResourceWizard(MrMapWizard):
         for form in form_list:
             if isinstance(form, RegisterNewResourceWizardPage2):
                 try:
-                    service_helper.create_new_service(form, self.request.user)
+                    self.task = service_helper.create_new_service(form, self.request.user)
                     messages.success(self.request, 'Async task was created to create new resource.')
                 except Exception as e:
                     service_logger.exception(e, stack_info=True, exc_info=True)

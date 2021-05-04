@@ -53,11 +53,12 @@ class WmsHelper:
         Returns:
             str: URL for getStyles request.
         """
+        # todo: filter url not empty
         uri = self.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_STYLES.value,
             method="Get"
         ).first()
-        if uri is None:
+        if uri is None or uri.url is None:
             return
         uri = uri.url
         service_version = OGCServiceVersionEnum.V_1_1_1.value

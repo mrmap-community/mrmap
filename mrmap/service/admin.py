@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
+from django_celery_results.models import TaskResult
 
 from service.models import *
 from django.urls import reverse
@@ -96,7 +97,7 @@ class LayerAdmin(admin.ModelAdmin):
 class MetadataAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact')
     list_filter = ('metadata_type', 'is_active', 'is_broken')
-    search_fields = ['id', 'title', "identifier", "public_id"]
+    search_fields = ['id', 'title', "identifier"]
     ordering = ["-created"]
     readonly_fields = (
         "additional_urls",
@@ -191,8 +192,8 @@ class GenericUrlAdmin(admin.ModelAdmin):
 
 
 class ServiceUrlAdmin(admin.ModelAdmin):
-    list_display = ('operation', 'method', 'description', 'url')
-    search_fields = ['id', 'service__metadata__title']
+    list_display = ('id', 'operation', 'method', 'description', 'url')
+    search_fields = ['id', 'operation', 'method', 'description', 'url', 'service__metadata__title']
 
 
 class ServiceTypeAdmin(admin.ModelAdmin):

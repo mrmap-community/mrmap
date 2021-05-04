@@ -1,11 +1,14 @@
+import json
+from celery import states
+from celery.worker.control import revoke
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Case, When, Q
-from django.http import HttpRequest, HttpResponseRedirect
-from django.shortcuts import render
+from django.http import HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
@@ -13,18 +16,18 @@ from django.views.generic import DeleteView, DetailView, UpdateView, CreateView
 from django.views.generic.base import ContextMixin
 from django_bootstrap_swt.components import Tag, Badge
 from django_bootstrap_swt.enums import BadgeColorEnum
+from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
-from MrMap.decorators import ownership_required, permission_required
 from MrMap.icons import IconEnum
 from MrMap.messages import GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED, PUBLISH_REQUEST_DENIED, \
     PUBLISH_REQUEST_ACCEPTED, \
     ORGANIZATION_SUCCESSFULLY_CREATED, ORGANIZATION_SUCCESSFULLY_DELETED, PUBLISH_REQUEST_SENT, \
-    GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_CREATED, ORGANIZATION_SUCCESSFULLY_EDITED
+    GROUP_SUCCESSFULLY_EDITED, GROUP_INVITATION_CREATED, ORGANIZATION_SUCCESSFULLY_EDITED, NO_PERMISSION
 from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, DependingListView, \
     SuccessMessageDeleteMixin
 from structure.permissionEnums import PermissionEnum
 from structure.forms import GroupForm, OrganizationForm
-from structure.models import MrMapGroup, Organization, PendingTask, ErrorReport, PublishRequest, GroupInvitationRequest
+from structure.models import MrMapGroup, Organization, PublishRequest, GroupInvitationRequest
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublishesForTable, GroupDetailTable, \
     OrganizationDetailTable, PublishersTable, OrganizationMemberTable, MrMapUserTable, \
@@ -107,13 +110,15 @@ class OrganizationTableView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_ORGANIZATION.value, login_url='structure:organization_overview'), name='dispatch')
-class OrganizationNewView(InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, CreateView):
+class OrganizationNewView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, CreateView):
     model = Organization
     form_class = OrganizationForm
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New organization')
     success_message = ORGANIZATION_SUCCESSFULLY_CREATED
+    permission_required = PermissionEnum.CAN_CREATE_ORGANIZATION.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -138,16 +143,16 @@ class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextM
         return context
 
 
-@method_decorator([login_required,
-                   permission_required(perm=PermissionEnum.CAN_EDIT_ORGANIZATION.value,
-                                       login_url='structure:organization_overview')],
-                  name='dispatch')
-class OrganizationEditView(InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, UpdateView):
+@method_decorator(login_required, name='dispatch')
+class OrganizationEditView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin, UpdateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = ORGANIZATION_SUCCESSFULLY_EDITED
     model = Organization
     form_class = OrganizationForm
     title = _('Edit organization')
+    permission_required = PermissionEnum.CAN_EDIT_ORGANIZATION.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -156,14 +161,16 @@ class OrganizationEditView(InitFormMixin, GenericViewContextMixin, SuccessMessag
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_ORGANIZATION.value, login_url='structure:organization_overview'), name='dispatch')
-class OrganizationDeleteView(GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
+class OrganizationDeleteView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
     model = Organization
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:organization_overview')
     success_message = ORGANIZATION_SUCCESSFULLY_DELETED
     queryset = Organization.objects.filter(is_auto_generated=False)
     title = _('Delete organization')
+    permission_required = PermissionEnum.CAN_DELETE_ORGANIZATION.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_msg_dict(self):
         return {'organization_name': self.get_object().organization_name}
@@ -240,10 +247,11 @@ class GroupMembersTableView(DependingListView, GroupDetailContextMixin, CustomSi
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskDelete(DeleteView):
-    model = PendingTask
+class PendingTaskDelete(SuccessMessageMixin, DetailView):
+    model = TaskResult
     success_url = reverse_lazy('resource:pending-tasks')
-    template_name = 'generic_views/generic_confirm.html'
+    template_name = 'generic_views/base_extended/delete.html'
+    success_message = _('Task canceled.')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -254,27 +262,36 @@ class PendingTaskDelete(DeleteView):
         })
         return context
 
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        revoke(task_id=self.object.task_id, state=states.REVOKED, terminate=True)
+        return HttpResponseRedirect(self.success_url)
+
 
 @method_decorator(login_required, name='dispatch')
 class ErrorReportDetailView(DetailView):
-    model = ErrorReport
+
+    model = TaskResult
     content_type = "text/plain"
     template_name = "structure/views/error-reports/error.txt"
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
-        response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{self.object.timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.txt"'
+        response['Content-Disposition'] = f'attachment; filename="MrMap_error_report_{self.object.task_id}.txt"'
         return response
 
 
+
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_CREATE_GROUP.value, login_url='structure:group_overview'), name='dispatch')
-class GroupNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class GroupNewView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = MrMapGroup
     form_class = GroupForm
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New group')
     success_message = GROUP_SUCCESSFULLY_CREATED
+    permission_required = PermissionEnum.CAN_CREATE_GROUP.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -297,13 +314,15 @@ class GroupPublishRightsForTableView(DependingListView, GroupDetailContextMixin,
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value, login_url='structure:publish_request_overview'), name='dispatch')
-class PublishRequestNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class PublishRequestNewView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = PublishRequest
     fields = ('group', 'organization', 'message')
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('Publish request')
     success_message = PUBLISH_REQUEST_SENT
+    permission_required = PermissionEnum.CAN_REQUEST_TO_BECOME_PUBLISHER.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def form_valid(self, form):
         group = form.cleaned_data['group']
@@ -326,20 +345,22 @@ class PublishRequestTableView(CustomSingleTableMixin, FilterView):
         if not self.request.user.is_superuser:
             # show only requests for groups or organization where the user is member of
             # superuser can see all pending requests
-            queryset.filter(Q(group__in=self.request.user.get_groups) |
+            queryset.filter(Q(group__in=self.request.user.groups.all()) |
                             Q(organization=self.request.user.organization))
         return queryset
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value, login_url='structure:publish_request_overview'), name='dispatch')
-class PublishRequestAcceptView(GenericViewContextMixin, SuccessMessageMixin, InitFormMixin, UpdateView):
+class PublishRequestAcceptView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, InitFormMixin, UpdateView):
     model = PublishRequest
     template_name = "MrMap/detail_views/generic_form.html"
     success_url = reverse_lazy('structure:publish_request_overview')
     fields = ('is_accepted', )
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept request')
+    permission_required = PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def form_valid(self, form):
         try:
@@ -351,39 +372,44 @@ class PublishRequestAcceptView(GenericViewContextMixin, SuccessMessageMixin, Ini
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value, login_url='structure:publish_request_overview'), name='dispatch')
-class PublishRequestRemoveView(GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class PublishRequestRemoveView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
     model = PublishRequest
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:index')
     success_message = PUBLISH_REQUEST_DENIED
     title = _('Deny request')
+    permission_required = PermissionEnum.CAN_TOGGLE_PUBLISH_REQUESTS.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_DELETE_GROUP.value, login_url='structure:group_overview'), name='dispatch')
-@method_decorator(ownership_required(klass=MrMapGroup, id_name='pk', login_url='structure:group_overview'), name='dispatch')
-class GroupDeleteView(GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
+class GroupDeleteView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
     model = MrMapGroup
     template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:group_overview')
     success_message = GROUP_SUCCESSFULLY_DELETED
     queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
     title = _('Delete group')
+    permission_required = PermissionEnum.CAN_DELETE_GROUP.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_msg_dict(self):
         return {'name': self.get_object().name}
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_GROUP.value, login_url='structure:group_overview'), name='dispatch')
-class GroupEditView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class GroupEditView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = GROUP_SUCCESSFULLY_EDITED
     model = MrMapGroup
     form_class = GroupForm
     queryset = MrMapGroup.objects.filter(is_permission_group=False)
     title = _('Edit group')
+    permission_required = PermissionEnum.CAN_EDIT_GROUP.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -411,25 +437,27 @@ class GroupInvitationRequestTableView(CustomSingleTableMixin, FilterView):
         if not self.request.user.is_superuser:
             # show only requests for groups where the user is member of or the user is the requesting user
             # superuser can see all pending requests
-            queryset.filter(Q(group__in=self.request.user.get_groups) |
+            queryset.filter(Q(group__in=self.request.user.groups.all()) |
                             Q(user=self.request.user))
         return queryset
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_ADD_USER_TO_GROUP.value), name='dispatch')
-class GroupInvitationRequestNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class GroupInvitationRequestNewView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = GroupInvitationRequest
     fields = ('user', 'group', 'message')
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('Group invitation request ')
     success_message = GROUP_INVITATION_CREATED
+    permission_required = PermissionEnum.CAN_ADD_USER_TO_GROUP.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def form_valid(self, form):
         group = form.cleaned_data['group']
         user = form.cleaned_data['user']
 
-        if group in user.get_groups:
+        if group in user.groups.all():
             form.add_error(None, _(f'{user} is already member of this group.'))
             return self.form_invalid(form)
         else:
@@ -437,43 +465,13 @@ class GroupInvitationRequestNewView(GenericViewContextMixin, InitFormMixin, Succ
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_EDIT_ORGANIZATION.value,
-                                      login_url='structure:group_invitation_request_overview'), name='dispatch')
-class GroupInvitationRequestAcceptView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class GroupInvitationRequestAcceptView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
     model = GroupInvitationRequest
     template_name = "MrMap/detail_views/generic_form.html"
     success_url = reverse_lazy('structure:publish_request_overview')
     fields = ('is_accepted',)
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept invitation request')
-
-
-def handler404(request: HttpRequest, exception=None):
-    """ Handles a general 404 (Page not found) error and renders a custom response page
-
-    Args:
-        request: The incoming request
-        exception: An exception, if one occured
-    Returns:
-         A rendered 404 response
-    """
-    response = render(request=request, template_name="404.html")
-    response.status_code = 404
-    return response
-
-
-def handler500(request: HttpRequest, exception=None):
-    """ Handles a general 500 (Internal Server Error) error and renders a custom response page
-
-    Args:
-        request: The incoming request
-        exception: An exception, if one occured
-    Returns:
-         A rendered 500 response
-    """
-    params = {
-
-    }
-    response = render(request=request, template_name="500.html")
-    response.status_code = 500
-    return response
+    permission_required = PermissionEnum.CAN_EDIT_ORGANIZATION.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION

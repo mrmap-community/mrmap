@@ -35,7 +35,7 @@ class AutocompleteView(autocomplete.Select2QuerySetView):
         if not self.add_perm:
             raise ImproperlyConfigured(_('If you provide add functionality you need to define `add_perm` param'))
         user = request.user
-        return user.has_perm(self.add_perm)
+        return user.has_perm(perm=self.add_perm)
 
 
 @method_decorator(login_required, name='dispatch')

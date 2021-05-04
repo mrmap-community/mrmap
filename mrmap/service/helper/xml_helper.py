@@ -12,7 +12,6 @@ from requests.exceptions import ProxyError
 from MrMap.settings import XML_NAMESPACES
 from service.helper.enums import OGCServiceVersionEnum
 
-
 def parse_xml(xml: str, encoding=None):
     """ Returns the xml as iterable object
 
@@ -140,7 +139,7 @@ def try_get_single_element_from_xml(elem: str, xml_elem):
 
 def try_get_element_from_xml(elem: str, xml_elem):
     """ Wraps a try-except call to fetch elements from an xml element
-
+    TODO: is it correct to use all global namespaces here?
     Args:
         elem:
         xml_elem:
@@ -175,6 +174,7 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
     except (IndexError, AttributeError) as e:
         return None
 
+
 def get_children_with_attribute(xml_elem, attribute: str, nearest_only: bool=False):
     """ Returns the next or all children which hold a specific attribute name
 
@@ -191,6 +191,7 @@ def get_children_with_attribute(xml_elem, attribute: str, nearest_only: bool=Fal
         return children[0]
     else:
         return children
+
 
 def set_attribute(xml_elem, attribute: str, value: str):
     """ Set an attribute for a xml element
@@ -287,6 +288,25 @@ def write_text_to_element(xml_elem, elem: str=None, txt: str=None):
     return xml_elem
 
 
+def add_text_to_element(xml_elem, elem: str=None, txt: str=None):
+    """ Add new text to an empty xml element.
+
+    Elem can be used to refer to a subelement of the current xml_elem
+
+    Args:
+        xml_elem: The current xml element
+        elem (str): The requested element tag name
+        txt (str): The new text for the element
+    Returns:
+         xml_elem: The modified xml element
+    """
+    if xml_elem is not None:
+        if elem is not None:
+            xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
+        xml_elem.append = txt
+    return xml_elem
+
+
 def remove_element(xml_child):
     """ Removes a child xml element from its parent xml element
 
@@ -317,6 +337,25 @@ def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: d
         xml_elem.insert(after_element_index, ret_element)
     else:
         xml_elem.append(ret_element)
+    return ret_element
+
+
+def create_childelement(xml_elem: _Element, tag_name, into: str = None, attrib: dict = None, nsmap: dict = {}):
+    """ Creates a new xml element as a child for the into element of xml_elem with the name tag_name
+
+    Args:
+        xml_elem: The xml element
+        tag_name: The tag name for the new element
+        into (str): The tag name of the element into which the new one should be inserted
+        attrib: The attribute dict for the new element
+    Returns:
+         A new subelement of xml_elem
+    """
+    ret_element = etree.Element(tag_name, attrib=attrib, nsmap=nsmap)
+    if into is not None:
+        into_element = try_get_single_element_from_xml("./{}".format(into), xml_elem)
+
+        into_element.append(ret_element)
     return ret_element
 
 

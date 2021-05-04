@@ -1,10 +1,10 @@
-import base64
 import io
 from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -12,59 +12,61 @@ from django.db.models import QuerySet, Q
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _l
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _l
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, DetailView, DeleteView, UpdateView
+from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
+from django_celery_results.models import TaskResult
 from django_filters.views import FilterView
 from django_tables2.export import ExportMixin
 from requests.exceptions import ReadTimeout
-from django.utils import timezone
+
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorators import log_proxy, ownership_required, permission_required
+from MrMap.decorators import log_proxy
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED, NO_PERMISSION, GROUP_SUCCESSFULLY_DELETED, MAP_CONTEXT_SUCCESSFULLY_CREATED, \
+    MAP_CONTEXT_SUCCESSFULLY_EDITED
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
-from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, TaskResultFilter
+from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
+from service.helper import service_helper
 from service.helper import update_helper
-from mrmap.service.helper import service_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from mrmap.service.helper.service_helper import get_resource_capabilities
+from service.helper.service_helper import get_resource_capabilities
+from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
-    ProxyLogTable
+    ProxyLogTable, MapContextTable
 from service.tasks import async_log_response
-from service.models import Metadata, Layer, Service, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
-from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 
 
 def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) -> QuerySet:
     return Metadata.objects.filter(
         service__service_type__name=service_type.value,
-        created_by__in=instance.request.user.get_groups,
+        created_by__in=instance.request.user.groups.all(),
         is_deleted=False,
         service__is_update_candidate_for=None,
     ).select_related(
@@ -83,10 +85,16 @@ def get_queryset_filter_by_service_type(instance, service_type: OGCServiceEnum) 
 
 
 @method_decorator(login_required, name='dispatch')
-class PendingTaskView(CustomSingleTableMixin, ListView):
-    model = PendingTask
+class PendingTaskView(CustomSingleTableMixin, FilterView):
+    model = TaskResult
     table_class = PendingTaskTable
+    filterset_class = TaskResultFilter
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
+    template_name = 'service/views/pending_tasks.html'
+
+    def get_queryset(self):
+        qs = super(PendingTaskView, self).get_queryset()
+        return qs
 
 
 @method_decorator(login_required, name='dispatch')
@@ -94,7 +102,6 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_class = OgcWmsFilter
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WMS) + _(' WMS').__str__()
 
     def get_filterset_kwargs(self, *args):
@@ -109,11 +116,13 @@ class WmsIndexView(CustomSingleTableMixin, FilterView):
         # whether whole services or single layers should be displayed, we have to exclude some columns
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = ('layers', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+            table.exclude = (
+                'layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
         else:
-            table.exclude = ('parent_service', 'featuretypes', 'last_harvest', 'collected_harvest_records',)
+            table.exclude = (
+                'parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
 
-        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.all_permissions)))
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
 
@@ -126,13 +135,12 @@ class WfsIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.WFS) + _(' WFS').__str__()
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'last_harvest', 'collected_harvest_records',)
+        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records', 'harvest_duration')
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
@@ -148,13 +156,12 @@ class CswIndexView(CustomSingleTableMixin, FilterView):
     model = Metadata
     table_class = OgcServiceTable
     filterset_fields = {'title': ['icontains'], }
-    #extra_context = {'above_content': render_to_string(template_name='pending_task_list_ajax.html')}
     title = get_icon(IconEnum.CSW) + _(' CSW').__str__()
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(CswIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'featuretypes', 'health', 'service__published_for')
+        table.exclude = ('parent_service', 'layers', 'featuretypes', 'service__published_for')
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -180,31 +187,34 @@ class DatasetIndexView(CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.get_groups)
+        return self.request.user.get_datasets_as_qs(user_groups=self.request.user.groups.all())
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_REMOVE_RESOURCE.value, login_url='home'), name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk', login_url='home'), name='dispatch')
-class ResourceDeleteView(SuccessMessageDeleteMixin, DeleteView):
+class ResourceDeleteView(PermissionRequiredMixin, SuccessMessageDeleteMixin, DeleteView):
     model = Metadata
     queryset = Metadata.objects.filter(Q(metadata_type=MetadataEnum.SERVICE.value) |
                                        Q(metadata_type=MetadataEnum.CATALOGUE.value))
     success_url = reverse_lazy('home')
     template_name = "MrMap/detail_views/delete.html"
     success_message = SERVICE_SUCCESSFULLY_DELETED
+    permission_required = PermissionEnum.CAN_REMOVE_RESOURCE.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_msg_dict(self):
         return {'name': self.get_object()}
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_ACTIVATE_RESOURCE.value, login_url='home'),
-                  name='dispatch')
-class ResourceActivateDeactivateView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class ResourceActivateDeactivateView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin,
+                                     SuccessMessageMixin, UpdateView):
     model = Metadata
     template_name = "MrMap/detail_views/generic_form.html"
     fields = ('is_active',)
+    permission_required = PermissionEnum.CAN_ACTIVATE_RESOURCE.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         if self.object.is_active:
@@ -267,13 +277,14 @@ def metadata_subscription_new(request: HttpRequest, metadata_id: str):
 class DatasetMetadataXmlView(BaseDetailView):
     model = Metadata
     # a dataset metadata without a document is broken
-    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents__isnull=False)\
-                               .prefetch_related('documents')
+    queryset = Metadata.objects.filter(metadata_type=OGCServiceEnum.DATASET.value, documents__isnull=False) \
+        .prefetch_related('documents')
     content_type = 'application/xml'
     object = None
 
     def get(self, request, *args, **kwargs):
-        document = self.object.documents.get(is_original=False) if self.object.documents.filter(is_original=False).exists() else self.object.documents.get(
+        document = self.object.documents.get(is_original=False) if self.object.documents.filter(
+            is_original=False).exists() else self.object.documents.get(
             is_original=True)
         return HttpResponse(document.content, content_type=self.content_type)
 
@@ -439,7 +450,7 @@ class MetadataHtml(DetailView):
 
         if self.object.is_metadata_type(MetadataEnum.DATASET):
             context['contact'] = collect_contact_data(self.object.contact)
-            context['bounding_box'] = self.object.allowed_area
+            context['bounding_box'] = self.object.bounding_geometry
             context['dataset_metadata'] = self.object
             context['fees'] = self.object.fees
             context['licence'] = self.object.licence
@@ -464,6 +475,7 @@ class MetadataHtml(DetailView):
             pass
 
         return context
+
 
 @login_required
 # @permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
@@ -521,8 +533,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
 # Todo: wizard/form view?
 @login_required
-# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
@@ -592,8 +603,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 
 
 @login_required
-# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
@@ -613,8 +623,7 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 
 
 @login_required
-# @check_permission(PermissionEnum.CAN_UPDATE_RESOURCE)
-@ownership_required(Metadata, 'metadata_id')
+@permission_required(PermissionEnum.CAN_UPDATE_RESOURCE.value)
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):
     if request.method == 'POST':
@@ -712,7 +721,6 @@ def run_update_service(request: HttpRequest, metadata_id):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(ownership_required(klass=Metadata, id_name='pk'), name='dispatch')
 class ResourceDetailTableView(DetailView):
     model = Metadata
     template_name = 'generic_views/generic_detail_without_base.html'
@@ -782,7 +790,8 @@ class ResourceTreeView(DetailView):
     available_resources = Q(metadata_type='layer') | \
                           Q(metadata_type='featureType') | \
                           Q(service__service_type__name='wms') | \
-                          Q(service__service_type__name='wfs') & \
+                          Q(service__service_type__name='wfs') | \
+                          Q(service__service_type__name='csw') & \
                           Q(service__is_update_candidate_for=None)
     queryset = Metadata.objects. \
         select_related('service', 'service__service_type', 'featuretype', 'created_by'). \
@@ -811,6 +820,9 @@ class ResourceTreeView(DetailView):
             self.template_name = 'service/views/wms_tree.html'
             context.update({'nodes': sub_elements,
                             'root_node': self.object.service})
+        elif self.object.is_service_type(enum=OGCServiceEnum.CSW):
+            self.template_name = 'service/views/csw.html'
+            pass
         return context
 
 
@@ -831,7 +843,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
          A redirect to the GetMap uri
     """
     # get request type and requested layer
-    get_query_string = request.environ.get("QUERY_STRING", "")
+    get_query_string = request.META.get("QUERY_STRING", "")
 
     try:
         # redirects request to parent service, if the given id is not the root of the service
@@ -903,8 +915,8 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
     except ReadTimeout:
         return HttpResponse(status=408, content=CONNECTION_TIMEOUT.format(request.build_absolute_uri()))
-    except Exception as e:
-        return HttpResponse(status=500, content=e)
+    #except Exception as e:
+    #    return HttpResponse(status=500, content=e)
 
 
 def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
@@ -957,7 +969,7 @@ class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
         return table
 
     def get_queryset(self):
-        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.get_groups)
+        group_metadatas = Metadata.objects.filter(created_by__in=self.request.user.groups.all())
 
         return ProxyLog.objects.filter(
             metadata__in=group_metadatas
@@ -965,3 +977,68 @@ class LogsIndexView(ExportMixin, CustomSingleTableMixin, FilterView):
             "metadata",
             "user"
         )
+
+
+# TODO
+@method_decorator(login_required, name='dispatch')
+class MapContextIndexView(CustomSingleTableMixin, FilterView):
+    model = MapContext
+    table_class = MapContextTable
+    filterset_fields = {'title': ['icontains'], }
+    title = get_icon(IconEnum.MAP_CONTEXT) + _(' Map Contexts').__str__()
+
+    def get_table(self, **kwargs):
+        # set some custom attributes for template rendering
+        table = super(MapContextIndexView, self).get_table(**kwargs)
+        render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
+                                     update_url_qs=get_current_view_args(self.request))
+        table.actions = [render_helper.render_item(item=MapContext.get_add_action())]
+        return table
+
+    def get_queryset(self):
+        return MapContext.objects.all()
+
+
+@method_decorator(login_required, name='dispatch')
+class MapContextCreateView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin,
+                           CreateView):
+    model = MapContext
+    form_class = MapContextForm
+    template_name = 'views/map_context_add.html'
+    title = _('New map context')
+    success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
+    success_url = reverse_lazy('resource:mapcontexts-index')
+    permission_required = 'service.add_mapcontext'
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+
+
+@method_decorator(login_required, name='dispatch')
+class MapContextEditView(PermissionRequiredMixin, InitFormMixin, GenericViewContextMixin, SuccessMessageMixin,
+                         UpdateView):
+    template_name = 'views/map_context_add.html'
+    success_message = MAP_CONTEXT_SUCCESSFULLY_EDITED
+    success_url = reverse_lazy('resource:mapcontexts-index')
+    model = MapContext
+    form_class = MapContextForm
+    title = _('Edit map context')
+    permission_required = 'service.change_mapcontext'
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+
+
+@method_decorator(login_required, name='dispatch')
+class MapContextDeleteView(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageDeleteMixin, DeleteView):
+    model = MapContext
+    template_name = "MrMap/detail_views/delete.html"
+    success_url = reverse_lazy('resource:mapcontexts-index')
+    success_message = GROUP_SUCCESSFULLY_DELETED
+    # queryset = MrMapGroup.objects.filter(is_permission_group=False, is_public_group=False)
+    title = _('Delete Map Context')
+    # TODO
+    permission_required = PermissionEnum.CAN_DELETE_GROUP.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+
+    def get_msg_dict(self):
+        return {'name': self.get_object().title}

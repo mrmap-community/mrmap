@@ -9,17 +9,15 @@ from django import forms
 from django.core.exceptions import ObjectDoesNotExist, ImproperlyConfigured
 from django.urls import reverse_lazy
 from django.utils.html import format_html
-
-from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
-from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED_TEMPLATE, SERVICE_DEACTIVATED_TEMPLATE
-from MrMap.validators import validate_get_capablities_uri
 from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
 
-from mrmap.service.helper import service_helper
+from MrMap.forms import MrMapForm
+from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE
+from MrMap.validators import validate_get_capablities_uri
+from MrMap.widgets import BootstrapDatePickerInput
+from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
-from service.models import Service, MrMapGroup
-from service import tasks
+from service.models import Service, MrMapGroup, MapContext
 from service.settings import NONE_UUID
 from structure.models import Organization
 
@@ -47,7 +45,8 @@ class RegisterNewResourceWizardPage2(forms.Form):
     )
     registering_for_other_organization = forms.ModelChoiceField(
         label=_("Registration for other organization"),
-        help_text=_("If you need to register for another organization, select the group which has the publisher rights and select the organization in here."),
+        help_text=_(
+            "If you need to register for another organization, select the group which has the publisher rights and select the organization in here."),
         required=False,
         queryset=Organization.objects.none(),
         to_field_name='id',
@@ -69,35 +68,37 @@ class RegisterNewResourceWizardPage2(forms.Form):
         choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic'))
     )
 
-    def __init__(self,  *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         if not self.request:
             raise ImproperlyConfigured("request is needed for this form to configure fields with dependencies.")
 
         super(RegisterNewResourceWizardPage2, self).__init__(*args, **kwargs)
-        registering_with_group_key = self.prefix+"-registering_with_group" if self.prefix else "registering_with_group"
+        registering_with_group_key = self.prefix + "-registering_with_group" if self.prefix else "registering_with_group"
         selected_group = None
 
         if registering_with_group_key in self.request.POST:
             selected_group = MrMapGroup.objects.get(id=int(self.request.POST.get(registering_with_group_key)))
 
-        service_needs_authentication_key = self.prefix+"-service_needs_authentication" if self.prefix else "service_needs_authentication"
+        service_needs_authentication_key = self.prefix + "-service_needs_authentication" if self.prefix else "service_needs_authentication"
         service_needs_authentication = None
         if service_needs_authentication_key in self.request.POST:
-            service_needs_authentication = True if self.request.POST.get(service_needs_authentication_key) == 'on' else False
+            service_needs_authentication = True if self.request.POST.get(
+                service_needs_authentication_key) == 'on' else False
         elif kwargs.get("initial", {}).get("service_needs_authentication", False):
             service_needs_authentication = True
 
         # initial the fields if the values are transfered
         if self.request.user is not None:
-            user_groups = self.request.user.get_groups.filter(is_public_group=False, is_permission_group=False)
+            user_groups = self.request.user.groups.select_related('mrmapgroup').filter(
+                mrmapgroup__is_public_group=False, mrmapgroup__is_permission_group=False)
             self.fields["registering_with_group"].queryset = user_groups.all()
             self.fields["registering_with_group"].initial = user_groups.first()
         if selected_group is not None:
             self.fields["registering_for_other_organization"].queryset = selected_group.publish_for_organizations.all()
         elif self.request.user is not None and user_groups.first() is not None:
             self.fields[
-                "registering_for_other_organization"].queryset = user_groups.first().publish_for_organizations.all()
+                "registering_for_other_organization"].queryset = user_groups.first().mrmapgroup.publish_for_organizations.all()
         if service_needs_authentication:
             self.fields["service_needs_authentication"].initial = "on"
             # self.fields["service_needs_authentication"].required = True
@@ -189,3 +190,21 @@ class UpdateOldToNewElementsForm(forms.Form):
         if choices is not None:
             for identifier, choice in choices.items():
                 self.fields['new_elem_{}'.format(identifier)].initial = choice
+
+
+class MapContextForm(forms.ModelForm):
+    # layer = MetadataModelChoiceField(
+    #     queryset=Metadata.objects.none(),
+    #     widget=autocomplete.ModelSelect2(
+    #         url='editor:layer-autocomplete',
+    #     ),
+    #     required=False, )
+    # layer_tree = forms.CharField(widget=forms.HiddenInput)
+
+    class Meta:
+        model = MapContext
+        fields = ('title', 'abstract')
+        widgets = {
+            'update_date': BootstrapDatePickerInput(),
+            'layer_tree': forms.HiddenInput()
+        }

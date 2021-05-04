@@ -35,7 +35,7 @@ class EditorMetadataEditViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups.first(), how_much_services=1)
+        create_wms_service(group=self.user.groups.first(), how_much_services=1)
 
     def test_get_form_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -61,7 +61,7 @@ class EditorAccessEditViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
+        create_wms_service(group=self.user.groups.first(), how_much_services=10)
 
     def test_get_form_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -85,7 +85,7 @@ class EditorDatasetWizardNewViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
+        create_wms_service(group=self.user.groups.first(), how_much_services=10)
 
     def test_get_wizard_new_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -106,7 +106,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
         self.organization = create_public_organization(user=self.user)
-        self.wms_services = create_wms_service(group=self.user.get_groups.first(),
+        self.wms_services = create_wms_service(group=self.user.groups.first(),
                                                how_much_services=10,
                                                contact=self.organization[0])
 
@@ -116,8 +116,8 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         Returns:
 
         """
-        datasets = self.user.get_datasets_as_qs()
-        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])
+        datasets = self.user.get_datasets_as_qs().first()
+        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets.id])
         response = self.client.get(
             url,
         )
@@ -136,7 +136,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
                             "identification-language_code": "ger",
                             "identification-character_set_code": "utf8",
                             "identification-date_stamp": "2020-06-23",
-                            "identification-created_by": self.user.get_groups.first().id}
+                            "identification-created_by": self.user.groups.first().id}
 
         step2_post_params = {"wizard_goto_step": "classification",
                              "dataset_wizard-current_step": "responsible party",
@@ -181,7 +181,7 @@ class EditorDatasetRemoveInstanceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
         self.wms_services = create_wms_service(
-            group=self.user.get_groups.first(),
+            group=self.user.groups.first(),
             how_much_services=1,
             md_relation_origin=ResourceOriginEnum.EDITOR.value
         )
@@ -209,7 +209,7 @@ class EditorRestoreDatasetViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_services = create_wms_service(group=self.user.get_groups.first(), how_much_services=10)
+        self.wms_services = create_wms_service(group=self.user.groups.first(), how_much_services=10)
 
     def test_restore_non_custom_instance_view(self):
         """ Test for checking whether the dataset is restored or not

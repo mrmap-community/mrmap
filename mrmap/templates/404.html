@@ -10,7 +10,7 @@
     <div class="container">
         <div class="card bg-light mt-3">
             <div class="card-header">
-                <h1 class="card-title text-center">404</h1>
+                <h1 class="card-title text-center">404 - {% trans 'Not Found' %}</h1>
             </div><!--</card-header-->
             <div class="card-body">
                 <div class="media ">
@@ -18,7 +18,7 @@
                         <div class="media-body w-75">
                             <article class="article-txt">
                             <h1>{% trans 'Oh no!' %}</h1>
-                            <div>{% trans 'The page you are looking for does not exit.' %}</div>
+                            <div>{{exception}}</div>
                             <div>{% trans 'Mr. Map can`t find it!' %}</div>
                         </article>
                         </div>

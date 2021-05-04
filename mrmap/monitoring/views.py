@@ -1,10 +1,11 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView
 from django_filters.views import FilterView
-from MrMap.decorators import permission_required
-from MrMap.messages import MONITORING_RUN_SCHEDULED
+from MrMap.messages import MONITORING_RUN_SCHEDULED, NO_PERMISSION
 from MrMap.views import CustomSingleTableMixin, GenericViewContextMixin, InitFormMixin
 from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
 from monitoring.forms import MonitoringRunForm
@@ -23,13 +24,16 @@ class MonitoringRunTableView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(permission_required(perm=PermissionEnum.CAN_RUN_MONITORING.value), name='dispatch')
-class MonitoringRunNewView(GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+class MonitoringRunNewView(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
     model = MonitoringRun
     form_class = MonitoringRunForm
     template_name = 'MrMap/detail_views/generic_form.html'
     title = _('New monitoring run')
     success_message = MONITORING_RUN_SCHEDULED
+    permission_required = PermissionEnum.CAN_RUN_MONITORING.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+    success_url = reverse_lazy('resource:pending-tasks')
 
 
 @method_decorator(login_required, name='dispatch')

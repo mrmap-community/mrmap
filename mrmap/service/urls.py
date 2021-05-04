@@ -3,7 +3,7 @@ from django.urls import path
 from editor.views import EditMetadata, RestoreMetadata, DatasetDelete
 from editor.wizards import ACCESS_EDITOR_WIZARD_FORMS, AccessEditorWizard, EditDatasetWizard, DATASET_WIZARD_FORMS
 from service.autocompletes import MetadataAutocomplete, MetadataServiceAutocomplete, MetadataLayerAutocomplete, \
-    MetadataFeaturetypeAutocomplete
+    MetadataFeaturetypeAutocomplete, MetadataCatalougeAutocomplete
 from service.views import *
 from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 
@@ -14,6 +14,7 @@ urlpatterns = [
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
     path('csw/', CswIndexView.as_view(), name='csw-index'),
     path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
+    path('mapcontexts/', MapContextIndexView.as_view(), name='mapcontexts-index'),
     path('logs/', LogsIndexView.as_view(), name='logs-view'),
 
     # PendingTasks
@@ -44,6 +45,11 @@ urlpatterns = [
     path('metadata/<metadata_id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<metadata_id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
+    # map context urls
+    path('mapcontexts/add/', MapContextCreateView.as_view(), name='mapcontexts-add'),
+    path('mapcontexts/<pk>/edit', MapContextEditView.as_view(), name='mapcontexts-edit'),
+    path('mapcontexts/<pk>/remove', MapContextDeleteView.as_view(), name='mapcontexts-remove'),
+
     # detail view
     # todo: implement detail view for csw
     path('<pk>', ResourceTreeView.as_view(), name='detail'),
@@ -60,6 +66,6 @@ urlpatterns = [
     path('autocompletes/service-metadatas', MetadataServiceAutocomplete.as_view(), name='autocomplete_metadata_service'),
     path('autocompletes/layer-metadatas', MetadataLayerAutocomplete.as_view(), name='autocomplete_metadata_layer'),
     path('autocompletes/featuretype-metadatas', MetadataFeaturetypeAutocomplete.as_view(), name='autocomplete_metadata_featuretype'),
-
+    path('autocompletes/catalouge-metadatas', MetadataCatalougeAutocomplete.as_view(), name='autocomplete_metadata_catalouge'),
 ]
 

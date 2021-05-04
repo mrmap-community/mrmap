@@ -1,19 +1,27 @@
+import json
+
 import django_tables2 as tables
+from celery import states
+from django.db.models import Count
+from django.template import Template, Context
 from django.urls import reverse
 from django.utils.html import format_html
-from django_bootstrap_swt.components import ProgressBar, Link, Tag, Badge, Accordion
-from django_bootstrap_swt.utils import RenderHelper
-from MrMap.columns import MrMapColumn
-from MrMap.icons import IconEnum
-from MrMap.tables import MrMapTable
-from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
-from csw.models import HarvestResult
+from django_bootstrap_swt.components import Link, Tag, Badge, Accordion
+from django_bootstrap_swt.enums import ProgressColorEnum
+from django_bootstrap_swt.utils import RenderHelper
+from django_celery_results.models import TaskResult
+
+from MrMap.columns import MrMapColumn
+from MrMap.icons import IconEnum, get_all_icons, get_icon
+from MrMap.tables import MrMapTable
+from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog
-from structure.models import PendingTask
-
+from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
+from service.settings import service_logger
+from service.templatecodes import RESOURCE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
+from structure.template_codes import PENDING_TASK_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
 TOOLTIP_ACTIVE = _('Shows whether the resource is active or not.')
@@ -34,22 +42,31 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 class PendingTaskTable(tables.Table):
     bs4helper = None
     status = tables.Column(verbose_name=_('Status'),
-                           accessor='status_icons',
                            attrs={"th": {"class": "col-sm-1"}})
-    service = tables.Column(verbose_name=_('Service'),
-                            accessor='service_uri',
-                            attrs={"th": {"class": "col-sm-3"}})
+    type = tables.Column(verbose_name=_('Type'),
+                         accessor='task_name',
+                         attrs={"th": {"class": "col-sm-2"}})
     phase = tables.Column(verbose_name=_('Phase'),
-                          attrs={"th": {"class": "col-sm-4"}})
+                          accessor='result',
+                          attrs={"th": {"class": "col-sm-3"}},
+                          empty_values=[])
+    date_created = tables.Column(verbose_name=_('Date Created:'),
+                          accessor='date_created',
+                          attrs={"th": {"class": "col-sm-2"}},
+                          empty_values=[])
     progress = tables.Column(verbose_name=_('Progress'),
-                             attrs={"th": {"class": "col-sm-3"}})
-    actions = tables.Column(verbose_name=_('Actions'),
-                            accessor='action_buttons',
-                            attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
+                             accessor='result',
+                             attrs={"th": {"class": "col-sm-3"}},
+                             empty_values=[])
+    actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    template_code=PENDING_TASK_ACTIONS,
+                                    # extra_context is needed to use table.as_html() in ws/consumers.py
+                                    extra_context={'ICONS': get_all_icons()},
+                                    attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     class Meta:
-        model = PendingTask
-        fields = ('status', 'service', 'phase', 'progress', 'actions')
+        model = TaskResult
+        fields = ('status', 'task_id', 'type', 'phase', 'date_created', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
@@ -58,17 +75,77 @@ class PendingTaskTable(tables.Table):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_status(self, value):
-        return format_html(self.render_helper.render_list_coherent(value))
+        icon = ''
+        if value == states.PENDING:
+            icon = get_icon(IconEnum.PENDING, 'text-warning')
+            tooltip = _('Task is pending')
+        elif value == states.STARTED:
+            icon = get_icon(IconEnum.PLAY, 'text-success')
+            tooltip = _('Task is running')
+        elif value == states.SUCCESS:
+            icon = get_icon(IconEnum.OK, 'text-success')
+            tooltip = _('Task successfully done')
+        elif value == states.FAILURE:
+            icon = get_icon(IconEnum.CRITICAL, 'text-danger')
+            tooltip = _('Task unexpected stopped')
+        # use Template with templatecode to speed up rendering
+        context = Context()
+        context.update({'content': icon,
+                        'tooltip': tooltip})
+        return Template(TOOLTIP).render(context)
 
-    def render_actions(self, value):
-        self.render_helper.update_attrs = {"class": ["btn-sm"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=value)
-        self.render_helper.update_attrs = None
-        return format_html(renderd_actions)
+    def render_type(self, value):
+        if value == 'async_new_service_task':
+            return _('Register new service')
+        elif value == 'async_process_securing_access':
+            return _('Securing service')
+        elif value == 'run_manual_service_monitoring':
+            return _('Monitor service')
+        elif value == 'async_harvest':
+            return _('Harvest catalogue')
+
+    def render_phase(self, record, value):
+        phase = ' '
+        try:
+            result = json.loads(value)
+            if record.status == states.STARTED:
+                phase = result.get('phase', '')
+            elif record.status == states.SUCCESS:
+                phase = f'{result.get("msg", "")} {result.get("absolute_url_html", "")}'
+            elif record.status == states.FAILURE:
+                phase = _('Task failed unexpected. See error log for details.')
+        except (AttributeError, KeyError) as e:
+            service_logger.warn(msg=e)
+        except TypeError:
+            # value is None or something else happens
+            pass
+        return format_html(phase)
 
     @staticmethod
-    def render_progress(value):
-        return ProgressBar(progress=round(value, 2)).render(safe=True)
+    def render_progress(record, value):
+        progress = 0
+        color = None
+        animated = True
+        if record.status == states.STARTED and value:
+            result = json.loads(value)
+            try:
+                progress = result['current']
+            except KeyError:
+                pass
+        if record.status == states.SUCCESS:
+            progress = 100
+            color = ProgressColorEnum.SUCCESS
+            animated = False
+        if record.status == states.FAILURE:
+            color = ProgressColorEnum.DANGER
+            animated = False
+        # use Template with templatecode to speed up rendering
+        context = Context()
+        context.update({'value': round(progress, 2),
+                        'color': color.value if color else None,
+                        'animated': animated,
+                        'striped': animated})
+        return Template(PROGRESS_BAR).render(context)
 
 
 class OgcServiceTable(tables.Table):
@@ -79,10 +156,11 @@ class OgcServiceTable(tables.Table):
                                    accessor='service__parent_service__metadata')
     status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
     health = tables.Column(verbose_name=_('Health'), empty_values=[], )
-    last_harvest = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
-    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], )
-    actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False,
-                            attrs={"td": {"style": "white-space:nowrap;"}})
+    harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
+    harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], accessor='harvest_results')
+    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
+    actions = tables.TemplateColumn(verbose_name=_('Actions'), empty_values=[], orderable=False, template_code=RESOURCE_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}})
 
     class Meta:
         model = Metadata
@@ -93,34 +171,40 @@ class OgcServiceTable(tables.Table):
                   'status',
                   'health',
                   'service__service_type__version',
-                  'last_harvest',
+                  'harvest_results',
+                  'harvest_duration',
                   'collected_harvest_records',
                   'contact',
-                  'service__created_by',
+                  'service__created_by__mrmapgroup',
                   'service__published_for',
                   'created',
                   'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        # todo: set this prefix dynamic
         prefix = 'ogc-service-table'
 
     def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.all_permissions)))
-
-
-
+        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
 
     def render_title(self, record, value):
         return Link(url=record.detail_view_uri, content=value).render(safe=True)
 
-    def render_last_haverest(self, value):
-        harvest_result = HarvestResult.objects.filter(
-            service=value
-        ).order_by(
-            "-created"
-        ).first()
+    def render_harvest_results(self, value):
+        last_harvest_result = value.all().first()
+        return last_harvest_result.timestamp_start if last_harvest_result is not None else _('Never')
 
-        return harvest_result.timestamp_start if harvest_result is not None else None
+    def render_collected_harvest_records(self, record, value):
+        last_harvest_result = value.all().first()
+        dataset_count = record.get_related_metadatas().filter(metadata_type=MetadataEnum.DATASET.value).count()
+        link = f"<a data-toggle='tooltip' title='{_('Number of dataset metadata harvested')}'href='{reverse('resource:datasets-index')}?dataset-filter-related_to={record.pk}'>{dataset_count}</a>"
+        return format_html(f"{last_harvest_result.number_results} ({link})") if last_harvest_result is not None else '-'
+
+    def render_harvest_duration(self, value):
+        last_harvest_result = value.all().first()
+        if last_harvest_result and last_harvest_result.timestamp_end and last_harvest_result.timestamp_start:
+            time_delta = last_harvest_result.timestamp_end - last_harvest_result.timestamp_start
+            return f"{time_delta.days}d  {time_delta.seconds//3600}h {(time_delta.seconds//60)%60}m {(time_delta.seconds)%60}s"
+        else:
+            return '-'
 
     # todo
     def render_wms_validation(self, record):
@@ -151,16 +235,10 @@ class OgcServiceTable(tables.Table):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
 
     def render_service__created_by(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+        return Link(url=value.get_absolute_url(), content=value).render(safe=True)
 
     def render_service__published_for(self, value):
         return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    def render_actions(self, record):
-        self.render_helper.update_attrs = {"class": ["btn-sm", "mr-1"]}
-        renderd_actions = self.render_helper.render_list_coherent(items=record.get_actions())
-        self.render_helper.update_attrs = None
-        return format_html(renderd_actions)
 
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(
@@ -262,7 +340,7 @@ class ResourceDetailTable(tables.Table):
 
     class Meta:
         model = Metadata
-        fields = ('public_id',
+        fields = ('pk',
                   'service__service_type__name',
                   'service__service_type__version',
                   'last_modified',
@@ -469,3 +547,17 @@ class ProxyLogTable(tables.Table):
         sequence = ('metadata__id', 'metadata__title', 'user', '...')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'proxy-log-table'
+
+
+# TODO
+class MapContextTable(tables.Table):
+
+    actions = tables.TemplateColumn(verbose_name=_('Actions'), empty_values=[], orderable=False, template_code=MAP_CONTEXT_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}})
+
+    class Meta:
+        model = MapContext
+        fields = ('title', 'abstract', 'actions')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        # todo: set this prefix dynamic
+        prefix = 'map-context-table'

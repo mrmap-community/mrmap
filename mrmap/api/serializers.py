@@ -7,18 +7,20 @@ Created on: 15.08.19
 """
 from collections import OrderedDict, Iterable
 
+from django.contrib.auth.models import Permission
 from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.urls import reverse
+from django_celery_results.models import TaskResult
 from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL
 from api.settings import API_EXCLUDE_METADATA_RELATIONS
 from service.forms import RegisterNewResourceWizardPage2
-from mrmap.service.helper import service_helper
+from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension, MetadataRelation
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import MrMapGroup, Role, Permission
+from structure.models import MrMapGroup
 from monitoring.models import MonitoringResult
 from users.helper import user_helper
 
@@ -65,13 +67,31 @@ class GroupSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "organization",
-            "role",
             "publish_for_organizations",
         ]
 
         # improves performance by 300%!
         # check out https://hakibenita.com/django-rest-framework-slow for more information
         read_only_fields = fields
+
+class TaskSerializer(serializers.HyperlinkedModelSerializer):
+    """ Serializer for Tasks model
+
+    """
+    class Meta:
+        model = TaskResult
+        fields = [
+            "task_id",
+            "task_name",
+            "date_created",
+            "status",
+            "worker",
+        ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
 
 
 class PermissionSerializer(serializers.ModelSerializer):
@@ -87,35 +107,6 @@ class PermissionSerializer(serializers.ModelSerializer):
         # improves performance by 300%!
         # check out https://hakibenita.com/django-rest-framework-slow for more information
         read_only_fields = fields
-
-
-class RoleSerializer(serializers.ModelSerializer):
-    """ Serializer for Organization model
-
-    """
-    permission = PermissionSerializer()
-
-    class Meta:
-        model = Role
-        fields = [
-            "id",
-            "name",
-            "description",
-            "permission",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
-
-
-class PendingTaskSerializer(serializers.Serializer):
-    """ Serializer for PendingTask model
-
-    """
-    description = serializers.CharField()
-    progress = serializers.FloatField()
-    is_finished = serializers.BooleanField()
 
 
 class MetadataRelationMetadataSerializer(serializers.Serializer):
@@ -142,7 +133,6 @@ class MetadataSerializer(serializers.Serializer):
 
     """
     id = serializers.UUIDField()
-    easy_id = serializers.CharField(source="public_id")
     metadata_type = serializers.CharField()
     identifier = serializers.CharField()
     title = serializers.CharField()
@@ -176,7 +166,7 @@ class ServiceSerializer(serializers.Serializer):
         Args:
             validated_data (dict): The validated data from a POST request
         Returns:
-             pending_task (PendingTask) or None
+             None
         """
         # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
         user = user_helper.get_user(request=request)
@@ -216,7 +206,7 @@ class ServiceSerializer(serializers.Serializer):
         if form.is_valid():
             pending_task = service_helper.create_new_service(form, user)
             return pending_task
-        return None
+        return form
 
 
 class LayerSerializer(ServiceSerializer):
@@ -492,7 +482,6 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     # Create response data
     serialized = OrderedDict()
     serialized["id"] = md.id
-    serialized["easy_id"] = md.public_id
     serialized["file_identifier"] = md.identifier
     serialized["type"] = md.metadata_type
     serialized["title"] = md.title
@@ -536,3 +525,4 @@ def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
         ret_val = [perform_catalogue_entry_serialization(md) for md in md_queryset]
 
     return ret_val
+

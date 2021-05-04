@@ -6,22 +6,28 @@ Created on: 05.05.20
 
 """
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.messages.views import SuccessMessageMixin
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
-from MrMap.decorators import permission_required
-from MrMap.messages import SERVICE_DISABLED
-from csw.forms import HarvestGroupForm
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import CreateView
+
+from MrMap.messages import HARVEST_RUN_SCHEDULED, NO_PERMISSION
+from MrMap.views import GenericViewContextMixin, InitFormMixin
+from csw.forms import HarvestRunForm
+from csw.models import HarvestResult
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
 from csw.utils.parameter import ParameterResolver
 from csw.utils.request_resolver import RequestResolver
 from service.helper.ogc.ows import OWSException
-from service.models import Metadata
 from structure.permissionEnums import PermissionEnum
 
-
+@csrf_exempt
 @cache_page(CSW_CACHE_TIME, key_prefix=CSW_CACHE_PREFIX)
 def get_csw_results(request: HttpRequest):
     """ Wraps incoming csw request
@@ -45,29 +51,14 @@ def get_csw_results(request: HttpRequest):
     return HttpResponse(content, content_type=content_type)
 
 
-@login_required
-@permission_required(
-    PermissionEnum.CAN_HARVEST
-)
-def harvest_catalogue(request: HttpRequest, metadata_id: str):
-    """ Starts harvesting procedure for catalogue
+class HarvestRunNewView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, CreateView):
+    model = HarvestResult
+    form_class = HarvestRunForm
+    template_name = 'MrMap/detail_views/generic_form.html'
+    title = _('New harvest run')
+    success_message = HARVEST_RUN_SCHEDULED
+    permission_required = PermissionEnum.CAN_HARVEST.value
+    raise_exception = True
+    permission_denied_message = NO_PERMISSION
+    success_url = reverse_lazy('resource:pending-tasks')
 
-    Args:
-        request (HttpRequest): The incoming request
-        metadata_id:
-    Returns:
-
-    """
-    metadata = get_object_or_404(Metadata, id=metadata_id)
-    if not metadata.is_active:
-        messages.error(request, SERVICE_DISABLED)
-        return redirect("resource:csw-index")
-    form = HarvestGroupForm(data=request.POST or None,
-                            request=request,
-                            reverse_lookup='csw:harvest-catalogue',
-                            reverse_args=[metadata_id, ],
-                            # ToDo: after refactoring of all forms is done, show_modal can be removed
-                            show_modal=True,
-                            form_title=_(f"Harvest <strong>{metadata}</strong>"),
-                            instance=metadata)
-    return form.process_request(valid_func=form.process_harvest_catalogue)

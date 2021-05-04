@@ -64,7 +64,7 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <h6 class="dropdown-header">{% trans 'Pending tasks' %}</h6>
-                    <a class="dropdown-item" href="{% url 'resource:pending-tasks' %}">{% autoescape off %}{{ICONS.PENDING_TASKS}}{% endautoescape %} {% trans 'Pending tasks'%} <span class="badge {% if pending_tasks_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}">{{pending_tasks_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resource:pending-tasks' %}">{% autoescape off %}{{ICONS.PENDING_TASKS}}{% endautoescape %} {% trans 'Pending tasks'%} <span data-bind="text: pendingTaskCount" class="badge {% if pending_tasks_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                     <h6 class="dropdown-header">{% trans 'Services' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
@@ -83,6 +83,13 @@
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %} <span class="badge badge-secondary">{{dataset_count}}</span></a>
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Map Contexts' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'resource:mapcontexts-index' %}">{% autoescape off %}{{ICONS.MAP_CONTEXT}}{% endautoescape %} {% trans 'Map Contexts' %} <span class="badge badge-secondary">{{map_context_count}}</span></a>
+                        <!-- TODO: url -->
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resource:mapcontexts-add' %}" title="{% trans 'Create new map context' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                 </div>
             </li>
@@ -116,6 +123,11 @@
             </li>
         </ul>
         <div>
+        <a data-bind="visible: pendingTaskCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'resource:pending-tasks' %}">
+            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'There are pending tasks' %}">
+               {{ICONS.PENDING_TASKS}} <span data-bind="text: pendingTaskCount" class="badge badge-pill badge-light fading"></span>
+            </span>
+        </a>
             <a class="btn btn-outline-light" href="{% url 'password_change_done' %}" title="{% trans 'Account' %}" role="button">
                 {% autoescape off %}{{ICONS.USER}}{% endautoescape %} {{ request.user.username }}
             </a>
@@ -139,6 +151,13 @@
         </div>
     {% endfor %}
     {% endif %}
+
+    <div class="mt-5 mr-5" style="position: fixed; top: 0; right:0; z-index:1; width: 300px;">
+      <div id="id_toast_container" style="position: absolute; top: 0; right: 0;">
+
+      </div>
+    </div>
+
     <div id="body-content" class="mt-3">
         {% include 'includes/ee-overlay.html' %}
         {% block body %}
@@ -147,6 +166,10 @@
     <div id="id_django_bootstrap_swt_container">
         {{rendered_modal}}
     </div>
+
+
+
+
 </body>
 <footer class="footer bg-light fixed-bottom">
     <div class="container-fluid">
@@ -192,7 +215,7 @@
                         <div id="ee-trggr" class="d-inline-flex">Mr. Map</div>
                     </a>
                 </div>
-               <a href="https://mrmap.readthedocs.io/en/master/" target="_blank" class="row-auto text-primary mr-1">{{ICONS.BOOK_OPEN}} {% trans 'Docs' %}</a> <span class="mr-1">&#8226;</span>
+               <a href="https://mrmap-community.github.io/mrmap/" target="_blank" class="row-auto text-primary mr-1">{{ICONS.BOOK_OPEN}} {% trans 'Docs' %}</a> <span class="mr-1">&#8226;</span>
                <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto text-primary" mr-1>{{ICONS.CODE}} {% trans 'Code' %}</a>
             </div>
         </div>

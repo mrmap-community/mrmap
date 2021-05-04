@@ -3,8 +3,8 @@ import uuid
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import JsonResponse, HttpRequest
+from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 from django.urls import reverse_lazy, resolve, reverse
@@ -294,3 +294,4 @@ class DependingListView(View):
                                          'attribute.'))
         super().setup(request, *args, **kwargs)
         self.object = get_object_or_404(klass=self.depending_model, pk=kwargs.get('pk'))
+

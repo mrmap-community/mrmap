@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    {% include 'includes/default-head.html' %}
+</head>
+<body class="bg-light bg-img">
+    {% include 'includes/messages.html' %}
+    {% include 'includes/ee-overlay.html' %}
+    <div class="container">
+        <div class="card bg-light mt-3">
+            <div class="card-header">
+                <h1 class="card-title text-center">403 - {% trans 'Forbidden' %}</h1>
+            </div><!--</card-header-->
+            <div class="card-body">
+                <div class="media ">
+                        <img class="align-self-start w-25 mr-3" src="{% static 'images/mr_map_404.png' %}" title="{% trans 'Mr. Map can\'t let you in' %}" alt="{% trans 'Irritated Mr. Map' %}">
+                        <div class="media-body w-75">
+                            <article class="article-txt">
+                            <h1>{% trans 'Mr. Map can\'t let you in' %}</h1>
+                            <div>{{exception}}</div>
+                        </article>
+                        </div>
+                    </div>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{% url 'home' %}">{% autoescape off %}{{ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
+            </div>
+        </div> <!-- card-body.// -->
+    </div>
+{% include 'includes/footer.html' %}
+</body>
+</html>

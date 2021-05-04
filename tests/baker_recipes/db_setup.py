@@ -6,34 +6,12 @@ from model_bakery import baker, seq
 
 from monitoring.models import MonitoringRun
 from monitoring.settings import WARNING_RESPONSE_TIME
-from structure.models import MrMapUser, Organization, Permission, Role
+from structure.models import MrMapUser, Organization
 from service.models import OGCOperation
 from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.models import Service, Metadata
 from structure.models import MrMapGroup
-from structure.permissionEnums import PermissionEnum
 from tests.utils import generate_random_string
-
-
-def _create_permissions():
-    permission_enum_choices = PermissionEnum.as_choices(drop_empty_choice=True)
-    permission_enum_choices = [choice[1] for choice in permission_enum_choices]
-
-    for perm in permission_enum_choices:
-        Permission.objects.get_or_create(
-            name=perm
-        )
-    all_permissions = Permission.objects.all()
-    try:
-        superadmin_role = Role.objects.get(
-            name="superadmin_role"
-        )
-        for perm in all_permissions:
-            superadmin_role.permissions.add(perm)
-        superadmin_role.save()
-    except ObjectDoesNotExist:
-        # For some test cases no superadmin_role exists
-        pass
 
 
 def create_testuser(groups=None):
@@ -70,8 +48,6 @@ def create_superadminuser(groups: QuerySet = None, ):
                                       groups=groups)
     else:
         superuser = baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user')
-
-    _create_permissions()
 
     public_group = baker.make_recipe('tests.baker_recipes.structure_app.public_group', created_by=superuser)
     public_group.user_set.add(superuser)
@@ -338,7 +314,8 @@ def create_publish_request(group: MrMapGroup, orga: Organization,
 
 def create_pending_task(group: MrMapGroup, how_much_pending_tasks: int = 1):
     return baker.make_recipe('tests.baker_recipes.structure_app.pending_task',
-                             created_by=group,
+                             task_id=seq(1),
+                             #created_by=group,
                              _quantity=how_much_pending_tasks)
 
 

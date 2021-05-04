@@ -8,21 +8,16 @@ Created on: 12.08.19
 import base64
 import json
 import time
-import traceback
-from requests.exceptions import InvalidURL
 
-import requests
-from celery import shared_task
-from lxml.etree import XMLSyntaxError, XPathEvalError
-
+import celery.states as states
+from celery import shared_task, current_task
 from MrMap import utils
 from MrMap.messages import SERVICE_REGISTERED
 from MrMap.settings import EXEC_TIME_PRINT
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask, ErrorReport
-from service.helper import task_helper
-from mrmap.service.helper import service_helper
+from structure.models import MrMapUser, MrMapGroup, Organization
+from service.helper import service_helper
 from users.helper import user_helper
 
 
@@ -40,7 +35,10 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int,
+def async_new_service(url_dict: dict,
+                      user_id: int,
+                      register_group_id: int,
+                      register_for_organization_id: int,
                       external_auth: dict):
     """ Async call of new service creation
 
@@ -55,6 +53,16 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     Returns:
         nothing
     """
+    if current_task:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': 0,
+                'total': 100,
+                'phase': 'pre configure task...',
+            }
+        )
+
     # create ExternalAuthentication object
     if external_auth is not None:
         external_auth = ExternalAuthentication(
@@ -62,13 +70,6 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             password=external_auth["password"],
             auth_type=external_auth["auth_type"],
         )
-
-    # get current task id
-    curr_task_id = async_new_service.request.id
-
-    # set progress for current task to 0
-    if curr_task_id is not None:
-        task_helper.update_progress(async_new_service, 0)
 
     # restore objects from ids
     user = MrMapUser.objects.get(id=user_id)
@@ -81,98 +82,38 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     else:
         register_for_organization = None
 
-    try:
-        t_start = time.time()
-        service = service_helper.create_service(
-            url_dict.get("service"),
-            url_dict.get("version"),
-            url_dict.get("base_uri"),
-            user,
-            register_group,
-            register_for_organization,
-            async_task=async_new_service,
-            external_auth=external_auth
-        )
+    t_start = time.time()
+    service = service_helper.create_service(
+        url_dict.get("service"),
+        url_dict.get("version"),
+        url_dict.get("base_uri"),
+        user,
+        register_group,
+        register_for_organization,
+        external_auth=external_auth
+    )
 
-        # update progress
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)
+    # after service AND documents have been persisted, we can now set the service being secured if needed
+    if external_auth is not None:
+        #todo: check this......
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': PROGRESS_STATUS_AFTER_PARSING,
+                    'phase': 'Securing...',
+                    'service': service.metadata.title
+                }
+            )
+        service.metadata.set_proxy(True)
 
-        # get db object
-        if curr_task_id is not None:
-            pending_task = PendingTask.objects.get(task_id=curr_task_id)
-            # update db pending task information
-            pending_task.description = json.dumps({
-                "service": service.metadata.title,
-                "phase": "Persisting",
-            })
-            pending_task.save()
+    service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+    user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
-        # update progress
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, 95)
-
-        # after service AND documents have been persisted, we can now set the service being secured if needed
-        if external_auth is not None:
-            service.metadata.set_proxy(True)
-
-        # after metadata has been persisted, we can auto-generate all metadata public_id's
-        metadatas = Metadata.objects.filter(pk=service.metadata.pk)
-        sub_elements = service.get_subelements().select_related('metadata')
-        for sub_element in sub_elements:
-            metadatas |= Metadata.objects.filter(pk=sub_element.metadata.pk)
-            metadatas |= sub_element.metadata.get_related_dataset_metadatas()
-
-        for md in metadatas:
-            if md.public_id is None:
-                md.public_id = md.generate_public_id()
-                md.save()
-        service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-        user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
-
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, 100)
-
-        # delete pending task from db
-        if curr_task_id is not None:
-            pending_task = PendingTask.objects.get(task_id=curr_task_id)
-            pending_task.delete()
-
-    except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
-        url = url_dict['base_uri'] + f"SERVICE={url_dict['service'].value}&VERSION={url_dict['version'].value}&request={url_dict['request']}"
-        error_msg = f"Error while trying to register new resource for url: {url}\n"
-
-        response = requests.get(url)
-        if response.status_code == 200:
-            cap_doc = "-----------------------------------------------------------\n"\
-                      f"We could receive the following capabilities document:\n{response.text}"
-            error_msg += cap_doc
-
-        service_logger.error(msg=error_msg)
-        service_logger.exception(e, stack_info=True, exc_info=True)
-
-        if curr_task_id is not None:
-            pending_task = PendingTask.objects.get(task_id=curr_task_id)
-
-            register_group = MrMapGroup.objects.get(id=register_group_id)
-            error_report = ErrorReport(message=error_msg,
-                                       traceback=traceback.format_exc(),
-                                       created_by=register_group)
-            error_report.save()
-
-            descr = json.loads(pending_task.description)
-            pending_task.description = json.dumps({
-                "service": descr.get("service", None),
-                "info": {
-                    "current": "0",
-                },
-                "exception": e.__str__(),
-                "phase": "ERROR: Something went wrong! Click on generate error report to inform your serveradmin about this error.",
-            })
-            pending_task.error_report = error_report
-            pending_task.save()
-
-        raise e
+    return {'msg': 'Done. New service registered.',
+            'id': str(service.metadata.pk),
+            'absolute_url': service.metadata.get_absolute_url(),
+            'absolute_url_html': f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title}</a>'}
 
 
 @shared_task(name="async_log_response")

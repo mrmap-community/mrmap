@@ -13,6 +13,7 @@ class IconEnum(EnumChoice):
     LAYER = "fas fa-layer-group"
     CSW = "fas fa-book"
     DATASET = "fas fa-clipboard-list"
+    MAP_CONTEXT = "fas fa-map-marked-alt"
     PASSWORD = "fas fa-lock"
     HEARTBEAT = "fas fa-heartbeat"
     PENDING_TASKS = "fas fa-tasks"
@@ -93,11 +94,12 @@ class IconEnum(EnumChoice):
     BOOK = 'fas fa-book'
     CODE = "fas fa-code"
     BOOK_OPEN = 'fas fa-book-open'
+    PENDING = 'fas fa-ellipsis-h'
 
 
-def get_icon(enum: IconEnum) -> SafeString:
-    pattern = "<i class=\'{}\'></i>"
-    return format_html(pattern, enum.value)
+def get_icon(enum: IconEnum, color=None) -> SafeString:
+    pattern = "<i class=\'{} {}\'></i>"
+    return format_html(pattern, enum.value, color)
 
 
 def get_all_icons() -> dict:

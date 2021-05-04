@@ -2,15 +2,12 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Permission
 from django.utils.safestring import mark_safe
 from django.template.defaultfilters import escape
 
 
 from structure.models import *
-
-
-class PendingTaskAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in PendingTask._meta.fields]
 
 
 class RoleAdmin(admin.ModelAdmin):
@@ -26,7 +23,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 class GroupAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description', 'parent_group_link', 'organization_link', 'role_link', 'created_by_link', 'is_public_group', 'is_permission_group', )
-    list_filter = ('role', 'created_by', 'is_public_group' )
+    list_filter = ('created_by', 'is_public_group' )
     search_fields = ['id', 'name', 'description', 'parent_group__name', ]
     readonly_fields = (
         "permissions",  # prevent accidental changing of permissions. Permissions are managed by Roles
@@ -123,8 +120,6 @@ admin.site.register(GroupInvitationRequest, GroupInvitationAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(GroupActivity, GroupActivityAdmin)
 admin.site.register(Organization, OrganizationAdmin)
-admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(MrMapUser, MrMapUserAdmin)
 admin.site.register(MrMapGroup, GroupAdmin)
-admin.site.register(Role, RoleAdmin)

@@ -107,7 +107,7 @@ class OGCOperationRequestHandler:
 
         # If user is AnonymousUser, we need to get the public groups
         if self.user.is_authenticated:
-            self.user_groups = self.user.get_groups
+            self.user_groups = self.user.groups.all()
         else:
             self.user_groups = user_helper.get_public_groups()
 
@@ -1525,7 +1525,7 @@ class OGCOperationRequestHandler:
             "response": None,
             "response_type": ""
         }
-
+        # TODO: check spatial filter of WFS - combination of BBOX GET Parameter and FE geometry filter
         # check_sec_ops = self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS
 
         # todo: geom should be the requested geometry as GEOSGeometry or a string of GeoJSON, WKT or HEXEWKB
@@ -1536,14 +1536,21 @@ class OGCOperationRequestHandler:
         all_sec_ops_for_user_by_operation = Q(secured_metadata__id__contains=self.metadata.id,
                                               allowed_groups__id__in=self.user_groups.values_list('id'),
                                               operations__operation__iexact=self.request_param)
-
-        allowed_area_coveres_bbox = Q(allowed_area__covers=self.bbox_param['geom'])
-        allowed_area_intersects_bbox = Q(allowed_area__intersects=self.bbox_param['geom'])
         allowed_area_is_empty = Q(allowed_area=None)
+        if self.bbox_param is not None:
+            allowed_area_covers_bbox = Q(allowed_area__covers=self.bbox_param['geom'])
+            allowed_area_intersects_bbox = Q(allowed_area__intersects=self.bbox_param['geom'])
+            full_query_all = all_sec_ops_for_user_by_operation & allowed_area_intersects_bbox |\
+                all_sec_ops_for_user_by_operation & allowed_area_is_empty
+            full_query_wms_getfeatureinfo = all_sec_ops_for_user_by_operation & allowed_area_covers_bbox |\
+                allowed_area_covers_bbox & allowed_area_is_empty
+        else:
+            full_query_all = all_sec_ops_for_user_by_operation
+            full_query_wms_getfeatureinfo = all_sec_ops_for_user_by_operation
 
         # check if the metadata allows operation performing for certain groups
-        is_allowed = AllowedOperation.objects.filter(all_sec_ops_for_user_by_operation & allowed_area_intersects_bbox
-                                                     | all_sec_ops_for_user_by_operation & allowed_area_is_empty).exists()
+        # use combined filter
+        is_allowed = AllowedOperation.objects.filter(full_query_all).exists()
 
         if not is_allowed:
             # this means the service is secured and the group has no access!
@@ -1552,10 +1559,9 @@ class OGCOperationRequestHandler:
         # todo: move to needed sub if/else trees which needs this queryset
         sec_ops = AllowedOperation.objects.filter(all_sec_ops_for_user_by_operation)
 
-        # WMS - Features
+        # WMS - 'GetFeatureInfo'
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
-            is_allowed = AllowedOperation.objects.filter(all_sec_ops_for_user_by_operation & allowed_area_coveres_bbox
-                                                         | allowed_area_coveres_bbox & allowed_area_is_empty).exists()
+            is_allowed = AllowedOperation.objects.filter(full_query_wms_getfeatureinfo).exists()
 
             if is_allowed:
                 response = self.get_operation_response()

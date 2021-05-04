@@ -4,12 +4,30 @@ Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.07.20
 
+Will implement a harvesting solution for catalogue interfaces which are based on
+https://portal.ogc.org/files/?artifact_id=20555
+
+Actually the interfaces are implemented not in a consistent way
+therefor the client will try to solve the problems.
+Test are done for following csw software solutions by hand:
+* https://geonetwork-opensource.org/
+* https://pycsw.org/
+* https://www.conterra.de/portfolio/con-terra-technologies/smartfinder-sdi
+* https://www.disy.net/de/produkte/
+* https://www.delphi-imm.de/
+* https://fbinter.stadt-berlin.de/fb/csw
+Problems:
+BB: harvester only accepts maximum of 1000 record per GetRecords request - but if set to
+exactly 1000 ist give back an error message
+
 """
-import json
 from time import time
-from urllib.parse import urlparse, parse_qs
+from math import floor
+from urllib.parse import urlparse, parse_qs, urlencode
+
+from celery import current_task, states
+from celery.result import AsyncResult
 from django.utils import timezone
-import pytz
 from billiard.context import Process
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
@@ -25,7 +43,6 @@ from MrMap.cacher import PageCacher
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from api.settings import API_CACHE_KEY_PREFIX
-from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
     CSW_CACHE_PREFIX, HARVEST_GET_REQUEST_OUTPUT_SCHEMA
 from service.helper import xml_helper
@@ -33,15 +50,15 @@ from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataR
 from service.models import Metadata, Dataset, Keyword, Category, MimeType, \
     GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import PendingTask, MrMapGroup, Organization
+from structure.models import Organization
 
 
 class Harvester:
-    def __init__(self, metadata: Metadata, group: MrMapGroup, max_records_per_request: int = 200):
-        self.metadata = metadata
-        self.harvesting_group = group
+    def __init__(self, harvest_result, max_records_per_request: int = 200):
+        self.metadata = harvest_result.metadata
+        self.harvesting_group = self.metadata.service.created_by.mrmapgroup
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
-        self.harvest_url = metadata.service.operation_urls.filter(
+        self.harvest_url = self.metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
         ).exclude(
             url=None
@@ -51,11 +68,12 @@ class Harvester:
 
         self.version = self.metadata.get_service_version().value
         self.max_records_per_request = max_records_per_request
+        self.progress_step_per_result = 0
         self.start_position = 1
 
         self.method = self.harvest_url.method
 
-        self.harvest_result = HarvestResult(service=self.metadata.service)
+        self.harvest_result = harvest_result
 
         self.harvest_url = getattr(self.harvest_url, "url", None)
         if self.harvest_url is None:
@@ -67,10 +85,13 @@ class Harvester:
             "mime_type",
             None
         )
-
+        '''
+        TODO: Adopt the model 
+        output_format should be not a part of the metadata record, but linked to the service_operation model
+        Cause the parsing had problems, don't use it as a filter here
         if self.output_format is None:
             raise ValueError(_("No XML output format available"))
-
+        '''
         self.pending_task = None  # will be initialized in harvest()
 
         # used for generating a list of already persisted metadata -
@@ -81,29 +102,22 @@ class Harvester:
         # Used to map parent results of a csw to it's children
         self.parent_child_map = {}
 
-    def harvest(self, task_id: str = None):
+    def harvest(self):
         """ Starts harvesting procedure
 
         Returns:
 
         """
-        # Create a pending task record for the database first!
-        task_exists = PendingTask.objects.filter(
-            description__icontains=self.metadata.title
-        ).exists()
-        if task_exists:
-            raise ProcessLookupError(_("Harvesting is currently performed"))
-        else:
-            async_task_id = task_id or self.metadata.id
-            self.pending_task = PendingTask.objects.create(
-                task_id=async_task_id,
-                description=json.dumps({
-                    "service": self.metadata.title,
-                    "phase": "Connecting...",
-                }),
-                progress=0,
-                remaining_time=None,
-                created_by=self.harvesting_group
+        absolute_url = f'<a href="{self.metadata.get_absolute_url()}">{self.metadata.title}</a>'
+        service_json = {'id': self.metadata.pk,
+                        'absolute_url': absolute_url},
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': service_json,
+                    'phase': f"Connecting to {absolute_url}",
+                }
             )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
@@ -116,22 +130,31 @@ class Harvester:
         # Use a set instead of list to increase lookup afterwards
         self.deleted_metadata.update(all_persisted_metadata_identifiers)
 
-        # Perform the initial "hits" request to get an overview of how many data will be fetched
+        # Perform the initial request with resultType=hits to get an overview of how many data may be available
         hits_response, status_code = self._get_harvest_response(result_type="hits")
-        descr = json.loads(self.pending_task.description)
+
         if status_code != 200:
-            descr["phase"] = "Harvest failed: HTTP Code {}"
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.save()
             raise ConnectionError(_("Harvest failed: Code {}\n{}").format(status_code, hits_response))
         xml_response = xml_helper.parse_xml(hits_response)
         if xml_response is None:
-            descr["phase"] = "Response is not a valid xml"
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.save()
             raise ConnectionError(_("Response is not a valid xml: \n{}".format(hits_response)))
+        root_element = xml_response.getroot()
+        if (root_element.tag == "{}ExceptionReport".format("{http://www.opengis.net/ows}")):
+            csw_logger.error(
+                "The catalogue answered with an ows exception report: {}".format(
+                    hits_response,
+                )
+            )
+            raise ConnectionError(_("The catalogue answered with an ows exception report:: \n{}".format(hits_response)))
 
         try:
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': f"calculating harvesting time",
+                    }
+                )
             total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
                 xml_response,
                 "numberOfRecordsMatched",
@@ -139,17 +162,19 @@ class Harvester:
                 ))
         except TypeError:
             csw_logger.error("Malicious Harvest response: {}".format(hits_response))
-            descr["phase"] = "Harvest response incorrect. Inform an administrator!"
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.save()
             raise AttributeError(_("Harvest response is missing important data!"))
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': service_json,
+                    'phase': "Start harvesting..."
+                }
+            )
 
-        descr["phase"] = "Start harvesting..."
-        self.pending_task.description = json.dumps(descr)
-        self.pending_task.save()
-        progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
+        self.progress_step_per_result = float(1 / total_number_to_harvest) * 100
 
-        # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
+        # There are wrongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
         # nextRecord=1. We need to prevent endless loops by checking whether, we already worked on these positions and
         # simply end it there!
         processed_start_positions = set()
@@ -163,11 +188,33 @@ class Harvester:
         page_cacher = PageCacher()
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
-        while self.pending_task is not None:
+        estimated_time_for_all = 'unknown'
+        current_percentage = 0
+        total_percentage = 100
+        while True:
+            #estimated_time_for_all = 'unknown'
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': current_percentage,
+                        'total': total_percentage,
+                        'phase': _("Harvesting {} to {} of {}. Time remaining: {}").format(self.start_position, self.start_position + self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                    }
+                )
             processed_start_positions.add(self.start_position)
-            # Get response
+            # Get response - this may take a while
             next_response, status_code = self._get_harvest_response(result_type="results")
 
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': current_percentage,
+                        'total': total_percentage,
+                        'phase': _("Processing harvested results for {} to {} of {}. Time remaining: {}").format(self.start_position, self.start_position + self.max_records_per_request, total_number_to_harvest, estimated_time_for_all),
+                    }
+                )
             found_entries = self._process_harvest_response(next_response)
 
             # Calculate time since loop started
@@ -175,6 +222,10 @@ class Harvester:
             number_rest_to_harvest -= self.max_records_per_request
             number_of_harvested += found_entries
             self.harvest_result.number_results = number_of_harvested
+
+            current_percentage = floor(float(number_of_harvested / total_number_to_harvest) * 100)
+
+            #persist to database
             self.harvest_result.save()
 
             # Remove cached pages of API and CSW
@@ -182,13 +233,10 @@ class Harvester:
             page_cacher.remove_pages(CSW_CACHE_PREFIX)
             if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
-                estimated_time_for_all = timezone.timedelta(seconds=0)
                 break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = timezone.timedelta(seconds=seconds_for_rest)
-
-            self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Add HarvestResult infos
         self.harvest_result.timestamp_end = timezone.now()
@@ -197,12 +245,10 @@ class Harvester:
 
         # Delete Metadata records which could not be found in the catalogue anymore
         # This has to be done if the harvesting run completely. Skip this part if the user aborted the harvest!
-        if self.pending_task is not None:
-            deleted_metadatas = Metadata.objects.filter(
-                identifier__in=self.deleted_metadata
-            )
-            deleted_metadatas.delete()
-            self.pending_task.delete()
+        deleted_metadatas = Metadata.objects.filter(
+            identifier__in=self.deleted_metadata
+        )
+        deleted_metadatas.delete()
 
         # Remove cached pages of API and CSW
         page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
@@ -230,53 +276,72 @@ class Harvester:
             None: "http://www.opengis.net/cat/csw/{}".format(self.version),
         }
         csw_ns = "{" + namespaces["csw"] + "}"
-
-        root_elem = Element(
-            "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
-            attrib={
-                "version": self.version,
-                "service": "CSW",
-                "resultType": result_type,
-                "outputFormat": self.output_format,
-                "startPosition": str(start_position),
-                "maxRecords": str(self.max_records_per_request),
-                "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
-                #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
-            },
-            nsmap=namespaces
+        #some catalogues don't allow maxRecords > than 1000 even if resultType=hits
+        if (result_type == 'hits'):
+            root_elem = Element(
+                "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
+                attrib={
+                    "version": self.version,
+                    "service": "CSW",
+                    "resultType": result_type,
+                    "outputFormat": self.output_format,
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    #"ElementSetName": "brief", #needed for pycsw!
+                    #"CONSTRAINTLANGUAGE": "FILTER",
+                    #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
+                },
+                nsmap=namespaces
+            )
+        else:
+            root_elem = Element(
+                "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
+                attrib={
+                    "version": self.version,
+                    "service": "CSW",
+                    "resultType": result_type,
+                    #"outputFormat": self.output_format,
+                    "startPosition": str(start_position),
+                    "maxRecords": str(self.max_records_per_request),
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    #"ElementSetName": "brief", #needed for pycsw!
+                    #"CONSTRAINTLANGUAGE": "FILTER",
+                    #"{}schemaLocation".format(xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
+                },
+                nsmap=namespaces
+            )
+        csw_logger.debug(
+            "Harvesting resultType: '{}', http method: {}".format(
+                result_type,
+                "POST",
+            )
         )
+        #Add the typeNames value - see the standard
         xml_helper.create_subelement(
             root_elem,
             "{}Query".format(csw_ns),
             None,
-            {
-                "typeNames": "gmd:MD_Metadata"
-            }
+            attrib={
+                #"typenames": "csw:Record",
+                "typenames": "gmd:MD_Metadata",
+                "typeNames": "gmd:MD_Metadata",
+                #"typeNames": "csw:Record", #depends on how we will handle the results - maybe gmd:Metadata - typenames normally caseinsensitive
+            },
+            nsmap=namespaces,
         )
+
+        #The following things are not needed normally - but some catalogues maybe need the ElementSetName element
+        xml_helper.create_childelement(
+            root_elem,
+            "{}ElementSetName".format(csw_ns),
+            "csw:Query", #to do a right xpath query the full qualified name is needed
+            None,
+            nsmap=namespaces,
+        )
+        #here the full xpath is needed - TODO: adopt the documentation
+        xml_helper.write_text_to_element(root_elem, ".//csw:ElementSetName", "full")
+
         post_content = xml_helper.xml_to_string(root_elem)
         return post_content
-
-    def _update_pending_task(self, next_record: int, total_records: int, progress_step: float, remaining_time):
-        """ Updates the PendingTask object
-
-        Args:
-            next_record (int): The nextRecord value
-            total_records (int): The totalRecord value
-            progress_step (int): The increment for the next step
-            remaining_time: The timedelta for the remaining time
-        Returns:
-
-        """
-        try:
-            self.pending_task.refresh_from_db()
-            descr = json.loads(self.pending_task.description)
-            descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
-            self.pending_task.description = json.dumps(descr)
-            self.pending_task.remaining_time = remaining_time
-            self.pending_task.progress += progress_step
-            self.pending_task.save()
-        except ObjectDoesNotExist:
-            self.pending_task = None
 
     def _get_harvest_response(self, result_type: str = "results") -> (bytes, int):
         """ Fetch a response for the harvesting (GetRecords)
@@ -292,23 +357,53 @@ class Harvester:
             url=self.harvest_url
         )
         if self.method.upper() == "GET":
-            params = {
-                "service": "CSW",
-                "typeNames": "gmd:MD_Metadata",
-                "resultType": result_type,
-                "startPosition": self.start_position,
-                "outputFormat": self.output_format,
-                "maxRecords": self.max_records_per_request,
-                "version": self.version,
-                "request": OGCOperationEnum.GET_RECORDS.value,
-                "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
-            }
+            if (result_type == 'hits'):
+                params = {
+                    "service": "CSW",
+                    "typenames": "gmd:MD_Metadata", # normally case insensitive !
+                    #"typenames": "csw:Record",
+                    "resultType": result_type,
+                    #"outputFormat": self.output_format,
+                    "version": self.version,
+                    "request": OGCOperationEnum.GET_RECORDS.value,
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    "constraintLanguage": "FILTER",
+                    "ElementSetName": "full", #needed for pycsw!
+                }
+            else:
+                params = {
+                    "service": "CSW",
+                    "typenames": "gmd:MD_Metadata", # normally case insensitive !
+                    #"typenames": "csw:Record",
+                    "resultType": result_type,
+                    "startPosition": self.start_position,
+                    #"outputFormat": self.output_format,
+                    "maxRecords": self.max_records_per_request,
+                    "version": self.version,
+                    "request": OGCOperationEnum.GET_RECORDS.value,
+                    "outputSchema": HARVEST_GET_REQUEST_OUTPUT_SCHEMA,
+                    "constraintLanguage": "FILTER",
+                    "ElementSetName": "full", #needed for pycsw!
+                }
+            csw_logger.debug(
+                "Harvesting resultType: '{}', http method: {}, url: {}".format(
+                    result_type,
+                    "GET",
+                    self.harvest_url + "?" + urlencode(params),
+                )
+            )
             connector.load(params=params)
             harvest_response = connector.content
         elif self.method.upper() == "POST":
             post_body = self._generate_request_POST_body(self.start_position, result_type=result_type)
             connector.post(
                 data=post_body
+            )
+            #Set following to ERROR to see the POST in the logs
+            csw_logger.debug(
+                "Harvesting request POST: {}".format(
+                    post_body
+                )
             )
             harvest_response = connector.content
         else:
@@ -338,16 +433,65 @@ class Harvester:
             # Abort!
             self.start_position = 0
             return
+        #check for ows exception
+        root_element = xml_response.getroot()
+        if (root_element.tag == "{}ExceptionReport".format("{http://www.opengis.net/ows}")):
+            csw_logger.error(
+                "The catalogue answered with an ows exception report: {}".format(
+                    next_response,
+                )
+            )
+            raise ConnectionError(_("The catalogue answered with an ows exception report:: \n{}".format(next_response)))
 
         md_metadata_entries = xml_helper.try_get_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         ) or []
-        next_record_position = int(xml_helper.try_get_attribute_from_xml_element(
+        csw_logger.debug("XML Response: {}".format(next_response))
+
+        next_record_position_result = xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "nextRecord",
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
-        ))
+        )
+
+        if (next_record_position_result is None):
+            csw_logger.debug("CSW Harvesting: Could not get value for nextRecord to iterate further")
+            #get numberOfRecordsReturned
+            number_of_records_returned = int(xml_helper.try_get_attribute_from_xml_element(
+                xml_response,
+                "numberOfRecordsReturned",
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+            ))
+            csw_logger.debug(
+                "CSW Harvesting: Number of records returned: {}".format(
+                    number_of_records_returned,
+                )
+            )
+            number_of_records_matched = int(xml_helper.try_get_attribute_from_xml_element(
+                xml_response,
+                "numberOfRecordsMatched",
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+            ))
+            csw_logger.debug(
+                "CSW Harvesting: Number of records matched: {}".format(
+                    number_of_records_matched,
+                )
+            )
+            if (self.max_records_per_request > number_of_records_returned and self.start_position == 1 and number_of_records_returned != number_of_records_matched):
+                self.max_records_per_request = number_of_records_returned
+                csw_logger.debug("CSW Harvesting: Reduce max_records_per_request to: {}".format(number_of_records_returned))
+
+            if (number_of_records_returned == self.max_records_per_request):
+                next_record_position = self.start_position + number_of_records_returned
+                csw_logger.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
+            else:
+                next_record_position = 0
+                csw_logger.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
+
+        else:
+            next_record_position = int(next_record_position_result)
+
         self.start_position = next_record_position
 
         # Fetch found identifiers in parent process, so self.deleted_metadata can be edited easily
@@ -436,21 +580,29 @@ class Harvester:
             md = Metadata.objects.get(
                 identifier=_id,
             )
-            is_new = False
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'phase': f"Persisting metadata with file identifier {md.identifier}",
+                    }
+                )
             if md.last_remote_change == md_data_entry["date_stamp"]:
+                self.metadata.add_metadata_relation(to_metadata=md,
+                                                    relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
+                                                    origin=ResourceOriginEnum.CATALOGUE.value)
+
                 # Nothing to do here!
                 return
         except ObjectDoesNotExist:
             md = Metadata(
                 identifier=_id
             )
-            is_new = True
         md.access_constraints = md_data_entry.get("access_constraints", None)
         md.created_by = self.harvesting_group
         md.origin = ResourceOriginEnum.CATALOGUE.value
         md.last_remote_change = md_data_entry.get("date_stamp", None)
         md.title = md_data_entry.get("title", None)
-        md.public_id = md.generate_public_id()
         md.contact = md_data_entry.get("contact", None)
         md.language_code = md_data_entry.get("language_code", None)
         md.metadata_type = md_data_entry.get("metadata_type", None)
@@ -496,16 +648,12 @@ class Harvester:
                     md.additional_urls.add(generic_url)
 
                 md.save(add_monitoring=False)
+                self.metadata.add_metadata_relation(to_metadata=md,
+                                                    relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
+                                                    origin=ResourceOriginEnum.CATALOGUE.value)
                 md.keywords.add(*kws)
                 md.categories.add(*categories)
                 md.formats.add(*formats)
-
-                # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
-                # Using get_or_create increases runtime on existing metadata too much!
-                if is_new:
-                    md.add_metadata_relation(to_metadata=self.metadata,
-                                             relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-                                             origin=ResourceOriginEnum.CATALOGUE.value)
 
             parent_id = md_data_entry["parent_id"]
             # Add the found parent_id to the parent_child map!
@@ -522,6 +670,14 @@ class Harvester:
                     self.metadata.title,
                     e
                 )
+            )
+            csw_logger.exception(e)
+        finally:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'current': AsyncResult(current_task.request.id).info.get("current", 0) + self.progress_step_per_result,
+                }
             )
 
     @transaction.atomic

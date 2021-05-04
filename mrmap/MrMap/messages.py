@@ -136,7 +136,13 @@ SUBSCRIPTION_SUCCESSFULLY_CREATED = _("Subscription sucessfully created.")
 SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE = _("'{}' already subscribed.")
 SUBSCRIPTION_SUCCESSFULLY_DELETED = _("Subscription successfully deleted.")
 
+MAP_CONTEXT_SUCCESSFULLY_EDITED = _("Map Context <strong>%(title)s</strong> was <strong>edited</strong> successfully.")
+MAP_CONTEXT_SUCCESSFULLY_CREATED = _("Map Context <strong>%(title)s</strong> was <strong>created</strong> successfully.")
+MAP_CONTEXT_SUCCESSFULLY_DELETED = _("Map Context <strong>%(title)s</strong> was <strong>deleted</strong> successfully.")
 
 GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
 
 MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")
+
+HARVEST_RUN_SCHEDULED = _("Harvest run for %(metadata)s scheduled.")
+

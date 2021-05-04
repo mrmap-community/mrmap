@@ -1,8 +1,9 @@
 # Create your views here.
+from django.contrib.auth.decorators import permission_required
+from django.forms import Form
 from django.utils import timezone
 from collections import OrderedDict
 
-from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
@@ -10,6 +11,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django_celery_results.models import TaskResult
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
@@ -18,7 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MrMap import utils
-from MrMap.decorators import resolve_metadata_public_id, permission_required
+from MrMap.settings import HOST_NAME, HTTP_OR_SSL
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
@@ -28,16 +30,14 @@ from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer, \
-    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata
+    MetadataSerializer, CatalogueMetadataSerializer, CategorySerializer, \
+    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata, TaskSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
-from service import tasks
-from mrmap.service.helper import service_helper
 from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
-from structure.models import Organization, MrMapGroup, Permission, PendingTask
+from structure.models import Organization, MrMapGroup
 from structure.permissionEnums import PermissionEnum
 from users.helper import user_helper
 
@@ -77,7 +77,7 @@ def menu_view(request: HttpRequest):
     return render(request, template, default_context.get_context())
 
 
-@permission_required(PermissionEnum.CAN_GENERATE_API_TOKEN.value)
+@permission_required(PermissionEnum.CAN_GENERATE_API_TOKEN.value, raise_exception=True)
 def generate_token(request: HttpRequest):
     """ Generates a token for the user.
 
@@ -131,40 +131,6 @@ class APIPagination(PageNumberPagination):
 
     """
     page_size_query_param = "rpp"
-
-
-class PendingTaskViewSet(viewsets.GenericViewSet):
-    """ ViewSet for PendingTask records
-
-    """
-    serializer_class = PendingTaskSerializer
-    http_method_names = ["get"]
-    pagination_class = APIPagination
-
-    permission_classes = (IsAuthenticated,)
-
-    def retrieve(self, request, pk=None):
-        """ Returns a single PendingTask record information
-
-        Args:
-            request (HttpRequet): The incoming request
-            pk (int): The primary_key (id) of the PendingTask
-        Returns:
-             response (Response): Contains the json serialized information about the pending task
-        """
-        response = APIResponse()
-        try:
-            tmp = PendingTask.objects.get(id=pk)
-            celery_task = AsyncResult(tmp.task_id)
-            progress = float(celery_task.info.get("current", -1))
-            serializer = PendingTaskSerializer(tmp)
-
-            response.data.update(serializer.data)
-            response.data["progress"] = progress
-            response.data["success"] = True
-        except ObjectDoesNotExist:
-            response.data["msg"] = RESOURCE_NOT_FOUND
-        return Response(data=response.data)
 
 
 class ServiceViewSet(viewsets.GenericViewSet):
@@ -258,15 +224,19 @@ class ServiceViewSet(viewsets.GenericViewSet):
         """
         service_serializer = ServiceSerializer()
         params = request.POST.dict()
+        response = APIResponse()
         pending_task = service_serializer.create(validated_data=params, request=request)
 
-        response = APIResponse()
-        response.data["success"] = pending_task is not None
-        response.data["pending_task_id"] = pending_task.id
-        if pending_task:
-            status = 200
+        if isinstance(pending_task,Form):
+            status = 400
+            response.data["success"] = "false"
+            response.data["message"] = pending_task.errors
         else:
-            status = 500
+            status = 202
+            response.data["success"] = pending_task is not None
+            response.data["pending_task_id"] = pending_task.id
+            response.data["status_url"] = HTTP_OR_SSL + HOST_NAME + "/api/pending-tasks/?task_id=" + pending_task.id
+
         response = Response(data=response.data, status=status)
         return response
 
@@ -443,7 +413,6 @@ class LayerViewSet(viewsets.GenericViewSet):
     def destroy(self, request, pk=None):
         # Not supported
         pass
-
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     """ Overview of all organizations matching the given parameters
@@ -723,7 +692,6 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         ]
         only = [
             "id",
-            "public_id",
             "identifier",
             "metadata_type",
             "title",
@@ -813,15 +781,14 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     def list(self, request):
         qs = self.get_queryset()
         qs = self.filter_queryset(qs)
-        tmp = self.paginate_queryset(qs)
-        data = serialize_catalogue_metadata(tmp)
+        qs = self.paginate_queryset(qs)
+        data = serialize_catalogue_metadata(qs)
         resp = self.get_paginated_response(data)
         return resp
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
-    @resolve_metadata_public_id
     def retrieve(self, request, pk=None):
         try:
             tmp = Metadata.objects.get(id=pk)
@@ -972,3 +939,32 @@ class CategoryViewSet(viewsets.GenericViewSet):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = CategorySerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
+
+
+class PendingTasksViewSet(viewsets.ModelViewSet):
+    """ Overview of all metadata matching the given parameters
+
+        Query parameters:
+
+            id: optional, id of the task
+            state:  optional, success, failure, pending
+            date-created:  optional, dd-mm-jjjj
+    """
+    serializer_class = TaskSerializer
+    permission_classes = (
+        IsAuthenticated,
+        CanRegisterService,
+        CanRemoveService,
+        CanActivateService,
+    )
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned purchases to a given user,
+        by filtering against a `username` query parameter in the URL.
+        """
+        queryset = TaskResult.objects.all()
+        task_id = self.request.query_params.get('task_id')
+        if task_id is not None:
+            queryset = queryset.filter(task_id=task_id)
+        return queryset

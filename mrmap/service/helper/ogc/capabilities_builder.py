@@ -959,7 +959,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         if not dataset_mds:
             return
 
-        for dataset in datasets:
+        for dataset_md in dataset_mds:
             metadata_elem = xml_helper.create_subelement(
                 layer_elem,
                 "{}MetadataURL".format(self.default_ns),
@@ -973,7 +973,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             )
             xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        for dataset_md in dataset_mds:
             uri = dataset_md.metadata_url
             xml_helper.create_subelement(
                 metadata_elem,

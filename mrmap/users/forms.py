@@ -7,22 +7,14 @@ Created on: 28.05.19
 """
 from dal import autocomplete
 from django import forms
+from django.contrib.auth import get_user_model
 from django.forms import HiddenInput
-from django.http import HttpRequest
-from django.db.models import Q
-from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
-from MrMap.forms import MrMapModelForm
-from MrMap.messages import ACCOUNT_UPDATE_SUCCESS
-from service.helper.enums import MetadataEnum, MetadataRelationEnum
-from service.models import Metadata
-from structure.models import MrMapUser
 from users.models import Subscription
 
 
 class MrMapUserForm(forms.ModelForm):
     class Meta:
-        model = MrMapUser
+        model = get_user_model()
         fields = [
             "first_name",
             "last_name",

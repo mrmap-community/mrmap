@@ -1,15 +1,14 @@
 import uuid
 
 from django.contrib import messages
-from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
-from django.http import JsonResponse, HttpRequest
-from django.shortcuts import get_object_or_404, render
+from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 from django.urls import reverse_lazy, resolve, reverse
-from django.views import View
-from django.views.generic import UpdateView, DetailView, TemplateView
+from django.views.generic import UpdateView, DetailView
 from django.views.generic.base import ContextMixin
 from django.views.generic.edit import FormMixin, FormView
 from django_bootstrap_swt.components import Alert
@@ -178,7 +177,7 @@ class ConfirmView(FormMixin, DetailView):
         return context
 
     def get_success_url(self):
-        return self.object.detail_view_uri
+        return self.object.get_absolute_url()
 
 
 class AsyncConfirmView(ConfirmView):
@@ -214,7 +213,13 @@ class GenericViewContextMixin(ContextMixin):
     title = None
 
     def get_title(self):
-        return self.title
+        if self.title:
+            return self.title
+        else:
+            if hasattr(self, 'action'):
+                return f"{self.action.capitalize()} {self.model._meta.verbose_name}"
+            else:
+                return self.model._meta.verbose_name
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -262,7 +267,7 @@ class CustomSingleTableMixin(SingleTableMixin):
         # set some custom attributes for template rendering
         table = super(CustomSingleTableMixin, self).get_table(**kwargs)
         table.title = self.get_title()
-        model = self.model()
+        model = self.model
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):
             render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
             table.actions = [render_helper.render_item(item=self.model.get_add_action())]
@@ -284,8 +289,9 @@ class CustomSingleTableMixin(SingleTableMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
-class DependingListView(View):
+class DependingListMixin:
     depending_model = None
+    depending_field_name = None
     object = None
 
     def setup(self, request, *args, **kwargs):
@@ -295,3 +301,6 @@ class DependingListView(View):
         super().setup(request, *args, **kwargs)
         self.object = get_object_or_404(klass=self.depending_model, pk=kwargs.get('pk'))
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(Q(**{self.depending_field_name: self.object}))

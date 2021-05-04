@@ -56,7 +56,7 @@ from structure.models import Organization
 class Harvester:
     def __init__(self, harvest_result, max_records_per_request: int = 200):
         self.metadata = harvest_result.metadata
-        self.harvesting_group = self.metadata.service.created_by.mrmapgroup
+        self.harvesting_organization = self.metadata.owned_by_org
         # Prefer GET url over POST since many POST urls do not work but can still be found in Capabilities
         self.harvest_url = self.metadata.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_RECORDS.value,
@@ -599,7 +599,6 @@ class Harvester:
                 identifier=_id
             )
         md.access_constraints = md_data_entry.get("access_constraints", None)
-        md.created_by = self.harvesting_group
         md.origin = ResourceOriginEnum.CATALOGUE.value
         md.last_remote_change = md_data_entry.get("date_stamp", None)
         md.title = md_data_entry.get("title", None)
@@ -610,6 +609,7 @@ class Harvester:
         md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
         formats = md_data_entry.get("formats", [])
         md.is_active = True
+        md.owned_by_org = self.harvesting_organization
         md.capabilities_original_uri = md_data_entry.get("capabilities_original_url", None)
         try:
             # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
@@ -916,7 +916,7 @@ class Harvester:
                 bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 
             md_data_entry["bounding_geometry"] = bounding_geometry
-            md_data_entry["contact"] = self._create_contact_from_md_metadata(md_metadata)
+            md_data_entry["contact"] = self.harvesting_organization
             md_data_entry["formats"] = self._create_formats_from_md_metadata(md_metadata)
 
             # Load non-metadata data
@@ -1023,6 +1023,7 @@ class Harvester:
             if name is not None:
                 formats.append(name)
         return formats
+
 
     def _create_contact_from_md_metadata(self, md_metadata: Element) -> Organization:
         """ Creates an Organization (Contact) instance from MD_Metadata.

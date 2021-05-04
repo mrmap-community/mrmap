@@ -6,25 +6,12 @@ Created on: 09.07.19
 
 """
 from django.urls import path
-from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
-    ReferenceSystemAutocomplete, ServiceMetadataAutocomplete, OperationsAutocomplete, GroupsAutocomplete, \
-    UsersAutocomplete, MetadataAutocomplete
 from editor.views import *
 from editor.wizards import NewDatasetWizard, EditDatasetWizard, DATASET_WIZARD_FORMS, AccessEditorWizard, \
     ACCESS_EDITOR_WIZARD_FORMS
 
 app_name = 'editor'
 urlpatterns = [
-    # todo: all autocomplete views should be moved to the service (resource) app
-    path('keyword-autocomplete/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword-autocomplete"),
-    path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
-    path('metadata-autocomplete/', DatasetMetadataAutocomplete.as_view(), name="metadata-autocomplete"),
-    path('service-autocomplete/', ServiceMetadataAutocomplete.as_view(), name="service-autocomplete"),
-    path('autocomplete-metadata/', MetadataAutocomplete.as_view(), name="autocomplete_metadata"),
-    path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
-    path('operations/', OperationsAutocomplete.as_view(), name="operations-autocomplete"),
-    path('groups/', GroupsAutocomplete.as_view(), name="groups"),
-    path('users/', UsersAutocomplete.as_view(), name="users"),
 
     # was moved to the service app
     # path('metadata/<pk>/edit', EditMetadata.as_view(), name='edit'),

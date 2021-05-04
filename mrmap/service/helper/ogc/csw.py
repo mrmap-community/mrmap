@@ -7,7 +7,6 @@ Created on: 14.07.20
 """
 from celery import Task, current_task, states
 from django.db import IntegrityError
-
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper import service_helper
@@ -15,8 +14,9 @@ from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
 from service.settings import PROGRESS_STATUS_AFTER_PARSING
-from structure.models import MrMapUser, Organization, MrMapGroup
-from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE
+from structure.models import Organization
+from csw.settings import csw_logger
+
 
 class OGCCatalogueService(OGCWebService):
     """ An internal representation of the OGC CSW
@@ -58,7 +58,7 @@ class OGCCatalogueService(OGCWebService):
         """
         ## contact
         contact = Organization.objects.get_or_create(
-            organization_name=self.service_provider_providername,
+            name=self.service_provider_providername,
             person_name=self.service_provider_responsibleparty_individualname,
             email=self.service_provider_address_electronicmailaddress,
             phone=self.service_provider_telephone_voice,
@@ -71,12 +71,13 @@ class OGCCatalogueService(OGCWebService):
         )[0]
         return contact
 
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth, is_update_candidate_for):
+    def create_service_model_instance(self,
+                                      register_for_organization,
+                                      external_auth,
+                                      is_update_candidate_for):
         """ Map all data from the OGCCatalogueService class to their database models
 
         Args:
-            user (MrMapUser): The user which performs the action
-            register_group (Group): The group which is used to register this service
             register_for_organization (Organization): The organization for which this service is being registered
             external_auth (ExternalAuthentication): The external authentication object
         Returns:
@@ -103,11 +104,11 @@ class OGCCatalogueService(OGCWebService):
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
         md.fees = self.service_identification_fees
-        md.created_by = register_group
+
         md.capabilities_original_uri = self.service_connect_url
         if self.service_bounding_box is not None:
             md.bounding_geometry = self.service_bounding_box
-
+        md.owned_by_org = register_for_organization
         # Save metadata record so we can use M2M or id of record later
         md.save()
         md.identifier = str(md.id) if md.identifier is None else md.identifier
@@ -122,17 +123,15 @@ class OGCCatalogueService(OGCWebService):
         md.formats.add(*self.formats_list)
         md.save()
 
-        service = self._create_service_record(register_group, register_for_organization, md, is_update_candidate_for)
+        service = self._create_service_record(register_for_organization, md, is_update_candidate_for)
 
         return service
 
-    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
+    def _create_service_record(self, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
-            group (MrMapGroup): The owner/creator group
             orga_published_for (Organization): The organization for which the service is published
-            orga_publisher (Organization): THe organization that publishes
             md (Metadata): The describing metadata
         Returns:
              service (Service): The persisted service object
@@ -144,14 +143,13 @@ class OGCCatalogueService(OGCWebService):
         )[0]
 
         service.service_type = service_type
-        service.created_by = group
-        service.published_for = orga_published_for
-
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
         md.service = service
         service.is_update_candidate_for = is_update_candidate_for
+
+        service.owned_by_org = orga_published_for
 
         # Save record to enable M2M relations
         service.save()

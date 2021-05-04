@@ -7,70 +7,78 @@ from django.dispatch import receiver
 from django.urls import reverse
 from django.utils.html import format_html
 from django_celery_results.models import TaskResult
-from django.utils.translation import gettext_lazy as _
-
-from service.helper.enums import OGCServiceEnum
-from service.models import Metadata
-from ws.messages import Toast
+from django.utils.translation import gettext as _
+from structure.models import PendingTask
+from django.contrib.contenttypes.models import ContentType
+from crum import get_current_user
 
 
 def update_count(channel_layer, instance):
-    # todo: for now we send all pending tasks serialized as json
-    #  further changes:
-    #   * filter by the created_by object show only pending tasks for that the user
-    #     has permissions
-    tasks_count = TaskResult.objects.filter(status__in=[states.STARTED, states.PENDING]).count()
-    response = {'pendingTaskCount': tasks_count}
-
-    async_to_sync(channel_layer.group_send)(
-        "app_view_model_observers",
-        {
-            "type": "send.msg",
-            "msg": response,
-        },
-    )
+    if instance.owned_by_org:
+        async_to_sync(channel_layer.group_send)(
+            f"appviewmodelconsumer_{instance.owned_by_org.name}_observers",
+            {
+                "type": "update.app.view.model",
+            },
+        )
 
 
 def send_task_toast(channel_layer, started, instance):
-    title = _('New task scheduled') if started else _('Task done')
-    body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?task_id={instance.task_id}', _('details'))
-    response = Toast(title=title, body=body).get_response()
+    if instance.owned_by_org:
+        title = _('New task scheduled') if started else _('Task done')
+        body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?task_id={instance.task_id}', _('details'))
 
-    async_to_sync(channel_layer.group_send)(
-        "toast_observers",
-        {
-            "type": "send.msg",
-            "msg": response,
-        },
-    )
+        content_type = ContentType.objects.get_for_model(instance)
+
+        async_to_sync(channel_layer.group_send)(
+            f"toastconsumer_{instance.owned_by_org.name}_observers",
+            {
+                "type": "send.toast",
+                "content_type": content_type.pk,
+                "object_id": instance.pk,
+                "title": title,
+                "body": body
+            },
+        )
 
 
-@receiver(post_save, sender=TaskResult, dispatch_uid='update_pending_task_listeners_on_post_save')
-@receiver(post_delete, sender=TaskResult, dispatch_uid='update_pending_task_listeners_on_post_delete')
-def update_pending_task_listeners(**kwargs):
+@receiver(post_save, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_save')
+@receiver(post_delete, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_delete')
+@receiver(post_save, sender=TaskResult, dispatch_uid='update_task_result_listeners_on_post_save')
+@receiver(post_delete, sender=TaskResult, dispatch_uid='update_task_result_listeners_on_post_delete')
+def update_pending_task_listeners(instance, **kwargs):
     """
     Send the information to the channel group when a TaskResult is created/modified
     """
     channel_layer = get_channel_layer()
 
-    if 'created' in kwargs:
-        if kwargs['created']:
-            # post_save signal --> new TaskResult object
-            update_count(channel_layer, kwargs['instance'])
-            send_task_toast(channel_layer, True, kwargs['instance'])
-        else:
-            if kwargs['instance'].status in [states.SUCCESS, states.FAILURE]:
-                send_task_toast(channel_layer, False, kwargs['instance'])
-    else:
-        # post_delete signal
-        update_count(channel_layer, kwargs['instance'])
+    if isinstance(instance, TaskResult):
+        try:
+            instance = instance.pendingtask
+        except Exception:
+            return
 
-    async_to_sync(channel_layer.group_send)(
-        "pending_task_table_observers",
-        {
-            "type": "send.table.as.html",
-        },
-    )
+    if instance.owned_by_org:
+        if 'created' in kwargs:
+            if kwargs['created']:
+                # post_save signal --> new PendingTask/TaskResult object
+                update_count(channel_layer, instance)
+                send_task_toast(channel_layer, True, instance)
+            else:
+                if instance.status in [states.SUCCESS, states.FAILURE]:
+                    update_count(channel_layer, instance)
+                    send_task_toast(channel_layer, False, instance)
+        else:
+            # post_delete signal
+            update_count(channel_layer, kwargs['instance'])
+
+        async_to_sync(channel_layer.group_send)(
+            f"pendingtasktableconsumer_{instance.owned_by_org.name}_observers",
+            {
+                "type": "send.table.as.html",
+            },
+        )
+
 
 @after_task_publish.connect
 def task_send_handler(sender=None, headers=None, body=None, **kwargs):
@@ -86,9 +94,19 @@ def task_send_handler(sender=None, headers=None, body=None, **kwargs):
     took. For a better user experience we can now start celery Task's with countdown and show pending tasks on the
     PendingTaskTable view.
     """
+
     info = headers if 'task' in headers else body
-    TaskResult.objects.create(task_id=info['id'],
-                              task_name=sender,
-                              meta={
-                                  "phase": "Pending..."
-                              })
+
+    owned_by_org_pk = body[0][0]
+    try:
+        PendingTask.objects.create(task_id=info['id'],
+                                   task_name=sender,
+                                   created_by_user=get_current_user(),
+                                   owned_by_org_id=owned_by_org_pk,
+                                   meta={
+                                       "phase": "Pending..."
+                                   })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+

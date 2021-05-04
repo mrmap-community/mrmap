@@ -11,7 +11,7 @@ class HarvestRunForm(ModelForm):
         model = HarvestResult
         fields = ('metadata', )
         widgets = {
-            'metadata': autocomplete.ModelSelect2(url='resource:autocomplete_metadata_catalouge')
+            'metadata': autocomplete.ModelSelect2(url='autocompletes:metadata_catalouge')
         }
         labels = {
             'metadata': _('Resource'),

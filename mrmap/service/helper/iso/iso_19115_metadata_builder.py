@@ -273,14 +273,14 @@ class Iso19115MetadataBuilder:
             xml_helper.add_subelement(resp_party_elem, indiv_name_elem)
 
         # gmd:organisationName
-        if self.organization.organization_name is not None:
+        if self.organization.name is not None:
             org_name_elem = Element(
                 self.gmd + "organisationName"
             )
             char_str_elem = Element(
                 self.gco + "CharacterString"
             )
-            char_str_elem.text = self.organization.organization_name
+            char_str_elem.text = self.organization.name
             xml_helper.add_subelement(org_name_elem, char_str_elem)
             xml_helper.add_subelement(resp_party_elem, org_name_elem)
 
@@ -577,11 +577,11 @@ class Iso19115MetadataBuilder:
         if self.metadata.last_remote_change is not None:
             date = self.metadata.last_remote_change
 
-        elif self.metadata.created is not None:
-            date = self.metadata.created
+        elif self.metadata.created_at is not None:
+            date = self.metadata.created_at
 
-        elif self.metadata.last_modified is not None:
-            date = self.metadata.last_modified
+        elif self.metadata.last_modified_at is not None:
+            date = self.metadata.last_modified_at
         else:
             date = timezone.now()
 

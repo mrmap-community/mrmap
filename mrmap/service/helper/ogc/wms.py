@@ -7,34 +7,25 @@
 """
 import uuid
 from abc import abstractmethod
-
 import time
-
-from threading import Thread
-
-from celery import current_task, states, Task
+from celery import current_task, states
 from celery.result import AsyncResult
 from django.db import transaction, IntegrityError
-from django.utils import timezone
-
 from MrMap.messages import SERVICE_NO_ROOT_LAYER
 from service.settings import PROGRESS_STATUS_AFTER_PARSING, service_logger
-from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
+from MrMap.settings import EXEC_TIME_PRINT, \
     XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap import utils
-from MrMap.utils import execute_threads
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
     MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
-
 from service.helper import xml_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl, RequestOperation
-from structure.models import Organization, MrMapGroup
-from structure.models import MrMapUser
+from structure.models import Organization
 
 
 class OGCWebMapServiceFactory:
@@ -146,9 +137,16 @@ class OGCWebMapService(OGCWebService):
         )
         operations = cap_request.getchildren()
         for operation in operations:
-            RequestOperation.objects.get_or_create(
-                operation_name=operation.tag,
-            )
+            try:
+                RequestOperation.objects.get_or_create(
+                    operation_name=operation.tag,
+                )
+            except IntegrityError:
+                # get_or_create is not thread-safe
+                # If multiple registering tasks running parallel it is possible that more than one
+                # RequestOperation will be created. So we add a unique constraint on field `operation_name`.
+                # One or more threads will fail here, so we catch the IntegrityError
+                pass
             # Parse formats
             formats = xml_helper.try_get_element_from_xml(
                 "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
@@ -700,18 +698,20 @@ class OGCWebMapService(OGCWebService):
         self.parse_request_uris(xml_obj, self)
 
     @transaction.atomic
-    def create_service_model_instance(self, user: MrMapUser, register_group: MrMapGroup, register_for_organization: Organization, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
+    def create_service_model_instance(self,
+                                      register_for_organization: Organization,
+                                      external_auth: ExternalAuthentication = None,
+                                      is_update_candidate_for: Service = None):
         """ Persists the web map service and all of its related content and data
 
         Args:
-            user (MrMapUser): The action performing user
-            register_group (MrMapGroup): The group for which the service shall be registered
             register_for_organization (Organization): The organization for which the service shall be registered
             external_auth (ExternalAuthentication): An external authentication object holding information
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
+
         if current_task:
             current_task.update_state(
                 state=states.STARTED,
@@ -720,23 +720,21 @@ class OGCWebMapService(OGCWebService):
                     'phase': 'Persisting...',
                 }
             )
-        orga_published_for = register_for_organization
-        group = register_group
 
         # Contact
         contact = self._create_organization_contact_record()
 
         # Metadata
-        metadata = self._create_metadata_record(contact, group)
+        metadata = self._create_metadata_record(contact, register_for_organization)
 
         # Process external authentication
         self._process_external_authentication(metadata, external_auth)
 
         # Service
-        service = self._create_service_record(group, orga_published_for, metadata, is_update_candidate_for)
+        service = self._create_service_record(register_for_organization, metadata, is_update_candidate_for)
 
         # Additionals (keywords, mimetypes, ...)
-        self._create_additional_records(service, metadata, group)
+        self._create_additional_records(service, metadata)
 
         # Begin creation of Layer records. Calling the found root layer will
         # iterate through all parent-child related layer objects
@@ -744,8 +742,7 @@ class OGCWebMapService(OGCWebService):
             root_layer = self.layers[0]
             root_layer.create_layer_record(
                 parent_service=service,
-                group=group,
-                user=user,
+                register_for_organization=register_for_organization,
                 parent=None,
                 epsg_api=self.epsg_api
             )
@@ -759,8 +756,8 @@ class OGCWebMapService(OGCWebService):
         Returns:
              contact (Organization): The persisted organization contact record
         """
-        contact = Organization.objects.get_or_create(
-            organization_name=self.service_provider_providername,
+        contact, created = Organization.objects.get_or_create(
+            name=self.service_provider_providername,
             person_name=self.service_provider_responsibleparty_individualname,
             email=self.service_provider_address_electronicmailaddress,
             phone=self.service_provider_telephone_voice,
@@ -770,15 +767,15 @@ class OGCWebMapService(OGCWebService):
             postal_code=self.service_provider_address_postalcode,
             state_or_province=self.service_provider_address_state_or_province,
             country=self.service_provider_address_country,
-        )[0]
+        )
         return contact
 
-    def _create_metadata_record(self, contact: Organization, group: MrMapGroup):
+    def _create_metadata_record(self, contact: Organization, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCWebMapService
 
         Args:
             contact (Organization): The contact organization for this metadata record
-            group (MrMapGroup): The owner/creator group
+            group (Organization): The owner/creator group
         Returns:
              metadata (Metadata): The persisted metadata record
         """
@@ -798,21 +795,22 @@ class OGCWebMapService(OGCWebService):
             metadata.bounding_geometry = self.service_bounding_box
         metadata.identifier = self.service_file_identifier
         metadata.is_active = False
-        metadata.created_by = group
         metadata.contact = contact
+        metadata.owned_by_org = register_for_organization
 
         # Save metadata instance to be able to add M2M entities
         metadata.save()
 
         return metadata
 
-    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, metadata: Metadata, is_update_candidate_for: Service):
+    def _create_service_record(self,
+                               orga_published_for: Organization,
+                               metadata: Metadata,
+                               is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
-            group (MrMapGroup): The owner/creator group
             orga_published_for (Organization): The organization for which the service is published
-            orga_publisher (Organization): THe organization that publishes
             metadata (Metadata): The describing metadata
         Returns:
              service (Service): The persisted service object
@@ -827,8 +825,8 @@ class OGCWebMapService(OGCWebService):
         service.availability = 0.0
         service.is_available = False
         service.service_type = service_type
+
         service.published_for = orga_published_for
-        service.created_by = group
         operation_urls = []
         for operation, parsed_operation_url, method in self.operation_urls:
             # todo: optimize as bulk create
@@ -846,8 +844,8 @@ class OGCWebMapService(OGCWebService):
         service.operation_urls.add(*operation_urls)
         service.metadata = metadata
         service.is_root = True
-        service.is_update_candidate_for=is_update_candidate_for
-
+        service.is_update_candidate_for = is_update_candidate_for
+        service.owned_by_org = orga_published_for
         service.save()
 
         # Persist capabilities document
@@ -855,7 +853,7 @@ class OGCWebMapService(OGCWebService):
 
         return service
 
-    def _create_additional_records(self, service: Service, metadata: Metadata, group: MrMapGroup):
+    def _create_additional_records(self, service: Service, metadata: Metadata):
         """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
 
         Args:
@@ -877,13 +875,12 @@ class OGCWebMapService(OGCWebService):
                 mime_type = MimeType.objects.get_or_create(
                     operation=operation,
                     mime_type=format,
-                    created_by=group
                 )[0]
                 metadata.formats.add(mime_type)
 
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
             metadata.add_metadata_relation(to_metadata=service.linked_service_metadata,
                                            relation_type=MetadataRelationEnum.VISUALIZES.value,
                                            origin=ResourceOriginEnum.CAPABILITIES.value)

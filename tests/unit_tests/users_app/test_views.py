@@ -8,7 +8,7 @@ from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
-from structure.models import MrMapUser, UserActivation
+from users.models import MrMapUser, UserActivation
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone
 from django.contrib.messages import get_messages
@@ -67,7 +67,7 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(user.username, self.contact_data.get('username'), msg="Name is incorrect")
         # ToDo: since #148 is implemented, person_name is not longer available
         # self.assertEqual(user.person_name, self.contact_data.get('person_name'), msg="Person name is incorrect")
-        self.assertEqual(user.password, make_password(self.contact_data.get('password'), user.salt), msg="Password is incorrect")
+        self.assertEqual(user.password, make_password(self.contact_data.get('password')), msg="Password is incorrect")
         # ToDo: since #148 is implemented, facsimile is not longer available
         # self.assertEqual(user.facsimile, self.contact_data.get('facsimile'), msg="Facsimile is incorrect")
         # ToDo: since #148 is implemented, phone is not longer available
@@ -207,8 +207,8 @@ class PasswordChangeTestCase(TestCase):
         Returns:
         """
         PASSWORD_WRONG = "Password wrong"
-        self.assertEqual(self.user.password, make_password(self.user_password, self.user.salt), msg=PASSWORD_WRONG)
         new_pw = 'qwertzuiop!123M'
+        old_pw = self.user.password
 
         ## case 0: User is not logged in -> action has no effect
         # assert action has no effect
@@ -217,7 +217,7 @@ class PasswordChangeTestCase(TestCase):
             data={"password": new_pw, "password_again": new_pw, "user": self.user}
         )
         self.user.refresh_from_db()
-        self.assertNotEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
+        self.assertNotEqual(self.user.password, old_pw, msg=PASSWORD_WRONG)
 
     def test_user_password_change_with_logged_in_user(self):
         response = self.client.post(
@@ -307,62 +307,6 @@ class AccountEditTestCase(TestCase):
         self.assertEqual(self.user.first_name, "admin", msg="Firstname could not be changed")
         self.assertEqual(self.user.last_name, "frontend", msg="Firstname could not be changed")
         self.assertEqual(self.user.email, get_email_data().get('valid'), msg="Email could not be changed")
-
-    def test_error_messages_of_password_without_upper(self):
-        """
-            Tests if the validator fires the right error messages on all cases.
-        """
-
-        # case:
-        self.contact_data.update({
-            'password': get_password_data().get('invalid_without_upper'),
-            'password_check': get_password_data().get('invalid_without_upper')
-        })
-        response = Client().post(reverse('signup'), data=self.contact_data)
-        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
-        self.assertFormError(response, 'form', 'password', 'Password must have at least one Uppercase letter')
-
-    def test_error_messages_of_password_without_lower(self):
-
-        # case:
-        self.contact_data.update({
-            'password': get_password_data().get('invalid_without_lower'),
-            'password_check': get_password_data().get('invalid_without_lower')
-        })
-        response = Client().post(reverse('signup'), data=self.contact_data)
-        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
-        self.assertFormError(response, 'form', 'password', 'Password must have at least one lowercase letter')
-
-    def test_error_messages_of_password_without_digit(self):
-
-        # case:
-        self.contact_data.update({
-            'password': get_password_data().get('invalid_without_digit'),
-            'password_check': get_password_data().get('invalid_without_digit')
-        })
-        response = Client().post(reverse('signup'), data=self.contact_data)
-        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
-        self.assertFormError(response, 'form', 'password', 'Password must have at least one digit')
-
-    def test_error_messages_of_password_at_most_8(self):
-        # case:
-        self.contact_data.update({
-            'password': get_password_data().get('invalid_at_most_8'),
-            'password_check': get_password_data().get('invalid_at_most_8')
-        })
-        response = Client().post(reverse('signup'), data=self.contact_data)
-        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
-        self.assertFormError(response, 'form', 'password', 'Ensure this value has at least 9 characters (it has 8).')
-
-    def test_error_messages_of_password_more_than_255(self):
-        # case:
-        self.contact_data.update({
-            'password': get_password_data().get('invalid_more_than_255'),
-            'password_check': get_password_data().get('invalid_more_than_255')
-        })
-        response = Client().post(reverse('signup'), data=self.contact_data)
-        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
-        self.assertFormError(response, 'form', 'password', 'Ensure this value has at most 255 characters (it has 300).')
 
 
 class HomeViewTestCase(TestCase):

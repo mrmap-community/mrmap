@@ -43,7 +43,6 @@ from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS,
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
     RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
-from users.helper import user_helper
 
 
 class OGCOperationRequestHandler:
@@ -103,13 +102,13 @@ class OGCOperationRequestHandler:
         self.transaction_geometries = None  # contains all geometries that shall be INSERTed or UPDATEd by a  Transaction operation
 
         self.intersected_allowed_geometry = None
-        self.user = user_helper.get_user(request)
+        self.user = request.user
 
         # If user is AnonymousUser, we need to get the public groups
         if self.user.is_authenticated:
             self.user_groups = self.user.groups.all()
         else:
-            self.user_groups = user_helper.get_public_groups()
+            pass # todo
 
         self.access_denied_img = None  # if subelements are not accessible for the user, this PIL.Image object represents an overlay with information about the resources, which can not be accessed
 

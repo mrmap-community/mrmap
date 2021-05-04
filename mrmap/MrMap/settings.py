@@ -29,6 +29,8 @@ DEBUG = True
 INSTALLED_APPS = [
     'channels',
     'ws',
+    'guardian',
+    'acl',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
@@ -67,6 +69,7 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
+    'autocompletes',
 
 ]
 
@@ -87,6 +90,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.RemoteUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'crum.CurrentRequestUserMiddleware',
 ]
 
 if DEBUG:
@@ -153,6 +157,10 @@ HOST_NAME = "localhost:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
+
+from structure.permissionEnums import PermissionEnum
+from django.utils.translation import gettext_lazy as _
+
 ALLOWED_HOSTS = [
     HOST_NAME,
     "127.0.0.1",
@@ -210,6 +218,29 @@ PROXIES = {
 # configure if you want to validate ssl certificates
 # it is highly recommend keeping this to true
 VERIFY_SSL_CERTIFICATES = True
+
+# django-guardian
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # default
+    'guardian.backends.ObjectPermissionBackend',
+)
+
+
+GUARDIAN_RAISE_403 = True
+
+# django-guardian-roles
+GUARDIAN_ROLES_OWNABLE_MODELS = ['service.Metadata',
+                                 'monitoring.MonitoringRun',
+                                 'monitoring.MonitoringResult',
+                                 'monitoring.HealthState',
+                                 'service.ProxyLog']
+
+GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
+GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
+
+GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
+GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
 
 ################################################################
 # Database settings
@@ -327,7 +358,7 @@ PAGE_DEFAULT = 1
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = 'structure.MrMapUser'
+AUTH_USER_MODEL = 'users.MrMapUser'
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60

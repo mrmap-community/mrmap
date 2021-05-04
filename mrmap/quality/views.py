@@ -19,7 +19,6 @@ from quality.tasks import run_quality_check, complete_validation, \
     complete_validation_error
 from service.models import Metadata
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 CURRENT_VIEW_QUERY_Param = 'current-view'
 CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
@@ -44,18 +43,18 @@ def validate(request, metadata_id: str):
         return HttpResponse('Resource to be validated is not active',
                             status=status.HTTP_400_BAD_REQUEST)
 
-    user = user_helper.get_user(request)
-    group = metadata.created_by
+    user = request.user
+    owned_by_org = metadata.owned_by_org
 
-    success_callback = complete_validation.s(group_id=group.id, user_id=user.id)
-    error_callback = complete_validation_error.s(group_id=group.id,
-                                                 user_id=user.id,
+    success_callback = complete_validation.s()
+    error_callback = complete_validation_error.s(user_id=user.id,
                                                  config_id=config_id,
                                                  metadata_id=metadata.id)
 
     pending_task = run_quality_check.apply_async(args=(config_id, metadata_id),
                                                  link=success_callback,
                                                  link_error=error_callback)
+
     if current_task:
         current_task.update_state(
             state=states.STARTED,

@@ -9,13 +9,22 @@ class NonAnonymousJsonWebsocketConsumer(JsonWebsocketConsumer):
     """
 
     user = None
+    auto_groups = True
 
-    def connect(self):
+    def build_groups(self):
+        groups = []
+        for organization in self.user.get_organizations():
+            groups.append(f'{self.__class__.__name__.lower()}_{organization.name}_observers')
+        self.groups = groups
+
+    def websocket_connect(self, message):
         if self.scope['user'].is_anonymous:
             raise DenyConnection
         else:
-            super().connect()
             self.user = get_user_model().objects.get(username=self.scope['user'].username)
+            if self.auto_groups:
+                self.build_groups()
+            super().websocket_connect(message)
 
     def send_msg(self, event):
         """

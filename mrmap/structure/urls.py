@@ -1,42 +1,31 @@
-from django.urls import path
-from structure.views import *
+from django.urls import path, include
+
+from structure.views.error_report import ErrorReportDetailView
+from structure.views.pending_task import *
+from structure.views.organization import *
+from structure.views.publish_request import *
+from structure.views.auth_user import *
 
 app_name = 'structure'
 urlpatterns = [
-
     # TaskResult
     path('tasks/<pk>/revoke', PendingTaskDelete.as_view(), name='remove-task'),
     path('error-reports/<pk>', ErrorReportDetailView.as_view(), name='generate-error-report'),
 
-    # MrMapGroups
-    path('groups', GroupTableView.as_view(), name='group_overview'),
-    path('groups/new', GroupNewView.as_view(), name='group_new'),
-    path('groups/<pk>', GroupDetailView.as_view(), name='group_details'),
-    path('groups/<pk>/edit', GroupEditView.as_view(), name='group_edit'),
-    path('groups/<pk>/remove', GroupDeleteView.as_view(), name='group_remove'),
-    path('groups/<pk>/members', GroupMembersTableView.as_view(), name='group_members'),
-    path('groups/<pk>/publish-rights-for', GroupPublishRightsForTableView.as_view(), name='group_publish_rights_overview'),
-
     # Organizations
     path('organizations', OrganizationTableView.as_view(), name='organization_overview'),
-    path('organizations/new', OrganizationNewView.as_view(), name='organization_new'),
-    path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_details'),
-    path('organizations/<pk>/edit', OrganizationEditView.as_view(), name='organization_edit'),
-    path('organizations/<pk>/remove', OrganizationDeleteView.as_view(), name='organization_remove'),
-    path('organizations/<pk>/members', OrganizationMembersTableView.as_view(), name='organization_members'),
+    path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_view'),
+    path('organizations/<pk>/change', OrganizationUpdateView.as_view(), name='organization_change'),
     path('organizations/<pk>/publishers', OrganizationPublishersTableView.as_view(), name='organization_publisher_overview'),
+    path('organizations/<pk>/acls', OrganizationAccessControlListTableView.as_view(), name='organization_acl_overview'),
 
     # PublishRequests
     path('publish-requests', PublishRequestTableView.as_view(), name='publish_request_overview'),
     path('publish-requests/new', PublishRequestNewView.as_view(), name='publish_request_new'),
-    path('publish-requests/<pk>/accept', PublishRequestAcceptView.as_view(), name='publish_request_accept'),
-
-    # GroupInvitationRequests
-    path('group-invitation-request', GroupInvitationRequestTableView.as_view(), name='group_invitation_request_overview'),
-    path('group-invitation-request/new', GroupInvitationRequestNewView.as_view(), name='group_invitation_request_new'),
-    path('group-invitation-request/<pk>/accept', GroupInvitationRequestAcceptView.as_view(), name='group_invitation_request_accept'),
+    path('publish-requests/<pk>/change', PublishRequestUpdateView.as_view(), name='publishrequest_change'),
 
     # users
     path('users', UserTableView.as_view(), name='users_overview'),
+
 ]
 

@@ -22,12 +22,13 @@ from django.utils import timezone
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
 from MrMap.utils import signal_last
+from main.models import UuidPk, CommonInfo
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 from structure.permissionEnums import PermissionEnum
 
 
-class MonitoringSetting(models.Model):
+class MonitoringSetting(UuidPk):
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
     check_time = models.TimeField()
     timeout = models.IntegerField()
@@ -81,12 +82,14 @@ class MonitoringSetting(models.Model):
         super().save(force_insert, force_update, using, update_fields)
 
 
-class MonitoringRun(models.Model):
+class MonitoringRun(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Monitoring run'))
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
-    metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_runs', verbose_name=_('Checked resources'))
+    metadatas = models.ManyToManyField('service.Metadata',
+                                       related_name='monitoring_runs',
+                                       verbose_name=_('Checked resources'))
 
     class Meta:
         ordering = ["-end"]
@@ -105,7 +108,7 @@ class MonitoringRun(models.Model):
         return LinkButton(content=Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}) + _(' New run').__str__(),
                           color=ButtonColorEnum.SUCCESS,
                           url=reverse('monitoring:run_new'),
-                          needs_perm=PermissionEnum.CAN_RUN_MONITORING.value)
+                          needs_perm=PermissionEnum.CAN_ADD_MONITORING_RUN.value)
 
     def get_absolute_url(self):
         return f"{reverse('monitoring:run_overview')}?uuid={self.uuid}"
@@ -129,13 +132,19 @@ class MonitoringRun(models.Model):
         return reverse('monitoring:run_new')
 
     def save(self, *args, **kwargs):
+        adding = False
         if self._state.adding:
-            from monitoring.tasks import run_manual_service_monitoring
-            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.pk, ), countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+            adding = True
         super().save(*args, **kwargs)
+        if adding:
+            from monitoring.tasks import run_manual_service_monitoring
+            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.owned_by_org.pk if self.owned_by_org else None,
+                                                                                          self.pk,),
+                                                                                    kwargs={'created_by_user_pk': self.created_by_user.pk},
+                                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN))
 
 
-class MonitoringResult(models.Model):
+class MonitoringResult(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -165,7 +174,7 @@ class MonitoringResultDocument(MonitoringResult):
     diff = models.TextField(null=True, blank=True)
 
 
-class HealthState(models.Model):
+class HealthState(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
     monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Resource'))

@@ -20,9 +20,7 @@ from service.forms import RegisterNewResourceWizardPage2
 from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension, MetadataRelation
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import MrMapGroup
 from monitoring.models import MonitoringResult
-from users.helper import user_helper
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -46,52 +44,13 @@ class OrganizationSerializer(serializers.Serializer):
 
     """
     id = serializers.IntegerField()
-    organization_name = serializers.CharField()
-    is_auto_generated = serializers.BooleanField()
+    name = serializers.CharField()
     person_name = serializers.CharField()
     email = serializers.EmailField()
     phone = serializers.CharField()
     facsimile = serializers.CharField()
     city = serializers.CharField()
     country = serializers.CharField()
-
-
-class GroupSerializer(serializers.ModelSerializer):
-    """ Serializer for Organization model
-
-    """
-    class Meta:
-        model = MrMapGroup
-        fields = [
-            "id",
-            "name",
-            "description",
-            "organization",
-            "publish_for_organizations",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
-
-class TaskSerializer(serializers.HyperlinkedModelSerializer):
-    """ Serializer for Tasks model
-
-    """
-    class Meta:
-        model = TaskResult
-        fields = [
-            "task_id",
-            "task_name",
-            "date_created",
-            "status",
-            "worker",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
-
 
 
 class PermissionSerializer(serializers.ModelSerializer):
@@ -169,7 +128,7 @@ class ServiceSerializer(serializers.Serializer):
              None
         """
         # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
-        user = user_helper.get_user(request=request)
+        user = request.user
         get_capabilities_uri = validated_data.get("uri", None) or None
         registering_with_group = validated_data.get("group", None) or None
         registering_for_org = validated_data.get("for-org", None) or None
@@ -364,8 +323,7 @@ def serialize_contact(md: Metadata) -> OrderedDict:
         return None
 
     contact["id"] = md_contact.id
-    contact["organization_name"] = md_contact.organization_name
-    contact["is_auto_generated"] = md_contact.is_auto_generated
+    contact["name"] = md_contact.name
     contact["person_name"] = md_contact.person_name
     contact["email"] = md_contact.email
     contact["phone"] = md_contact.phone
@@ -526,3 +484,20 @@ def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
 
     return ret_val
 
+class TaskSerializer(serializers.HyperlinkedModelSerializer):
+    """ Serializer for Tasks model
+
+    """
+    class Meta:
+        model = TaskResult
+        fields = [
+            "task_id",
+            "task_name",
+            "date_created",
+            "status",
+            "worker",
+        ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields

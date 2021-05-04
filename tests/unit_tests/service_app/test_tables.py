@@ -6,7 +6,7 @@ from django_tables2 import RequestConfig
 from MrMap.consts import SERVICE_INDEX_LOG
 from service.models import Metadata, ProxyLog
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable, ProxyLogTable, OgcServiceTable
-from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs, create_testuser
+from tests.baker_recipes.db_setup import create_superadminuser, create_proxy_logs, create_testuser
 from tests.utils import check_table_sorting
 
 TEST_URI = "http://test.com?request=GetTest"
@@ -169,8 +169,7 @@ class ServiceTestCase(TestCase):
         Return:
 
         """
-        groups = create_guest_groups(how_much_groups=9)
-        user = create_superadminuser(groups=groups)
+        user = create_superadminuser()
         request_factory = RequestFactory()
         # Create an instance of a GET request.
         request = request_factory.get('/')

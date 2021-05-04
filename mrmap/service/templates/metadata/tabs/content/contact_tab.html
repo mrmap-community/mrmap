@@ -13,7 +13,7 @@
             {% comment %} TODO: mapbender presents a logo here {% endcomment %}
             <tr>
                 <th scope="row">{% trans 'Organization' %}</th>
-                <td itemprop="legalName">{{ contact.organization_name }}</td>
+                <td itemprop="legalName">{{ contact.name }}</td>
             </tr>
 
             <tr>
@@ -46,7 +46,7 @@
             <tbody itemprop="accountablePerson" itemscope itemtype="https://schema.org/Person">
             <tr>
                 <th scope="row">{% trans 'Organization' %}</th>
-                <td>{{ contact.organization_name }}</td>
+                <td>{{ contact.name }}</td>
             </tr>
             <tr>
                 <th scope="row">{% trans 'Contact person' %}</th>

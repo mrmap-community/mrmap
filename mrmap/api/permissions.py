@@ -8,7 +8,6 @@ Created on: 14.04.20
 from rest_framework.permissions import BasePermission
 
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 class DefaultPermission(BasePermission):
     """

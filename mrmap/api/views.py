@@ -29,17 +29,17 @@ from monitoring.models import MonitoringResult, MonitoringRun
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
-from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
+from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, CategorySerializer, \
     MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata, TaskSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
-    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
+    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
 from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
-from structure.models import Organization, MrMapGroup
+
+from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 
 def menu_view(request: HttpRequest):
@@ -52,7 +52,7 @@ def menu_view(request: HttpRequest):
     """
     template = "views/api_menu.html"
     token_form = TokenForm(request.POST)
-    user = user_helper.get_user(request)
+    user = request.user
 
     if not user.is_authenticated:
         return redirect("login")
@@ -89,7 +89,7 @@ def generate_token(request: HttpRequest):
          A redirect to a view
     """
     if request.method == "POST":
-        user = user_helper.get_user(request)
+        user = request.user
         # Get user token
         try:
             token = Token.objects.get(
@@ -270,7 +270,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
         Returns:
              Response
         """
-        user = user_helper.get_user(request)
+
         parameter_name = "active"
         new_status = request.POST.dict().get(parameter_name, None)
         new_status = utils.resolve_boolean_attribute_val(new_status)
@@ -420,7 +420,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         Query parameters:
 
             ag:     optional, filter for auto_generated organizations vs. real organizations
-            order:  optional, orders by an attribute (e.g. id, email, default is organization_name)
+            order:  optional, orders by an attribute (e.g. id, email, default is name)
             rpp:    optional, Number of results per page
     """
     serializer_class = OrganizationSerializer
@@ -444,7 +444,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         # filter by real or auto generated organizations
         auto_generated = self.request.query_params.get("ag", None)
         auto_generated = utils.resolve_boolean_attribute_val(auto_generated)
-        self.queryset = view_helper.filter_queryset_real_organization(self.queryset, auto_generated)
 
         # order by
         order_by = self.request.query_params.get("order", ORGANIZATION_DEFAULT_ORDER)
@@ -521,79 +520,6 @@ class MetadataViewSet(viewsets.GenericViewSet):
             if not tmp.is_active:
                 return Response(status=423)
             return Response(MetadataSerializer(tmp).data)
-        except ObjectDoesNotExist:
-            return Response(RESOURCE_NOT_FOUND, status=404)
-
-    def update(self, request, pk=None):
-        # Not supported
-        pass
-
-    def partial_update(self, request, pk=None):
-        # Not supported
-        pass
-
-    def destroy(self, request, pk=None):
-        # Not supported
-        pass
-
-
-class GroupViewSet(viewsets.GenericViewSet):
-    """ Overview of all groups matching the given parameters
-
-        Query parameters:
-
-            orgid:  optional, filter for organizations
-            order:  optional, orders by an attribute (e.g. id, organization, default is name)
-            rpp:    optional, Number of results per page
-    """
-    serializer_class = GroupSerializer
-    http_method_names = API_ALLOWED_HTTP_METHODS
-    pagination_class = APIPagination
-
-    permission_classes = (IsAuthenticated,)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.orderable_fields = [field.name for field in MrMapGroup._meta.fields]
-
-    def get_queryset(self):
-        """ Specifies if the queryset shall be filtered or not
-
-        Returns:
-             The queryset
-        """
-        self.queryset = MrMapGroup.objects.all()
-
-        # filter by organization
-        orgid = self.request.query_params.get("orgid", None)
-        self.queryset = view_helper.filter_queryset_group_organization_id(self.queryset, orgid)
-
-        # order by
-        order_by = self.request.query_params.get("order", GROUP_DEFAULT_ORDER)
-        if order_by not in self.orderable_fields:
-            order_by = GROUP_DEFAULT_ORDER
-        self.queryset = view_helper.order_queryset(self.queryset, order_by)
-
-        return self.queryset
-
-    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
-    # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
-    def list(self, request):
-        tmp = self.paginate_queryset(self.get_queryset())
-        serializer = GroupSerializer(tmp, many=True)
-        return self.get_paginated_response(serializer.data)
-
-    def create(self, request):
-        pass
-
-    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
-    # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
-    def retrieve(self, request, pk=None):
-        try:
-            tmp = MrMapGroup.objects.get(id=pk)
-            return Response(ServiceSerializer(tmp).data)
         except ObjectDoesNotExist:
             return Response(RESOURCE_NOT_FOUND, status=404)
 

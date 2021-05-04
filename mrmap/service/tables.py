@@ -1,5 +1,4 @@
 import json
-
 import django_tables2 as tables
 from celery import states
 from django.db.models import Count
@@ -10,16 +9,18 @@ from django.utils.translation import gettext_lazy as _
 from django_bootstrap_swt.components import Link, Tag, Badge, Accordion
 from django_bootstrap_swt.enums import ProgressColorEnum
 from django_bootstrap_swt.utils import RenderHelper
-from django_celery_results.models import TaskResult
-
 from MrMap.columns import MrMapColumn
 from MrMap.icons import IconEnum, get_all_icons, get_icon
 from MrMap.tables import MrMapTable
+from django.db.models import Count
+from django.utils.translation import gettext_lazy as _
 from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
 from service.settings import service_logger
+from structure.models import PendingTask
+from service.templatecodes import RESOURCE_TABLE_ACTIONS
 from service.templatecodes import RESOURCE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
 
@@ -43,17 +44,20 @@ class PendingTaskTable(tables.Table):
     bs4helper = None
     status = tables.Column(verbose_name=_('Status'),
                            attrs={"th": {"class": "col-sm-1"}})
+    created_by_user = tables.Column(attrs={"th": {"class": "col-sm-1"}})
     type = tables.Column(verbose_name=_('Type'),
                          accessor='task_name',
-                         attrs={"th": {"class": "col-sm-2"}})
+                         attrs={"th": {"class": "col-sm-1"}})
     phase = tables.Column(verbose_name=_('Phase'),
                           accessor='result',
                           attrs={"th": {"class": "col-sm-3"}},
                           empty_values=[])
     date_created = tables.Column(verbose_name=_('Date Created:'),
-                          accessor='date_created',
-                          attrs={"th": {"class": "col-sm-2"}},
-                          empty_values=[])
+                                 attrs={"th": {"class": "col-sm-1"}},
+                                 empty_values=[])
+    date_done = tables.Column(verbose_name=_('Date Done:'),
+                              attrs={"th": {"class": "col-sm-1"}},
+                              empty_values=[])
     progress = tables.Column(verbose_name=_('Progress'),
                              accessor='result',
                              attrs={"th": {"class": "col-sm-3"}},
@@ -65,8 +69,8 @@ class PendingTaskTable(tables.Table):
                                     attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     class Meta:
-        model = TaskResult
-        fields = ('status', 'task_id', 'type', 'phase', 'date_created', 'progress', 'actions')
+        model = PendingTask
+        fields = ('status', 'created_by_user', 'task_id', 'type', 'phase', 'date_created', 'date_done', 'progress', 'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
@@ -159,7 +163,10 @@ class OgcServiceTable(tables.Table):
     harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
     harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], accessor='harvest_results')
     collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
-    actions = tables.TemplateColumn(verbose_name=_('Actions'), empty_values=[], orderable=False, template_code=RESOURCE_TABLE_ACTIONS,
+    actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    template_code=RESOURCE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}})
 
     class Meta:
@@ -175,9 +182,8 @@ class OgcServiceTable(tables.Table):
                   'harvest_duration',
                   'collected_harvest_records',
                   'contact',
-                  'service__created_by__mrmapgroup',
-                  'service__published_for',
-                  'created',
+                  'service__owned_by_org',
+                  'created_at',
                   'actions')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'ogc-service-table'
@@ -232,13 +238,10 @@ class OgcServiceTable(tables.Table):
         return format_html(self.render_helper.render_list_coherent(items=record.get_health_icons(), safe=True))
 
     def render_contact(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    def render_service__created_by(self, value):
         return Link(url=value.get_absolute_url(), content=value).render(safe=True)
 
-    def render_service__published_for(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
+    def render_service__owned_by_org(self, value):
+        return Link(url=value.get_absolute_url(), content=value).render(safe=True)
 
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(

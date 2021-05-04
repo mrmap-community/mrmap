@@ -7,7 +7,6 @@ Created on: 13.02.2020
 
 This file holds all global constants
 """
-from django.utils.html import format_html
 
 DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
 
@@ -16,10 +15,7 @@ SERVICE_ADD = "resource:add"
 
 SERVICE_INDEX_LOG = "resource:logs-view"
 
-STRUCTURE_DETAIL_GROUP = "structure:group_details"
-STRUCTURE_INDEX_GROUP = "structure:group_overview"
-
-STRUCTURE_DETAIL_ORGANIZATION = "structure:organization_details"
+STRUCTURE_DETAIL_ORGANIZATION = "structure:organization_view"
 STRUCTURE_INDEX_ORGANIZATION = "structure:organization_overview"
 
 APP_XML = "application/xml"

@@ -11,7 +11,6 @@ from django.http import HttpResponse
 from MrMap.messages import SERVICE_NOT_FOUND
 from MrMap.utils import get_dict_value_insensitive
 from service.models import Metadata, ProxyLog
-from users.helper import user_helper
 
 
 def log_proxy(function):
@@ -23,7 +22,7 @@ def log_proxy(function):
         The function
     """
     def wrap(request, *args, **kwargs):
-        user = user_helper.get_user(request=request)
+        user = request.user
         try:
             md = Metadata.objects.get(id=kwargs["metadata_id"])
         except ObjectDoesNotExist:
@@ -48,7 +47,8 @@ def log_proxy(function):
                 uri=uri,
                 operation=get_dict_value_insensitive(request.GET.dict(), "request"),
                 post_body=post_body,
-                user=logged_user
+                user=logged_user,
+                owned_by_org=md.owned_by_org
             )
             proxy_log.save()
         return function(request=request, proxy_log=proxy_log, *args, **kwargs)

@@ -29,8 +29,7 @@ from MrMap.widgets import BootstrapDatePickerInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, Keyword, Category, Dataset, ReferenceSystem, Licence, AllowedOperation
 from service.settings import ISO_19115_LANG_CHOICES
-from structure.models import Organization, MrMapGroup
-from users.helper import user_helper
+from structure.models import Organization
 from django.contrib import messages
 
 
@@ -76,7 +75,7 @@ class MetadataEditorForm(ModelForm):
         }
         widgets = {
             "categories": autocomplete.ModelSelect2Multiple(
-                url='editor:category-autocomplete',
+                url='autocompletes:category',
                 attrs={
                     "select2-container-css-style": {
                         "height": "auto",
@@ -84,7 +83,7 @@ class MetadataEditorForm(ModelForm):
                 },
             ),
             'keywords': autocomplete.ModelSelect2Multiple(
-                url='editor:keyword-autocomplete',
+                url='autocompletes:keyword',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -157,7 +156,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
     reference_system = ReferenceSystemModelMultipleChoiceField(
         queryset=ReferenceSystem.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:reference-system-autocomplete',
+            url='autocompletes:reference_system',
             attrs={
                 "data-containercss": {
                     "height": "3em",
@@ -170,15 +169,15 @@ class DatasetIdentificationForm(MrMapWizardForm):
     additional_related_objects = MetadataModelMultipleChoiceField(
         queryset=Metadata.objects.none(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:metadata-autocomplete',
+            url='autocompletes:metadata',
 
         ),
         required=False, )
 
     created_by = forms.ModelChoiceField(
-        label=_("Create with group"),
+        label=_("Create with organization"),
         widget=forms.Select(attrs={'class': 'auto_submit_item'}),
-        queryset=MrMapGroup.objects.none(),
+        queryset=Organization.objects.none(),
         to_field_name='id',
         initial=1
     )
@@ -188,14 +187,11 @@ class DatasetIdentificationForm(MrMapWizardForm):
                                                         *args,
                                                         **kwargs)
 
-        self.fields['additional_related_objects'].queryset = user_helper.get_user(self.request).get_metadatas_as_qs(
-            type=MetadataEnum.DATASET, inverse_match=True)
+        self.fields['additional_related_objects'].queryset = self.request.user.get_instances(klass=Metadata,
+            filter=~Q(metadata_type=MetadataEnum.DATASET))
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
-        user = user_helper.get_user(request=kwargs.pop("request"))
-        user_groups = user.groups.filter(mrmapgroup__is_public_group=False)
-        self.fields["created_by"].queryset = user_groups
-        self.fields["created_by"].initial = user_groups.first()
+        self.fields["created_by"].queryset = self.request.user.get_publishable_organizations()
 
         if self.instance_id:
             metadata = Metadata.objects.get(pk=self.instance_id)
@@ -220,7 +216,7 @@ class DatasetClassificationForm(MrMapWizardForm):
         label=_('Keywords'),
         queryset=Keyword.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:keyword-autocomplete',
+            url='autocompletes:keyword',
             attrs={
                 "data-containercss": {
                     "height": "3em",
@@ -233,7 +229,7 @@ class DatasetClassificationForm(MrMapWizardForm):
         label=_('Categories'),
         queryset=Category.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(
-            url='editor:category-autocomplete',
+            url='autocompletes:category',
             attrs={
                 "data-containercss": {
                     "height": "3em",
@@ -259,7 +255,7 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
     licence = forms.ModelChoiceField(
         label=_('Terms of use'),
         required=False,
-        queryset=Licence.objects.filter(is_active=True),
+        queryset=Licence.objects.all(),
         help_text=Licence.get_descriptions_help_text()
     )
     access_constraints = forms.CharField(
@@ -318,19 +314,17 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
     )
 
     def __init__(self, *args, **kwargs):
-        user = user_helper.get_user(kwargs.get("request"))
+        user = kwargs.get("request").user
         user_groups = user.groups.all()
         if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
             init_organization = Organization.objects.filter(id=metadata.contact.id)
             organizations = Organization.objects.filter(
-                Q(is_auto_generated=False) &
                 Q(publishers__in=user_groups) |
                 Q(id=user.organization.id)
             ) | init_organization
         else:
             organizations = Organization.objects.filter(
-                Q(is_auto_generated=False) &
                 Q(publishers__in=user_groups) |
                 Q(id=user.organization.id)
             )
@@ -357,8 +351,6 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
             self.instance.save()
 
         messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
-        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
-                                          "{}".format(self.instance.title, ))
 
 
 class GeneralAccessSettingsForm(forms.ModelForm):
@@ -420,7 +412,7 @@ class AllowedOperationForm(forms.ModelForm):
 
         widgets = {
             'operations': autocomplete.ModelSelect2Multiple(
-                url='editor:operations-autocomplete',
+                url='autocompletes:operations',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -428,15 +420,7 @@ class AllowedOperationForm(forms.ModelForm):
                     }
                 },
             ),
-            'allowed_groups': autocomplete.ModelSelect2Multiple(
-                url='editor:groups',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
+
             'allowed_area': LeafletWidget(attrs={
                 'map_height': '500px',
                 'map_width': '100%',

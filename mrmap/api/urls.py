@@ -24,7 +24,6 @@ router.register('organization', OrganizationViewSet, basename="organization")
 router.register('metadata', MetadataViewSet, basename="metadata")
 router.register('service', ServiceViewSet, basename="service")
 router.register('layer', LayerViewSet, basename="layer")
-router.register('group', GroupViewSet, basename="group")
 router.register('monitoring', MonitoringViewSet, basename="monitoring")
 router.register('pending-tasks', PendingTasksViewSet, basename="pending-tasks")
 

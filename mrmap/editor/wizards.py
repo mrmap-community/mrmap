@@ -1,10 +1,9 @@
-from django.contrib.auth.decorators import login_required
+from guardian.mixins import LoginRequiredMixin
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import modelformset_factory
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
-from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from MrMap.messages import NO_PERMISSION
 from MrMap.wizards import MrMapWizard
@@ -15,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, Document, AllowedOperation
-from structure.models import Organization, MrMapUser
+from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
 from django.forms import BaseFormSet
 
@@ -46,24 +45,23 @@ def show_restrict_spatially_form_condition(wizard):
     return cleaned_data.get('is_secured', True)
 
 
-@method_decorator(login_required, name='dispatch')
-class AccessEditorWizard(PermissionRequiredMixin, MrMapWizard):
+class AccessEditorWizard(LoginRequiredMixin, PermissionRequiredMixin, MrMapWizard):
     # template_name = "generic_views/generic_wizard_form.html"
     action_url = ""
-    metadata_object = None
+    object = None
     condition_dict = {ACCESS_EDITOR_STEP_2_NAME: show_restrict_spatially_form_condition}
-    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
+    permission_required = PermissionEnum.CAN_SECURE_RESOURCE.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
     success_url = reverse_lazy('resource:pending-tasks')
 
     def dispatch(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
-        self.metadata_object = get_object_or_404(klass=Metadata, id=pk)
-        allowed_operations = AllowedOperation.objects.filter(secured_metadata=self.metadata_object)
-        self.instance_dict = {"general": self.metadata_object,
+        self.object = get_object_or_404(klass=Metadata, id=pk)
+        allowed_operations = AllowedOperation.objects.filter(secured_metadata=self.object)
+        self.instance_dict = {"general": self.object,
                               ACCESS_EDITOR_STEP_2_NAME: allowed_operations, }
-        self.initial_dict = {ACCESS_EDITOR_STEP_2_NAME: [{"root_metadata": self.metadata_object}]}
+        self.initial_dict = {ACCESS_EDITOR_STEP_2_NAME: [{"root_metadata": self.object}]}
 
         # if we got existing SecuredOperation objects for the requested metadata object, we do not serve extra empty
         # forms in our formset. The user can add some if he want with the add button which will post the APPEND_FORMSET
@@ -78,7 +76,7 @@ class AccessEditorWizard(PermissionRequiredMixin, MrMapWizard):
                                                                          form=AllowedOperationForm,
                                                                          extra=extra)
 
-        self.action_url = reverse('resource:access-editor-wizard', args=[self.metadata_object.pk, ])
+        self.action_url = reverse('resource:access-editor-wizard', args=[self.object.pk, ])
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -101,11 +99,13 @@ class AccessEditorWizard(PermissionRequiredMixin, MrMapWizard):
         return super().done(form_list, **kwargs)
 
 
-@method_decorator(login_required, name='dispatch')
-class DatasetWizard(MrMapWizard):
+class DatasetWizard(LoginRequiredMixin, PermissionRequiredMixin, MrMapWizard):
     metadata = None
     dataset = None
     success_url = reverse_lazy('resource:datasets-index')
+
+    def get_permission_object(self):
+        return self.metadata
 
     def __init__(self, *args, **kwargs):
         super(MrMapWizard, self).__init__(
@@ -139,7 +139,7 @@ class DatasetWizard(MrMapWizard):
         return super().done(form_list, **kwargs)
 
     @staticmethod
-    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user):
         """ Iterates over all forms and applies the metadata changes on the objects
 
         Args:
@@ -179,7 +179,7 @@ class DatasetWizard(MrMapWizard):
             DatasetWizard._create_dataset_document(metadata)
 
     @staticmethod
-    def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -213,7 +213,7 @@ class DatasetWizard(MrMapWizard):
                                                     origin=ResourceOriginEnum.EDITOR.value)
 
     @staticmethod
-    def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -235,7 +235,7 @@ class DatasetWizard(MrMapWizard):
             metadata.categories.add(cat)
 
     @staticmethod
-    def _fill_metadata_dataset_spatial_extent_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_spatial_extent_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -249,7 +249,7 @@ class DatasetWizard(MrMapWizard):
         metadata.bounding_geometry = data.get("bounding_geometry", None)
 
     @staticmethod
-    def _fill_metadata_dataset_licence_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_licence_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -264,7 +264,7 @@ class DatasetWizard(MrMapWizard):
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod
-    def _fill_metadata_dataset_quality_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+    def _fill_metadata_dataset_quality_form(data: dict, metadata: Metadata, dataset: Dataset, user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -280,7 +280,7 @@ class DatasetWizard(MrMapWizard):
 
     @staticmethod
     def _fill_metadata_dataset_responsible_party_form(data: dict, metadata: Metadata, dataset: Dataset,
-                                                      user: MrMapUser):
+                                                      user):
         """ Fills form data into Metadata/Dataset records
 
         Args:
@@ -296,8 +296,7 @@ class DatasetWizard(MrMapWizard):
         if org is None:
             # A new org has to be created with minimal contact details
             org = Organization.objects.get_or_create(
-                organization_name=data.get("organization_name"),
-                is_auto_generated=True,
+                name=data.get("name"),
                 person_name=data.get("person_name"),
                 phone=data.get("phone"),
                 email=data.get("mail"),
@@ -344,7 +343,7 @@ class DatasetWizard(MrMapWizard):
         doc.save()
 
 
-class NewDatasetWizard(PermissionRequiredMixin, DatasetWizard):
+class NewDatasetWizard(DatasetWizard):
     permission_required = PermissionEnum.CAN_ADD_DATASET_METADATA.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION
@@ -389,7 +388,7 @@ class NewDatasetWizard(PermissionRequiredMixin, DatasetWizard):
         return super().done(form_list=form_list, **kwargs)
 
 
-class EditDatasetWizard(PermissionRequiredMixin, DatasetWizard):
+class EditDatasetWizard(DatasetWizard):
     permission_required = PermissionEnum.CAN_EDIT_METADATA.value
     raise_exception = True
     permission_denied_message = NO_PERMISSION

@@ -16,7 +16,7 @@ from django_filters import FilterSet
 from django_tables2 import RequestConfig, tables
 
 from MrMap import utils
-from structure.models import MrMapUser
+from users.models import MrMapUser
 
 
 def activate_service(self, is_active: bool):

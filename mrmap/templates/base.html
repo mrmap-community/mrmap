@@ -22,7 +22,7 @@
 
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
-            <li class="nav-item {% if PATH == 'home' %}active{% endif %}">
+            <li class="nav-item {% if PATH == '' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
                     {% autoescape off %}{{ICONS.DASHBOARD}}{% endautoescape %} {% trans 'Dashboard' %}
                 </a>
@@ -32,33 +32,20 @@
                   {% autoescape off %}{{ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Structure' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
-                    <h6 class="dropdown-header">{% trans 'Groups' %}</h6>
-                    <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'structure:group_overview' %}">{% autoescape off %}{{ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %} <span class="badge badge-secondary">{{mr_map_group_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_new' %}" title="{% trans 'New Group' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
-                    <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
-                    <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:organization_new' %}" title="{% trans 'New Organization' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
+                    <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Pending requests' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'structure:publish_request_overview' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%} <span class="badge {% if pending_publish_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_publish_requests_count}}</span></a>
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'structure:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>
-                    <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:group_invitation_request_overview' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Group invitations'%} <span class="badge {% if pending_group_invitation_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_group_invitation_requests_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'structure:group_invitation_request_new' %}" title="{% trans 'New Group invitation request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                    </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Users' %}</h6>
                     <a class="dropdown-item" href="{% url 'structure:users_overview' %}">{% autoescape off %}{{ICONS.USER}}{% endautoescape %} {% trans 'Users'%} <span class="badge badge-secondary">{{mr_map_user_count}}</span></a>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'resource' %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarServicesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   {% autoescape off %}{{ICONS.RESOURCE}}{% endautoescape %} {% trans 'Resources' %}
                 </a>
@@ -68,21 +55,34 @@
                     <h6 class="dropdown-header">{% trans 'Services' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
+                        {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
+                        {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span class="badge badge-secondary">{{csw_count}}</span></a>
+                        {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Resource request logging' %}</h6>
+                    <a class="dropdown-item" href="{% url 'resource:logs-view' %}" title="{% trans 'Logs' %}">
+                        {% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}
+                    </a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Datasets' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %} <span class="badge badge-secondary">{{dataset_count}}</span></a>
+                        {% if "service.add_dataset_metadata" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Map Contexts' %}</h6>
@@ -101,7 +101,9 @@
                     <h6 class="dropdown-header">{% trans 'Runs' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item flex-grow-1" href="{% url 'monitoring:run_overview' %}">{% trans 'Runs' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
+                        {% if "monitoring.add_monitoringrun" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'monitoring:run_new' %}" title="{% trans 'New run' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Results' %}</h6>
@@ -111,14 +113,18 @@
                     <a class="dropdown-item" href="{% url 'monitoring:health_state_overview' %}">{% trans 'Health states' %}</a>
                 </div>
             </li>
+            <li class="nav-item dropdown {% if PATH == 'acls' %}active{% endif %}">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarAclsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{ICONS.COGS}}{% endautoescape %} {% trans 'Acl\'s' %}
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarAclsDropdown">
+                    <h6 class="dropdown-header">{% trans 'Acls' %}</h6>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'acl:accesscontrollist_overview' %}">{% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
+                </div>
+            </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'api:menu' %}" title="{% trans 'API' %}">
                     {% autoescape off %}{{ICONS.API}}{% endautoescape %} {% trans 'API' %}
-                </a>
-            </li>
-            <li class="nav-item dropdown {% if PATH == 'logs' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'resource:logs-view' %}" title="{% trans 'Logs' %}">
-                    {% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}
                 </a>
             </li>
         </ul>

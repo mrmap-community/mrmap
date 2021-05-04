@@ -26,7 +26,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, Document, Dataset, LegalDate, LegalReport
-from structure.models import Organization, MrMapGroup
+from structure.models import Organization
 
 
 class ISOMetadata:
@@ -553,7 +553,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self, type=MetadataEnum.DATASET.value, created_by: MrMapGroup = None):
+    def to_db_model(self, type=MetadataEnum.DATASET.value, created_by: Organization = None):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -580,8 +580,6 @@ class ISOMetadata:
             metadata.metadata_type = md_type
             if metadata.is_dataset_metadata:
                 metadata.dataset = Dataset()
-                metadata.dataset.created_by = created_by
-            metadata.created_by = created_by
             new = True
 
         if update or new:
@@ -591,8 +589,8 @@ class ISOMetadata:
                 metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
 
             metadata = self._fill_metadata_db_model(metadata)
-            metadata.save()
-            metadata.dataset.save()
+            metadata.save(publish_for=created_by)
+            metadata.dataset.save(publish_for=created_by)
 
             orig_document = Document.objects.get_or_create(
                 metadata=metadata,
@@ -661,14 +659,14 @@ class ISOMetadata:
 
         try:
             metadata.contact = Organization.objects.get_or_create(
-                organization_name=self.responsible_party,
+                name=self.responsible_party,
                 email=self.contact_email,
             )[0]
         except MultipleObjectsReturned:
             # okay, we need to create a unique organization
-            # "unique" since it will only be identified using organization_name and email
+            # "unique" since it will only be identified using name and email
             metadata.contact = Organization.objects.get_or_create(
-                organization_name="{}#1".format(self.responsible_party),
+                name="{}#1".format(self.responsible_party),
                 email=self.contact_email,
             )[0]
 

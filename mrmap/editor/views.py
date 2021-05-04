@@ -1,70 +1,50 @@
-from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy, reverse
-from django.utils.decorators import method_decorator
+from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect
 from django.db.models import Q
-from django.views.generic import DeleteView, UpdateView
 from django_bootstrap_swt.components import Tag
 from django_bootstrap_swt.utils import RenderHelper
 from django_filters.views import FilterView
 from MrMap.forms import get_current_view_args
 from MrMap.icons import IconEnum
-from MrMap.messages import METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, RESOURCE_EDITED, NO_PERMISSION
-from MrMap.views import ConfirmView, GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin
+from MrMap.messages import METADATA_RESTORING_SUCCESS, RESOURCE_EDITED
 from editor.filters import AllowedOperationFilter
 from editor.forms import MetadataEditorForm
 from editor.tables import AllowedOperationTable
+from main.views import SecuredDeleteView, SecuredUpdateView, SecuredConfirmView, SecuredListMixin
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, AllowedOperation
 from structure.permissionEnums import PermissionEnum
-from users.helper import user_helper
 
 
-@method_decorator(login_required, name='dispatch')
-class DatasetDelete(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, DeleteView):
+class DatasetDelete(SecuredDeleteView):
     model = Metadata
     success_url = reverse_lazy('resource:datasets-index')
     template_name = 'MrMap/detail_views/delete.html'
     queryset = Metadata.objects.filter(metadata_type=MetadataEnum.DATASET.value)
     success_message = _("Dataset successfully deleted.")
     permission_required = PermissionEnum.CAN_REMOVE_DATASET_METADATA.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         return _("Remove " + self.get_object().__str__())
 
 
-@method_decorator(login_required, name='dispatch')
-class EditMetadata(PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, UpdateView):
+class EditMetadata(SecuredUpdateView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = RESOURCE_EDITED
     model = Metadata
     form_class = MetadataEditorForm
     queryset = Metadata.objects.filter(~Q(metadata_type=MetadataEnum.CATALOGUE.value) |
                                        ~Q(metadata_type=MetadataEnum.DATASET.value))
-    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
-
-    def get_title(self):
-        return _("Edit " + self.get_object().__str__())
 
 
-@method_decorator(login_required, name='dispatch')
-class RestoreMetadata(PermissionRequiredMixin, GenericViewContextMixin, SuccessMessageMixin, ConfirmView):
+class RestoreMetadata(SecuredConfirmView):
     model = Metadata
     no_cataloge_type = ~Q(metadata_type=MetadataEnum.CATALOGUE.value)
     is_custom = Q(is_custom=True)
     queryset = Metadata.objects.filter(is_custom | no_cataloge_type)
     success_message = METADATA_RESTORING_SUCCESS
-    permission_required = PermissionEnum.CAN_EDIT_METADATA.value
-    raise_exception = True
-    permission_denied_message = NO_PERMISSION
 
     def get_title(self):
         return _("Restore ").__str__() + self.object.__str__()
@@ -86,25 +66,12 @@ class RestoreMetadata(PermissionRequiredMixin, GenericViewContextMixin, SuccessM
         ext_auth = self.object.get_external_authentication_object()
         self.object.restore(self.object.identifier, external_auth=ext_auth)
 
-        # Todo: add last_changed_by_user field to Metadata and move this piece of code to Metadata.restore()
-        if self.object.is_metadata_type(MetadataEnum.DATASET):
-            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                              "{}".format(self.object.title, ))
-        else:
-            user_helper.create_group_activity(self.object.created_by, self.request.user, SERVICE_MD_RESTORED,
-                                              "{}: {}".format(self.object.get_root_metadata().title,
-                                                              self.object.title))
-
-        if self.object.is_dataset_metadata:
-            success_url = reverse('resource:datasets-index')
-        else:
-            success_url = self.get_success_url()
+        success_url = self.get_success_url()
 
         return HttpResponseRedirect(success_url)
 
 
-@method_decorator(login_required, name='dispatch')
-class AllowedOperationTableView(CustomSingleTableMixin, FilterView):
+class AllowedOperationTableView(SecuredListMixin, FilterView):
     model = AllowedOperation
     table_class = AllowedOperationTable
     filterset_class = AllowedOperationFilter

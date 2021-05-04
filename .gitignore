@@ -45,7 +45,7 @@ htmlcov/
 nosetests.xml
 nosecover.xml
 *,cover
-xunit-result.xml
+**/xunit-result.xml
 coverage-report.xml
 .hypothesis/
 
@@ -65,6 +65,11 @@ instance/
 # Scrapy stuff:
 .scrapy
 
+<<<<<<< HEAD
+# Sphinx documentation
+_docs/_build/
+=======
+>>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
 
 # PyBuilder
 target/

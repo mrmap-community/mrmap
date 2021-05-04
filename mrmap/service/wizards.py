@@ -25,7 +25,7 @@ NEW_RESOURCE_WIZARD_FORMS = [
 @method_decorator(login_required, name='dispatch')
 class NewResourceWizard(PermissionRequiredMixin, MrMapWizard):
     success_url = reverse_lazy('resource:pending-tasks')
-    permission_required = PermissionEnum.CAN_REGISTER_RESOURCE.value
+    permission_required = [PermissionEnum.CAN_REGISTER_RESOURCE.value]
     raise_exception = True
     permission_denied_message = NO_PERMISSION
 

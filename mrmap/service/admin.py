@@ -19,9 +19,9 @@ class CategoryAdmin(admin.ModelAdmin):
 
 
 class DatasetAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_link', 'date_stamp', 'md_identifier_code', 'created_by_link', 'last_modified', )
-    list_filter = ('language_code', 'character_set_code', 'update_frequency_code', 'legal_restriction_code', 'created_by')
-    search_fields = ['id', 'metadata__title', 'md_identifier_code', 'date_stamp', 'created_by__name', 'last_modified', ]
+    list_display = ('id', 'metadata_link', 'date_stamp', 'md_identifier_code', 'created_by_user_link', 'last_modified_by', )
+    list_filter = ('language_code', 'character_set_code', 'update_frequency_code', 'legal_restriction_code', 'created_by_user')
+    search_fields = ['id', 'metadata__title', 'md_identifier_code', 'date_stamp', 'created_by_user__username', 'last_modified', ]
 
     def metadata_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
@@ -29,13 +29,13 @@ class DatasetAdmin(admin.ModelAdmin):
     metadata_link.allow_tags = True
     metadata_link.short_description = "metadata"
 
-    def created_by_link(self, obj):
-        if obj.created_by:
-            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.created_by.id,)), escape(obj.created_by)))
+    def created_by_user_link(self, obj):
+        if obj.created_by_user:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:users_mrmapgroup_change", args=(obj.created_by_user.id,)), escape(obj.created_by_user)))
         else:
             "-"
-    created_by_link.allow_tags = True
-    created_by_link.short_description = "created_by"
+    created_by_user_link.allow_tags = True
+    created_by_user_link.short_description = "created_by_user"
 
 
 class DimensionAdmin(admin.ModelAdmin):
@@ -45,24 +45,15 @@ class DimensionAdmin(admin.ModelAdmin):
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_link', 'document_type', 'is_original', 'is_active', 'created', 'created_by_link', 'last_modified')
-    list_filter = ('is_active', 'document_type', 'is_original', 'is_active', )
-    search_fields = ['id', 'metadata__id', 'metadata__title', 'last_modified']
+    list_display = ('id', 'metadata_link', 'document_type', 'is_original', 'created_at', 'created_by_user', 'last_modified_by')
+    list_filter = ('document_type', 'is_original', )
+    search_fields = ['id', 'metadata__id', 'metadata__title', 'last_modified_by']
 
     def metadata_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
 
     metadata_link.allow_tags = True
     metadata_link.short_description = "metadata"
-
-    def created_by_link(self, obj):
-        if obj.created_by:
-            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.created_by.id,)), escape(obj.created_by)))
-        else:
-            "-"
-
-    created_by_link.allow_tags = True
-    created_by_link.short_description = "created_by"
 
 
 class ExternalAuthenticationAdmin(admin.ModelAdmin):
@@ -72,15 +63,15 @@ class ExternalAuthenticationAdmin(admin.ModelAdmin):
 
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'type', 'created', 'created_by')
-    list_filter = ('created_by', )
-    search_fields = ['id', 'name', 'type', 'created', 'created_by__name', ]
+    list_display = ('id', 'name', 'type', 'created_at', 'created_by_user')
+    list_filter = ('created_by_user', )
+    search_fields = ['id', 'name', 'type', 'created_at', 'created_by_user__username', ]
 
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'parent_service', 'created', 'created_by', 'last_modified')
-    list_filter = ('created_by',)
-    search_fields = ['id', 'metadata__title', 'created', 'created_by__name', ]
+    list_display = ('id', 'metadata', 'parent_service', 'created_at', 'created_by_user', 'last_modified_by')
+    list_filter = ('created_by_user',)
+    search_fields = ['id', 'metadata__title', 'created_at', 'created_by__name', ]
 
 
 class KeywordAdmin(admin.ModelAdmin):
@@ -89,16 +80,16 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class LayerAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'identifier', 'parent_service', 'parent', 'created', 'created_by', 'last_modified')
-    list_filter = ('created_by',)
-    search_fields = ['id', 'metadata__title', 'identifier', 'created', 'created_by__name', 'last_modified',]
+    list_display = ('id', 'metadata', 'identifier', 'parent_service', 'parent', 'created_at', 'created_by_user', 'last_modified_by')
+    list_filter = ('created_by_user',)
+    search_fields = ['id', 'metadata__title', 'identifier', 'created_at', 'created_by__name', 'last_modified',]
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact')
-    list_filter = ('metadata_type', 'is_active', 'is_broken')
+    list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_broken', 'contact')
+    list_filter = ('metadata_type', 'is_broken')
     search_fields = ['id', 'title', "identifier"]
-    ordering = ["-created"]
+    ordering = ["-created_at"]
     readonly_fields = (
         "additional_urls",
         "formats",
@@ -134,7 +125,7 @@ class MetadataTypeAdmin(admin.ModelAdmin):
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
-    list_display = ('identifier', 'name', 'is_open_data', 'is_active')
+    list_display = ('identifier', 'name', 'is_open_data')
 
     def service_link(self, obj):
         if obj.service:
@@ -203,11 +194,11 @@ class ServiceTypeAdmin(admin.ModelAdmin):
 
 
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata_link', 'parent_service_link', 'published_for', 'created_by')
-    list_filter = ('is_root', 'is_active', 'is_deleted', 'service_type', 'published_for')
+    list_display = ('id', 'is_deleted',  'service_type', 'metadata_link', 'parent_service_link', 'owned_by_org', 'created_by_user')
+    list_filter = ('is_root', 'is_deleted', 'service_type', 'owned_by_org')
     search_fields = ['id', 'metadata__title']
     readonly_fields = ("operation_urls",)
-    ordering = ["-created"]
+    ordering = ["-created_at"]
 
     def metadata_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))

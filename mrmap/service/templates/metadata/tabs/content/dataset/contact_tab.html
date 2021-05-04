@@ -11,7 +11,7 @@
                    itemtype="https://schema.org/Organization">
             <tr>
                 <th scope="row">{% trans 'Responsible party name' %}</th>
-                <td itemprop="legalName">{{ contact.organization_name }}</td>
+                <td itemprop="legalName">{{ contact.name }}</td>
             </tr>
             <tr>
                 <th scope="row">{% trans 'Email' %}</th>
@@ -43,7 +43,7 @@
             <tr>
                 <th scope="row">{% trans 'Metadata point of contact name' %}</th>
                 {% comment %} TODO: right data here? {% endcomment %}
-                <td>{{ contact.organization_name }}</td>
+                <td>{{ contact.name }}</td>
             </tr>
             <tr>
                 <th scope="row">{% trans 'Metadata point of contact email' %}</th>

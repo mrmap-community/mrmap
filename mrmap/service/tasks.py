@@ -6,19 +6,15 @@ Created on: 12.08.19
 
 """
 import base64
-import json
 import time
-
 import celery.states as states
 from celery import shared_task, current_task
-from MrMap import utils
-from MrMap.messages import SERVICE_REGISTERED
 from MrMap.settings import EXEC_TIME_PRINT
+from main.tasks import default_task_handler
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import MrMapUser, MrMapGroup, Organization
+from structure.models import Organization
 from service.helper import service_helper
-from users.helper import user_helper
 
 
 @shared_task(name="async_increase_hits")
@@ -35,24 +31,23 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict,
-                      user_id: int,
-                      register_group_id: int,
-                      register_for_organization_id: int,
-                      external_auth: dict):
+def async_new_service(owned_by_org: str,
+                      url_dict: dict,
+                      external_auth: dict,
+                      **kwargs):
     """ Async call of new service creation
 
     Since redis is used as broker, the objects can not be passed directly into the function. They have to be resolved using
     their ids, since the objects are not easily serializable using json
 
     Args:
+        owned_by_org (str): pk of the organization which shall own this service
         url_dict (dict): Contains basic information about the service like connection uri
-        user_id (int): Id of the performing user
-        register_group_id (int): Id of the group which wants to register
-        register_for_organization_id (int): Id of the organization for which the service is registered
+        external_auth (dict): ExternalAuthentication object as dict
     Returns:
         nothing
     """
+    default_task_handler(**kwargs)
     if current_task:
         current_task.update_state(
             state=states.STARTED,
@@ -72,23 +67,16 @@ def async_new_service(url_dict: dict,
         )
 
     # restore objects from ids
-    user = MrMapUser.objects.get(id=user_id)
     url_dict["service"] = service_helper.resolve_service_enum(url_dict["service"])
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
-    register_group = MrMapGroup.objects.get(id=register_group_id)
-    if utils.resolve_none_string(str(register_for_organization_id)) is not None:
-        register_for_organization = Organization.objects.get(id=register_for_organization_id)
-    else:
-        register_for_organization = None
+    register_for_organization = Organization.objects.get(pk=owned_by_org)
 
     t_start = time.time()
     service = service_helper.create_service(
         url_dict.get("service"),
         url_dict.get("version"),
         url_dict.get("base_uri"),
-        user,
-        register_group,
         register_for_organization,
         external_auth=external_auth
     )
@@ -108,7 +96,6 @@ def async_new_service(url_dict: dict,
         service.metadata.set_proxy(True)
 
     service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-    user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
     return {'msg': 'Done. New service registered.',
             'id': str(service.metadata.pk),

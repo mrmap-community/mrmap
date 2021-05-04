@@ -67,6 +67,7 @@ def update_pending_task_listeners(instance, **kwargs):
                 update_count(channel_layer, instance)
                 send_task_toast(channel_layer, True, instance)
             else:
+                # post_save signal --> updated instance
                 if instance.status in [states.SUCCESS, states.FAILURE]:
                     update_count(channel_layer, instance)
                     send_task_toast(channel_layer, False, instance)

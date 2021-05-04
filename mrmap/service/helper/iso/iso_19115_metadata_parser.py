@@ -589,8 +589,8 @@ class ISOMetadata:
                 metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
 
             metadata = self._fill_metadata_db_model(metadata)
-            metadata.save(publish_for=created_by)
-            metadata.dataset.save(publish_for=created_by)
+            metadata.save()
+            metadata.dataset.save()
 
             orig_document = Document.objects.get_or_create(
                 metadata=metadata,

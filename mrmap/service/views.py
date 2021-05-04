@@ -74,7 +74,9 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
         "service__parent_service__metadata",
         "service__parent_service__metadata__external_authentication",
         "contact",
+        "contact__owned_by_org",
         "external_authentication",
+        "owned_by_org",
     ).prefetch_related(
         "service__featuretypes",
         "service__child_services",

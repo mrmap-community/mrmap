@@ -9,6 +9,7 @@ from rest_framework.permissions import BasePermission
 
 from structure.permissionEnums import PermissionEnum
 
+
 class DefaultPermission(BasePermission):
     """
     Allows access only to users with this permission.
@@ -20,7 +21,7 @@ class DefaultPermission(BasePermission):
     """
 
     view_action = 'create'
-    needed_perm = '' # PermissionEnum.CAN_REGISTER_RESOURCE
+    needed_perm = ''  # PermissionEnum.CAN_REGISTER_RESOURCE
 
     def has_permission(self, request, view):
         if view.action == self.view_action:
@@ -30,6 +31,7 @@ class DefaultPermission(BasePermission):
             return has_perm
         else:
             return True
+
 
 class CanRegisterService(DefaultPermission):
     """

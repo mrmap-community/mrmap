@@ -42,6 +42,9 @@ class AccessControlList(GenericUriMixin, Group, CommonInfo):
     default_acl = models.BooleanField(default=False,
                                       editable=False)
 
+    organization_admin = models.BooleanField(default=False,
+                                             editable=False)
+
     class Meta:
         verbose_name = _('Access Control List')
         verbose_name_plural = _('Access Control Lists')

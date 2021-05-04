@@ -7,10 +7,11 @@ from django.test import Client, TransactionTestCase, RequestFactory
 from django_celery_results.models import TaskResult
 from django_tables2 import RequestConfig
 
+from acl.models.acl import AccessControlList
 from service.filters import PendingTaskFilter
 from service.tables import PendingTaskTable
 from structure.models import PendingTask
-from tests.baker_recipes.db_setup import create_superadminuser
+from tests.baker_recipes.db_setup import create_superadminuser, create_public_organization
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from channels.testing import WebsocketCommunicator
 from MrMap.asgi import application
@@ -19,11 +20,13 @@ from MrMap.asgi import application
 class PendingTaskConsumerTestCase(TransactionTestCase):
 
     def setUp(self):
+        self.organization = create_public_organization()
+        admin_acl = AccessControlList.objects.get(owned_by_org=self.organization, organization_admin=True)
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        # workaround to login a user for WebsocketCommunicator since login is not implemented for this
-        # ApplicationCommunicator (see: https://github.com/django/channels/issues/903#issuecomment-365448451)
+        # workaround to login a user with cookie header for WebsocketCommunicator since login is not implemented for
+        # this ApplicationCommunicator (see: https://github.com/django/channels/issues/903#issuecomment-365448451)
         self.headers = [(b'origin', b'http://127.0.0.1:8000'), (b'cookie', self.client.cookies.output(header='', sep='; ').encode())]
 
     @sync_to_async

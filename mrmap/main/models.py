@@ -8,7 +8,29 @@ from crum import get_current_user
 
 
 class GenericUriMixin:
+    """
+    Mixin class to generate urls for view, change and delete action by using the current app_label of the model, the
+    class name and the action which is performed by the url.
 
+    :Example:
+
+    - reverse('structure:organization_view', args=[self.pk,]) to get the detail view url of an organization for example.
+
+    - reverse('structure:organization_change', args=[self.pk,]) to get the change view url of an organization for example.
+
+    .. note::
+        configure the path names in urls.py with the structure `classname_action`.
+
+        :Example:
+
+        app_name = 'structure'
+        urlpatterns = [
+            ...
+            path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_view'),
+            ...
+        ]
+
+    """
     def get_absolute_url(self) -> str:
         return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_view', args=[self.pk, ])
 
@@ -73,7 +95,7 @@ class CommonInfo(models.Model):
 
     def __init__(self, *args, **kwargs):
         super(CommonInfo, self).__init__(*args, **kwargs)
-        self._owned_by_org = self.owned_by_org
+        # self._owned_by_org_id = self.owned_by_org_id
 
     def save(self, update_last_modified=True, *args, **kwargs):
         if self._state.adding:

@@ -39,7 +39,7 @@ services:
       - 443:443
     volumes:
       - ./nginx/mrmap.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/static:/opt/mrmap/mrmap/static
+      - ./nginx/static:/opt/mrmap/mrmap
     extra_hosts:
       - host.docker.internal:host-gateway
 

@@ -1,5 +1,3 @@
-import logging
-
 from asgiref.sync import async_to_sync
 from celery import states
 from celery.signals import after_task_publish

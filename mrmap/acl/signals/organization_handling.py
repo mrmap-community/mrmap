@@ -9,11 +9,12 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 
 
-def create_acl(name: str, owned_by_org: Organization, permissions, description: str = ''):
+def create_acl(name: str, owned_by_org: Organization, permissions, description: str = '', organization_admin: bool = False):
     acl = AccessControlList.objects.create(name=name,
                                            description=description,
                                            owned_by_org=owned_by_org,
-                                           default_acl=True)
+                                           default_acl=True,
+                                           organization_admin=True)
     acl.permissions.add(*permissions)
     acl.accessible_organizations.add(owned_by_org)
 
@@ -32,7 +33,8 @@ def handle_organization_creation(instance, created, **kwargs):
         create_acl(name=f"{organization.name} administrators",
                    description=_('Organization administrators can administrate all objects which are owned by the organization it self'),
                    owned_by_org=organization,
-                   permissions=admin_permissions)
+                   permissions=admin_permissions,
+                   organization_admin=True)
         create_acl(name=f"{organization.name} members",
                    description=_('Organization members can view all objects which are owned by the organization it self'),
                    owned_by_org=organization,

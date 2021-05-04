@@ -6,6 +6,8 @@ Created on: 28.05.19
 
 """
 import uuid
+from functools import cached_property
+
 import six
 from django.db.models import Q
 from guardian.shortcuts import get_objects_for_user
@@ -51,16 +53,14 @@ class MrMapUser(AbstractUser):
     def icon(self):
         return get_icon(IconEnum.USER)
 
-    def __str__(self):
-        return self.username
-
     def get_absolute_url(self):
         return reverse('password_change_done')
 
     def get_edit_view_url(self):
         return reverse('edit_profile')
 
-    def get_organizations(self):
+    @cached_property
+    def organizations(self):
         return Organization.objects.prefetch_related('acl_accesscontrollist_owned_by_org',
                                                      'acl_accesscontrollist_owned_by_org__user_set',
                                                      'acl_accesscontrollist_owned_by_org__permissions')\

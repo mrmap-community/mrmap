@@ -13,7 +13,7 @@ class NonAnonymousJsonWebsocketConsumer(JsonWebsocketConsumer):
 
     def build_groups(self):
         groups = []
-        for organization in self.user.get_organizations():
+        for organization in self.user.organizations:
             groups.append(f'{self.__class__.__name__.lower()}_{organization.pk}_observers')
         self.groups = groups
 

@@ -68,7 +68,7 @@ class HomeView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        pending_requests = PublishRequest.objects.filter(to_organization__in=self.request.user.get_organizations())
+        pending_requests = PublishRequest.objects.filter(to_organization__in=self.request.user.organizations)
         context.update({
             "publishing_requests": pending_requests,
             "organizations": Organization.objects.all(),

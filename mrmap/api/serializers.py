@@ -130,7 +130,6 @@ class ServiceSerializer(serializers.Serializer):
         # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
         user = request.user
         get_capabilities_uri = validated_data.get("uri", None) or None
-        registering_with_group = validated_data.get("group", None) or None
         registering_for_org = validated_data.get("for-org", None) or None
         has_ext_auth = validated_data.get("ext-auth", False) or False
         ext_auth_username = validated_data.get("ext-username", None) or None
@@ -149,8 +148,7 @@ class ServiceSerializer(serializers.Serializer):
             "ogc_service": ogc_service,
             "ogc_version": ogc_version,
             "uri": uri,
-            "registering_with_group": registering_with_group,
-            "registering_for_other_organization": registering_for_org,
+            "registering_for_organization": registering_for_org,
             "service_needs_authentication": has_ext_auth,
             "username": ext_auth_username,
             "password": ext_auth_password,

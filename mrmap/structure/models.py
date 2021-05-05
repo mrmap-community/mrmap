@@ -225,4 +225,5 @@ class PendingTask(CommonInfo, TaskResult):
                          When(status='PENDING', then=1),
                          When(status='FAILURE', then=2),
                          When(status='SUCCESS', then=3)),
-                    '-date_done', ]
+                    '-date_done',
+                    '-task_id',]

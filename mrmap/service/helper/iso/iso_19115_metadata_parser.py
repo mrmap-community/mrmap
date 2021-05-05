@@ -602,9 +602,12 @@ class ISOMetadata:
 
             if update:
                 metadata.keywords.clear()
+            keywords = []
             for kw in self.keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords.add(keyword)
+                keyword, created = Keyword.objects.get_or_create(keyword=kw)
+                keywords.append(keyword)
+
+            metadata.keywords.add(*keywords)
         return metadata
 
     def _fill_dataset_db_model(self, dataset: Dataset):
@@ -683,14 +686,17 @@ class ISOMetadata:
         metadata.save()
 
         # save legal dates and reports
+        reports = []
         for report in self.legal_reports:
             report.date.save()
             report.save()
-            metadata.legal_reports.add(report)
+            reports.append(report)
+        metadata.legal_reports.add(*reports)
+
+        legal_dates = []
         for date in self.legal_dates:
             date.save()
-            metadata.legal_dates.add(date)
-
-        metadata.save()
+            legal_dates.append(date)
+        metadata.legal_dates.add(*legal_dates)
 
         return metadata

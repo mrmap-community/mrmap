@@ -766,15 +766,17 @@ class OGCWebFeatureService(OGCWebService):
                                      origin=ResourceOriginEnum.CAPABILITIES.value)
 
         # Keywords
+        keywords = []
         for kw in self.service_identification_keywords:
             if kw is None:
                 continue
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords.add(keyword)
+            keyword, created = Keyword.objects.get_or_create(keyword=kw)
+            keywords.append(keyword)
+
+        md.keywords.add(*keywords)
 
         # MimeTypes
-        for mime_type in self.service_mime_type_list:
-            md.formats.add(mime_type)
+        md.formats.add(*self.service_mime_type_list)
 
     def _create_feature_types(self, service: Service, contact: Contact, owner: Organization):
         """ Iterates over parsed feature types and creates DB records for each
@@ -809,8 +811,7 @@ class OGCWebFeatureService(OGCWebService):
             f_t.save()
 
             # persist featuretype keywords through metadata
-            for kw in f_t.metadata.keywords_list:
-                f_t.metadata.keywords.add(kw)
+            f_t.metadata.keywords.add(*f_t.metadata.keywords_list)
 
             # dataset_md of feature types
             for dataset_md in f_t.dataset_md_list:
@@ -821,25 +822,23 @@ class OGCWebFeatureService(OGCWebService):
                                                    origin=ResourceOriginEnum.CAPABILITIES.value)
 
             # keywords of feature types
-            for kw in f_t.keywords_list:
-                f_t.metadata.keywords.add(kw)
+            f_t.metadata.keywords.add(*f_t.keywords_list)
 
             # all (additional + default) srs of feature types
-            for srs in f_t.additional_srs_list:
-                f_t.metadata.reference_system.add(srs)
+            f_t.metadata.reference_system.add(*f_t.additional_srs_list)
 
             # formats
+            formats = []
             for _format in f_t.formats_list:
                 _format.save()
-                md.formats.add(_format)
+                formats.append(_format)
+            md.formats.add(*formats)
 
             # elements
-            for _element in f_t.elements_list:
-                f_t.elements.add(_element)
+            f_t.elements.add(*f_t.elements_list)
 
             # namespaces
-            for ns in f_t.namespaces_list:
-                f_t.namespaces.add(ns)
+            f_t.namespaces.add(*f_t.namespaces_list)
 
 
     ### DATASET METADATA ###

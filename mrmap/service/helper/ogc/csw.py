@@ -114,14 +114,15 @@ class OGCCatalogueService(OGCWebService):
         md.identifier = str(md.id) if md.identifier is None else md.identifier
 
         # Keywords
+        keywords = []
         for kw in self.service_identification_keywords:
             if kw is None:
                 continue
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords.add(keyword)
+            keyword, created = Keyword.objects.get_or_create(keyword=kw)
+            keywords.append(keyword)
+        md.keywords.add(*keywords)
 
         md.formats.add(*self.formats_list)
-        md.save()
 
         service = self._create_service_record(register_for_organization, md, is_update_candidate_for)
 

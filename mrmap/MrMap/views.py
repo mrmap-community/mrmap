@@ -14,7 +14,7 @@ from django.views.generic.edit import FormMixin, FormView
 from django_bootstrap_swt.components import Alert
 from django_bootstrap_swt.enums import AlertEnum, ButtonColorEnum
 from django_bootstrap_swt.utils import RenderHelper
-from django_tables2 import SingleTableMixin
+from django_tables2 import SingleTableMixin, LazyPaginator
 from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm
 from MrMap.responses import DefaultContext
@@ -253,6 +253,8 @@ class SuccessMessageDeleteMixin:
 class CustomSingleTableMixin(SingleTableMixin):
     title = None
     template_extend_base = True
+    # Implement lazy pagination, preventing any count() queries to increase performance.
+    paginator_class = LazyPaginator
 
     def get_title(self):
         if not self.title:
@@ -265,9 +267,10 @@ class CustomSingleTableMixin(SingleTableMixin):
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
-        table = super(CustomSingleTableMixin, self).get_table(**kwargs)
+        table = super().get_table(**kwargs)
         table.title = self.get_title()
         model = self.model
+        # todo: bad practice --> results in multiple db querys for get_all_permissions()
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):
             render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
             table.actions = [render_helper.render_item(item=self.model.get_add_action())]

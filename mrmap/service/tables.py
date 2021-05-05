@@ -15,6 +15,9 @@ from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
+from main.tables.template_code import RECORD_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
+    SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS
+from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
@@ -154,15 +157,38 @@ class PendingTaskTable(tables.Table):
 
 class OgcServiceTable(tables.Table):
     bs4helper = None
-    layers = tables.Column(verbose_name=_('Layers'), empty_values=[], accessor='service__child_services__count')
-    featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], accessor='service__featuretypes__count')
-    parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[],
-                                   accessor='service__parent_service__metadata')
-    status = tables.Column(verbose_name=_('Status'), empty_values=[], attrs={"td": {"style": "white-space:nowrap;"}})
-    health = tables.Column(verbose_name=_('Health'), empty_values=[], )
-    harvest_results = tables.Column(verbose_name=_('Last harvest'), empty_values=[], )
-    harvest_duration = tables.Column(verbose_name=_('Harvest duration'), empty_values=[], accessor='harvest_results')
-    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'), empty_values=[], accessor='harvest_results')
+    title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT)
+    layers = tables.Column(verbose_name=_('Layers'),
+                           empty_values=[],
+                           accessor='service__child_services__count')
+    featuretypes = tables.Column(verbose_name=_('Featuretypes'),
+                                 empty_values=[],
+                                 accessor='service__featuretypes__count')
+    parent_service = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
+                                           verbose_name=_('Parent service'),
+                                           empty_values=[],
+                                           accessor='service__parent_service__metadata')
+    status_icons = tables.TemplateColumn(template_code=SERVICE_STATUS_ICONS,
+                                         verbose_name=_('Status'),
+                                         empty_values=[],)
+    health_icons = tables.TemplateColumn(template_code=SERVICE_HEALTH_ICONS,
+                                         verbose_name=_('Health'),
+                                         empty_values=[],
+                                         extra_context={'WARNING_RELIABILITY': WARNING_RELIABILITY,
+                                                        'CRITICAL_RELIABILITY': CRITICAL_RELIABILITY})
+    contact = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK)
+    owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
+                                  accessor='owned_by_org')
+    last_harvested = tables.Column(verbose_name=_('Last harvest'),
+                                   empty_values=[],
+                                   accessor='harvest_results__first')
+    last_harvest_duration = tables.Column(verbose_name=_('Harvest duration'),
+                                          empty_values=[],
+                                          accessor='harvest_results__first')
+    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'),
+                                              empty_values=[],
+                                              accessor='harvest_results__first')
+
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
@@ -175,73 +201,35 @@ class OgcServiceTable(tables.Table):
                   'layers',
                   'featuretypes',
                   'parent_service',
-                  'status',
-                  'health',
+                  'status_icons',
+                  'health_icons',
                   'service__service_type__version',
-                  'harvest_results',
-                  'harvest_duration',
+                  'last_harvested',
+                  'last_harvest_duration',
                   'collected_harvest_records',
                   'contact',
-                  'service__owned_by_org',
                   'created_at',
-                  'actions')
+                  'owner',
+                  'actions',
+                  )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'ogc-service-table'
 
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_title(self, record, value):
-        return Link(url=record.detail_view_uri, content=value).render(safe=True)
-
-    def render_harvest_results(self, value):
-        last_harvest_result = value.all().first()
-        return last_harvest_result.timestamp_start if last_harvest_result is not None else _('Never')
+    def render_last_harvested(self, value):
+        return value.timestamp_end if value is not None else _('Never')
 
     def render_collected_harvest_records(self, record, value):
-        last_harvest_result = value.all().first()
         dataset_count = record.get_related_metadatas().filter(metadata_type=MetadataEnum.DATASET.value).count()
         link = f"<a data-toggle='tooltip' title='{_('Number of dataset metadata harvested')}'href='{reverse('resource:datasets-index')}?dataset-filter-related_to={record.pk}'>{dataset_count}</a>"
-        return format_html(f"{last_harvest_result.number_results} ({link})") if last_harvest_result is not None else '-'
+        return format_html(f"{value.number_results} ({link})") if value is not None else '-'
 
     def render_harvest_duration(self, value):
-        last_harvest_result = value.all().first()
+        last_harvest_result = value
         if last_harvest_result and last_harvest_result.timestamp_end and last_harvest_result.timestamp_start:
             time_delta = last_harvest_result.timestamp_end - last_harvest_result.timestamp_start
             return f"{time_delta.days}d  {time_delta.seconds//3600}h {(time_delta.seconds//60)%60}m {(time_delta.seconds)%60}s"
         else:
             return '-'
-
-    # todo
-    def render_wms_validation(self, record):
-        passed = None
-        try:
-            check_run = ConformityCheckRun.objects.get_latest_check(record)
-            passed = check_run.passed
-        except ConformityCheckRun.DoesNotExist:
-            pass
-        return self.get_validation_icons(passed=passed)
-
-    def render_parent_service(self, value):
-        return Link(url=value.detail_view_uri, content=value).render(safe=True)
-
-    def render_status(self, record):
-        self.render_helper.update_attrs = {'class': ['mr-1']}
-        update_url_qs = self.render_helper.update_url_qs
-        self.render_helper.update_url_qs = {}
-        icons = self.render_helper.render_list_coherent(items=record.get_status_icons(), safe=True)
-        self.render_helper.update_attrs = {}
-        self.render_helper.update_url_qs = update_url_qs
-        return format_html(icons)
-
-    def render_health(self, record):
-        return format_html(self.render_helper.render_list_coherent(items=record.get_health_icons(), safe=True))
-
-    def render_contact(self, value):
-        return Link(url=value.get_absolute_url(), content=value).render(safe=True)
-
-    def render_service__owned_by_org(self, value):
-        return Link(url=value.get_absolute_url(), content=value).render(safe=True)
 
     def order_layers(self, queryset, is_descending):
         queryset = queryset.annotate(
@@ -249,13 +237,13 @@ class OgcServiceTable(tables.Table):
         ).order_by(("-" if is_descending else "") + "count")
         return queryset, True
 
-    def order_wfs_featuretypes(self, queryset, is_descending):
+    def order_featuretypes(self, queryset, is_descending):
         queryset = queryset.annotate(
             count=Count("service__featuretypes")
         ).order_by(("-" if is_descending else "") + "count")
         return queryset, True
 
-    def order_status(self, queryset, is_descending):
+    def order_status_icons(self, queryset, is_descending):
         is_descending_str = "-" if is_descending else ""
         queryset = queryset.order_by(is_descending_str + "is_active",
                                      is_descending_str + "is_secured",

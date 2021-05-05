@@ -6,12 +6,11 @@ Created on: 28.05.19
 
 """
 import uuid
-from functools import cached_property
 
 import six
 from django.db.models import Q
 from guardian.shortcuts import get_objects_for_user
-
+from django.utils.functional import cached_property
 from acl.models.acl import AccessControlList
 from main.models import CommonInfo
 from service.models import Metadata

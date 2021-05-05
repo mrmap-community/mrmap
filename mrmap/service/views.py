@@ -35,7 +35,9 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED, MAP_CONTEXT_SUCCESSFULLY_CREATED, MAP_CONTEXT_SUCCESSFULLY_EDITED, \
     MAP_CONTEXT_SUCCESSFULLY_DELETED
+from csw.models import HarvestResult
 from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView, SecuredCreateView
+from monitoring.models import HealthState
 from service.filters import PendingTaskFilter
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
@@ -60,27 +62,63 @@ from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from django.urls import reverse, reverse_lazy
 from users.models import Subscription
+from django.db.models import Prefetch
 
 
 def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySet:
-    return Metadata.objects.filter(
+    qs = Metadata.objects.filter(
         service__service_type__name=service_type.value,
         is_deleted=False,
         service__is_update_candidate_for=None,
     ).select_related(
+        #"service",
+        #"service__owned_by_org",
+        #"service__service_type",
+        #"service__parent_service",
+        #"service__parent_service__metadata",
+        #"service__parent_service__metadata__external_authentication",
+        #"external_authentication",
+        #"health_states"
+        "contact",
+        "owned_by_org",
         "service",
-        "service__owned_by_org",
         "service__service_type",
         "service__parent_service__metadata",
-        "service__parent_service__metadata__external_authentication",
-        "contact",
-        "contact__owned_by_org",
         "external_authentication",
-        "owned_by_org",
     ).prefetch_related(
-        "service__featuretypes",
-        "service__child_services",
-    ).order_by("title")
+        Prefetch("health_states", queryset=HealthState.objects.only('health_state_code', 'reliability_1w')),
+    ).order_by(
+        "title",
+    ).only(
+        "title",
+        "is_active",
+        "use_proxy_uri",
+        "log_proxy_access",
+        "is_secured",
+        "service__is_active",
+        "created_at",
+        "contact__name",
+        "owned_by_org__name",
+        "service__service_type__version",
+        "service__parent_service__metadata__title",
+        "service__parent_service__metadata__is_active",
+        "external_authentication__id",
+
+    )
+    if service_type == OGCServiceEnum.WMS:
+        qs.prefetch_related(
+            "service__child_services",
+        )
+    elif service_type == OGCServiceEnum.WFS:
+        qs.prefetch_related(
+            "service__featuretypes",
+        )
+    elif service_type == OGCServiceEnum.CSW:
+        qs.prefetch_related(
+            Prefetch("harvest_results", queryset=HarvestResult.objects.only('timestamp_end', 'timestamp_start', 'number_results')),
+        )
+
+    return qs
 
 
 class PendingTaskView(SecuredListMixin, FilterView):
@@ -111,10 +149,10 @@ class WmsIndexView(SecuredListMixin, FilterView):
         filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
         if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
             table.exclude = (
-                'layers', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
+                'layers', 'featuretypes', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
         else:
             table.exclude = (
-                'parent_service', 'featuretypes', 'harvest_results', 'collected_harvest_records', 'harvest_duration',)
+                'parent_service', 'featuretypes', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
@@ -131,7 +169,7 @@ class WfsIndexView(SecuredListMixin, FilterView):
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super(WfsIndexView, self).get_table(**kwargs)
-        table.exclude = ('parent_service', 'layers', 'harvest_results', 'collected_harvest_records', 'harvest_duration')
+        table.exclude = ('parent_service', 'layers', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
 
         render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),
                                      update_url_qs=get_current_view_args(self.request))

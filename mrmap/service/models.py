@@ -331,10 +331,21 @@ class Metadata(UuidPk, CommonInfo, Resource):
         self.categories_list = []
 
         # memories some values to check has_changed in the save function
+        # todo: bad practice --> if we use a queryset and use the .only() limitation and `is_active` is not part of
+        #  .only() for all objects a query will be generated to get the is_active value from the db.
+        #  Maybe a better solution is to collect the needed changes not while __init__:
+        """
+        def save(self,*args,**kwargs):
+            old = Model.objects.filter(pk=getattr(self,pk,None)).first()
+            if old:
+                if old.attr!=self.attr:
+                    # attr changed
+            super(Model,self).save(*args,**kwargs)
+        """
         self.__is_active = self.is_active
 
     def __str__(self):
-        return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
+        return self.title
 
     def is_updatecandidate(self):
         # get service object
@@ -543,33 +554,6 @@ class Metadata(UuidPk, CommonInfo, Resource):
                                       needs_perm=PermissionEnum.CAN_EDIT_METADATA.value), )
 
         return actions
-
-    def get_status_icons(self):
-        icons = []
-        if self.is_active:
-            icons.append(Tag(tag='i', attrs={"class": [IconEnum.POWER_OFF.value, TextColorEnum.SUCCESS.value]},
-                             tooltip=_l('This resource is active')))
-        else:
-            icons.append(Tag(tag='i', attrs={"class": [IconEnum.POWER_OFF.value, TextColorEnum.DANGER.value]},
-                             tooltip=_l('This resource is deactivated')))
-        if self.use_proxy_uri:
-            icons.append(Tag(tag='i', attrs={"class": [IconEnum.PROXY.value]},
-                             tooltip=_l('Proxy for this resource is active. All traffic for this resource is redirected on MrMap.')))
-        if self.log_proxy_access:
-            icons.append(Tag(tag='i', attrs={"class": [IconEnum.LOGGING.value]},
-                             tooltip=_l('This resource will be logged')))
-        if self.is_secured:
-            security_icon = Tag(tag='i', attrs={"class": [IconEnum.WFS.value]}).render()
-            security_overview_link = LinkButton(url=self.security_overview_uri,
-                                                content=security_icon,
-                                                color=ButtonColorEnum.INFO_OUTLINE,
-                                                tooltip=_l('This resource is secured'))
-            security_overview_link.update_attributes({'class': [ButtonSizeEnum.SMALL.value]})
-            icons.append(security_overview_link)
-        if hasattr(self, 'external_authentication'):
-            icons.append(Tag(tag='i', attrs={"class": [IconEnum.PASSWORD.value]},
-                             tooltip=_l('This resource has external authentication.')))
-        return icons
 
     def get_health_icons(self):
         icons = []
@@ -1759,13 +1743,11 @@ class Metadata(UuidPk, CommonInfo, Resource):
         Returns: the health state or None if no Monitoring results where found
 
         """
-        from monitoring.models import HealthState
         if monitoring_run:
-            health_state = HealthState.objects.get(metadata=self, monitoring_run=monitoring_run, )
-            return health_state
+            health_state = self.health_states.get(metadata=self, monitoring_run=monitoring_run, )
         else:
-            health_state = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end').first()
-            return health_state
+            health_state = self.health_states.filter(metadata=self, ).order_by('-monitoring_run__end').first()
+        return health_state
 
     def get_health_states(self, last_x_items: int = 10):
         """ Returns the last 10 health states of the metadata object by default.
@@ -1773,8 +1755,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         Returns:
 
         """
-        from monitoring.models import HealthState
-        health_states = HealthState.objects.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
+        health_states = self.health_states.filter(metadata=self, ).order_by('-monitoring_run__end')[:last_x_items]
         return health_states
 
 

@@ -6,7 +6,7 @@ Created on: 28.05.19
 
 """
 import uuid
-from functools import cached_property
+from django.utils.functional import cached_property
 
 import six
 from django.db.models import Q

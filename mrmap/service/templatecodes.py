@@ -1,7 +1,7 @@
 RESOURCE_TABLE_ACTIONS = """
 {% load i18n %}
 {% load guardian_tags %}
-{% get_obj_perms request.user for record as "perms" %}
+{% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
     {% if "activate_resource" in perms %}
     <form class="mr-1" action="{{record.activate_view_uri}}" method="post">

@@ -26,6 +26,8 @@ from structure.models import PendingTask
 from service.templatecodes import RESOURCE_TABLE_ACTIONS
 from service.templatecodes import RESOURCE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
+from guardian.core import ObjectPermissionChecker
+
 
 TOOLTIP_TITLE = _('The resource title')
 TOOLTIP_ACTIVE = _('Shows whether the resource is active or not.')
@@ -156,7 +158,7 @@ class PendingTaskTable(tables.Table):
 
 
 class OgcServiceTable(tables.Table):
-    bs4helper = None
+    perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT)
     layers = tables.Column(verbose_name=_('Layers'),
                            empty_values=[],
@@ -193,7 +195,8 @@ class OgcServiceTable(tables.Table):
                                     empty_values=[],
                                     orderable=False,
                                     template_code=RESOURCE_TABLE_ACTIONS,
-                                    attrs={"td": {"style": "white-space:nowrap;"}})
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})
 
     class Meta:
         model = Metadata
@@ -214,6 +217,21 @@ class OgcServiceTable(tables.Table):
                   )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'ogc-service-table'
+
+    def before_render(self, request):
+        self.perm_checker = ObjectPermissionChecker(request.user)
+        # if we call self.data, all object from the underlying queryset will be selected. But in case of paging, only a
+        # subset of the self.data is needed. django tables2 doesn't provide any way to get the cached qs of the current
+        # page. So the following code snippet is a workaround to collect the current presented objects of the table
+        # to avoid calling the database again.
+        objs = []
+        for obj in self.page.object_list:
+            objs.append(obj.record)
+        # for all objects of the current page, we prefetch all permissions for the given user. This optimizes the
+        # rendering of the action column, cause we need to check if the user has the permission to perform the given
+        # action. If we don't prefetch the permissions, any permission check in the template will perform one db query
+        # for each object.
+        self.perm_checker.prefetch_perms(objs)
 
     def render_last_harvested(self, value):
         return value.timestamp_end if value is not None else _('Never')

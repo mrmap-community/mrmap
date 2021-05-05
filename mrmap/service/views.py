@@ -71,14 +71,6 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
         is_deleted=False,
         service__is_update_candidate_for=None,
     ).select_related(
-        #"service",
-        #"service__owned_by_org",
-        #"service__service_type",
-        #"service__parent_service",
-        #"service__parent_service__metadata",
-        #"service__parent_service__metadata__external_authentication",
-        #"external_authentication",
-        #"health_states"
         "contact",
         "owned_by_org",
         "service",
@@ -95,15 +87,16 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
         "use_proxy_uri",
         "log_proxy_access",
         "is_secured",
-        "service__is_active",
+        "metadata_type",
         "created_at",
         "contact__name",
         "owned_by_org__name",
+        "service__is_active",
         "service__service_type__version",
+        "service__service_type__name",
         "service__parent_service__metadata__title",
         "service__parent_service__metadata__is_active",
         "external_authentication__id",
-
     )
     if service_type == OGCServiceEnum.WMS:
         qs.prefetch_related(

@@ -6,8 +6,9 @@
 
 """
 import uuid
-from abc import abstractmethod
 import time
+from abc import ABC
+
 from celery import current_task, states
 from celery.result import AsyncResult
 from django.db import transaction, IntegrityError
@@ -24,7 +25,7 @@ from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 from service.helper import xml_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    Style, ExternalAuthentication, ServiceUrl, RequestOperation
+    Style, ExternalAuthentication, ServiceUrl
 from structure.models import Organization
 from django.core.exceptions import MultipleObjectsReturned
 
@@ -52,8 +53,28 @@ class OGCWebMapServiceFactory:
             return OGCWebMapService_1_3_0(service_connect_url=service_connect_url, external_auth=external_auth)
 
 
-class OGCWebMapService(OGCWebService):
-    """Base class for OGC WebMapServices."""
+class OGCWebMapService(OGCWebService, ABC):
+    """ Serializer/Deserializer for OGC WebMapServices.
+
+        This class contains all needed serialize and deserialize functions which matches all OGC WMS service versions.
+
+        **Usage example:**
+            Create one concrete OGCWebMapService object by calling one of the concrete wms service version
+            implementations like:
+
+            .. code-block:: python
+
+               service = OGCWebMapService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
+
+               # to load remote capabilities run
+               service.get_capabilities()
+
+               # to deserialize all needed information run
+               service.deserialize_from_capabilities(external_auth=external_auth)
+
+               # to persist current deserialized version of the concrete OGCWebMapService object run
+               service.to_db()
+    """
 
     # define layers as array of OGCWebMapServiceLayer objects
     # Using None here to avoid mutable appending of infinite layers (python specific)
@@ -73,9 +94,6 @@ class OGCWebMapService(OGCWebService):
         Returns:
              layer_obj (OGCWebMapServiceLayer): The found and parsed layer
         """
-        if self.service_capabilities_xml is None:
-            # load xml, might have been forgotten
-            self.get_capabilities()
         layer_xml = xml_helper.parse_xml(xml=self.service_capabilities_xml)
         layer_xml = xml_helper.try_get_element_from_xml(xml_elem=layer_xml, elem="//Layer/Name[text()='{}']/parent::Layer".format(identifier))
         if len(layer_xml) > 0:
@@ -84,21 +102,15 @@ class OGCWebMapService(OGCWebService):
             return None
         return self._start_single_layer_parsing(layer_xml)
 
-    @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
-        """ Fills the object with data from the capabilities document
-
-        Returns:
-             nothing
-        """
+    def deserialize_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
         # get xml as iterable object
-        xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
+        cap_xml = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         start_time = time.time()
-        self.get_service_metadata_from_capabilities(xml_obj=xml_obj)
+        self.get_service_metadata_from_capabilities(xml_obj=cap_xml)
 
-        # check if 'real' service metadata exist
-        service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
+        # check if 'real' service metadata exist, if so we resolve them and use it instead of generating one by self
+        service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=cap_xml, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
         if service_metadata_uri is not None:
             self.get_service_metadata(uri=service_metadata_uri)
 
@@ -106,19 +118,19 @@ class OGCWebMapService(OGCWebService):
 
         # check possible operations on this service
         start_time = time.time()
-        self.get_service_operations_and_formats(xml_obj)
+        self.get_service_operations_and_formats(cap_xml)
         service_logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
         start_time = time.time()
-        self.get_service_dataset_metadata(xml_obj=xml_obj)
+        self.get_service_dataset_metadata(xml_obj=cap_xml)
         service_logger.debug(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
-        self.get_version_specific_metadata(xml_obj=xml_obj)
+        self.get_version_specific_metadata(xml_obj=cap_xml)
 
         if not metadata_only:
             start_time = time.time()
-            self._parse_layers(xml_obj=xml_obj)
+            self._parse_layers(xml_obj=cap_xml)
             service_logger.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     def get_service_operations_and_formats(self, xml_obj):
@@ -138,6 +150,8 @@ class OGCWebMapService(OGCWebService):
         )
         operations = cap_request.getchildren()
         for operation in operations:
+            # todo: RequestOperation objects are not related anywhere. Why we need this?
+            """
             try:
                 RequestOperation.objects.get_or_create(
                     operation_name=operation.tag,
@@ -148,6 +162,7 @@ class OGCWebMapService(OGCWebService):
                 # RequestOperation will be created. So we add a unique constraint on field `operation_name`.
                 # One or more threads will fail here, so we catch the MultipleObjectsReturned
                 pass
+            """
             # Parse formats
             formats = xml_helper.try_get_element_from_xml(
                 "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
@@ -159,20 +174,19 @@ class OGCWebMapService(OGCWebService):
     ### DATASET METADATA ###
     def parse_dataset_md(self, layer, layer_obj):
         # check for possible dataset metadata
-        if self.has_dataset_metadata(layer):
-            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
-                xml_elem=layer,
-                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") +
-                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
-            )
-            for iso_xml in iso_metadata_xml_elements:
-                iso_uri = xml_helper.get_href_attribute(xml_elem=iso_xml)
-                try:
-                    iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
-                except Exception as e:
-                    # there are iso metadatas that have been filled wrongly -> if so we will drop them
-                    continue
-                layer_obj.iso_metadata.append(iso_metadata)
+        iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
+            xml_elem=layer,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") +
+                  "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+        )
+        for iso_xml in iso_metadata_xml_elements:
+            iso_uri = xml_helper.get_href_attribute(xml_elem=iso_xml)
+            try:
+                iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
+            except Exception as e:
+                # there are iso metadatas that have been filled wrongly -> if so we will drop them
+                continue
+            layer_obj.iso_metadata.append(iso_metadata)
 
     ### IDENTIFIER ###
     def parse_identifier(self, layer, layer_obj):
@@ -559,13 +573,15 @@ class OGCWebMapService(OGCWebService):
         self._parse_layers_recursive(layers, step_size=step_size)
 
     def get_service_metadata_from_capabilities(self, xml_obj):
-        """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'service': self.service_identification_title,
+                    'phase': "Parsing main capabilities",
+                }
+            )
 
-        Args:
-            xml_obj: The iterable xml object tree
-        Returns:
-            Nothing
-        """
         service_xml = xml_helper.try_get_single_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service"),
             xml_obj
@@ -583,14 +599,6 @@ class OGCWebMapService(OGCWebService):
             service_xml,
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
-        if current_task:
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    'service': self.service_identification_title,
-                    'phase': "Parsing main capabilities",
-                }
-            )
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
             service_xml,
@@ -699,18 +707,16 @@ class OGCWebMapService(OGCWebService):
         self.parse_request_uris(xml_obj, self)
 
     @transaction.atomic
-    def create_service_model_instance(self,
-                                      register_for_organization: Organization,
-                                      external_auth: ExternalAuthentication = None,
-                                      is_update_candidate_for: Service = None):
-        """ Persists the web map service and all of its related content and data
+    def to_db(self,
+              register_for_organization: Organization,
+              is_update_candidate_for: Service = None):
+        """ converts this class (the web map service) to the django db models and persists them.
 
         Args:
             register_for_organization (Organization): The organization for which the service shall be registered
-            external_auth (ExternalAuthentication): An external authentication object holding information
+            is_update_candidate_for (Service)
         Returns:
-             service (Service): Service instance, contains all information, ready for persisting!
-
+             the persisted service instance (Service)
         """
         # Contact
         contact = self._create_organization_contact_record()
@@ -718,22 +724,20 @@ class OGCWebMapService(OGCWebService):
         # Metadata
         metadata = self._create_metadata_record(contact, register_for_organization)
 
-        # Process external authentication
-        self._process_external_authentication(metadata, external_auth)
-
         # Service
         service = self._create_service_record(register_for_organization, metadata, is_update_candidate_for)
 
-        # Additionals (keywords, mimetypes, ...)
+        # Additional (keywords, mimetypes, ...)
         self._create_additional_records(service, metadata)
 
-        # Begin creation of Layer records. Calling the found root layer will
-        # iterate through all parent-child related layer objects
+        # Begin creation of Layer instances. Calling the found root layer will
+        # iterate through all parent-child related layer objects. After all layer instance are created we use
+        # django bulk_create instead of calling every save() function in single db calls.
         try:
             # layers will hold a list of tuples with the structure (OGCLayer, Layer, Metadata)
             layers = []
             root_layer = self.layers[0]
-            root_layer.create_layer_record(
+            root_layer.to_db_model(
                 parent_service=service,
                 register_for_organization=register_for_organization,
                 parent=None,
@@ -747,11 +751,12 @@ class OGCWebMapService(OGCWebService):
             for ogc_layer, db_layer, db_metadata in layers:
                 db_layer.save()
                 if ogc_layer.style is not None:
+                    print(ogc_layer.style)
                     ogc_layer.style.save()
-                ogc_layer.create_additional_records(metadata=db_metadata,
-                                                    layer=db_layer,
-                                                    register_for_organization=register_for_organization,
-                                                    epsg_api=self.epsg_api)
+                ogc_layer.save_m2m(metadata=db_metadata,
+                                   layer=db_layer,
+                                   register_for_organization=register_for_organization,
+                                   epsg_api=self.epsg_api)
 
         except KeyError:
             raise IndexError(SERVICE_NO_ROOT_LAYER)
@@ -797,10 +802,9 @@ class OGCWebMapService(OGCWebService):
 
     def _create_metadata_record(self, contact: Organization, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCWebMapService
-        
+
         Args:
             contact (Organization): The contact organization for this metadata record
-            group (Organization): The owner/creator group
         Returns:
              metadata (Metadata): The persisted metadata record
         """
@@ -861,11 +865,12 @@ class OGCWebMapService(OGCWebService):
         for operation, parsed_operation_url, method in self.operation_urls:
             # todo: optimize as bulk create
             try:
-                operation_urls.append(ServiceUrl.objects.get_or_create(
-                    operation=operation,
-                    url=getattr(self, parsed_operation_url),
-                    method=method
-                )[0])
+                if getattr(self, parsed_operation_url):
+                    operation_urls.append(ServiceUrl.objects.get_or_create(
+                        operation=operation,
+                        url=getattr(self, parsed_operation_url),
+                        method=method
+                    )[0])
 
             except IntegrityError:
                 # empty/None url values will be ignored
@@ -1015,7 +1020,6 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         pass
 
 
-
 class OGCWebMapService_1_3_0(OGCWebMapService):
     """ The WMS class for standard version 1.3.0
 
@@ -1137,3 +1141,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         self.max_height = max_height
 
         self._parse_layers(xml_obj=xml_obj)
+
+    def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
+        pass

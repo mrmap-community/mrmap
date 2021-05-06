@@ -55,6 +55,7 @@ class RegisterNewResourceWizardPage2(forms.Form):
         disabled=True,
         choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic'))
     )
+    quantity = forms.IntegerField(required=False)
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)

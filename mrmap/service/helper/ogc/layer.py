@@ -69,50 +69,58 @@ class OGCLayer:
 
         self.iso_metadata = []
 
-    def create_layer_record(self,
-                            parent_service: Service,
-                            epsg_api: EpsgApi,
-                            register_for_organization: Organization,
-                            layers: list,
-                            parent: Layer=None):
-        """ Transforms a OGCWebMapLayer object to Layer model (models.py)
+    def to_db_model(self,
+                    parent_service: Service,
+                    epsg_api: EpsgApi,
+                    register_for_organization: Organization,
+                    layers: list,
+                    parent: Layer = None):
+        """ Transforms a OGCWebMapLayer object and all its children to Layer model with parent/child relations.
+
+            all Layer, related LayerMetadata (both not persisted here) are collected in the provided layers list in
+            tuple format like (OGCLayer, Layer, LayerMetadata). The layer list instance can can iterate after the
+            `to_db_model` call is finished. With that it is possible to use django bulk_create() like
+            Metadata.objects.bulk_create(layer_metadata_db_model_list). This speeds up the persistence process by factor
+            10 and higher.
 
         Args:
             parent_service (Service): The root or parent service which holds all these layers
-            group (Organization): The group that started the registration process
             epsg_api (EpsgApi): A EpsgApi object
             parent (Layer): The parent layer object to this layer
+            register_for_organization (Organization): the owner of this Layer instance
+            layers (list): the shared list instance to collect all Layer instances as tuple like
+                            (OGCLayer, Layer, LayerMetadata)
         Returns:
             nothing
         """
         # Metadata
-        layer_metadata = self._create_metadata_record(parent_service, register_for_organization)
+        layer_metadata_db_model = self._metadata_to_db_model(parent_service, register_for_organization)
 
         # Layer
-        layer = self._create_layer_record(
-            layer_metadata,
+        layer_db_model = self._layer_to_db_model(
+            layer_metadata_db_model,
             parent_service,
             register_for_organization,
             parent
         )
-        layers.append((self, layer, layer_metadata))
+        layers.append((self, layer_db_model, layer_metadata_db_model))
 
         # Continue with child objects
         for child in self.child_layers:
-            child.create_layer_record(
+            child.to_db_model(
                 parent_service=parent_service,
-                parent=layer,
+                parent=layer_db_model,
                 layers=layers,
                 register_for_organization=register_for_organization,
                 epsg_api=epsg_api)
 
-    def _create_metadata_record(self, parent_service: Service, register_for_organization: Organization):
+    def _metadata_to_db_model(self, parent_service: Service, register_for_organization: Organization):
         """ Creates a Metadata object from the OGCLayer object which is not persisted.
 
         Args:
             self (OGCLayer): The OGCLayer object (result of parsing)
             parent_service (Service): The parent Service object 
-            group (Organization): The creator/owner group
+            register_for_organization (Organization): The creator/owner
         Returns:
              metadata (Metadata): The non persisted metadata object
         """
@@ -140,17 +148,17 @@ class OGCLayer:
         metadata.bounding_geometry = Polygon(bounding_points)
         return metadata
 
-    def _create_layer_record(self,
-                             metadata: Metadata,
-                             parent_service: Service,
-                             register_for_organization: Organization,
-                             parent: Layer):
+    def _layer_to_db_model(self,
+                           metadata: Metadata,
+                           parent_service: Service,
+                           register_for_organization: Organization,
+                           parent: Layer):
         """ Creates a Layer record from the OGCLayer object which is not persisted.
 
         Args:
             metadata (Metadata): The layer's metadata object
             parent_service (Service): The parent Service object
-            group (Organization): The owner/creator group
+            register_for_organization (Organization): The owner/creator
             parent (Layer): The parent layer object
         Returns:
              layer (Layer): The non persisted layer object
@@ -180,16 +188,18 @@ class OGCLayer:
 
         return layer
     
-    def create_additional_records(self,
-                                   metadata: Metadata,
-                                   layer: Layer,
-                                   register_for_organization: Organization,
-                                   epsg_api: EpsgApi):
-        """ Creates additional records such as Keywords, ReferenceSystems, Dimensions, ...
+    def save_m2m(self,
+                 metadata: Metadata,
+                 layer: Layer,
+                 register_for_organization: Organization,
+                 epsg_api: EpsgApi):
+        """ fill all many-to-many fields such as Keywords, ReferenceSystems, Dimensions, ... which only can done after
+            the layer and metadata instances it self are saved.
 
         Args:
             metadata (Metadata): The layer's metadata object
             layer (Layer): The Layer record object
+            register_for_organization (Organization): the owner of all additional records
             epsg_api (EpsgApi): A epsg_api object
         Returns:
 
@@ -202,19 +212,20 @@ class OGCLayer:
         for operation, parsed_operation_url, method in self.operation_urls:
             # todo: optimize as bulk create in future see https://code.djangoproject.com/ticket/28821
             try:
-                service_url, created = ServiceUrl.objects.get_or_create(
-                    operation=operation,
-                    url=getattr(self, parsed_operation_url),
-                    method=method
-                )
-
-                operation_urls.append(service_url)
+                if getattr(self, parsed_operation_url):
+                    service_url, created = ServiceUrl.objects.get_or_create(
+                        operation=operation,
+                        url=getattr(self, parsed_operation_url),
+                        method=method
+                    )
+                    operation_urls.append(service_url)
             except IntegrityError:
                 # catch NoneType parsed_operation_url
                 pass
 
         layer.operation_urls.add(*operation_urls)
 
+        # todo: check if we still need this?
         # If parent layer is a real layer, we add the current layer as a child to the parent layer
         if layer.parent is not None:
             layer.parent.children.add(layer)
@@ -222,6 +233,7 @@ class OGCLayer:
         # Keywords
         keywords = []
         for kw in self.capability_keywords:
+            # todo: optimize as bulk create
             keyword, created = Keyword.objects.get_or_create(keyword=kw)
             keywords.append(keyword)
         metadata.keywords.add(*keywords)
@@ -233,11 +245,13 @@ class OGCLayer:
             # check if this srs is allowed for us. If not, skip it!
             if parts.get("code") not in ALLOWED_SRS:
                 continue
+            # todo: optimize as bulk create
             ref_sys, created = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))
             srs.append(ref_sys)
         metadata.reference_system.add(*srs)
 
         for iso_md in self.iso_metadata:
+            # todo: optimize as bulk create
             iso_md = iso_md.to_db_model(created_by=register_for_organization)
             metadata.add_metadata_relation(to_metadata=iso_md,
                                            relation_type=MetadataRelationEnum.DESCRIBES.value,
@@ -246,6 +260,7 @@ class OGCLayer:
         # Dimensions
         dimensions = []
         for dimension in self.dimension_list:
+            # todo: optimize as bulk create
             dim, created = Dimension.objects.get_or_create(
                 type=dimension.get("type"),
                 units=dimension.get("units"),

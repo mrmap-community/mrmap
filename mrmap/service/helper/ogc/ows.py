@@ -1,6 +1,6 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from urllib.parse import urlencode
 
 from django.contrib.gis.geos import Polygon
@@ -8,22 +8,26 @@ from lxml.etree import Element
 from requests.exceptions import ReadTimeout
 
 from MrMap.messages import CONNECTION_TIMEOUT
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import RequestOperation, ExternalAuthentication, Metadata, Service
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+from service.models import ExternalAuthentication, Service
 from structure.models import Organization
 
 
-class OGCWebService:
+class OGCWebService(ABC):
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=OGCServiceEnum.WMS, service_version=OGCServiceVersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
+
+    def __init__(self,
+                 service_connect_url=None,
+                 service_type=OGCServiceEnum.WMS,
+                 service_version=OGCServiceVersionEnum.V_1_1_1,
+                 service_capabilities_xml=None,
+                 external_auth: ExternalAuthentication = None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
@@ -32,7 +36,7 @@ class OGCWebService:
         self.descriptive_document_encoding = None
         self.connect_duration = None
         self.service_object = None
-        
+
         # service_metadata
         self.service_file_identifier = None
         self.service_file_iso_identifier = None
@@ -51,22 +55,22 @@ class OGCWebService:
         # service_provider
         self.service_provider_providername = None
         self.service_provider_url = None
-        
+
         self.service_provider_responsibleparty_individualname = None
         self.service_provider_responsibleparty_positionname = None
         self.service_provider_responsibleparty_role = None
-        
+
         self.service_provider_contact_hoursofservice = None
         self.service_provider_contact_contactinstructions = None
         self.service_provider_onlineresource_linkage = None
-        
+
         self.service_provider_address = []
         self.service_provider_address_city = None
         self.service_provider_address_state_or_province = None
         self.service_provider_address_postalcode = []
         self.service_provider_address_country = []
         self.service_provider_address_electronicmailaddress = []
-        
+
         self.service_provider_telephone_voice = []
         self.service_provider_telephone_facsimile = []
 
@@ -151,8 +155,10 @@ class OGCWebService:
                                (OGCOperationEnum.LIST_STORED_QUERIES.value, 'list_stored_queries_uri_POST', 'Post'),
                                (OGCOperationEnum.GET_PROPERTY_VALUE.value, 'get_property_value_uri_GET', 'Get'),
                                (OGCOperationEnum.GET_PROPERTY_VALUE.value, 'get_property_value_uri_POST', 'Post'),
-                               (OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, 'describe_stored_queries_uri_GET', 'Get'),
-                               (OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, 'describe_stored_queries_uri_POST', 'Post'),
+                               (OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, 'describe_stored_queries_uri_GET',
+                                'Get'),
+                               (OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, 'describe_stored_queries_uri_POST',
+                                'Post'),
                                # csw specific
                                (OGCOperationEnum.DESCRIBE_RECORD.value, 'describe_record_uri_GET', 'Get'),
                                (OGCOperationEnum.DESCRIBE_RECORD.value, 'describe_record_uri_POST', 'Post'),
@@ -162,9 +168,6 @@ class OGCWebService:
                                (OGCOperationEnum.GET_RECORD_BY_ID.value, 'get_record_by_id_uri_POST', 'Post')]
 
         self.operation_format_map = {}
-
-        class Meta:
-            abstract = True
 
     def get_capabilities(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -205,34 +208,37 @@ class OGCWebService:
         self.service_capabilities_xml = tmp
         self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding
-    
-    def check_ogc_exception(self):
-        pass
 
-    def has_dataset_metadata(self, xml):
-        """ Checks whether the xml element has an iso 19115 dataset metadata record or not
-
-        Args:
-            xml: The xml etree object
-        Returns:
-             True if element has dataset metadata, false otherwise
-        """
-        iso_metadata = xml_helper.try_get_element_from_xml(
-            xml_elem=xml,
-            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
-        )
-        return len(iso_metadata) != 0
-
-    """
-    Methods that have to be implemented in the sub classes
-    """
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False):
-        pass
+    def deserialize_from_capabilities(self, metadata_only: bool = False):
+        """ Converts the parsed `OGCWebService` instance to django relational db models and persists them.
+
+        Returns:
+             the django `Service` model  (:py:class:`service.models.Service`)
+        """
+        raise NotImplementedError('You have to implement create_from_capabilities()')
 
     @abstractmethod
     def get_service_metadata_from_capabilities(self, xml_obj):
-        pass
+        """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
+            and stores all the resolved information on it self.
+
+        Args:
+            xml_obj: The iterable xml object tree ()
+        Returns:
+            Nothing
+        """
+        raise NotImplementedError('You have to implement get_service_metadata_from_capabilities()')
+
+    @abstractmethod
+    def get_version_specific_metadata(self, xml_obj):
+        raise NotImplementedError('You have to implement get_version_specific_metadata()')
+
+    @abstractmethod
+    def to_db(self,
+              register_for_organization: Organization,
+              is_update_candidate_for: Service):
+        raise NotImplementedError('You have to implement to_db()')
 
     def get_service_metadata(self, uri: str):
         """ Parses all service related information from the linked metadata document
@@ -242,7 +248,6 @@ class OGCWebService:
 
         Args:
             uri (str): The service metadata uri
-            async_task: The task object
         Returns:
             Nothing
         """
@@ -250,18 +255,14 @@ class OGCWebService:
         iso_md.parse_xml()
         self.linked_service_metadata = iso_md
 
-    @abstractmethod
-    def get_version_specific_metadata(self, xml_obj):
-        pass
-
-    @abstractmethod
     def get_service_dataset_metadata(self, xml_obj):
-        """
+        """ parses all MetadataUrl entities from the given xml_obj, tries to resolve them from remote and parses the
+            remote found xml.
 
         Args:
-            xml_obj: The xml etree object which is used for parsing
+            xml_obj: The xml etree object which is used for parsing (This could be a Capabilities document for example)
         Returns:
-             nothing
+             Nothing
         """
         # Must parse metadata document and merge metadata into this metadata object
         elem = "//inspire_common:URL"  # for wms by default
@@ -292,31 +293,6 @@ class OGCWebService:
         )
         bbox = Polygon(bounding_points)
         self.service_bounding_box = bbox
-
-    @abstractmethod
-    def create_service_model_instance(self,
-                                      register_for_organization: Organization,
-                                      external_auth: ExternalAuthentication,
-                                      is_update_candidate_for: Service):
-        pass
-
-    def _process_external_authentication(self, md: Metadata, external_auth: ExternalAuthentication):
-        """ Fills needed data into the ExternalAuthentication object
-
-        Args:
-            md (Metadata): The externally secured metadata record
-            external_auth (ExternalAuthentication): The external authentication record
-        Returns:
-
-        """
-        if external_auth is not None:
-            external_auth.metadata = md
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
-            external_auth.encrypt(key)
-            external_auth.owned_by_org = md.owned_by_org
-            external_auth.save()
 
 
 class OWSException:

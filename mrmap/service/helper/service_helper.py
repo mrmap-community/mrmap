@@ -159,7 +159,13 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-def create_service(service_type, version, base_uri, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
+def create_service(service_type,
+                   version,
+                   base_uri,
+                   register_for_organization=None,
+                   external_auth: ExternalAuthentication = None,
+                   is_update_candidate_for: Service = None,
+                   quantity: int = 1):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -195,7 +201,7 @@ def create_service(service_type, version, base_uri, register_for_organization=No
         pass
 
     service.get_capabilities()
-    service.create_from_capabilities(external_auth=external_auth)
+    service.deserialize_from_capabilities(external_auth=external_auth)
 
     if current_task:
         current_task.update_state(
@@ -205,14 +211,16 @@ def create_service(service_type, version, base_uri, register_for_organization=No
                 'phase': 'Persisting...',
             }
         )
-
-    service = service.create_service_model_instance(
-        register_for_organization,
-        external_auth,
-        is_update_candidate_for
-    )
-
-    return service
+    services = []
+    print(quantity)
+    for x in range(quantity):
+        print(x)
+        services.append(service.to_db(
+            register_for_organization,
+            external_auth,
+            is_update_candidate_for
+        ))
+    return services
 
 
 def capabilities_are_different(cap_url_1, cap_url_2):
@@ -265,7 +273,8 @@ def create_new_service(form, user):
 
     return tasks.async_new_service.apply_async((form.cleaned_data['registering_for_organization'].pk,
                                                 uri_dict,
-                                                external_auth),
+                                                external_auth,
+                                                form.cleaned_data['quantity'] if form.cleaned_data['quantity'] else 1),
                                                kwargs={'created_by_user_pk': user.pk},
                                                countdown=settings.CELERY_DEFAULT_COUNTDOWN)
 

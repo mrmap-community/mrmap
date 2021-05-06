@@ -115,9 +115,14 @@ class ExternalAuthentication(UuidPk, CommonInfo):
     auth_type = models.CharField(max_length=100)
     metadata = models.OneToOneField('Metadata',
                                     on_delete=models.CASCADE,
-                                    null=True,
-                                    blank=True,
                                     related_name="external_authentication")
+
+    def save(self, *args, **kwargs):
+        crypt_handler = CryptoHandler()
+        key = crypt_handler.generate_key()
+        crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, self.metadata.id), key)
+        self.encrypt(key)
+        super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete function
@@ -1391,7 +1396,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         service = OGCWebMapServiceFactory()
         service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
-        service.create_from_capabilities(metadata_only=True, external_auth=external_auth)
+        service.deserialize_from_capabilities(metadata_only=True, external_auth=external_auth)
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
@@ -1446,7 +1451,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         if service_tmp is None:
             return
         service_tmp.get_capabilities()
-        service_tmp.create_from_capabilities(metadata_only=True)
+        service_tmp.deserialize_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
             return self._restore_feature_type_md(service_tmp, external_auth=external_auth)
@@ -3481,7 +3486,7 @@ class Style(UuidPk):
     legend_uri = models.CharField(max_length=500, null=True, blank=True)
     height = models.IntegerField(null=True, blank=True)
     width = models.IntegerField(null=True, blank=True)
-    mime_type = models.CharField(max_length=500, null=True, blank=True)
+    mime_type = models.ForeignKey(to=MimeType, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.layer.identifier + ": " + self.name

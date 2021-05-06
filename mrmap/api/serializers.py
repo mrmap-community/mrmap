@@ -135,6 +135,7 @@ class ServiceSerializer(serializers.Serializer):
         ext_auth_username = validated_data.get("ext-username", None) or None
         ext_auth_password = validated_data.get("ext-password", None) or None
         ext_auth_type = validated_data.get("ext-auth-type", None) or None
+        quantity = validated_data.get("quantity", None) or None
 
         # Split uri in components as it is done with RegisterNewServiceWizardPage1
         url_dict = service_helper.split_service_uri(get_capabilities_uri)
@@ -153,6 +154,7 @@ class ServiceSerializer(serializers.Serializer):
             "username": ext_auth_username,
             "password": ext_auth_password,
             "authentication_type": ext_auth_type,
+            "quantity": quantity,
         }
 
         # Use RegisterNewResourceWizardPage2 workflow as for frontend registration

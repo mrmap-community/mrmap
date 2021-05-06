@@ -34,6 +34,7 @@ def async_increase_hits(metadata_id: int):
 def async_new_service(owned_by_org: str,
                       url_dict: dict,
                       external_auth: dict,
+                      quantity: int = 1,
                       **kwargs):
     """ Async call of new service creation
 
@@ -44,6 +45,7 @@ def async_new_service(owned_by_org: str,
         owned_by_org (str): pk of the organization which shall own this service
         url_dict (dict): Contains basic information about the service like connection uri
         external_auth (dict): ExternalAuthentication object as dict
+        quantity (int): how many services from this url are registered in one process. Default is 1
     Returns:
         nothing
     """
@@ -73,34 +75,43 @@ def async_new_service(owned_by_org: str,
     register_for_organization = Organization.objects.get(pk=owned_by_org)
 
     t_start = time.time()
-    service = service_helper.create_service(
+    services = service_helper.create_service(
         url_dict.get("service"),
         url_dict.get("version"),
         url_dict.get("base_uri"),
         register_for_organization,
-        external_auth=external_auth
+        external_auth=external_auth,
+        quantity=quantity,
     )
-
-    # after service AND documents have been persisted, we can now set the service being secured if needed
-    if external_auth is not None:
-        #todo: check this......
-        if current_task:
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    'current': PROGRESS_STATUS_AFTER_PARSING,
-                    'phase': 'Securing...',
-                    'service': service.metadata.title
-                }
-            )
-        service.metadata.set_proxy(True)
+    for service in services:
+        # after service AND documents have been persisted, we can now set the service being secured if needed
+        if external_auth is not None:
+            #todo: check this......
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': PROGRESS_STATUS_AFTER_PARSING,
+                        'phase': 'Securing...',
+                        'service': service.metadata.title
+                    }
+                )
+            service.metadata.set_proxy(True)
 
     service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
 
-    return {'msg': 'Done. New service registered.',
-            'id': str(service.metadata.pk),
-            'absolute_url': service.metadata.get_absolute_url(),
-            'absolute_url_html': f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title}</a>'}
+    result = {'msg': 'Done. New service registered.',
+              'id': str(service.metadata.pk),
+              'absolute_url': service.metadata.get_absolute_url(),
+              'absolute_url_html': f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title}</a>'}
+
+    if quantity > 1:
+        links = ''
+        for service in services:
+            links += f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title} </a>'
+        result.update({'msg': f'Done. {quantity} equal services registered',
+                       'absolute_url_html': links})
+    return result
 
 
 @shared_task(name="async_log_response")

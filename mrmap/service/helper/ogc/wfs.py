@@ -73,7 +73,7 @@ class OGCWebFeatureService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
+    def deserialize_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -601,10 +601,10 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
-    def create_service_model_instance(self,
-                                      register_for_organization: Organization,
-                                      external_auth: ExternalAuthentication,
-                                      is_update_candidate_for: Service):
+    def to_db(self,
+              register_for_organization: Organization,
+              external_auth: ExternalAuthentication,
+              is_update_candidate_for: Service):
         """ Map all data from the WebFeatureService classes to their database models
 
         Args:
@@ -631,7 +631,8 @@ class OGCWebFeatureService(OGCWebService):
         md = self._create_metadata_record(contact, register_for_organization)
 
         # Process external authentication data, if provided
-        self._process_external_authentication(md, external_auth)
+        if external_auth:
+            external_auth.save()
 
         # Service
         service = self._create_service_record(orga_published_for, md, is_update_candidate_for)
@@ -853,23 +854,21 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
 
         """
-        # check for possible dataset metadata
-        if self.has_dataset_metadata(xml_feature_type_obj):
-            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
-                xml_elem=xml_feature_type_obj,
-                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
-            )
-            for iso_xml in iso_metadata_xml_elements:
-                # Depending on the service version, the uris can live inside a href attribute or inside the xml element as text
-                iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml) or xml_helper.get_href_attribute(iso_xml)
-                if iso_uri is None:
-                    continue
-                try:
-                    iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
-                except Exception as e:
-                    # there are iso metadatas that have been filled wrongly -> if so we will drop them
-                    continue
-                feature_type.dataset_md_list.append(iso_metadata)
+        iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
+            xml_elem=xml_feature_type_obj,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
+        )
+        for iso_xml in iso_metadata_xml_elements:
+            # Depending on the service version, the uris can live inside a href attribute or inside the xml element as text
+            iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml) or xml_helper.get_href_attribute(iso_xml)
+            if iso_uri is None:
+                continue
+            try:
+                iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
+            except Exception as e:
+                # there are iso metadatas that have been filled wrongly -> if so we will drop them
+                continue
+            feature_type.dataset_md_list.append(iso_metadata)
 
     def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object

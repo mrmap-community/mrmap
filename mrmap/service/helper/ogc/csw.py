@@ -31,7 +31,7 @@ class OGCCatalogueService(OGCWebService):
 
         self.formats_list = []
 
-    def create_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
+    def deserialize_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
         """ Load data from capabilities document
 
         Args:
@@ -40,6 +40,7 @@ class OGCCatalogueService(OGCWebService):
         Returns:
 
         """
+
         # get xml as iterable object
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
@@ -70,10 +71,10 @@ class OGCCatalogueService(OGCWebService):
         )[0]
         return contact
 
-    def create_service_model_instance(self,
-                                      register_for_organization,
-                                      external_auth,
-                                      is_update_candidate_for):
+    def to_db(self,
+              register_for_organization,
+              external_auth,
+              is_update_candidate_for):
         """ Map all data from the OGCCatalogueService class to their database models
 
         Args:

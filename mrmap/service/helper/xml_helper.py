@@ -12,13 +12,14 @@ from requests.exceptions import ProxyError
 from MrMap.settings import XML_NAMESPACES
 from service.helper.enums import OGCServiceVersionEnum
 
+
 def parse_xml(xml: str, encoding=None):
     """ Returns the xml as iterable object
 
     Args:
         xml(str): The xml as string
     Returns:
-        nothing
+        the resolved xml element tree (ElementTree) or None if XMLSyntaxError occurs.
     """
     if not isinstance(xml, str) and not isinstance(xml, bytes):
         raise ValueError

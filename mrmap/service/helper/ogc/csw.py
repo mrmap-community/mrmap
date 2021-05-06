@@ -13,7 +13,6 @@ from service.helper import service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
-from service.settings import PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
 from csw.settings import csw_logger
 
@@ -83,15 +82,6 @@ class OGCCatalogueService(OGCWebService):
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
-        if current_task:
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    'current': PROGRESS_STATUS_AFTER_PARSING,
-                    'phase': 'Persisting...',
-                }
-            )
-
         md = Metadata()
         md_type = MetadataEnum.CATALOGUE.value
         md.metadata_type = md_type

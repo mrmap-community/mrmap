@@ -611,6 +611,8 @@ class Harvester:
         md.is_active = True
         md.owned_by_org = self.harvesting_organization
         md.capabilities_original_uri = md_data_entry.get("capabilities_original_url", None)
+        md.save(add_monitoring=False)
+
         try:
             # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
             # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
@@ -647,7 +649,6 @@ class Harvester:
                     generic_url.save()
                     md.additional_urls.add(generic_url)
 
-                md.save(add_monitoring=False)
                 self.metadata.add_metadata_relation(to_metadata=md,
                                                     relation_type=MetadataRelationEnum.PUBLISHED_BY.value,
                                                     origin=ResourceOriginEnum.CATALOGUE.value)

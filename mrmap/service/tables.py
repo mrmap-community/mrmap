@@ -231,7 +231,8 @@ class OgcServiceTable(tables.Table):
         # rendering of the action column, cause we need to check if the user has the permission to perform the given
         # action. If we don't prefetch the permissions, any permission check in the template will perform one db query
         # for each object.
-        self.perm_checker.prefetch_perms(objs)
+        if objs:
+            self.perm_checker.prefetch_perms(objs)
 
     def render_last_harvested(self, value):
         return value.timestamp_end if value is not None else _('Never')

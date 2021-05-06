@@ -139,9 +139,6 @@ class OGCLayer:
         metadata.is_active = False
         metadata.owned_by_org = register_for_organization
 
-        # Save metadata to use id afterwards
-        metadata.save()
-
         # create bounding box polygon
         bounding_points = (
             (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["miny"])),
@@ -237,18 +234,22 @@ class OGCLayer:
 
         """
         # Keywords
+        keywords = []
         for kw in self.capability_keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords.add(keyword)
+            keyword, created = Keyword.objects.get_or_create(keyword=kw)
+            keywords.append(keyword)
+        metadata.keywords.add(*keywords)
 
         # handle reference systems
+        srs = []
         for sys in self.capability_projection_system:
             parts = epsg_api.get_subelements(sys)
             # check if this srs is allowed for us. If not, skip it!
             if parts.get("code") not in ALLOWED_SRS:
                 continue
-            ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-            metadata.reference_system.add(ref_sys)
+            ref_sys, created = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))
+            srs.append(ref_sys)
+        metadata.reference_system.add(*srs)
 
         for iso_md in self.iso_metadata:
             iso_md = iso_md.to_db_model(created_by=register_for_organization)
@@ -257,10 +258,12 @@ class OGCLayer:
                                            origin=iso_md.origin)
 
         # Dimensions
+        dimensions = []
         for dimension in self.dimension_list:
-            dim = Dimension.objects.get_or_create(
+            dim, created = Dimension.objects.get_or_create(
                 type=dimension.get("type"),
                 units=dimension.get("units"),
                 extent=dimension.get("extent"),
-            )[0]
-            layer.metadata.dimensions.add(dim)
+            )
+            dimensions.append(dim)
+        layer.metadata.dimensions.add(*dimensions)

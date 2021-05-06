@@ -26,6 +26,7 @@ from service.helper import xml_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl, RequestOperation
 from structure.models import Organization
+from django.core.exceptions import MultipleObjectsReturned
 
 
 class OGCWebMapServiceFactory:
@@ -141,11 +142,11 @@ class OGCWebMapService(OGCWebService):
                 RequestOperation.objects.get_or_create(
                     operation_name=operation.tag,
                 )
-            except IntegrityError:
+            except MultipleObjectsReturned:
                 # get_or_create is not thread-safe
                 # If multiple registering tasks running parallel it is possible that more than one
                 # RequestOperation will be created. So we add a unique constraint on field `operation_name`.
-                # One or more threads will fail here, so we catch the IntegrityError
+                # One or more threads will fail here, so we catch the MultipleObjectsReturned
                 pass
             # Parse formats
             formats = xml_helper.try_get_element_from_xml(
@@ -711,16 +712,6 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-
-        if current_task:
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    'current': PROGRESS_STATUS_AFTER_PARSING,
-                    'phase': 'Persisting...',
-                }
-            )
-
         # Contact
         contact = self._create_organization_contact_record()
 
@@ -756,18 +747,36 @@ class OGCWebMapService(OGCWebService):
         Returns:
              contact (Organization): The persisted organization contact record
         """
-        contact, created = Organization.objects.get_or_create(
-            name=self.service_provider_providername,
-            person_name=self.service_provider_responsibleparty_individualname,
-            email=self.service_provider_address_electronicmailaddress,
-            phone=self.service_provider_telephone_voice,
-            facsimile=self.service_provider_telephone_facsimile,
-            city=self.service_provider_address_city,
-            address=self.service_provider_address,
-            postal_code=self.service_provider_address_postalcode,
-            state_or_province=self.service_provider_address_state_or_province,
-            country=self.service_provider_address_country,
-        )
+        try:
+            contact, created = Organization.objects.get_or_create(
+                name=self.service_provider_providername,
+                person_name=self.service_provider_responsibleparty_individualname,
+                email=self.service_provider_address_electronicmailaddress,
+                phone=self.service_provider_telephone_voice,
+                facsimile=self.service_provider_telephone_facsimile,
+                city=self.service_provider_address_city,
+                address=self.service_provider_address,
+                postal_code=self.service_provider_address_postalcode,
+                state_or_province=self.service_provider_address_state_or_province,
+                country=self.service_provider_address_country,
+            )
+        except MultipleObjectsReturned:
+            # get_or_create is not thread-safe
+            # If multiple registering tasks running parallel it is possible that more than one
+            # RequestOperation will be created. So we add a unique constraint on field `operation_name`.
+            # One or more threads will fail here, so we catch the MultipleObjectsReturned exception
+            contact = Organization.objects.filter(
+                name=self.service_provider_providername,
+                person_name=self.service_provider_responsibleparty_individualname,
+                email=self.service_provider_address_electronicmailaddress,
+                phone=self.service_provider_telephone_voice,
+                facsimile=self.service_provider_telephone_facsimile,
+                city=self.service_provider_address_city,
+                address=self.service_provider_address,
+                postal_code=self.service_provider_address_postalcode,
+                state_or_province=self.service_provider_address_state_or_province,
+                country=self.service_provider_address_country,
+            ).order_by('created_at').first()
         return contact
 
     def _create_metadata_record(self, contact: Organization, register_for_organization: Organization):
@@ -825,8 +834,13 @@ class OGCWebMapService(OGCWebService):
         service.availability = 0.0
         service.is_available = False
         service.service_type = service_type
-
         service.published_for = orga_published_for
+        service.metadata = metadata
+        service.is_root = True
+        service.is_update_candidate_for = is_update_candidate_for
+        service.owned_by_org = orga_published_for
+        service.save()
+
         operation_urls = []
         for operation, parsed_operation_url, method in self.operation_urls:
             # todo: optimize as bulk create
@@ -837,16 +851,11 @@ class OGCWebMapService(OGCWebService):
                     method=method
                 )[0])
 
-            except IntegrityError:
+            except MultipleObjectsReturned:
                 # empty/None url values will be ignored
                 pass
 
         service.operation_urls.add(*operation_urls)
-        service.metadata = metadata
-        service.is_root = True
-        service.is_update_candidate_for = is_update_candidate_for
-        service.owned_by_org = orga_published_for
-        service.save()
 
         # Persist capabilities document
         service.persist_original_capabilities_doc(self.service_capabilities_xml)
@@ -863,20 +872,25 @@ class OGCWebMapService(OGCWebService):
 
         """
         # Keywords
+        keywords = []
         for kw in self.service_identification_keywords:
             if kw is None:
                 continue
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords.add(keyword)
+            keyword, created = Keyword.objects.get_or_create(keyword=kw)
+            keywords.append(keyword)
+        metadata.keywords.add(*keywords)
 
         # MimeTypes / Formats
+        _mimetypes = []
         for operation, formats in self.operation_format_map.items():
             for format in formats:
-                mime_type = MimeType.objects.get_or_create(
+                mime_type, created = MimeType.objects.get_or_create(
                     operation=operation,
                     mime_type=format,
-                )[0]
-                metadata.formats.add(mime_type)
+                )
+                _mimetypes.append(mime_type)
+
+        metadata.formats.add(*_mimetypes)
 
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:

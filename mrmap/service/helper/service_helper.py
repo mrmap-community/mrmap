@@ -6,7 +6,8 @@ Created on: 16.04.19
 
 """
 import urllib
-
+from asyncio import current_task
+from celery import current_task, states
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpRequest
@@ -22,7 +23,7 @@ from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication, Document, Metadata
 from service.helper.crypto_handler import CryptoHandler
-from structure.models import Organization
+from service.settings import PROGRESS_STATUS_AFTER_PARSING
 
 
 def resolve_version_enum(version: str):
@@ -158,7 +159,6 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-
 def create_service(service_type, version, base_uri, register_for_organization=None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
     """ Creates a database model from given service information and persists it.
 
@@ -196,6 +196,15 @@ def create_service(service_type, version, base_uri, register_for_organization=No
 
     service.get_capabilities()
     service.create_from_capabilities(external_auth=external_auth)
+
+    if current_task:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': PROGRESS_STATUS_AFTER_PARSING,
+                'phase': 'Persisting...',
+            }
+        )
 
     with transaction.atomic():
         service = service.create_service_model_instance(

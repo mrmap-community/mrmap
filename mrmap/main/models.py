@@ -41,19 +41,6 @@ class GenericUriMixin:
         return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_delete', args=[self.pk, ])
 
 
-class UuidPk(models.Model):
-    """
-    An abstract model which adds uuid as primary key
-    """
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-
-    class Meta:
-        abstract = True
-
-    def __str__(self):
-        return str(self.pk)
-
-
 class CommonInfo(models.Model):
     """
     An abstract model which adds fields to store the creation and last-updated times for an object. All fields can be

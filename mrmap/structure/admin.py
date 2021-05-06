@@ -17,6 +17,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 class PermissionAdmin(admin.ModelAdmin):
     list_display = ["name", ]
     search_fields = ['name', 'codename', ]
+    readonly_fields = ('id',)
 
 
 class UserActivationAdmin(admin.ModelAdmin):

@@ -17,7 +17,7 @@ class HealthStateReasonAdmin(admin.ModelAdmin):
 
 
 class HealthStateAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'health_state_code', 'health_message', )
+    list_display = ('id', 'health_state_code', 'health_message', )
 
 
 class MonitoringSettingAdmin(admin.ModelAdmin):
@@ -25,11 +25,11 @@ class MonitoringSettingAdmin(admin.ModelAdmin):
 
 
 class MonitoringRunAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'start', 'end', 'duration', )
+    list_display = ('id', 'start', 'end', 'duration', )
 
 
 class MonitoringAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'metadata_link', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run', )
+    list_display = ('id', 'metadata_link', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run', )
     list_filter = ('monitoring_run', )
 
     def metadata_link(self, obj):
@@ -40,7 +40,7 @@ class MonitoringAdmin(admin.ModelAdmin):
 
 
 class MonitoringCapabilityAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'metadata', 'needs_update', 'diff')
+    list_display = ('id', 'metadata', 'needs_update', 'diff')
 
 
 admin.site.register(HealthStateReason, HealthStateReasonAdmin)

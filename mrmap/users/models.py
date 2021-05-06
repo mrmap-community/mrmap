@@ -32,9 +32,6 @@ from users.settings import default_request_activation_time
 
 
 class MrMapUser(AbstractUser):
-    id = models.UUIDField(primary_key=True,
-                          default=uuid.uuid4,
-                          editable=False)
     confirmed_newsletter = models.BooleanField(default=False,
                                                verbose_name=_("I want to sign up for the newsletter"))
     confirmed_survey = models.BooleanField(default=False,
@@ -131,8 +128,6 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
 
 
 class Subscription(CommonInfo):
-    id = models.UUIDField(primary_key=True,
-                          default=uuid.uuid4)
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE,
                                  verbose_name=_('Service'),
                                  help_text=_("Select the service you want to subscribe. When you edit an existing "

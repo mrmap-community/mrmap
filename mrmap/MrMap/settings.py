@@ -242,6 +242,8 @@ GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
 GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 ################################################################
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases

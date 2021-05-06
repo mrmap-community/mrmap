@@ -34,7 +34,7 @@ from MrMap import utils
 from MrMap.validators import geometry_is_empty
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
-from main.models import CommonInfo, UuidPk
+from main.models import CommonInfo
 from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
@@ -64,7 +64,7 @@ class Resource(models.Model):
         return reverse('resource:details', args=[self.pk])
 
 
-class Keyword(UuidPk):
+class Keyword(models.Model):
     keyword = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
@@ -84,7 +84,7 @@ class RequestOperation(models.Model):
         return self.operation_name
 
 
-class MetadataRelation(UuidPk):
+class MetadataRelation(models.Model):
     from_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='from_metadatas')
     to_metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name='to_metadatas')
     relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
@@ -109,7 +109,7 @@ class MetadataRelation(UuidPk):
         return collector
 
 
-class ExternalAuthentication(UuidPk, CommonInfo):
+class ExternalAuthentication(CommonInfo):
     username = models.CharField(max_length=255)
     password = models.CharField(max_length=500)
     auth_type = models.CharField(max_length=100)
@@ -173,7 +173,7 @@ class ExternalAuthentication(UuidPk, CommonInfo):
         self.username = crypto_handler.message.decode("ascii")
 
 
-class Licence(UuidPk):
+class Licence(models.Model):
     name = models.CharField(max_length=255)
     identifier = models.CharField(max_length=255, unique=True)
     symbol_url = models.URLField(null=True)
@@ -216,7 +216,8 @@ class Licence(UuidPk):
             descr_str = ""
         return descr_str
 
-class GenericUrl(UuidPk):
+
+class GenericUrl(models.Model):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
@@ -230,7 +231,7 @@ class ServiceUrl(GenericUrl):
     operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
 
 
-class Metadata(UuidPk, CommonInfo, Resource):
+class Metadata(CommonInfo, Resource):
     from MrMap.validators import validate_metadata_enum_choices
     identifier = models.CharField(max_length=1000, null=True)
     title = models.CharField(max_length=1000, verbose_name=_l('Title'))
@@ -1759,7 +1760,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         return health_states
 
 
-class ProxyLog(UuidPk, CommonInfo):
+class ProxyLog(CommonInfo):
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     operation = models.CharField(max_length=100, null=True, blank=True)
@@ -2051,7 +2052,7 @@ class OGCOperation(models.Model):
         return self.operation
 
 
-class AllowedOperation(UuidPk, CommonInfo):
+class AllowedOperation(CommonInfo):
     """Configures the operation(s) which allows one or more groups to access a :class:`service.models.Resource`.
 
     id: the id of the ``SecuredOperation`` object
@@ -2095,7 +2096,7 @@ class AllowedOperation(UuidPk, CommonInfo):
         self.setup_secured_metadata()
 
 
-class Document(UuidPk, CommonInfo, Resource):
+class Document(CommonInfo, Resource):
 
     from MrMap.validators import validate_document_enum_choices
     # One Metadata object can be related to multiple Document objects, cause we save the original and the customized
@@ -2860,7 +2861,7 @@ class Document(UuidPk, CommonInfo, Resource):
         self.save()
 
 
-class Category(UuidPk, Resource):
+class Category(Resource):
     type = models.CharField(max_length=255, choices=CategoryOriginEnum.as_choices())
     title_locale_1 = models.CharField(max_length=255, null=True)
     title_locale_2 = models.CharField(max_length=255, null=True)
@@ -2894,7 +2895,7 @@ class ServiceType(models.Model):
         return self.name
 
 
-class Service(UuidPk, CommonInfo, Resource):
+class Service(CommonInfo, Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
@@ -3112,7 +3113,7 @@ class Module(Service):
         return self.type
 
 
-class ReferenceSystem(UuidPk):
+class ReferenceSystem(models.Model):
     code = models.CharField(max_length=100)
     prefix = models.CharField(max_length=255, default="EPSG:")
     version = models.CharField(max_length=50, default="9.6.1")
@@ -3125,7 +3126,7 @@ class ReferenceSystem(UuidPk):
         return str(self.code)
 
 
-class Dataset(UuidPk, CommonInfo, Resource):
+class Dataset(CommonInfo, Resource):
     """ Representation of Dataset objects.
 
     Datasets identify a real-life resource, like a shapefile. One dataset can be the source for multiple services.
@@ -3229,7 +3230,7 @@ class Dataset(UuidPk, CommonInfo, Resource):
         return ret_val
 
 
-class LegalReport(UuidPk):
+class LegalReport(models.Model):
     """ Representation of gmd:DQ_DomainConsistency objects.
 
     """
@@ -3241,7 +3242,7 @@ class LegalReport(UuidPk):
         return self.title
 
 
-class LegalDate(UuidPk):
+class LegalDate(models.Model):
     """ Representation of CI_DateType objects.
 
     Multiple records can create a history of actions related to a database element.
@@ -3263,7 +3264,7 @@ class LegalDate(UuidPk):
         return self.date_type_code
 
 
-class MimeType(UuidPk):
+class MimeType(models.Model):
     operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
 
@@ -3274,7 +3275,7 @@ class MimeType(UuidPk):
         return self.mime_type
 
 
-class Dimension(UuidPk):
+class Dimension(models.Model):
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)
@@ -3467,7 +3468,7 @@ class Dimension(UuidPk):
         super().save(*args, **kwargs)
 
 
-class Style(UuidPk):
+class Style(models.Model):
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
     name = models.CharField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
@@ -3480,7 +3481,7 @@ class Style(UuidPk):
         return self.layer.identifier + ": " + self.name
 
 
-class FeatureType(UuidPk, CommonInfo, Resource):
+class FeatureType(CommonInfo, Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
     parent_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="featuretypes")
     is_searchable = models.BooleanField(default=False)
@@ -3560,7 +3561,7 @@ class FeatureType(UuidPk, CommonInfo, Resource):
         return FeatureType.objects.filter(pk=self.pk)
 
 
-class FeatureTypeElement(UuidPk, CommonInfo, Resource):
+class FeatureTypeElement(CommonInfo, Resource):
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255, null=True, blank=True)
 
@@ -3568,7 +3569,7 @@ class FeatureTypeElement(UuidPk, CommonInfo, Resource):
         return self.name
 
 
-class Namespace(UuidPk):
+class Namespace(models.Model):
     name = models.CharField(max_length=50)
     version = models.CharField(max_length=50, blank=True, null=True)
     uri = models.CharField(max_length=500)

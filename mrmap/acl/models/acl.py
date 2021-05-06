@@ -14,9 +14,6 @@ class AccessControlList(GenericUriMixin, Group, CommonInfo):
     Access control list model to store group based lists of users with sets of permissions and objects which shall
     be accessible.
     """
-    uuid = models.UUIDField(primary_key=True,
-                            default=uuid4,
-                            editable=False)
     description = models.CharField(max_length=256,
                                    null=True,
                                    blank=True,

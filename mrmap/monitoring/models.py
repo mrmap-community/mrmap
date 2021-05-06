@@ -22,13 +22,13 @@ from django.utils import timezone
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
 from MrMap.utils import signal_last
-from main.models import UuidPk, CommonInfo
+from main.models import CommonInfo
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 from structure.permissionEnums import PermissionEnum
 
 
-class MonitoringSetting(UuidPk):
+class MonitoringSetting(models.Model):
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
     check_time = models.TimeField()
     timeout = models.IntegerField()
@@ -83,7 +83,6 @@ class MonitoringSetting(UuidPk):
 
 
 class MonitoringRun(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Monitoring run'))
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
@@ -145,7 +144,6 @@ class MonitoringRun(CommonInfo):
 
 
 class MonitoringResult(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
     timestamp = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(null=True, blank=True)
@@ -175,7 +173,6 @@ class MonitoringResultDocument(MonitoringResult):
 
 
 class HealthState(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
     monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_states', related_query_name='health_states', verbose_name=_('Resource'))
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,

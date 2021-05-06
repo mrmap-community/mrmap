@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from acl.models.acl import AccessControlList
-from main.models import UuidPk, CommonInfo
+from main.models import CommonInfo
 from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum
 from MrMap.icons import IconEnum, get_icon
@@ -40,7 +40,7 @@ class Contact(models.Model):
         abstract = True
 
 
-class Organization(UuidPk, CommonInfo, Contact):
+class Organization(CommonInfo, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.
@@ -139,7 +139,7 @@ class OrganizationPublishRelation(models.Model):
     to_organization = models.ForeignKey(to=Organization, on_delete=models.CASCADE, related_name='to_organizations')
 
 
-class BaseInternalRequest(UuidPk, CommonInfo):
+class BaseInternalRequest(CommonInfo):
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True, blank=True)
 

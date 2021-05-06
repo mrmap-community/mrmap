@@ -14,6 +14,7 @@ from django.conf import settings
 
 def get_stats(user):
     if not user.is_anonymous:
+        return {}
         mr_map_organization_count = user.get_instances(klass=Organization).count()
         mr_map_user_count = get_user_model().objects.count()
 

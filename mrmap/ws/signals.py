@@ -71,7 +71,7 @@ def update_pending_task_listeners(instance, **kwargs):
                     send_task_toast(channel_layer, False, instance)
         else:
             # post_delete signal
-            update_count(channel_layer, kwargs['instance'])
+            update_count(channel_layer, instance)
 
         async_to_sync(channel_layer.group_send)(
             f"pendingtasktableconsumer_{instance.owned_by_org.pk}_observers",

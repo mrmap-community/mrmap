@@ -730,13 +730,29 @@ class OGCWebMapService(OGCWebService):
         # Begin creation of Layer records. Calling the found root layer will
         # iterate through all parent-child related layer objects
         try:
+            # layers will hold a list of tuples with the structure (OGCLayer, Layer, Metadata)
+            layers = []
             root_layer = self.layers[0]
             root_layer.create_layer_record(
                 parent_service=service,
                 register_for_organization=register_for_organization,
                 parent=None,
-                epsg_api=self.epsg_api
+                epsg_api=self.epsg_api,
+                layers=layers
             )
+
+            db_metadata_list = [item[2] for item in layers]
+            Metadata.objects.bulk_create(db_metadata_list)
+
+            for ogc_layer, db_layer, db_metadata in layers:
+                db_layer.save()
+                if ogc_layer.style is not None:
+                    ogc_layer.style.save()
+                ogc_layer.create_additional_records(metadata=db_metadata,
+                                                    layer=db_layer,
+                                                    register_for_organization=register_for_organization,
+                                                    epsg_api=self.epsg_api)
+
         except KeyError:
             raise IndexError(SERVICE_NO_ROOT_LAYER)
         return service
@@ -781,7 +797,7 @@ class OGCWebMapService(OGCWebService):
 
     def _create_metadata_record(self, contact: Organization, register_for_organization: Organization):
         """ Creates a Metadata record from the OGCWebMapService
-
+        
         Args:
             contact (Organization): The contact organization for this metadata record
             group (Organization): The owner/creator group

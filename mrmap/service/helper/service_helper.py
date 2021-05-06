@@ -206,12 +206,11 @@ def create_service(service_type, version, base_uri, register_for_organization=No
             }
         )
 
-    with transaction.atomic():
-        service = service.create_service_model_instance(
-            register_for_organization,
-            external_auth,
-            is_update_candidate_for
-        )
+    service = service.create_service_model_instance(
+        register_for_organization,
+        external_auth,
+        is_update_candidate_for
+    )
 
     return service
 

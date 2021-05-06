@@ -851,8 +851,16 @@ class OGCWebMapService(OGCWebService):
                     method=method
                 )[0])
 
-            except MultipleObjectsReturned:
+            except IntegrityError:
                 # empty/None url values will be ignored
+                pass
+            except MultipleObjectsReturned:
+                # get_or_create is not thread save. If we get MultipleObjectsReturned exception we have to get the first
+                operation_urls.append(ServiceUrl.objects.filter(
+                    operation=operation,
+                    url=getattr(self, parsed_operation_url),
+                    method=method
+                ).first().order_by('created_at'))
                 pass
 
         service.operation_urls.add(*operation_urls)

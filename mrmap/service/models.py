@@ -216,7 +216,8 @@ class Licence(UuidPk):
             descr_str = ""
         return descr_str
 
-class GenericUrl(UuidPk):
+
+class GenericUrl(UuidPk, CommonInfo):
     description = models.TextField(null=True, blank=True)
     method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.

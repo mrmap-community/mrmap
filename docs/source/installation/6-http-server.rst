@@ -60,11 +60,11 @@ is another configuration file for plain HTTP in the conf folder.
 
 
 
-4. Change ``HTTP_OR_SSL`` setting to ``https://`` in ``dev_settings.py``
+4. Change ``HTTP_OR_SSL`` setting to ``https://`` in ``settings.py``
 
 .. code-block:: console
 
-    $ vim /opt/mrmap/mrmap/MrMap/sub_settings/dev_settings.py
+    $ vim /opt/mrmap/mrmap/MrMap/settings.py
 
 
 Verify Service Status

@@ -5,6 +5,7 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
+import multiprocessing
 import uuid
 import time
 from abc import ABC
@@ -747,6 +748,13 @@ class OGCWebMapService(OGCWebService, ABC):
                 epsg_api=self.epsg_api,
                 layers=layers
             )
+
+            ogc_layer_list = [item[0] for item in layers]
+            iso_md_list = []
+            [iso_md_list.extend(item.iso_metadata) for item in ogc_layer_list]
+
+            from joblib import Parallel, delayed
+            processed_list = Parallel(n_jobs=multiprocessing.cpu_count())(delayed(iso_md.get_and_parse)() for iso_md in iso_md_list)
 
             db_metadata_list = [item[2] for item in layers]
             Metadata.objects.bulk_create(db_metadata_list)

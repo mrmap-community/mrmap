@@ -212,9 +212,7 @@ def create_service(service_type,
             }
         )
     services = []
-    print(quantity)
     for x in range(quantity):
-        print(x)
         services.append(service.to_db(
             register_for_organization,
             is_update_candidate_for

@@ -123,19 +123,16 @@ class ISOMetadata:
         XML_NAMESPACES["inspire_common"] = "http://inspire.ec.europa.eu/schemas/common/1.0"
         XML_NAMESPACES["inspire_vs"] = "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0"
 
-        # load uri and start parsing
-        self.get_metadata()
-        self.parse_xml()
-
         # check for validity
         # we expect that at least title and file_identifier exist
-        MIN_REQUIRED_ISO_MD = [
+        self.MIN_REQUIRED_ISO_MD = [
             self.file_identifier,
             self.title,
         ]
-        for attr in MIN_REQUIRED_ISO_MD:
-            if attr is None:
-                self.is_broken = True
+
+    def get_and_parse(self):
+        self.get_metadata()
+        self.parse_xml()
 
     def get_metadata(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -468,6 +465,10 @@ class ISOMetadata:
                 if not statement_val:
                     self.inspire_interoperability = False
             self.interoperability_list.append(reg)
+
+        for attr in self.MIN_REQUIRED_ISO_MD:
+            if attr is None:
+                self.is_broken = True
 
     def parse_bbox(self, bbox: dict):
         """ Creates a Polygon object from a bbox

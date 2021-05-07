@@ -274,6 +274,8 @@ class OGCWebService(ABC):
             # no iso metadata provided
             return
         iso_metadata = ISOMetadata(uri=service_md_link)
+        iso_metadata.get_and_parse()
+
         # add keywords
         for keyword in iso_metadata.keywords:
             self.service_identification_keywords.append(keyword)

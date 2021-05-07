@@ -36,7 +36,6 @@ class OGCCatalogueService(OGCWebService):
 
         Args:
             metadata_only (bool): Whether only metadata shall be fetched
-            async_task (Task): The asynchronous running task
         Returns:
 
         """

@@ -32,9 +32,10 @@ from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.validators import geometry_is_empty
+from acl.managers import AppendToAclManager
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
-from main.models import CommonInfo, UuidPk
+from main.models import CommonInfo, UuidPk, GenericModelMixin, GenericFKSaveMixin
 from monitoring.enums import HealthStateEnum
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RELIABILITY, WARNING_RELIABILITY
@@ -243,6 +244,8 @@ class ServiceUrl(GenericUrl):
 
 
 class Metadata(UuidPk, CommonInfo, Resource):
+    objects = AppendToAclManager()  # to support bulk_create with auto adding to acl
+
     from MrMap.validators import validate_metadata_enum_choices
     identifier = models.CharField(max_length=1000, null=True)
     title = models.CharField(max_length=1000, verbose_name=_l('Title'))
@@ -3046,7 +3049,7 @@ class Service(UuidPk, CommonInfo, Resource):
         )
 
 
-class Layer(Service, MPTTModel):
+class Layer(GenericModelMixin, Service, MPTTModel):
     identifier = models.CharField(max_length=500, null=True)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
@@ -3076,10 +3079,6 @@ class Layer(Service, MPTTModel):
 
     def __str__(self):
         return str(self.identifier)
-
-    @property
-    def icon(self):
-        return get_icon(IconEnum.LAYER)
 
     def get_inherited_reference_systems(self):
         """ Return all inherited ReferenceSystem objects of the given Layer
@@ -3479,14 +3478,14 @@ class Dimension(UuidPk):
         super().save(*args, **kwargs)
 
 
-class Style(UuidPk):
+class Style(GenericFKSaveMixin, UuidPk):
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
     name = models.CharField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
     legend_uri = models.CharField(max_length=500, null=True, blank=True)
     height = models.IntegerField(null=True, blank=True)
     width = models.IntegerField(null=True, blank=True)
-    mime_type = models.ForeignKey(to=MimeType, on_delete=models.CASCADE)
+    mime_type = models.ForeignKey(to=MimeType, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.layer.identifier + ": " + self.name

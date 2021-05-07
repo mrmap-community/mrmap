@@ -6,14 +6,16 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import get_icon, IconEnum
-from main.models import CommonInfo, GenericUriMixin
+from acl.managers import AclManager
+from main.models import CommonInfo, GenericModelMixin
 
 
-class AccessControlList(GenericUriMixin, Group, CommonInfo):
+class AccessControlList(GenericModelMixin, Group, CommonInfo):
     """
     Access control list model to store group based lists of users with sets of permissions and objects which shall
     be accessible.
     """
+    objects = AclManager()
     uuid = models.UUIDField(primary_key=True,
                             default=uuid4,
                             editable=False)

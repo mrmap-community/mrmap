@@ -5,11 +5,7 @@ from acl.models.acl import AccessControlList
 def handle_instance_creation(instance, created, **kwargs):
     """append the created instance to the default acl's accessible objects list."""
     if created:
-        default_acls = AccessControlList.objects.filter(default_acl=True, owned_by_org=instance.owned_by_org)
-        for acl in default_acls:
-            field = acl.get_accessible_field_by_related_model(instance._meta.model)
-            add_func = acl.get_add_function_by_field(field)
-            add_func(instance)
+        AccessControlList.objects.append_object_to_acls(instance)
 
 
 for model in AccessControlList.get_ownable_models():

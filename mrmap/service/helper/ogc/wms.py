@@ -415,6 +415,7 @@ class OGCWebMapService(OGCWebService, ABC):
 
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
+        # todo: zero or multiple styles are possible, but not handled here. Implement it!
         style_xml = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Style"),
             layer
@@ -450,13 +451,15 @@ class OGCWebMapService(OGCWebService, ABC):
             "height",
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL")
         ) or 0)
-        style_obj.mime_type = MimeType.objects.filter(
-            mime_type=xml_helper.try_get_text_from_xml_element(
+
+        mime_type = xml_helper.try_get_text_from_xml_element(
                 style_xml,
                 "./" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL") +
                 "/ " + GENERIC_NAMESPACE_TEMPLATE.format("Format"))
-        ).first()
-
+        if mime_type:
+            style_obj.mime_type = MimeType(
+                mime_type=mime_type
+            )
         layer_obj.style = style_obj
 
     def _start_single_layer_parsing(self, layer_xml):
@@ -748,10 +751,10 @@ class OGCWebMapService(OGCWebService, ABC):
             db_metadata_list = [item[2] for item in layers]
             Metadata.objects.bulk_create(db_metadata_list)
 
+            # todo: refactor Layer db model without multi table inheritance so we can use bulk_create
             for ogc_layer, db_layer, db_metadata in layers:
                 db_layer.save()
                 if ogc_layer.style is not None:
-                    print(ogc_layer.style)
                     ogc_layer.style.save()
                 ogc_layer.save_m2m(metadata=db_metadata,
                                    layer=db_layer,

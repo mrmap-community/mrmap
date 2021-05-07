@@ -217,7 +217,6 @@ def create_service(service_type,
         print(x)
         services.append(service.to_db(
             register_for_organization,
-            external_auth,
             is_update_candidate_for
         ))
     return services

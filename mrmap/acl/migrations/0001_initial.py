@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'Access Control List',
                 'verbose_name_plural': 'Access Control Lists',
             },
-            bases=(main.models.GenericUriMixin, 'auth.group', models.Model),
+            bases=(main.models.GenericModelMixin, 'auth.group', models.Model),
             managers=[
                 ('objects', django.contrib.auth.models.GroupManager()),
             ],

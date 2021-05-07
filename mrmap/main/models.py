@@ -6,8 +6,25 @@ from django.utils import timezone
 from django.urls import reverse
 from crum import get_current_user
 
+from MrMap.icons import get_icon, IconEnum
 
-class GenericUriMixin:
+
+class GenericFKSaveMixin:
+    """Class to support a generic way of first follow all unsaved ForeignKey fields.
+
+       We need this for models we parse from xml or some other stuff.
+    """
+    def save(self, *args, **kwargs):
+        """ generic way to save all fk fields first """
+        for field in self._meta.fields:
+            if field.get_internal_type() == 'ForeignKey':
+                _field = getattr(self, field.name)
+                if _field:
+                    _field.save()
+        super().save(*args, **kwargs)
+
+
+class GenericModelMixin:
     """
     Mixin class to generate urls for view, change and delete action by using the current app_label of the model, the
     class name and the action which is performed by the url.
@@ -31,6 +48,11 @@ class GenericUriMixin:
         ]
 
     """
+
+    @property
+    def icon(self):
+        return get_icon(getattr(IconEnum, self.__class__.__name__.upper()))
+
     def get_absolute_url(self) -> str:
         return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_view', args=[self.pk, ])
 

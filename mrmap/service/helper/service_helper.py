@@ -202,7 +202,7 @@ def create_service(service_type,
         pass
 
     service.get_capabilities()
-    service.deserialize_from_capabilities(external_auth=external_auth)
+    service.deserialize_from_capabilities()
 
     if current_task:
         current_task.update_state(

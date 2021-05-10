@@ -79,35 +79,3 @@ def update_pending_task_listeners(instance, **kwargs):
                 "type": "send.table.as.html",
             },
         )
-
-
-@after_task_publish.connect
-def task_send_handler(sender=None, headers=None, body=None, **kwargs):
-    """
-    Dispatched when a task has been sent to the broker. Note that this is executed in the process that sent the task.
-
-    Sender is the name of the task being sent.
-
-    Cause if we create celery Task which are sended to the broker with countdown, no TaskResult object in our result
-    backend is created. So the user can't see the task till the TaskResult is created.
-
-    One other use case is, if a task lifetime is >>> 1 second the celery Task doesn't life that long as the a redirect
-    took. For a better user experience we can now start celery Task's with countdown and show pending tasks on the
-    PendingTaskTable view.
-    """
-
-    info = headers if 'task' in headers else body
-
-    owned_by_org_pk = body[0][0]
-    try:
-        PendingTask.objects.create(task_id=info['id'],
-                                   task_name=sender,
-                                   created_by_user=get_current_user(),
-                                   owned_by_org_id=owned_by_org_pk,
-                                   meta={
-                                       "phase": "Pending..."
-                                   })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-

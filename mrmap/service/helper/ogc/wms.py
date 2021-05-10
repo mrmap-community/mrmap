@@ -710,7 +710,7 @@ class OGCWebMapService(OGCWebService, ABC):
         # parse request uris from capabilities document
         self.parse_request_uris(xml_obj, self)
 
-    @transaction.atomic
+    #@transaction.atomic
     def to_db(self,
               register_for_organization: Organization,
               is_update_candidate_for: Service = None):
@@ -753,16 +753,42 @@ class OGCWebMapService(OGCWebService, ABC):
             iso_md_list = []
             [iso_md_list.extend(item.iso_metadata) for item in ogc_layer_list]
 
-            from service.tasks import resolve_linked_iso_md
-            results = group(resolve_linked_iso_md.s(item) for item in iso_md_list)().get()
-            print(results)
-            for iso_md in iso_md_list:
-                # iso_md.get_and_parse()
-                iso_md.to_db_model()
+            # check possible operations on this service
+            if iso_md_list:
+                if current_task:
+                    current_task.update_state(
+                        state=states.STARTED,
+                        meta={
+                            'phase': "Resolving Iso Metadatas",
+                        }
+                    )
+                start_time = time.time()
+                from service.tasks import get_linked_iso_md
+                # todo: disable_sync_subtasks --> WARNING: enabling subtasks to run synchronously is not recommended!
+                results = group(get_linked_iso_md.s(item.uri) for item in iso_md_list)().get(disable_sync_subtasks=False)
+                service_logger.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
 
+                if current_task:
+                    current_task.update_state(
+                        state=states.STARTED,
+                        meta={
+                            'phase': "persisting Iso Metadatas",
+                        }
+                    )
+                start_time = time.time()
+                for iso_md in iso_md_list:
+                    result = next(item for item in results if item["uri"] == iso_md.uri)
+                    iso_md.raw_metadata = result.get('response', '')
+                    iso_md.parse_xml()
+                    iso_md.to_db_model()
+                service_logger.debug(EXEC_TIME_PRINT % ("persisting iso metadata", time.time() - start_time))
+
+            start_time = time.time()
             db_metadata_list = [item[2] for item in layers]
             Metadata.objects.bulk_create(db_metadata_list)
+            service_logger.debug(EXEC_TIME_PRINT % ("persisting service/layer metadata", time.time() - start_time))
 
+            start_time = time.time()
             # todo: refactor Layer db model without multi table inheritance so we can use bulk_create
             for ogc_layer, db_layer, db_metadata in layers:
                 db_layer.save()
@@ -772,6 +798,7 @@ class OGCWebMapService(OGCWebService, ABC):
                                    layer=db_layer,
                                    register_for_organization=register_for_organization,
                                    epsg_api=self.epsg_api)
+            service_logger.debug(EXEC_TIME_PRINT % ("persisting layer and m2m", time.time() - start_time))
 
         except KeyError:
             raise IndexError(SERVICE_NO_ROOT_LAYER)

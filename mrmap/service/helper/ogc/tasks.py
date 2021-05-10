@@ -1,5 +1,8 @@
 from abc import ABC
 from celery import Task, shared_task, group
+from crum import set_current_user, get_current_user
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 
 from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
@@ -7,11 +10,36 @@ from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import ExternalAuthentication
-from structure.models import Organization
+from structure.models import Organization, PendingTask
 
 
 class PickleSerializer(Task, ABC):
     serializer = 'pickle'
+
+
+class DefaultBehaviourTask(Task, ABC):
+
+    def __call__(self, owned_by_org_pk, *args, **kwargs):
+        if 'created_by_user_pk' in kwargs:
+            try:
+                user = get_user_model().objects.get(id=kwargs['created_by_user_pk'])
+                set_current_user(user)
+            except ObjectDoesNotExist:
+                return
+
+        try:
+            PendingTask.objects.create(task_id=self.request.id,
+                                       task_name=self.name,
+                                       created_by_user=get_current_user(),
+                                       owned_by_org_id=owned_by_org_pk,
+                                       meta={
+                                           "phase": "Pending..."
+                                       })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
+        super().__call__(owned_by_org_pk, *args, **kwargs)
 
 
 def register_service(register_for_organization: str,
@@ -19,15 +47,18 @@ def register_service(register_for_organization: str,
                      external_auth: dict,
                      quantity: int = 1,
                      **kwargs):
-    register_for_organization = Organization.objects.get(pk=register_for_organization)
+    # register_for_organization = Organization.objects.get(pk=register_for_organization)
 
+    service = deserialize_service.s(url_dict, external_auth)
     iso_metadata_list = collect_iso_metadata.s()
-    iso_metadata_list = group(deserialize_iso_md.s(iso_md) for iso_md in )
+    deserialized_md = group(deserialize_iso_md.s(iso_md) for iso_md in iso_metadata_list.get('iso_metadata_list'))
 
-    chain = deserialize_service.s(url_dict, external_auth) |\
-            collect_iso_metadata.s() |\
-            group(deserialize_iso_md.s() )
+    chain = deserialize_service.s(url_dict, external_auth) | collect_iso_metadata.s()
     chain()  # run chain
+    result = chain.get()
+
+    print(result)
+    i = 0
 
 
 @shared_task(name="deserialize_service", base=PickleSerializer)
@@ -72,10 +103,11 @@ def deserialize_service(url_dict, external_auth: dict = None):
 
 @shared_task(name="collect_iso_metadata", base=PickleSerializer)
 def collect_iso_metadata(service):
-    iso_metadata_temp = []
+    iso_metadata_list = []
     for layer in service.layers:
-        iso_metadata_temp.extend(layer.iso_metadata)
-    return service, iso_metadata_temp
+        iso_metadata_list.extend(layer.iso_metadata)
+    return {'service': service,
+            'iso_metadata_list': iso_metadata_list}
 
 
 @shared_task(name="deserialize_iso_md", base=PickleSerializer)

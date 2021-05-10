@@ -11,6 +11,7 @@ import celery.states as states
 from celery import shared_task, current_task
 from MrMap.settings import EXEC_TIME_PRINT
 from main.tasks import default_task_handler
+from service.helper.ogc.tasks import PickleSerializer
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
@@ -28,6 +29,12 @@ def async_increase_hits(metadata_id: int):
     """
     md = Metadata.objects.get(id=metadata_id)
     md.increase_hits()
+
+
+@shared_task(name="resolve_linked_iso_md", base=PickleSerializer)
+def resolve_linked_iso_md(iso_md):
+    iso_md.get_and_parse()
+    return iso_md
 
 
 @shared_task(name="async_new_service_task")

@@ -5,7 +5,7 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
-import multiprocessing
+from celery import group
 import uuid
 import time
 from abc import ABC
@@ -103,7 +103,7 @@ class OGCWebMapService(OGCWebService, ABC):
             return None
         return self._start_single_layer_parsing(layer_xml)
 
-    def deserialize_from_capabilities(self, metadata_only: bool = False, external_auth: ExternalAuthentication = None):
+    def deserialize_from_capabilities(self, metadata_only: bool = False):
         # get xml as iterable object
         cap_xml = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
@@ -753,8 +753,12 @@ class OGCWebMapService(OGCWebService, ABC):
             iso_md_list = []
             [iso_md_list.extend(item.iso_metadata) for item in ogc_layer_list]
 
-            from joblib import Parallel, delayed
-            processed_list = Parallel(n_jobs=multiprocessing.cpu_count())(delayed(iso_md.get_and_parse)() for iso_md in iso_md_list)
+            from service.tasks import resolve_linked_iso_md
+            results = group(resolve_linked_iso_md.s(item) for item in iso_md_list)().get()
+            print(results)
+            for iso_md in iso_md_list:
+                # iso_md.get_and_parse()
+                iso_md.to_db_model()
 
             db_metadata_list = [item[2] for item in layers]
             Metadata.objects.bulk_create(db_metadata_list)

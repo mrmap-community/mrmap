@@ -27,6 +27,7 @@ from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum, Res
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, Document, Dataset, LegalDate, LegalReport
 from structure.models import Organization
+from celery import shared_task
 
 
 class ISOMetadata:
@@ -141,7 +142,7 @@ class ISOMetadata:
         No file will be downloaded and stored on the storage. The string will be stored in the OGCWebService instance.
 
         Returns:
-             nothing
+             raw_metadata: The response of the remote service
         """
         ows_connector = CommonConnector(
             url=self.uri,
@@ -154,6 +155,8 @@ class ISOMetadata:
             raise ConnectionError(ows_connector.status_code)
 
         self.raw_metadata = ows_connector.content.decode("UTF-8")
+
+        return self.raw_metadata
 
     def _parse_xml_dataset_id(self, xml_obj: _Element, xpath_type: str):
         """ Parse the dataset id and it's code space from the metadata xml

@@ -180,6 +180,7 @@ def create_service(service_type,
     Returns:
 
     """
+    # todo: create one OGCServiceFactory...
     service = None
     if service_type is OGCServiceEnum.WMS:
         # create WMS object

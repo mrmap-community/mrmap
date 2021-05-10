@@ -16,7 +16,7 @@ external_authentication = False # bool
 external_username = "" # str
 external_password = "" #str
 external_auth_type = "" # str, http_digest or http_basic
-quantity = 2
+quantity = 1
 
 #  read wms file
 with open(sys.argv[1]) as f:
@@ -41,6 +41,7 @@ for url in lines:
     r = requests.post(host+'/api/service/', data=data, headers={'Authorization': 'Token '+token}, verify=False)
     print(r.status_code)
     if r.status_code >= 400:
-        print(r.text)
+        pass
+        # print(r.text)
     #req = session.post(host+"/service/add", data={'REQUEST': 'GetCapabilities' ,'SERVICE': 'WMS','page': 2, 'is_form_update': False, 'ogc_request': 'GetCapabilities', 'ogc_service': 'wms','ogc_version': '1.1.1','registering_with_group': 1,'registering_for_other_organization': '','uri': url}, verify=False)
     print("registering: " + url)

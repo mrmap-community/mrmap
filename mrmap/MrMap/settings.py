@@ -453,7 +453,8 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d}: {message}',
+            # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
+            'format': '{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}',
             'style': '{',
         },
         'simple': {
@@ -530,42 +531,42 @@ LOGGING = {
     'loggers': {
         'MrMap.root': {
             'handlers': ['MrMap.root.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.api': {
             'handlers': ['MrMap.api.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.csw': {
             'handlers': ['MrMap.csw.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.editor': {
             'handlers': ['MrMap.editor.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.monitoring': {
             'handlers': ['MrMap.monitoring.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.service': {
             'handlers': ['MrMap.service.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.structure': {
             'handlers': ['MrMap.structure.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.users': {
             'handlers': ['MrMap.users.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
     },

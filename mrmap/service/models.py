@@ -1397,7 +1397,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
-        service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
+        service = service.get_service_instance(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
         service.deserialize_from_capabilities(metadata_only=True, external_auth=external_auth)
 
@@ -1450,7 +1450,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             service = self.featuretype.service
         service_version = service_helper.resolve_version_enum(service.service_type.version)
         service_tmp = OGCWebFeatureServiceFactory()
-        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.capabilities_original_uri)
+        service_tmp = service_tmp.get_service_instance(version=service_version, service_connect_url=self.capabilities_original_uri)
         if service_tmp is None:
             return
         service_tmp.get_capabilities()
@@ -3543,7 +3543,7 @@ class FeatureType(UuidPk, CommonInfo, Resource):
         service = None
         if self.parent_service.is_service_type(OGCServiceEnum.WFS):
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
+            service = service.get_service_instance(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

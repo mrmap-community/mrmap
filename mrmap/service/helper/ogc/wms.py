@@ -31,29 +31,6 @@ from structure.models import Organization
 from django.core.exceptions import MultipleObjectsReturned
 
 
-class OGCWebMapServiceFactory:
-    """ Creates the correct OGCWebMapService objects
-
-    """
-    def get_ogc_wms(self, version: OGCServiceVersionEnum, service_connect_url=None, external_auth: ExternalAuthentication = None):
-        """ Returns the correct implementation of an OGCWebMapService according to the given version
-
-        Args:
-            version: The version number of the service
-            service_connect_url: The capabilities request uri
-        Returns:
-            An OGCWebMapService
-        """
-        if version is OGCServiceVersionEnum.V_1_0_0:
-            return OGCWebMapService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is OGCServiceVersionEnum.V_1_1_0:
-            return OGCWebMapService_1_1_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is OGCServiceVersionEnum.V_1_1_1:
-            return OGCWebMapService_1_1_1(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is OGCServiceVersionEnum.V_1_3_0:
-            return OGCWebMapService_1_3_0(service_connect_url=service_connect_url, external_auth=external_auth)
-
-
 class OGCWebMapService(OGCWebService, ABC):
     """ Serializer/Deserializer for OGC WebMapServices.
 
@@ -773,9 +750,11 @@ class OGCWebMapService(OGCWebService, ABC):
                         }
                     )
                 start_time = time.time()
-                from service.tasks import get_linked_iso_md
+                from service.tasks import get_linked_iso_metadata
                 # todo: disable_sync_subtasks=False --> WARNING: enabling subtasks to run synchronously is not recommended!
-                results = group(get_linked_iso_md.s(item.uri) for item in iso_md_list)().get(disable_sync_subtasks=False)
+                #  needed, cause we need to create a group based on the given iso_md_list
+                #  maybe it is possible by using a chord like chord(deserialize_capabilities.s() | group(get_linkes_iso_md.s(item.uri) for item in `RESULT from last task`)
+                results = group(get_linked_iso_metadata.s(item.uri) for item in iso_md_list)().get(disable_sync_subtasks=False)
                 service_logger.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
 
                 if current_task:
@@ -806,6 +785,7 @@ class OGCWebMapService(OGCWebService, ABC):
             start_time = time.time()
             db_metadata_list = [item[2] for item in layers]
             Metadata.objects.bulk_create(db_metadata_list)
+
             service_logger.debug(EXEC_TIME_PRINT % ("persisting service/layer metadata", time.time() - start_time))
 
             start_time = time.time()

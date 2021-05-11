@@ -17,8 +17,7 @@ class AppendToAclManager(models.Manager):
         from acl.models.acl import AccessControlList  # to prevent from circular import
         _objs = super().bulk_create(objs=objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts)
         if add_to_acl:
-            for obj in _objs:
-                AccessControlList.objects.append_object_to_acls(obj)
+            AccessControlList.objects.append_objects_to_acls(_objs)
         return _objs
 
 
@@ -35,3 +34,30 @@ class AclManager(models.Manager):
             field = acl.get_accessible_field_by_related_model(obj._meta.model)
             add_func = acl.get_add_function_by_field(field)
             add_func(obj)
+
+    def append_objects_to_acls(self, objects: list):
+        """Same as `append_object_to_acls`, but with more efficient bulk_add usage.
+
+            Args:
+                objects: the given objects instances which shall be secured by an acl.
+        """
+        owners = []
+        model_list = []
+        for obj in objects:
+            if not owners or owners[0] != obj.owned_by_org_id:
+                owners.append(obj.owned_by_org_id)
+            if not model_list or model_list[0] != obj._meta.model:
+                model_list.append(obj._meta.model)
+
+        if len(owners) > 1:
+            # todo: we could handle this in future
+            raise Exception('Multiple owners are not supported. Split the objects list by different owners.')
+        if len(model_list) > 1:
+            # todo: we could handle this in future
+            raise Exception('Multiple models are not supported. Splite the objects list by different models.')
+
+        default_acls = super().get_queryset().filter(default_acl=True, owned_by_org_id=owners[0])
+        for acl in default_acls:
+            field = acl.get_accessible_field_by_related_model(model_list[0])
+            add_func = acl.get_add_function_by_field(field)
+            add_func(*objects)

@@ -123,10 +123,7 @@ class PendingTaskTable(tables.Table):
                 phase = f'{result.get("msg", "")} {result.get("absolute_url_html", "")}'
             elif record.status == states.FAILURE:
                 phase = _('Task failed unexpected. See error log for details.')
-        except (AttributeError, KeyError) as e:
-            service_logger.warn(msg=e)
-        except TypeError:
-            # value is None or something else happens
+        except (AttributeError, KeyError, TypeError):
             pass
         return format_html(phase)
 

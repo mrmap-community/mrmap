@@ -29,29 +29,6 @@ from service.settings import ALLOWED_SRS, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Contact, Organization
 
 
-class OGCWebFeatureServiceFactory:
-    """ Creates the correct OGCWebFeatureService objects
-
-    """
-    def get_ogc_wfs(self, version: OGCServiceVersionEnum, service_connect_url=None, external_auth=None):
-        """ Returns the correct implementation of an OGCWebFeatureService according to the given version
-
-        Args:
-            version: The version number of the service
-            service_connect_url: The capabilities request uri
-        Returns:
-            An OGCWebFeatureService
-        """
-        if version is OGCServiceVersionEnum.V_1_0_0:
-            return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is OGCServiceVersionEnum.V_1_1_0:
-            return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is OGCServiceVersionEnum.V_2_0_0:
-            return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is OGCServiceVersionEnum.V_2_0_2:
-            return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url, external_auth=external_auth)
-
-
 class OGCWebFeatureService(OGCWebService):
 
     def __init__(self, service_connect_url, service_version, service_type, external_auth: ExternalAuthentication):

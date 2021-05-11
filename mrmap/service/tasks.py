@@ -11,10 +11,9 @@ import time
 import celery.states as states
 from celery import shared_task, current_task
 from MrMap.settings import EXEC_TIME_PRINT
-from main.tasks import default_task_handler
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum
-from service.helper.ogc.tasks import PickleSerializer, DefaultBehaviourTask
+from service.helper.ogc.tasks import DefaultBehaviourTask
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization, PendingTask
@@ -34,8 +33,8 @@ def async_increase_hits(metadata_id: int):
     md.increase_hits()
 
 
-@shared_task(name="resolve_linked_iso_md", throws=(ConnectionError,))
-def get_linked_iso_md(uri):
+@shared_task(name="resolve_linked_iso_md")
+def get_linked_iso_metadata(uri):
     ows_connector = CommonConnector(
         url=uri,
         external_auth=None,
@@ -43,11 +42,12 @@ def get_linked_iso_md(uri):
     )
     ows_connector.http_method = 'GET'
     ows_connector.load()
-    if ows_connector.status_code != 200:
-        raise ConnectionError(ows_connector.status_code)
-
-    return {'uri': uri,
-            'response': ows_connector.content.decode("UTF-8")}
+    if ows_connector.status_code == 200:
+        return {'uri': uri,
+                'response': ows_connector.content.decode("UTF-8")}
+    else:
+        return {'uri': uri,
+                'response': ''}
 
 
 @shared_task(name="async_new_service_task", base=DefaultBehaviourTask)

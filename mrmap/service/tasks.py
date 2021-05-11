@@ -6,6 +6,7 @@ Created on: 12.08.19
 
 """
 import base64
+import json
 import time
 import celery.states as states
 from celery import shared_task, current_task
@@ -16,7 +17,7 @@ from service.helper.enums import ConnectionEnum
 from service.helper.ogc.tasks import PickleSerializer, DefaultBehaviourTask
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import Organization
+from structure.models import Organization, PendingTask
 from service.helper import service_helper
 
 
@@ -101,6 +102,8 @@ def async_new_service(owned_by_org: str,
         external_auth=external_auth,
         quantity=quantity,
     )
+
+    # todo: for loop correct?
     for service in services:
         # after service AND documents have been persisted, we can now set the service being secured if needed
         if external_auth is not None:
@@ -122,6 +125,12 @@ def async_new_service(owned_by_org: str,
               'id': str(service.metadata.pk),
               'absolute_url': service.metadata.get_absolute_url(),
               'absolute_url_html': f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title}</a>'}
+
+    if current_task:
+        pending_task = PendingTask.objects.get(task_id=current_task.request.id)
+        current_result = json.loads(pending_task.result)
+        statistics = current_result.get('statistics', {})
+        result.update({'statistics': statistics})
 
     if quantity > 1:
         links = ''

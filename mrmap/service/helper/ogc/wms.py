@@ -110,6 +110,15 @@ class OGCWebMapService(OGCWebService, ABC):
         start_time = time.time()
         self.get_service_metadata_from_capabilities(xml_obj=cap_xml)
 
+        if current_task:
+            current_task.update_state(
+                state=states.STARTED,
+                meta={
+                    'statistics': {'Parsing main capabilities': {'duration': time.time() - start_time}},
+                }
+            )
+
+        start_time = time.time()
         # check if 'real' service metadata exist, if so we resolve them and use it instead of generating one by self
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=cap_xml, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
         if service_metadata_uri is not None:
@@ -759,12 +768,13 @@ class OGCWebMapService(OGCWebService, ABC):
                     current_task.update_state(
                         state=states.STARTED,
                         meta={
-                            'phase': "Resolving Iso Metadatas",
+                            'current': AsyncResult(current_task.request.id).info.get("current", 0),
+                            'phase': "Resolving Iso Metadata",
                         }
                     )
                 start_time = time.time()
                 from service.tasks import get_linked_iso_md
-                # todo: disable_sync_subtasks --> WARNING: enabling subtasks to run synchronously is not recommended!
+                # todo: disable_sync_subtasks=False --> WARNING: enabling subtasks to run synchronously is not recommended!
                 results = group(get_linked_iso_md.s(item.uri) for item in iso_md_list)().get(disable_sync_subtasks=False)
                 service_logger.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
 
@@ -772,7 +782,9 @@ class OGCWebMapService(OGCWebService, ABC):
                     current_task.update_state(
                         state=states.STARTED,
                         meta={
+                            'current': PROGRESS_STATUS_AFTER_PARSING + 5,
                             'phase': "persisting Iso Metadatas",
+                            'statistics': {'Resolving Iso Metadata': {'duration': time.time() - start_time}},
                         }
                     )
                 start_time = time.time()
@@ -781,6 +793,14 @@ class OGCWebMapService(OGCWebService, ABC):
                     iso_md.raw_metadata = result.get('response', '')
                     iso_md.parse_xml()
                     iso_md.to_db_model()
+                if current_task:
+                    current_task.update_state(
+                        state=states.STARTED,
+                        meta={
+                            'phase': "persisting service/layer metadata",
+                            'statistics': {'persisting Iso Metadatas': {'duration': time.time() - start_time}},
+                        }
+                    )
                 service_logger.debug(EXEC_TIME_PRINT % ("persisting iso metadata", time.time() - start_time))
 
             start_time = time.time()
@@ -798,6 +818,13 @@ class OGCWebMapService(OGCWebService, ABC):
                                    layer=db_layer,
                                    register_for_organization=register_for_organization,
                                    epsg_api=self.epsg_api)
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'statistics': {'persisting layer and m2m': {'duration': time.time() - start_time}},
+                    }
+                )
             service_logger.debug(EXEC_TIME_PRINT % ("persisting layer and m2m", time.time() - start_time))
 
         except KeyError:

@@ -1399,7 +1399,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         service = OGCWebMapServiceFactory()
         service = service.get_service_instance(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
-        service.deserialize_from_capabilities(metadata_only=True, external_auth=external_auth)
+        service.parse_from_capabilities(metadata_only=True, external_auth=external_auth)
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
@@ -1454,7 +1454,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         if service_tmp is None:
             return
         service_tmp.get_capabilities()
-        service_tmp.deserialize_from_capabilities(metadata_only=True)
+        service_tmp.parse_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
             return self._restore_feature_type_md(service_tmp, external_auth=external_auth)

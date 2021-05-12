@@ -8,7 +8,7 @@ from service.models import ExternalAuthentication
 
 
 class OGCServiceFactory:
-    """ Creates the correct OGCService objects"""
+    """Create the correct OGCService objects"""
     @staticmethod
     def get_service_instance(service_type,
                              version: OGCServiceVersionEnum,
@@ -34,9 +34,7 @@ class OGCServiceFactory:
 
 
 class OGCWebMapServiceFactory:
-    """ Creates the correct OGCWebMapService objects
-
-    """
+    """Create the correct OGCWebMapService objects"""
 
     @staticmethod
     def get_service_instance(version: OGCServiceVersionEnum, service_connect_url=None, external_auth: ExternalAuthentication = None):
@@ -59,9 +57,7 @@ class OGCWebMapServiceFactory:
 
 
 class OGCWebFeatureServiceFactory:
-    """ Creates the correct OGCWebFeatureService objects
-
-    """
+    """Creates the correct OGCWebFeatureService objects"""
     @staticmethod
     def get_service_instance(version: OGCServiceVersionEnum, service_connect_url=None, external_auth: ExternalAuthentication = None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version

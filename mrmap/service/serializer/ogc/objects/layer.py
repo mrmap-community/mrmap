@@ -1,14 +1,16 @@
+import time
 from django.contrib.gis.geos import Polygon
 from django.db import IntegrityError
-
+from MrMap.settings import EXEC_TIME_PRINT
 from service.helper.enums import MetadataEnum, OGCOperationEnum, MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, Dimension, ServiceUrl
-from service.settings import ALLOWED_SRS
+from service.serializer.ogc.objects.core import PlainObject
+from service.settings import ALLOWED_SRS, service_logger
 from structure.models import Organization
 
 
-class OGCLayer:
+class OGCLayer(PlainObject):
     def __init__(self, identifier=None, parent=None, title=None, queryable=False, opaque=False,
                  cascaded=False, abstract=None):
         self.identifier = identifier
@@ -231,12 +233,14 @@ class OGCLayer:
             layer.parent.children.add(layer)
 
         # Keywords
+        start_time = time.time()
         keywords = []
         for kw in self.capability_keywords:
-            # todo: optimize as bulk create
+            # todo: optimize as bulk create?
             keyword, created = Keyword.objects.get_or_create(keyword=kw)
             keywords.append(keyword)
         metadata.keywords.add(*keywords)
+        service_logger.debug(EXEC_TIME_PRINT % ("save m2m keywords", time.time() - start_time))
 
         # handle reference systems
         srs = []
@@ -245,13 +249,13 @@ class OGCLayer:
             # check if this srs is allowed for us. If not, skip it!
             if parts.get("code") not in ALLOWED_SRS:
                 continue
-            # todo: optimize as bulk create
+            # todo: optimize as bulk create?
             ref_sys, created = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))
             srs.append(ref_sys)
         metadata.reference_system.add(*srs)
 
         for iso_md in self.iso_metadata:
-            # todo: optimize as bulk create
+            # todo: optimize as bulk create?
             iso_md = iso_md.to_db_model(created_by=register_for_organization)
             metadata.add_metadata_relation(to_metadata=iso_md,
                                            relation_type=MetadataRelationEnum.DESCRIBES.value,

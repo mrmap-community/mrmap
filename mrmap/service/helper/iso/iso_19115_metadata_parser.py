@@ -588,19 +588,13 @@ class ISOMetadata:
 
         if update or new:
 
-            # In case of a dataset, we need to fill the information into the dataset object
-            if metadata.is_dataset_metadata:
-                metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
-
-            metadata = self._fill_metadata_db_model(metadata)
-            metadata.save()
             metadata.dataset.save()
 
-            orig_document = Document.objects.get_or_create(
+            orig_document, created = Document.objects.get_or_create(
                 metadata=metadata,
                 document_type=DocumentEnum.METADATA.value,
                 is_original=True,
-            )[0]
+            )
             orig_document.content = self.raw_metadata
             orig_document.save()
 
@@ -664,6 +658,20 @@ class ISOMetadata:
                     max_area_poly = poly
             metadata.bounding_geometry = max_area_poly
 
+        metadata.is_inspire_conform = self.inspire_interoperability
+        metadata.metadata_url = self.uri
+        metadata.last_remote_change = self.last_change_date
+        metadata.spatial_res_type = self.spatial_res_type
+        metadata.spatial_res_value = self.spatial_res_val
+        if self.title is None:
+            self.title = "BROKEN"
+        metadata.title = self.title
+        metadata.origin = self.origin
+        metadata.is_broken = self.is_broken
+
+        return metadata
+
+    def create_organization(self, metadata):
         try:
             metadata.contact = Organization.objects.get_or_create(
                 name=self.responsible_party,
@@ -676,19 +684,15 @@ class ISOMetadata:
                 name="{}#1".format(self.responsible_party),
                 email=self.contact_email,
             )[0]
-
-        metadata.is_inspire_conform = self.inspire_interoperability
-        metadata.metadata_url = self.uri
-        metadata.last_remote_change = self.last_change_date
-        metadata.spatial_res_type = self.spatial_res_type
-        metadata.spatial_res_value = self.spatial_res_val
-        if self.title is None:
-            self.title = "BROKEN"
-        metadata.title = self.title
-        metadata.origin = self.origin
-        metadata.is_broken = self.is_broken
         metadata.save()
 
+    def create_dataset(self, metadata):
+        # In case of a dataset, we need to fill the information into the dataset object
+        if metadata.is_dataset_metadata:
+            metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
+            metadata.dataset.save()
+
+    def save_m2m(self, metadata):
         # save legal dates and reports
         reports = []
         for report in self.legal_reports:
@@ -703,4 +707,4 @@ class ISOMetadata:
             legal_dates.append(date)
         metadata.legal_dates.add(*legal_dates)
 
-        return metadata
+

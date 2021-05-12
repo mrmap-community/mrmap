@@ -2,25 +2,18 @@
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
 from abc import abstractmethod, ABC
 from urllib.parse import urlencode
-
 from django.contrib.gis.geos import Polygon
-from lxml.etree import Element
 from requests.exceptions import ReadTimeout
-
-from MrMap.messages import CONNECTION_TIMEOUT
-from MrMap.settings import XML_NAMESPACES
 from service.helper import xml_helper
+from MrMap.messages import CONNECTION_TIMEOUT
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import ExternalAuthentication, Service
-from structure.models import Organization
+from service.models import ExternalAuthentication
 
 
-class OGCWebService(ABC):
-    """ The base class for all derived web services
-
-    """
+class OGCWebServiceParser(ABC):
+    """ The base class for all parsers for all derived web services """
 
     def __init__(self,
                  service_connect_url=None,
@@ -169,6 +162,29 @@ class OGCWebService(ABC):
 
         self.operation_format_map = {}
 
+        self.collect_iso_metadata = False
+
+    def parse(self, collect_iso_metadata: bool = True):
+        """ Parse the given capabilities document and converts them to the plain `Service` object.
+
+            Args:
+                collect_iso_metadata (bool): tells the parse if linked iso metadata records shall collected or not.
+
+            Returns:
+                service (Service): the converted plain `Service` object.
+        """
+        if not self.service_capabilities_xml:
+            self.get_capabilities()
+        service = self.parse_from_capabilities()
+
+        if not isinstance(service, Service):
+            raise Exception()
+
+        if collect_iso_metadata:
+            self.collect_iso_metadata = True
+            self.resolve_linked_iso_metadata()
+        return service
+
     def get_capabilities(self):
         """ Start a network call to retrieve the original capabilities xml document.
 
@@ -210,13 +226,17 @@ class OGCWebService(ABC):
         self.descriptive_document_encoding = ows_connector.encoding
 
     @abstractmethod
-    def deserialize_from_capabilities(self, metadata_only: bool = False):
+    def parse_from_capabilities(self, metadata_only: bool = False):
         """ Converts the parsed `OGCWebService` instance to django relational db models and persists them.
 
         Returns:
              the django `Service` model  (:py:class:`service.models.Service`)
         """
         raise NotImplementedError('You have to implement create_from_capabilities()')
+
+    @abstractmethod
+    def resolve_linked_iso_metadata(self):
+        raise NotImplementedError('You have to implement resolve_linked_iso_metadata()')
 
     @abstractmethod
     def get_service_metadata_from_capabilities(self, xml_obj):
@@ -234,12 +254,6 @@ class OGCWebService(ABC):
     def get_version_specific_metadata(self, xml_obj):
         raise NotImplementedError('You have to implement get_version_specific_metadata()')
 
-    @abstractmethod
-    def to_db(self,
-              register_for_organization: Organization,
-              is_update_candidate_for: Service):
-        raise NotImplementedError('You have to implement to_db()')
-
     def get_service_metadata(self, uri: str):
         """ Parses all service related information from the linked metadata document
 
@@ -252,7 +266,7 @@ class OGCWebService(ABC):
             Nothing
         """
         iso_md = ISOMetadata(uri)
-        iso_md.parse_xml()
+        iso_md.get_and_parse()
         self.linked_service_metadata = iso_md
 
     def get_service_dataset_metadata(self, xml_obj):
@@ -296,53 +310,18 @@ class OGCWebService(ABC):
         bbox = Polygon(bounding_points)
         self.service_bounding_box = bbox
 
-
-class OWSException:
-    def __init__(self, exception: Exception):
-        self.exception = exception
-        try:
-            self.text = exception.args[0]
-        except IndexError:
-            self.text = "None"
-        try:
-            self.locator = exception.args[1]
-        except IndexError:
-            self.locator = "None"
-
-        self.namespace_map = {
-            None: XML_NAMESPACES["ows"],
-            "xsi": XML_NAMESPACES["xsi"],
-        }
-
-        self.xsi_ns = "{" + self.namespace_map["xsi"] + "}"
-        self.ows_ns = "{" + self.namespace_map[None] + "}"
-
-    def get_exception_report(self):
-        """ Creates an OWSExceptionReport from a given Exception object
-
-        Returns:
-             report (str): The exception report as string
-        """
-        root = Element(
-            "{}ExceptionReport".format(self.ows_ns),
-            nsmap=self.namespace_map,
-            attrib={
-                "{}schemaLocation".format(self.xsi_ns): "http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd",
-                "version": "1.2.0",
-            }
+    @staticmethod
+    def get_linked_iso_metadata(uri: str):
+        ows_connector = CommonConnector(
+            url=uri,
+            external_auth=None,
+            connection_type=ConnectionEnum.REQUESTS
         )
-        exception_elem = xml_helper.create_subelement(
-            root,
-            "{}Exception".format(self.ows_ns),
-            attrib={
-                "exceptionCode": self.exception.__class__.__name__,
-                "locator": self.locator,
-            }
-        )
-        text_elem = xml_helper.create_subelement(
-            exception_elem,
-            "{}ExceptionText".format(self.ows_ns)
-        )
-        text_elem.text = self.text
-
-        return xml_helper.xml_to_string(root, pretty_print=True)
+        ows_connector.http_method = 'GET'
+        ows_connector.load()
+        if ows_connector.status_code == 200:
+            return {'uri': uri,
+                    'response': ows_connector.content.decode("UTF-8")}
+        else:
+            return {'uri': uri,
+                    'response': ''}

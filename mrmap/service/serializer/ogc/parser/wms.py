@@ -22,8 +22,8 @@ from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperati
     MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.helper.ogc.ows import OGCWebService
-from service.helper.ogc.layer import OGCLayer
+from service.serializer.ogc.parser.ows import OGCWebServiceParser
+from service.serializer.ogc.objects.layer import OGCLayer
 from service.helper import xml_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl
@@ -31,7 +31,7 @@ from structure.models import Organization
 from django.core.exceptions import MultipleObjectsReturned
 
 
-class OGCWebMapService(OGCWebService, ABC):
+class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
     """ Serializer/Deserializer for OGC WebMapServices.
 
         This class contains all needed serialize and deserialize functions which matches all OGC WMS service versions.
@@ -60,9 +60,7 @@ class OGCWebMapService(OGCWebService, ABC):
     # For further details read: http://effbot.org/zone/default-values.htm
     layers = None
     epsg_api = EpsgApi()
-
-    class Meta:
-        abstract = True
+    iso_md_list = []  # used to collect all iso metadata objects from all layers to iterate them
 
     def get_layer_by_identifier(self, identifier: str):
         """ Returns the layer identified by the parameter 'identifier' as OGCWebMapServiceLayer object
@@ -80,7 +78,7 @@ class OGCWebMapService(OGCWebService, ABC):
             return None
         return self._start_single_layer_parsing(layer_xml)
 
-    def deserialize_from_capabilities(self, metadata_only: bool = False):
+    def parse_from_capabilities(self, metadata_only: bool = False):
         # get xml as iterable object
         cap_xml = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
@@ -158,68 +156,129 @@ class OGCWebMapService(OGCWebService, ABC):
             formats = [f.text for f in formats]
             self.operation_format_map[operation.tag] = formats
 
-    ### DATASET METADATA ###
-    def parse_dataset_md(self, layer, layer_obj):
-        # check for possible dataset metadata
+    @staticmethod
+    def _parse_dataset_md(layer_xml, layer_obj):
+        """ parse all iso metadata (dataset metadata) from given layer and collect them at the layer_obj.iso_metadata
+            list.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
-            xml_elem=layer,
+            xml_elem=layer_xml,
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") +
                   "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
         )
         for iso_xml in iso_metadata_xml_elements:
             iso_uri = xml_helper.get_href_attribute(xml_elem=iso_xml)
-            try:
-                iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
-            except Exception as e:
-                # there are iso metadatas that have been filled wrongly -> if so we will drop them
-                continue
+            iso_metadata = ISOMetadata(uri=iso_uri, origin=ResourceOriginEnum.CAPABILITIES.value)
             layer_obj.iso_metadata.append(iso_metadata)
 
-    ### IDENTIFIER ###
-    def parse_identifier(self, layer, layer_obj):
+    @staticmethod
+    def _parse_identifier(layer_xml, layer_obj):
+        """ parse the identifier from given layer and store them on the given layer_obj.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         layer_obj.identifier = xml_helper.try_get_text_from_xml_element(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Name"),
-            xml_elem=layer)
+            xml_elem=layer_xml)
 
-    ### KEYWORDS ###
-    def parse_keywords(self, layer, layer_obj):
+    @staticmethod
+    def _parse_keywords(layer_xml, layer_obj):
+        """ parse all keywords from given layer and collect them at the given layer_obj.capability_keywords list.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         keywords = xml_helper.try_get_element_from_xml(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList") +
                  "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword"),
-            xml_elem=layer
+            xml_elem=layer_xml
         )
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
-    ### ABSTRACT ###
-    def parse_abstract(self, layer, layer_obj):
+    @staticmethod
+    def _parse_abstract(layer_xml, layer_obj):
+        """ parse the abstract from given layer and store them on the given layer_obj.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         layer_obj.abstract = xml_helper.try_get_text_from_xml_element(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract"),
-            xml_elem=layer
+            xml_elem=layer_xml
         )
 
-    ### TITLE ###
-    def parse_title(self, layer, layer_obj):
+    @staticmethod
+    def _parse_title(layer_xml, layer_obj):
+        """ parse the title from given layer and store them on the given layer_obj.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         layer_obj.title = xml_helper.try_get_text_from_xml_element(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title"),
-            xml_elem=layer
+            xml_elem=layer_xml
         )
 
-    ### SRS/CRS     PROJECTION SYSTEM ###
-    def parse_projection_system(self, layer, layer_obj):
+    @staticmethod
+    def _parse_projection_system(layer_xml, layer_obj):
+        """ parse all srs/crs projection systems from given layer and collect them at the given
+            layer_obj.capability_projection_system list.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         srs = xml_helper.try_get_element_from_xml(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("SRS"),
-            xml_elem=layer
+            xml_elem=layer_xml
         )
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
-    ### BOUNDING BOX    LAT LON ###
-    def parse_lat_lon_bounding_box(self, layer, layer_obj):
+    @staticmethod
+    def _parse_lat_lon_bounding_box(layer_xml, layer_obj):
+        """ parse latitude and longitude from given layer and store them in the given
+            layer_obj.capability_bbox_lat_lon dict.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+
+        Returns:
+            None
+        """
         try:
             bbox = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLonBoundingBox"),
-                xml_elem=layer
+                xml_elem=layer_xml
             )[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
             for attr in attrs:
@@ -230,11 +289,20 @@ class OGCWebMapService(OGCWebService, ABC):
         except IndexError:
             pass
 
-    ### BOUNDING BOX ###
-    def parse_bounding_box_generic(self, layer, layer_obj, elem_name):
+    @staticmethod
+    def _parse_bounding_box_generic(layer_xml, layer_obj, elem_name):
+        """ parse the bounding box from given layer and store them in the given layer_obj.capability_bbox_srs dict.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+            elem_name (str): generic name of the used xml attribute name for specific wms versions
+        Returns:
+            None
+        """
         bboxs = xml_helper.try_get_element_from_xml(
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"),
-            xml_elem=layer
+            xml_elem=layer_xml
         )
         for bbox in bboxs:
             srs = bbox.get(elem_name)
@@ -249,19 +317,27 @@ class OGCWebMapService(OGCWebService, ABC):
                 srs_dict[attr] = bbox.get(attr)
             layer_obj.capability_bbox_srs[srs] = srs_dict
 
-    def parse_bounding_box(self, layer, layer_obj):
+    def _parse_bounding_box(self, layer_xml, layer_obj):
+        """ parse the bounding box from given layer and store them in the given layer_obj.capability_bbox_srs dict.
+
+        Args:
+            layer_xml (str): the string representation of the given xml layer entity
+            layer_obj (OGCLayer): the plain python object where all parsed information of the given layer are stored
+        Returns:
+            None
+        """
         # switch depending on service version
         elem_name = "SRS"
         if self.service_version is OGCServiceVersionEnum.V_1_3_0:
             elem_name = "CRS"
-        self.parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
+        self._parse_bounding_box_generic(layer_xml=layer_xml, layer_obj=layer_obj, elem_name=elem_name)
 
-    ### SCALE HINT ###
-    def parse_scale_hint(self, layer, layer_obj):
+    @staticmethod
+    def _parse_scale_hint(layer_xml, layer_obj):
         try:
             scales = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("ScaleHint"),
-                xml_elem=layer
+                xml_elem=layer_xml
             )[0]
             attrs = ["min", "max"]
             for attr in attrs:
@@ -270,9 +346,9 @@ class OGCWebMapService(OGCWebService, ABC):
             pass
 
     ### IS QUERYABLE ###
-    def parse_queryable(self, layer, layer_obj):
+    def parse_queryable(self, layer_xml, layer_obj):
             try:
-                is_queryable = layer.get("queryable")
+                is_queryable = layer_xml.get("queryable")
                 if is_queryable is None:
                     is_queryable = False
                 else:
@@ -282,9 +358,9 @@ class OGCWebMapService(OGCWebService, ABC):
                 pass
 
     ### IS OPAQUE ###
-    def parse_opaque(self, layer, layer_obj):
+    def parse_opaque(self, layer_xml, layer_obj):
             try:
-                is_opaque = layer.get("opaque")
+                is_opaque = layer_xml.get("opaque")
                 if is_opaque is None:
                     is_opaque = False
                 else:
@@ -294,9 +370,9 @@ class OGCWebMapService(OGCWebService, ABC):
                 pass
 
     ### IS CASCADED ###
-    def parse_cascaded(self, layer, layer_obj):
+    def parse_cascaded(self, layer_xml, layer_obj):
             try:
-                is_opaque = layer.get("cascaded")
+                is_opaque = layer_xml.get("cascaded")
                 if is_opaque is None:
                     is_opaque = False
                 else:
@@ -306,7 +382,7 @@ class OGCWebMapService(OGCWebService, ABC):
                 pass
 
     ### REQUEST URIS ###
-    def parse_request_uris(self, layer, layer_obj):
+    def parse_request_uris(self, layer_xml, layer_obj):
         suffix_get = GENERIC_NAMESPACE_TEMPLATE.format("DCPType") + \
                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + \
                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") + \
@@ -340,7 +416,7 @@ class OGCWebMapService(OGCWebService, ABC):
         }
         for key, val in attributes.items():
             try:
-                tmp = layer.xpath(val)[0]
+                tmp = layer_xml.xpath(val)[0]
                 link = xml_helper.get_href_attribute(tmp)
                 attributes[key] = link
             except (AttributeError, IndexError) as error:
@@ -360,7 +436,7 @@ class OGCWebMapService(OGCWebService, ABC):
         layer_obj.get_styles_uri_POST = attributes.get("style_POST")
 
     ### FORMATS ###
-    def parse_formats(self, layer, layer_obj):
+    def parse_formats(self, layer_xml, layer_obj):
         actions = ["GetMap", "GetCapabilities", "GetFeatureInfo", "DescribeLayer", "GetLegendGraphic", "GetStyles"]
         results = {}
         for action in actions:
@@ -369,7 +445,7 @@ class OGCWebMapService(OGCWebService, ABC):
                 format_list = xml_helper.try_get_element_from_xml(
                     elem="//" + GENERIC_NAMESPACE_TEMPLATE.format(action) +
                          "/" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
-                    xml_elem=layer
+                    xml_elem=layer_xml
                 )
                 for format in format_list:
                     results[action].append(format.text)
@@ -378,17 +454,17 @@ class OGCWebMapService(OGCWebService, ABC):
         layer_obj.format_list = results
 
     ### DIMENSIONS ###
-    def parse_dimension(self, layer, layer_obj):
+    def parse_dimension(self, layer_xml, layer_obj):
         dim_list = []
         try:
             dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
-                xml_elem=layer
+                xml_elem=layer_xml
             )
             for dim in dims:
                 ext = xml_helper.try_get_single_element_from_xml(
                     elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent")+ '[@name="' + dim.get('name') + '"]',
-                    xml_elem=layer
+                    xml_elem=layer_xml
                 )
                 dim_dict = {
                     "type": dim.get("name"),
@@ -401,11 +477,11 @@ class OGCWebMapService(OGCWebService, ABC):
         layer_obj.dimension_list = dim_list
 
     ### STYLES ###
-    def parse_style(self, layer, layer_obj):
+    def parse_style(self, layer_xml, layer_obj):
         # todo: zero or multiple styles are possible, but not handled here. Implement it!
         style_xml = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Style"),
-            layer
+            layer_xml
         )
 
         if style_xml is None:
@@ -460,24 +536,27 @@ class OGCWebMapService(OGCWebService, ABC):
         layer_obj = OGCWebMapServiceLayer()
         # iterate over single parsing functions -> improves maintainability
         parse_functions = [
-            self.parse_keywords,
-            self.parse_abstract,
-            self.parse_title,
-            self.parse_projection_system,
-            self.parse_lat_lon_bounding_box,
-            self.parse_bounding_box,
-            self.parse_scale_hint,
+            self._parse_keywords,
+            self._parse_abstract,
+            self._parse_title,
+            self._parse_projection_system,
+            self._parse_lat_lon_bounding_box,
+            self._parse_bounding_box,
+            self._parse_scale_hint,
             self.parse_queryable,
             self.parse_opaque,
             self.parse_cascaded,
             self.parse_request_uris,
             self.parse_dimension,
             self.parse_style,
-            self.parse_identifier,
-            self.parse_dataset_md,
+            self._parse_identifier,
         ]
+
+        if self.collect_iso_metadata:
+            parse_functions.append(self._parse_dataset_md)
+
         for func in parse_functions:
-            func(layer=layer_xml, layer_obj=layer_obj)
+            func(layer_xml=layer_xml, layer_obj=layer_obj)
 
         return layer_obj
 
@@ -576,6 +655,10 @@ class OGCWebMapService(OGCWebService, ABC):
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service"),
             xml_obj
         )
+        Metadata(title=xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
+        ))
 
         self.service_file_identifier = xml_helper.try_get_text_from_xml_element(
             service_xml,
@@ -696,6 +779,48 @@ class OGCWebMapService(OGCWebService, ABC):
         # parse request uris from capabilities document
         self.parse_request_uris(xml_obj, self)
 
+    def resolve_linked_iso_metadata(self):
+        from service.tasks import get_linked_iso_metadata
+        # todo: disable_sync_subtasks=False --> WARNING: enabling subtasks to run synchronously is not recommended!
+        #  needed, cause we need to create a group based on the given iso_md_list
+        #  maybe it is possible by using a chord like chord(deserialize_capabilities.s() |
+        #  group(get_linkes_iso_md.s(item.uri) for item in `RESULT from last task`)
+        start_time = time.time()
+        self.iso_md_list = []
+        [self.iso_md_list.extend(item.iso_metadata) for item in self.layers]
+        if self.iso_md_list:
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': AsyncResult(current_task.request.id).info.get("current", 0),
+                        'phase': "Resolving Iso Metadata",
+                    }
+                )
+            results = group(get_linked_iso_metadata.s(item.uri) for item in self.iso_md_list)().get(disable_sync_subtasks=False)
+            service_logger.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
+
+            if current_task:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': PROGRESS_STATUS_AFTER_PARSING + 5,
+                        'statistics': {'Resolving Iso Metadata': {'duration': time.time() - start_time}},
+                    }
+                )
+            for iso_md in self.iso_md_list:
+                current_task.update_state(
+                    state=states.STARTED,
+                    meta={
+                        'current': AsyncResult(current_task.request.id).info.get("current", 0),
+                        'phase': f"parsing {iso_md.uri}",
+                    }
+                )
+                # update resolved raw_xml to given iso_md_list and parse them
+                result = next(item for item in results if item["uri"] == iso_md.uri)
+                iso_md.raw_metadata = result.get('response', '')
+                iso_md.parse_xml()
+
     #@transaction.atomic
     def to_db(self,
               register_for_organization: Organization,
@@ -735,42 +860,18 @@ class OGCWebMapService(OGCWebService, ABC):
                 layers=layers
             )
 
-            ogc_layer_list = [item[0] for item in layers]
-            iso_md_list = []
-            [iso_md_list.extend(item.iso_metadata) for item in ogc_layer_list]
-
             # check possible operations on this service
-            if iso_md_list:
-                if current_task:
-                    current_task.update_state(
-                        state=states.STARTED,
-                        meta={
-                            'current': AsyncResult(current_task.request.id).info.get("current", 0),
-                            'phase': "Resolving Iso Metadata",
-                        }
-                    )
-                start_time = time.time()
-                from service.tasks import get_linked_iso_metadata
-                # todo: disable_sync_subtasks=False --> WARNING: enabling subtasks to run synchronously is not recommended!
-                #  needed, cause we need to create a group based on the given iso_md_list
-                #  maybe it is possible by using a chord like chord(deserialize_capabilities.s() | group(get_linkes_iso_md.s(item.uri) for item in `RESULT from last task`)
-                results = group(get_linked_iso_metadata.s(item.uri) for item in iso_md_list)().get(disable_sync_subtasks=False)
-                service_logger.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
-
+            if self.iso_md_list:
                 if current_task:
                     current_task.update_state(
                         state=states.STARTED,
                         meta={
                             'current': PROGRESS_STATUS_AFTER_PARSING + 5,
                             'phase': "persisting Iso Metadatas",
-                            'statistics': {'Resolving Iso Metadata': {'duration': time.time() - start_time}},
                         }
                     )
                 start_time = time.time()
-                for iso_md in iso_md_list:
-                    result = next(item for item in results if item["uri"] == iso_md.uri)
-                    iso_md.raw_metadata = result.get('response', '')
-                    iso_md.parse_xml()
+                for iso_md in self.iso_md_list:
                     iso_md.to_db_model()
                 if current_task:
                     current_task.update_state(
@@ -984,7 +1085,7 @@ class OGCWebMapServiceLayer(OGCLayer):
     """
 
 
-class OGCWebMapService_1_0_0(OGCWebMapService):
+class OGCWebMapService_1_0_0(OGCWebMapServiceParser):
     """ The WMS class for standard version 1.0.0
 
     """
@@ -993,13 +1094,13 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         self.service_version = OGCServiceVersionEnum.V_1_0_0
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.xml"
 
-    def parse_formats(self, layer, layer_obj):
+    def parse_formats(self, layer_xml, layer_obj):
         actions = ["Map", "Capabilities", "FeatureInfo"]
         results = {}
         for action in actions:
             try:
                 results[action] = []
-                format_list = layer.xpath(
+                format_list = layer_xml.xpath(
                     "//" + GENERIC_NAMESPACE_TEMPLATE.format("Request") +
                     "/" + GENERIC_NAMESPACE_TEMPLATE.format(action) +
                     "/" + GENERIC_NAMESPACE_TEMPLATE.format("Format")
@@ -1040,7 +1141,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         self.service_provider_onlineresource_linkage = online_resource
 
 
-class OGCWebMapService_1_1_0(OGCWebMapService):
+class OGCWebMapService_1_1_0(OGCWebMapServiceParser):
     """ The WMS class for standard version 1.1.0
 
     """
@@ -1054,7 +1155,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
         pass
 
 
-class OGCWebMapService_1_1_1(OGCWebMapService):
+class OGCWebMapService_1_1_1(OGCWebMapServiceParser):
     """ The WMS class for standard version 1.1.1
 
     """
@@ -1069,7 +1170,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         pass
 
 
-class OGCWebMapService_1_3_0(OGCWebMapService):
+class OGCWebMapService_1_3_0(OGCWebMapServiceParser):
     """ The WMS class for standard version 1.3.0
 
     """
@@ -1084,11 +1185,11 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
-    def parse_lat_lon_bounding_box(self, layer, layer_obj):
+    def _parse_lat_lon_bounding_box(self, layer_xml, layer_obj):
         """ Version specific implementation of the bounding box parsing
 
         Args:
-            layer: The xml element which holds the layer info (parsing from)
+            layer_xml: The xml element which holds the layer info (parsing from)
             layer_obj: The backend model which holds the layer data (parsing to)
         Returns:
              nothing
@@ -1096,7 +1197,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         try:
             bbox = xml_helper.try_get_element_from_xml(
                 "./" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
-                layer)[0]
+                layer_xml)[0]
             attrs = {
                 "westBoundLongitude": "minx",
                 "eastBoundLongitude": "maxx",
@@ -1114,27 +1215,27 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         except IndexError:
             pass
 
-    def parse_projection_system(self, layer, layer_obj):
+    def _parse_projection_system(self, layer_xml, layer_obj):
         """ Version specific implementation of the projection system parsing
 
         Args:
-            layer: The xml element which holds the layer info (parsing from)
+            layer_xml: The xml element which holds the layer info (parsing from)
             layer_obj: The backend model which holds the layer data (parsing to)
         Returns:
              nothing
         """
         crs = xml_helper.try_get_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("CRS"),
-            layer
+            layer_xml
         )
         for elem in crs:
             layer_obj.capability_projection_system.append(elem.text)
 
-    def parse_dimension(self, layer, layer_obj):
+    def parse_dimension(self, layer_xml, layer_obj):
         """ The version specific implementation of the dimension parsing
 
         Args:
-            layer: The xml element which holds the layer info (parsing from)
+            layer_xml: The xml element which holds the layer info (parsing from)
             layer_obj: The backend model which holds the layer data (parsing to)
         Returns:
              nothing
@@ -1143,7 +1244,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         try:
             dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
-                xml_elem=layer
+                xml_elem=layer_xml
             )
             for dim in dims:
                 dim_dict = {

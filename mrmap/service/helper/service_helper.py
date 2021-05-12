@@ -156,6 +156,7 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
+# deprecated
 def create_service(service_type,
                    version,
                    base_uri,
@@ -184,7 +185,7 @@ def create_service(service_type,
                                            external_auth=external_auth)
 
     service.get_capabilities()
-    service.deserialize_from_capabilities()
+    service.parse_from_capabilities()
 
     if current_task:
         current_task.update_state(

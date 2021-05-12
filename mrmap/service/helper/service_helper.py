@@ -17,7 +17,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.ogc.factorys import OGCServiceFactory
+from service.serializer.ogc.factory.factorys import OGCServiceFactory
 from service.models import Service, ExternalAuthentication, Document, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import PROGRESS_STATUS_AFTER_PARSING

@@ -1,8 +1,8 @@
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
-from service.helper.ogc.csw import OGCCatalogueService
-from service.helper.ogc.wfs import OGCWebFeatureService_1_0_0, OGCWebFeatureService_1_1_0, OGCWebFeatureService_2_0_0, \
+from service.serializer.ogc.csw import OGCCatalogueService
+from service.serializer.ogc.wfs import OGCWebFeatureService_1_0_0, OGCWebFeatureService_1_1_0, OGCWebFeatureService_2_0_0, \
     OGCWebFeatureService_2_0_2
-from service.helper.ogc.wms import OGCWebMapService_1_0_0, OGCWebMapService_1_1_0, OGCWebMapService_1_1_1, \
+from service.serializer.ogc.parser.wms import OGCWebMapService_1_0_0, OGCWebMapService_1_1_0, OGCWebMapService_1_1_1, \
     OGCWebMapService_1_3_0
 from service.models import ExternalAuthentication
 

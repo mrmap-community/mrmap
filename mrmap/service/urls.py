@@ -7,6 +7,8 @@ from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 
 app_name = 'resource'
 urlpatterns = [
+    path('test/', test, name='test'),
+
     # index views
     path('wms/', WmsIndexView.as_view(), name='wms-index'),
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),

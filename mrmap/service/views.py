@@ -39,7 +39,7 @@ from csw.models import HarvestResult
 from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView, SecuredCreateView
 from monitoring.models import HealthState
 from service.filters import PendingTaskFilter
-from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
+from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION, BASE_DIR
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
@@ -48,7 +48,7 @@ from service.helper import service_helper
 from service.helper import update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
-from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
+from service.serializer.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
@@ -64,6 +64,17 @@ from django.urls import reverse, reverse_lazy
 from users.models import Subscription
 from django.db.models import Prefetch
 
+
+def test(request):
+    import os
+
+    from eulxml import xmlmap
+    from service.serializer.ogc.parser.new import Service as PlainService
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print(BASE_DIR)
+    xml_obj = xmlmap.load_xmlobject_from_file(filename=current_dir + '/dwd_wms_1.3.0.xml', xmlclass=PlainService)
+    xml_obj.to_db()
+    return HttpResponse(status=200)
 
 def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySet:
     qs = Metadata.objects.filter(
@@ -793,6 +804,9 @@ class ResourceTreeView(SecuredDetailView):
         prefetch_related('service__featuretypes', 'service__child_services', 'featuretype__elements'). \
         filter(available_resources)
     render_helper = None
+
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)

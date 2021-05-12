@@ -6,8 +6,8 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum
-from service.helper.ogc.factorys import OGCServiceFactory
-from service.helper.ogc.ows import OGCWebService
+from service.serializer.ogc.factory.factorys import OGCServiceFactory
+from service.serializer.ogc.parser.ows import OGCWebServiceParser as OGCWebService
 from structure.models import PendingTask, Organization
 from celery import shared_task, current_task, group, chain
 

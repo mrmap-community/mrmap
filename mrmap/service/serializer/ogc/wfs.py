@@ -20,7 +20,7 @@ from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOpera
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.helper.ogc.wms import OGCWebService
+from service.serializer.ogc.parser.ows import OGCWebServiceParser as OGCWebService
 from service.helper import xml_helper
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \

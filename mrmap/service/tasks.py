@@ -13,8 +13,8 @@ from celery import shared_task, current_task
 from MrMap.settings import EXEC_TIME_PRINT
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum
-from service.helper.ogc.factorys import OGCServiceFactory
-from service.helper.ogc.tasks import DefaultBehaviourTask
+from service.serializer.ogc.factory.factorys import OGCServiceFactory
+from service.serializer.ogc.tasks import DefaultBehaviourTask
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization, PendingTask

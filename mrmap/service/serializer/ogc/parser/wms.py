@@ -655,10 +655,6 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service"),
             xml_obj
         )
-        Metadata(title=xml_helper.try_get_text_from_xml_element(
-            service_xml,
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
-        ))
 
         self.service_file_identifier = xml_helper.try_get_text_from_xml_element(
             service_xml,

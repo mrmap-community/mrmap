@@ -11,7 +11,7 @@ from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper import service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
-from service.helper.ogc.ows import OGCWebService
+from service.serializer.ogc.parser.ows import OGCWebServiceParser as OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
 from structure.models import Organization
 from csw.settings import csw_logger

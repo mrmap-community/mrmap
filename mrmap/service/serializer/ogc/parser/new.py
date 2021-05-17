@@ -11,8 +11,16 @@ SERVICE_VERSION = "1.3.0"
 
 class DBModelConverterMixin:
     model = None
+    db_obj = None
 
     def _get_model_class(self):
+        """ Return the configured model class. If model class is named as string like 'app_label.model_cls_name', the
+            model will be resolved by the given string. If the model class is directly configured by do not lookup by
+            string.
+
+        Returns:
+            self.model (Django Model class)
+        """
         if isinstance(self.model, str):
             app_label, model_name = self.model.split('.', 1)
             return apps.get_model(app_label=app_label, model_name=model_name)
@@ -20,6 +28,26 @@ class DBModelConverterMixin:
             return self.model
 
     def get_field_dict(self):
+        """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
+            attribute value it self as value.
+
+            Examples:
+                If the following two classes are given:
+
+                class Nested(DBModelConverterMixin, xmlmap.XmlObject):
+                    ...
+
+                class SomeXmlObject(DBModelConverterMixin, xmlmap.XmlObject):
+                    name = xmlmap.StringField('name')
+                    nested = xmlmap.NodeField('nested', Nested)
+                    nested_list = xmlmap.NodeListField('nested', Nested)
+
+                The SomeXmlObject().get_field_dict() function return {'name': 'Something'}
+
+        Returns:
+            field_dict (dict): the dict which contains all simple fields of the object it self.
+
+        """
         field_dict = {}
         for key in self._fields.keys():
             if not isinstance(self._fields.get(key), xmlmap.NodeField) and \
@@ -27,36 +55,107 @@ class DBModelConverterMixin:
                 field_dict.update({key: getattr(self, key)})
         return field_dict
 
-    def get_related_field_dict(self):
-        related_field_dict = {}
+    def get_node_field_dict(self):
+        """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
+            referenced object it self as value.
+
+            Examples:
+                If the following two classes are given:
+
+                class Nested(DBModelConverterMixin, xmlmap.XmlObject):
+                    ...
+
+                class SomeXmlObject(DBModelConverterMixin, xmlmap.XmlObject):
+                    name = xmlmap.StringField('name')
+                    nested = xmlmap.NodeField('nested', Nested)
+                    nested_list = xmlmap.NodeListField('nested', Nested)
+
+                The SomeXmlObject().get_node_field_dict() function return {'nested': NestedInstance}
+
+        Returns:
+            node_field_dict (dict): the dict which contains all fields which are referencing to one other object.
+
+        """
+        node_field_dict = {}
         for key in self._fields.keys():
             if isinstance(self._fields.get(key), xmlmap.NodeField):
-                related_field_dict.update({key: getattr(self, key)})
-        return related_field_dict
+                node_field_dict.update({key: getattr(self, key)})
+        return node_field_dict
 
-    def get_m2m_field_dict(self):
-        m2m_field_dict = {}
+    def get_list_field_dict(self):
+        """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
+            referenced objects list as value.
+
+            Examples:
+                If the following two classes are given:
+
+                class Nested(DBModelConverterMixin, xmlmap.XmlObject):
+                    ...
+
+                class SomeXmlObject(DBModelConverterMixin, xmlmap.XmlObject):
+                    name = xmlmap.StringField('name')
+                    nested = xmlmap.NodeField('nested', Nested)
+                    nested_list = xmlmap.NodeListField('nested', Nested)
+
+                The SomeXmlObject().get_related_field_dict() function return {'nested_list': [NestedInstance1, ...]}
+
+        Returns:
+            list_field_dict (dict): the dict which contains all fields which are lists of referenced other objects.
+
+        """
+        list_field_dict = {}
         for key in self._fields.keys():
             if isinstance(self._fields.get(key), xmlmap.NodeListField):
-                m2m_field_dict.update({key: getattr(self, key)})
-        return m2m_field_dict
+                list_field_dict.update({key: getattr(self, key)})
+        return list_field_dict
 
-    def to_db_model(self):
-        print(self.model)
-        dic = self.get_field_dict()
-        print(dic)
-        return self._get_model_class()(**dic)
+    def get_db_model(self):
+        """ Lookup the configured model, where this xmlobject shall be transformed to, construct it with the parsed
+            attributes and returns it. The constructed model instance will also be available by the self.db_obj
+            attribute.
+
+        Returns:
+            self.db_obj (Django model instance): The constructed **not persisted** django model instance.
+        """
+        if not self.db_obj:
+            self.db_obj = self._get_model_class()(**self.get_field_dict())
+        return self.db_obj
+
+    def has_dependent_fields(self):
+        """ Return all related fields as dict.
+
+            .. note::
+                A Django model instances with a non nullable ForeignKey field can only be saved if the referenced object
+                is also persisted and the referenced primary key is available. Otherwise a IntegrityError will be
+                raised. For that we have to make clear, that all dependent fields are saved before we saving the object
+                which references to the related object instance.
+
+        Returns:
+
+        """
+
+        depending_fields = {}  # supports empty dict checking. if {}: will always return False.
+        for field in self.get_db_model()._meta.fields:
+            if field.get_internal_type() == 'ForeignKey':
+                pass
+                # todo: append field to depending_fields
+            elif field.get_internal_type() == 'OneToOneField':
+                pass
+                # todo: append field to depending_fields
+        return depending_fields
+
+
 
     def related_to_db_model(self):
-        self_db_obj = self.to_db_model()
-        print(self_db_obj)
+        if not self.db_obj:
+            self.db_obj = self.to_db_model()
 
-        related_field_dict = self.get_related_field_dict()
+        related_field_dict = self.get_node_field_dict()
         if related_field_dict:
             for key, related_object in related_field_dict.items():
-                setattr(self_db_obj, key, related_object.related_to_db_model())
+                setattr(self.db_obj, key, related_object.related_to_db_model())
 
-        return self_db_obj
+        return self.db_obj
 
     def traverse_related_db_models(self, db_model):
         for field in db_model._meta.fields:

@@ -109,7 +109,7 @@ class DBModelConverterMixin:
                 list_field_dict.update({key: getattr(self, key)})
         return list_field_dict
 
-    def get_db_model(self):
+    def get_db_model_instance(self):
         """ Lookup the configured model, where this xmlobject shall be transformed to, construct it with the parsed
             attributes and returns it. The constructed model instance will also be available by the self.db_obj
             attribute.
@@ -133,15 +133,14 @@ class DBModelConverterMixin:
         Returns:
 
         """
-
         depending_fields = {}  # supports empty dict checking. if {}: will always return False.
-        for field in self.get_db_model()._meta.fields:
+        for field in self.get_db_model_instance()._meta.fields:
             if field.get_internal_type() == 'ForeignKey':
-                pass
-                # todo: append field to depending_fields
+                depending_fields.update({field.name: field})
             elif field.get_internal_type() == 'OneToOneField':
-                pass
-                # todo: append field to depending_fields
+                depending_fields.update({field.name: field})
+        if depending_fields:
+            self.get_db_model_instance().is_blocked = True
         return depending_fields
 
 
@@ -347,6 +346,12 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
     layers = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/*[local-name()='Layer']", node_class=Layer)
     service_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']//{NS_WC}OnlineResource']",
                                         node_class=ServiceUrl)
+
+    def get_all_keywords(self):
+        all_keywords = []
+        all_keywords.extend(self.metadata.keywords)
+        all_keywords.extend(self.layers.layer_metadata.keywords)
+        return all_keywords
 
 
 if __name__ == '__main__':

@@ -805,9 +805,6 @@ class ResourceTreeView(SecuredDetailView):
         filter(available_resources)
     render_helper = None
 
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         self.render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())),

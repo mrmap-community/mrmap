@@ -4,7 +4,10 @@ from eulxml import xmlmap
 from django.apps import apps
 from django.db import models
 
-GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
+from service.helper.enums import HttpMethodEnum, OGCOperationEnum
+
+NS_WC = "*[local-name()='{}']"
+
 
 
 class DBModelConverterMixin:
@@ -75,6 +78,13 @@ class DBModelConverterMixin:
         pass
 
 
+class ServiceUrl(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'service.ServiceUrl'
+    method = xmlmap.StringField(xpath="name(..)")
+    url = xmlmap.StringField(xpath="@*[local-name()='href']")
+    operation = xmlmap.StringField(xpath="name(../../../..)")
+
+
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Keyword'
 
@@ -96,6 +106,79 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     address = xmlmap.StringField(xpath="*[local-name()='ContactAddress']/*[local-name()='Address']")
 
 
+class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'service.MimeType'
+    mime_type = xmlmap.StringField(xpath=".")
+
+
+class Style(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'service.Style'
+    name = xmlmap.StringField(xpath="*[local-name()='Name']")
+    title = xmlmap.StringField(xpath="*[local-name()='Title']")
+    legend_uri = xmlmap.StringField(xpath="*[local-name()='LegendURL']/*[local-name()='OnlineResource']/@*[local-name()='href']")
+    height = xmlmap.IntegerField(xpath="*[local-name()='LegendURL']/@*[local-name()='height']")
+    width = xmlmap.IntegerField(xpath="*[local-name()='LegendURL']/@*[local-name()='width']")
+    mime_type = xmlmap.NodeField(xpath="*[local-name()='LegendURL']/*[local-name()='Format']", node_class=MimeType)
+
+
+class Layer(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'service.Layer'
+
+    children = xmlmap.NodeListField(xpath="*[local-name()='Layer']", node_class="self")
+
+    identifier = xmlmap.StringField(xpath="*[local-name()='Name']")
+
+    styles = xmlmap.NodeListField(xpath="*[local-name()='Style']", node_class=Style)
+
+    scale_min = xmlmap.IntegerField(xpath="*[local-name()='ScaleHint']/@*[local-name()='min']")
+    scale_max = xmlmap.IntegerField(xpath="*[local-name()='ScaleHint']/@*[local-name()='max']")
+
+    # todo: implement custom xmlmap.PolygonField().. current parsing:
+    """
+    <EX_GeographicBoundingBox>
+        <westBoundLongitude>-180.0</westBoundLongitude>
+        <eastBoundLongitude>180.0</eastBoundLongitude>
+        <southBoundLatitude>-90.0</southBoundLatitude>
+        <northBoundLatitude>90.0</northBoundLatitude>
+    </EX_GeographicBoundingBox>
+    bbox = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+            layer_xml)[0]
+        attrs = {
+            "westBoundLongitude": "minx",
+            "eastBoundLongitude": "maxx",
+            "southBoundLatitude": "miny",
+            "northBoundLatitude": "maxy",
+        }
+        for key, val in attrs.items():
+            tmp = xml_helper.try_get_text_from_xml_element(
+                xml_elem=bbox,
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(key)
+            )
+            if tmp is None:
+                tmp = 0
+            layer_obj.capability_bbox_lat_lon[val] = tmp
+    bounding_points = (
+            (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["miny"])),
+            (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["maxy"])),
+            (float(self.capability_bbox_lat_lon["maxx"]), float(self.capability_bbox_lat_lon["maxy"])),
+            (float(self.capability_bbox_lat_lon["maxx"]), float(self.capability_bbox_lat_lon["miny"])),
+            (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["miny"]))
+        )
+    metadata.bounding_geometry = Polygon(bounding_points)
+    """
+    bbox_lat_lon = None
+
+    # todo: SimpleBooleanField does not support multiple false values such as None and 0 for example
+    is_queryable = xmlmap.SimpleBooleanField(xpath="@*[local-name()='queryable']", true=1, false=0)
+    is_opaque = xmlmap.SimpleBooleanField(xpath="@*[local-name()='opaque']", true=1, false=0)
+    is_cascaded = xmlmap.SimpleBooleanField(xpath="@*[local-name()='cascaded']", true=1, false=0)
+
+    # todo: create LayerMetadata class
+    # title = xmlmap.StringField(xpath="*[local-name()='Title']")
+    # abstract = xmlmap.StringField(xpath="*[local-name()='Abstract']")
+
+
 class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Metadata'
 
@@ -113,7 +196,12 @@ class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Service'
 
-    metadata = xmlmap.NodeField(xpath="*[local-name()='Service']", node_class=ServiceMetadata)
+    metadata = xmlmap.NodeField(xpath="*[local-name()='Service']",
+                                node_class=ServiceMetadata)
+    layers = xmlmap.NodeField(xpath="*[local-name()='Capability']/*[local-name()='Layer']",
+                              node_class=Layer)
+    service_urls = xmlmap.NodeListField(xpath="*[local-name()='Capability']/*[local-name()='Request']//*[local-name()='DCPType']/*[local-name()='HTTP']//*[local-name()='OnlineResource']",
+                                        node_class=ServiceUrl)
 
 
 if __name__ == '__main__':

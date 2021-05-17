@@ -463,7 +463,7 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
             )
             for dim in dims:
                 ext = xml_helper.try_get_single_element_from_xml(
-                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent")+ '[@name="' + dim.get('name') + '"]',
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent") + '[@name="' + dim.get('name') + '"]',
                     xml_elem=layer_xml
                 )
                 dim_dict = {
@@ -536,20 +536,20 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
         layer_obj = OGCWebMapServiceLayer()
         # iterate over single parsing functions -> improves maintainability
         parse_functions = [
-            self._parse_keywords,
-            self._parse_abstract,
-            self._parse_title,
-            self._parse_projection_system,
+            self._parse_keywords, # done
+            self._parse_abstract, # done
+            self._parse_title, # done
+            self._parse_projection_system, # done
             self._parse_lat_lon_bounding_box,
             self._parse_bounding_box,
-            self._parse_scale_hint,
-            self.parse_queryable,
-            self.parse_opaque,
-            self.parse_cascaded,
-            self.parse_request_uris,
-            self.parse_dimension,
-            self.parse_style,
-            self._parse_identifier,
+            self._parse_scale_hint, # done
+            self.parse_queryable, # done
+            self.parse_opaque, # done
+            self.parse_cascaded, # done
+            self.parse_request_uris, # done
+            self.parse_dimension, # done
+            self.parse_style, # done
+            self._parse_identifier, # done
         ]
 
         if self.collect_iso_metadata:

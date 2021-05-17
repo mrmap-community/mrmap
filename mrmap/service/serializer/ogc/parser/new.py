@@ -4,10 +4,9 @@ from eulxml import xmlmap
 from django.apps import apps
 from django.db import models
 
-from service.helper.enums import HttpMethodEnum, OGCOperationEnum
 
-NS_WC = "*[local-name()='{}']"
-
+NS_WC = "*[local-name()='"  # Namespace wildcard
+SERVICE_VERSION = "1.3.0"
 
 
 class DBModelConverterMixin:
@@ -80,58 +79,115 @@ class DBModelConverterMixin:
 
 class ServiceUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.ServiceUrl'
+
     method = xmlmap.StringField(xpath="name(..)")
-    url = xmlmap.StringField(xpath="@*[local-name()='href']")
+    url = xmlmap.StringField(xpath=f"{NS_WC}href']")
     operation = xmlmap.StringField(xpath="name(../../../..)")
 
 
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Keyword'
 
-    keyword = xmlmap.StringField(xpath="*[local-name()='..']")
+    keyword = xmlmap.StringField(xpath=f"{NS_WC}..']")
 
 
 class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'structure.Organization'
 
-    name = xmlmap.StringField(xpath="*[local-name()='ContactPersonPrimary']/*[local-name()='ContactOrganization']")
-    person_name = xmlmap.StringField(xpath="*[local-name()='ContactPersonPrimary']/*[local-name()='ContactPerson']")
-    phone = xmlmap.StringField(xpath="*[local-name()='ContactVoiceTelephone']")
-    facsimile = xmlmap.StringField(xpath="*[local-name()='ContactFacsimileTelephone']")
-    email = xmlmap.StringField(xpath="*[local-name()='ContactElectronicMailAddress']")
-    country = xmlmap.StringField(xpath="*[local-name()='ContactAddress']/*[local-name()='Country']")
-    postal_code = xmlmap.StringField(xpath="*[local-name()='ContactAddress']/*[local-name()='PostCode']")
-    city = xmlmap.StringField(xpath="*[local-name()='ContactAddress']/*[local-name()='City']")
-    state_or_province = xmlmap.StringField(xpath="*[local-name()='ContactAddress']/*[local-name()='StateOrProvince']")
-    address = xmlmap.StringField(xpath="*[local-name()='ContactAddress']/*[local-name()='Address']")
+    name = xmlmap.StringField(xpath=f"{NS_WC}ContactPersonPrimary']/{NS_WC}ContactOrganization']")
+    person_name = xmlmap.StringField(xpath=f"{NS_WC}ContactPersonPrimary']/{NS_WC}ContactPerson']")
+    phone = xmlmap.StringField(xpath=f"{NS_WC}ContactVoiceTelephone']")
+    facsimile = xmlmap.StringField(xpath=f"{NS_WC}ContactFacsimileTelephone']")
+    email = xmlmap.StringField(xpath=f"{NS_WC}ContactElectronicMailAddress']")
+    country = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}Country']")
+    postal_code = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}PostCode']")
+    city = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}City']")
+    state_or_province = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}StateOrProvince']")
+    address = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}Address']")
 
 
 class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.MimeType'
+
     mime_type = xmlmap.StringField(xpath=".")
 
 
 class Style(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Style'
-    name = xmlmap.StringField(xpath="*[local-name()='Name']")
-    title = xmlmap.StringField(xpath="*[local-name()='Title']")
-    legend_uri = xmlmap.StringField(xpath="*[local-name()='LegendURL']/*[local-name()='OnlineResource']/@*[local-name()='href']")
-    height = xmlmap.IntegerField(xpath="*[local-name()='LegendURL']/@*[local-name()='height']")
-    width = xmlmap.IntegerField(xpath="*[local-name()='LegendURL']/@*[local-name()='width']")
-    mime_type = xmlmap.NodeField(xpath="*[local-name()='LegendURL']/*[local-name()='Format']", node_class=MimeType)
+
+    name = xmlmap.StringField(xpath=f"{NS_WC}Name']")
+    title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
+    legend_uri = xmlmap.StringField(xpath=f"{NS_WC}LegendURL']/{NS_WC}OnlineResource']/@{NS_WC}href']")
+    height = xmlmap.IntegerField(xpath=f"{NS_WC}LegendURL']/@{NS_WC}height']")
+    width = xmlmap.IntegerField(xpath=f"{NS_WC}LegendURL']/@{NS_WC}width']")
+    # todo: manytomany possible for mime types?
+    mime_type = xmlmap.NodeField(xpath=f"{NS_WC}LegendURL']/{NS_WC}Format']", node_class=MimeType)
+
+
+class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
+    # todo
+    code = None
+    prefix = None
+
+
+class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
+    type = xmlmap.StringField(xpath=f"@{NS_WC}name']")
+    units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
+    if SERVICE_VERSION == "1.3.0":
+        extent_xpath = "text()"
+    else:
+        # todo
+        extent_xpath = f"{NS_WC}Extent']/@name=''"
+    extent = xmlmap.StringField(xpath=extent_xpath)
+
+
+class DatasetMetadata(DBModelConverterMixin, xmlmap.XmlObject):
+    # todo: manytomany possible for mime types?
+    mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
+    online_resource = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
+
+
+class LayerMetadata(DBModelConverterMixin, xmlmap.XmlObject):
+    # todo: name a model
+    model = None
+
+    title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
+    abstract = xmlmap.StringField(xpath=f"{NS_WC}Abstract']")
+
+    # ManyToManyField
+    keywords = xmlmap.NodeListField(xpath=f"{NS_WC}KeywordList']/{NS_WC}Keyword']", node_class=Keyword)
+    if SERVICE_VERSION == "1.3.0":
+        reference_systems_xpath = f"{NS_WC}CRS']"
+    else:
+        reference_systems_xpath = f"{NS_WC}SRS']"
+    reference_systems = xmlmap.NodeListField(xpath=reference_systems_xpath, node_class=ReferenceSystem)
+    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension)
+
+
+class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'service.Metadata'
+
+    identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
+    title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
+    abstract = xmlmap.StringField(xpath=f"{NS_WC}Abstract']")
+    fees = xmlmap.StringField(xpath=f"{NS_WC}Fees']")
+    access_constraints = xmlmap.StringField(xpath=f"{NS_WC}AccessConstraints']")
+    online_resource = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
+
+    # ForeignKey
+    contact = xmlmap.NodeField(xpath=f"{NS_WC}ContactInformation']", node_class=ServiceMetadataContact)
+
+    # ManyToManyField
+    keywords = xmlmap.NodeListField(xpath=f"{NS_WC}KeywordList']/{NS_WC}Keyword']", node_class=Keyword)
 
 
 class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Layer'
 
-    children = xmlmap.NodeListField(xpath="*[local-name()='Layer']", node_class="self")
-
-    identifier = xmlmap.StringField(xpath="*[local-name()='Name']")
-
-    styles = xmlmap.NodeListField(xpath="*[local-name()='Style']", node_class=Style)
-
-    scale_min = xmlmap.IntegerField(xpath="*[local-name()='ScaleHint']/@*[local-name()='min']")
-    scale_max = xmlmap.IntegerField(xpath="*[local-name()='ScaleHint']/@*[local-name()='max']")
+    identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
+    styles = xmlmap.NodeListField(xpath=f"{NS_WC}Style']", node_class=Style)
+    scale_min = xmlmap.IntegerField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}min']")
+    scale_max = xmlmap.IntegerField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}max']")
 
     # todo: implement custom xmlmap.PolygonField().. current parsing:
     """
@@ -169,38 +225,28 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     """
     bbox_lat_lon = None
 
-    # todo: SimpleBooleanField does not support multiple false values such as None and 0 for example
-    is_queryable = xmlmap.SimpleBooleanField(xpath="@*[local-name()='queryable']", true=1, false=0)
-    is_opaque = xmlmap.SimpleBooleanField(xpath="@*[local-name()='opaque']", true=1, false=0)
-    is_cascaded = xmlmap.SimpleBooleanField(xpath="@*[local-name()='cascaded']", true=1, false=0)
+    # todo: SimpleBooleanField does not support multiple false values such as None and 0 shall interpreted as False
+    is_queryable = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}queryable']", true=1, false=0)
+    is_opaque = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}opaque']", true=1, false=0)
+    is_cascaded = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}cascaded']", true=1, false=0)
 
-    # todo: create LayerMetadata class
-    # title = xmlmap.StringField(xpath="*[local-name()='Title']")
-    # abstract = xmlmap.StringField(xpath="*[local-name()='Abstract']")
+    # ForeignKey/OneToOneField
+    children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
+    layer_metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
+    dataset_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=DatasetMetadata)
 
 
-class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
-    model = 'service.Metadata'
-
-    identifier = xmlmap.StringField(xpath="*[local-name()='Name']")
-    title = xmlmap.StringField(xpath="*[local-name()='Title']")
-    abstract = xmlmap.StringField(xpath="*[local-name()='Abstract']")
-    fees = xmlmap.StringField(xpath="*[local-name()='Fees']")
-    access_constraints = xmlmap.StringField(xpath="*[local-name()='AccessConstraints']")
-    online_resource = xmlmap.StringField(xpath="*[local-name()='OnlineResource']/@*[local-name()='href']")
-
-    keywords = xmlmap.NodeListField(xpath="*[local-name()='KeywordList']/*[local-name()='Keyword']", node_class=Keyword)
-    contact = xmlmap.NodeField(xpath="*[local-name()='ContactInformation']", node_class=ServiceMetadataContact)
+class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
+    version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
 
 
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Service'
 
-    metadata = xmlmap.NodeField(xpath="*[local-name()='Service']",
-                                node_class=ServiceMetadata)
-    layers = xmlmap.NodeField(xpath="*[local-name()='Capability']/*[local-name()='Layer']",
-                              node_class=Layer)
-    service_urls = xmlmap.NodeListField(xpath="*[local-name()='Capability']/*[local-name()='Request']//*[local-name()='DCPType']/*[local-name()='HTTP']//*[local-name()='OnlineResource']",
+    service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
+    metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
+    layers = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/*[local-name()='Layer']", node_class=Layer)
+    service_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']//{NS_WC}OnlineResource']",
                                         node_class=ServiceUrl)
 
 

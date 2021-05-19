@@ -6,6 +6,8 @@ from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
 
 from main.models import GenericModelMixin
+from resource_.metadata.models import RemoteMetadata
+from service.managers import ServiceXmlManager
 
 
 class ServiceType(models.Model):
@@ -26,13 +28,17 @@ class ServiceType(models.Model):
 
 
 class Service(GenericModelMixin, models.Model):
+    objects = ServiceXmlManager()
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
                           editable=False)
-    service_type = models.ForeignKey(ServiceType,
+    service_type = models.ForeignKey(to=ServiceType,
                                      on_delete=models.DO_NOTHING,
                                      null=True,
                                      blank=True)
+    is_active = models.BooleanField(default=False,
+                                    help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
+                                                "cant request the resource through the Mr. Map proxy."))
 
     class Meta:
         verbose_name = _("service")

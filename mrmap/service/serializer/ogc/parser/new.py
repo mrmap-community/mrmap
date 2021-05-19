@@ -186,7 +186,8 @@ class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
     extent = xmlmap.StringField(xpath=extent_xpath)
 
 
-class DatasetMetadata(DBModelConverterMixin, xmlmap.XmlObject):
+class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'metadata.RemoteMetadata'
     # todo: manytomany possible for mime types?
     mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
     online_resource = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
@@ -278,7 +279,7 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     layer_metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
-    dataset_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=DatasetMetadata)
+    remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
 
     def get_descendants(self, include_self=False):
         descendants = []
@@ -311,6 +312,8 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
     root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer)
     service_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']//{NS_WC}OnlineResource']",
                                         node_class=ServiceUrl)
+    # todo:
+    remote_metadata = None
 
     def get_all_layers(self):
         if not self.all_layers:

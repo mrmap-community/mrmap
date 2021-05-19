@@ -1,5 +1,4 @@
-from django.contrib.gis.db import models
-from service.serializer.ogc.parser.new import Service as XmlService
+from django.db import models
 
 
 class ServiceXmlManager(models.Manager):
@@ -8,11 +7,11 @@ class ServiceXmlManager(models.Manager):
     instance.
     """
 
-    def create(self, parsed_service: XmlService, *args, **kwargs):
+    def create(self, parsed_service, *args, **kwargs):
         """ Custom create function for :class:`models.Service` which is based on the parsed capabilities document.
 
             Args:
-                parsed_service (XmlService): the parsed Service object based on the :class:`new.Service` class.
+                parsed_service: the parsed Service object based on the :class:`new.Service` class.
 
             Returns:
                 db instance (Service): the created Service object based on the :class:`models.Service`

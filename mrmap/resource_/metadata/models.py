@@ -39,15 +39,31 @@ class Keyword(models.Model):
         ordering = ["keyword"]
 
 
+class RemoteMetadata(models.Model):
+    """ Concrete model class to store linked iso metadata records while registration processing to fetch them after
+        the service was registered. This helps us to parallelize the download processing with a celery group.
+
+    """
+    mime_type = models.CharField(choices="todo",
+                                 verbose_name=_("mime type"),
+                                 help_text=_("the mime type of the the remote metadata"))
+    link = models.URLField(verbose_name=_("download link"),
+                           help_text=_("the url where the metadata could be downloaded from."))
+    remote_content = models.TextField(null=True,
+                                      verbose_name=_("remote content"),
+                                      help_text=_("the fetched content of the download url."))
+
+
 class MetadataTermsOfUse(models.Model):
     """ Abstract model class to define some fields which describes the terms of use for an metadata
 
     """
-    access_constraints = models.TextField(default='',
-                                          help_text=_("Zugriffsbeschränkungen"))
+    access_constraints = models.TextField(default="",
+                                          verbose_name=_("access constraints"),
+                                          help_text=_("access constraints for the given resource."))
     fees = models.TextField(default="",
                             verbose_name=_("fees"),
-                            help_text=_("Kosten Nutzungsbedingungen"))
+                            help_text=_("Costs and of terms of use for the given resource."))
 
     class Meta:
         abstract = True
@@ -95,12 +111,12 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
         OR to store the information of the parsed iso metadata which was linked in the capabilities document.
 
     """
-    service = models.OneToOneField(to=Service,
-                                   on_delete=models.CASCADE,
-                                   related_name="service_metadata",
-                                   related_query_name="service_metadata",
-                                   verbose_name=_("described service"),
-                                   help_text=_("choice the service you want to describe with this metadata"))
+    described_resource = models.OneToOneField(to=Service,
+                                              on_delete=models.CASCADE,
+                                              related_name="service_metadata",
+                                              related_query_name="service_metadata",
+                                              verbose_name=_("described service"),
+                                              help_text=_("choice the service you want to describe with this metadata"))
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
     service_metadata_original_uri = models.URLField(max_length=4094,
                                                     blank=True,
@@ -135,12 +151,12 @@ class LayerMetadata(AbstractMetadata):
                 xml, shall be created.
         # todo: if an instance of this model is updated the related instance of the model `Document` shall be updated.
     """
-    layer = models.OneToOneField(to=Layer,
-                                 on_delete=models.CASCADE,
-                                 related_name="layer_metadata",
-                                 related_query_name="layer_metadata",
-                                 verbose_name=_("described layer"),
-                                 help_text=_("choice the layer you want to describe with this metadata"))
+    described_resource = models.OneToOneField(to=Layer,
+                                              on_delete=models.CASCADE,
+                                              related_name="layer_metadata",
+                                              related_query_name="layer_metadata",
+                                              verbose_name=_("described layer"),
+                                              help_text=_("choice the layer you want to describe with this metadata"))
     reference_systems = models.ManyToManyField(to=ReferenceSystem,
                                                related_name="layer_metadata",
                                                related_query_name="layer_metadata",
@@ -158,12 +174,13 @@ class LayerMetadata(AbstractMetadata):
 
 
 class FeatureTypeMetadata(models.Model):
-    feature_type = models.OneToOneField(to=FeatureType,
-                                        on_delete=models.CASCADE,
-                                        related_name="feature_type_metadata",
-                                        related_query_name="feature_type_metadata",
-                                        verbose_name=_("described feature type"),
-                                        help_text=_("choice the feature type you want to describe with this metadata"))
+    described_resource = models.OneToOneField(to=FeatureType,
+                                              on_delete=models.CASCADE,
+                                              related_name="feature_type_metadata",
+                                              related_query_name="feature_type_metadata",
+                                              verbose_name=_("described feature type"),
+                                              help_text=_("choice the feature type you want to describe with this "
+                                                          "metadata"))
 
     class Meta:
         verbose_name = _("feature type metadata")

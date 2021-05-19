@@ -131,8 +131,8 @@ class LayerMetadata(AbstractMetadata):
                  :class:`resource.Document` model.
             * 2. Searching for layer information
 
-        # todo: if an instance of this model is created an instance of the model `Document` who's stores the generated
-                xml shall be created.
+        # todo: if an instance of this model is created an instance of the model `Document`, who stores the generated
+                xml, shall be created.
         # todo: if an instance of this model is updated the related instance of the model `Document` shall be updated.
     """
     layer = models.OneToOneField(to=Layer,

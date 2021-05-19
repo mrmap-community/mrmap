@@ -13,7 +13,7 @@ class DBModelConverterMixin:
     model = None
     db_obj = None
 
-    def _get_model_class(self):
+    def get_model_class(self):
         """ Return the configured model class. If model class is named as string like 'app_label.model_cls_name', the
             model will be resolved by the given string. If the model class is directly configured by do not lookup by
             string.
@@ -118,61 +118,8 @@ class DBModelConverterMixin:
             self.db_obj (Django model instance): The constructed **not persisted** django model instance.
         """
         if not self.db_obj:
-            self.db_obj = self._get_model_class()(**self.get_field_dict())
+            self.db_obj = self.get_model_class()(**self.get_field_dict())
         return self.db_obj
-
-    def has_dependent_fields(self):
-        """ Return all related fields as dict.
-
-            .. note::
-                A Django model instances with a non nullable ForeignKey field can only be saved if the referenced object
-                is also persisted and the referenced primary key is available. Otherwise a IntegrityError will be
-                raised. For that we have to make clear, that all dependent fields are saved before we saving the object
-                which references to the related object instance.
-
-        Returns:
-
-        """
-        depending_fields = {}  # supports empty dict checking. if {}: will always return False.
-        for field in self.get_db_model_instance()._meta.fields:
-            if field.get_internal_type() == 'ForeignKey':
-                depending_fields.update({field.name: field})
-            elif field.get_internal_type() == 'OneToOneField':
-                depending_fields.update({field.name: field})
-        if depending_fields:
-            self.get_db_model_instance().is_blocked = True
-        return depending_fields
-
-
-
-    def related_to_db_model(self):
-        if not self.db_obj:
-            self.db_obj = self.to_db_model()
-
-        related_field_dict = self.get_node_field_dict()
-        if related_field_dict:
-            for key, related_object in related_field_dict.items():
-                setattr(self.db_obj, key, related_object.related_to_db_model())
-
-        return self.db_obj
-
-    def traverse_related_db_models(self, db_model):
-        for field in db_model._meta.fields:
-            if field.get_internal_type() == 'ForeignKey' or field.get_internal_type() == 'OneToOneField':
-                related_object = getattr(db_model, field.name)
-                self.traverse_related_db_models(related_object)
-                related_object.save()
-        return
-
-    def to_db(self):
-        self_db_obj = self.related_to_db_model()
-        self.traverse_related_db_models(self_db_obj)
-        self_db_obj.save()
-
-        # save m2m objects
-
-        # add m2m objects to self
-        pass
 
 
 class ServiceUrl(DBModelConverterMixin, xmlmap.XmlObject):
@@ -186,7 +133,7 @@ class ServiceUrl(DBModelConverterMixin, xmlmap.XmlObject):
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Keyword'
 
-    keyword = xmlmap.StringField(xpath=f"{NS_WC}..']")
+    keyword = xmlmap.StringField(xpath=f"text()")
 
 
 class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
@@ -246,8 +193,7 @@ class DatasetMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class LayerMetadata(DBModelConverterMixin, xmlmap.XmlObject):
-    # todo: name a model
-    model = None
+    model = 'metadata.LayerMetadata'
 
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
     abstract = xmlmap.StringField(xpath=f"{NS_WC}Abstract']")
@@ -263,7 +209,7 @@ class LayerMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
-    model = 'service.Metadata'
+    model = 'metadata.ServiceMetadata'
 
     identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
@@ -329,9 +275,23 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     is_cascaded = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}cascaded']", true=1, false=0)
 
     # ForeignKey/OneToOneField
+    parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     layer_metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
     dataset_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=DatasetMetadata)
+
+    def get_descendants(self, include_self=False):
+        descendants = []
+        if self.children:
+            for layer in self.children:
+                descendants.extend(layer.get_descendants())
+        else:
+            descendants.append(self)
+
+        if include_self:
+            descendants.append(self)
+
+        return descendants
 
 
 class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
@@ -341,17 +301,57 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'service.Service'
 
+    all_layers = None
+    all_keywords = None
+    all_mime_types = None
+    all_layer_metadata = None
+
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
-    metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
-    layers = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/*[local-name()='Layer']", node_class=Layer)
+    service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
+    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer)
     service_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']//{NS_WC}OnlineResource']",
                                         node_class=ServiceUrl)
 
-    def get_all_keywords(self):
-        all_keywords = []
-        all_keywords.extend(self.metadata.keywords)
-        all_keywords.extend(self.layers.layer_metadata.keywords)
-        return all_keywords
+    def get_all_layers(self):
+        if not self.all_layers:
+            self.all_layers = self.root_layer.get_descendants(include_self=True)
+        return self.all_layers
+
+    def get_all_layer_metadata(self):
+        if not self.all_layer_metadata:
+            _all = []
+            for layer in self.get_all_layers():
+                _all.append(layer.layer_metadata)
+            self.all_layer_metadata = _all
+        return self.all_layer_metadata
+
+    def get_all_keywords(self) -> list:
+        """
+            Returns:
+                list: all keywords which are parsed in the whole service
+        """
+        if not self.all_keywords:
+            _all = []
+            _all.extend(self.metadata.keywords)
+            for layer in self.get_all_layers():
+                _all.extend(layer.layer_metadata.keywords)
+            self.all_keywords = _all
+        return self.all_keywords
+
+    def get_all_mime_types(self) -> list:
+        """
+            Returns:
+                list: all mime_types which are parsed in the whole service
+        """
+        if not self.all_mime_types:
+            _all = []
+            for layer in self.get_all_layers():
+                for style in layer.styles:
+                    _all.append(style.mime_type)
+                for dataset in layer.dataset_metadata:
+                    _all.append(dataset.mime_type)
+            self.all_mime_types = _all
+        return self.all_mime_types
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ from editor.wizards import ACCESS_EDITOR_WIZARD_FORMS, AccessEditorWizard, EditD
 from service.views import *
 from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 
-app_name = 'resource'
+app_name = 'service'
 urlpatterns = [
     path('test/', test, name='test'),
 

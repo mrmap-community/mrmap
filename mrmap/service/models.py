@@ -43,7 +43,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
     ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
 from service.helper.crypto_handler import CryptoHandler
-from service.managers import KeywordXmlManger
+from service.managers import ServiceXmlManager
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
     LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS, \
@@ -66,19 +66,14 @@ class Resource(models.Model):
         return reverse('resource:details', args=[self.pk])
 
 
-class Keyword(UuidPk):
-    xml_manager = KeywordXmlManger()
-
-    keyword = models.CharField(max_length=255, unique=True)
+class Keyword(models.Model):
+    keyword = models.CharField(max_length=255, unique=True, db_index=True)
 
     def __str__(self):
         return self.keyword
 
     class Meta:
-        ordering = ['-id']
-        indexes = [
-            models.Index(fields=["keyword"])
-        ]
+        ordering = ['keyword']
 
 
 class RequestOperation(models.Model):
@@ -259,6 +254,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
     identifier = models.CharField(max_length=1000, null=True)
     title = models.CharField(max_length=1000, verbose_name=_l('Title'))
     abstract = models.TextField(null=True, blank=True)
+
     online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
     capabilities_original_uri = models.CharField(max_length=1000, blank=True, null=True)
@@ -2919,6 +2915,8 @@ class ServiceType(models.Model):
 
 
 class Service(UuidPk, CommonInfo, Resource):
+    objects = ServiceXmlManager()
+
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)
@@ -3058,7 +3056,8 @@ class Service(UuidPk, CommonInfo, Resource):
         )
 
 
-class Layer(GenericModelMixin, Service, MPTTModel):
+class Layer(GenericModelMixin, MPTTModel):
+
     identifier = models.CharField(max_length=500, null=True)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
@@ -3283,8 +3282,8 @@ class LegalDate(UuidPk):
         return self.date_type_code
 
 
-class MimeType(UuidPk):
-    operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
+class MimeType(models.Model):
+    operation = models.CharField(max_length=255, default='', choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
 
     class Meta:
@@ -3294,7 +3293,7 @@ class MimeType(UuidPk):
         return self.mime_type
 
 
-class Dimension(UuidPk):
+class Dimension(models.Model):
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)
@@ -3487,7 +3486,7 @@ class Dimension(UuidPk):
         super().save(*args, **kwargs)
 
 
-class Style(GenericFKSaveMixin, UuidPk):
+class Style(models.Model):
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
     name = models.CharField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)

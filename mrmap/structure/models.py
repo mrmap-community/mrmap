@@ -38,6 +38,18 @@ class Contact(models.Model):
 
     class Meta:
         abstract = True
+        unique_together = (
+            "person_name",
+            "email",
+            "phone",
+            "facsimile",
+            "city",
+            "postal_code",
+            "address_type",
+            "address",
+            "state_or_province",
+            "country",
+            "description",)
 
 
 class Organization(UuidPk, CommonInfo, Contact):
@@ -64,18 +76,6 @@ class Organization(UuidPk, CommonInfo, Contact):
     # todo: add parent/child field (mptt)
 
     class Meta:
-        unique_together = (
-            "person_name",
-            "email",
-            "phone",
-            "facsimile",
-            "city",
-            "postal_code",
-            "address_type",
-            "address",
-            "state_or_province",
-            "country",
-            "description",)
         # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
         # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
         # the right default way here...

@@ -1,6 +1,5 @@
 from django.contrib.gis.db import models
-from serializer.ogc.parser.new import Service as XmlService
-from service.models import Keyword
+from service.serializer.ogc.parser.new import Service as XmlService
 
 
 class ServiceXmlManager(models.Manager):
@@ -18,37 +17,32 @@ class ServiceXmlManager(models.Manager):
             Returns:
                 db instance (Service): the created Service object based on the :class:`models.Service`
         """
+        db_keywords = []
+        for keyword in parsed_service.get_all_keywords():
+            db_keyword, created = keyword.get_model_class().objects.get_or_create(**keyword.get_field_dict())
+            if created:
+                db_keywords.append(db_keyword)
 
-        Keyword.xml_manager.bulk_create(objs=parsed_service.get_all_keywords())
+        for mime_type in parsed_service.get_all_mime_types():
+            db_mime_type, created = mime_type.get_model_class().objects.get_or_create(**mime_type.get_field_dict())
+            mime_type.db_obj = db_mime_type
+
+        layer_metadata_db_objects = []
+        for layer_metadata in parsed_service.get_all_layer_metadata():
+            layer_metadata_db_objects.append(layer_metadata.get_db_model_instance())
+        parsed_service.get_all_layer_metadata()[0].get_model_class().objects.bulk_create(objs=layer_metadata_db_objects)
+
+        for layer_metadata in parsed_service.get_all_layer_metadata():
+            db_layer_metadata = layer_metadata.get_db_model_instance()
+
+            db_keywords = [keyword for keyword in db_keywords if keyword.keyword in [keyword.keyword for keyword in layer_metadata.keywords]]
+
+            db_layer_metadata.keywords.add(*db_keywords)
+
+        for layer in parsed_service.get_all_layers():
+            db_layer = layer.get_db_model_instance()
+            db_layer.metadata = layer.layer_metadata.get_db_model_instance()
+            if layer.parent:
+                db_layer.parent = layer.parent.get_db_model_instance()
 
         return super(ServiceXmlManager, self).create(*args, **kwargs)
-
-
-class KeywordXmlManger(models.Manager):
-    def bulk_create(self, objs, batch_size=None, ignore_conflicts=False):
-        """ Overwrites the default bulk_create by adding get_or_create feature.
-
-            Only Keywords which are not persistent jet, will be created by this function in default bulk_create way.
-        """
-
-        unique_keywords = []
-
-        for keyword in objs:
-            if keyword in unique_keywords:
-                unique_keyword = next(_keyword for _keyword in unique_keywords if _keyword.keyword == keyword.keyword)
-                keyword.db_obj = unique_keyword.db_obj
-            else:
-                keyword.get_db_model_instance()  # is stored in keyword.db_obj
-                unique_keywords.append(keyword)
-
-        _unique_keywords = [keyword.keyword for keyword in unique_keywords]
-
-        existing_keywords = Keyword.objects.filter(keyword__in=_unique_keywords)
-
-        non_existing_keywords = [keyword for keyword in existing_keywords if keyword.keyword not in _unique_keywords]
-
-        _objs = super().bulk_create(objs=non_existing_keywords, batch_size=batch_size, ignore_conflicts=ignore_conflicts)
-
-        all_keywords = _objs + [kw for kw in existing_keywords]
-
-        return all_keywords

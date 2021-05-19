@@ -183,8 +183,8 @@ class GenericUrlAdmin(admin.ModelAdmin):
 
 
 class ServiceUrlAdmin(admin.ModelAdmin):
-    list_display = ('id', 'operation', 'method', 'description', 'url')
-    search_fields = ['id', 'operation', 'method', 'description', 'url', 'service__metadata__title']
+    list_display = ('id', 'operation', 'method', 'url')
+    search_fields = ['id', 'operation', 'method', 'url', 'service__metadata__title']
 
 
 class ServiceTypeAdmin(admin.ModelAdmin):

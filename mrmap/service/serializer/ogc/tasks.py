@@ -55,7 +55,7 @@ def deserialize_from_capabilities(service_type, version, base_uri, external_auth
     service.get_capabilities()
     service.parse_from_capabilities()
     iso_md_list = []
-    [iso_md_list.extend(item.iso_metadata) for item in service.layers]
+    [iso_md_list.extend(item.iso_metadata) for item in service.root_layer]
     return service, iso_md_list, update_iso_metadata_objects
 
 
@@ -72,7 +72,7 @@ def schedule_get_linked_iso_metadata(service, iso_metadata_list, link):
 @shared_task(name="update_iso_metadata_objects")
 def update_iso_metadata_objects(service, results):
     iso_md_list = []
-    [iso_md_list.extend(item.iso_metadata) for item in service.layers]
+    [iso_md_list.extend(item.iso_metadata) for item in service.root_layer]
     for iso_md in iso_md_list:
         result = next(item for item in results if item["uri"] == iso_md.uri)
         iso_md.raw_metadata = result.get('response', '')

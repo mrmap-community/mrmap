@@ -227,7 +227,7 @@ class LegalReportAdmin(admin.ModelAdmin):
 class LegalDateAdmin(admin.ModelAdmin):
     list_display = ('id', 'date_type_code')
 
-
+"""
 admin.site.register(Dimension, DimensionAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
@@ -258,3 +258,4 @@ admin.site.register(Style, StyleAdmin)
 #admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(ServiceUrl, ServiceUrlAdmin)
 admin.site.register(GenericUrl, GenericUrlAdmin)
+"""

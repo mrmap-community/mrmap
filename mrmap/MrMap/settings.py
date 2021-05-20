@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'breadcrumb',
     'mptt',
     'autocompletes',
+    'resourceNew',
 
 ]
 
@@ -388,7 +389,7 @@ NOSE_ARGS = [
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',
-    '--cover-xml-file=coverage-report.xml',
+    f'--cover-xml-file={BASE_DIR}coverage-report.xml',
 ]
 
 ################################################################

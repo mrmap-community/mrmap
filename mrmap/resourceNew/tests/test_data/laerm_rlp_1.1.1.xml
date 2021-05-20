@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd">
+<!-- end of DOCTYPE declaration -->
+<WMT_MS_Capabilities version="1.1.1">
+
+<!-- MapServer version 7.0.7 (MS4W 3.3.0) OUTPUT=PNG OUTPUT=JPEG OUTPUT=KML SUPPORTS=PROJ SUPPORTS=AGG SUPPORTS=FREETYPE SUPPORTS=CAIRO SUPPORTS=SVG_SYMBOLS SUPPORTS=SVGCAIRO SUPPORTS=ICONV SUPPORTS=FRIBIDI SUPPORTS=WMS_SERVER SUPPORTS=WMS_CLIENT SUPPORTS=WFS_SERVER SUPPORTS=WFS_CLIENT SUPPORTS=WCS_SERVER SUPPORTS=SOS_SERVER SUPPORTS=FASTCGI SUPPORTS=THREADS SUPPORTS=GEOS SUPPORTS=POINT_Z_M INPUT=JPEG INPUT=POSTGIS INPUT=OGR INPUT=GDAL INPUT=SHAPEFILE -->
+
+<Service>
+  <Name>OGC:WMS</Name>
+  <Title>Abfragegrenzen Betroffenheit 2012</Title>
+  <Abstract>Abfragegrenzen Betroffenheit Laermkartierung 2012</Abstract>
+  <KeywordList>
+      <Keyword>Lärmkartierung</Keyword>
+      <Keyword> Rheinland Pfalz</Keyword>
+      <Keyword> Rlp</Keyword>
+      <Keyword> Betroffenheit</Keyword>
+  </KeywordList>
+  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/>
+  <ContactInformation>
+    <ContactPersonPrimary>
+      <ContactPerson>Arno Meier</ContactPerson>
+      <ContactOrganization>LANDESAMT FÜR UMWELT RHEINLAND-PFALZ</ContactOrganization>
+    </ContactPersonPrimary>
+      <ContactPosition>Referat 26, Lärm, Erschütterungen und nichtionisierende Strahlung</ContactPosition>
+    <ContactAddress>
+        <AddressType>postal</AddressType>
+        <Address>Kaiser-Friedrich-Straße 7</Address>
+        <City>Mainz</City>
+        <StateOrProvince>RLP</StateOrProvince>
+        <PostCode>55116</PostCode>
+        <Country>DE</Country>
+    </ContactAddress>
+      <ContactVoiceTelephone>++49(0)6131 6033-1257</ContactVoiceTelephone>
+      <ContactFacsimileTelephone>++49(0)6131 6033-1257</ContactFacsimileTelephone>
+  <ContactElectronicMailAddress>Arno.Meier@lfu.rlp.de</ContactElectronicMailAddress>
+  </ContactInformation>
+</Service>
+
+<Capability>
+  <Request>
+    <GetCapabilities>
+      <Format>application/vnd.ogc.wms_xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetCapabilities>
+    <GetMap>
+      <Format>image/png</Format>
+      <Format>image/gif</Format>
+      <Format>image/jpeg</Format>
+      <Format>image/tiff</Format>
+      <Format>image/png; mode=8bit</Format>
+      <Format>application/x-pdf</Format>
+      <Format>image/svg+xml</Format>
+      <Format>application/vnd.google-earth.kml+xml</Format>
+      <Format>application/vnd.google-earth.kmz</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetMap>
+    <GetFeatureInfo>
+      <Format>text/html</Format>
+      <Format>application/vnd.ogc.gml</Format>
+      <Format>text/plain</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetFeatureInfo>
+    <DescribeLayer>
+      <Format>text/xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Post>
+        </HTTP>
+      </DCPType>
+    </DescribeLayer>
+    <GetLegendGraphic>
+      <Format>image/png</Format>
+      <Format>image/gif</Format>
+      <Format>image/jpeg</Format>
+      <Format>image/png; mode=8bit</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetLegendGraphic>
+    <GetStyles>
+      <Format>text/xml</Format>
+      <DCPType>
+        <HTTP>
+          <Get><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Get>
+          <Post><OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;"/></Post>
+        </HTTP>
+      </DCPType>
+    </GetStyles>
+  </Request>
+  <Exception>
+    <Format>application/vnd.ogc.se_xml</Format>
+    <Format>application/vnd.ogc.se_inimage</Format>
+    <Format>application/vnd.ogc.se_blank</Format>
+  </Exception>
+  <VendorSpecificCapabilities/>
+  <UserDefinedSymbolization SupportSLD="1" UserLayer="0" UserStyle="1" RemoteWFS="0"/>
+  <Layer>
+    <Name>mywmsfile</Name>
+    <Title>Abfragegrenzen Betroffenheit 2012</Title>
+    <Abstract>Abfragegrenzen Betroffenheit Laermkartierung 2012</Abstract>
+    <KeywordList>
+        <Keyword>Lärmkartierung</Keyword>
+        <Keyword> Rheinland Pfalz</Keyword>
+        <Keyword> Rlp</Keyword>
+        <Keyword> Betroffenheit</Keyword>
+    </KeywordList>
+    <SRS>EPSG:25832</SRS>
+    <SRS>EPSG:31466</SRS>
+    <SRS>EPSG:31467</SRS>
+    <SRS>EPSG:4326</SRS>
+    <SRS>EPSG:900913</SRS>
+    <SRS>EPSG:3857</SRS>
+    <LatLonBoundingBox minx="5.74499" miny="48.8522" maxx="8.82722" maxy="51.0074"/>
+    <BoundingBox SRS="EPSG:25832" minx="271437" miny="5.41571e+006" maxx="487336" maxy="5.65066e+006"/>
+    <Layer queryable="1" opaque="0" cascaded="0">
+        <Name>grenzen_laerm_2012</Name>
+        <Title>Abfragegrenzen Betroffenheit 2012</Title>
+        <Abstract>Abfragegrenzen Betroffenheit Laermkartierung 2012</Abstract>
+        <KeywordList>
+            <Keyword>Lärmkartierung</Keyword>
+            <Keyword> Rheinland Pfalz</Keyword>
+            <Keyword> Rlp</Keyword>
+            <Keyword> Betroffenheit</Keyword>
+        </KeywordList>
+        <SRS>EPSG:25832</SRS>
+        <SRS>EPSG:31466</SRS>
+        <SRS>EPSG:31467</SRS>
+        <SRS>EPSG:4326</SRS>
+        <SRS>EPSG:900913</SRS>
+        <SRS>EPSG:3857</SRS>
+        <LatLonBoundingBox minx="5.74499" miny="48.8522" maxx="8.82722" maxy="51.0074"/>
+        <BoundingBox SRS="EPSG:25832" minx="271437" miny="5.41571e+006" maxx="487336" maxy="5.65066e+006"/>
+        <Style>
+          <Name>default</Name>
+          <Title>default</Title>
+          <LegendURL width="192" height="30">
+             <Format>image/png</Format>
+             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://map.umgebungslaerm.rlp.de/laermkartierung/mod_ogc/wms_getmap.php?mapfile=grenzen_laerm_2012&amp;version=1.1.1&amp;service=WMS&amp;request=GetLegendGraphic&amp;layer=grenzen_laerm_2012&amp;format=image/png&amp;STYLE=default"/>
+          </LegendURL>
+        </Style>
+    </Layer>
+  </Layer>
+</Capability>
+</WMT_MS_Capabilities>

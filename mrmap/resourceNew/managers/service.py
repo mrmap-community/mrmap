@@ -45,20 +45,28 @@ class ServiceXmlManager(models.Manager):
         last_node_level = 0
 
         for layer in parsed_service.get_all_layers():
+            # Note!!!: the given list must be ordered in preorder cause
+            # the following algorithm is written for preorder traversal
             if not layer_model_cls:
                 layer_model_cls = layer.get_model_class()
                 tree_id = self._get_next_tree_id(layer_model_cls=layer_model_cls)
 
+            # todo: maybe we can move node id setting to get_all_layers()
             if last_node_level < layer.level:
+                # Climb down the tree. In this case the last node is always the a parent node. (preorder traversal)
+                # We store it in our parent_lookup dict to resolve it if we climb up
+                # the tree again. In case of climb up we loose the directly parent.
                 current_parent = layers[-1]
                 parent_lookup.update({current_parent.node_id: current_parent})
                 layer.node_id = layers[-1].node_id + ".1"
             elif last_node_level > layer.level:
+                # climb up the tree. We need to lookup the parent of this node.
                 sibling_node_id = layers[-1].parent.node_id.split(".")
                 sibling_node_id[-1] = str(int(last_node_id[-1]) + 1)
                 layer.node_id = ".".join(sibling_node_id)
                 current_parent = parent_lookup.get(layer.node_id.rsplit(".", 1)[0])
             else:
+                # sibling node. we just increase the node_id counter
                 if parent_lookup:
                     last_node_id = layers[-1].node_id.split(".")
                     last_node_id[-1] = str(int(last_node_id[-1]) + 1)

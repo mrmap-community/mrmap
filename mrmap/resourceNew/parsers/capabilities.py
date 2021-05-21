@@ -235,6 +235,7 @@ class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 EDGE_COUNTER = 0
+NODE_ID = "0"
 
 
 class Layer(DBModelConverterMixin, xmlmap.XmlObject):
@@ -303,10 +304,11 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
         return f"({self.identifier} | {self.level} | {self.left}:{self.right})"
 
     def get_descendants(self, include_self=True, level=0):
-        self.level = level
         global EDGE_COUNTER
         EDGE_COUNTER += 1
         self.left = EDGE_COUNTER
+
+        self.level = level
 
         descendants = []
 
@@ -420,4 +422,6 @@ if __name__ == '__main__':
     print(current_dir)
     parsed_service = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../tests/test_data/dwd_wms_1.3.0.xml',
                                                      xmlclass=Service)
-    DbService.objects.create(parsed_service=parsed_service)
+    registered_service = DbService.objects.create(parsed_service=parsed_service)
+
+    registered_service.delete()

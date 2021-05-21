@@ -44,7 +44,6 @@ class ServiceXmlManager(models.Manager):
         db_layer_list = []
         db_layer_metadata_list = []
         db_remote_metadata_list = []
-        db_keyword_list = []
         layer_content_type = None
         parent_lookup = None
         current_parent = None
@@ -112,15 +111,11 @@ class ServiceXmlManager(models.Manager):
             db_layer_metadata_list.append(db_layer_metadata)
 
             for keyword in parsed_layer.layer_metadata.keywords:
+                # todo: slow solution - maybe there is a better way to do this
                 if not keyword_cls:
                     keyword_cls = keyword.get_model_class()
-                db_keyword = keyword_cls(**keyword.get_field_dict())
-                try:
-                    exists = next(kw for kw in db_keyword_list if kw.keyword == db_keyword.keyword)
-                    db_layer_metadata.keyword_list.append(exists)
-                except StopIteration:
-                    db_keyword_list.append(db_keyword)
-                    db_layer_metadata.keyword_list.append(db_keyword)
+                db_keyword, created = keyword_cls.objects.get_or_create(**keyword.get_field_dict())
+                db_layer_metadata.keyword_list.append(db_keyword)
 
             for remote_metadata in parsed_layer.remote_metadata:
                 if not remote_metadata_cls:
@@ -135,8 +130,6 @@ class ServiceXmlManager(models.Manager):
         layer_cls.objects.bulk_create(objs=db_layer_list)
         # non documented function from mptt to rebuild the tree
         layer_cls.objects.partial_rebuild(tree_id=tree_id)
-
-        keyword_cls.objects.bulk_create(objs=db_keyword_list)
 
         db_layer_metadata_list = layer_metadata_cls.objects.bulk_create(objs=db_layer_metadata_list)
         for db_layer_metadata in db_layer_metadata_list:

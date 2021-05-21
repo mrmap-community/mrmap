@@ -57,7 +57,11 @@ class DBModelConverterMixin:
         for key in self._fields.keys():
             if not isinstance(self._fields.get(key), xmlmap.NodeField) and \
                     not isinstance(self._fields.get(key), xmlmap.NodeListField):
-                if isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) and getattr(self, key) is None:
+                if (isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) or
+                    isinstance(self._fields.get(key), xmlmap.StringField))\
+                        and getattr(self, key) is None:
+                    # we don't append None values, cause if we construct a model with key=None and the db field don't
+                    # allow Null values but has a default for Boolean or string the db will raise integrity errors.
                     continue
                 field_dict.update({key: getattr(self, key)})
         return field_dict
@@ -196,9 +200,8 @@ class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
 
 class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.RemoteMetadata'
-    # todo: manytomany possible for mime types?
-    mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
-    online_resource = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
+
+    link = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
 
 
 class LayerMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -420,8 +423,14 @@ from resourceNew.models.service import Service as DbService
 if __name__ == '__main__':
     current_dir = os.path.dirname(os.path.abspath(__file__))
     print(current_dir)
+    import time
+
+    start = time.time()
     parsed_service = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../tests/test_data/dwd_wms_1.3.0.xml',
                                                      xmlclass=Service)
-    registered_service = DbService.objects.create(parsed_service=parsed_service)
+    print("parsing took: " + str(time.time() - start))
 
+    start = time.time()
+    registered_service = DbService.objects.create(parsed_service=parsed_service)
+    print("persisting: " + str(time.time() - start))
     registered_service.delete()

@@ -85,12 +85,6 @@ class RemoteMetadata(models.Model):
         something else.
 
     """
-    mime_type = models.ForeignKey(to=MimeType,
-                                  on_delete=models.RESTRICT,
-                                  related_name="remote_metadata",
-                                  related_query_name="remote_metadata",
-                                  verbose_name=_("mime type"),
-                                  help_text=_("the mime type of the the remote metadata"))
     link = models.URLField(max_length=4094,
                            verbose_name=_("download link"),
                            help_text=_("the url where the metadata could be downloaded from."))
@@ -230,12 +224,12 @@ class LayerMetadata(AbstractMetadata):
                 xml, shall be created.
         # todo: if an instance of this model is updated the related instance of the model `Document` shall be updated.
     """
-    described_resource = models.OneToOneField(to=Layer,
-                                              on_delete=models.CASCADE,
-                                              related_name="layer_metadata",
-                                              related_query_name="layer_metadata",
-                                              verbose_name=_("described layer"),
-                                              help_text=_("choice the layer you want to describe with this metadata"))
+    described_layer = models.OneToOneField(to=Layer,
+                                           on_delete=models.CASCADE,
+                                           related_name="layer_metadata",
+                                           related_query_name="layer_metadata",
+                                           verbose_name=_("described layer"),
+                                           help_text=_("choice the layer you want to describe with this metadata"))
     reference_systems = models.ManyToManyField(to=ReferenceSystem,
                                                related_name="layer_metadata",
                                                related_query_name="layer_metadata",

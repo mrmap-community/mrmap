@@ -5,7 +5,6 @@ from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 
 NS_WC = "*[local-name()='"  # Namespace wildcard
-SERVICE_VERSION = "1.3.0"
 SERVICE_MAJOR_VERSION = 1
 SERVICE_MINOR_VERSION = 3
 SERVICE_PATCH_VERSION = 0

@@ -142,69 +142,16 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
                                            verbose_name=_("bounding box"),
                                            help_text=_("the spatial area for that the layer response with concrete "
                                                        "data."))
+    reference_systems = models.ManyToManyField(to="ReferenceSystem",  # to avoid circular import error
+                                               related_name="layers",
+                                               related_query_name="layer",
+                                               blank=True,
+                                               verbose_name=_("reference systems"),
+                                               help_text=_("all reference systems which this layer supports"))
 
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
-
-
-class MimeType(models.Model):
-    mime_type = models.CharField(max_length=500,
-                                 unique=True,
-                                 db_index=True,
-                                 verbose_name=_("mime type"),
-                                 help_text=_("The Internet Media Type"))
-
-    def __str__(self):
-        return self.mime_type
-
-
-class Style(models.Model):
-    layer = models.ForeignKey(to=Layer,
-                              on_delete=models.CASCADE,
-                              editable=False,
-                              verbose_name=_("related layer"),
-                              help_text=_("the layer for that this style is for."),
-                              related_name="styles",
-                              related_query_name="style")
-    name = models.CharField(max_length=255,
-                            editable=False,
-                            verbose_name=_("name"),
-                            help_text=_("The style's Name is used in the Map request STYLES parameter to lookup the "
-                                        "style on server side."))
-    title = models.CharField(max_length=255,
-                             editable=False,
-                             verbose_name=_("title"),
-                             help_text=_("The Title is a human-readable string as an alternative for the name "
-                                         "attribute."))
-
-    def __str__(self):
-        return self.layer.identifier + ": " + self.name
-
-
-class LegendUrl(models.Model):
-    legend_url = models.URLField(max_length=4096,
-                                 editable=False,
-                                 help_text=_("contains the location of an image of a map legend appropriate to the "
-                                             "enclosing Style."))
-    height = models.IntegerField(editable=False,
-                                 help_text=_("the size of the image in pixels"))
-    width = models.IntegerField(editable=False,
-                                help_text=_("the size of the image in pixels"))
-    mime_type = models.ForeignKey(to=MimeType,
-                                  on_delete=models.PROTECT,
-                                  editable=False,
-                                  related_name="legend_urls",
-                                  related_query_name="legend_url",
-                                  verbose_name=_("internet mime type"),
-                                  help_text=_("the mime type of the remote legend url"))
-    style = models.OneToOneField(to=Style,
-                                 on_delete=models.CASCADE,
-                                 editable=False,
-                                 verbose_name=_("related style"),
-                                 help_text=_("the style entity which is linked to this legend url"),
-                                 related_name="legend_url",
-                                 related_query_name="legend_url")
 
 
 class FeatureType(GenericModelMixin, CommonInfo):

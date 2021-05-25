@@ -11,10 +11,81 @@ from structure.models import Contact
 from uuid import uuid4
 
 
+class MimeType(models.Model):
+    mime_type = models.CharField(max_length=500,
+                                 unique=True,
+                                 db_index=True,
+                                 verbose_name=_("mime type"),
+                                 help_text=_("The Internet Media Type"))
+
+    def __str__(self):
+        return self.mime_type
+
+
+class Style(models.Model):
+    layer = models.ForeignKey(to=Layer,
+                              on_delete=models.CASCADE,
+                              editable=False,
+                              verbose_name=_("related layer"),
+                              help_text=_("the layer for that this style is for."),
+                              related_name="styles",
+                              related_query_name="style")
+    name = models.CharField(max_length=255,
+                            editable=False,
+                            verbose_name=_("name"),
+                            help_text=_("The style's Name is used in the Map request STYLES parameter to lookup the "
+                                        "style on server side."))
+    title = models.CharField(max_length=255,
+                             editable=False,
+                             verbose_name=_("title"),
+                             help_text=_("The Title is a human-readable string as an alternative for the name "
+                                         "attribute."))
+
+    def __str__(self):
+        return self.layer.identifier + ": " + self.name
+
+
+class LegendUrl(models.Model):
+    legend_url = models.URLField(max_length=4096,
+                                 editable=False,
+                                 help_text=_("contains the location of an image of a map legend appropriate to the "
+                                             "enclosing Style."))
+    height = models.IntegerField(editable=False,
+                                 help_text=_("the size of the image in pixels"))
+    width = models.IntegerField(editable=False,
+                                help_text=_("the size of the image in pixels"))
+    mime_type = models.ForeignKey(to=MimeType,
+                                  on_delete=models.RESTRICT,
+                                  editable=False,
+                                  related_name="legend_urls",
+                                  related_query_name="legend_url",
+                                  verbose_name=_("internet mime type"),
+                                  help_text=_("the mime type of the remote legend url"))
+    style = models.OneToOneField(to=Style,
+                                 on_delete=models.CASCADE,
+                                 editable=False,
+                                 verbose_name=_("related style"),
+                                 help_text=_("the style entity which is linked to this legend url"),
+                                 related_name="legend_url",
+                                 related_query_name="legend_url")
+
+
 class Dimension(models.Model):
-    name = models.CharField(max_length=255)
-    units = models.CharField(max_length=255)
-    extent = models.TextField()
+    name = models.CharField(max_length=50,
+                            verbose_name=_("name"),
+                            help_text=_("the type of the content stored in extent field."))
+    units = models.CharField(max_length=50,
+                             verbose_name=_("units"),
+                             help_text=_("measurement units specifier"))
+    extent = models.TextField(verbose_name=_("extent"),
+                              help_text=_("The extent string declares what value(s) along the Dimension axis are "
+                                          "appropriate for this specific geospatial data object."))
+    layer = models.ForeignKey(to=Layer,
+                              on_delete=models.CASCADE,
+                              related_name="layer_dimensions",
+                              related_query_name="layer_dimension",
+                              verbose_name=_("dimensions"),
+                              help_text=_("the related layer of this dimension entity"))
 
 
 class Licence(models.Model):
@@ -220,16 +291,6 @@ class LayerMetadata(AbstractMetadata):
                                            related_query_name="layer_metadata",
                                            verbose_name=_("described layer"),
                                            help_text=_("choice the layer you want to describe with this metadata"))
-    reference_systems = models.ManyToManyField(to=ReferenceSystem,
-                                               related_name="layer_metadata",
-                                               related_query_name="layer_metadata",
-                                               blank=True,
-                                               verbose_name=_("reference systems"))
-    dimensions = models.ManyToManyField(to=Dimension,
-                                        related_name="layer_metadata",
-                                        related_query_name="layer_metadata",
-                                        blank=True,
-                                        verbose_name=_("dimensions"))
     preview_image = models.ImageField(null=True, blank=True)
 
     class Meta:

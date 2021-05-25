@@ -8,6 +8,9 @@ SERVICE_VERSION = "1.3.0"
 
 
 class DBModelConverterMixin:
+    """ Abstract class which implements some generic functions to get the db model class and all relevant field content
+        as dict.
+    """
     model = None
 
     def get_model_class(self):
@@ -117,13 +120,15 @@ class Style(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
-    # todo
-    code = None
-    prefix = None
+    model = "resourceNew.ReferenceSystem"
+
+    prefix = xmlmap.StringField(xpath="substring-before(.,':')")
+    code = xmlmap.StringField(xpath="substring-after(.,':')")
 
 
 class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
-    model = None  # todo
+    model = "resourceNew.Dimension"
+
     name = xmlmap.StringField(xpath=f"@{NS_WC}name']")
     units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
     if SERVICE_VERSION == "1.3.0":
@@ -148,12 +153,6 @@ class LayerMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
     # ManyToManyField
     keywords = xmlmap.NodeListField(xpath=f"{NS_WC}KeywordList']/{NS_WC}Keyword']", node_class=Keyword)
-    if SERVICE_VERSION == "1.3.0":
-        reference_systems_xpath = f"{NS_WC}CRS']"
-    else:
-        reference_systems_xpath = f"{NS_WC}SRS']"
-    reference_systems = xmlmap.NodeListField(xpath=reference_systems_xpath, node_class=ReferenceSystem)
-    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension)
 
 
 class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -225,7 +224,6 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     """
     bbox_lat_lon = None
 
-    # todo: SimpleBooleanField does not support multiple false values such as None and 0 shall interpreted as False
     is_queryable = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}queryable']", true=1, false=0)
     is_opaque = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}opaque']", true=1, false=0)
     is_cascaded = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}cascaded']", true=1, false=0)
@@ -236,11 +234,17 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     layer_metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
     remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
 
-    def __str__(self):
-        return self.identifier
-
-    def __repr__(self):
-        return f"({self.identifier} | {self.level} | {self.left}:{self.right})"
+    if SERVICE_VERSION == "1.1.0":
+        # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
+        # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
+        reference_systems_xpath = ''
+    elif SERVICE_VERSION == "1.3.0":
+        reference_systems_xpath = f"{NS_WC}CRS']"
+    else:
+        # version 1.1.1
+        reference_systems_xpath = f"{NS_WC}SRS"
+    reference_systems = xmlmap.NodeListField(xpath=reference_systems_xpath, node_class=ReferenceSystem)
+    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension)
 
     def get_descendants(self, include_self=True, level=0):
         global EDGE_COUNTER
@@ -291,9 +295,6 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Service'
 
     all_layers = None
-    all_keywords = None
-    all_mime_types = None
-    all_layer_metadata = None
 
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)

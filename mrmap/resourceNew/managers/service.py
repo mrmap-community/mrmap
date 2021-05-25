@@ -17,6 +17,7 @@ class ServiceXmlManager(models.Manager):
     db_remote_metadata_list = []
     db_style_list = []
     db_legend_url_list = []
+    db_dimension_list = []
 
     # to avoid from circular import problems, we lookup the model from the parsed python objects. The model is
     # stored on the parsed python objects in attribute `model`.
@@ -28,6 +29,8 @@ class ServiceXmlManager(models.Manager):
     mime_type_cls = None
     style_cls = None
     legend_url_cls = None
+    dimension_cls = None
+    reference_system_cls = None
 
     def _get_next_tree_id(self, layer_cls):
         max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
@@ -125,6 +128,23 @@ class ServiceXmlManager(models.Manager):
                                                                    **style.legend_url.get_field_dict()))
             self.db_style_list.append(db_style)
 
+    def _construct_dimension_instances(self, parsed_layer, db_layer):
+        for dimension in parsed_layer.dimensions:
+            if not self.dimension_cls:
+                self.dimension_cls = dimension.get_model_class()
+            self.db_dimension_list.append(self.dimension_cls(layer=db_layer,
+                                                             **dimension.get_field_dict()))
+
+    def _create_reference_system_instances(self, parsed_layer, db_layer):
+        db_layer.reference_system_list = []
+        for reference_system in parsed_layer.reference_systems:
+            # todo: slow get_or_create solution - maybe there is a better way to do this
+            if not self.reference_system_cls:
+                self.reference_system_cls = reference_system.get_model_class()
+            db_reference_system, created = self.reference_system_cls.objects.get_or_create(
+                                                                            **reference_system.get_field_dict())
+            db_layer.reference_system_list.append(db_reference_system)
+
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
             append them to global lists to use bulk create for all objects. Some db models will created instantly.
@@ -167,8 +187,11 @@ class ServiceXmlManager(models.Manager):
                                                       db_layer=db_layer)
             self._construct_style_instances(parsed_layer=parsed_layer,
                                             db_layer=db_layer)
+            self._construct_dimension_instances(parsed_layer=parsed_layer,
+                                                db_layer=db_layer)
 
-            # todo: append dimension list
+            self._create_reference_system_instances(parsed_layer=parsed_layer,
+                                                    db_layer=db_layer)
         return tree_id
 
     def create(self, parsed_service, *args, **kwargs):
@@ -185,23 +208,28 @@ class ServiceXmlManager(models.Manager):
 
             tree_id = self._construct_layer_tree(parsed_service=parsed_service, db_service=service)
 
-            self.layer_cls.objects.bulk_create(objs=self.db_layer_list)
+            db_layer_list = self.layer_cls.objects.bulk_create(objs=self.db_layer_list)
             # non documented function from mptt to rebuild the tree
             self.layer_cls.objects.partial_rebuild(tree_id=tree_id)
 
-            self.style_cls.objects.bulk_create(objs=self.db_style_list)
+            # ForeingKey objects
+            db_layer_metadata_list = self.layer_metadata_cls.objects.bulk_create(objs=self.db_layer_metadata_list)
 
+            self.style_cls.objects.bulk_create(objs=self.db_style_list)
             for legend_url in self.db_legend_url_list:
                 # style_id attribute is not updated after bulk_create is done. So we need to update it manually before
                 # we create related legend url objects in bulk.
                 # todo: find better way to update style_id
                 legend_url.style_id = legend_url.style.pk
             self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
+            self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
+            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
-            db_layer_metadata_list = self.layer_metadata_cls.objects.bulk_create(objs=self.db_layer_metadata_list)
+            # m2m objects
             for db_layer_metadata in db_layer_metadata_list:
                 db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)
 
-            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
+            for db_layer in db_layer_list:
+                db_layer.reference_systems.add(*db_layer.reference_system_list)
 
         return service

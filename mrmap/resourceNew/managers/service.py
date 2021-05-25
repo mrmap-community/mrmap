@@ -55,6 +55,7 @@ class ServiceXmlManager(models.Manager):
                 operation_url_model_cls = operation_url.get_model_class()
             db_operation_url = operation_url_model_cls(service=service, **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
+
             if operation_url.mime_types:
                 for mime_type in operation_url.mime_types:
                     # todo: slow get_or_create solution - maybe there is a better way to do this
@@ -227,16 +228,19 @@ class ServiceXmlManager(models.Manager):
 
             # ForeingKey objects
             db_layer_metadata_list = self.layer_metadata_cls.objects.bulk_create(objs=self.db_layer_metadata_list)
-
-            self.style_cls.objects.bulk_create(objs=self.db_style_list)
+            if self.db_style_list:
+                self.style_cls.objects.bulk_create(objs=self.db_style_list)
             for legend_url in self.db_legend_url_list:
                 # style_id attribute is not updated after bulk_create is done. So we need to update it manually before
                 # we create related legend url objects in bulk.
                 # todo: find better way to update style_id
                 legend_url.style_id = legend_url.style.pk
-            self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
-            self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
-            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
+            if self.db_legend_url_list:
+                self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
+            if self.db_dimension_list:
+                self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
+            if self.db_remote_metadata_list:
+                self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
             # m2m objects
             for db_layer_metadata in db_layer_metadata_list:

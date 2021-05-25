@@ -200,11 +200,18 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
         bbox_max_x_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxx']"
         bbox_min_y_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}miny']"
         bbox_max_y_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxy']"
+
+        scale_min_xpath = f"{NS_WC}ScaleHint']/@{NS_WC}min']"
+        scale_max_xpath = f"{NS_WC}ScaleHint']/@{NS_WC}max']"
+
     else:
         bbox_min_x_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}westBoundLongitude']"
         bbox_max_x_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}eastBoundLongitude']"
         bbox_min_y_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}southBoundLatitude']"
         bbox_max_y_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}northBoundLatitude']"
+
+        scale_min_xpath = f"{NS_WC}MinScaleDenominator']"
+        scale_max_xpath = f"{NS_WC}MaxScaleDenominator']"
 
     is_leaf_node = False
     level = 0
@@ -213,8 +220,8 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
 
     identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     styles = xmlmap.NodeListField(xpath=f"{NS_WC}Style']", node_class=Style)
-    scale_min = xmlmap.IntegerField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}min']")
-    scale_max = xmlmap.IntegerField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}max']")
+    scale_min = xmlmap.FloatField(xpath=scale_min_xpath)
+    scale_max = xmlmap.FloatField(xpath=scale_max_xpath)
 
     bbox_min_x = xmlmap.FloatField(xpath=bbox_min_x_xpath)
     bbox_max_x = xmlmap.FloatField(xpath=bbox_max_x_xpath)
@@ -327,7 +334,7 @@ if __name__ == '__main__':
     import time
 
     start = time.time()
-    parsed_service = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../tests/test_data/dwd_wms_1.3.0.xml',
+    parsed_service = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../tests/test_data/wasserschutz_1.3.0.xml',
                                                      xmlclass=Service)
     print("parsing took: " + str(time.time() - start))
 

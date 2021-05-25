@@ -12,8 +12,9 @@ from uuid import uuid4
 
 
 class Dimension(models.Model):
-    pass
-    # todo
+    name = models.CharField(max_length=255)
+    units = models.CharField(max_length=255)
+    extent = models.TextField()
 
 
 class Licence(models.Model):
@@ -66,17 +67,6 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ["keyword"]
-
-
-class MimeType(models.Model):
-    mime_type = models.CharField(max_length=500,
-                                 unique=True,
-                                 db_index=True,
-                                 verbose_name=_("mime type"),
-                                 help_text=_("The Internet Media Type"))
-
-    def __str__(self):
-        return self.mime_type
 
 
 class RemoteMetadata(models.Model):

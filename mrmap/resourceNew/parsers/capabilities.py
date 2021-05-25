@@ -1,5 +1,3 @@
-import os
-
 from eulxml import xmlmap
 from django.apps import apps
 from django.db import models
@@ -11,7 +9,6 @@ SERVICE_VERSION = "1.3.0"
 
 class DBModelConverterMixin:
     model = None
-    db_obj = None
 
     def get_model_class(self):
         """ Return the configured model class. If model class is named as string like 'app_label.model_cls_name', the
@@ -66,72 +63,6 @@ class DBModelConverterMixin:
                 field_dict.update({key: getattr(self, key)})
         return field_dict
 
-    def get_node_field_dict(self):
-        """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
-            referenced object it self as value.
-
-            Examples:
-                If the following two classes are given:
-
-                class Nested(DBModelConverterMixin, xmlmap.XmlObject):
-                    ...
-
-                class SomeXmlObject(DBModelConverterMixin, xmlmap.XmlObject):
-                    name = xmlmap.StringField('name')
-                    nested = xmlmap.NodeField('nested', Nested)
-                    nested_list = xmlmap.NodeListField('nested', Nested)
-
-                The SomeXmlObject().get_node_field_dict() function return {'nested': NestedInstance}
-
-        Returns:
-            node_field_dict (dict): the dict which contains all fields which are referencing to one other object.
-
-        """
-        node_field_dict = {}
-        for key in self._fields.keys():
-            if isinstance(self._fields.get(key), xmlmap.NodeField):
-                node_field_dict.update({key: getattr(self, key)})
-        return node_field_dict
-
-    def get_list_field_dict(self):
-        """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
-            referenced objects list as value.
-
-            Examples:
-                If the following two classes are given:
-
-                class Nested(DBModelConverterMixin, xmlmap.XmlObject):
-                    ...
-
-                class SomeXmlObject(DBModelConverterMixin, xmlmap.XmlObject):
-                    name = xmlmap.StringField('name')
-                    nested = xmlmap.NodeField('nested', Nested)
-                    nested_list = xmlmap.NodeListField('nested', Nested)
-
-                The SomeXmlObject().get_related_field_dict() function return {'nested_list': [NestedInstance1, ...]}
-
-        Returns:
-            list_field_dict (dict): the dict which contains all fields which are lists of referenced other objects.
-
-        """
-        list_field_dict = {}
-        for key in self._fields.keys():
-            if isinstance(self._fields.get(key), xmlmap.NodeListField):
-                list_field_dict.update({key: getattr(self, key)})
-        return list_field_dict
-
-    def get_db_model_instance(self):
-        """ Lookup the configured model, where this xmlobject shall be transformed to, construct it with the parsed
-            attributes and returns it. The constructed model instance will also be available by the self.db_obj
-            attribute.
-
-        Returns:
-            self.db_obj (Django model instance): The constructed **not persisted** django model instance.
-        """
-        if not self.db_obj:
-            self.db_obj = self.get_model_class()(**self.get_field_dict())
-        return self.db_obj
-
 
 class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.OperationUrl'
@@ -168,16 +99,21 @@ class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
     mime_type = xmlmap.StringField(xpath=".")
 
 
+class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'resourceNew.LegendUrl'
+
+    legend_url = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
+    height = xmlmap.IntegerField(xpath=f"@{NS_WC}height']")
+    width = xmlmap.IntegerField(xpath=f"@{NS_WC}width']")
+    mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
+
+
 class Style(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Style'
 
     name = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
-    legend_uri = xmlmap.StringField(xpath=f"{NS_WC}LegendURL']/{NS_WC}OnlineResource']/@{NS_WC}href']")
-    height = xmlmap.IntegerField(xpath=f"{NS_WC}LegendURL']/@{NS_WC}height']")
-    width = xmlmap.IntegerField(xpath=f"{NS_WC}LegendURL']/@{NS_WC}width']")
-    # todo: manytomany possible for mime types?
-    mime_type = xmlmap.NodeField(xpath=f"{NS_WC}LegendURL']/{NS_WC}Format']", node_class=MimeType)
+    legend_url = xmlmap.NodeField(xpath=f"{NS_WC}LegendURL']", node_class=LegendUrl)
 
 
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
@@ -188,7 +124,7 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
 
 class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
     model = None  # todo
-    type = xmlmap.StringField(xpath=f"@{NS_WC}name']")
+    name = xmlmap.StringField(xpath=f"@{NS_WC}name']")
     units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
     if SERVICE_VERSION == "1.3.0":
         extent_xpath = "text()"
@@ -372,42 +308,6 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
         if not self.all_layers:
             self.all_layers = self.root_layer.get_descendants()
         return self.all_layers
-
-    def get_all_layer_metadata(self):
-        if not self.all_layer_metadata:
-            _all = []
-            for layer in self.get_all_layers():
-                _all.append(layer.layer_metadata)
-            self.all_layer_metadata = _all
-        return self.all_layer_metadata
-
-    def get_all_keywords(self) -> list:
-        """
-            Returns:
-                list: all keywords which are parsed in the whole service
-        """
-        if not self.all_keywords:
-            _all = []
-            _all.extend(self.service_metadata.keywords)
-            for layer in self.get_all_layers():
-                _all.extend(layer.layer_metadata.keywords)
-            self.all_keywords = _all
-        return self.all_keywords
-
-    def get_all_mime_types(self) -> list:
-        """
-            Returns:
-                list: all mime_types which are parsed in the whole service
-        """
-        if not self.all_mime_types:
-            _all = []
-            for layer in self.get_all_layers():
-                for style in layer.styles:
-                    _all.append(style.mime_type)
-                for remote_metadata in layer.remote_metadata:
-                    _all.append(remote_metadata.mime_type)
-            self.all_mime_types = _all
-        return self.all_mime_types
 
 
 import os

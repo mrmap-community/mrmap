@@ -43,7 +43,6 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
     ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum, HttpMethodEnum
 from service.helper.crypto_handler import CryptoHandler
-from service.managers import ServiceXmlManager
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
     LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS, \
@@ -2915,8 +2914,6 @@ class ServiceType(models.Model):
 
 
 class Service(UuidPk, CommonInfo, Resource):
-    objects = ServiceXmlManager()
-
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_services", null=True, default=None, blank=True)
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True, null=True)

@@ -53,8 +53,21 @@ class ServiceXmlManager(models.Manager):
         for operation_url in parsed_service.operation_urls:
             if not operation_url_model_cls:
                 operation_url_model_cls = operation_url.get_model_class()
-            operation_urls.append(operation_url_model_cls(service=service, **operation_url.get_field_dict()))
-        operation_url_model_cls.objects.bulk_create(objs=operation_urls)
+            db_operation_url = operation_url_model_cls(service=service, **operation_url.get_field_dict())
+            db_operation_url.mime_type_list = []
+            if operation_url.mime_types:
+                for mime_type in operation_url.mime_types:
+                    # todo: slow get_or_create solution - maybe there is a better way to do this
+                    if not self.mime_type_cls:
+                        self.mime_type_cls = mime_type.get_model_class()
+                    db_mime_type, created = self.mime_type_cls.objects.get_or_create(**mime_type.get_field_dict())
+                    db_operation_url.mime_type_list.append(db_mime_type)
+            operation_urls.append(db_operation_url)
+        db_operation_url_list = operation_url_model_cls.objects.bulk_create(objs=operation_urls)
+
+        for db_operation_url in db_operation_url_list:
+            db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
+
         return service
 
     def _update_current_parent(self, parsed_layer):

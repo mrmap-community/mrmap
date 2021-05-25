@@ -1,6 +1,8 @@
+from django.contrib.gis.geos import Polygon
 from django.db import models
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import Polygon
+from django.db.models import QuerySet
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum
@@ -74,6 +76,13 @@ class OperationUrl(models.Model):
                                  editable=False,
                                  verbose_name=_("operation"),
                                  help_text=_("the operation you can perform with this url."))
+    mime_types = models.ManyToManyField(to="MimeType",  # avoid from circular import error
+                                        blank=True,
+                                        editable=False,
+                                        related_name="operation_urls",
+                                        related_query_name="operation_url",
+                                        verbose_name=_("internet mime type"),
+                                        help_text=_("all available mime types of the remote url"))
     service = models.ForeignKey(to=Service,
                                 on_delete=models.CASCADE,
                                 editable=False,
@@ -136,12 +145,15 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
                                   help_text=_("maximum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
                                               "images. None value means no restriction."))
-    bbox_lat_lon = gis_models.PolygonField(default=Polygon(((-90.0, -180.0), (-90.0, 180.0),
-                                                            (90.0, 180.0), (90.0, -180.0), (-90.0, -180.0),)),
+    bbox_lat_lon = gis_models.PolygonField(null=True,  # to support inherited bbox from ancestor layer null=True
+                                           blank=True,
                                            editable=False,
                                            verbose_name=_("bounding box"),
-                                           help_text=_("the spatial area for that the layer response with concrete "
-                                                       "data."))
+                                           help_text=_("bounding box shall be supplied regardless of what CRS the map "
+                                                       "server may support, but it may be approximate if the data are "
+                                                       "not natively in geographic coordinates. The purpose of bounding"
+                                                       " box is to facilitate geographic searches without requiring "
+                                                       "coordinate transformations by the search engine."))
     reference_systems = models.ManyToManyField(to="ReferenceSystem",  # to avoid circular import error
                                                related_name="layers",
                                                related_query_name="layer",
@@ -152,6 +164,44 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
+
+    @cached_property
+    def bbox(self) -> Polygon:
+        """ Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
+
+            .. note:: excerpt from ogc specs
+                **ogc wms 1.1.1**: Every Layer shall have exactly one <LatLonBoundingBox> element that is either stated
+                                   explicitly or inherited from a parent Layer. (see section 7.1.4.5.6)
+                **ogc wms 1.3.0**: Every named Layer shall have exactly one <EX_GeographicBoundingBox> element that is
+                                   either stated explicitly or inherited from a parent Layer. (see section 7.2.4.6.6)
+
+        Returns:
+            bbox_lat_lon (geos.Polygon): self.bbox_lat_lon if not None else bbox_lat_lon from the first ancestors where
+                                         bbox_lat_lon is not None
+        """
+        if self.bbox_lat_lon:
+            return self.bbox_lat_lon
+        else:
+            return self.get_ancestors().exclude(bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True).first()
+
+    @cached_property
+    def supported_reference_systems(self) -> QuerySet:
+        """ Return all supported reference systems for this layer, based on the inheritance from other layers as
+            requested in the ogc specs.
+
+            .. note:: excerpt from ogc specs
+                **ogc wms 1.1.1**: Every Layer shall have at least one <SRS> element that is either stated explicitly or
+                                   inherited from a parent Layer (see section 7.1.4.5.5).
+                **ogc wms 1.3.0**: Every Layer is available in one or more layer coordinate reference systems. 6.7.3
+                                   discusses the Layer CRS. In order to indicate which Layer CRSs are available, every
+                                   named Layer shall have at least one <CRS> element that is either stated explicitly
+                                   or inherited from a parent Layer.
+
+        Returns:
+            reference_systems (QuerySet): all supported reference systems (ReferenceSystem) for this layer
+        """
+        from resourceNew.models import ReferenceSystem
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
 
 
 class FeatureType(GenericModelMixin, CommonInfo):

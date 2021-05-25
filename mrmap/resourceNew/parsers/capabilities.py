@@ -1,3 +1,4 @@
+from django.contrib.gis.geos import Polygon
 from eulxml import xmlmap
 from django.apps import apps
 from django.db import models
@@ -5,6 +6,9 @@ from django.core.exceptions import ImproperlyConfigured
 
 NS_WC = "*[local-name()='"  # Namespace wildcard
 SERVICE_VERSION = "1.3.0"
+SERVICE_MAJOR_VERSION = 1
+SERVICE_MINOR_VERSION = 3
+SERVICE_PATCH_VERSION = 0
 
 
 class DBModelConverterMixin:
@@ -67,12 +71,19 @@ class DBModelConverterMixin:
         return field_dict
 
 
+class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
+    model = 'resourceNew.MimeType'
+
+    mime_type = xmlmap.StringField(xpath=".")
+
+
 class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.OperationUrl'
 
     method = xmlmap.StringField(xpath="name(..)")
     url = xmlmap.StringField(xpath=f"@{NS_WC}href']")
     operation = xmlmap.StringField(xpath="name(../../../..)")
+    mime_types = xmlmap.NodeListField(xpath=f"../../../../{NS_WC}Format']", node_class=MimeType)
 
 
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
@@ -94,12 +105,6 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     city = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}City']")
     state_or_province = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}StateOrProvince']")
     address = xmlmap.StringField(xpath=f"{NS_WC}ContactAddress']/{NS_WC}Address']")
-
-
-class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
-    model = 'resourceNew.MimeType'
-
-    mime_type = xmlmap.StringField(xpath=".")
 
 
 class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):
@@ -131,7 +136,7 @@ class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
 
     name = xmlmap.StringField(xpath=f"@{NS_WC}name']")
     units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
-    if SERVICE_VERSION == "1.3.0":
+    if SERVICE_MAJOR_VERSION == 1 and SERVICE_MINOR_VERSION == 3:
         extent_xpath = "text()"
     else:
         # todo
@@ -178,6 +183,29 @@ NODE_ID = "0"
 
 class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Layer'
+
+    if SERVICE_MINOR_VERSION <= 1 and SERVICE_PATCH_VERSION < 1:
+        # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
+        # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
+        reference_systems_xpath = ''
+
+    elif SERVICE_MINOR_VERSION < 3:
+        # version 1.1.1
+        reference_systems_xpath = f"{NS_WC}SRS"
+    else:
+        reference_systems_xpath = f"{NS_WC}CRS']"
+
+    if SERVICE_MINOR_VERSION < 3:
+        bbox_min_x_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}minx']"
+        bbox_max_x_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxx']"
+        bbox_min_y_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}miny']"
+        bbox_max_y_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxy']"
+    else:
+        bbox_min_x_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}westBoundLongitude']"
+        bbox_max_x_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}eastBoundLongitude']"
+        bbox_min_y_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}southBoundLatitude']"
+        bbox_max_y_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}northBoundLatitude']"
+
     is_leaf_node = False
     level = 0
     left = 0
@@ -188,63 +216,35 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
     scale_min = xmlmap.IntegerField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}min']")
     scale_max = xmlmap.IntegerField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}max']")
 
-    # todo: implement custom xmlmap.PolygonField().. current parsing:
-    """
-    <EX_GeographicBoundingBox>
-        <westBoundLongitude>-180.0</westBoundLongitude>
-        <eastBoundLongitude>180.0</eastBoundLongitude>
-        <southBoundLatitude>-90.0</southBoundLatitude>
-        <northBoundLatitude>90.0</northBoundLatitude>
-    </EX_GeographicBoundingBox>
-    bbox = xml_helper.try_get_element_from_xml(
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
-            layer_xml)[0]
-        attrs = {
-            "westBoundLongitude": "minx",
-            "eastBoundLongitude": "maxx",
-            "southBoundLatitude": "miny",
-            "northBoundLatitude": "maxy",
-        }
-        for key, val in attrs.items():
-            tmp = xml_helper.try_get_text_from_xml_element(
-                xml_elem=bbox,
-                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(key)
-            )
-            if tmp is None:
-                tmp = 0
-            layer_obj.capability_bbox_lat_lon[val] = tmp
-    bounding_points = (
-            (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["miny"])),
-            (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["maxy"])),
-            (float(self.capability_bbox_lat_lon["maxx"]), float(self.capability_bbox_lat_lon["maxy"])),
-            (float(self.capability_bbox_lat_lon["maxx"]), float(self.capability_bbox_lat_lon["miny"])),
-            (float(self.capability_bbox_lat_lon["minx"]), float(self.capability_bbox_lat_lon["miny"]))
-        )
-    metadata.bounding_geometry = Polygon(bounding_points)
-    """
-    bbox_lat_lon = None
+    bbox_min_x = xmlmap.FloatField(xpath=bbox_min_x_xpath)
+    bbox_max_x = xmlmap.FloatField(xpath=bbox_max_x_xpath)
+    bbox_min_y = xmlmap.FloatField(xpath=bbox_min_y_xpath)
+    bbox_max_y = xmlmap.FloatField(xpath=bbox_max_y_xpath)
 
     is_queryable = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}queryable']", true=1, false=0)
     is_opaque = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}opaque']", true=1, false=0)
     is_cascaded = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}cascaded']", true=1, false=0)
 
-    # ForeignKey/OneToOneField
     parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     layer_metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
     remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
 
-    if SERVICE_VERSION == "1.1.0":
-        # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
-        # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
-        reference_systems_xpath = ''
-    elif SERVICE_VERSION == "1.3.0":
-        reference_systems_xpath = f"{NS_WC}CRS']"
-    else:
-        # version 1.1.1
-        reference_systems_xpath = f"{NS_WC}SRS"
     reference_systems = xmlmap.NodeListField(xpath=reference_systems_xpath, node_class=ReferenceSystem)
     dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension)
+
+    def get_field_dict(self):
+        dic = super().get_field_dict()
+        # there is no default xmlmap field which parses to a geos polygon. So we convert it here.
+        min_x = dic.get('bbox_min_x')
+        max_x = dic.get('bbox_max_x')
+        min_y = dic.get('bbox_min_y')
+        max_y = dic.get('bbox_max_y')
+        del dic['bbox_min_x'], dic['bbox_max_x'], dic['bbox_min_y'], dic['bbox_max_y']
+        if min_x and max_x and min_y and max_y:
+            bbox_lat_lon = Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
+            dic.update({"bbox_lat_lon": bbox_lat_lon})
+        return dic
 
     def get_descendants(self, include_self=True, level=0):
         global EDGE_COUNTER

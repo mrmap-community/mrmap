@@ -1,6 +1,10 @@
 from django.db import models, transaction
-from django.db.models import Max
+from django.db.models import Max, Count
 from django.contrib.contenttypes.models import ContentType
+from mptt.managers import TreeManager
+
+from resourceNew.enums.metadata import MetadataOrigin
+from resourceNew.enums.service import OGCServiceEnum
 
 
 class ServiceXmlManager(models.Manager):
@@ -24,6 +28,7 @@ class ServiceXmlManager(models.Manager):
     layer_cls = None
     layer_content_type = None
     layer_metadata_cls = None
+    service_metadata_cls = None
     keyword_cls = None
     remote_metadata_cls = None
     mime_type_cls = None
@@ -31,6 +36,30 @@ class ServiceXmlManager(models.Manager):
     legend_url_cls = None
     dimension_cls = None
     reference_system_cls = None
+
+    def _reset_local_variables(self):
+        self.last_node_level = 0
+        self.parent_lookup = None
+        self.current_parent = None
+
+        self.db_layer_list = []
+        self.db_layer_metadata_list = []
+        self.db_remote_metadata_list = []
+        self.db_style_list = []
+        self.db_legend_url_list = []
+        self.db_dimension_list = []
+
+        self.layer_cls = None
+        self.layer_content_type = None
+        self.layer_metadata_cls = None
+        self.service_metadata_cls = None
+        self.keyword_cls = None
+        self.remote_metadata_cls = None
+        self.mime_type_cls = None
+        self.style_cls = None
+        self.legend_url_cls = None
+        self.dimension_cls = None
+        self.reference_system_cls = None
 
     def _get_next_tree_id(self, layer_cls):
         max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
@@ -40,6 +69,29 @@ class ServiceXmlManager(models.Manager):
         else:
             tree_id = 0
         return tree_id
+
+    def _get_or_create_keywords(self, parsed_keywords, db_object):
+        db_object.keyword_list = []
+        for keyword in parsed_keywords:
+            # todo: slow get_or_create solution - maybe there is a better way to do this
+            if not self.keyword_cls:
+                self.keyword_cls = keyword.get_model_class()
+            db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
+            db_object.keyword_list.append(db_keyword)
+
+    def _create_service_metadata_instance(self, parsed_service, db_service):
+        service_contact = parsed_service.service_metadata.service_contact
+        service_contact_cls = service_contact.get_model_class()
+        db_service_contact, created = service_contact_cls.objects.get_or_create(**service_contact.get_field_dict())
+        if not self.service_metadata_cls:
+            self.service_metadata_cls = parsed_service.service_metadata.get_model_class()
+        service_metadata = self.service_metadata_cls.objects.create(described_service=db_service,
+                                                                    origin=MetadataOrigin.CAPABILITIES.value,
+                                                                    service_contact=db_service_contact,
+                                                                    metadata_contact=db_service_contact,
+                                                                    **parsed_service.service_metadata.get_field_dict())
+        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
+                                     db_object=service_metadata)
 
     def _create_service_instance(self, parsed_service, *args, **kwargs):
         """ Creates the service instance and all depending/related objects """
@@ -101,16 +153,11 @@ class ServiceXmlManager(models.Manager):
             self.layer_metadata_cls = parsed_layer.layer_metadata.get_model_class()
 
         db_layer_metadata = self.layer_metadata_cls(described_layer=db_layer,
+                                                    origin=MetadataOrigin.CAPABILITIES.value,
                                                     **parsed_layer.layer_metadata.get_field_dict())
-        db_layer_metadata.keyword_list = []
         self.db_layer_metadata_list.append(db_layer_metadata)
-
-        for keyword in parsed_layer.layer_metadata.keywords:
-            # todo: slow get_or_create solution - maybe there is a better way to do this
-            if not self.keyword_cls:
-                self.keyword_cls = keyword.get_model_class()
-            db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
-            db_layer_metadata.keyword_list.append(db_keyword)
+        self._get_or_create_keywords(parsed_keywords=parsed_layer.layer_metadata.keywords,
+                                     db_object=db_layer_metadata)
 
     def _construct_remote_metadata_instances(self, parsed_layer, db_service, db_layer):
         if not self.layer_content_type:
@@ -173,14 +220,17 @@ class ServiceXmlManager(models.Manager):
             Returns:
                 tree_id (int): the used tree id of the constructed layer objects.
         """
+        if not self.parent_lookup:
+            self.parent_lookup = {}
+
+        if not self.layer_cls:
+            self.layer_cls = parsed_service.get_all_layers()[0].get_model_class()
+
+        tree_id = self._get_next_tree_id(self.layer_cls)
+
         for parsed_layer in parsed_service.get_all_layers():
             # Note!!!: the given list must be ordered in preorder cause
             # the following algorithm is written for preorder traversal
-            if not self.parent_lookup:
-                self.parent_lookup = {}
-                self.layer_cls = parsed_layer.get_model_class()
-                tree_id = self._get_next_tree_id(self.layer_cls)
-
             self._update_current_parent(parsed_layer=parsed_layer)
 
             # to support bulk create for mptt model lft, rght, tree_id can't be None
@@ -208,7 +258,7 @@ class ServiceXmlManager(models.Manager):
                                                     db_layer=db_layer)
         return tree_id
 
-    def create(self, parsed_service, *args, **kwargs):
+    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
         """ Custom create function for :class:`models.Service` which is based on the parsed capabilities document.
 
             Args:
@@ -217,13 +267,16 @@ class ServiceXmlManager(models.Manager):
             Returns:
                 db instance (Service): the created Service object based on the :class:`models.Service`
         """
+        self._reset_local_variables()
         with transaction.atomic():
-            service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
+            db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
+            self._create_service_metadata_instance(parsed_service=parsed_service, db_service=db_service)
 
-            tree_id = self._construct_layer_tree(parsed_service=parsed_service, db_service=service)
+            tree_id = self._construct_layer_tree(parsed_service=parsed_service, db_service=db_service)
 
             db_layer_list = self.layer_cls.objects.bulk_create(objs=self.db_layer_list)
             # non documented function from mptt to rebuild the tree
+            # todo: check if we need to rebuild if we create the tree with the correct right and left values.
             self.layer_cls.objects.partial_rebuild(tree_id=tree_id)
 
             # ForeingKey objects
@@ -243,10 +296,52 @@ class ServiceXmlManager(models.Manager):
                 self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
             # m2m objects
+            db_service.service_metadata.keywords.add(*db_service.service_metadata.keyword_list)
+
             for db_layer_metadata in db_layer_metadata_list:
                 db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)
 
             for db_layer in db_layer_list:
                 db_layer.reference_systems.add(*db_layer.reference_system_list)
 
-        return service
+        return db_service
+
+
+class ServiceManager(models.Manager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("service_metadata")
+
+    def for_table_view(self, service_type):
+        queryset = self.get_queryset()
+        if service_type.name == OGCServiceEnum.WMS.value:
+            queryset = self.with_layers_counter()
+        elif service_type.name == OGCServiceEnum.WFS.value:
+            queryset = self.with_feature_types_counter()
+        return queryset.filter(service_type__name=service_type.name,
+                               service_type__version=service_type.version) \
+                       .select_related("service_type",
+                                       "service_metadata",
+                                       "service_metadata__service_contact",
+                                       "service_metadata__metadata_contact",
+                                       "created_by_user",
+                                       "owned_by_org")
+
+    def with_layers_counter(self):
+        return self.get_queryset().annotate(layers_count=Count("layers"))
+
+    def with_feature_types_counter(self):
+        return self.get_queryset().annotate(feature_types_count=Count("feature_types"))
+
+
+class LayerManager(TreeManager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("layer_metadata")
+
+    def for_table_view(self):
+        return self.get_queryset().annotate(children_count=Count("children"))\
+                                  .select_related("service",
+                                                  "parent",
+                                                  "created_by_user",
+                                                  "owned_by_org")

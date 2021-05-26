@@ -1,14 +1,21 @@
+import os
+
 from django.contrib.gis.geos import Polygon
-from django.db import models
+from django.db import models, transaction
 from django.contrib.gis.db import models as gis_models
 from django.db.models import QuerySet
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
-from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum
-from resourceNew.managers.service import ServiceXmlManager
+from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
+    AuthTypeEnum
+from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
+
+from service.helper.crypto_handler import CryptoHandler
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 
 
 class ServiceType(models.Model):
@@ -52,12 +59,100 @@ class Service(GenericModelMixin, CommonInfo):
                                     verbose_name=_("is active"),
                                     help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
                                                 "cant request the resource through the Mr. Map proxy."))
-
-    objects = ServiceXmlManager()
+    objects = ServiceManager()
+    xml_objects = ServiceXmlManager()
 
     class Meta:
         verbose_name = _("service")
         verbose_name_plural = _("services")
+
+    def __str__(self):
+        return self.service_metadata.title
+
+
+class ExternalAuthentication(CommonInfo):
+    username = models.CharField(max_length=255,
+                                verbose_name=_("username"),
+                                help_text=_("the username used for the authentication."))
+    password = models.CharField(max_length=500,
+                                verbose_name=_("password"),
+                                help_text=_("the password used for the authentication."))
+    auth_type = models.CharField(max_length=100,
+                                 default=AuthTypeEnum.NONE.value,
+                                 choices=AuthTypeEnum.as_choices(),
+                                 verbose_name=_("authentication type"),
+                                 help_text=_("kind of authentication mechanism shall used."))
+    secured_service = models.OneToOneField(to=Service,
+                                           on_delete=models.CASCADE,
+                                           related_name="external_authentication",
+                                           related_query_name="external_authentication",
+                                           verbose_name=_("secured service"),
+                                           help_text=_("the service which uses this credentials."))
+    test_url = models.URLField(validators=[validate_get_capablities_uri],
+                               verbose_name=_("Service url"),
+                               help_text=_("this shall be the full get capabilities request url."))
+
+    def save(self, register_service=False, *args, **kwargs):
+        # todo: if adding, set proxy for the secured_service object
+        crypt_handler = CryptoHandler()
+        key = crypt_handler.generate_key()
+        crypt_handler.write_key_to_file(f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service.pk}.key",
+                                        key)
+        self.encrypt(key)
+        super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites default delete function
+
+        Removes local stored file if it exists!
+
+        Args;
+            using:
+            keep_parents:
+        Returns:
+        """
+        # remove local stored key
+        filepath = f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service.pk}.key"
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
+        super().delete(using, keep_parents)
+
+    def encrypt(self, key: str):
+        """ Encrypts the login credentials using a given key
+
+        Args:
+            key (str):
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler(msg=self.username, key=key)
+        crypto_handler.encrypt()
+        self.username = crypto_handler.crypt_message.decode("ascii")
+
+        crypto_handler.message = self.password
+        crypto_handler.encrypt()
+        self.password = crypto_handler.crypt_message.decode("ascii")
+
+    def decrypt(self, key):
+        """ Decrypts the login credentials using a given key
+
+        Args:
+            key:
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler()
+        crypto_handler.key = key
+
+        crypto_handler.crypt_message = self.password.encode("ascii")
+        crypto_handler.decrypt()
+        self.password = crypto_handler.message.decode("ascii")
+
+        crypto_handler.crypt_message = self.username.encode("ascii")
+        crypto_handler.decrypt()
+        self.username = crypto_handler.message.decode("ascii")
 
 
 class OperationUrl(models.Model):
@@ -164,6 +259,11 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
+
+    objects = LayerManager()
+
+    def __str__(self):
+        return self.layer_metadata.title
 
     @cached_property
     def bbox(self) -> Polygon:

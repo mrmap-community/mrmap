@@ -4,7 +4,7 @@ from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from main.models import GenericModelMixin, CommonInfo
-from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin
+from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum
 from resourceNew.managers.metadata import LicenceManager
 from resourceNew.models.service import Layer, FeatureType, Service
 from structure.models import Contact
@@ -90,7 +90,8 @@ class Dimension(models.Model):
 
 class Licence(models.Model):
     name = models.CharField(max_length=255)
-    identifier = models.CharField(max_length=255, unique=True)
+    identifier = models.CharField(max_length=255,
+                                  unique=True)
     symbol_url = models.URLField(null=True)
     description = models.TextField()
     description_url = models.URLField(null=True)
@@ -104,8 +105,11 @@ class Licence(models.Model):
 
 class ReferenceSystem(models.Model):
     code = models.CharField(max_length=100)
-    prefix = models.CharField(max_length=255, default="EPSG:")
-    version = models.CharField(max_length=50, default="9.6.1")
+    prefix = models.CharField(max_length=255,
+                              choices=ReferenceSystemPrefixEnum.as_choices(),
+                              default=ReferenceSystemPrefixEnum.EPSG.value)
+    version = models.CharField(max_length=50,
+                               default="9.6.1")
 
     class Meta:
         constraints = [
@@ -179,7 +183,7 @@ class MetadataTermsOfUse(models.Model):
                             help_text=_("Costs and of terms of use for the given resource."))
     use_limitation = models.TextField(default="")
     license_source_note = models.TextField()
-    licence = models.ForeignKey(Licence, on_delete=models.RESTRICT, blank=True, null=True)
+    licence = models.ForeignKey(to=Licence, on_delete=models.RESTRICT, blank=True, null=True)
 
     class Meta:
         abstract = True
@@ -221,7 +225,8 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                     verbose_name=_("is broken"),
                                     help_text=_("TODO"))
     is_searchable = models.BooleanField(default=False,
-                                        help_text=_(""))
+                                        verbose_name=_("is searchable"),
+                                        help_text=_("only searchable metadata will be returned from the search api"))
     # todo: do we need this flag?
     is_custom = models.BooleanField(default=False,
                                     editable=False)

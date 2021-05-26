@@ -37,3 +37,7 @@ class MetadataCharset(EnumChoice):
 class MetadataOrigin(EnumChoice):
     CAPABILITIES = "capabilities"
     ISO_METADATA = "iso metadata"
+
+
+class ReferenceSystemPrefixEnum(EnumChoice):
+    EPSG = "EPSG"

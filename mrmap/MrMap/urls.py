@@ -25,6 +25,7 @@ urlpatterns = [
     path('acl/', include('acl.urls')),
     path('ac/', include('autocompletes.urls')),
     path('resource/', include('service.urls')),
+    path('resourceNew/', include('resourceNew.urls')),
     path('monitoring/', include('monitoring.urls')),
     path('editor/', include('editor.urls')),
     path('captcha/', include('captcha.urls')),

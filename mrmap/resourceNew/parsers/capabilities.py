@@ -126,7 +126,7 @@ class Style(DBModelConverterMixin, xmlmap.XmlObject):
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ReferenceSystem"
 
-    prefix = xmlmap.StringField(xpath="substring-before(.,':')")
+    prefix = xmlmap.StringField(xpath="translate(substring-before(.,':'),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')")
     code = xmlmap.StringField(xpath="substring-after(.,':')")
 
 
@@ -162,22 +162,19 @@ class LayerMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.ServiceMetadata'
 
-    identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
     abstract = xmlmap.StringField(xpath=f"{NS_WC}Abstract']")
     fees = xmlmap.StringField(xpath=f"{NS_WC}Fees']")
     access_constraints = xmlmap.StringField(xpath=f"{NS_WC}AccessConstraints']")
-    online_resource = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
 
     # ForeignKey
-    contact = xmlmap.NodeField(xpath=f"{NS_WC}ContactInformation']", node_class=ServiceMetadataContact)
+    service_contact = xmlmap.NodeField(xpath=f"{NS_WC}ContactInformation']", node_class=ServiceMetadataContact)
 
     # ManyToManyField
     keywords = xmlmap.NodeListField(xpath=f"{NS_WC}KeywordList']/{NS_WC}Keyword']", node_class=Keyword)
 
 
 EDGE_COUNTER = 0
-NODE_ID = "0"
 
 
 class Layer(DBModelConverterMixin, xmlmap.XmlObject):
@@ -279,7 +276,7 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
 
 class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ServiceType"
-    name = xmlmap.StringField(xpath="name()")
+    name = xmlmap.StringField(xpath=f"{NS_WC}Service']/{NS_WC}Name']")
     version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
 
     def get_field_dict(self):
@@ -290,10 +287,9 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
         """
         dic = super().get_field_dict()
         name = dic.get("name")
-        name = name.split("_", 1)[0].lower()
-        if name == "wmt":
-            name = "wms"
-        dic.update({"name": name})
+        if ":" in name:
+            name = name.split(":", 1)[-1]
+        dic.update({"name": name.lower()})
         return dic
 
 
@@ -316,28 +312,3 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
             self.all_layers = self.root_layer.get_descendants()
         return self.all_layers
 
-
-import os
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MrMap.settings_docker")
-
-import django
-django.setup()
-# your imports, e.g. Django models
-from resourceNew.models.service import Service as DbService
-
-
-if __name__ == '__main__':
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    print(current_dir)
-    import time
-
-    start = time.time()
-    parsed_service = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../tests/test_data/wasserschutz_1.3.0.xml',
-                                                     xmlclass=Service)
-    print("parsing took: " + str(time.time() - start))
-
-    start = time.time()
-    registered_service = DbService.objects.create(parsed_service=parsed_service)
-    print("persisting: " + str(time.time() - start))
-    registered_service.delete()

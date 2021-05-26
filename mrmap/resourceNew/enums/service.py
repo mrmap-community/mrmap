@@ -66,3 +66,9 @@ class HttpMethodEnum(EnumChoice):
     GET = "Get"
     POST = "Post"
 
+
+class AuthTypeEnum(EnumChoice):
+    """ Defines all supported authentification types """
+    BASIC = "http_basic"
+    DIGEST = "http_digest"
+    NONE = "none"

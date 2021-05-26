@@ -27,9 +27,9 @@ def create_from_file():
     print("parsing took: " + str(time.time() - start))
 
     start = time.time()
-    #db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
+    db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
     print("persisting: " + str(time.time() - start))
-    #return db_service
+    return db_service
 
 
 def test_task_function():

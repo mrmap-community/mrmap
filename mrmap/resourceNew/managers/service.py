@@ -309,29 +309,26 @@ class ServiceXmlManager(models.Manager):
 
 class ServiceManager(models.Manager):
 
-    def get_queryset(self):
-        return super().get_queryset().select_related("service_metadata")
-
-    def for_table_view(self, service_type):
+    def for_table_view(self, service_type__name: OGCServiceEnum):
         queryset = self.get_queryset()
-        if service_type.name == OGCServiceEnum.WMS.value:
+        if service_type__name.value == OGCServiceEnum.WMS.value:
             queryset = self.with_layers_counter()
-        elif service_type.name == OGCServiceEnum.WFS.value:
+        elif service_type__name.value == OGCServiceEnum.WFS.value:
             queryset = self.with_feature_types_counter()
-        return queryset.filter(service_type__name=service_type.name,
-                               service_type__version=service_type.version) \
+        return queryset.filter(service_type__name=service_type__name.value) \
                        .select_related("service_type",
                                        "service_metadata",
                                        "service_metadata__service_contact",
                                        "service_metadata__metadata_contact",
                                        "created_by_user",
-                                       "owned_by_org")
+                                       "owned_by_org") \
+                       .order_by("-service_metadata__title")
 
     def with_layers_counter(self):
-        return self.get_queryset().annotate(layers_count=Count("layers"))
+        return self.get_queryset().annotate(layers_count=Count("layer"))
 
     def with_feature_types_counter(self):
-        return self.get_queryset().annotate(feature_types_count=Count("feature_types"))
+        return self.get_queryset().annotate(feature_types_count=Count("feature_type"))
 
 
 class LayerManager(TreeManager):

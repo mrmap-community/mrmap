@@ -1,5 +1,9 @@
 VALUE_ABSOLUTE_LINK = """
+{% if value.get_absolute_url%}
 <a href="{{value.get_absolute_url}}">{{value}}</a>
+{% else %}
+{{value}}
+{% endif %}
 """
 
 VALUE_ABSOLUTE_LINK_LIST = """

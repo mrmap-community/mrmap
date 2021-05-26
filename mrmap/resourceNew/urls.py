@@ -1,9 +1,11 @@
 from django.urls import path
-from resourceNew.views import MapContextCreateView
+from resourceNew import views
 
 app_name = 'resourceNew'
 urlpatterns = [
-    # actions
-    path('service/add', MapContextCreateView.as_view(), name='add_service'),
+
+    path('service/add', views.RegisterServiceFormView.as_view(), name='add_service'),
+
+    path("service/wms", views.WmsIndexView.as_view(), name="view_wms_service"),
 ]
 

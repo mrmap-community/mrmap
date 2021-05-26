@@ -5,8 +5,7 @@ from resourceNew.models import Service as DbService
 from resourceNew.models import ExternalAuthentication
 from service.helper.common_connector import CommonConnector
 from service.serializer.ogc.tasks import DefaultBehaviourTask
-from eulxml import xmlmap
-from resourceNew.parsers.capabilities import Service as XmlService
+from resourceNew.parsers.capabilities import get_parsed_service
 
 
 @shared_task(name="async_create_from_parsed_service", base=DefaultBehaviourTask)
@@ -50,8 +49,7 @@ def async_create_from_parsed_service(form: dict,
         connector = CommonConnector(url=form["test_url"], external_auth=external_auth)
         connector.load()
 
-        parsed_service = xmlmap.load_xmlobject_from_string(string=connector.content,
-                                                           xmlclass=XmlService)
+        parsed_service = get_parsed_service(xml=connector.content)
         db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
 
         if external_auth:

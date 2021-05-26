@@ -3,11 +3,11 @@ from eulxml import xmlmap
 from django.apps import apps
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
+from pathlib import Path
+
+from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum
 
 NS_WC = "*[local-name()='"  # Namespace wildcard
-SERVICE_MAJOR_VERSION = 1
-SERVICE_MINOR_VERSION = 3
-SERVICE_PATCH_VERSION = 0
 
 
 class DBModelConverterMixin:
@@ -61,7 +61,7 @@ class DBModelConverterMixin:
             if not isinstance(self._fields.get(key), xmlmap.NodeField) and \
                     not isinstance(self._fields.get(key), xmlmap.NodeListField):
                 if (isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) or
-                    isinstance(self._fields.get(key), xmlmap.StringField))\
+                    isinstance(self._fields.get(key), xmlmap.StringField)) \
                         and getattr(self, key) is None:
                     # we don't append None values, cause if we construct a model with key=None and the db field don't
                     # allow Null values but has a default for Boolean or string the db will raise integrity errors.
@@ -126,7 +126,8 @@ class Style(DBModelConverterMixin, xmlmap.XmlObject):
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ReferenceSystem"
 
-    prefix = xmlmap.StringField(xpath="translate(substring-before(.,':'),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')")
+    prefix = xmlmap.StringField(
+        xpath="translate(substring-before(.,':'),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')")
     code = xmlmap.StringField(xpath="substring-after(.,':')")
 
 
@@ -135,12 +136,13 @@ class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
 
     name = xmlmap.StringField(xpath=f"@{NS_WC}name']")
     units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
-    if SERVICE_MAJOR_VERSION == 1 and SERVICE_MINOR_VERSION == 3:
-        extent_xpath = "text()"
-    else:
-        # todo
-        extent_xpath = f"{NS_WC}Extent']/@name=''"
-    extent = xmlmap.StringField(xpath=extent_xpath)
+
+    # todo: xpath
+    extent = xmlmap.StringField(xpath=f"{NS_WC}Extent']/@name=''")
+
+
+class Dimension130(Dimension):
+    extent = xmlmap.StringField(xpath="text()")
 
 
 class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -177,63 +179,30 @@ class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 EDGE_COUNTER = 0
 
 
-class Layer(DBModelConverterMixin, xmlmap.XmlObject):
+class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Layer'
-
-    if SERVICE_MINOR_VERSION <= 1 and SERVICE_PATCH_VERSION < 1:
-        # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
-        # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
-        reference_systems_xpath = ''
-
-    elif SERVICE_MINOR_VERSION < 3:
-        # version 1.1.1
-        reference_systems_xpath = f"{NS_WC}SRS"
-    else:
-        reference_systems_xpath = f"{NS_WC}CRS']"
-
-    if SERVICE_MINOR_VERSION < 3:
-        bbox_min_x_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}minx']"
-        bbox_max_x_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxx']"
-        bbox_min_y_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}miny']"
-        bbox_max_y_xpath = f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxy']"
-
-        scale_min_xpath = f"{NS_WC}ScaleHint']/@{NS_WC}min']"
-        scale_max_xpath = f"{NS_WC}ScaleHint']/@{NS_WC}max']"
-
-    else:
-        bbox_min_x_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}westBoundLongitude']"
-        bbox_max_x_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}eastBoundLongitude']"
-        bbox_min_y_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}southBoundLatitude']"
-        bbox_max_y_xpath = f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}northBoundLatitude']"
-
-        scale_min_xpath = f"{NS_WC}MinScaleDenominator']"
-        scale_max_xpath = f"{NS_WC}MaxScaleDenominator']"
 
     is_leaf_node = False
     level = 0
     left = 0
     right = 0
 
+    scale_min = xmlmap.FloatField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}min']")
+    scale_max = xmlmap.FloatField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}max']")
+    bbox_min_x = xmlmap.FloatField(xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}minx']")
+    bbox_max_x = xmlmap.FloatField(xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxx']")
+    bbox_min_y = xmlmap.FloatField(xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}miny']")
+    bbox_max_y = xmlmap.FloatField(xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxy']")
+    reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}SRS']", node_class=ReferenceSystem)
     identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     styles = xmlmap.NodeListField(xpath=f"{NS_WC}Style']", node_class=Style)
-    scale_min = xmlmap.FloatField(xpath=scale_min_xpath)
-    scale_max = xmlmap.FloatField(xpath=scale_max_xpath)
-
-    bbox_min_x = xmlmap.FloatField(xpath=bbox_min_x_xpath)
-    bbox_max_x = xmlmap.FloatField(xpath=bbox_max_x_xpath)
-    bbox_min_y = xmlmap.FloatField(xpath=bbox_min_y_xpath)
-    bbox_max_y = xmlmap.FloatField(xpath=bbox_max_y_xpath)
-
     is_queryable = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}queryable']", true=1, false=0)
     is_opaque = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}opaque']", true=1, false=0)
     is_cascaded = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}cascaded']", true=1, false=0)
-
     parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     layer_metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
     remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
-
-    reference_systems = xmlmap.NodeListField(xpath=reference_systems_xpath, node_class=ReferenceSystem)
     dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension)
 
     def get_field_dict(self):
@@ -274,6 +243,25 @@ class Layer(DBModelConverterMixin, xmlmap.XmlObject):
         return descendants
 
 
+class Layer110(Layer111):
+    # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
+    # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
+    reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}SRS']", node_class=ReferenceSystem)
+    parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
+
+
+class Layer130(Layer111):
+    scale_min = xmlmap.FloatField(xpath=f"{NS_WC}MinScaleDenominator']")
+    scale_max = xmlmap.FloatField(xpath=f"{NS_WC}MaxScaleDenominator']")
+    bbox_min_x = xmlmap.FloatField(xpath=f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}westBoundLongitude']")
+    bbox_max_x = xmlmap.FloatField(xpath=f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}eastBoundLongitude']")
+    bbox_min_y = xmlmap.FloatField(xpath=f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}southBoundLatitude']")
+    bbox_max_y = xmlmap.FloatField(xpath=f"{NS_WC}EX_GeographicBoundingBox']/{NS_WC}northBoundLatitude']")
+    reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}CRS']", node_class=ReferenceSystem)
+    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension130)
+    parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
+
+
 class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ServiceType"
     name = xmlmap.StringField(xpath=f"{NS_WC}Service']/{NS_WC}Name']")
@@ -295,20 +283,67 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
 
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Service'
+    # todo: new field with node_class RemoteMetadata
+    remote_metadata = None
 
+
+class WmsService(Service):
     all_layers = None
-
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
-    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer)
     operation_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']"
                                                 f"//{NS_WC}OnlineResource']",
                                           node_class=OperationUrl)
-    # todo:
-    remote_metadata = None
 
     def get_all_layers(self):
         if not self.all_layers:
             self.all_layers = self.root_layer.get_descendants()
         return self.all_layers
 
+
+class Wms110Service(WmsService):
+    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer110)
+
+
+class Wms111Service(WmsService):
+    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer111)
+
+
+class Wms130Service(WmsService):
+    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer130)
+
+
+def get_parsed_service(xml):
+    """ helper function to construct the right base parser class
+
+    """
+    if isinstance(xml, str):
+        load_func = xmlmap.load_xmlobject_from_string
+    elif isinstance(xml, Path):
+        xml = xml.resolve().__str__()
+        load_func = xmlmap.load_xmlobject_from_file
+    else:
+        raise ValueError("xml must be ether a str or Path")
+
+    xml_class = None
+    service_type = load_func(xml,
+                             xmlclass=ServiceType)
+    service_type_dict = service_type.get_field_dict()
+    if service_type_dict['name'] == OGCServiceEnum.WMS.value:
+        if service_type_dict["version"] == OGCServiceVersionEnum.V_1_1_0.value:
+            xml_class = Wms110Service
+        elif service_type_dict["version"] == OGCServiceVersionEnum.V_1_1_1.value:
+            xml_class = Wms111Service
+        elif service_type_dict["version"] == OGCServiceVersionEnum.V_1_3_0.value:
+            xml_class = Wms130Service
+    elif service_type_dict['name'] == OGCServiceEnum.WFS.value:
+        # todo
+        pass
+
+    if not xml_class:
+        raise NotImplementedError(f"unsupported service type `{service_type_dict['name']}` with version "
+                                  f"`{service_type_dict['version']}` detected.")
+
+    parsed_service = load_func(xml,
+                               xmlclass=xml_class)
+    return parsed_service

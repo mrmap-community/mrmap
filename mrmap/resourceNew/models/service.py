@@ -66,9 +66,6 @@ class Service(GenericModelMixin, CommonInfo):
         verbose_name = _("service")
         verbose_name_plural = _("services")
 
-    def __str__(self):
-        return self.service_metadata.title
-
 
 class ExternalAuthentication(CommonInfo):
     username = models.CharField(max_length=255,
@@ -261,9 +258,6 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
         verbose_name_plural = _("layers")
 
     objects = LayerManager()
-
-    def __str__(self):
-        return self.layer_metadata.title
 
     @cached_property
     def bbox(self) -> Polygon:

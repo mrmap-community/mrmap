@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MrMap.settings_docker")
 
 import django
@@ -7,8 +9,10 @@ django.setup()
 from resourceNew.enums.service import AuthTypeEnum
 from resourceNew.tasks import async_create_from_parsed_service
 from resourceNew.models.service import Service as DbService
-from resourceNew.parsers.capabilities import Service as XmlService
+from resourceNew.parsers.capabilities import get_parsed_service
+from resourceNew.parsers.capabilities import ServiceType as XmlServiceType
 from eulxml import xmlmap
+
 
 
 def create_from_file():
@@ -17,14 +21,15 @@ def create_from_file():
     import time
 
     start = time.time()
-    parsed_service = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../test_data/wasserschutz_1.3.0.xml',
-                                                     xmlclass=XmlService)
+    path = Path(current_dir + '/../test_data/dwd_wms_1.3.0.xml')
+    parsed_service = get_parsed_service(xml=path)
+
     print("parsing took: " + str(time.time() - start))
 
     start = time.time()
-    db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
+    #db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
     print("persisting: " + str(time.time() - start))
-    return db_service
+    #return db_service
 
 
 def test_task_function():

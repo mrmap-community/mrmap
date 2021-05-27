@@ -1,7 +1,6 @@
 import os
-
 from django.contrib.gis.geos import Polygon
-from django.db import models, transaction
+from django.db import models
 from django.contrib.gis.db import models as gis_models
 from django.db.models import QuerySet
 from django.utils.functional import cached_property
@@ -15,7 +14,6 @@ from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, Htt
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
-
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 
@@ -302,6 +300,11 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
         else:
             return str(self.pk)
 
+    # todo: check if we need cached_property here.
+    @cached_property
+    def has_dataset_metadata(self):
+        return self.dataset_metadata.exists()
+
     @cached_property
     def bbox(self) -> Polygon:
         """ Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
@@ -359,6 +362,11 @@ class FeatureType(GenericModelMixin, CommonInfo):
             return f"{self.metadata.title} ({self.pk})"
         else:
             return str(self.pk)
+
+    # todo: check if we need cached_property here.
+    @cached_property
+    def has_dataset_metadata(self):
+        return self.dataset_metadata.exists()
 
 
 class HarvestResult(CommonInfo):

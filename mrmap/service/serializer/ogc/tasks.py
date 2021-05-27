@@ -13,6 +13,7 @@ class PickleSerializer(Task, ABC):
 
 
 class DefaultBehaviourTask(Task, ABC):
+    create_pending_task = False
 
     def __call__(self, *args, **kwargs):
         if 'created_by_user_pk' in kwargs:
@@ -31,17 +32,17 @@ class DefaultBehaviourTask(Task, ABC):
                 # cause celery worker starts n threads to schedule tasks with and the threads are `endless` we need
                 # to `reset` the current organization. Otherwise the last set organization for this thread will be used.
                 set_current_owner(None)
-
-        try:
-            PendingTask.objects.create(task_id=self.request.id,
-                                       task_name=self.name,
-                                       created_by_user=get_current_user(),
-                                       owned_by_org=get_current_owner(),
-                                       meta={
-                                           "phase": "Pending..."
-                                       })
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
+        if self.create_pending_task:
+            try:
+                PendingTask.objects.create(task_id=self.request.id,
+                                           task_name=self.name,
+                                           created_by_user=get_current_user(),
+                                           owned_by_org=get_current_owner(),
+                                           meta={
+                                               "phase": "Pending..."
+                                           })
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
 
         super().__call__(*args, **kwargs)

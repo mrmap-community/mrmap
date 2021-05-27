@@ -1,12 +1,16 @@
 from django.db import models
+from django.contrib.gis.geos import MultiPolygon
 from django.utils.translation import gettext_lazy as _
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from main.models import GenericModelMixin, CommonInfo
-from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum
+from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
+    MetadataRelationEnum, MetadataOriginEnum
 from resourceNew.managers.metadata import LicenceManager
 from resourceNew.models.service import Layer, FeatureType, Service
+from service.helper.common_connector import CommonConnector
 from structure.models import Contact
 from uuid import uuid4
 
@@ -170,6 +174,15 @@ class RemoteMetadata(models.Model):
     describes = GenericForeignKey(ct_field='content_type',
                                   fk_field='object_id',)
 
+    def fetch_remote_content(self, save=True):
+        """ Return the fetched remote content and update the content if save is True """
+        connector = CommonConnector(url=self.link, external_auth=self.service.external_authentication)
+        connector.load()
+        self.remote_content = connector.content
+        if save:
+            self.save()
+        return self.remote_content
+
 
 class MetadataTermsOfUse(models.Model):
     """ Abstract model class to define some fields which describes the terms of use for an metadata
@@ -194,6 +207,13 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
                           editable=False)
+    date_stamp = models.DateTimeField(verbose_name=_('date stamp'),
+                                      help_text=_('date that the metadata was created. If this is a metadata record '
+                                                  'which is parsed from remote iso metadata, the date stamp of the '
+                                                  'remote iso metadata will be used.'),
+                                      auto_now_add=True,
+                                      editable=False,
+                                      db_index=True)
     file_identifier = models.CharField(max_length=1000,
                                        default="",
                                        editable=False,
@@ -303,7 +323,7 @@ class LayerMetadata(AbstractMetadata):
         verbose_name_plural = _("layer metadata")
 
 
-class FeatureTypeMetadata(models.Model):
+class FeatureTypeMetadata(AbstractMetadata):
     described_resource = models.OneToOneField(to=FeatureType,
                                               on_delete=models.CASCADE,
                                               related_name="metadata",
@@ -317,7 +337,41 @@ class FeatureTypeMetadata(models.Model):
         verbose_name_plural = _("feature type metadata")
 
 
+class DatasetMetadataRelation(models.Model):
+    layer = models.ForeignKey(to=Layer,
+                              on_delete=models.CASCADE,
+                              null=True,  # nullable to support polymorph using in DatasetMetadata model
+                              blank=True,
+                              related_name="dataset_metadata_relations",
+                              related_query_name="dataset_metadata_relation")
+    feature_type = models.ForeignKey(to=FeatureType,
+                                     on_delete=models.CASCADE,
+                                     null=True,  # nullable to support polymorph using in DatasetMetadata model
+                                     blank=True,
+                                     related_name="dataset_metadata_relations",
+                                     related_query_name="dataset_metadata_relation")
+    dataset_metadata = models.ForeignKey(to="DatasetMetadata",
+                                         on_delete=models.CASCADE,
+                                         related_name="dataset_metadata_relations",
+                                         related_query_name="dataset_metadata_relation")
+    relation_type = models.CharField(max_length=20,
+                                     choices=MetadataRelationEnum.as_choices())
+    internal = models.BooleanField(default=False)
+    origin = models.CharField(max_length=20,
+                              choices=MetadataOriginEnum.as_choices())
+
+    def clean(self):
+        """ Raise ValidationError if layer and feature type are null or if both are configured. """
+        if not self.layer and not self.feature_type:
+            raise ValidationError("either layer or feature type must be linked.")
+        elif self.layer and self.feature_type:
+            raise ValidationError("link layer and feature type is not supported.")
+
+
 class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
+    """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
+
+    """
     SRS_AUTHORITIES_CHOICES = [
         ("EPSG", "European Petroleum Survey Group (EPSG) Geodetic Parameter Registry"),
     ]
@@ -418,26 +472,37 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                help_text=_("The charset which is used by the stored data."))
     inspire_top_consistence = models.BooleanField(help_text=_("Flag to signal if the described data has a topologically"
                                                               " consistence."))
-    preview_image = models.ImageField(null=True, blank=True)
-    lineage_statement = models.TextField(null=True, blank=True)
-
-    update_frequency_code = models.CharField(max_length=20, choices=UPDATE_FREQUENCY_CHOICES, null=True, blank=True)
-
-    bounding_geometry = MultiPolygonField(default=MultiPolygonField(
-        (
-            (0.0, 0.0),
-            (0.0, 0.0),
-            (0.0, 0.0),
-            (0.0, 0.0),
-            (0.0, 0.0),
-        )
-    ))
+    preview_image = models.ImageField(null=True,
+                                      blank=True)
+    lineage_statement = models.TextField(null=True,
+                                         blank=True)
+    update_frequency_code = models.CharField(max_length=20,
+                                             choices=UPDATE_FREQUENCY_CHOICES,
+                                             null=True,
+                                             blank=True)
+    bounding_geometry = MultiPolygonField()
     dataset_id = models.CharField(max_length=4096,
                                   help_text=_("identifier of the remote data"))
     dataset_id_code_space = models.CharField(max_length=4096,
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
+    self_pointing_layers = models.ManyToManyField(to=Layer,
+                                                  through=DatasetMetadataRelation,
+                                                  related_name="dataset_metadata",
+                                                  related_query_name="dataset_metadata",
+                                                  blank=True,
+                                                  verbose_name=_("layers"),
+                                                  help_text=_("all layers which are linking to this dataset metadata in"
+                                                              " there capabilities."))
+    self_pointing_feature_types = models.ManyToManyField(to=FeatureType,
+                                                         through=DatasetMetadataRelation,
+                                                         related_name="dataset_metadata",
+                                                         related_query_name="dataset_metadata",
+                                                         blank=True,
+                                                         verbose_name=_("feature types"),
+                                                         help_text=_("all feature types which are linking to this "
+                                                                     "dataset metadata in there capabilities."))
 
     class Meta:
         constraints = [

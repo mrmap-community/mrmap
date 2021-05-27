@@ -1,5 +1,8 @@
+from django.contrib.gis.geos import Polygon as GeosPolygon
 from django.contrib.gis.geos import MultiPolygon
 from eulxml import xmlmap
+
+from resourceNew.parsers.consts import NS_WC
 from resourceNew.parsers.mixins import DBModelConverterMixin
 from pathlib import Path
 import urllib
@@ -27,11 +30,11 @@ class EXGeographicBoundingBox(xmlmap.XmlObject):
 
     def to_polygon(self):
         if self.min_x and self.max_x and self.min_y and self.max_y:
-            return Polygon(((self.min_x, self.min_y),
-                            (self.min_x, self.max_y),
-                            (self.max_x, self.max_y),
-                            (self.max_x, self.min_y),
-                            (self.min_x, self.min_y)))
+            return GeosPolygon(((self.min_x, self.min_y),
+                               (self.min_x, self.max_y),
+                               (self.max_x, self.max_y),
+                               (self.max_x, self.min_y),
+                               (self.min_x, self.min_y)))
 
 
 class LinearRing(xmlmap.XmlObject):
@@ -41,7 +44,7 @@ class LinearRing(xmlmap.XmlObject):
     def to_polygon(self):
         if self.pos_list:
             cords = self.pos_list.split(" ")
-            return Polygon(((cords[i], cords[i + 2]) for i in range(0, len(cords), 2)))
+            return GeosPolygon(((cords[i], cords[i + 2]) for i in range(0, len(cords), 2)))
         elif self.coordinates:
             # todo: find test data and implement it
             pass
@@ -95,18 +98,44 @@ class MetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
-    file_identifier = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:fileIdentifier/gco:CharacterString")
-    character_set_code = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:characterSet/gmd:MD_CharacterSetCode/@codeListValue")
-    date_stamp = xmlmap.DateTimeField(xpath="//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
-    hierarchy_level = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode/@codeListValue")
+    model = "resourceNew.ServiceMetadata"
+
+    title = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
+    abstract = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:abstract/gco:CharacterString")
+    language = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:language/gmd:LanguageCode")
+    access_constraints = xmlmap.StringField(xpath='gmd:identificationInfo//gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString')
+
+    file_identifier = xmlmap.StringField(xpath="gmd:fileIdentifier/gco:CharacterString")
+    character_set_code = xmlmap.StringField(xpath="gmd:characterSet/gmd:MD_CharacterSetCode/@codeListValue")
+    date_stamp = xmlmap.DateTimeField(xpath="gmd:dateStamp/gco:Date")
+    hierarchy_level = xmlmap.StringField(xpath="gmd:hierarchyLevel/gmd:MD_ScopeCode/@codeListValue")
+
+    equivalent_scale = xmlmap.FloatField(xpath="gmd:identificationInfo//gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
+    ground_res = xmlmap.FloatField(xpath="gmd:identificationInfo//gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance")
+
+    bbox_lat_lon_list = xmlmap.NodeListField(xpath="//gmd:identificationInfo//gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox", node_class=EXGeographicBoundingBox)
+    bounding_polygon_list = xmlmap.NodeListField(xpath="//gmd:identificationInfo//gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon", node_class=EXBoundingPolygon)
 
     metadata_contact = xmlmap.NodeField(xpath="gmd:MD_Metadata/gmd:contact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
+    keywords = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
+    categories = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:topicCategory/gmd:MD_TopicCategoryCode", node_class=Category)
+    reference_systems = xmlmap.NodeListField(xpath="gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
 
-    reference_systems = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
+    # dataset specific fields
+    code_md = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString")
+    code_rs = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
+    code_space_rs = xmlmap.StringField("gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:codeSpace/gco:CharacterString")
 
-    def get_field_dict(self):
-        field_dict = super().get_field_dict()
+    dataset_contact = xmlmap.NodeField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
 
+    def get_model_class(self):
+        if self.hierarchy_level == "service":
+            self.model = "resourceNew.ServiceMetadata"
+        else:
+            self.model = "resourceNew.DatasetMetadata"
+        return super().get_model_class()
+
+    def get_bounding_geometry(self):
         polygon_list = []
         for bbox in self.bbox_lat_lon_list:
             polygon_list.append(bbox.to_polygon())
@@ -115,7 +144,12 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
             if _polygon:
                 polygon_list.append(_polygon)
 
-        field_dict["bounding_geometry"] = MultiPolygon(polygon_list)
+        return MultiPolygon(polygon_list)
+
+    def get_field_dict(self):
+        field_dict = super().get_field_dict()
+
+        field_dict["bounding_geometry"] = self.get_bounding_geometry()
 
         if self.equivalent_scale is not None and self.equivalent_scale > 0:
             field_dict["spatial_res_val"] = self.equivalent_scale
@@ -124,35 +158,6 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
             field_dict["spatial_res_val"] = self.ground_res
             field_dict["spatial_res_type"] = "groundDistance"
         del field_dict["equivalent_scale"], field_dict["ground_res"]
-
-        return field_dict
-
-
-class DatasetMetadata(IsoMetadata):
-    model = "resourceNew.DatasetMetadata"
-
-    title = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
-    abstract = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString")
-    language = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:language/gmd:LanguageCode")
-    access_constraints = xmlmap.StringField(xpath='//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString')
-
-    equivalent_scale = xmlmap.FloatField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
-    ground_res = xmlmap.FloatField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance")
-
-    code_md = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString")
-    code_rs = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
-    code_space_rs = xmlmap.StringField("//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:codeSpace/gco:CharacterString")
-
-    keywords = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
-    categories = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode", node_class=Category)
-
-    bbox_lat_lon_list = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/EX_GeographicBoundingBox", node_class=EXGeographicBoundingBox)
-    bounding_polygon_list = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/EX_BoundingPolygon", node_class=EXBoundingPolygon)
-
-    dataset_contact = xmlmap.NodeField(xpath="gmd:MD_Metadata/gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
-
-    def get_field_dict(self):
-        field_dict = super().get_field_dict()
 
         if field_dict["code_md"]:
             code = field_dict["code_md"]
@@ -172,6 +177,7 @@ class DatasetMetadata(IsoMetadata):
             else:
                 field_dict["dataset_id"] = code
                 field_dict["dataset_id_code_space"] = ""
+            del field_dict["code_md"]
         else:
             # try to read code from RS_Identifier
             code = field_dict["code_rs"]
@@ -180,28 +186,14 @@ class DatasetMetadata(IsoMetadata):
                 field_dict["dataset_id"] = code
                 field_dict["dataset_id_code_space"] = code_space
             else:
-                field_dict["is_boken"] = True
-        del field_dict["code_md"], field_dict["code_rs"], field_dict["code_space_rs"]
+                field_dict["is_broken"] = True
+            del field_dict["code_rs"], field_dict["code_space_rs"]
 
         return field_dict
 
 
-class ServiceMetadata(IsoMetadata):
-    model = "resourceNew.ServiceMetadata"
-
-    title = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
-    abstract = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:abstract/gco:CharacterString")
-    language = xmlmap.StringField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:language/gmd:LanguageCode")
-
-    equivalent_scale = xmlmap.FloatField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
-    ground_res = xmlmap.FloatField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance")
-
-    access_constraints = xmlmap.StringField(xpath='//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString')
-
-    bbox_lat_lon_list = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/EX_GeographicBoundingBox", node_class=EXGeographicBoundingBox)
-    bounding_polygon_list = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/EX_BoundingPolygon", node_class=EXBoundingPolygon)
-
-    keywords = xmlmap.NodeListField(xpath="//gmd:MD_Metadata/gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
+class WrappedIsoMetadata(xmlmap.XmlObject):
+    iso_metadata = xmlmap.NodeField(xpath=f"//{NS_WC}MD_Metadata']", node_class=IsoMetadata)
 
 
 def get_parsed_iso_metadata(xml):
@@ -216,12 +208,5 @@ def get_parsed_iso_metadata(xml):
     else:
         raise ValueError("xml must be ether a str or Path")
 
-    iso_metadata_type = load_func(xml, xmlclass=IsoMetadata)
-    service_type_dict = iso_metadata_type.get_field_dict()
-    if service_type_dict['hierarchy_level'] == "service":
-        xml_class = ServiceMetadata
-    else:
-        xml_class = DatasetMetadata
-
-    parsed_iso_metadata = load_func(xml, xmlclass=xml_class)
+    parsed_iso_metadata = load_func(xml, xmlclass=WrappedIsoMetadata)
     return parsed_iso_metadata

@@ -1,18 +1,14 @@
 import os
 from pathlib import Path
 
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MrMap.settings_docker")
 
 import django
 django.setup()
 
-from resourceNew.enums.service import AuthTypeEnum
-from resourceNew.tasks import async_create_service_from_parsed_service
 from resourceNew.models.service import Service as DbService
-from resourceNew.parsers.capabilities import get_parsed_service
-from resourceNew.parsers.capabilities import ServiceType as XmlServiceType
-from eulxml import xmlmap
-
+from resourceNew.parsers.iso_metadata import get_parsed_iso_metadata
 
 
 def create_from_file():
@@ -22,22 +18,16 @@ def create_from_file():
 
     start = time.time()
     path = Path(current_dir + '/../test_data/iso_md/RBSN_FF.xml')
-    #parsed_service = get_parsed_service(xml=path)
+    parsed_service = get_parsed_iso_metadata(xml=path)
 
     print("parsing took: " + str(time.time() - start))
-
+    return
     start = time.time()
     db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
     print("persisting: " + str(time.time() - start))
     return db_service
 
 
-def test_task_function():
-    async_create_service_from_parsed_service(form={"auth_type": AuthTypeEnum.NONE.value,
-                                                   #"registering_for_organization": "ff86445e-5eab-480e-95a7-b6a4cf7d6c24",
-                                           "test_url": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=wms&REQUEST=GetCapabilities&VERSION=1.1.1"})
-
-
 if __name__ == '__main__':
-    registered_service = create_from_file()
-    registered_service.delete()
+    db_metadata = create_from_file()
+    #registered_service.delete()

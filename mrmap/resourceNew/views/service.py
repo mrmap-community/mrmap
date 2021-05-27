@@ -1,4 +1,4 @@
-from main.views import SecuredCreateView, SecuredListMixin
+from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew import tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.forms import RegisterServiceForm
@@ -41,6 +41,27 @@ class WmsIndexView(SecuredListMixin, FilterView):
         # render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
         # table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
         return table
+
+
+class ServiceTreeView(SecuredDetailView):
+    model = Service
+    template_name = 'generic_views/resource.html'
+    # queryset = model.objects.for_tree_view(service_type__name=OGCServiceEnum.WMS)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({'tree_style': True})
+
+        if self.object.is_service_type(OGCServiceEnum.WFS):
+            self.template_name = 'resourceNew/service/views/wfs_tree.html'
+        elif self.object.is_service_type(OGCServiceEnum.WMS):
+            context.update({"nodes": self.object.root_layer.get_descendants(include_self=True)})
+            self.template_name = 'resourceNew/service/views/wms_tree.html'
+        elif self.object.is_service_type(OGCServiceEnum.CSW):
+            self.template_name = 'resourceNew/service/views/csw.html'
+            # todo
+
+        return context
 
 
 class RegisterServiceFormView(FormView):

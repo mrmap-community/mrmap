@@ -6,6 +6,8 @@ from django.contrib.gis.db import models as gis_models
 from django.db.models import QuerySet
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+
+from MrMap.icons import get_icon, IconEnum
 from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
@@ -65,6 +67,41 @@ class Service(GenericModelMixin, CommonInfo):
     class Meta:
         verbose_name = _("service")
         verbose_name_plural = _("services")
+
+    def __str__(self):
+        if self.service_metadata:
+            return f"{self.service_metadata.title} ({self.pk})"
+        else:
+            return str(self.pk)
+
+    @property
+    def icon(self):
+        try:
+            return get_icon(getattr(IconEnum, self.service_type_name.upper()))
+        except AttributeError:
+            return ""
+
+    @cached_property
+    def service_type_name(self):
+        return self.service_type.name
+
+    def is_service_type(self, name: OGCServiceEnum):
+        """ Return True if the given service type name matches else return None
+
+            Returns:
+                True|False (boolean)
+        """
+        if self.service_type_name == name.value:
+            return True
+        else:
+            return False
+
+    @cached_property
+    def root_layer(self):
+        if self.is_service_type(OGCServiceEnum.WMS):
+            return self.layers.get(parent=None)
+        else:
+            return None
 
 
 class ExternalAuthentication(CommonInfo):

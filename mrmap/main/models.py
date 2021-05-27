@@ -56,7 +56,10 @@ class GenericModelMixin:
 
     @property
     def icon(self):
-        return get_icon(getattr(IconEnum, self.__class__.__name__.upper()))
+        try:
+            return get_icon(getattr(IconEnum, self.__class__.__name__.upper()))
+        except AttributeError:
+            return ""
 
     def get_absolute_url(self) -> str:
         try:

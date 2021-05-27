@@ -317,7 +317,7 @@ def get_parsed_service(xml):
     """ helper function to construct the right base parser class
 
     """
-    if isinstance(xml, str):
+    if isinstance(xml, str) or isinstance(xml, bytes):
         load_func = xmlmap.load_xmlobject_from_string
     elif isinstance(xml, Path):
         xml = xml.resolve().__str__()

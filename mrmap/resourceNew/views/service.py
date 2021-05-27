@@ -1,3 +1,4 @@
+from MrMap.icons import get_icon, IconEnum
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew import tasks
 from resourceNew.enums.service import OGCServiceEnum
@@ -7,6 +8,8 @@ from django.urls import reverse_lazy
 from django.conf import settings
 from django.views.generic import FormView
 from django_filters.views import FilterView
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext
 
 from resourceNew.tables.service import WmsServiceTable
 
@@ -15,6 +18,7 @@ class WmsIndexView(SecuredListMixin, FilterView):
     model = Service
     table_class = WmsServiceTable
     #filterset_class = OgcWmsFilter
+    title = get_icon(IconEnum.WMS) + gettext(" WMS")
     queryset = model.objects.for_table_view(service_type__name=OGCServiceEnum.WMS)
 
     """def get_filterset_kwargs(self, *args):
@@ -23,7 +27,6 @@ class WmsIndexView(SecuredListMixin, FilterView):
             kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
         return kwargs
     """
-
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
@@ -46,7 +49,6 @@ class WmsIndexView(SecuredListMixin, FilterView):
 class ServiceTreeView(SecuredDetailView):
     model = Service
     template_name = 'generic_views/resource.html'
-    # queryset = model.objects.for_tree_view(service_type__name=OGCServiceEnum.WMS)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -31,7 +31,7 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 class WmsServiceTable(tables.Table):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
-                                  accessor="service_metadata")
+                                  accessor="metadata")
 
     """
     status_icons = tables.TemplateColumn(template_code=SERVICE_STATUS_ICONS,

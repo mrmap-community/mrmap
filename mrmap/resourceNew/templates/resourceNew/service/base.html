@@ -13,7 +13,7 @@
     <div class="row">
     <div class="col-7 col-md text-left">
       <h5 class="mb-0">
-        {{ object.icon|safe }} {{ object.service_metadata.title }} <span class="badge badge-secondary">{{ object.layers.all.count }}</span>
+        {{ object.icon|safe }} {{ object.metadata.title }} <span class="badge badge-secondary">{{ object.layers.all.count }}</span>
       </h5>
     </div>
     <div class="col-7 col-md text-left text-md-center">
@@ -40,7 +40,7 @@
         </button>
         <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{object.pk}}">
           <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-          <a class="dropdown-item" href="{{object.service_metadata_uri}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+          <a class="dropdown-item" href="{{object.metadata_uri}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
           <a class="dropdown-item" href="{{object.html_metadata_uri}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
         </div>
       </div>

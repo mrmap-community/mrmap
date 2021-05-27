@@ -317,12 +317,12 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter()
         return queryset.filter(service_type__name=service_type__name.value) \
                        .select_related("service_type",
-                                       "service_metadata",
-                                       "service_metadata__service_contact",
-                                       "service_metadata__metadata_contact",
+                                       "metadata",
+                                       "metadata__service_contact",
+                                       "metadata__metadata_contact",
                                        "created_by_user",
                                        "owned_by_org") \
-                       .order_by("-service_metadata__title")
+                       .order_by("-metadata__title")
 
     def with_layers_counter(self):
         return self.get_queryset().annotate(layers_count=Count("layer"))
@@ -334,7 +334,7 @@ class ServiceManager(models.Manager):
 class LayerManager(TreeManager):
 
     def get_queryset(self):
-        return super().get_queryset().select_related("layer_metadata")
+        return super().get_queryset().select_related("metadata")
 
     def for_table_view(self):
         return self.get_queryset().annotate(children_count=Count("children"))\

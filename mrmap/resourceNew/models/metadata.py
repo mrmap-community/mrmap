@@ -256,8 +256,8 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
     """
     described_service = models.OneToOneField(to=Service,
                                              on_delete=models.CASCADE,
-                                             related_name="service_metadata",
-                                             related_query_name="service_metadata",
+                                             related_name="metadata",
+                                             related_query_name="metadata",
                                              verbose_name=_("described service"),
                                              help_text=_("choice the service you want to describe with this metadata"))
     service_contact = models.ForeignKey(to=MetadataContact,
@@ -292,8 +292,8 @@ class LayerMetadata(AbstractMetadata):
     """
     described_layer = models.OneToOneField(to=Layer,
                                            on_delete=models.CASCADE,
-                                           related_name="layer_metadata",
-                                           related_query_name="layer_metadata",
+                                           related_name="metadata",
+                                           related_query_name="metadata",
                                            verbose_name=_("described layer"),
                                            help_text=_("choice the layer you want to describe with this metadata"))
     preview_image = models.ImageField(null=True, blank=True)
@@ -306,8 +306,8 @@ class LayerMetadata(AbstractMetadata):
 class FeatureTypeMetadata(models.Model):
     described_resource = models.OneToOneField(to=FeatureType,
                                               on_delete=models.CASCADE,
-                                              related_name="feature_type_metadata",
-                                              related_query_name="feature_type_metadata",
+                                              related_name="metadata",
+                                              related_query_name="metadata",
                                               verbose_name=_("described feature type"),
                                               help_text=_("choice the feature type you want to describe with this "
                                                           "metadata"))

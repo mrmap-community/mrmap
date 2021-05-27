@@ -14,10 +14,10 @@
       <h5 class="mb-0">
         {% if not node.is_leaf_node and node != root_node %}
             <button class="btn btn-link" data-toggle="collapse" data-target="#id_accordion_collapse_{{node.pk}}" aria-expanded="true" aria-controls="id_accordion_collapse_{{node.pk}}">
-              {{ node.icon|safe }} {{ node.layer_metadata.title }} <span class="badge badge-secondary">{{ node.get_descendant_count }}</span>
+              {{ node.icon|safe }} {{ node.metadata.title }} <span class="badge badge-secondary">{{ node.get_descendant_count }}</span>
             </button>
         {% else %}
-        {{ node.icon|safe }} {{ node.layer_metadata.title }}
+        {{ node.icon|safe }} {{ node.metadata.title }}
         {% endif %}
       </h5>
     </div>

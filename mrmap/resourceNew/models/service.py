@@ -69,8 +69,8 @@ class Service(GenericModelMixin, CommonInfo):
         verbose_name_plural = _("services")
 
     def __str__(self):
-        if self.service_metadata:
-            return f"{self.service_metadata.title} ({self.pk})"
+        if self.metadata:
+            return f"{self.metadata.title} ({self.pk})"
         else:
             return str(self.pk)
 
@@ -296,6 +296,12 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
 
     objects = LayerManager()
 
+    def __str__(self):
+        if self.metadata:
+            return f"{self.metadata.title} ({self.pk})"
+        else:
+            return str(self.pk)
+
     @cached_property
     def bbox(self) -> Polygon:
         """ Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
@@ -347,6 +353,12 @@ class FeatureType(GenericModelMixin, CommonInfo):
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
+
+    def __str__(self):
+        if self.metadata:
+            return f"{self.metadata.title} ({self.pk})"
+        else:
+            return str(self.pk)
 
 
 class HarvestResult(CommonInfo):

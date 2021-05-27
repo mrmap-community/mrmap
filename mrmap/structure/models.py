@@ -23,7 +23,7 @@ class Contact(models.Model):
     null to store bad quality metadata as well.
     """
     person_name = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name=_("Contact person"))
-    email = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('E-Mail'))
+    email = models.EmailField(max_length=100, default="", null=True, blank=True, verbose_name=_('E-Mail'))
     phone = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('Phone'))
     facsimile = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Facsimile"))
     city = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("City"))

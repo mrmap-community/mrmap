@@ -196,7 +196,10 @@ class MetadataTermsOfUse(models.Model):
                             help_text=_("Costs and of terms of use for the given resource."))
     use_limitation = models.TextField(default="")
     license_source_note = models.TextField()
-    licence = models.ForeignKey(to=Licence, on_delete=models.RESTRICT, blank=True, null=True)
+    licence = models.ForeignKey(to=Licence,
+                                on_delete=models.RESTRICT,
+                                blank=True,
+                                null=True)
 
     class Meta:
         abstract = True

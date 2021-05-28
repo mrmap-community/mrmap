@@ -66,7 +66,7 @@ class IsoMetadataManager(models.Manager):
         try:
             db_dataset_metadata = self.model.objects.get(dataset_id=field_dict["dataset_id"],
                                                          dataset_id_code_space=field_dict["dataset_id_code_space"])
-
+            # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
             dt_aware = timezone.make_aware(field_dict["date_stamp"], timezone.get_current_timezone())
             if dt_aware > db_dataset_metadata.date_stamp:
                 db_dataset_metadata.objects.update(metadata_contact=db_metadata_contact,

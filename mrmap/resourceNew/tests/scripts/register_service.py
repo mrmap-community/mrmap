@@ -7,7 +7,7 @@ import django
 django.setup()
 
 from resourceNew.enums.service import AuthTypeEnum
-from resourceNew.tasks import async_create_service_from_parsed_service
+from resourceNew.tasks import create_service_from_parsed_service
 from resourceNew.models.service import Service as DbService
 from resourceNew.parsers.capabilities import get_parsed_service
 from resourceNew.parsers.capabilities import ServiceType as XmlServiceType
@@ -33,7 +33,7 @@ def create_from_file():
 
 
 def test_task_function():
-    async_create_service_from_parsed_service(form={"auth_type": AuthTypeEnum.NONE.value,
+    create_service_from_parsed_service(form={"auth_type": AuthTypeEnum.NONE.value,
                                                    #"registering_for_organization": "ff86445e-5eab-480e-95a7-b6a4cf7d6c24",
                                            "test_url": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=wms&REQUEST=GetCapabilities&VERSION=1.1.1"})
 

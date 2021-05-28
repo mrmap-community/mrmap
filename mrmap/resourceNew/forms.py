@@ -9,6 +9,12 @@ class RegisterServiceForm(forms.Form):
     test_url = forms.URLField(validators=[validate_get_capablities_uri],
                               label=_("Service url"),
                               help_text=_("this shall be the full get capabilities request url."))
+    collect_linked_metadata = forms.BooleanField(initial=True,
+                                                 required=False,
+                                                 label=_("collect metadata"),
+                                                 help_text=_("auto start collecting task after successful registering "
+                                                             "which register all linked metadata records found in the "
+                                                             "GetCapabilities document."))
     registering_for_organization = forms.ModelChoiceField(
         label=_("Registration for organization"),
         help_text=_("Select for which organization you'd like to register the service."),

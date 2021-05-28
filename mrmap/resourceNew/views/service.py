@@ -81,9 +81,9 @@ class RegisterServiceFormView(FormView):
     def form_valid(self, form):
         cleaned_data = form.cleaned_data
         cleaned_data.update({"registering_for_organization": cleaned_data["registering_for_organization"].pk})
-        task = tasks.async_create_service_from_parsed_service.apply_async((form.cleaned_data,),
-                                                                          kwargs={'created_by_user_pk': self.request.user.pk,
-                                                                           "owned_by_org_pk": form.cleaned_data["registering_for_organization"]},
-                                                                          countdown=settings.CELERY_DEFAULT_COUNTDOWN)
+        task = tasks.create_service_from_parsed_service.apply_async((form.cleaned_data,),
+                                                                    kwargs={"created_by_user_pk": self.request.user.pk,
+                                                                            "owned_by_org_pk": form.cleaned_data["registering_for_organization"]},
+                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN)
         # todo filter pending tasks by task id
         return super().form_valid(form=form)

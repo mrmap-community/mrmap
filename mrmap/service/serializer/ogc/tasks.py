@@ -13,7 +13,7 @@ class PickleSerializer(Task, ABC):
 
 
 class DefaultBehaviourTask(Task, ABC):
-    create_pending_task = False
+    create_pending_task = True
 
     def __call__(self, *args, **kwargs):
         if 'created_by_user_pk' in kwargs:

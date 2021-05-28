@@ -296,7 +296,7 @@ class ServiceXmlManager(models.Manager):
                 self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
             # m2m objects
-            db_service.service_metadata.keywords.add(*db_service.service_metadata.keyword_list)
+            db_service.metadata.keywords.add(*db_service.metadata.keyword_list)
 
             for db_layer_metadata in db_layer_metadata_list:
                 db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)

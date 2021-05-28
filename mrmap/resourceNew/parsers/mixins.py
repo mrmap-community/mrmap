@@ -55,7 +55,8 @@ class DBModelConverterMixin:
             if not isinstance(self._fields.get(key), xmlmap.NodeField) and \
                     not isinstance(self._fields.get(key), xmlmap.NodeListField):
                 if (isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) or
-                    isinstance(self._fields.get(key), xmlmap.StringField)) \
+                    isinstance(self._fields.get(key), xmlmap.StringField) or
+                    isinstance(self._fields.get(key), xmlmap.DateTimeField)) \
                         and getattr(self, key) is None:
                     # we don't append None values, cause if we construct a model with key=None and the db field don't
                     # allow Null values but has a default for Boolean or string the db will raise integrity errors.

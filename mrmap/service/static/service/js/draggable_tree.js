@@ -22,8 +22,15 @@ $(function () {
     return path;
   }
   function url_encode_folder_path(path) {
-    console.log(path + " -> " + path.split('/').map(component => encodeURIComponent(component)).join('/'));
     return path.split('/').map(component => encodeURIComponent(component)).join('/');
+  }
+  function append_layer_form_field() {
+    const layerForms = document.querySelectorAll('.mapcontext_layer_form');
+    const formNum = layerForms.length;
+    const html = layerForms[formNum - 1].outerHTML;
+    const newHtml = html.replace(RegExp('form-\\d+-', 'g'), `form-${formNum}-`);
+    $('.mapcontext_layer_form').last().after(newHtml);
+    $('#id_form-TOTAL_FORMS').val(formNum + 1);
   }
   function update_layer_tree_input() {
     let tree = $('#mapcontext_tree').jstree(true);
@@ -40,6 +47,24 @@ $(function () {
       data: node.data
     }));
     $('#id_mapcontext_form input[name="layer_tree"]').val(JSON.stringify(tree_state));
+    const layerForms = $('.mapcontext_layer_form');
+    for (i in layerForms) {
+        if (i < tree_state.length) {
+            const node = tree_state[i];
+            layerForms[i].setAttribute('data-jstree-node-id', node.id);
+            $(`#id_form-${i}-title`).val(node.text);
+            $(`#id_form-${i}-id`).val(node.id);
+            $(`#id_form-${i}-parent`).val(node.parent);
+            $(`#id_form-${i}-DELETE`).prop('checked', false);
+        } else {
+            $(`#id_form-${i}-title`).val('');
+            $(`#id_form-${i}-id`).val('');
+            $(`#id_form-${i}-parent`).val('');
+            if ($(`#id_form-${i}-id`).val()) {
+                $(`#id_form-${i}-DELETE`).prop('checked', true);
+            }
+        }
+    }
   }
   $('#mapcontext_tree').jstree({
     "core": {
@@ -52,13 +77,15 @@ $(function () {
         return true;
       },
       "data": function (obj, cb) {
-        let data = $('#id_mapcontext_form input[name="layer_tree"]').val();
-        if (!data) {
-          data = '[ "/" ]';
-          $('#id_mapcontext_form input[name="layer_tree"]').val(data);
+        const data = [];
+        const layerForms = $('.mapcontext_layer_form');
+        for (i = 0; i < layerForms.length - 1; i++) {
+            data.push ({
+                id : $(`#id_form-${i}-id`).val(),
+                parent : $(`#id_form-${i}-parent`).val(),
+                text : $(`#id_form-${i}-title`).val()
+            });
         }
-        console.log("data", data);
-        data = JSON.parse(data);
         cb.call(this, data);
       }
     },
@@ -81,80 +108,21 @@ $(function () {
       }
     }
   }).on('create_node.jstree', function (e, data) {
+    append_layer_form_field(data.node.id);
     update_layer_tree_input();
-    //        let folderPath = get_folder_path(data.node);
-    //        let bodyData = {
-    //          name : data.node.text
-    //        }
-    //        $.ajax({
-    //          type: 'POST',
-    //          url: get_base_url() + url_encode_folder_path(folderPath),
-    //          contentType: 'application/json',
-    //          data: JSON.stringify(bodyData),
-    //        }).done(function () {
-    //          // TODO id?
-    //          data.instance.set_id(data.node, Date.now());
-    //        }).fail(function () {
-    //          data.instance.refresh();
-    //        });
   }).on('rename_node.jstree', function (e, data) {
     update_layer_tree_input();
-    //        let folderPath = get_folder_path(data.node) + data.old;
-    //        let bodyData = {
-    //          name : data.text
-    //        }
-    //        $.ajax({
-    //          type: 'PUT',
-    //          url: get_base_url() + url_encode_folder_path(folderPath),
-    //          contentType: 'application/json',
-    //          data: JSON.stringify(bodyData),
-    //        }).fail(function () {
-    //          data.instance.refresh();
-    //        });
   }).on('delete_node.jstree', function (e, data) {
     update_layer_tree_input();
-    //        let folderPath = get_folder_path(data.node) + data.node.text;
-    //        $.ajax({
-    //          type: 'DELETE',
-    //          url: get_base_url() + url_encode_folder_path(folderPath)
-    //        }).fail(function () {
-    //          data.instance.refresh();
-    //        })
+  }).on('select_node.jstree', function (e, data) {
+    $('.mapcontext_layer_form').attr('style','display: none');
+    data.selected.forEach( id => {
+        $(`[data-jstree-node-id=${id}]`).attr('style','display: block');
+    });
   });
   $('#mapcontext_tree').on('move_node.jstree', function (e, data) {
     update_layer_tree_input();
-    //      let path = data.node.text;
-    //      let oldParent = get_node_by_id(data.old_parent);
-    //      path = get_folder_path(oldParent) + get_node_name(oldParent) + '/' + path;
-    //
-    //      let target = get_folder_path(data.node);
-    //      // position = 0 -> use parent as reference and use 'first-child'
-    //      let position = 'first-child';
-    //      if (data.position > 0) {
-    //        // position > 0 -> use my left sibling as reference and use 'right'
-    //        let parent = get_node_by_id(data.parent);
-    //        left_sibling = get_node_by_id(parent.children[data.position - 1]);
-    //        target = target + get_node_name(left_sibling);
-    //        position = 'right'
-    //        console.log ('first-child: ' + target);
-    //      }
-    //      console.log ('move to ' + target + " (" + position + ")");
-    //      let bodyData = {
-    //        target : target,
-    //        position : position
-    //      }
-    //      $.ajax({
-    //        type: 'PUT',
-    //        url: get_base_url() + url_encode_folder_path(path),
-    //        contentType: 'application/json',
-    //        data: JSON.stringify(bodyData),
-    //      }).fail(function () {
-    //        data.instance.refresh();
-    //      });
   });
-  //    $('#id_modal_wmsresource').on('hidden.bs.modal', function() {
-  //        $( '#id_modal_' ).modal( 'show' );
-  //    });
   let layerTree = $('#mapcontext_tree').jstree(true);
   $('#mapcontext_tree').on('model.jstree', function (e, data) {
     data.nodes.forEach(node_id => {
@@ -257,7 +225,6 @@ $(function () {
           "callback": function (node_id, node, action_id, action_el) {
             $('#id_modal_owsresource').modal('show');
             $('#id_modal_owsresource').find('input[name="name"]').val(node.text);
-            //$('#id_modal_owsresource').find('select[name="layer"]').val(node.data.wms_layer);
             let option = new Option(node.data.wms_layer.text, node.data.wms_layer.id, true, true);
             $('#id_modal_owsresource').find('select[name="layer"]').append(option).trigger('change');
             $('#id_modal_owsresource').find('select[name="layer"]').trigger({
@@ -271,7 +238,6 @@ $(function () {
             $('#id_modal_owsresource form').on('submit', function (event) {
               $('#mapcontext_tree').jstree('rename_node', node, $('#id_modal_owsresource').find('input[name="name"]').val());
               let data = $('#id_modal_owsresource').find('select[name="layer"]').select2('data')[0];
-              debugger;
               node.data.wms_layer.id = data.id;
               node.data.wms_layer.text = data.text;
               update_layer_tree_input();

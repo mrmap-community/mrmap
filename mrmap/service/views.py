@@ -1,21 +1,25 @@
 import base64
 import io
 from io import BytesIO
+
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.db.models import Prefetch
 from django.db.models import QuerySet, Q
+from django.forms import formset_factory, inlineformset_factory
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
+from django.views.generic import DetailView, FormView
 from django.views.generic.detail import BaseDetailView
 from django_bootstrap_swt.components import Tag, Link, Dropdown, ListGroupItem, ListGroup, DefaultHeaderRow
 from django_bootstrap_swt.enums import ButtonColorEnum
@@ -35,15 +39,14 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED, MAP_CONTEXT_SUCCESSFULLY_CREATED, MAP_CONTEXT_SUCCESSFULLY_EDITED, \
     MAP_CONTEXT_SUCCESSFULLY_DELETED
-from csw.models import HarvestResult
-from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView, SecuredCreateView
-from monitoring.models import HealthState
-from service.filters import PendingTaskFilter
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
-    SuccessMessageDeleteMixin
+from MrMap.views import CustomSingleTableMixin
+from csw.models import HarvestResult
+from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView
+from monitoring.models import HealthState
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
-from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
+from service.filters import PendingTaskFilter
+from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm, MapContextLayerForm
 from service.helper import service_helper
 from service.helper import update_helper
 from service.helper.common_connector import CommonConnector
@@ -51,7 +54,7 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVer
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
-from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
+from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext, MapContextLayer
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
     ProxyLogTable, MapContextTable
@@ -60,9 +63,7 @@ from service.utils import collect_contact_data, collect_metadata_related_objects
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
-from django.urls import reverse, reverse_lazy
 from users.models import Subscription
-from django.db.models import Prefetch
 
 
 def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySet:
@@ -984,12 +985,42 @@ class MapContextIndexView(CustomSingleTableMixin, FilterView):
 
 
 @method_decorator(login_required, name='dispatch')
-class MapContextCreateView(SecuredCreateView):
-    model = MapContext
-    form_class = MapContextForm
+class MapContextCreateView(FormView):
+    form_class = formset_factory(form=MapContextLayerForm, extra=1)
     template_name = 'views/map_context_add.html'
     success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
     success_url = reverse_lazy('resource:mapcontexts-index')
+
+    def get_initial(self):
+        forms = []
+        for layer in MapContextLayer.objects.all():
+            forms.append({
+                'id': layer.id,
+                'title': layer.title,
+                'parent': layer.parent.id if layer.parent else '#'
+            })
+        if not forms:
+            forms.append({
+                'id': 'j1_1',
+                'title': '/',
+                'parent': '#'
+            })
+        return forms
+
+    def form_valid(self, form):
+        # delete all layers, then insert (implement more effective synchronization if needed)
+        MapContextLayer.objects.all().delete()
+        # keep track of stored layers (they can parents of following layers)
+        id_to_db_layer = {}
+        for f in form:
+            data = f.cleaned_data
+            # only process forms that contain data
+            if data.get('id'):
+                parent_db_layer = id_to_db_layer.get(data.get('parent'))
+                layer = MapContextLayer(title=data.get('title'), parent=parent_db_layer)
+                layer.save()
+                id_to_db_layer[data.get('id')] = layer
+        return super(MapContextCreateView, self).form_valid(form)
 
 
 @method_decorator(login_required, name='dispatch')

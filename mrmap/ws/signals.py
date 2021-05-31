@@ -26,7 +26,7 @@ def update_count(channel_layer, instance):
 def send_task_toast(channel_layer, started, instance):
     if instance.owned_by_org:
         title = _('New task scheduled') if started else _('Task done')
-        body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?task_id={instance.task_id}', _('details'))
+        body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?id={instance.pk}', _('details'))
 
         content_type = ContentType.objects.get_for_model(instance)
 
@@ -44,8 +44,6 @@ def send_task_toast(channel_layer, started, instance):
 
 @receiver(post_save, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_save')
 @receiver(post_delete, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_delete')
-@receiver(post_save, sender=TaskResult, dispatch_uid='update_task_result_listeners_on_post_save')
-@receiver(post_delete, sender=TaskResult, dispatch_uid='update_task_result_listeners_on_post_delete')
 def update_pending_task_listeners(instance, **kwargs):
     """
     Send the information to the channel group when a TaskResult is created/modified

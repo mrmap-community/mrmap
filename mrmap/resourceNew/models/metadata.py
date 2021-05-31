@@ -7,7 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
-    MetadataRelationEnum, MetadataOriginEnum
+    MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager
 from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
 from resourceNew.parsers.iso_metadata import WrappedIsoMetadata
@@ -95,8 +95,6 @@ class ReferenceSystem(models.Model):
     prefix = models.CharField(max_length=255,
                               choices=ReferenceSystemPrefixEnum.as_choices(),
                               default=ReferenceSystemPrefixEnum.EPSG.value)
-    version = models.CharField(max_length=50,
-                               default="9.6.1")
 
     class Meta:
         constraints = [
@@ -264,6 +262,15 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                     editable=False,
                                     verbose_name=_("is broken"),
                                     help_text=_("TODO"))
+    harvest_result = models.CharField(max_length=50,
+                                      default="",
+                                      choices=HarvestResultEnum.as_choices(),
+                                      editable=False,
+                                      verbose_name=_("harvest result"),
+                                      help_text=_("to determine errors while harvesting process. Get linked iso "
+                                                  "metadata from parsed capabilities result is also a harvesting "
+                                                  "process."))
+    insufficient_quality = models.TextField(help_text=_(""))
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))

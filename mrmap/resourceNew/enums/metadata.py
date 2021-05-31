@@ -41,3 +41,10 @@ class MetadataOrigin(EnumChoice):
 
 class ReferenceSystemPrefixEnum(EnumChoice):
     EPSG = "EPSG"
+
+
+class HarvestResultEnum(EnumChoice):
+    FETCHED = "fetched"  # successfully fetched but not parsed
+    INSUFFICIENT_QUALITY = "insufficient quality"  # if catched xml parsing errors
+    SUCCESSFULLY = "successfully"  # fetched and parsed without errors
+

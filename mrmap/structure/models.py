@@ -11,10 +11,12 @@ from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
+from structure.enums import PendingTaskEnum
 from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
 from django_celery_results.models import TaskResult
 from django.db.models import Case, When
+from django.contrib.postgres.fields import ArrayField
 
 
 class Contact(models.Model):
@@ -219,10 +221,21 @@ class PublishRequest(BaseInternalRequest):
             super().save(*args, **kwargs)
 
 
-class PendingTask(CommonInfo, TaskResult):
+class PendingTask(CommonInfo):
+    status = models.CharField(
+        max_length=50,
+        default=PendingTaskEnum.PENDING.value,
+        choices=PendingTaskEnum.as_choices(),
+        verbose_name=_('task state'),
+        help_text=_('Current state of the task being run'))
+    sub_tasks = models.ManyToManyField(to=TaskResult,
+                                       blank=True)
+    phase = models.CharField(max_length=256,
+                             default="")
+    progress = models.FloatField(default=0.0,
+                                 )
+    done_at = models.DateTimeField(null=True,
+                                   blank=True)
+
     class Meta:
-        ordering = [Case(When(status='STARTED', then=0),
-                         When(status='PENDING', then=1),
-                         When(status='SUCCESS', then=2),
-                         When(status='FAILURE', then=3),),
-                    '-date_done']
+        ordering = ["-done_at"]

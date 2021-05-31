@@ -1,56 +1,137 @@
+from datetime import datetime
+
 import celery.states as states
 from celery import shared_task, current_task, group, chain, chord
 from resourceNew.enums.service import AuthTypeEnum
 from resourceNew.models import Service as DbService
 from resourceNew.models import ExternalAuthentication, RemoteMetadata
 from service.helper.common_connector import CommonConnector
-from service.serializer.ogc.tasks import DefaultBehaviourTask
+from service.serializer.ogc.tasks import DefaultBehaviourTask, MonitoringTask
 from resourceNew.parsers.capabilities import get_parsed_service
-from django.conf import settings
-from service.settings import service_logger
+from structure.enums import PendingTaskEnum
+from django_celery_results.models import TaskResult
+from django.db import transaction
+from django.db.models import F
+
+PROGRESS_AFTER_DOWNLOAD_CAPABILITIES = 5
+PROGRESS_AFTER_PARSING = 10
+PROGRESS_AFTER_PERSISTING = 15
+PROGRESS_AFTER_FETCHING_ISO_METADATA = 90
 
 
-@shared_task(name="async_get_linked_metadata", base=DefaultBehaviourTask)
-def get_linked_metadata(service_id,
-                        **kwargs):
-    remote_metadata_list = RemoteMetadata.objects.filter(service__pk=service_id)
-    header = [fetch_remote_metadata_xml.s(remote_metadata.pk, **kwargs) for remote_metadata in remote_metadata_list]
-    callback = parse_remote_metadata_xml_for_service.s(service_id, **kwargs)
-    task = chord(header)(callback)
-    return task
+@shared_task(name="async_register_service",
+             bind=True,
+             base=MonitoringTask)
+def register_service(self,
+                     form: dict,
+                     quantity: int = 1,
+                     **kwargs):
+    workflow = chain(create_service_from_parsed_service.s(form, quantity, **kwargs) | collect_linked_metadata.s(**kwargs))
+    return workflow.apply_async()
 
 
-@shared_task(name="async_fetch_remote_metadata_xml", base=DefaultBehaviourTask)
-def fetch_remote_metadata_xml(remote_metadata_id,
+@shared_task(name="async_get_linked_metadata",
+             bind=True,
+             base=DefaultBehaviourTask)
+def collect_linked_metadata(self,
+                            service_ids,
+                            **kwargs):
+    for service_id in service_ids:
+        # todo: inefficient. we only need to fetch and parse the remote metadata objects one time
+
+        remote_metadata_list = RemoteMetadata.objects.filter(service__pk=service_id)
+        progress_step_size = (PROGRESS_AFTER_FETCHING_ISO_METADATA - PROGRESS_AFTER_PERSISTING)/len(remote_metadata_list)
+
+        if self.pending_task:
+            self.pending_task.phase = f"collecting linked iso metadata: 0/{len(remote_metadata_list)}"
+            self.pending_task.progress = PROGRESS_AFTER_PERSISTING
+            self.pending_task.save()
+
+        header = [fetch_remote_metadata_xml.s(remote_metadata.pk, progress_step_size, **kwargs) for remote_metadata in remote_metadata_list]
+        callback = parse_remote_metadata_xml_for_service.s(service_id, **kwargs)
+        task = chord(header)(callback)
+
+
+@shared_task(name="async_fetch_remote_metadata_xml",
+             bind=True,
+             base=DefaultBehaviourTask)
+def fetch_remote_metadata_xml(self,
+                              remote_metadata_id,
+                              progress_step_size,
                               **kwargs):
+    if self.pending_task and current_task:
+        # todo:
+        pass
+        # self.pending_task.sub_tasks.add(TaskResult.objects.get(task_id=current_task.request.id))
     remote_metadata = RemoteMetadata.objects.get(pk=remote_metadata_id)
     try:
         remote_metadata.fetch_remote_content()
+        if self.pending_task:
+            with transaction.atomic():
+                cls = self.pending_task.__class__
+                pending_task = cls.objects.select_for_update().get(pk=self.pending_task.pk)
+                pending_task.progress += progress_step_size
+                try:
+                    phase = pending_task.phase.split(":")
+                    current_phase = phase[0]
+                    phase_steps = phase[-1].split("/")
+
+                    pending_task.phase = f"{current_phase}: {int(phase_steps[0])+1}/{phase_steps[-1]}"
+                except Exception:
+                    pass
+                pending_task.save()
+        return remote_metadata.id
     except Exception as e:
-        service_logger.exception(e, stack_info=True, exc_info=True)
+        i = 0
+        # service_logger.exception(e, stack_info=True, exc_info=True)
         # todo: log exception in debug level
-    return {"msg": "successfully done", "remote_metadata_id": remote_metadata.id}
+        return None
 
 
-@shared_task(name="async_parse_remote_metadata_xml_for_service", base=DefaultBehaviourTask)
-def parse_remote_metadata_xml_for_service(remote_metadata_ids,
+@shared_task(name="async_parse_remote_metadata_xml_for_service",
+             bind=True,
+             base=DefaultBehaviourTask)
+def parse_remote_metadata_xml_for_service(self,
+                                          remote_metadata_ids: list,
                                           service_id,
                                           **kwargs):
-    # todo: remote_metadata_ids is a list of None values...
-    remote_metadata_list = RemoteMetadata.objects.filter(service__pk=service_id)
+    if self.pending_task:
+        self.pending_task.progress = PROGRESS_AFTER_FETCHING_ISO_METADATA
+        self.pending_task.phase = "persisting collected iso metadata"
+        self.pending_task.save()
+        if current_task:
+            # todo:
+            pass
+            # self.pending_task.sub_tasks.add(TaskResult.objects.get(task_id=current_task.request.id))
+    remote_metadata_list = RemoteMetadata.objects.filter(id__in=[x for x in remote_metadata_ids if x is not None])
+    progress_step_size = (100 - PROGRESS_AFTER_FETCHING_ISO_METADATA) / len(remote_metadata_list)
+    successfully_list = []
     for remote_metadata in remote_metadata_list:
         try:
-            remote_metadata.create_metadata_instance()
+            db_metadata = remote_metadata.create_metadata_instance()
+            successfully_list.append(db_metadata.pk)
+            if self.pending_task:
+                self.pending_task.progress += progress_step_size
+                self.pending_task.save()
         except Exception as e:
-            service_logger.exception(e, stack_info=True, exc_info=True)
+            continue
+            # service_logger.exception(e, stack_info=True, exc_info=True)
             # todo: log exception in debug level
-    return {"msg": "successfully done"}
+    db_service = DbService.objects.get(pk=service_id)
+    if self.pending_task:
+        self.pending_task.status = PendingTaskEnum.SUCCESS.value
+        self.pending_task.done_at = datetime.now()
+        self.pending_task.phase = f"Done. {db_service.get_absolute_url()}"
+        self.pending_task.save()
+    return successfully_list
 
 
-@shared_task(name="async_create_service_from_parsed_service", base=DefaultBehaviourTask)
-def create_service_from_parsed_service(form: dict,
+@shared_task(name="async_create_service_from_parsed_service",
+             bind=True,
+             base=DefaultBehaviourTask)
+def create_service_from_parsed_service(self,
+                                       form: dict,
                                        quantity: int = 1,
-                                       task_id=None,
                                        **kwargs):
     """ Async call of new service creation
 
@@ -62,17 +143,8 @@ def create_service_from_parsed_service(form: dict,
         quantity (int): how many services from this url are registered in one process. Default is 1. Only used for
                         developing purposes.
     Returns:
-        nothing
+        db_service_list (list): the id's of the created service object(s)
     """
-    if current_task:
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': 0,
-                'total': 100,
-                'phase': 'download capabilities document...',
-            }
-        )
     if form["auth_type"] != AuthTypeEnum.NONE.value:
         external_auth = ExternalAuthentication(
             username=form["username"],
@@ -81,58 +153,38 @@ def create_service_from_parsed_service(form: dict,
         )
     else:
         external_auth = None
+
+    if self.pending_task:
+        self.pending_task.status = PendingTaskEnum.STARTED.value
+        self.pending_task.phase = "download capabilities document..."
+        self.pending_task.save()
     connector = CommonConnector(url=form["test_url"], external_auth=external_auth)
     connector.load()
 
-    if current_task:
-        current_task.update_state(
-            state=states.STARTED,
-            meta={
-                'current': 0,
-                'total': 100,
-                'phase': 'parse capabilities document...',
-            }
-        )
+    if self.pending_task:
+        self.pending_task.status = PendingTaskEnum.STARTED.value
+        self.pending_task.phase = "parse capabilities document..."
+        self.pending_task.progress = PROGRESS_AFTER_DOWNLOAD_CAPABILITIES
+        self.pending_task.save()
+        if current_task:
+            # todo
+            # self.pending_task.sub_tasks.add(TaskResult.objects.get(task_id=current_task.request.id))
+            pass
+
     parsed_service = get_parsed_service(xml=connector.content)
 
-    links = ""
-    sub_tasks = []
+    if self.pending_task:
+        self.pending_task.phase = "persisting service..."
+        self.pending_task.progress = PROGRESS_AFTER_PARSING
+        self.pending_task.save()
+
+    db_service_list = []
     for _ in range(quantity):
-        if current_task:
-            current_task.update_state(
-                state=states.STARTED,
-                meta={
-                    'current': 0,
-                    'total': 100,
-                    'phase': 'register service...',
-                }
-            )
         db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
 
         if external_auth:
             external_auth.secured_service = db_service
             external_auth.save()
+        db_service_list.append(db_service.pk)
 
-        if form.get("collect_linked_metadata", False):
-            task = get_linked_metadata.apply_async((db_service.pk, ),
-                                                   kwargs=kwargs,
-                                                   countdown=settings.CELERY_DEFAULT_COUNTDOWN)
-            if current_task:
-                current_task.update_state(
-                    state=states.STARTED,
-                    meta={
-                        'current': 0,
-                        'total': 100,
-                        'phase': 'start collect metadata task...',
-                    }
-                )
-            sub_tasks.append(task)
-        links += f'<a href={db_service.get_absolute_url()}>{db_service.metadata.title} </a>'
-
-    result = {'msg': 'Done. New service registered.',
-              'subtasks': [task.task_id for task in sub_tasks],
-              'absolute_url_html': links}
-
-    if quantity > 1:
-        result.update({'msg': f'Done. {quantity} equal services registered'})
-    return result
+    return db_service_list

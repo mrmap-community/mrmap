@@ -2,6 +2,8 @@ from django.apps import apps
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from eulxml import xmlmap
+from lxml.etree import XPathEvalError
+from service.settings import service_logger
 
 
 class DBModelConverterMixin:
@@ -52,14 +54,19 @@ class DBModelConverterMixin:
         """
         field_dict = {}
         for key in self._fields.keys():
-            if not isinstance(self._fields.get(key), xmlmap.NodeField) and \
-                    not isinstance(self._fields.get(key), xmlmap.NodeListField):
-                if (isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) or
-                    isinstance(self._fields.get(key), xmlmap.StringField) or
-                    isinstance(self._fields.get(key), xmlmap.DateTimeField)) \
-                        and getattr(self, key) is None:
-                    # we don't append None values, cause if we construct a model with key=None and the db field don't
-                    # allow Null values but has a default for Boolean or string the db will raise integrity errors.
-                    continue
-                field_dict.update({key: getattr(self, key)})
+            try:
+                if not isinstance(self._fields.get(key), xmlmap.NodeField) and \
+                        not isinstance(self._fields.get(key), xmlmap.NodeListField):
+                    if (isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) or
+                        isinstance(self._fields.get(key), xmlmap.StringField) or
+                        isinstance(self._fields.get(key), xmlmap.DateTimeField)) \
+                            and getattr(self, key) is None:
+                        # we don't append None values, cause if we construct a model with key=None and the db field
+                        # don't allow Null values but has a default for Boolean or string the db will raise integrity
+                        # errors.
+                        continue
+                    field_dict.update({key: getattr(self, key)})
+            except XPathEvalError as e:
+                service_logger.error(msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
+                service_logger.exception(e, stack_info=True, exc_info=True)
         return field_dict

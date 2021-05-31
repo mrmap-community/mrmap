@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ObjectDoesNotExist
 from resourceNew.enums.metadata import MetadataOriginEnum, MetadataRelationEnum, MetadataOrigin
 from django.utils import timezone
+from datetime import datetime, date
 
 
 class LicenceManager(models.Manager):
@@ -47,11 +48,15 @@ class IsoMetadataManager(models.Manager):
 
     """
     keyword_cls = None
+    reference_system_cls = None
     metadata_contact_cls = None
     dataset_contact_cls = None
 
     def _reset_local_variables(self):
         self.keyword_cls = None
+        self.reference_system_cls = None
+        self.metadata_contact_cls = None
+        self.dataset_contact_cls = None
 
     def _create_contact(self, contact):
         contact, created = contact.get_model_class().objects.get_or_create(**contact.get_field_dict())
@@ -67,6 +72,8 @@ class IsoMetadataManager(models.Manager):
             db_dataset_metadata = self.model.objects.get(dataset_id=field_dict["dataset_id"],
                                                          dataset_id_code_space=field_dict["dataset_id_code_space"])
             # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
+            if isinstance(field_dict["date_stamp"], date):
+                field_dict["date_stamp"] = datetime.combine(field_dict["date_stamp"], datetime.min.time())
             dt_aware = timezone.make_aware(field_dict["date_stamp"], timezone.get_current_timezone())
             if dt_aware > db_dataset_metadata.date_stamp:
                 db_dataset_metadata.objects.update(metadata_contact=db_metadata_contact,
@@ -102,15 +109,21 @@ class IsoMetadataManager(models.Manager):
                                                           related_object=related_object,
                                                           origin=MetadataOriginEnum.CAPABILITIES.value)
             db_keyword_list = []
-            if not self.keyword_cls:
-                self.keyword_cls = parsed_metadata.keywords[0].get_model_class()
             for keyword in parsed_metadata.keywords:
+                if not self.keyword_cls:
+                    self.keyword_cls = parsed_metadata.keywords[0].get_model_class()
                 db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
                 db_keyword_list.append(db_keyword)
             db_metadata.keywords.add(*db_keyword_list)
 
+            db_reference_system_list = []
+            for reference_system in parsed_metadata.reference_systems:
+                if not self.reference_system_cls:
+                    self.reference_system_cls = parsed_metadata.reference_systems[0].get_model_class()
+                db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
+                db_reference_system_list.append(db_reference_system)
+            db_metadata.reference_systems.add(*db_reference_system_list)
 
-            # todo: ref systems
             # todo: categories
 
             return db_metadata

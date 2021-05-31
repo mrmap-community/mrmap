@@ -82,27 +82,30 @@ class EXBoundingPolygon(xmlmap.XmlObject):
 
 
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
+    model = "resourceNew.ReferenceSystem"
+
     ref_system = xmlmap.StringField(xpath="gmd:code/gco:CharacterString")
-    ref_system_version = xmlmap.StringField(xpath="gmd:version/gco:CharacterString")
-    ref_system_authority = xmlmap.StringField(xpath="gmd:authority/gmd:CI_Citation/gmd:title/gco:CharacterString")
 
     def get_field_dict(self):
         field_dict = super().get_field_dict()
-
-        epsg_api = EpsgApi()
         if self.ref_system is not None:
-            self.ref_system = "EPSG:{}".format(epsg_api.get_subelements(self.ref_system).get("code"))
-        # todo
-        return {}
+            if "http://www.opengis.net/def/crs/" in field_dict["ref_system"]:
+                code = self.ref_system.split("/")[-1]
+            else:
+                code = self.ref_system.split(":")[-1]
+            field_dict.update({"code": code})
+            del field_dict["ref_system"]
+
+        return field_dict
 
 
 class MetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.MetadataContact"
 
-    name = xmlmap.StringField(xpath='gmd:organisationName/gco:CharacterString')
-    person_name = xmlmap.StringField(xpath='gmd:individualName/gco:CharacterString')
-    phone = xmlmap.StringField(xpath='gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/gco:CharacterString')
-    email = xmlmap.StringField(xpath='gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString')
+    name = xmlmap.StringField(xpath=f"gmd:organisationName/{NS_WC}CharacterString']")
+    person_name = xmlmap.StringField(xpath=f"gmd:individualName/{NS_WC}CharacterString']")
+    phone = xmlmap.StringField(xpath=f"gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/{NS_WC}CharacterString']")
+    email = xmlmap.StringField(xpath=f"gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/{NS_WC}CharacterString']")
 
 
 class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -131,7 +134,6 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     keywords = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
     categories = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:topicCategory/gmd:MD_TopicCategoryCode", node_class=Category)
 
-    # todo:
     reference_systems = xmlmap.NodeListField(xpath="gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
 
     # todo:
@@ -169,7 +171,7 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
         del field_dict["equivalent_scale"], field_dict["ground_res"]
 
     def get_dataset_id(self, field_dict):
-        if field_dict["code_md"]:
+        if field_dict.get("code_md", None):
             code = field_dict["code_md"]
             # new implementation:
             # http://inspire.ec.europa.eu/file/1705/download?token=iSTwpRWd&usg=AOvVaw18y1aTdkoMCBxpIz7tOOgu
@@ -189,7 +191,7 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
                 field_dict["dataset_id"] = code
                 field_dict["dataset_id_code_space"] = ""
             del field_dict["code_md"]
-        else:
+        elif field_dict.get("code_rs", None):
             # try to read code from RS_Identifier
             code = field_dict["code_rs"]
             code_space = field_dict["code_space_rs"]

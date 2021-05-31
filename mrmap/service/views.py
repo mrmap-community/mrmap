@@ -38,11 +38,10 @@ from MrMap.messages import SERVICE_UPDATED, \
 from csw.models import HarvestResult
 from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView, SecuredCreateView
 from monitoring.models import HealthState
-from service.filters import PendingTaskFilter
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION, BASE_DIR
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, PendingTaskFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
 from service.helper import service_helper
 from service.helper import update_helper

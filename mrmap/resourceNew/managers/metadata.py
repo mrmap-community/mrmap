@@ -127,3 +127,12 @@ class IsoMetadataManager(models.Manager):
             # todo: categories
 
             return db_metadata
+
+
+class DatasetManager(models.Manager):
+
+    def for_table_view(self):
+        queryset = self.get_queryset()
+        return queryset.prefetch_related("self_pointing_layers",
+                                         "self_pointing_feature_types",) \
+                       .order_by("-title")

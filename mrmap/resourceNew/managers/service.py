@@ -337,7 +337,8 @@ class LayerManager(TreeManager):
         return super().get_queryset().select_related("metadata")
 
     def for_table_view(self):
-        return self.get_queryset().annotate(children_count=Count("children"))\
+        return self.get_queryset().annotate(children_count=Count("child"),
+                                            dataset_metadata_count=Count("dataset_metadata_relation"))\
                                   .select_related("service",
                                                   "parent",
                                                   "created_by_user",

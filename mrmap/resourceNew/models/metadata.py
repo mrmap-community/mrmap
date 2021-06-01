@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
-from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager
+from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager
 from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
 from resourceNew.parsers.iso_metadata import WrappedIsoMetadata
 from service.helper.common_connector import CommonConnector
@@ -535,14 +535,16 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
 
-    objects = models.Manager()
+    objects = DatasetManager()
     iso_metadata = IsoMetadataManager()
 
     class Meta:
+        verbose_name = _("dataset metadata")
+        verbose_name_plural = _("dataset metadata")
         constraints = [
             # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
             # identifier
-            models.UniqueConstraint(fields=['origin_url', 'file_identifier'],
+            models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
                                     name='%(app_label)s_%(class)s_unique_origin_url_file_identifier')
         ]
 

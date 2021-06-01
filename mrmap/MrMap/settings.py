@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 import logging
 from api.settings import REST_FRAMEWORK # noqa
+from kombu import Queue, Exchange
 
 
 # Set the base directory two levels up
@@ -291,6 +292,14 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
+CELERY_DEFAULT_QUEUE = "default"
+CELERY_DEFAULT_EXCHANGE = "default"
+
+CELERY_QUEUES = (
+    Queue('default', Exchange('default'), routing_key='default'),
+    Queue('download', Exchange('download'), routing_key='download'),
+)
+
 
 ################################################################
 # django channels settings

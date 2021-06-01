@@ -12,11 +12,13 @@ from django_bootstrap_swt.enums import ButtonColorEnum
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from structure.enums import PendingTaskEnum
+from structure.managers import PendingTaskManager
 from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
 from django_celery_results.models import TaskResult
 from django.db.models import Case, When
 from django.contrib.postgres.fields import ArrayField
+from django.utils import timezone
 
 
 class Contact(models.Model):
@@ -234,8 +236,13 @@ class PendingTask(CommonInfo):
                              default="")
     progress = models.FloatField(default=0.0,
                                  )
+    started_at = models.DateTimeField(null=True,
+                                      blank=True)
     done_at = models.DateTimeField(null=True,
                                    blank=True)
+    traceback = models.TextField(null=True,
+                                 blank=True)
+    objects = PendingTaskManager()
 
     class Meta:
         ordering = ["-done_at"]

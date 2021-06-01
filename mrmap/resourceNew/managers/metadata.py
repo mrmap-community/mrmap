@@ -76,9 +76,9 @@ class IsoMetadataManager(models.Manager):
                 field_dict["date_stamp"] = datetime.combine(field_dict["date_stamp"], datetime.min.time())
             dt_aware = timezone.make_aware(field_dict["date_stamp"], timezone.get_current_timezone())
             if dt_aware > db_dataset_metadata.date_stamp:
-                db_dataset_metadata.objects.update(metadata_contact=db_metadata_contact,
-                                                   dataset_contact=db_dataset_contact,
-                                                   **field_dict)
+                self.model.objects.update(metadata_contact=db_metadata_contact,
+                                          dataset_contact=db_dataset_contact,
+                                          **field_dict)
         except ObjectDoesNotExist:
             db_dataset_metadata = super().create(metadata_contact=db_metadata_contact,
                                                  dataset_contact=db_dataset_contact,

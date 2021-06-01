@@ -130,6 +130,7 @@ class PendingTaskView(SecuredListMixin, FilterView):
     filterset_class = PendingTaskFilter
     title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
     template_name = 'service/views/pending_tasks.html'
+    queryset = PendingTask.objects.with_execution_time()
 
 
 class WmsIndexView(SecuredListMixin, FilterView):

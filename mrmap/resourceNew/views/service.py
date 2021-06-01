@@ -4,7 +4,7 @@ from resourceNew import tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.forms import RegisterServiceForm
 from resourceNew.models import Service, ServiceType
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.conf import settings
 from django.views.generic import FormView
 from django_filters.views import FilterView
@@ -81,9 +81,10 @@ class RegisterServiceFormView(FormView):
     def form_valid(self, form):
         cleaned_data = form.cleaned_data
         cleaned_data.update({"registering_for_organization": cleaned_data["registering_for_organization"].pk})
-        task = tasks.register_service.apply_async((form.cleaned_data,),
-                                                  kwargs={"created_by_user_pk": self.request.user.pk,
-                                                          "owned_by_org_pk": form.cleaned_data["registering_for_organization"]},
-                                                  countdown=settings.CELERY_DEFAULT_COUNTDOWN)
+        pending_task_id = tasks.register_service(
+                        form.cleaned_data,
+                        **{"created_by_user_pk": self.request.user.pk,
+                           "owned_by_org_pk": form.cleaned_data["registering_for_organization"]})
         # todo filter pending tasks by task id
+        self.success_url = f"{reverse('resource:pending-tasks')}?id={pending_task_id}"
         return super().form_valid(form=form)

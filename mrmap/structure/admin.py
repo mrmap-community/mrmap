@@ -27,9 +27,13 @@ class PublishRequestAdmin(admin.ModelAdmin):
     list_display = ['from_organization', 'to_organization', 'activation_until', 'created_by_user']
 
 
+class PendingTaskAdmin(admin.ModelAdmin):
+    autocomplete_fields = ["sub_tasks"]
+
+
 admin.site.register(PublishRequest, PublishRequestAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(OrganizationPublishRelation)
-admin.site.register(PendingTask)
+admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(Permission, PermissionAdmin)

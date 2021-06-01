@@ -58,16 +58,18 @@ class PendingTaskTable(tables.Table):
     """
     phase = tables.Column(verbose_name=_('Phase'),
                           accessor='phase',
-                          attrs={"th": {"class": "col-sm-3"}},
+                          attrs={"th": {"class": "col-sm-4"}},
                           empty_values=[])
-    created_at = tables.Column(verbose_name=_('Date Created:'),
+    created_at = tables.Column(verbose_name=_('Date Created'),
                                attrs={"th": {"class": "col-sm-1"}},
                                empty_values=[])
-    done_at = tables.Column(verbose_name=_('Date Done:'),
+    done_at = tables.Column(verbose_name=_('Date Done'),
                             attrs={"th": {"class": "col-sm-1"}},
                             empty_values=[])
+    execution_time = tables.Column(verbose_name=_("Execution time"),
+                                   attrs={"th": {"class": "col-sm-2"}})
     progress = tables.Column(verbose_name=_('Progress'),
-                             attrs={"th": {"class": "col-sm-3"}},
+                             attrs={"th": {"class": "col-sm-2"}},
                              empty_values=[])
     """
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
@@ -83,6 +85,7 @@ class PendingTaskTable(tables.Table):
                   'phase',
                   'created_at',
                   'done_at',
+                  'execution_time',
                   'progress')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
@@ -90,6 +93,9 @@ class PendingTaskTable(tables.Table):
 
     def before_render(self, request):
         self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
+
+    def render_phase(self, value):
+        return format_html(value)
 
     def render_status(self, value):
         icon = ''

@@ -64,6 +64,8 @@ def fetch_remote_metadata_xml(self,
     try:
         remote_metadata.fetch_remote_content()
         if self.pending_task:
+            # CAREFULLY!!!: this is a race condition in parallel execution, cause all tasks will waiting for the task
+            # which looks the pending task for updating progress and phase.
             with transaction.atomic():
                 cls = self.pending_task.__class__
                 pending_task = cls.objects.select_for_update().get(pk=self.pending_task.pk)

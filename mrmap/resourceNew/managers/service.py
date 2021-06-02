@@ -1,11 +1,14 @@
 from django.db import models, transaction
-from django.db.models import Max, Count, F, OuterRef
+from django.db.models import Max, Count, F, OuterRef, Subquery, Q
 from django.db.models.functions import Floor
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 from mptt.managers import TreeManager
-
+from django.contrib.postgres.aggregates import ArrayAgg
+from main.models import get_current_owner
 from resourceNew.enums.metadata import MetadataOrigin
 from resourceNew.enums.service import OGCServiceEnum
+from crum import get_current_user
 
 
 class ServiceXmlManager(models.Manager):
@@ -38,6 +41,8 @@ class ServiceXmlManager(models.Manager):
     dimension_cls = None
     reference_system_cls = None
 
+    common_info = {}
+
     def _reset_local_variables(self):
         self.last_node_level = 0
         self.parent_lookup = None
@@ -61,6 +66,17 @@ class ServiceXmlManager(models.Manager):
         self.legend_url_cls = None
         self.dimension_cls = None
         self.reference_system_cls = None
+
+        # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
+        # collect them once.
+        now = timezone.now()
+        current_user = get_current_user()
+        self.common_info = {"created_at": now,
+                            "last_modified_at": now,
+                            "last_modified_by": current_user,
+                            "created_by_user": current_user,
+                            "owned_by_org": get_current_owner(),
+                            }
 
     def _get_next_tree_id(self, layer_cls):
         max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
@@ -106,7 +122,9 @@ class ServiceXmlManager(models.Manager):
         for operation_url in parsed_service.operation_urls:
             if not operation_url_model_cls:
                 operation_url_model_cls = operation_url.get_model_class()
-            db_operation_url = operation_url_model_cls(service=service, **operation_url.get_field_dict())
+            db_operation_url = operation_url_model_cls(service=service,
+                                                       **self.common_info,
+                                                       **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
 
             if operation_url.mime_types:
@@ -155,6 +173,7 @@ class ServiceXmlManager(models.Manager):
 
         db_layer_metadata = self.layer_metadata_cls(described_layer=db_layer,
                                                     origin=MetadataOrigin.CAPABILITIES.value,
+                                                    **self.common_info,
                                                     **parsed_layer.layer_metadata.get_field_dict())
         self.db_layer_metadata_list.append(db_layer_metadata)
         self._get_or_create_keywords(parsed_keywords=parsed_layer.layer_metadata.keywords,
@@ -169,6 +188,7 @@ class ServiceXmlManager(models.Manager):
             self.db_remote_metadata_list.append(self.remote_metadata_cls(service=db_service,
                                                                          content_type=self.layer_content_type,
                                                                          object_id=db_layer.pk,
+                                                                         **self.common_info,
                                                                          **remote_metadata.get_field_dict()))
 
     def _construct_style_instances(self, parsed_layer, db_layer):
@@ -176,6 +196,7 @@ class ServiceXmlManager(models.Manager):
             if not self.style_cls:
                 self.style_cls = style.get_model_class()
             db_style = self.style_cls(layer=db_layer,
+                                      **self.common_info,
                                       **style.get_field_dict())
             if style.legend_url:
                 # legend_url is optional for style entities
@@ -187,6 +208,7 @@ class ServiceXmlManager(models.Manager):
                     **style.legend_url.mime_type.get_field_dict())
                 self.db_legend_url_list.append(self.legend_url_cls(style=db_style,
                                                                    mime_type=db_mime_type,
+                                                                   **self.common_info,
                                                                    **style.legend_url.get_field_dict()))
             self.db_style_list.append(db_style)
 
@@ -195,6 +217,7 @@ class ServiceXmlManager(models.Manager):
             if not self.dimension_cls:
                 self.dimension_cls = dimension.get_model_class()
             self.db_dimension_list.append(self.dimension_cls(layer=db_layer,
+                                                             **self.common_info,
                                                              **dimension.get_field_dict()))
 
     def _create_reference_system_instances(self, parsed_layer, db_layer):
@@ -242,6 +265,7 @@ class ServiceXmlManager(models.Manager):
                                       rght=parsed_layer.right,
                                       tree_id=tree_id,
                                       level=parsed_layer.level,
+                                      **self.common_info,
                                       **parsed_layer.get_field_dict())
             db_layer.node_id = parsed_layer.node_id
             self.db_layer_list.append(db_layer)
@@ -269,10 +293,6 @@ class ServiceXmlManager(models.Manager):
             Returns:
                 db instance (Service): the created Service object based on the :class:`models.Service`
         """
-        # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owned_by_org for all
-        #  objects which are created with a bulk_create; bulk_create will not call the default save() of CommonInfo
-        #  model.
-
         self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
@@ -343,10 +363,10 @@ class LayerManager(TreeManager):
         return super().get_queryset().select_related("metadata")
 
     def for_table_view(self):
-        return self.get_queryset().annotate(descendants_count=Floor((F('rght') - F('lft') - 1) / 2))\
+        return self.get_queryset()\
             .annotate(children_count=Count("child", distinct=True))\
-                                  .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
-                                  .select_related("service",
-                                                  "parent",
-                                                  "created_by_user",
-                                                  "owned_by_org")
+            .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
+            .select_related("service",
+                            "parent",
+                            "created_by_user",
+                            "owned_by_org")

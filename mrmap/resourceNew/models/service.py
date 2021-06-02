@@ -187,7 +187,7 @@ class ExternalAuthentication(CommonInfo):
         self.username = crypto_handler.message.decode("ascii")
 
 
-class OperationUrl(models.Model):
+class OperationUrl(CommonInfo):
     """ Concrete model class to store operation urls for registered services """
     method = models.CharField(max_length=10,
                               choices=HttpMethodEnum.as_choices(),

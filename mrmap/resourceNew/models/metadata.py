@@ -28,7 +28,7 @@ class MimeType(models.Model):
         return self.mime_type
 
 
-class Style(models.Model):
+class Style(CommonInfo):
     layer = models.ForeignKey(to=Layer,
                               on_delete=models.CASCADE,
                               editable=False,
@@ -51,7 +51,7 @@ class Style(models.Model):
         return self.layer.identifier + ": " + self.name
 
 
-class LegendUrl(models.Model):
+class LegendUrl(CommonInfo):
     legend_url = models.URLField(max_length=4096,
                                  editable=False,
                                  help_text=_("contains the location of an image of a map legend appropriate to the "
@@ -130,7 +130,7 @@ class Keyword(models.Model):
         ordering = ["keyword"]
 
 
-class RemoteMetadata(models.Model):
+class RemoteMetadata(CommonInfo):
     """ Concrete model class to store linked iso metadata records while registration processing to fetch them after
         the service was registered. This helps us to parallelize the download processing with a celery group.
 
@@ -367,7 +367,13 @@ class FeatureTypeMetadata(AbstractMetadata):
         verbose_name_plural = _("feature type metadata")
 
 
-class DatasetMetadataRelation(models.Model):
+class DatasetMetadataRelation(CommonInfo):
+    """ Model to store additional information for m2m relations for a dataset metadata which is related by a layer,
+        feature type or harvested by csw.
+
+        Cause dataset metadata records could be added by the user and could harvested from capabilities or csw, we need
+        to store additional information such as the origin (capabilities | added by user | csw) etc.
+    """
     layer = models.ForeignKey(to=Layer,
                               on_delete=models.CASCADE,
                               null=True,  # nullable to support polymorph using in DatasetMetadata model
@@ -384,11 +390,18 @@ class DatasetMetadataRelation(models.Model):
                                          on_delete=models.CASCADE,
                                          related_name="dataset_metadata_relations",
                                          related_query_name="dataset_metadata_relation")
+    # todo: check if we still need this field; we have no longer a polymorph metadata model, so the relation type
+    #  should be clear by the different field names
     relation_type = models.CharField(max_length=20,
                                      choices=MetadataRelationEnum.as_choices())
-    internal = models.BooleanField(default=False)
+    is_internal = models.BooleanField(default=False,
+                                      verbose_name=_("internal relation?"),
+                                      help_text=_("true means that this relation is created by a user and the dataset "
+                                                  "is maybe not linked in a capabilities document for example."))
     origin = models.CharField(max_length=20,
-                              choices=MetadataOriginEnum.as_choices())
+                              choices=MetadataOriginEnum.as_choices(),
+                              verbose_name=_("origin"),
+                              help_text=_("determines where this relation was found or it is added by a user."))
 
     objects = DatasetMetadataRelationManager()
 

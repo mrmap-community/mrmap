@@ -103,7 +103,6 @@ class LayerTable(tables.Table):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
                                   accessor="metadata")
-    service = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK)
     owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
                                   accessor='owned_by_org')
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
@@ -116,9 +115,9 @@ class LayerTable(tables.Table):
     class Meta:
         model = Layer
         fields = ("title",
-                  "descendants_count",
                   "children_count",
                   "dataset_metadata_count",
+                  "parent",
                   "service",
                   "created_at",
                   "owner",
@@ -144,12 +143,17 @@ class LayerTable(tables.Table):
             self.perm_checker.prefetch_perms(objs)
 
     def render_children_count(self, record, value):
-        link = f'<a href="{reverse("resourceNew:layer_list")}?id__in='
-        for child in record.children.all():
-            link += f'{child.pk},'
-        link += f'">{value}</a>'
-        return format_html(link)
+        if value > 0:
+            return format_html(f'<a href="{reverse("resourceNew:layer_list")}?parent={record.pk}">{value}</a>')
+        return value
 
     def render_dataset_metadata_count(self, record, value):
-        link = f'<a href="{reverse("resourceNew:dataset_metadata_list")}?self_pointing_layers__id__in={record.pk}">{value}</a>'
-        return format_html(link)
+        if value > 0:
+            return format_html(f'<a href="{reverse("resourceNew:dataset_metadata_list")}?self_pointing_layers__id__in={record.pk}">{value}</a>')
+        return value
+
+    def render_parent(self, value):
+        return format_html(f'<a href="{reverse("resourceNew:layer_list")}?id__in={value.pk}">{value}</a>')
+
+    def render_service(self, value):
+        return format_html(f'<a href="{reverse("resourceNew:service_list")}?id={value.pk}">{value}</a>')

@@ -118,6 +118,5 @@ class RegisterServiceFormView(FormView):
                         form.cleaned_data,
                         **{"created_by_user_pk": self.request.user.pk,
                            "owned_by_org_pk": form.cleaned_data["registering_for_organization"]})
-        # todo filter pending tasks by task id
         self.success_url = f"{reverse('resource:pending-tasks')}?id={pending_task_id}"
         return super().form_valid(form=form)

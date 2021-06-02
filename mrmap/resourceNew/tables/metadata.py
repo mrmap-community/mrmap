@@ -44,6 +44,8 @@ class DatasetMetadataTable(tables.Table):
             self.perm_checker.prefetch_perms(objs)
 
     def render_linked_layer_count(self, record, value):
+        f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
+        f'data-bs-content="content">details</a> '
         link = f'<a href="{reverse("resourceNew:layer_list")}?id__in='
         for layer in record.self_pointing_layers.all():
             link += f'{layer.pk  },'

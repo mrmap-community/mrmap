@@ -1,4 +1,6 @@
 import django_tables2 as tables
+from django.urls import reverse
+
 from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT
 from resourceNew.models import DatasetMetadata
 from guardian.core import ObjectPermissionChecker
@@ -8,7 +10,6 @@ from django.utils.html import format_html
 class DatasetMetadataTable(tables.Table):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT)
-    related_objects = tables.Column(empty_values=[])
 
     # todo
     """actions = tables.TemplateColumn(verbose_name=_('Actions'),
@@ -20,7 +21,9 @@ class DatasetMetadataTable(tables.Table):
 
     class Meta:
         model = DatasetMetadata
-        fields = ('title',)
+        fields = ("title",
+                  "linked_layer_count",
+                  "linked_feature_type_count")
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'dataset-metadata-table'
 
@@ -40,11 +43,9 @@ class DatasetMetadataTable(tables.Table):
         if objs:
             self.perm_checker.prefetch_perms(objs)
 
-    def render_related_objects(self, record):
-        links = ""
+    def render_linked_layer_count(self, record, value):
+        link = f'<a href="{reverse("resourceNew:layer_list")}?id='
         for layer in record.self_pointing_layers.all():
-            links += f'<a href="{layer.get_absolute_url()}">{layer.icon} {layer}</a>, '
-        for feature_type in record.self_pointing_feature_types.all():
-            links += f'<a href="{feature_type.get_absolute_url()}">{feature_type.icon} {feature_type}</a>, '
-
-        return format_html(links)
+            link += f'{layer.pk  },'
+        link += f'">{value}</a>'
+        return format_html(link)

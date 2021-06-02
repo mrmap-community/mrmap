@@ -17,7 +17,7 @@ from resourceNew.tables.metadata import DatasetMetadataTable
 class DatasetMetadataListView(SecuredListMixin, FilterView):
     model = DatasetMetadata
     table_class = DatasetMetadataTable
-    filterset_fields = ('title', )
+    filterset_fields = ('id', 'title', )
     #filterset_class = OgcWmsFilter
     queryset = model.objects.for_table_view()
 

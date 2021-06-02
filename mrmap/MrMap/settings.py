@@ -258,6 +258,7 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ################################################################
 # Redis settings

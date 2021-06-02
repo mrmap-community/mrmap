@@ -2,6 +2,7 @@ from MrMap.icons import get_icon, IconEnum
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew import tasks
 from resourceNew.enums.service import OGCServiceEnum
+from resourceNew.filtersets.service import LayerFilterSet
 from resourceNew.forms import RegisterServiceForm
 from resourceNew.models import Service, ServiceType, Layer
 from django.urls import reverse_lazy, reverse
@@ -49,8 +50,7 @@ class WmsListView(SecuredListMixin, FilterView):
 class LayerListView(SecuredListMixin, FilterView):
     model = Layer
     table_class = LayerTable
-    filterset_fields = ('metadata__title', )
-    #filterset_class = OgcWmsFilter
+    filterset_class = LayerFilterSet
     #title = get_icon(IconEnum.WMS) + gettext(" WMS")
     queryset = model.objects.for_table_view()
 

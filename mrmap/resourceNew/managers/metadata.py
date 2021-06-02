@@ -1,4 +1,5 @@
 from django.db import models, transaction, OperationalError
+from django.db.models import Max, Count, F, OuterRef
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ObjectDoesNotExist
 from resourceNew.enums.metadata import MetadataOriginEnum, MetadataRelationEnum, MetadataOrigin
@@ -133,6 +134,12 @@ class DatasetManager(models.Manager):
 
     def for_table_view(self):
         queryset = self.get_queryset()
-        return queryset.prefetch_related("self_pointing_layers",
-                                         "self_pointing_feature_types",) \
-                       .order_by("-title")
+        return queryset.annotate(linked_layer_count=Count("self_pointing_layers",
+                                 linked_feature_type_count=Count("self_pointing_feature_types")))\
+            .order_by("-title")
+
+
+class DatasetMetadataRelationManager(models.Manager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("layer", "feature_type", "dataset_metadata")

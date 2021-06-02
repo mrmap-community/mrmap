@@ -147,3 +147,17 @@ class LayerTable(tables.Table):
         # for each object.
         if objs:
             self.perm_checker.prefetch_perms(objs)
+
+    def render_children_count(self, record, value):
+        link = f'<a href="{reverse("resourceNew:layer_list")}?id__in='
+        for child in record.children.all():
+            link += f'{child.pk},'
+        link += f'">{value}</a>'
+        return format_html(link)
+
+    def render_dataset_metadata_count(self, record, value):
+        link = f'<a href="{reverse("resourceNew:dataset_metadata_list")}?'
+        for dataset in record.dataset_metadata_relations.all():
+            link += f'id={dataset.dataset_metadata.pk}&'
+        link += f'">{value}</a>'
+        return format_html(link)

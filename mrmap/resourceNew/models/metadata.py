@@ -8,7 +8,8 @@ from django.core.exceptions import ValidationError
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
-from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager
+from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
+    DatasetMetadataRelationManager
 from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
 from resourceNew.parsers.iso_metadata import WrappedIsoMetadata
 from service.helper.common_connector import CommonConnector
@@ -388,6 +389,8 @@ class DatasetMetadataRelation(models.Model):
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=20,
                               choices=MetadataOriginEnum.as_choices())
+
+    objects = DatasetMetadataRelationManager()
 
     def clean(self):
         """ Raise ValidationError if layer and feature type are null or if both are configured. """

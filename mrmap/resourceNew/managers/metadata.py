@@ -134,8 +134,8 @@ class DatasetManager(models.Manager):
 
     def for_table_view(self):
         queryset = self.get_queryset()
-        return queryset.annotate(linked_layer_count=Count("self_pointing_layers",
-                                 linked_feature_type_count=Count("self_pointing_feature_types")))\
+        return queryset.annotate(linked_layer_count=Count("self_pointing_layers", distinct=True),
+                                 linked_feature_type_count=Count("self_pointing_feature_types", distinct=True))\
             .order_by("-title")
 
 

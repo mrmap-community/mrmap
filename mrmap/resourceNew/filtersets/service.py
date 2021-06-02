@@ -3,10 +3,11 @@ from resourceNew.models.service import Layer
 
 
 class LayerFilterSet(django_filters.FilterSet):
-    title = django_filters.CharFilter(field_name='metadata__title', lookup_expr='iexact')
+    title = django_filters.CharFilter(field_name='metadata__title', lookup_expr='icontains')
 
     class Meta:
         model = Layer
         fields = {
-            "id": ["in", ]
+            "id": ["in", ],
+            "service__id": ["in", ]
         }

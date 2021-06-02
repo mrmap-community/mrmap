@@ -39,7 +39,7 @@ SERVICE_METADATA_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HO
 HTML_METADATA_URI_TEMPLATE = "{}{}/resource/metadata/html/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
 SERVICE_LEGEND_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
 
-REQUEST_TIMEOUT = 20  # seconds
+REQUEST_TIMEOUT = 100  # seconds
 
 # security proxy settings
 MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"

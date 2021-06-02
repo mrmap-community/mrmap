@@ -6,8 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
     SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS
 from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
+from resourceNew.models import Service, Layer
 from service.helper.enums import MetadataEnum
-from service.models import Metadata
 from service.templatecodes import RESOURCE_TABLE_ACTIONS
 from guardian.core import ObjectPermissionChecker
 
@@ -64,9 +64,9 @@ class WmsServiceTable(tables.Table):
                                     extra_context={'perm_checker': perm_checker})
 
     class Meta:
-        model = Metadata
-        fields = ('title',
-                  'layers_count',
+        model = Service
+        fields = ("title",
+                  "layers_count",
                   "service_type__version",
                   #'service__service_type__version',
 
@@ -94,23 +94,16 @@ class WmsServiceTable(tables.Table):
         if objs:
             self.perm_checker.prefetch_perms(objs)
 
-
-    def order_status_icons(self, queryset, is_descending):
-        is_descending_str = "-" if is_descending else ""
-        queryset = queryset.order_by(is_descending_str + "is_active",
-                                     is_descending_str + "is_secured",
-                                     is_descending_str + "external_authentication", )
-        return queryset, True
-
-    def order_health(self, queryset, is_descending):
-        # TODO:
-        return queryset, True
+    def render_layers_count(self, record, value):
+        link = f'<a href="{reverse("resourceNew:layer_list")}?service__id__in={record.pk}">{value}</a>'
+        return format_html(link)
 
 
 class LayerTable(tables.Table):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
                                   accessor="metadata")
+    service = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK)
     owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
                                   accessor='owned_by_org')
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
@@ -121,13 +114,15 @@ class LayerTable(tables.Table):
                                     extra_context={'perm_checker': perm_checker})
 
     class Meta:
-        model = Metadata
-        fields = ('title',
-                  'children_count',
+        model = Layer
+        fields = ("title",
+                  "descendants_count",
+                  "children_count",
                   "dataset_metadata_count",
-                  'created_at',
-                  'owner',
-                  'actions',
+                  "service",
+                  "created_at",
+                  "owner",
+                  "actions",
                   )
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'layer-table'
@@ -156,8 +151,5 @@ class LayerTable(tables.Table):
         return format_html(link)
 
     def render_dataset_metadata_count(self, record, value):
-        link = f'<a href="{reverse("resourceNew:dataset_metadata_list")}?'
-        for dataset in record.dataset_metadata_relations.all():
-            link += f'id={dataset.dataset_metadata.pk}&'
-        link += f'">{value}</a>'
+        link = f'<a href="{reverse("resourceNew:dataset_metadata_list")}?self_pointing_layers__id__in={record.pk}">{value}</a>'
         return format_html(link)

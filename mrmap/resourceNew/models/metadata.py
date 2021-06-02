@@ -392,6 +392,14 @@ class DatasetMetadataRelation(models.Model):
 
     objects = DatasetMetadataRelationManager()
 
+    def __str__(self):
+        self_str = f"{self.dataset_metadata.title} linked by "
+        if self.layer:
+            self_str += f" layer {self.layer.metadata.title}"
+        elif self.feature_type:
+            self_str += f" feature type {self.feature_type.metadata.title}"
+        return self_str
+
     def clean(self):
         """ Raise ValidationError if layer and feature type are null or if both are configured. """
         if not self.layer and not self.feature_type:

@@ -2,6 +2,7 @@ from MrMap.icons import get_icon, IconEnum
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew import tasks
 from resourceNew.enums.service import OGCServiceEnum
+from resourceNew.filtersets.metadata import DatasetMetadataFilterSet
 from resourceNew.forms import RegisterServiceForm
 from resourceNew.models import Service, ServiceType, DatasetMetadata
 from django.urls import reverse_lazy, reverse
@@ -17,8 +18,7 @@ from resourceNew.tables.metadata import DatasetMetadataTable
 class DatasetMetadataListView(SecuredListMixin, FilterView):
     model = DatasetMetadata
     table_class = DatasetMetadataTable
-    filterset_fields = ('id', 'title', )
-    #filterset_class = OgcWmsFilter
+    filterset_class = DatasetMetadataFilterSet
     queryset = model.objects.for_table_view()
 
     """def get_filterset_kwargs(self, *args):

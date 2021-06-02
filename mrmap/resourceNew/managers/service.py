@@ -1,5 +1,6 @@
 from django.db import models, transaction
 from django.db.models import Max, Count, F, OuterRef
+from django.db.models.functions import Floor
 from django.contrib.contenttypes.models import ContentType
 from mptt.managers import TreeManager
 
@@ -325,10 +326,10 @@ class ServiceManager(models.Manager):
                        .order_by("-metadata__title")
 
     def with_layers_counter(self):
-        return self.get_queryset().annotate(layers_count=Count("layer"))
+        return self.get_queryset().annotate(layers_count=Count("layer", distinct=True))
 
     def with_feature_types_counter(self):
-        return self.get_queryset().annotate(feature_types_count=Count("feature_type"))
+        return self.get_queryset().annotate(feature_types_count=Count("feature_type", distinct=True))
 
 
 class LayerManager(TreeManager):
@@ -337,8 +338,9 @@ class LayerManager(TreeManager):
         return super().get_queryset().select_related("metadata")
 
     def for_table_view(self):
-        return self.get_queryset().annotate(children_count=Count("child"),
-                                            dataset_metadata_count=Count("dataset_metadata_relation"))\
+        return self.get_queryset().annotate(descendants_count=Floor((F('rght') - F('lft') - 1) / 2))\
+            .annotate(children_count=Count("child", distinct=True))\
+                                  .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
                                   .select_related("service",
                                                   "parent",
                                                   "created_by_user",

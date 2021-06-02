@@ -235,6 +235,7 @@ class ServiceXmlManager(models.Manager):
             self._update_current_parent(parsed_layer=parsed_layer)
 
             # to support bulk create for mptt model lft, rght, tree_id can't be None
+            # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owned_by_org
             db_layer = self.layer_cls(service=db_service,
                                       parent=self.current_parent,
                                       lft=parsed_layer.left,
@@ -268,6 +269,10 @@ class ServiceXmlManager(models.Manager):
             Returns:
                 db instance (Service): the created Service object based on the :class:`models.Service`
         """
+        # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owned_by_org for all
+        #  objects which are created with a bulk_create; bulk_create will not call the default save() of CommonInfo
+        #  model.
+
         self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)

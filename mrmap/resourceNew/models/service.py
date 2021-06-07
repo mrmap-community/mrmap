@@ -188,7 +188,10 @@ class ExternalAuthentication(CommonInfo):
 
 
 class OperationUrl(CommonInfo):
-    """ Concrete model class to store operation urls for registered services """
+    """ Concrete model class to store operation urls for registered services
+
+        With that urls we can perform all needed request to a given service.
+    """
     method = models.CharField(max_length=10,
                               choices=HttpMethodEnum.as_choices(),
                               verbose_name=_("http method"),
@@ -222,18 +225,56 @@ class OperationUrl(CommonInfo):
         return f"{self.pk} | {self.url} ({self.method})"
 
 
-class Layer(GenericModelMixin, CommonInfo, MPTTModel):
-    """ Concrete model class to store parsed layers """
+class ServiceElement(GenericModelMixin, CommonInfo):
+    """ Abstract model class to generalize some fields and functions for layers and feature types """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
                           editable=False)
     service = models.ForeignKey(to=Service,
                                 on_delete=models.CASCADE,
                                 editable=False,
-                                related_name="layers",
-                                related_query_name="layer",
+                                related_name="%(class)s",
+                                related_query_name="%(class)s",
                                 verbose_name=_("parent service"),
-                                help_text=_("the main service where this layer is part of"))
+                                help_text=_("the main service where this element is part of"))
+    identifier = models.CharField(max_length=500,
+                                  default='',
+                                  editable=False,
+                                  verbose_name=_("identifier"),
+                                  help_text=_("this is a string which identifies the element on the remote service."))
+    bbox_lat_lon = gis_models.PolygonField(null=True,  # to support inherited bbox from ancestor layer null=True
+                                           blank=True,
+                                           editable=False,
+                                           verbose_name=_("bounding box"),
+                                           help_text=_("bounding box shall be supplied regardless of what CRS the map "
+                                                       "server may support, but it may be approximate if the data are "
+                                                       "not natively in geographic coordinates. The purpose of bounding"
+                                                       " box is to facilitate geographic searches without requiring "
+                                                       "coordinate transformations by the search engine."))
+    reference_systems = models.ManyToManyField(to="ReferenceSystem",  # to avoid circular import error
+                                               related_name="%(class)s",
+                                               related_query_name="%(class)s",
+                                               blank=True,
+                                               verbose_name=_("reference systems"),
+                                               help_text=_("all reference systems which this element supports"))
+
+    class Meta:
+        abstract = True
+
+    def __str__(self):
+        try:
+            return f"{self.metadata.title} ({self.pk})"
+        except:
+            return str(self.pk)
+
+    # todo: check if we need cached_property here.
+    @cached_property
+    def has_dataset_metadata(self):
+        return self.dataset_metadata.exists()
+
+
+class Layer(ServiceElement, MPTTModel):
+    """ Concrete model class to store parsed layers """
     parent = TreeForeignKey(to="self",
                             on_delete=models.CASCADE,
                             null=True,
@@ -242,9 +283,6 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
                             related_query_name="child",
                             verbose_name=_("parent layer"),
                             help_text=_("the ancestor of this layer."))
-    identifier = models.CharField(max_length=500,
-                                  null=True,
-                                  blank=True)
     is_queryable = models.BooleanField(default=False,
                                        editable=False,
                                        verbose_name=_("is queryable"),
@@ -272,38 +310,12 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
                                   help_text=_("maximum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
                                               "images. None value means no restriction."))
-    bbox_lat_lon = gis_models.PolygonField(null=True,  # to support inherited bbox from ancestor layer null=True
-                                           blank=True,
-                                           editable=False,
-                                           verbose_name=_("bounding box"),
-                                           help_text=_("bounding box shall be supplied regardless of what CRS the map "
-                                                       "server may support, but it may be approximate if the data are "
-                                                       "not natively in geographic coordinates. The purpose of bounding"
-                                                       " box is to facilitate geographic searches without requiring "
-                                                       "coordinate transformations by the search engine."))
-    reference_systems = models.ManyToManyField(to="ReferenceSystem",  # to avoid circular import error
-                                               related_name="layers",
-                                               related_query_name="layer",
-                                               blank=True,
-                                               verbose_name=_("reference systems"),
-                                               help_text=_("all reference systems which this layer supports"))
 
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
 
     objects = LayerManager()
-
-    def __str__(self):
-        if self.metadata:
-            return f"{self.metadata.title} ({self.pk})"
-        else:
-            return str(self.pk)
-
-    # todo: check if we need cached_property here.
-    @cached_property
-    def has_dataset_metadata(self):
-        return self.dataset_metadata.exists()
 
     @cached_property
     def bbox(self) -> Polygon:
@@ -344,29 +356,42 @@ class Layer(GenericModelMixin, CommonInfo, MPTTModel):
         return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
 
 
-class FeatureType(GenericModelMixin, CommonInfo):
-    id = models.UUIDField(primary_key=True,
-                          default=uuid4,
-                          editable=False)
-    service = models.ForeignKey(to=Service,
-                                on_delete=models.CASCADE,
-                                related_name="feature_types",
-                                related_query_name="feature_type")
+class FeatureType(ServiceElement):
+    output_formats = models.ManyToManyField(to="MimeType",  # avoid from circular import error
+                                            blank=True,
+                                            editable=False,
+                                            related_name="feature_types",
+                                            related_query_name="feature_type",
+                                            verbose_name=_("output formats"),
+                                            help_text=_("This is a list of MIME types indicating the output formats "
+                                                        "that may be generated for a feature type.  If this optional "
+                                                        "element is not specified, then all the result formats "
+                                                        "listed for the GetFeature operation are assumed to be "
+                                                        "supported. "))
 
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
 
-    def __str__(self):
-        if self.metadata:
-            return f"{self.metadata.title} ({self.pk})"
-        else:
-            return str(self.pk)
 
-    # todo: check if we need cached_property here.
-    @cached_property
-    def has_dataset_metadata(self):
-        return self.dataset_metadata.exists()
+class FeatureTypeElement(CommonInfo):
+    name = models.CharField(max_length=255)
+    type = models.CharField(max_length=255, null=True, blank=True)
+    feature_type = models.ForeignKey(to=FeatureType,
+                                     editable=False,
+                                     related_name="elements",
+                                     related_query_name="element",
+                                     on_delete=models.CASCADE,
+                                     verbose_name=_("feature type"),
+                                     help_text=_("related feature type of this element"))
+
+    class Meta:
+        verbose_name = _("feature type element")
+        verbose_name_plural = _("feature type elements")
+        ordering = ["-name"]
+
+    def __str__(self):
+        return self.name
 
 
 class HarvestResult(CommonInfo):

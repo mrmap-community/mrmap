@@ -21,7 +21,7 @@ def create_from_file():
     import time
 
     start = time.time()
-    path = Path(current_dir + '/../test_data/dwd_wms_1.3.0.xml')
+    path = Path(current_dir + '/../test_data/wfs/dwd_2_0_0.xml')
     parsed_service = get_parsed_service(xml=path)
 
     print("parsing took: " + str(time.time() - start))

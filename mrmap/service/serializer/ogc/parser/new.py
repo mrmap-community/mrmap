@@ -324,7 +324,7 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
         if not self.all_layer_metadata:
             _all = []
             for layer in self.get_all_layers():
-                _all.append(layer.layer_metadata)
+                _all.append(layer.metadata)
             self.all_layer_metadata = _all
         return self.all_layer_metadata
 
@@ -337,7 +337,7 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
             _all = []
             _all.extend(self.metadata.keywords)
             for layer in self.get_all_layers():
-                _all.extend(layer.layer_metadata.keywords)
+                _all.extend(layer.metadata.keywords)
             self.all_keywords = _all
         return self.all_keywords
 

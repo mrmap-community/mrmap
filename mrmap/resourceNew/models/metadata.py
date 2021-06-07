@@ -302,12 +302,12 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
         OR to store the information of the parsed iso metadata which was linked in the capabilities document.
 
     """
-    described_service = models.OneToOneField(to=Service,
-                                             on_delete=models.CASCADE,
-                                             related_name="metadata",
-                                             related_query_name="metadata",
-                                             verbose_name=_("described service"),
-                                             help_text=_("choice the service you want to describe with this metadata"))
+    described_object = models.OneToOneField(to=Service,
+                                            on_delete=models.CASCADE,
+                                            related_name="metadata",
+                                            related_query_name="metadata",
+                                            verbose_name=_("described service"),
+                                            help_text=_("choice the service you want to describe with this metadata"))
     service_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="service_contact_service_metadata",
@@ -340,12 +340,12 @@ class LayerMetadata(AbstractMetadata):
                 xml, shall be created.
         # todo: if an instance of this model is updated the related instance of the model `Document` shall be updated.
     """
-    described_layer = models.OneToOneField(to=Layer,
-                                           on_delete=models.CASCADE,
-                                           related_name="metadata",
-                                           related_query_name="metadata",
-                                           verbose_name=_("described layer"),
-                                           help_text=_("choice the layer you want to describe with this metadata"))
+    described_object = models.OneToOneField(to=Layer,
+                                            on_delete=models.CASCADE,
+                                            related_name="metadata",
+                                            related_query_name="metadata",
+                                            verbose_name=_("described layer"),
+                                            help_text=_("choice the layer you want to describe with this metadata"))
     preview_image = models.ImageField(null=True, blank=True)
 
     class Meta:
@@ -354,12 +354,12 @@ class LayerMetadata(AbstractMetadata):
 
 
 class FeatureTypeMetadata(AbstractMetadata):
-    described_resource = models.OneToOneField(to=FeatureType,
-                                              on_delete=models.CASCADE,
-                                              related_name="metadata",
-                                              related_query_name="metadata",
-                                              verbose_name=_("described feature type"),
-                                              help_text=_("choice the feature type you want to describe with this "
+    described_object = models.OneToOneField(to=FeatureType,
+                                            on_delete=models.CASCADE,
+                                            related_name="metadata",
+                                            related_query_name="metadata",
+                                            verbose_name=_("described feature type"),
+                                            help_text=_("choice the feature type you want to describe with this "
                                                           "metadata"))
 
     class Meta:

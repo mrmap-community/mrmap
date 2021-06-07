@@ -21,7 +21,7 @@ class ServiceXmlManager(models.Manager):
     current_parent = None
 
     db_layer_list = []
-    db_layer_metadata_list = []
+    db_sub_element_metadata_list = []
     db_remote_metadata_list = []
     db_style_list = []
     db_legend_url_list = []
@@ -29,9 +29,9 @@ class ServiceXmlManager(models.Manager):
 
     # to avoid from circular import problems, we lookup the model from the parsed python objects. The model is
     # stored on the parsed python objects in attribute `model`.
-    layer_cls = None
-    layer_content_type = None
-    layer_metadata_cls = None
+    sub_element_cls = None
+    sub_element_content_type = None
+    sub_element_metadata_cls = None
     service_metadata_cls = None
     keyword_cls = None
     remote_metadata_cls = None
@@ -49,15 +49,15 @@ class ServiceXmlManager(models.Manager):
         self.current_parent = None
 
         self.db_layer_list = []
-        self.db_layer_metadata_list = []
+        self.db_sub_element_metadata_list = []
         self.db_remote_metadata_list = []
         self.db_style_list = []
         self.db_legend_url_list = []
         self.db_dimension_list = []
 
-        self.layer_cls = None
-        self.layer_content_type = None
-        self.layer_metadata_cls = None
+        self.sub_element_cls = None
+        self.sub_element_content_type = None
+        self.sub_element_metadata_cls = None
         self.service_metadata_cls = None
         self.keyword_cls = None
         self.remote_metadata_cls = None
@@ -102,13 +102,16 @@ class ServiceXmlManager(models.Manager):
         db_service_contact, created = service_contact_cls.objects.get_or_create(**service_contact.get_field_dict())
         if not self.service_metadata_cls:
             self.service_metadata_cls = parsed_service.service_metadata.get_model_class()
-        service_metadata = self.service_metadata_cls.objects.create(described_service=db_service,
+        service_metadata = self.service_metadata_cls.objects.create(described_object=db_service,
                                                                     origin=MetadataOrigin.CAPABILITIES.value,
                                                                     service_contact=db_service_contact,
                                                                     metadata_contact=db_service_contact,
                                                                     **parsed_service.service_metadata.get_field_dict())
         self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
                                      db_object=service_metadata)
+
+        # m2m objects
+        db_service.metadata.keywords.add(*db_service.metadata.keyword_list)
 
     def _create_service_instance(self, parsed_service, *args, **kwargs):
         """ Creates the service instance and all depending/related objects """
@@ -167,27 +170,27 @@ class ServiceXmlManager(models.Manager):
                 parsed_layer.node_id = "1"
         self.last_node_level = parsed_layer.level
 
-    def _construct_layer_metadata_instance(self, parsed_layer, db_layer):
-        if not self.layer_metadata_cls:
-            self.layer_metadata_cls = parsed_layer.layer_metadata.get_model_class()
+    def _construct_sub_element_metadata_instance(self, parsed_object, db_object):
+        if not self.sub_element_metadata_cls:
+            self.sub_element_metadata_cls = parsed_object.metadata.get_model_class()
 
-        db_layer_metadata = self.layer_metadata_cls(described_layer=db_layer,
-                                                    origin=MetadataOrigin.CAPABILITIES.value,
-                                                    **self.common_info,
-                                                    **parsed_layer.layer_metadata.get_field_dict())
-        self.db_layer_metadata_list.append(db_layer_metadata)
-        self._get_or_create_keywords(parsed_keywords=parsed_layer.layer_metadata.keywords,
-                                     db_object=db_layer_metadata)
+        db_sub_element_metadata = self.sub_element_metadata_cls(described_object=db_object,
+                                                                origin=MetadataOrigin.CAPABILITIES.value,
+                                                                **self.common_info,
+                                                                **parsed_object.metadata.get_field_dict())
+        self.db_sub_element_metadata_list.append(db_sub_element_metadata)
+        self._get_or_create_keywords(parsed_keywords=parsed_object.metadata.keywords,
+                                     db_object=db_sub_element_metadata)
 
-    def _construct_remote_metadata_instances(self, parsed_layer, db_service, db_layer):
-        if not self.layer_content_type:
-            self.layer_content_type = ContentType.objects.get_for_model(model=self.layer_cls)
-        for remote_metadata in parsed_layer.remote_metadata:
+    def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
+        if not self.sub_element_content_type:
+            self.sub_element_content_type = ContentType.objects.get_for_model(model=self.sub_element_cls)
+        for remote_metadata in parsed_sub_element.remote_metadata:
             if not self.remote_metadata_cls:
                 self.remote_metadata_cls = remote_metadata.get_model_class()
             self.db_remote_metadata_list.append(self.remote_metadata_cls(service=db_service,
-                                                                         content_type=self.layer_content_type,
-                                                                         object_id=db_layer.pk,
+                                                                         content_type=self.sub_element_content_type,
+                                                                         object_id=db_sub_element.pk,
                                                                          **self.common_info,
                                                                          **remote_metadata.get_field_dict()))
 
@@ -212,6 +215,14 @@ class ServiceXmlManager(models.Manager):
                                                                    **style.legend_url.get_field_dict()))
             self.db_style_list.append(db_style)
 
+    def _get_or_create_output_formats(self, parsed_feature_type, db_feature_type):
+        for mime_type in parsed_feature_type.output_formats:
+            # todo: slow get_or_create solution - maybe there is a better way to do this
+            if not self.mime_type_cls:
+                self.mime_type_cls = mime_type.get_model_class()
+            db_mime_type, created = self.mime_type_cls.objects.get_or_create(**mime_type.get_field_dict())
+            db_feature_type.db_output_format_list.append(db_mime_type)
+
     def _construct_dimension_instances(self, parsed_layer, db_layer):
         for dimension in parsed_layer.dimensions:
             if not self.dimension_cls:
@@ -220,15 +231,15 @@ class ServiceXmlManager(models.Manager):
                                                              **self.common_info,
                                                              **dimension.get_field_dict()))
 
-    def _create_reference_system_instances(self, parsed_layer, db_layer):
-        db_layer.reference_system_list = []
-        for reference_system in parsed_layer.reference_systems:
+    def _create_reference_system_instances(self, parsed_sub_element, db_sub_element):
+        db_sub_element.reference_system_list = []
+        for reference_system in parsed_sub_element.reference_systems:
             # todo: slow get_or_create solution - maybe there is a better way to do this
             if not self.reference_system_cls:
                 self.reference_system_cls = reference_system.get_model_class()
             db_reference_system, created = self.reference_system_cls.objects.get_or_create(
                                                                             **reference_system.get_field_dict())
-            db_layer.reference_system_list.append(db_reference_system)
+            db_sub_element.reference_system_list.append(db_reference_system)
 
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
@@ -247,10 +258,10 @@ class ServiceXmlManager(models.Manager):
         if not self.parent_lookup:
             self.parent_lookup = {}
 
-        if not self.layer_cls:
-            self.layer_cls = parsed_service.get_all_layers()[0].get_model_class()
+        if not self.sub_element_cls:
+            self.sub_element_cls = parsed_service.get_all_layers()[0].get_model_class()
 
-        tree_id = self._get_next_tree_id(self.layer_cls)
+        tree_id = self._get_next_tree_id(self.sub_element_cls)
 
         for parsed_layer in parsed_service.get_all_layers():
             # Note!!!: the given list must be ordered in preorder cause
@@ -259,30 +270,94 @@ class ServiceXmlManager(models.Manager):
 
             # to support bulk create for mptt model lft, rght, tree_id can't be None
             # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owned_by_org
-            db_layer = self.layer_cls(service=db_service,
-                                      parent=self.current_parent,
-                                      lft=parsed_layer.left,
-                                      rght=parsed_layer.right,
-                                      tree_id=tree_id,
-                                      level=parsed_layer.level,
-                                      **self.common_info,
-                                      **parsed_layer.get_field_dict())
+            db_layer = self.sub_element_cls(service=db_service,
+                                            parent=self.current_parent,
+                                            lft=parsed_layer.left,
+                                            rght=parsed_layer.right,
+                                            tree_id=tree_id,
+                                            level=parsed_layer.level,
+                                            **self.common_info,
+                                            **parsed_layer.get_field_dict())
             db_layer.node_id = parsed_layer.node_id
             self.db_layer_list.append(db_layer)
 
-            self._construct_layer_metadata_instance(parsed_layer=parsed_layer,
-                                                    db_layer=db_layer)
-            self._construct_remote_metadata_instances(parsed_layer=parsed_layer,
+            self._construct_sub_element_metadata_instance(parsed_object=parsed_layer,
+                                                          db_object=db_layer)
+            self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
                                                       db_service=db_service,
-                                                      db_layer=db_layer)
+                                                      db_sub_element=db_layer)
             self._construct_style_instances(parsed_layer=parsed_layer,
                                             db_layer=db_layer)
             self._construct_dimension_instances(parsed_layer=parsed_layer,
                                                 db_layer=db_layer)
 
-            self._create_reference_system_instances(parsed_layer=parsed_layer,
-                                                    db_layer=db_layer)
+            self._create_reference_system_instances(parsed_sub_element=parsed_layer,
+                                                    db_sub_element=db_layer)
         return tree_id
+
+    def _create_wms(self, parsed_service, db_service):
+        tree_id = self._construct_layer_tree(parsed_service=parsed_service, db_service=db_service)
+
+        db_layer_list = self.sub_element_cls.objects.bulk_create(objs=self.db_layer_list)
+        # non documented function from mptt to rebuild the tree
+        # todo: check if we need to rebuild if we create the tree with the correct right and left values.
+        self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
+
+        # ForeingKey objects
+        db_layer_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
+        if self.db_style_list:
+            self.style_cls.objects.bulk_create(objs=self.db_style_list)
+        for legend_url in self.db_legend_url_list:
+            # style_id attribute is not updated after bulk_create is done. So we need to update it manually before
+            # we create related legend url objects in bulk.
+            # todo: find better way to update style_id
+            legend_url.style_id = legend_url.style.pk
+        if self.db_legend_url_list:
+            self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
+        if self.db_dimension_list:
+            self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
+        if self.db_remote_metadata_list:
+            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
+
+        for db_layer_metadata in db_layer_metadata_list:
+            db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)
+
+        for db_layer in db_layer_list:
+            db_layer.reference_systems.add(*db_layer.reference_system_list)
+
+    def _create_wfs(self, parsed_service, db_service):
+        db_feature_type_list = []
+        if not self.sub_element_cls:
+            self.sub_element_cls = parsed_service.feature_types[0].get_model_class()
+        for parsed_feature_type in parsed_service.feature_types:
+            db_feature_type = self.sub_element_cls(service=db_service,
+                                                   **self.common_info,
+                                                   **parsed_feature_type.get_field_dict())
+            db_feature_type.db_output_format_list = []
+            db_feature_type_list.append(db_feature_type)
+            self._construct_sub_element_metadata_instance(parsed_object=parsed_feature_type,
+                                                          db_object=db_feature_type)
+            self._construct_remote_metadata_instances(parsed_sub_element=parsed_feature_type,
+                                                      db_service=db_service,
+                                                      db_sub_element=db_feature_type)
+            # todo:
+            """
+            self._construct_dimension_instances(parsed_layer=parsed_layer,
+                                                db_layer=db_layer)
+            """
+            self._get_or_create_output_formats(parsed_feature_type=parsed_feature_type, db_feature_type=db_feature_type)
+            self._create_reference_system_instances(parsed_sub_element=parsed_feature_type,
+                                                    db_sub_element=db_feature_type)
+
+        db_feature_type_list = self.sub_element_cls.objects.bulk_create(objs=db_feature_type_list)
+
+        db_feature_type_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
+        for db_feature_type_metadata in db_feature_type_metadata_list:
+            db_feature_type_metadata.keywords.add(*db_feature_type_metadata.keyword_list)
+
+        for db_feature_type in db_feature_type_list:
+            db_feature_type.output_formats.add(*db_feature_type.db_output_format_list)
+            db_feature_type.reference_systems.add(*db_feature_type.reference_system_list)
 
     def create_from_parsed_service(self, parsed_service, *args, **kwargs):
         """ Custom create function for :class:`models.Service` which is based on the parsed capabilities document.
@@ -298,37 +373,10 @@ class ServiceXmlManager(models.Manager):
             db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
             self._create_service_metadata_instance(parsed_service=parsed_service, db_service=db_service)
 
-            tree_id = self._construct_layer_tree(parsed_service=parsed_service, db_service=db_service)
-
-            db_layer_list = self.layer_cls.objects.bulk_create(objs=self.db_layer_list)
-            # non documented function from mptt to rebuild the tree
-            # todo: check if we need to rebuild if we create the tree with the correct right and left values.
-            self.layer_cls.objects.partial_rebuild(tree_id=tree_id)
-
-            # ForeingKey objects
-            db_layer_metadata_list = self.layer_metadata_cls.objects.bulk_create(objs=self.db_layer_metadata_list)
-            if self.db_style_list:
-                self.style_cls.objects.bulk_create(objs=self.db_style_list)
-            for legend_url in self.db_legend_url_list:
-                # style_id attribute is not updated after bulk_create is done. So we need to update it manually before
-                # we create related legend url objects in bulk.
-                # todo: find better way to update style_id
-                legend_url.style_id = legend_url.style.pk
-            if self.db_legend_url_list:
-                self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
-            if self.db_dimension_list:
-                self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
-            if self.db_remote_metadata_list:
-                self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
-
-            # m2m objects
-            db_service.metadata.keywords.add(*db_service.metadata.keyword_list)
-
-            for db_layer_metadata in db_layer_metadata_list:
-                db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)
-
-            for db_layer in db_layer_list:
-                db_layer.reference_systems.add(*db_layer.reference_system_list)
+            if db_service.service_type.name == OGCServiceEnum.WMS.value:
+                self._create_wms(parsed_service=parsed_service, db_service=db_service)
+            elif db_service.service_type.name == OGCServiceEnum.WFS.value:
+                self._create_wfs(parsed_service=parsed_service, db_service=db_service)
 
         return db_service
 

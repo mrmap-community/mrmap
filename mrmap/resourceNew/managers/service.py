@@ -381,6 +381,13 @@ class ServiceXmlManager(models.Manager):
         return db_service
 
 
+class FeatureTypeElementXmlManager(models.Manager):
+
+    def create_from_parsed_xml(self, parsed_xml, related_object):
+        # todo
+        pass
+
+
 class ServiceManager(models.Manager):
 
     def for_table_view(self, service_type__name: OGCServiceEnum):

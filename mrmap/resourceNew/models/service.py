@@ -11,11 +11,16 @@ from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
-from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager
+from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
+
+from resourceNew.ows_client.request_builder import OgcService
+from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+from resourceNew.parsers.ogc.wfs import FeatureTypeElement as XmlDescribedFeatureType
+from eulxml import xmlmap
 
 
 class ServiceType(models.Model):
@@ -80,8 +85,16 @@ class Service(GenericModelMixin, CommonInfo):
             return ""
 
     @cached_property
+    def _service_type(self):
+        return self.service_type
+
+    @cached_property
     def service_type_name(self):
-        return self.service_type.name
+        return self._service_type.name
+
+    @cached_property
+    def service_version(self):
+        return self._service_type.version
 
     def is_service_type(self, name: OGCServiceEnum):
         """ Return True if the given service type name matches else return None
@@ -206,7 +219,7 @@ class OperationUrl(CommonInfo):
                                  editable=False,
                                  verbose_name=_("operation"),
                                  help_text=_("the operation you can perform with this url."))
-    mime_types = models.ManyToManyField(to="MimeType",  # avoid from circular import error
+    mime_types = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                         blank=True,
                                         editable=False,
                                         related_name="operation_urls",
@@ -357,7 +370,7 @@ class Layer(ServiceElement, MPTTModel):
 
 
 class FeatureType(ServiceElement):
-    output_formats = models.ManyToManyField(to="MimeType",  # avoid from circular import error
+    output_formats = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                             blank=True,
                                             editable=False,
                                             related_name="feature_types",
@@ -368,10 +381,58 @@ class FeatureType(ServiceElement):
                                                         "element is not specified, then all the result formats "
                                                         "listed for the GetFeature operation are assumed to be "
                                                         "supported. "))
+    describe_feature_type_document = models.TextField(null=True,
+                                                      verbose_name=_("describe feature type"),
+                                                      help_text=_("the fetched content of the download describe feature"
+                                                                  " type document."))
 
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
+
+    def fetch_describe_feature_type_document(self, save=True):
+        """ Return the fetched described feature type document and update the content if save is True """
+        try:
+            external_authentication = self.service.external_authentication
+        except ExternalAuthentication.DoesNotExist:
+            external_authentication = None
+        base_url = self.service.operation_urls.values_list('url', flat=True)\
+                                              .get(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+                                                   method=HttpMethodEnum.GET.value)
+        link = OgcService(base_url=base_url,
+                          service_type=self.service.service_type_name,
+                          version=self.service.service_version)\
+            .get_describe_feature_type_request(type_name_list=self.identifier).url
+        connector = CommonConnector(url=link,
+                                    external_auth=external_authentication)
+        connector.load()
+        content = connector.content
+        if isinstance(content, bytes):
+            content = str(content, "UTF-8")
+        self.describe_feature_type_document = content
+        if save:
+            self.save()
+        return self.describe_feature_type_document
+
+    def parse(self):
+        """ Return the parsed self.remote_content
+
+            Raises:
+                ValueError: if self.remote_content is null
+        """
+        if self.describe_feature_type_document:
+            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(string=bytes(self.describe_feature_type_document,
+                                                                             "UTF-8"),
+                                                                             xmlclass=XmlDescribedFeatureType)
+            return parsed_feature_type_elements.elements
+        else:
+            raise ValueError("there is no fetched content. You need to call fetch_describe_feature_type_document() "
+                             "first.")
+
+    def create_element_instances(self):
+        """ Return the created FeatureTypeElement record(s) """
+        return FeatureTypeElement.xml_objects.create_from_parsed_xml(parsed_xml=self.parse(),
+                                                                     related_object=self)
 
 
 class FeatureTypeElement(CommonInfo):
@@ -384,6 +445,7 @@ class FeatureTypeElement(CommonInfo):
                                      on_delete=models.CASCADE,
                                      verbose_name=_("feature type"),
                                      help_text=_("related feature type of this element"))
+    xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:
         verbose_name = _("feature type element")

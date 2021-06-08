@@ -11,7 +11,7 @@ from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, Metad
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager
 from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
-from resourceNew.parsers.iso_metadata import WrappedIsoMetadata
+from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
 from service.helper.common_connector import CommonConnector
 from structure.models import Contact
 from uuid import uuid4

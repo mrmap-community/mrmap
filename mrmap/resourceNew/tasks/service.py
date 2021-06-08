@@ -1,7 +1,7 @@
 from django.utils import timezone
 from celery import shared_task, current_task, chain, chord
 from resourceNew.enums.service import AuthTypeEnum
-from resourceNew.models import Service as DbService
+from resourceNew.models import Service as DbService, FeatureType
 from resourceNew.models import ExternalAuthentication, RemoteMetadata
 from service.helper.common_connector import CommonConnector
 from main.tasks import DefaultBehaviourTask, MonitoringTask
@@ -30,6 +30,33 @@ def register_service(self,
     return self.pending_task.pk
 
 
+@shared_task(name="async_collect_feature_type_elements",
+             bind=True,
+             base=DefaultBehaviourTask)
+def collect_feature_type_elements(self,
+                                  service_ids,
+                                  **kwargs):
+
+    for service_id in service_ids:
+        feature_type_list = FeatureType.objects.filter(service__pk=service_id)
+        for feature_type in feature_type_list:
+            pass
+
+    return service_ids
+
+
+@shared_task(name="async_fetch_feature_type_element_xml",
+             bind=True,
+             base=DefaultBehaviourTask,
+             queue="download")
+def fetch_remote_metadata_xml(self,
+                              feature_type_id,
+                              progress_step_size,
+                              **kwargs):
+    feature_type = FeatureType.objects.get(pk=feature_type_id)
+
+
+
 @shared_task(name="async_collect_linked_metadata",
              bind=True,
              base=DefaultBehaviourTask)
@@ -37,7 +64,7 @@ def collect_linked_metadata(self,
                             service_ids,
                             **kwargs):
     for service_id in service_ids:
-        # todo: inefficient. we only need to fetch and parse the remote metadata objects one time
+        # todo: inefficient. we only need to fetch and parse the remote metadata objects once
 
         remote_metadata_list = RemoteMetadata.objects.filter(service__pk=service_id)
         progress_step_size = (PROGRESS_AFTER_FETCHING_ISO_METADATA - PROGRESS_AFTER_PERSISTING)/len(remote_metadata_list)

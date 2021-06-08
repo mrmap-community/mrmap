@@ -36,7 +36,7 @@ What MrMap Is Not
 
 While MrMap strives to cover many areas of geodata infrastructure, the scope of its feature set is necessarily limited. This ensures that development focuses on core functionality and that scope creep is reasonably contained. To that end, it might help to provide some examples of functionality that MrMap does not provide:
 
-* Card viewer
+* Enhanced web-based Map viewer component
 
 
 Design Philosophy

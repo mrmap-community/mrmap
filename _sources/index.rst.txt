@@ -1,8 +1,7 @@
 .. MrMap documentation master file, created by
-   sphinx-quickstart on Tue Mar 30 10:28:20 2021.
+   sphinx-quickstart on Mon Mar 29 19:23:36 2021.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
-
 
 ================
 Welcome to MrMap
@@ -22,6 +21,6 @@ Table of content
    :maxdepth: 3
 
    introduction/index
+   use_cases/index
    installation/index
    development/index
-

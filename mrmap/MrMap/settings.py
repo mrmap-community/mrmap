@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'service',
     'users',
     'structure',
+    'job',
     'django_extensions',
     'editor',
     'captcha',

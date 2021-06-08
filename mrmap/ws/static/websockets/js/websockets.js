@@ -41,7 +41,8 @@ function handle_toast(){
 
 function AppViewModel() {
     var appViewModel = this;
-    this.pendingTaskCount = ko.observable();
+    this.jobCount = ko.observable();
+    this.taskCount = ko.observable();
 
     var ws_socket = ws_connect('/ws/app-view-model/', '')
     ws_socket.onmessage = function message(event) {

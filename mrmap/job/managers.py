@@ -3,7 +3,7 @@ from django.db.models import F
 from django.db.models import Avg, Max, Min
 
 
-class PendingTaskManager(models.Manager):
+class TaskManager(models.Manager):
 
     def get_stats(self):
         self.get_queryset().aggregate(Avg('execution_time'), Max('execution_time'), Min('execution_time'))

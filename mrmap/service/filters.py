@@ -7,13 +7,6 @@ from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.helper.enums import OGCServiceEnum
 from service.models import Metadata, Layer, FeatureType, ProxyLog
 from django.utils.translation import gettext_lazy as _
-from structure.models import PendingTask
-
-
-class PendingTaskFilter(django_filters.FilterSet):
-    class Meta:
-        model = PendingTask
-        fields = ['id', 'status', 'phase']
 
 
 class OgcWmsFilter(django_filters.FilterSet):

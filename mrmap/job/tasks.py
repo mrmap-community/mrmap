@@ -3,12 +3,14 @@ from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
-from main.models import set_current_owner
+from django.db import transaction
+
+from main.models import set_current_owner, get_current_owner
 from structure.enums import PendingTaskEnum
-from structure.models import Organization
+from structure.models import Workflow, Organization
 from django_celery_results.models import TaskResult
+from django.conf import settings
 from django.utils import timezone
-from job.models import Task as DbTask
 
 
 # todo: deprecated; use classes below
@@ -60,7 +62,7 @@ class DefaultBehaviourTask(Task, ABC):
         self.set_current_owner(kwargs.get("owned_by_org_pk", None))
         if "pending_task_pk" in kwargs:
             try:
-                self.pending_task = DbTask.objects.get(id=kwargs["pending_task_pk"])
+                self.pending_task = Workflow.objects.get(id=kwargs["pending_task_pk"])
             except ObjectDoesNotExist:
                 pass
 
@@ -96,7 +98,7 @@ class MonitoringTask(DefaultBehaviourTask, ABC):
         self.default_behaviour(**kwargs)
         if not self.pending_task:
             try:
-                self.pending_task = DbTask.objects.create()
+                self.pending_task = Workflow.objects.create()
                 kwargs.update({"pending_task_pk": self.pending_task.pk})
             except Exception as e:
                 # todo: log instead of print

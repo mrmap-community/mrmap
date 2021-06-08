@@ -17,7 +17,7 @@ from service.serializer.ogc.factory.factorys import OGCServiceFactory
 from main.tasks import DefaultBehaviourTask
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
-from structure.models import Organization, PendingTask
+from structure.models import Organization
 from service.helper import service_helper
 
 

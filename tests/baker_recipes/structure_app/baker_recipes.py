@@ -4,7 +4,7 @@ from django.contrib.auth.hashers import make_password
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key
 from users.models import MrMapUser
-from structure.models import Organization, PublishRequest, PendingTask
+from structure.models import Organization, PublishRequest, Workflow
 from tests.test_data import get_password_data
 
 
@@ -51,7 +51,7 @@ inactive_testuser = active_testuser.extend(
 )
 
 pending_task = Recipe(
-    PendingTask,
+    Workflow,
     status=states.STARTED,
     task_id=1
 )

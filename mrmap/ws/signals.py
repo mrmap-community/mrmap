@@ -1,16 +1,12 @@
 from asgiref.sync import async_to_sync
 from celery import states
-from celery.signals import after_task_publish
 from channels.layers import get_channel_layer
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.urls import reverse
 from django.utils.html import format_html
-from django_celery_results.models import TaskResult
 from django.utils.translation import gettext as _
-from structure.models import PendingTask
+from job.models import Job, Task
 from django.contrib.contenttypes.models import ContentType
-from crum import get_current_user
 
 
 def update_count(channel_layer, instance):
@@ -26,7 +22,7 @@ def update_count(channel_layer, instance):
 def send_task_toast(channel_layer, started, instance):
     if instance.owned_by_org:
         title = _('New task scheduled') if started else _('Task done')
-        body = format_html('<a href={}>{}</a>', f'{reverse("resource:pending-tasks")}?id={instance.pk}', _('details'))
+        body = format_html('<a href={}>{}</a>', f'{instance.get_absolute_url()}', _('details'))
 
         content_type = ContentType.objects.get_for_model(instance)
 
@@ -42,24 +38,22 @@ def send_task_toast(channel_layer, started, instance):
         )
 
 
-@receiver(post_save, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_save')
-@receiver(post_delete, sender=PendingTask, dispatch_uid='update_pending_task_listeners_on_post_delete')
-def update_pending_task_listeners(instance, **kwargs):
+@receiver(post_save, sender=Job, dispatch_uid='update_job_table_listeners_on_job_post_save')
+@receiver(post_delete, sender=Job, dispatch_uid='update_job_table_listeners_on_job_post_delete')
+@receiver(post_save, sender=Task, dispatch_uid='update_job_table_listeners_on_task_post_save')
+@receiver(post_delete, sender=Task, dispatch_uid='update_job_table_listeners_on_task_post_delete')
+def update_job_table_listeners(instance, **kwargs):
     """
     Send the information to the channel group when a TaskResult is created/modified
     """
     channel_layer = get_channel_layer()
-
-    if isinstance(instance, TaskResult):
-        try:
-            instance = instance.pendingtask
-        except Exception:
-            return
+    if isinstance(instance, Task):
+        instance = instance.job
 
     if instance.owned_by_org:
         if 'created' in kwargs:
             if kwargs['created']:
-                # post_save signal --> new PendingTask/TaskResult object
+                # post_save signal --> new Task object
                 update_count(channel_layer, instance)
                 send_task_toast(channel_layer, True, instance)
             else:
@@ -72,7 +66,23 @@ def update_pending_task_listeners(instance, **kwargs):
             update_count(channel_layer, instance)
 
         async_to_sync(channel_layer.group_send)(
-            f"pendingtasktableconsumer_{instance.owned_by_org.pk}_observers",
+            f"jobtableconsumer_{instance.owned_by_org.pk}_observers",
+            {
+                "type": "send.table.as.html",
+            },
+        )
+
+
+@receiver(post_save, sender=Task, dispatch_uid='update_task_table_listeners_on_task_post_save')
+@receiver(post_delete, sender=Task, dispatch_uid='update_task_table_listeners_on_task_post_delete')
+def update_task_table_listeners(instance, **kwargs):
+    """
+    Send the information to the channel group when a TaskResult is created/modified
+    """
+    channel_layer = get_channel_layer()
+    if instance.owned_by_org:
+        async_to_sync(channel_layer.group_send)(
+            f"tasktableconsumer_{instance.owned_by_org.pk}_observers",
             {
                 "type": "send.table.as.html",
             },

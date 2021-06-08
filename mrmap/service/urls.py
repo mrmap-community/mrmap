@@ -17,9 +17,6 @@ urlpatterns = [
     path('mapcontexts/', MapContextIndexView.as_view(), name='mapcontexts-index'),
     path('logs/', LogsIndexView.as_view(), name='logs-view'),
 
-    # PendingTasks
-    path('pending-tasks/', PendingTaskView.as_view(), name="pending-tasks"),
-
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),
     path('<pk>/remove', ResourceDeleteView.as_view(), name='remove'),

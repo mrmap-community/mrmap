@@ -41,7 +41,7 @@ from monitoring.models import HealthState
 from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION, BASE_DIR
 from MrMap.views import GenericViewContextMixin, InitFormMixin, CustomSingleTableMixin, \
     SuccessMessageDeleteMixin
-from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter, PendingTaskFilter
+from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm
 from service.helper import service_helper
 from service.helper import update_helper
@@ -52,12 +52,11 @@ from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
+from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, ResourceDetailTable, \
     ProxyLogTable, MapContextTable
 from service.tasks import async_log_response
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from django.urls import reverse, reverse_lazy
 from users.models import Subscription
@@ -122,14 +121,6 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
         )
 
     return qs
-
-
-class PendingTaskView(SecuredListMixin, FilterView):
-    model = PendingTask
-    table_class = PendingTaskTable
-    filterset_class = PendingTaskFilter
-    title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
-    template_name = 'service/views/pending_tasks.html'
 
 
 class WmsIndexView(SecuredListMixin, FilterView):

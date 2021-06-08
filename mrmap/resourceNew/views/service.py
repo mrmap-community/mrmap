@@ -1,9 +1,9 @@
 from MrMap.icons import get_icon, IconEnum
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
-from resourceNew import tasks
+from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.filtersets.service import LayerFilterSet
-from resourceNew.forms import RegisterServiceForm
+from resourceNew.forms.service import RegisterServiceForm
 from resourceNew.models import Service, ServiceType, Layer
 from django.urls import reverse_lazy, reverse
 from django.conf import settings
@@ -114,7 +114,7 @@ class RegisterServiceFormView(FormView):
     def form_valid(self, form):
         cleaned_data = form.cleaned_data
         cleaned_data.update({"registering_for_organization": cleaned_data["registering_for_organization"].pk})
-        pending_task_id = tasks.register_service(
+        pending_task_id = service_tasks.register_service(
                         form.cleaned_data,
                         **{"created_by_user_pk": self.request.user.pk,
                            "owned_by_org_pk": form.cleaned_data["registering_for_organization"]})

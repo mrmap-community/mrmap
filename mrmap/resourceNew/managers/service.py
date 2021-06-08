@@ -351,6 +351,9 @@ class ServiceXmlManager(models.Manager):
 
         db_feature_type_list = self.sub_element_cls.objects.bulk_create(objs=db_feature_type_list)
 
+        if self.db_remote_metadata_list:
+            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
+
         db_feature_type_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
         for db_feature_type_metadata in db_feature_type_metadata_list:
             db_feature_type_metadata.keywords.add(*db_feature_type_metadata.keyword_list)
@@ -382,10 +385,29 @@ class ServiceXmlManager(models.Manager):
 
 
 class FeatureTypeElementXmlManager(models.Manager):
+    common_info = {}
+
+    def _reset_local_variables(self):
+        # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
+        # collect them once.
+        now = timezone.now()
+        current_user = get_current_user()
+        self.common_info = {"created_at": now,
+                            "last_modified_at": now,
+                            "last_modified_by": current_user,
+                            "created_by_user": current_user,
+                            "owned_by_org": get_current_owner(),
+                            }
 
     def create_from_parsed_xml(self, parsed_xml, related_object):
-        # todo
-        pass
+        self._reset_local_variables()
+
+        db_element_list = []
+        for element in parsed_xml.elements:
+            db_element_list.append(self.model(feature_type=related_object,
+                                              **self.common_info,
+                                              **element.get_field_dict()))
+        return self.model.objects.bulk_create(objs=db_element_list)
 
 
 class ServiceManager(models.Manager):

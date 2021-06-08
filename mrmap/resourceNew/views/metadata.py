@@ -3,7 +3,7 @@ from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew import tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.filtersets.metadata import DatasetMetadataFilterSet
-from resourceNew.forms import RegisterServiceForm
+from resourceNew.forms.service import RegisterServiceForm
 from resourceNew.models import Service, ServiceType, DatasetMetadata
 from django.urls import reverse_lazy, reverse
 from django.conf import settings

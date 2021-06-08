@@ -3,6 +3,7 @@ from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 
 from main.models import set_current_owner, get_current_owner
 from structure.enums import PendingTaskEnum

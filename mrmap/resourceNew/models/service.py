@@ -14,12 +14,11 @@ from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, Htt
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
-
 from resourceNew.ows_client.request_builder import OgcService
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
-from resourceNew.parsers.ogc.wfs import FeatureTypeElement as XmlDescribedFeatureType
+from resourceNew.parsers.ogc.wfs import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
 
 
@@ -424,7 +423,7 @@ class FeatureType(ServiceElement):
             parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(string=bytes(self.describe_feature_type_document,
                                                                              "UTF-8"),
                                                                              xmlclass=XmlDescribedFeatureType)
-            return parsed_feature_type_elements.elements
+            return parsed_feature_type_elements
         else:
             raise ValueError("there is no fetched content. You need to call fetch_describe_feature_type_document() "
                              "first.")
@@ -437,7 +436,8 @@ class FeatureType(ServiceElement):
 
 class FeatureTypeElement(CommonInfo):
     name = models.CharField(max_length=255)
-    type = models.CharField(max_length=255, null=True, blank=True)
+    data_type = models.CharField(max_length=255, null=True, blank=True)
+    required = models.BooleanField(default=False)
     feature_type = models.ForeignKey(to=FeatureType,
                                      editable=False,
                                      related_name="elements",
@@ -445,6 +445,7 @@ class FeatureTypeElement(CommonInfo):
                                      on_delete=models.CASCADE,
                                      verbose_name=_("feature type"),
                                      help_text=_("related feature type of this element"))
+    objects = models.Manager()
     xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:

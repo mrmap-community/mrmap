@@ -108,14 +108,60 @@ class ReferenceSystem(models.Model):
         return self.code
 
 
-class MetadataContact(Contact):
-    name = models.CharField(verbose_name=_("Name"),
-                            default="",
-                            help_text=_("The name of the organization"),
-                            max_length=256)
+class MetadataContact(models.Model):
+    name = models.CharField(max_length=256,
+                            null=True,
+                            verbose_name=_("Name"),
+                            help_text=_("The name of the organization"))
+    person_name = models.CharField(max_length=200,
+                                   null=True,
+                                   verbose_name=_("Contact person"))
+    email = models.EmailField(max_length=100,
+                              null=True,
+                              verbose_name=_('E-Mail'))
+    phone = models.CharField(max_length=100,
+                             null=True,
+                             verbose_name=_('Phone'))
+    facsimile = models.CharField(max_length=100,
+                                 null=True,
+                                 blank=True,
+                                 verbose_name=_("Facsimile"))
+    city = models.CharField(max_length=100,
+                            null=True,
+                            verbose_name=_("City"))
+    postal_code = models.CharField(max_length=100,
+                                   null=True,
+                                   verbose_name=_("Postal code"))
+    address_type = models.CharField(max_length=100,
+                                    null=True,
+                                    verbose_name=_("Address type"))
+    address = models.CharField(max_length=100,
+                               null=True,
+                               verbose_name=_("Address"))
+    state_or_province = models.CharField(max_length=100,
+                                         null=True,
+                                         verbose_name=_("State or province"))
+    country = models.CharField(max_length=100,
+                               null=True,
+                               verbose_name=_("Country"))
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            # we store only atomic contact records, identified by all fields
+            models.UniqueConstraint(fields=['name',
+                                            'person_name',
+                                            'email',
+                                            'phone',
+                                            'facsimile',
+                                            'city',
+                                            'postal_code',
+                                            'address_type',
+                                            'address',
+                                            'state_or_province',
+                                            'country'],
+                                    name='%(app_label)s_%(class)s_unique_metadata_contact')
+        ]
 
 
 class Keyword(models.Model):
@@ -204,14 +250,16 @@ class MetadataTermsOfUse(models.Model):
     """ Abstract model class to define some fields which describes the terms of use for an metadata
 
     """
-    access_constraints = models.TextField(default="",
+    access_constraints = models.TextField(null=True,
+                                          blank=True,
                                           verbose_name=_("access constraints"),
                                           help_text=_("access constraints for the given resource."))
-    fees = models.TextField(default="",
+    fees = models.TextField(null=True,
+                            blank=True,
                             verbose_name=_("fees"),
                             help_text=_("Costs and of terms of use for the given resource."))
-    use_limitation = models.TextField(default="")
-    license_source_note = models.TextField()
+    use_limitation = models.TextField(null=True)
+    license_source_note = models.TextField(null=True)
     licence = models.ForeignKey(to=Licence,
                                 on_delete=models.RESTRICT,
                                 blank=True,
@@ -234,7 +282,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                       editable=False,
                                       db_index=True)
     file_identifier = models.CharField(max_length=1000,
-                                       default="",
+                                       null=True,
                                        editable=False,
                                        verbose_name=_("file identifier"),
                                        help_text=_("the parsed file identifier from the iso metadata xml "
@@ -256,7 +304,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
     title = models.CharField(max_length=1000,
                              verbose_name=_("title"),
                              help_text=_("a short descriptive title for this metadata"))
-    abstract = models.TextField(default='',
+    abstract = models.TextField(null=True,
                                 verbose_name=_("abstract"),
                                 help_text=_("brief summary of the content of this metadata."))
     is_broken = models.BooleanField(default=False,
@@ -264,7 +312,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                     verbose_name=_("is broken"),
                                     help_text=_("TODO"))
     harvest_result = models.CharField(max_length=50,
-                                      default="",
+                                      null=True,
                                       choices=HarvestResultEnum.as_choices(),
                                       editable=False,
                                       verbose_name=_("harvest result"),
@@ -502,7 +550,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                          help_text=_(""))
     spatial_res_type = models.CharField(max_length=20,
                                         choices=SPATIAL_RES_TYPE_CHOICES,
-                                        default='',
+                                        null=True,
                                         verbose_name=_("resolution type"),
                                         help_text=_("Ground resolution in meter or the equivalent scale."))
     spatial_res_value = models.FloatField(null=True,
@@ -535,10 +583,10 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                              blank=True)
     bounding_geometry = MultiPolygonField()
     dataset_id = models.CharField(max_length=4096,
-                                  default="",  # empty dataset_id signals broken dataset metadata records
+                                  null=True,  # empty dataset_id signals broken dataset metadata records
                                   help_text=_("identifier of the remote data"))
     dataset_id_code_space = models.CharField(max_length=4096,
-                                             default="",
+                                             null=True,
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
@@ -572,7 +620,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                     name='%(app_label)s_%(class)s_unique_origin_url_file_identifier')
         ]
 
-    def add_dataset_metadata_relation(self, relation_type, origin, related_object, internal=False):
+    def add_dataset_metadata_relation(self, relation_type, origin, related_object, is_internal=False):
         kwargs = {}
         if related_object._meta.model == Layer:
             kwargs.update({"layer": related_object})
@@ -581,7 +629,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         relation, created = DatasetMetadataRelation.objects.get_or_create(
             dataset_metadata=self,
             relation_type=relation_type,
-            internal=internal,
+            is_internal=is_internal,
             origin=origin,
             **kwargs
         )
@@ -602,7 +650,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         ).delete()
 
 
-class Dimension(models.Model):
+class Dimension(CommonInfo):
     name = models.CharField(max_length=50,
                             verbose_name=_("name"),
                             help_text=_("the type of the content stored in extent field."))

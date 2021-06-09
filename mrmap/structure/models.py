@@ -53,8 +53,7 @@ class Contact(models.Model):
             "address_type",
             "address",
             "state_or_province",
-            "country",
-            "description",)
+            "country")
 
 
 class Organization(UuidPk, CommonInfo, Contact):

@@ -277,11 +277,8 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
 
             bbox_lat_lon = Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
             dic.update({"bbox_lat_lon": bbox_lat_lon})
-            del dic['bbox_lower_corner'], dic['bbox_upper_corner']
-        elif bbox_lower_corner:
-            del dic['bbox_lower_corner']
-        elif bbox_upper_corner:
-            del dic['bbox_upper_corner']
+
+        del dic['bbox_lower_corner'], dic['bbox_upper_corner']
 
         return dic
 
@@ -307,12 +304,12 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
         dic = super().get_field_dict()
         if dic.get("wms_name", None):
             name = dic.get("wms_name").lower()
-            del dic["wms_name"]
         elif dic.get("wfs_name", None):
             name = dic.get("wfs_name").lower()
-            del dic["wfs_name"]
         else:
             raise SemanticError("could not determine the service type for the parsed capabilities document.")
+
+        del dic["wms_name"], dic["wfs_name"]
 
         if ":" in name:
             name = name.split(":", 1)[-1]

@@ -1,6 +1,7 @@
 import django_tables2 as tables
 from django.template import Template, Context
 from django_bootstrap_swt.enums import ProgressColorEnum
+from django.utils.html import format_html
 from MrMap.icons import IconEnum, get_icon
 from django.utils.translation import gettext_lazy as _
 from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
@@ -23,8 +24,8 @@ class JobTable(tables.Table):
     done_at = tables.Column(verbose_name=_('Date Done'),
                             attrs={"th": {"class": "col-sm-1"}},
                             empty_values=[])
-    """execution_time = tables.Column(verbose_name=_("Execution time"),
-                                   attrs={"th": {"class": "col-sm-2"}})"""
+    execution_time = tables.Column(verbose_name=_("Execution time"),
+                                   attrs={"th": {"class": "col-sm-2"}})
     progress = tables.Column(verbose_name=_('Progress'),
                              attrs={"th": {"class": "col-sm-2"}},
                              empty_values=[])
@@ -36,7 +37,7 @@ class JobTable(tables.Table):
                   'created_by_user',
                   'created_at',
                   'done_at',
-                  # 'execution_time',
+                  'execution_time',
                   'progress')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
@@ -87,10 +88,10 @@ class TaskTable(tables.Table):
                            attrs={"th": {"class": "col-sm-1"}})
     created_by_user = tables.Column(attrs={"th": {"class": "col-sm-1"}})
     phase = tables.Column(attrs={"th": {"class": "col-sm-1"}})
-    created_at = tables.Column(verbose_name=_('Date Created'),
+    started_at = tables.Column(verbose_name=_('Started at'),
                                attrs={"th": {"class": "col-sm-1"}},
                                empty_values=[])
-    done_at = tables.Column(verbose_name=_('Date Done'),
+    done_at = tables.Column(verbose_name=_('Done at'),
                             attrs={"th": {"class": "col-sm-1"}},
                             empty_values=[])
     execution_time = tables.Column(verbose_name=_("Execution time"),
@@ -102,9 +103,10 @@ class TaskTable(tables.Table):
     class Meta:
         model = Task
         fields = ('status',
+                  "name",
                   "phase",
                   'created_by_user',
-                  'created_at',
+                  'started_at',
                   'done_at',
                   'execution_time',
                   'progress')
@@ -132,6 +134,9 @@ class TaskTable(tables.Table):
         context.update({'content': icon,
                         'tooltip': tooltip})
         return Template(TOOLTIP).render(context)
+
+    def render_phase(self, value):
+        return format_html(value)
 
     @staticmethod
     def render_progress(record, value):

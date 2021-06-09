@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from django.db.models import Avg
+from django.db.models import Avg, Sum, F
 from job.enums import TaskStatusEnum
 from job.managers import TaskManager
 from main.models import CommonInfo
@@ -13,6 +13,9 @@ class Job(CommonInfo):
     name = models.CharField(max_length=256,
                             verbose_name=_("name"),
                             help_text=_("Describe what this job does."))
+
+    class Meta:
+        ordering = ["-id"]
 
     @cached_property
     def cached_tasks(self):
@@ -48,8 +51,13 @@ class Job(CommonInfo):
             return None
         return self.cached_tasks.order_by("-done_at").values_list("done_at", flat=True).first()
 
+    @cached_property
+    def execution_time(self):
+        execution_time = self.cached_tasks.aggregate(execution_time=Sum(F("done_at")-F("started_at"))).get("execution_time")
+        return execution_time
+
     def __str__(self):
-        return self.name
+        return f"{self.pk} | {self.name} | {self.status} | {self.progress}"
 
     def get_absolute_url(self):
         return f"{reverse('job:task_list')}?job__in={self.pk}"
@@ -63,8 +71,10 @@ class Task(CommonInfo):
         choices=TaskStatusEnum.as_choices(),
         verbose_name=_('task state'),
         help_text=_('Current state of the task being run'))
-    phase = models.CharField(max_length=256,
-                             default="")
+    name = models.CharField(max_length=256,
+                            verbose_name=_("name"),
+                            help_text=_("Describe what this job does."))
+    phase = models.TextField(default="")
     progress = models.FloatField(default=0.0)
     started_at = models.DateTimeField(null=True,
                                       blank=True)
@@ -81,5 +91,8 @@ class Task(CommonInfo):
 
     objects = TaskManager()
 
+    class Meta:
+        ordering = ["-done_at"]
+
     def __str__(self):
-        return f"{self.pk} | {self.status} | {self.progress}"
+        return f"{self.pk} | {self.name} | {self.status} | {self.progress}"

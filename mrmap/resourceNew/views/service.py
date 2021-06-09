@@ -1,4 +1,5 @@
 from MrMap.icons import get_icon, IconEnum
+from job.models import Job
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
@@ -114,9 +115,13 @@ class RegisterServiceFormView(FormView):
     def form_valid(self, form):
         cleaned_data = form.cleaned_data
         cleaned_data.update({"registering_for_organization": cleaned_data["registering_for_organization"].pk})
-        pending_task_id = service_tasks.register_service(
+        job_pk = service_tasks.register_service(
                         form.cleaned_data,
                         **{"created_by_user_pk": self.request.user.pk,
                            "owned_by_org_pk": form.cleaned_data["registering_for_organization"]})
-        self.success_url = f"{reverse('resource:pending-tasks')}?id={pending_task_id}"
+        try:
+            job = Job.objects.get(pk=job_pk)
+            self.success_url = job.get_absolute_url()
+        except Job.ObjectDoesNotExist:
+            pass
         return super().form_valid(form=form)

@@ -3,33 +3,19 @@ from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
-
-from main.models import set_current_owner, get_current_owner
-from structure.enums import PendingTaskEnum
-from structure.models import Workflow, Organization
-from django_celery_results.models import TaskResult
-from django.conf import settings
+from job.enums import TaskStatusEnum
+from main.models import set_current_owner
+from structure.models import Organization
 from django.utils import timezone
+from job.models import Job as DbJob, Task as DbTask
 
 
-# todo: deprecated; use classes below
-def default_task_handler(**kwargs):
-    if 'created_by_user_pk' in kwargs:
-        try:
-            user = get_user_model().objects.get(id=kwargs['created_by_user_pk'])
-            set_current_user(user)
-        except ObjectDoesNotExist:
-            return
-
-
-class DefaultBehaviourTask(Task, ABC):
+class CommonInfoSetupMixin(Task, ABC):
     """ Set current user and owner for models which uses CommonInfo
 
     """
     user = None
     owner = None
-    pending_task = None
 
     def set_current_user(self, user_pk=None):
         try:
@@ -57,49 +43,71 @@ class DefaultBehaviourTask(Task, ABC):
             # to `reset` the current organization. Otherwise the last set organization for this thread will be used.
             set_current_owner(self.owner)
 
-    def default_behaviour(self, **kwargs):
+    def common_info_setup(self, **kwargs):
         self.set_current_user(kwargs.get("created_by_user_pk", None))
         self.set_current_owner(kwargs.get("owned_by_org_pk", None))
-        if "pending_task_pk" in kwargs:
-            try:
-                self.pending_task = Workflow.objects.get(id=kwargs["pending_task_pk"])
-            except ObjectDoesNotExist:
-                pass
 
     def __call__(self, *args, **kwargs):
         # all task functions uses the same class instance; so we need to reset the stored pending pending task variable
         # to avoid of using the same pending task object for different task/workflow runs.
-        self.pending_task = None
-        self.default_behaviour(**kwargs)
+        self.common_info_setup(**kwargs)
         return super().__call__(*args, **kwargs)
 
-    def on_success(self, retval, task_id, args, kwargs):
-        if self.pending_task:
-            self.pending_task.sub_tasks.add(*TaskResult.objects.filter(task_id=task_id))
+
+class CurrentTask(CommonInfoSetupMixin, ABC):
+    task = None
+
+    def __call__(self, *args, **kwargs):
+        # all task functions uses the same class instance; so we need to reset the stored pending pending task variable
+        # to avoid of using the same pending task object for different task/workflow runs.
+        self.task = None
+        self.common_info_setup(**kwargs)
+        if "task_pk" in kwargs:
+            try:
+                self.task = DbTask.objects.get(id=kwargs["task_pk"])
+            except ObjectDoesNotExist:
+                pass
+        else:
+            if "job_pk" in kwargs:
+                try:
+                    self.job = DbJob.objects.get(id=kwargs["job_pk"])
+                except ObjectDoesNotExist:
+                    pass
+            if self.job and not self.task:
+                try:
+                    self.task = DbTask.objects.create(name=self.name,
+                                                      job=self.job)
+                    kwargs.update({"task_pk": self.task.pk})
+                except Exception as e:
+                    # todo: log instead of print
+                    import traceback
+                    traceback.print_exc()
+        return super().__call__(*args, **kwargs)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        if self.pending_task:
-            self.pending_task.status = PendingTaskEnum.FAILURE.value
-            self.pending_task.done_at = timezone.now()
-            self.pending_task.traceback = einfo
-            self.pending_task.save()
+        if self.task:
+            self.task.status = TaskStatusEnum.FAILURE.value
+            self.task.done_at = timezone.now()
+            self.task.traceback = einfo
+            self.task.save()
 
 
-class MonitoringTask(DefaultBehaviourTask, ABC):
+class NewJob(CommonInfoSetupMixin, ABC):
     """ Abstract class to implement default behaviour for `main` tasks which starts a complex set of subtasks.
 
         It creates a new PendingTask instance if it is None.
     """
+    job = None
 
     def __call__(self, *args, **kwargs):
         # all task functions uses the same class instance; so we need to reset the stored pending pending task variable
         # to avoid of using the same pending task object for different task/workflow runs.
-        self.pending_task = None
-        self.default_behaviour(**kwargs)
-        if not self.pending_task:
+        self.job = None
+        self.common_info_setup(**kwargs)
+        if not self.job:
             try:
-                self.pending_task = Workflow.objects.create()
-                kwargs.update({"pending_task_pk": self.pending_task.pk})
+                self.job = DbJob.objects.create(name=self.name)
+                kwargs.update({"job_pk": self.job.pk})
             except Exception as e:
                 # todo: log instead of print
                 import traceback

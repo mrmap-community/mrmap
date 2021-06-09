@@ -99,6 +99,7 @@ class ServiceXmlManager(models.Manager):
     def _create_service_metadata_instance(self, parsed_service, db_service):
         service_contact = parsed_service.service_metadata.service_contact
         service_contact_cls = service_contact.get_model_class()
+
         db_service_contact, created = service_contact_cls.objects.get_or_create(**service_contact.get_field_dict())
         if not self.service_metadata_cls:
             self.service_metadata_cls = parsed_service.service_metadata.get_model_class()

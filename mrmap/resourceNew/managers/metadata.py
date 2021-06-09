@@ -6,6 +6,8 @@ from resourceNew.enums.metadata import MetadataOriginEnum, MetadataRelationEnum,
 from django.utils import timezone
 from datetime import datetime, date
 
+from service.settings import service_logger
+
 
 class LicenceManager(models.Manager):
     """
@@ -68,7 +70,6 @@ class IsoMetadataManager(models.Manager):
         db_dataset_contact = self._create_contact(contact=parsed_metadata.dataset_contact)
 
         field_dict = parsed_metadata.get_field_dict()
-
         try:
             db_dataset_metadata = self.model.objects.get(dataset_id=field_dict["dataset_id"],
                                                          dataset_id_code_space=field_dict["dataset_id_code_space"])
@@ -80,7 +81,7 @@ class IsoMetadataManager(models.Manager):
                 self.model.objects.update(metadata_contact=db_metadata_contact,
                                           dataset_contact=db_dataset_contact,
                                           **field_dict)
-        except ObjectDoesNotExist:
+        except self.model.DoesNotExist:
             db_dataset_metadata = super().create(metadata_contact=db_metadata_contact,
                                                  dataset_contact=db_dataset_contact,
                                                  origin=MetadataOrigin.ISO_METADATA.value,

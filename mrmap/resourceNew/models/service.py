@@ -245,12 +245,12 @@ class ServiceElement(GenericModelMixin, CommonInfo):
     service = models.ForeignKey(to=Service,
                                 on_delete=models.CASCADE,
                                 editable=False,
-                                related_name="%(class)s",
+                                related_name="%(class)ss",
                                 related_query_name="%(class)s",
                                 verbose_name=_("parent service"),
                                 help_text=_("the main service where this element is part of"))
     identifier = models.CharField(max_length=500,
-                                  default='',
+                                  null=True,
                                   editable=False,
                                   verbose_name=_("identifier"),
                                   help_text=_("this is a string which identifies the element on the remote service."))
@@ -439,7 +439,7 @@ class FeatureTypeElement(CommonInfo):
     data_type = models.CharField(max_length=255, null=True, blank=True)
     required = models.BooleanField(default=False)
     feature_type = models.ForeignKey(to=FeatureType,
-                                     editable=False,
+                                     #editable=False,
                                      related_name="elements",
                                      related_query_name="element",
                                      on_delete=models.CASCADE,

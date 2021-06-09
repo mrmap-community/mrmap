@@ -88,13 +88,14 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
 
     def get_field_dict(self):
         field_dict = super().get_field_dict()
-        if self.ref_system is not None:
+        if field_dict.get("ref_system", None):
             if "http://www.opengis.net/def/crs/" in field_dict["ref_system"]:
-                code = self.ref_system.split("/")[-1]
+                code = field_dict["ref_system"].split("/")[-1]
             else:
-                code = self.ref_system.split(":")[-1]
+                code = field_dict["ref_system"].split(":")[-1]
             field_dict.update({"code": code})
-            del field_dict["ref_system"]
+
+        del field_dict["ref_system"]
 
         return field_dict
 
@@ -190,7 +191,7 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
             else:
                 field_dict["dataset_id"] = code
                 field_dict["dataset_id_code_space"] = ""
-            del field_dict["code_md"]
+
         elif field_dict.get("code_rs", None):
             # try to read code from RS_Identifier
             code = field_dict["code_rs"]
@@ -200,17 +201,17 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
                 field_dict["dataset_id_code_space"] = code_space
             else:
                 field_dict["is_broken"] = True
-            del field_dict["code_rs"], field_dict["code_space_rs"]
+
+        del field_dict["code_rs"], field_dict["code_space_rs"], field_dict["code_md"]
 
     def get_date_stamp(self, field_dict):
         date = field_dict.get("date_stamp_date", None)
         date_time = field_dict.get("date_stamp_date_time", None)
         if date:
             field_dict.update({"date_stamp": date})
-            del field_dict["date_stamp_date"]
         elif date_time:
             field_dict.update({"date_stamp": date_time})
-            del field_dict["date_stamp_date_time"]
+        del field_dict["date_stamp_date"], field_dict["date_stamp_date_time"]
 
     def get_field_dict(self):
         field_dict = super().get_field_dict()

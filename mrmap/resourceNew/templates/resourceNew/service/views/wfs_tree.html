@@ -2,8 +2,9 @@
 {% load mptt_tags %}
 {% load static i18n %}
 {% load django_tables2 %}
+{% load guardian_tags %}
 {% block card_body %}
-{% for featuretype in featuretypes %}
+{% for featuretype in object.featuretypes.all %}
 {% get_obj_perms request.user for featuretype as "perms" %}
 <div id="id_accordion_{{featuretype.pk}}">
   <div class="card">
@@ -70,14 +71,14 @@
               <thead>
                 <tr>
                   <th scope="col">name</th>
-                  <th scope="col">value</th>
+                  <th scope="col">type</th>
                 </tr>
               </thead>
               <tbody>
               {% for element in featuretype.elements.all %}
                 <tr>
                   <td>{{element.name}}</td>
-                  <td>{{element.type}}</td>
+                  <td>{{element.data_type}}</td>
                 </tr>
               {% endfor %}
               </tbody>

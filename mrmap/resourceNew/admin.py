@@ -1,8 +1,13 @@
 from django.contrib import admin
-from django.apps import apps
+
+from resourceNew.models import FeatureTypeElement, MetadataContact
 
 
-models = apps.get_app_config('resourceNew').get_models()
+@admin.register(FeatureTypeElement)
+class FeatureTypeElementAdmin(admin.ModelAdmin):
+    list_display = ["name", "data_type"]
+    search_fields = ["name", "data_type"]
+    readonly_fields = ["feature_type"]
 
-for model in models:
-    admin.site.register(model)
+
+admin.site.register(MetadataContact)

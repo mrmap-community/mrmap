@@ -8,7 +8,8 @@ urlpatterns = [
     path('service/add', service_views.RegisterServiceFormView.as_view(), name='service_add'),
 
     path("service/wms", service_views.WmsListView.as_view(), name="service_list"),
-    path("service/wms/<pk>", service_views.ServiceTreeView.as_view(), name="service_view"),
+
+    path("service/<pk>", service_views.ServiceTreeView.as_view(), name="service_view"),
 
     path("service/layers", service_views.LayerListView.as_view(), name="layer_list"),
 

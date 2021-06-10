@@ -1,5 +1,5 @@
 import uuid
-
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
@@ -254,7 +254,11 @@ class CustomSingleTableMixin(SingleTableMixin):
     title = None
     template_extend_base = True
     # Implement lazy pagination, preventing any count() queries to increase performance.
-    paginator_class = LazyPaginator
+    # todo: disabled since refactoring service app to resourceNew app... we need to to test the performance of all
+    #  table views. If we got performance problems we could activate the LazyPaginator again. But for the user
+    #  experience it would be better to dispense LazyPaginator cause with the default pagination we can show total
+    #  table count.
+    # paginator_class = LazyPaginator
 
     def get_title(self):
         if not self.title:
@@ -281,7 +285,13 @@ class CustomSingleTableMixin(SingleTableMixin):
 
     def dispatch(self, request, *args, **kwargs):
         # configure table_pagination dynamically to support per_page switching
-        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+        try:
+            per_page = int(self.request.GET.get('per_page', settings.PER_PAGE_DEFAULT))
+        except ValueError:
+            per_page = settings.PER_PAGE_DEFAULT
+        if per_page > settings.PER_PAGE_MAX:
+            per_page = settings.PER_PAGE_MAX
+        self.table_pagination = {"per_page": per_page}
 
         if not self.template_name:
             self.template_extend_base = bool(self.request.GET.get('with-base', self.get_template_extend_base()))

@@ -152,6 +152,11 @@ TEMPLATES = [
         },
     },
 ]
+PER_PAGE_DEFAULT = 25
+PER_PAGE_DEFAULTS = [
+    25, 50, 100, 250, 500, 1000
+]
+PER_PAGE_MAX = 2500
 
 # Defines basic server information
 HTTP_OR_SSL = "http://"

@@ -9,7 +9,7 @@ from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
-    DatasetMetadataRelationManager
+    DatasetMetadataRelationManager, AbstractMetadataManager
 from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
 from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
 from service.helper.common_connector import CommonConnector
@@ -335,6 +335,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
+    objects = AbstractMetadataManager()
 
     class Meta:
         abstract = True
@@ -368,7 +369,6 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
                                          related_query_name="metadata_contact_service_metadata",
                                          verbose_name=_("contact"),
                                          help_text=_(""))
-    objects = models.Manager()
     iso_metadata = IsoMetadataManager()
 
     class Meta:

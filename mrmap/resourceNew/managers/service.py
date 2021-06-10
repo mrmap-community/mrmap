@@ -432,7 +432,7 @@ class ServiceManager(models.Manager):
         return self.get_queryset().annotate(layers_count=Count("layer", distinct=True))
 
     def with_feature_types_counter(self):
-        return self.get_queryset().annotate(feature_types_count=Count("feature_type", distinct=True))
+        return self.get_queryset().annotate(feature_types_count=Count("featuretype", distinct=True))
 
 
 class LayerManager(TreeManager):
@@ -448,3 +448,28 @@ class LayerManager(TreeManager):
                             "parent",
                             "created_by_user",
                             "owned_by_org")
+
+
+class FeatureTypeManager(models.Manager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("metadata")
+
+    def for_table_view(self):
+        return self.get_queryset()\
+            .annotate(elements_count=Count("element", distinct=True))\
+            .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
+            .select_related("service",
+                            "created_by_user",
+                            "owned_by_org")
+
+
+class FeatureTypeElementManager(models.Manager):
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("feature_type")
+
+    def for_table_view(self):
+        return self.get_queryset().select_related("feature_type__service",
+                                                  "created_by_user",
+                                                  "owned_by_org")

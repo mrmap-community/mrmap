@@ -3,14 +3,17 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
+
+from main.tables.tables import SecuredTable
 from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
     SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS
 from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from resourceNew.models import Service, Layer
+from resourceNew.enums.service import OGCServiceEnum
+from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
 from service.helper.enums import MetadataEnum
 from service.templatecodes import RESOURCE_TABLE_ACTIONS
 from guardian.core import ObjectPermissionChecker
-
+from django.db.models import QuerySet
 
 TOOLTIP_TITLE = _('The resource title')
 TOOLTIP_ACTIVE = _('Shows whether the resource is active or not.')
@@ -28,7 +31,7 @@ TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 
-class WmsServiceTable(tables.Table):
+class ServiceTable(SecuredTable):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
                                   accessor="metadata")
@@ -46,16 +49,6 @@ class WmsServiceTable(tables.Table):
                                     accessor="")"""
     owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
                                   accessor='owned_by_org')
-    """last_harvested = tables.Column(verbose_name=_('Last harvest'),
-                                   empty_values=[],
-                                   accessor='harvest_results__first')
-    last_harvest_duration = tables.Column(verbose_name=_('Harvest duration'),
-                                          empty_values=[],
-                                          accessor='harvest_results__first')
-    collected_harvest_records = tables.Column(verbose_name=_('Collected harvest records'),
-                                              empty_values=[],
-                                              accessor='harvest_results__first')
-    """
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
@@ -67,6 +60,7 @@ class WmsServiceTable(tables.Table):
         model = Service
         fields = ("title",
                   "layers_count",
+                  "feature_types_count",
                   "service_type__version",
                   #'service__service_type__version',
 
@@ -75,31 +69,18 @@ class WmsServiceTable(tables.Table):
                   'owner',
                   'actions',
                   )
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'ogc-service-table'
-
-    def before_render(self, request):
-        self.perm_checker = ObjectPermissionChecker(request.user)
-        # if we call self.data, all object from the underlying queryset will be selected. But in case of paging, only a
-        # subset of the self.data is needed. django tables2 doesn't provide any way to get the cached qs of the current
-        # page. So the following code snippet is a workaround to collect the current presented objects of the table
-        # to avoid calling the database again.
-        objs = []
-        for obj in self.page.object_list:
-            objs.append(obj.record)
-        # for all objects of the current page, we prefetch all permissions for the given user. This optimizes the
-        # rendering of the action column, cause we need to check if the user has the permission to perform the given
-        # action. If we don't prefetch the permissions, any permission check in the template will perform one db query
-        # for each object.
-        if objs:
-            self.perm_checker.prefetch_perms(objs)
 
     def render_layers_count(self, record, value):
         link = f'<a href="{reverse("resourceNew:layer_list")}?service__id__in={record.pk}">{value}</a>'
         return format_html(link)
 
+    def render_feature_types_count(self, record, value):
+        link = f'<a href="{reverse("resourceNew:feature_type_list")}?service__id__in={record.pk}">{value}</a>'
+        return format_html(link)
 
-class LayerTable(tables.Table):
+
+class LayerTable(SecuredTable):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
                                   accessor="metadata")
@@ -123,24 +104,7 @@ class LayerTable(tables.Table):
                   "owner",
                   "actions",
                   )
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'layer-table'
-
-    def before_render(self, request):
-        self.perm_checker = ObjectPermissionChecker(request.user)
-        # if we call self.data, all object from the underlying queryset will be selected. But in case of paging, only a
-        # subset of the self.data is needed. django tables2 doesn't provide any way to get the cached qs of the current
-        # page. So the following code snippet is a workaround to collect the current presented objects of the table
-        # to avoid calling the database again.
-        objs = []
-        for obj in self.page.object_list:
-            objs.append(obj.record)
-        # for all objects of the current page, we prefetch all permissions for the given user. This optimizes the
-        # rendering of the action column, cause we need to check if the user has the permission to perform the given
-        # action. If we don't prefetch the permissions, any permission check in the template will perform one db query
-        # for each object.
-        if objs:
-            self.perm_checker.prefetch_perms(objs)
 
     def render_children_count(self, record, value):
         if value > 0:
@@ -156,4 +120,69 @@ class LayerTable(tables.Table):
         return format_html(f'<a href="{reverse("resourceNew:layer_list")}?id__in={value.pk}">{value}</a>')
 
     def render_service(self, value):
-        return format_html(f'<a href="{reverse("resourceNew:service_list")}?id={value.pk}">{value}</a>')
+        return format_html(f'<a href="{reverse("resourceNew:service_wms_list")}?id={value.pk}">{value}</a>')
+
+
+class FeatureTypeTable(SecuredTable):
+    perm_checker = None
+    title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
+                                  accessor="metadata")
+    owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
+                                  accessor='owned_by_org')
+    actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})
+
+    class Meta:
+        model = FeatureType
+        fields = ("title",
+                  "elements_count",
+                  "dataset_metadata_count",
+                  "service",
+                  "created_at",
+                  "owner",
+                  "actions",
+                  )
+        prefix = 'feature-type-table'
+
+    def render_elements_count(self, record, value):
+        if value > 0:
+            return format_html(f'<a href="{reverse("resourceNew:feature_type_element_list")}?feature_type__id__in={record.pk}">{value}</a>')
+        return value
+
+
+    def render_dataset_metadata_count(self, record, value):
+        if value > 0:
+            return format_html(f'<a href="{reverse("resourceNew:dataset_metadata_list")}?self_pointing_feature_types__id__in={record.pk}">{value}</a>')
+        return value
+
+    def render_service(self, value):
+        return format_html(f'<a href="{reverse("resourceNew:service_wfs_list")}?id={value.pk}">{value}</a>')
+
+
+class FeatureTypeElementTable(SecuredTable):
+    perm_checker = None
+    owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
+                                  accessor='owned_by_org')
+
+    class Meta:
+        model = FeatureTypeElement
+        fields = ("name",
+                  "data_type",
+                  "feature_type",
+                  "feature_type__service",)
+        prefix = 'feature-type-element-table'
+
+    def render_dataset_metadata_count(self, record, value):
+        if value > 0:
+            return format_html(f'<a href="{reverse("resourceNew:dataset_metadata_list")}?self_pointing_feature_types__id__in={record.pk}">{value}</a>')
+        return value
+
+    def render_feature_type(self, value):
+        return format_html(f'<a href="{reverse("resourceNew:feature_type_list")}?id__in={value.pk}">{value}</a>')
+
+    def render_feature_type__service(self, value):
+        return format_html(f'<a href="{reverse("resourceNew:service_wfs_list")}?id={value.pk}">{value}</a>')

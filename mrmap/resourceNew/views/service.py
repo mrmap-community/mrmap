@@ -3,9 +3,9 @@ from job.models import Job
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
-from resourceNew.filtersets.service import LayerFilterSet
+from resourceNew.filtersets.service import LayerFilterSet, FeatureTypeFilterSet, FeatureTypeElementFilterSet
 from resourceNew.forms.service import RegisterServiceForm
-from resourceNew.models import Service, ServiceType, Layer
+from resourceNew.models import Service, ServiceType, Layer, FeatureType, FeatureTypeElement
 from django.urls import reverse_lazy, reverse
 from django.conf import settings
 from django.views.generic import FormView
@@ -13,71 +13,52 @@ from django_filters.views import FilterView
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext
 
-from resourceNew.tables.service import WmsServiceTable, LayerTable
+from resourceNew.tables.service import ServiceTable, LayerTable, FeatureTypeTable, FeatureTypeElementTable
 
 
 class WmsListView(SecuredListMixin, FilterView):
     model = Service
-    table_class = WmsServiceTable
-    #filterset_class = OgcWmsFilter
-    title = get_icon(IconEnum.WMS) + gettext(" WMS")
+    table_class = ServiceTable
+    title = get_icon(IconEnum.WMS) + gettext(" Web Map Services")
     queryset = model.objects.for_table_view(service_type__name=OGCServiceEnum.WMS)
 
-    """def get_filterset_kwargs(self, *args):
-        kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
-        if kwargs['data'] is None:
-            kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
-        return kwargs
-    """
+    def get_table_kwargs(self):
+        return {
+            'exclude': ('feature_types_count',)
+        }
 
-    def get_table(self, **kwargs):
-        # set some custom attributes for template rendering
-        table = super(WmsListView, self).get_table(**kwargs)
-        # whether whole services or single layers should be displayed, we have to exclude some columns
-        """
-        filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
-        if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = (
-                'layers', 'featuretypes', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
-        else:
-            table.exclude = (
-                'parent_service', 'featuretypes', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
-        """
-        # render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
-        # table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
-        return table
+
+class WfsListView(SecuredListMixin, FilterView):
+    model = Service
+    table_class = ServiceTable
+    title = get_icon(IconEnum.WFS) + gettext(" Web Feature Services")
+    queryset = model.objects.for_table_view(service_type__name=OGCServiceEnum.WFS)
+
+    def get_table_kwargs(self):
+        return {
+            'exclude': ('layers_count',)
+        }
 
 
 class LayerListView(SecuredListMixin, FilterView):
     model = Layer
     table_class = LayerTable
     filterset_class = LayerFilterSet
-    #title = get_icon(IconEnum.WMS) + gettext(" WMS")
     queryset = model.objects.for_table_view()
 
-    """def get_filterset_kwargs(self, *args):
-        kwargs = super(WmsIndexView, self).get_filterset_kwargs(*args)
-        if kwargs['data'] is None:
-            kwargs['queryset'] = kwargs['queryset'].filter(service__is_root=True)
-        return kwargs
-    """
 
-    def get_table(self, **kwargs):
-        # set some custom attributes for template rendering
-        table = super(LayerListView, self).get_table(**kwargs)
-        # whether whole services or single layers should be displayed, we have to exclude some columns
-        """
-        filter_by_show_layers = self.filterset.form_prefix + '-' + 'service__is_root'
-        if filter_by_show_layers in self.filterset.data and self.filterset.data.get(filter_by_show_layers) == 'on':
-            table.exclude = (
-                'layers', 'featuretypes', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
-        else:
-            table.exclude = (
-                'parent_service', 'featuretypes', 'last_harvested', 'collected_harvest_records', 'last_harvest_duration',)
-        """
-        # render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
-        # table.actions = [render_helper.render_item(item=Metadata.get_add_resource_action())]
-        return table
+class FeatureTypeListView(SecuredListMixin, FilterView):
+    model = FeatureType
+    table_class = FeatureTypeTable
+    filterset_class = FeatureTypeFilterSet
+    queryset = model.objects.for_table_view()
+
+
+class FeatureTypeElementListView(SecuredListMixin, FilterView):
+    model = FeatureTypeElement
+    table_class = FeatureTypeElementTable
+    filterset_class = FeatureTypeElementFilterSet
+    queryset = model.objects.for_table_view()
 
 
 class ServiceTreeView(SecuredDetailView):

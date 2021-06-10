@@ -2,13 +2,57 @@ import django_tables2 as tables
 from django.urls import reverse
 
 from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT
-from resourceNew.models import DatasetMetadata
-from guardian.core import ObjectPermissionChecker
+from main.tables.tables import SecuredTable
+from resourceNew.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
 from django.utils.html import format_html
 
 
-class DatasetMetadataTable(tables.Table):
-    perm_checker = None
+class ServiceMetadataTable(SecuredTable):
+    # todo
+    """actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})"""
+
+    class Meta:
+        model = ServiceMetadata
+        fields = ("title",
+                  "described_element")
+
+
+class LayerMetadataTable(SecuredTable):
+    # todo
+    """actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})"""
+
+    class Meta:
+        model = LayerMetadata
+        fields = ("title",
+                  "described_element")
+
+
+class FeatureTypeMetadataTable(SecuredTable):
+    # todo
+    """actions = tables.TemplateColumn(verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})"""
+
+    class Meta:
+        model = FeatureTypeMetadata
+        fields = ("title",
+                  "described_element")
+
+
+class DatasetMetadataTable(SecuredTable):
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT)
 
     # todo
@@ -24,24 +68,7 @@ class DatasetMetadataTable(tables.Table):
         fields = ("title",
                   "linked_layer_count",
                   "linked_feature_type_count")
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'dataset-metadata-table'
-
-    def before_render(self, request):
-        self.perm_checker = ObjectPermissionChecker(request.user)
-        # if we call self.data, all object from the underlying queryset will be selected. But in case of paging, only a
-        # subset of the self.data is needed. django tables2 doesn't provide any way to get the cached qs of the current
-        # page. So the following code snippet is a workaround to collect the current presented objects of the table
-        # to avoid calling the database again.
-        objs = []
-        for obj in self.page.object_list:
-            objs.append(obj.record)
-        # for all objects of the current page, we prefetch all permissions for the given user. This optimizes the
-        # rendering of the action column, cause we need to check if the user has the permission to perform the given
-        # action. If we don't prefetch the permissions, any permission check in the template will perform one db query
-        # for each object.
-        if objs:
-            self.perm_checker.prefetch_perms(objs)
 
     def render_linked_layer_count(self, record, value):
         f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
@@ -49,5 +76,14 @@ class DatasetMetadataTable(tables.Table):
         link = f'<a href="{reverse("resourceNew:layer_list")}?id__in='
         for layer in record.self_pointing_layers.all():
             link += f'{layer.pk  },'
+        link += f'">{value}</a>'
+        return format_html(link)
+
+    def render_linked_feature_type_count(self, record, value):
+        f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
+        f'data-bs-content="content">details</a> '
+        link = f'<a href="{reverse("resourceNew:feature_type_list")}?id__in='
+        for feature_type in record.self_pointing_feature_types.all():
+            link += f'{feature_type.pk  },'
         link += f'">{value}</a>'
         return format_html(link)

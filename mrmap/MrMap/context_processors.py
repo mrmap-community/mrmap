@@ -3,7 +3,7 @@ from celery import states
 from django.db.models import Q
 from django.http import HttpRequest
 from django_celery_results.models import TaskResult
-
+from django.conf import settings as django_settings
 from MrMap.icons import get_all_icons
 from monitoring.models import MonitoringRun
 from service.helper.enums import OGCServiceEnum, MetadataEnum
@@ -68,6 +68,7 @@ def default_context(request: HttpRequest):
         "GIT_REPO_URI": settings.GIT_REPO_URI,
         "GIT_GRAPH_URI": settings.GIT_GRAPH_URI,
         "ICONS": get_all_icons(),
+        "settings": django_settings,
     }
     context.update(get_stats(request.user))
     return context

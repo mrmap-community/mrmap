@@ -11,7 +11,8 @@ from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
-from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager
+from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
+    FeatureTypeManager, FeatureTypeElementManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
 from resourceNew.ows_client.request_builder import OgcService
@@ -384,6 +385,7 @@ class FeatureType(ServiceElement):
                                                       verbose_name=_("describe feature type"),
                                                       help_text=_("the fetched content of the download describe feature"
                                                                   " type document."))
+    objects = FeatureTypeManager()
 
     class Meta:
         verbose_name = _("feature type")
@@ -445,7 +447,7 @@ class FeatureTypeElement(CommonInfo):
                                      on_delete=models.CASCADE,
                                      verbose_name=_("feature type"),
                                      help_text=_("related feature type of this element"))
-    objects = models.Manager()
+    objects = FeatureTypeElementManager()
     xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:

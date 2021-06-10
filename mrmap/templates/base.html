@@ -50,23 +50,43 @@
                   {% autoescape off %}{{ICONS.RESOURCE}}{% endautoescape %} {% trans 'Resources' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
-                    <h6 class="dropdown-header">{% trans 'Services' %}</h6>
+                    <h6 class="dropdown-header">{% trans 'Web Map Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resourceNew:service_wms_list' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
                         {% if "service.add_resource" in perms %}
-                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
+                    <a class="dropdown-item" href="{% url 'resourceNew:layer_list' %}">{% autoescape off %}{{ICONS.LAYER}}{% endautoescape %}  {% trans 'Layers' %} <span class="badge badge-secondary">{{layers_count}}</span></a>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Web Feature Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resourceNew:service_wfs_list' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
                         {% if "service.add_resource" in perms %}
-                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
+                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature types' %} <span class="badge badge-secondary">{{feature_type_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_element_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature type elements' %} <span class="badge badge-secondary">{{feature_type_element_count}}</span></a>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Catalogue Service' %}</h6>
                     <div class="d-flex">
+                        <!-- TODO: url -->
                         <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span class="badge badge-secondary">{{csw_count}}</span></a>
                         {% if "service.add_resource" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resource:add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Metadata' %}</h6>
+                    <a class="dropdown-item" href="{% url 'resourceNew:service_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %} <span class="badge badge-secondary">{{service_metadata_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:layer_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Layer Metadata' %} <span class="badge badge-secondary">{{layer_metadata_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Feature Type Metadata' %} <span class="badge badge-secondary">{{feature_type_metadata_count}}</span></a>
+                    <div class="d-flex">
+                        <a class="dropdown-item" href="{% url 'resourceNew:dataset_metadata_list' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Dataset Metadata' %} <span class="badge badge-secondary">{{dataset_metadata_count}}</span></a>
+                         <!-- TODO: url -->
+                        {% if "service.add_dataset_metadata" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
@@ -74,14 +94,7 @@
                     <a class="dropdown-item" href="{% url 'resource:logs-view' %}" title="{% trans 'Logs' %}">
                         {% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}
                     </a>
-                    <div class="dropdown-divider"></div>
-                    <h6 class="dropdown-header">{% trans 'Datasets' %}</h6>
-                    <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %} <span class="badge badge-secondary">{{dataset_count}}</span></a>
-                        {% if "service.add_dataset_metadata" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
-                        {% endif %}
-                    </div>
+
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Map Contexts' %}</h6>
                     <div class="d-flex">

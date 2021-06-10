@@ -1,12 +1,10 @@
 from django.db import models, transaction, OperationalError
-from django.db.models import Max, Count, F, OuterRef, Subquery
+from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ObjectDoesNotExist
 from resourceNew.enums.metadata import MetadataOriginEnum, MetadataRelationEnum, MetadataOrigin
 from django.utils import timezone
 from datetime import datetime, date
 
-from service.settings import service_logger
 
 
 class LicenceManager(models.Manager):
@@ -129,6 +127,16 @@ class IsoMetadataManager(models.Manager):
             # todo: categories
 
             return db_metadata
+
+
+class AbstractMetadataManager(models.Manager):
+
+    def for_table_view(self):
+        queryset = self.get_queryset()
+        return queryset.select_related("described_object",
+                                       "created_by_user",
+                                       "owned_by_org") \
+                       .order_by("-title")
 
 
 class DatasetManager(models.Manager):

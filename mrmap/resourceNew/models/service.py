@@ -5,7 +5,7 @@ from django.contrib.gis.db import models as gis_models
 from django.db.models import QuerySet
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-
+from django.urls import reverse, NoReverseMatch
 from MrMap.icons import get_icon, IconEnum
 from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
@@ -76,6 +76,13 @@ class Service(GenericModelMixin, CommonInfo):
             return f"{self.metadata.title} ({self.pk})"
         else:
             return str(self.pk)
+
+    def get_absolute_url(self) -> str:
+        try:
+            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_list') \
+                   + f'?id__in={self.pk}'
+        except NoReverseMatch:
+            return ""
 
     @property
     def icon(self):
@@ -365,8 +372,30 @@ class Layer(ServiceElement, MPTTModel):
         Returns:
             reference_systems (QuerySet): all supported reference systems (ReferenceSystem) for this layer
         """
-        from resourceNew.models import ReferenceSystem
+        from resourceNew.models import ReferenceSystem  # to avoid circular import errors
         return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
+
+    @cached_property
+    def dimensions(self) -> QuerySet:
+        """ Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
+            specs.
+
+            .. note:: excerpt from ogc specs
+                **ogc wms 1.1.1**: Dimension declarations are inherited from parent Layers.  Any new Dimension
+                                   declarations in the child are added to the list inherited from the parent.
+                                   A child **shall not** redefine a Dimension with the same name attribute as one
+                                   that was inherited.
+                                   Extent declarations are inherited from parent Layers.  Any Extent declarations in
+                                   the child with the same name attribute as one inherited from the parent replaces
+                                   the value declared by the parent.  A Layer shall not declare an Extent unless a
+                                   Dimension with the same name has been declared or inherited earlier in the
+                                   Capabilities XML.
+                **ogc wms 1.3.0**: Dimension  declarations  are  inherited  from  parent  Layers.  Any  new  Dimension
+                                   declaration  in  the  child  with  the  same name attribute as one inherited from
+                                   the parent replaces the value declared by the parent.
+        """
+        from resourceNew.models import Dimension  # to avoid circular import errors
+        return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
 class FeatureType(ServiceElement):
@@ -437,6 +466,8 @@ class FeatureType(ServiceElement):
 
 
 class FeatureTypeElement(CommonInfo):
+    maxOccurs = models.IntegerField()
+    minOccurs = models.IntegerField()
     name = models.CharField(max_length=255)
     data_type = models.CharField(max_length=255, null=True, blank=True)
     required = models.BooleanField(default=False)

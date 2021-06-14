@@ -6,7 +6,6 @@ from django.utils import timezone
 from datetime import datetime, date
 
 
-
 class LicenceManager(models.Manager):
     """
     handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
@@ -98,17 +97,22 @@ class IsoMetadataManager(models.Manager):
     def create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url, *args, **kwargs):
         self._reset_local_variables()
         with transaction.atomic():
+            from resourceNew.models.document import Document  # to avoid circular import errors
 
             if parsed_metadata.hierarchy_level == "service":
                 # todo: update instead of creating, cause we generate service metadata records out of the box from
-                #  capabilitites
+                #  capabilities
                 db_metadata = self._create_service_metadata(parsed_metadata=parsed_metadata, *args, **kwargs)
             else:
                 db_metadata = self._create_dataset_metadata(parsed_metadata=parsed_metadata, origin_url=origin_url)
                 db_metadata.add_dataset_metadata_relation(relation_type=MetadataRelationEnum.DESCRIBES.value,
                                                           related_object=related_object,
                                                           origin=MetadataOriginEnum.CAPABILITIES.value)
-            db_keyword_list = []
+                Document.objects.create(uuid=db_metadata.pk,
+                                        dataset_metadata=db_metadata,
+                                        content=str(parsed_metadata.serializeDocument(), "UTF-8"),
+                                        is_original=True)
+                db_keyword_list = []
             for keyword in parsed_metadata.keywords:
                 if not self.keyword_cls:
                     self.keyword_cls = parsed_metadata.keywords[0].get_model_class()
@@ -155,3 +159,6 @@ class DatasetMetadataRelationManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().select_related("layer", "feature_type", "dataset_metadata")
 
+    def bulk_update(self, *args, **kwargs):
+        super().bulk_update(*args, **kwargs)
+        # todo: call bulk_update for all related documents

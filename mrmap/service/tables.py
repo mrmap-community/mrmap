@@ -23,8 +23,8 @@ from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
 from service.settings import service_logger
 from structure.enums import PendingTaskEnum
-from service.templatecodes import RESOURCE_TABLE_ACTIONS
-from service.templatecodes import RESOURCE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
+from service.templatecodes import SERVICE_TABLE_ACTIONS
+from service.templatecodes import SERVICE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
 from guardian.core import ObjectPermissionChecker
 
@@ -82,7 +82,7 @@ class OgcServiceTable(tables.Table):
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    template_code=SERVICE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 

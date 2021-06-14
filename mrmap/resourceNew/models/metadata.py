@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from eulxml import xmlmap
 from django.utils.translation import gettext_lazy as _
 from django.contrib.gis.db.models import MultiPolygonField
@@ -13,7 +14,6 @@ from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, Da
 from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
 from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
 from service.helper.common_connector import CommonConnector
-from structure.models import Contact
 from uuid import uuid4
 
 
@@ -163,6 +163,9 @@ class MetadataContact(models.Model):
                                     name='%(app_label)s_%(class)s_unique_metadata_contact')
         ]
 
+    def __str__(self):
+        return self.name
+
 
 class Keyword(models.Model):
     keyword = models.CharField(max_length=255,
@@ -186,6 +189,9 @@ class RemoteMetadata(CommonInfo):
 
         todo: maybe this model could be refactored as general document class
     """
+    # todo: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
+    #  service fk to the service which was registered. Additional: we need to refactor the GenericForeignKey... We need
+    #  then m2m relations to layers, featuretypes and services
     link = models.URLField(max_length=4094,
                            verbose_name=_("download link"),
                            help_text=_("the url where the metadata could be downloaded from."))
@@ -204,7 +210,7 @@ class RemoteMetadata(CommonInfo):
     object_id = models.UUIDField(verbose_name=_("described resource"),
                                  help_text=_("the uuid of the described service, layer or feature type"))
     describes = GenericForeignKey(ct_field='content_type',
-                                  fk_field='object_id',)
+                                  fk_field='object_id', )
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
@@ -230,7 +236,8 @@ class RemoteMetadata(CommonInfo):
                 ValueError: if self.remote_content is null
         """
         if self.remote_content:
-            parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.remote_content, "UTF-8"), xmlclass=WrappedIsoMetadata)
+            parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.remote_content, "UTF-8"),
+                                                                xmlclass=WrappedIsoMetadata)
             return parsed_metadata.iso_metadata
         else:
             raise ValueError("there is no fetched content. You need to call fetch_remote_content() first.")
@@ -258,8 +265,10 @@ class MetadataTermsOfUse(models.Model):
                             blank=True,
                             verbose_name=_("fees"),
                             help_text=_("Costs and of terms of use for the given resource."))
-    use_limitation = models.TextField(null=True)
-    license_source_note = models.TextField(null=True)
+    use_limitation = models.TextField(null=True,
+                                      blank=True)
+    license_source_note = models.TextField(null=True,
+                                           blank=True,)
     licence = models.ForeignKey(to=Licence,
                                 on_delete=models.RESTRICT,
                                 blank=True,
@@ -319,7 +328,9 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                       help_text=_("to determine errors while harvesting process. Get linked iso "
                                                   "metadata from parsed capabilities result is also a harvesting "
                                                   "process."))
-    insufficient_quality = models.TextField(help_text=_(""))
+    insufficient_quality = models.TextField(null=True,
+                                            blank=True,
+                                            help_text=_(""))
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
@@ -329,7 +340,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
     hits = models.IntegerField(default=0,
                                verbose_name=_("hits"),
                                help_text=_("how many times this metadata was requested by a client"),
-                               editable=False,)
+                               editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
                                       related_name="%(class)s_metadata",
                                       related_query_name="%(class)s_metadata",
@@ -353,6 +364,7 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
     """
     described_object = models.OneToOneField(to=Service,
                                             on_delete=models.CASCADE,
+                                            editable=False,
                                             related_name="metadata",
                                             related_query_name="metadata",
                                             verbose_name=_("described service"),
@@ -361,14 +373,14 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
                                         on_delete=models.RESTRICT,
                                         related_name="service_contact_service_metadata",
                                         related_query_name="service_contact_service_metadata",
-                                        verbose_name=_("contact"),
-                                        help_text=_(""))
+                                        verbose_name=_("service contact"),
+                                        help_text=_("This is the contact for the service provider."))
     metadata_contact = models.ForeignKey(to=MetadataContact,
                                          on_delete=models.RESTRICT,
                                          related_name="metadata_contact_service_metadata",
                                          related_query_name="metadata_contact_service_metadata",
-                                         verbose_name=_("contact"),
-                                         help_text=_(""))
+                                         verbose_name=_("metadata contact"),
+                                         help_text=_("This is the contact for the metadata information."))
     iso_metadata = IsoMetadataManager()
 
     class Meta:
@@ -408,7 +420,7 @@ class FeatureTypeMetadata(AbstractMetadata):
                                             related_query_name="metadata",
                                             verbose_name=_("described feature type"),
                                             help_text=_("choice the feature type you want to describe with this "
-                                                          "metadata"))
+                                                        "metadata"))
 
     class Meta:
         verbose_name = _("feature type metadata")
@@ -452,6 +464,16 @@ class DatasetMetadataRelation(CommonInfo):
                               help_text=_("determines where this relation was found or it is added by a user."))
 
     objects = DatasetMetadataRelationManager()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_one_related_object_selected",
+                check=Q((Q(layer=True, feature_type=False) | Q(layer=False, feature_type=True))
+                        and ~Q(Q(layer=True) and Q(feature_type=True))
+                        and ~Q(Q(layer=False) and Q(feature_type=False)))
+            )
+        ]
 
     def __str__(self):
         self_str = f"{self.dataset_metadata.title} linked by "
@@ -562,11 +584,15 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                related_query_name="dataset_metadata",
                                                blank=True,
                                                verbose_name=_("reference systems"))
-    format = models.CharField(max_length=20,
+    format = models.CharField(null=True,
+                              blank=True,
+                              max_length=20,
                               choices=DatasetFormatEnum.as_choices(),
                               verbose_name=_("format"),
                               help_text=_("The format in which the described dataset is stored."))
-    charset = models.CharField(max_length=10,
+    charset = models.CharField(null=True,
+                               blank=True,
+                               max_length=10,
                                choices=MetadataCharset.as_choices(),
                                verbose_name=_("charset"),
                                help_text=_("The charset which is used by the stored data."))
@@ -581,17 +607,20 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                              choices=UPDATE_FREQUENCY_CHOICES,
                                              null=True,
                                              blank=True)
-    bounding_geometry = MultiPolygonField()
+    bounding_geometry = MultiPolygonField(null=True,
+                                          blank=True,)
     dataset_id = models.CharField(max_length=4096,
                                   null=True,  # empty dataset_id signals broken dataset metadata records
                                   help_text=_("identifier of the remote data"))
     dataset_id_code_space = models.CharField(max_length=4096,
                                              null=True,
+                                             blank=True,
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
     self_pointing_layers = models.ManyToManyField(to=Layer,
                                                   through=DatasetMetadataRelation,
+                                                  editable=False,
                                                   related_name="dataset_metadata",
                                                   related_query_name="dataset_metadata",
                                                   blank=True,
@@ -600,6 +629,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                               " there capabilities."))
     self_pointing_feature_types = models.ManyToManyField(to=FeatureType,
                                                          through=DatasetMetadataRelation,
+                                                         editable=False,
                                                          related_name="dataset_metadata",
                                                          related_query_name="dataset_metadata",
                                                          blank=True,
@@ -619,6 +649,15 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
                                     name='%(app_label)s_%(class)s_unique_origin_url_file_identifier')
         ]
+
+    def save(self, *args, **kwargs):
+        adding = False
+        if self._state.adding:
+            adding = True
+        super().save(*args, **kwargs)
+        if not adding:
+            document = self.documents.filter(is_original=False).get()
+            document.update_xml_content(related_object=self)
 
     def add_dataset_metadata_relation(self, relation_type, origin, related_object, is_internal=False):
         kwargs = {}
@@ -657,9 +696,9 @@ class Dimension(CommonInfo):
     units = models.CharField(max_length=50,
                              verbose_name=_("units"),
                              help_text=_("measurement units specifier"))
-    extent = models.TextField(verbose_name=_("extent"),
-                              help_text=_("The extent string declares what value(s) along the Dimension axis are "
-                                          "appropriate for this specific geospatial data object."))
+    parsed_extent = models.TextField(verbose_name=_("extent"),
+                                     help_text=_("The extent string declares what value(s) along the Dimension axis are"
+                                                 " appropriate for this specific geospatial data object."))
     layer = models.ForeignKey(to=Layer,
                               on_delete=models.CASCADE,
                               null=True,
@@ -695,3 +734,16 @@ class Dimension(CommonInfo):
                 self.layer and self.dataset_metadata or \
                 self.feature_type and self.dataset_metadata:
             raise ValidationError("link two or more related objects is not supported.")
+
+
+class TimeExtent(CommonInfo):
+    start = models.DateTimeField()
+    stop = models.DateTimeField()
+    # null signals infinity resolution or a single value if start and stop is equal
+    resolution = models.DurationField(null=True)
+    dimension = models.ForeignKey(to=Dimension,
+                                  on_delete=models.CASCADE,
+                                  related_name="time_extents",
+                                  related_query_name="time_extent",
+                                  verbose_name=_("related dimension"),
+                                  help_text=_("the related dimension where this interval was found."))

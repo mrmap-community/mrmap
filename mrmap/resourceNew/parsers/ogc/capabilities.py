@@ -1,11 +1,18 @@
+import datetime
+from django.utils import timezone
 from django.contrib.gis.geos import Polygon
 from eulxml import xmlmap
 from pathlib import Path
-
+from isodate.isodatetime import parse_datetime
+from isodate.isoduration import parse_duration
+from isodate.isodates import parse_date
+from isodate.isoerror import ISO8601Error
+from isodate.duration import Duration
 from resourceNew.parsers.exceptions import SemanticError
 from resourceNew.parsers.mixins import DBModelConverterMixin
 from resourceNew.parsers.consts import NS_WC, IF_THEN_ELSE
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum
+from resourceNew.settings import parser_logger
 
 
 class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
@@ -111,23 +118,109 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
         else:
             raise SemanticError("reference system unknown")
         dic.update({"code": code,
-                    "prefix": prefix})
+                    "prefix": prefix.upper()})
         del dic["ref_system"]
         return dic
 
 
-class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
+class TimeExtent(DBModelConverterMixin):
+    model = "resourceNew.TimeExtent"
+    start = None
+    stop = None
+    resolution = None
+
+    def __init__(self, start, stop, resolution=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start = start
+        self.stop = stop
+        self.resolution = resolution
+
+    def get_field_dict(self):
+        return {"start": self.start,
+                "stop": self.stop,
+                "resolution": self.resolution}
+
+
+class Extent111(DBModelConverterMixin, xmlmap.XmlObject):
+    name = xmlmap.StringField(xpath=f"@{NS_WC}name']")
+    extent = xmlmap.StringField(xpath="text()")
+
+
+class Dimension111(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.Dimension"
 
     name = xmlmap.StringField(xpath=f"@{NS_WC}name']")
     units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
 
-    # todo: xpath
-    extent = xmlmap.StringField(xpath=f"{NS_WC}Extent']/@name=''")
+    parsed_extent = None
+    parsed_extents = xmlmap.NodeListField(xpath=f"../{NS_WC}Extent']", node_class=Extent111)
+    extents = []
+
+    def parse_extent_value(self, start, stop, resolution) -> tuple:
+        _start = parse_datetime(start)  # iso date time
+        _stop = parse_datetime(stop)  # iso date time
+        try:
+            _resolution = int(resolution)
+        except ValueError:
+            _resolution = parse_duration(resolution)
+            if isinstance(_resolution, Duration):
+                _resolution = _resolution.totimedelta(start=timezone.now())
+        return _start, _stop, _resolution
+
+    def parse_datetime_or_date(self, value):
+        _value = None
+        try:
+            _value = parse_datetime(value)
+        except ISO8601Error:
+            try:
+                _value = parse_date(value)
+            except ISO8601Error:
+                # todo: log this
+                pass
+
+        return _value
+
+    def parse_extent(self):
+        if hasattr(self, "parsed_extents"):
+            try:
+                parsed_extent = next(extent for extent in self.parsed_extents if extent.name == self.name)
+                self.parsed_extent = parsed_extent.__str__()
+            except StopIteration:
+                self.parsed_extent = None
+
+        if self.units == "ISO8601":
+            if "," in self.parsed_extent and "/" in self.parsed_extent:
+                # a list of interval values detected
+                intervals = self.parsed_extent.split(",")
+                for interval in intervals:
+                    split = interval.split("/")
+                    start, stop, resolution = self.parse_extent_value(start=split[0], stop=split[1], resolution=split[2])
+                    self.extents.append(TimeExtent(start=start, stop=stop, resolution=resolution))
+            elif "/" in self.parsed_extent:
+                # one interval detected
+                split = self.parsed_extent.split("/")
+                start, stop, resolution = self.parse_extent_value(start=split[0], stop=split[1], resolution=split[2])
+                self.extents.append(TimeExtent(start=start, stop=stop, resolution=resolution))
+            elif "," in self.parsed_extent:
+                # a list of single values detected
+                split = self.parsed_extent.split(",")
+                for value in split:
+                    _value = self.parse_datetime_or_date(value)
+                    if _value:
+                        self.extents.append(TimeExtent(start=_value, stop=_value))
+                    else:
+                        parser_logger.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
+            else:
+                # one single value was detected
+                _value = self.parse_datetime_or_date(self.parsed_extent)
+                if _value:
+                    self.extents.append(TimeExtent(start=_value, stop=_value))
+                else:
+                    parser_logger.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
 
 
-class Dimension130(Dimension):
-    extent = xmlmap.StringField(xpath="text()")
+class Dimension130(Dimension111):
+    parsed_extent = xmlmap.StringField(xpath="text()")
 
 
 class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -201,7 +294,7 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
     remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
-    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension)
+    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension111)
 
     def get_field_dict(self):
         dic = super().get_field_dict()
@@ -245,10 +338,14 @@ class Layer110(Layer111):
     # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
     # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
     reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}SRS']", node_class=ReferenceSystem)
+    parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
+    children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
 
 
 class Layer130(Layer111):
     dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension130)
+    parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
+    children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
 
 
 class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
@@ -262,6 +359,7 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
     reference_systems = xmlmap.NodeListField(
         xpath=f"{NS_WC}DefaultSRS']|{NS_WC}OtherSRS']|{NS_WC}DefaultCRS']|{NS_WC}OtherCRS']",
         node_class=ReferenceSystem)
+    # todo: add dimensions
 
     def get_field_dict(self):
         dic = super().get_field_dict()

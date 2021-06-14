@@ -11,7 +11,7 @@ from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
 from service.helper.enums import MetadataEnum
-from service.templatecodes import RESOURCE_TABLE_ACTIONS
+from service.templatecodes import SERVICE_TABLE_ACTIONS
 from guardian.core import ObjectPermissionChecker
 from django.db.models import QuerySet
 
@@ -33,7 +33,7 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 class ServiceTable(SecuredTable):
     perm_checker = None
-    title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
+    title = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
                                   accessor="metadata")
 
     """
@@ -52,7 +52,7 @@ class ServiceTable(SecuredTable):
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    template_code=SERVICE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 
@@ -89,7 +89,7 @@ class LayerTable(SecuredTable):
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    template_code=SERVICE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 
@@ -132,7 +132,7 @@ class FeatureTypeTable(SecuredTable):
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    template_code=SERVICE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 
@@ -152,7 +152,6 @@ class FeatureTypeTable(SecuredTable):
         if value > 0:
             return format_html(f'<a href="{reverse("resourceNew:feature_type_element_list")}?feature_type__id__in={record.pk}">{value}</a>')
         return value
-
 
     def render_dataset_metadata_count(self, record, value):
         if value > 0:

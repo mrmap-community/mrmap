@@ -1,5 +1,16 @@
 import django_filters
-from resourceNew.models import DatasetMetadata, LayerMetadata
+from resourceNew.models import DatasetMetadata, LayerMetadata, ServiceMetadata, FeatureTypeMetadata
+
+
+class ServiceMetadataFilterSet(django_filters.FilterSet):
+
+    class Meta:
+        model = ServiceMetadata
+        fields = {
+            "title": ["icontains", ],
+            "id": ["in", ],
+            "described_object__id": ["in", ],
+        }
 
 
 class LayerMetadataFilterSet(django_filters.FilterSet):
@@ -9,6 +20,18 @@ class LayerMetadataFilterSet(django_filters.FilterSet):
         fields = {
             "title": ["icontains", ],
             "id": ["in", ],
+            "described_object__id": ["in", ],
+        }
+
+
+class FeatureTypeMetadataFilterSet(django_filters.FilterSet):
+
+    class Meta:
+        model = FeatureTypeMetadata
+        fields = {
+            "title": ["icontains", ],
+            "id": ["in", ],
+            "described_object__id": ["in", ],
         }
 
 

@@ -54,6 +54,7 @@ class ServiceXmlManager(models.Manager):
         self.db_style_list = []
         self.db_legend_url_list = []
         self.db_dimension_list = []
+        self.db_dimension_extent_list = []
 
         self.sub_element_cls = None
         self.sub_element_content_type = None
@@ -65,6 +66,7 @@ class ServiceXmlManager(models.Manager):
         self.style_cls = None
         self.legend_url_cls = None
         self.dimension_cls = None
+        self.dimension_extent_cls = None
         self.reference_system_cls = None
 
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
@@ -121,6 +123,11 @@ class ServiceXmlManager(models.Manager):
             **parsed_service.service_type.get_field_dict())
         service = super().create(service_type=service_type, *args, **kwargs)
 
+        from resourceNew.models.document import Document  # to avoid circular import errors
+        Document.objects.create(uuid=service.pk,
+                                service=service,
+                                content=str(parsed_service.serializeDocument(), "UTF-8"),
+                                is_original=True)
         operation_urls = []
         operation_url_model_cls = None
         for operation_url in parsed_service.operation_urls:
@@ -225,12 +232,21 @@ class ServiceXmlManager(models.Manager):
             db_feature_type.db_output_format_list.append(db_mime_type)
 
     def _construct_dimension_instances(self, parsed_layer, db_layer):
+
         for dimension in parsed_layer.dimensions:
             if not self.dimension_cls:
                 self.dimension_cls = dimension.get_model_class()
-            self.db_dimension_list.append(self.dimension_cls(layer=db_layer,
-                                                             **self.common_info,
-                                                             **dimension.get_field_dict()))
+            db_dimension = self.dimension_cls(layer=db_layer,
+                                              **self.common_info,
+                                              **dimension.get_field_dict())
+            self.db_dimension_list.append(db_dimension)
+            dimension.parse_extent()
+            for dimension_extent in dimension.extents:
+                if not self.dimension_extent_cls:
+                    self.dimension_extent_cls = dimension_extent.get_model_class()
+                self.db_dimension_extent_list.append(self.dimension_extent_cls(dimension=db_dimension,
+                                                     **self.common_info,
+                                                     **dimension_extent.get_field_dict()))
 
     def _create_reference_system_instances(self, parsed_sub_element, db_sub_element):
         db_sub_element.reference_system_list = []
@@ -308,15 +324,22 @@ class ServiceXmlManager(models.Manager):
         db_layer_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
         if self.db_style_list:
             self.style_cls.objects.bulk_create(objs=self.db_style_list)
-        for legend_url in self.db_legend_url_list:
-            # style_id attribute is not updated after bulk_create is done. So we need to update it manually before
-            # we create related legend url objects in bulk.
-            # todo: find better way to update style_id
-            legend_url.style_id = legend_url.style.pk
         if self.db_legend_url_list:
+            for legend_url in self.db_legend_url_list:
+                # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
+                # before we create related objects in bulk.
+                # todo: find better way to update foreignkey id
+                legend_url.style_id = legend_url.style.pk
             self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
         if self.db_dimension_list:
             self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
+        if self.db_dimension_extent_list:
+            for db_dimension_extent in self.db_dimension_extent_list:
+                # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
+                # before we create related objects in bulk.
+                # todo: find better way to update foreignkey id
+                db_dimension_extent.dimension_id = db_dimension_extent.dimension.pk
+            self.dimension_extent_cls.objects.bulk_create(objs=self.db_dimension_extent_list)
         if self.db_remote_metadata_list:
             self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 

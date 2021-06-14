@@ -7,6 +7,9 @@ from MrMap.views import CustomSingleTableMixin, SuccessMessageDeleteMixin, Gener
     ConfirmView, DependingListMixin
 from django.contrib.auth.mixins import PermissionRequiredMixin as DjangoPermissionRequiredMixin
 from django.utils.translation import gettext_lazy as _
+from urllib.parse import urlparse
+from django.views.generic import FormView
+from breadcrumb.utils import check_path_exists
 
 
 class GenericPermissionMixin:
@@ -137,6 +140,43 @@ class SecuredUpdateView(LoginRequiredMixin,
 
     def get_title(self):
         return _("Edit ") + self.get_object().__str__()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
+    def get_success_url(self):
+        last_url = self.request.META.get('HTTP_REFERER')
+        sections = urlparse(last_url)
+        if self.request.path != sections.path and check_path_exists(sections.path):
+            return last_url
+        return super().get_success_url()
+
+
+class SecuredFormView(LoginRequiredMixin,
+                      GenericSuccessUrlMixin,
+                      GenericPermissionRequiredMixin,
+                      GenericViewContextMixin,
+                      InitFormMixin,
+                      SuccessMessageMixin,
+                      FormView):
+    """
+    Secured django `UpdateView` class with default permission '<app_label>.change_<model_name>'
+    """
+    template_name = "MrMap/detail_views/generic_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
+    def get_success_url(self):
+        last_url = self.request.META.get('HTTP_REFERER')
+        sections = urlparse(last_url)
+        if self.request.path != sections.path and check_path_exists(sections.path):
+            return last_url
+        return super().get_success_url()
 
 
 class SecuredListMixin(LoginRequiredMixin, GenericPermissionListMixin, CustomSingleTableMixin):

@@ -57,3 +57,20 @@ SERVICE_HEALTH_ICONS = """
 {% endif %}
 {% endwith %}
 """
+
+DEFAULT_ACTION_BUTTONS = """
+{% load i18n %}
+{% load guardian_tags %}
+{% load custom_template_filters %}
+{% get_obj_perms request.user for record as "perms" table.perm_checker %}
+<div class="d-inline-flex">
+    {% with record|to_class_name|lower as model_name %}
+    {% if "change_"|add:model_name in perms and record.get_change_url %}
+    <a href="{{record.get_change_url}}" class="btn btn-sm btn-warning" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit' %}">{{ ICONS.EDIT|safe }}</a>
+    {% endif %}
+    {% if "delete_{{record|to_class_name|lower}}" in perms and record.get_delete_url %}
+    <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit' %}">{{ ICONS.REMOVE|safe }}</a>
+    {% endif %}
+    {% endwith %}
+</div>
+"""

@@ -1,31 +1,32 @@
 from django.urls import path
-from autocompletes.autocompletes import *
+from autocompletes import autocompletes
 
 
 app_name = 'autocompletes'
 urlpatterns = [
-    path('kw/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword"),
-    path('cat/', CategoryAutocomplete.as_view(), name="category"),
+    path('kw/', autocompletes.KeywordAutocomplete.as_view(create_field="keyword"), name="keyword"),
+    path('cat/', autocompletes.CategoryAutocomplete.as_view(), name="category"),
 
-    path('md/', MetadataAutocomplete.as_view(), name="metadata"),
-    path('md-s/', MetadataServiceAutocomplete.as_view(), name="metadata_service"),
-    path('md-d/', MetadataDatasetAutocomplete.as_view(), name="metadata_dataset"),
-    path('md-l/', MetadataLayerAutocomplete.as_view(), name="metadata_layer"),
-    path('md-ft/', MetadataFeaturetypeAutocomplete.as_view(), name="metadata_featuretype"),
-    path('md-c/', MetadataCatalougeAutocomplete.as_view(), name="metadata_catalouge"),
+    path('md/', autocompletes.MetadataAutocomplete.as_view(), name="metadata"),
+    path('md-s/', autocompletes.MetadataServiceAutocomplete.as_view(), name="metadata_service"),
+    path('md-d/', autocompletes.MetadataDatasetAutocomplete.as_view(), name="metadata_dataset"),
+    path('md-l/', autocompletes.MetadataLayerAutocomplete.as_view(), name="metadata_layer"),
+    path('md-ft/', autocompletes.MetadataFeaturetypeAutocomplete.as_view(), name="metadata_featuretype"),
+    path('md-c/', autocompletes.MetadataCatalougeAutocomplete.as_view(), name="metadata_catalouge"),
+    path('md-contact/', autocompletes.MetadataContactAutocomplete.as_view(), name="metadata_contacts"),
 
-    path('perm/', PermissionsAutocomplete.as_view(), name="permissions"),
+    path('perm/', autocompletes.PermissionsAutocomplete.as_view(), name="permissions"),
 
-    path('orga/', OrganizationAutocomplete.as_view(), name="organizations"),
+    path('orga/', autocompletes.OrganizationAutocomplete.as_view(), name="organizations"),
 
-    path('acl/', AccessControlListAutocomplete.as_view(), name="accesscontrollists"),
+    path('acl/', autocompletes.AccessControlListAutocomplete.as_view(), name="accesscontrollists"),
 
-    path('rs/', ReferenceSystemAutocomplete.as_view(), name="reference_system"),
-    path('ops/', OperationsAutocomplete.as_view(), name="operations"),
-    path('users/', UsersAutocomplete.as_view(), name="users"),
+    path('rs/', autocompletes.ReferenceSystemAutocomplete.as_view(), name="reference_system"),
+    path('ops/', autocompletes.OperationsAutocomplete.as_view(), name="operations"),
+    path('users/', autocompletes.UsersAutocomplete.as_view(), name="users"),
 
-    path('monitoring-run/', MonitoringRunAutocomplete.as_view(), name="monitoring_run"),
-    path('monitoring-res/', MonitoringResultAutocomplete.as_view(), name="monitoring_result"),
-    path('monitoring-hs/', HealthStateAutocomplete.as_view(), name="monitoring.healthstate"),
+    path('monitoring-run/', autocompletes.MonitoringRunAutocomplete.as_view(), name="monitoring_run"),
+    path('monitoring-res/', autocompletes.MonitoringResultAutocomplete.as_view(), name="monitoring_result"),
+    path('monitoring-hs/', autocompletes.HealthStateAutocomplete.as_view(), name="monitoring.healthstate"),
 
 ]

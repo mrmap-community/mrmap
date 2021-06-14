@@ -226,6 +226,9 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
         return field_dict
 
+    def update_fields_from_db_object(self, db_object):
+        self.title = db_object.title
+
 
 class WrappedIsoMetadata(xmlmap.XmlObject):
     iso_metadata = xmlmap.NodeField(xpath=f"//{NS_WC}MD_Metadata']", node_class=IsoMetadata)

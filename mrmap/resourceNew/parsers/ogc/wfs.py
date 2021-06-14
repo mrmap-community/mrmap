@@ -6,9 +6,13 @@ from resourceNew.parsers.mixins import DBModelConverterMixin
 
 class FeatureTypeElement(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.FeatureTypeElement'
+    maxOccurs = xmlmap.IntegerField(xpath=f"@maxOccurs")
+    minOccurs = xmlmap.IntegerField(xpath=f"@minOccurs")
     name = xmlmap.StringField(xpath=f"@name")
     data_type = xmlmap.StringField(xpath=f"@type")
     required = xmlmap.SimpleBooleanField(xpath=f"@nillable", true="true", false="false")
+    # todo:
+    targetNamespace = None
 
 
 class DescribedFeatureType(xmlmap.XmlObject):

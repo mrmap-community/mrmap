@@ -73,12 +73,11 @@ INSTALLED_APPS = [
     'mptt',
     'autocompletes',
     'resourceNew',
-
+    'main',
 ]
 
 TEMPLATE_LOADERS = (
-    'django.template.loaders.structure.mr_map_filters.py',
-    'django.template.loaders.structure.template_filters.py',
+    'django.template.loaders.main.custom_template_filters.py'
     'django.template.loaders.app_directories.Loader'
 )
 
@@ -157,6 +156,8 @@ PER_PAGE_DEFAULTS = [
     25, 50, 100, 250, 500, 1000
 ]
 PER_PAGE_MAX = 2500
+
+METADATA_URL = ["request=GetMetadata&", ]
 
 # Defines basic server information
 HTTP_OR_SSL = "http://"
@@ -460,6 +461,7 @@ LOG_SUB_DIRS = {
     'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
     'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
     'service': {'dir': '/service', 'log_file': 'service.log'},
+    'resourceNew.parser': {'dir': '/resourceNew/parser', 'log_file': 'parser.log'},
     'structure': {'dir': '/structure', 'log_file': 'structure.log'},
     'users': {'dir': '/users', 'log_file': 'users.log'},
 }
@@ -545,6 +547,14 @@ LOGGING = {
             'filename': LOG_DIR + LOG_SUB_DIRS['users']['dir'] + '/' + LOG_SUB_DIRS['users']['log_file'],
             'formatter': 'verbose',
         },
+        'MrMap.resourceNew.parser.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.parser']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.parser']['log_file'],
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'MrMap.root': {
@@ -574,6 +584,11 @@ LOGGING = {
         },
         'MrMap.service': {
             'handlers': ['MrMap.service.file', ],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'MrMap.resourceNew.parser': {
+            'handlers': ['MrMap.resourceNew.parser.file', ],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },

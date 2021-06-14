@@ -1,18 +1,14 @@
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
-from main.views import SecuredCreateView, SecuredListMixin, SecuredDetailView
+from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.filtersets.service import LayerFilterSet, FeatureTypeFilterSet, FeatureTypeElementFilterSet
 from resourceNew.forms.service import RegisterServiceForm
-from resourceNew.models import Service, ServiceType, Layer, FeatureType, FeatureTypeElement
-from django.urls import reverse_lazy, reverse
-from django.conf import settings
-from django.views.generic import FormView
+from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
+from django.urls import reverse_lazy
 from django_filters.views import FilterView
-from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext
-
 from resourceNew.tables.service import ServiceTable, LayerTable, FeatureTypeTable, FeatureTypeElementTable
 
 
@@ -81,8 +77,9 @@ class ServiceTreeView(SecuredDetailView):
         return context
 
 
-class RegisterServiceFormView(FormView):
+class RegisterServiceFormView(SecuredFormView):
     model = Service
+    action = "add"
     form_class = RegisterServiceForm
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = 'Async task was created to create new resource.'
@@ -106,3 +103,8 @@ class RegisterServiceFormView(FormView):
         except Job.ObjectDoesNotExist:
             pass
         return super().form_valid(form=form)
+
+
+class ServiceUpdateView(SecuredUpdateView):
+    model = Service
+    fields = ("is_active", )

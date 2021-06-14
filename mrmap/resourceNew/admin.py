@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from resourceNew.models import FeatureTypeElement, MetadataContact, Service, ServiceType
+from resourceNew.models.document import Document
 
 
 @admin.register(FeatureTypeElement)
@@ -13,4 +14,5 @@ class FeatureTypeElementAdmin(admin.ModelAdmin):
 admin.site.register(MetadataContact)
 admin.site.register(Service)
 admin.site.register(ServiceType)
+admin.site.register(Document)
 

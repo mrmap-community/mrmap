@@ -10,9 +10,10 @@ from guardian.shortcuts import get_objects_for_user
 from acl.models.acl import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from service.helper.enums import MetadataEnum
-from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
+from service.models import Category, Metadata, OGCOperation
 from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
+from resourceNew.models.metadata import Keyword, MetadataContact, ReferenceSystem
 
 
 class CreateObjectMixin:
@@ -42,12 +43,17 @@ class SecuredAutocompleteMixin:
 class KeywordAutocomplete(LoginRequiredMixin, CreateObjectMixin, autocomplete.Select2QuerySetView):
     model = Keyword
     search_fields = ['keyword']
-    add_perm = PermissionEnum.CAN_EDIT_METADATA
+    add_perm = "add_keyword"
 
 
 class CategoryAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = Category
     search_fields = ['title_locale_1']
+
+
+class MetadataContactAutocomplete(LoginRequiredMixin, SecuredAutocompleteMixin, autocomplete.Select2QuerySetView):
+    model = MetadataContact
+    search_fields = ['name']
 
 
 class ReferenceSystemAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):

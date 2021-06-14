@@ -1,3 +1,4 @@
+import re
 import threading
 
 from uuid import uuid4
@@ -9,7 +10,7 @@ from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from crum import get_current_user
 from MrMap.icons import get_icon, IconEnum
-
+from main.utils import camel_to_snake
 
 _thread_locals = threading.local()
 
@@ -63,19 +64,25 @@ class GenericModelMixin:
 
     def get_absolute_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_view', args=[self.pk, ])
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_list') + f'?id__in={self.pk}'
+        except NoReverseMatch:
+            return ""
+
+    def get_detail_url(self) -> str:
+        try:
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view', args=[self.pk, ])
         except NoReverseMatch:
             return ""
 
     def get_change_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_change', args=[self.pk, ])
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_change', args=[self.pk, ])
         except NoReverseMatch:
             return ""
 
     def get_delete_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_delete', args=[self.pk, ])
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_delete', args=[self.pk, ])
         except NoReverseMatch:
             return ""
 
@@ -129,6 +136,7 @@ class CommonInfo(models.Model):
     owned_by_org = models.ForeignKey(settings.GUARDIAN_ROLES_OWNER_MODEL,
                                      verbose_name=_('Owner'),
                                      help_text=_('The organization which is the owner of this object.'),
+                                     editable=False,
                                      blank=True, null=True,
                                      related_name="%(app_label)s_%(class)s_owned_by_org",
                                      on_delete=models.SET_NULL)

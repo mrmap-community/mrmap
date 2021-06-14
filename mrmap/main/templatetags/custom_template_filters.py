@@ -1,10 +1,30 @@
-from importlib import import_module
-
 from django import template
+from main.utils import camel_to_snake as util_camel_to_snake
+from importlib import import_module
 from django_bootstrap_swt.components import BootstrapComponent
-from django_bootstrap_swt.utils import RenderHelper
+
 
 register = template.Library()
+
+
+@register.filter
+def to_class_name(value):
+    return value.__class__.__name__
+
+
+@register.filter
+def lower(value):
+    return value.lower()
+
+
+@register.filter
+def camel_to_snake(value):
+    return util_camel_to_snake(value)
+
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)
 
 
 @register.filter
@@ -28,5 +48,3 @@ def duration_to_ms(duration):
 @register.filter
 def render_item(item: BootstrapComponent):
     return item.render(safe=True)
-
-

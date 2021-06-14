@@ -83,6 +83,7 @@ class DatasetMetadataTable(SecuredTable):
     class Meta:
         model = DatasetMetadata
         fields = ("title",
+                  "is_customized",
                   "linked_layer_count",
                   "linked_feature_type_count")
         prefix = 'dataset-metadata-table'

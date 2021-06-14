@@ -1,5 +1,5 @@
 from django.db import models, transaction, OperationalError
-from django.db.models import Count
+from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q
 from django.utils.translation import gettext_lazy as _
 from resourceNew.enums.metadata import MetadataOriginEnum, MetadataRelationEnum, MetadataOrigin
 from django.utils import timezone
@@ -108,10 +108,8 @@ class IsoMetadataManager(models.Manager):
                 db_metadata.add_dataset_metadata_relation(relation_type=MetadataRelationEnum.DESCRIBES.value,
                                                           related_object=related_object,
                                                           origin=MetadataOriginEnum.CAPABILITIES.value)
-                Document.objects.create(uuid=db_metadata.pk,
-                                        dataset_metadata=db_metadata,
-                                        content=str(parsed_metadata.serializeDocument(), "UTF-8"),
-                                        is_original=True)
+                Document.objects.create(dataset_metadata=db_metadata,
+                                        xml=str(parsed_metadata.serializeDocument(), "UTF-8"))
                 db_keyword_list = []
             for keyword in parsed_metadata.keywords:
                 if not self.keyword_cls:
@@ -149,9 +147,17 @@ class DatasetManager(models.Manager):
         return self.get_queryset().annotate(linked_layer_count=Count("self_pointing_layers",
                                                                      distinct=True),
                                             linked_feature_type_count=Count("self_pointing_feature_types",
-                                                                            distinct=True))\
+                                                                            distinct=True),
+                                            is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
+                                                                            output_field=BooleanField())
+                                            )\
                                   .prefetch_related("self_pointing_layers", "self_pointing_feature_types")\
                                   .order_by("-title")
+
+    def for_detail_view(self):
+        return self.get_queryset().select_related("document")\
+            .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
+                                                      output_field=BooleanField()))
 
 
 class DatasetMetadataRelationManager(models.Manager):

@@ -1,5 +1,6 @@
+from django.http import HttpResponse
 from django_filters.views import FilterView
-from main.views import SecuredListMixin, SecuredUpdateView
+from main.views import SecuredListMixin, SecuredUpdateView, SecuredDetailView, SecuredConfirmView
 from resourceNew.filtersets.metadata import DatasetMetadataFilterSet, LayerMetadataFilterSet, ServiceMetadataFilterSet, \
     FeatureTypeMetadataFilterSet
 from resourceNew.forms.metadata import ServiceMetadataModelForm, MetadataContactModelForm, DatasetMetadataModelForm
@@ -44,3 +45,21 @@ class ServiceMetadataUpdateView(SecuredUpdateView):
 class DatasetMetadataUpdateView(SecuredUpdateView):
     model = DatasetMetadata
     form_class = DatasetMetadataModelForm
+
+
+class DatasetMetadataRestoreView(SecuredConfirmView):
+    model = DatasetMetadata
+
+    def form_valid(self, form):
+        self.object.restore()
+        return super().form_valid(form=form)
+
+
+class DatasetMetadataDetailView(SecuredDetailView):
+    model = DatasetMetadata
+    queryset = DatasetMetadata.objects.for_detail_view()
+    content_type = "application/xml"
+
+    def render_to_response(self, context, **response_kwargs):
+        return HttpResponse(content=self.object.document.xml,
+                            content_type=self.content_type)

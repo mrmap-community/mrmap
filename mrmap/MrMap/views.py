@@ -154,7 +154,6 @@ class ConfirmView(FormMixin, DetailView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_url = reverse_lazy('home')
     form_class = ConfirmForm
-    action = ""
     action_url = ""
     action_btn_color = ButtonColorEnum.PRIMARY
 
@@ -171,8 +170,7 @@ class ConfirmView(FormMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({"action": self.action,
-                        "action_url": self.action_url,
+        context.update({"action_url": self.action_url,
                         "action_btn_color": self.action_btn_color,})
         return context
 
@@ -203,6 +201,12 @@ class AsyncConfirmView(ConfirmView):
 
 
 class InitFormMixin(FormMixin):
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
     def get_initial(self):
         initial = super().get_initial()
         initial.update(self.request.GET.copy())

@@ -67,3 +67,7 @@ class DBModelConverterMixin:
                 service_logger.error(msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
                 service_logger.exception(e, stack_info=True, exc_info=True)
         return field_dict
+
+    def update_fields(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)

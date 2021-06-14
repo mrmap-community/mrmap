@@ -124,10 +124,8 @@ class ServiceXmlManager(models.Manager):
         service = super().create(service_type=service_type, *args, **kwargs)
 
         from resourceNew.models.document import Document  # to avoid circular import errors
-        Document.objects.create(uuid=service.pk,
-                                service=service,
-                                content=str(parsed_service.serializeDocument(), "UTF-8"),
-                                is_original=True)
+        Document.objects.create(service=service,
+                                xml=str(parsed_service.serializeDocument(), "UTF-8"))
         operation_urls = []
         operation_url_model_cls = None
         for operation_url in parsed_service.operation_urls:

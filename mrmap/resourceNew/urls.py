@@ -1,7 +1,6 @@
 from django.urls import path
 from resourceNew.views import service as service_views
 from resourceNew.views import metadata as metadata_views
-from resourceNew.views import document as document_views
 
 app_name = 'resourceNew'
 urlpatterns = [
@@ -21,8 +20,9 @@ urlpatterns = [
     path("metadata/datasets", metadata_views.DatasetMetadataListView.as_view(), name="dataset_metadata_list"),
 
     path("metadata/services/<pk>/change", metadata_views.ServiceMetadataUpdateView.as_view(), name="service_metadata_change"),
-    path("metadata/datasets/<pk>/change", metadata_views.DatasetMetadataUpdateView.as_view(), name="dataset_metadata_change"),
 
-    path("documents/<slug:uuid>", document_views.DocumentDetailView.as_view(), name="document_view")
+    path("metadata/datasets/<pk>", metadata_views.DatasetMetadataDetailView.as_view(), name="dataset_metadata_view"),
+    path("metadata/datasets/<pk>/change", metadata_views.DatasetMetadataUpdateView.as_view(), name="dataset_metadata_change"),
+    path("metadata/datasets/<pk>/restore", metadata_views.DatasetMetadataRestoreView.as_view(), name="dataset_metadata_restore"),
 ]
 

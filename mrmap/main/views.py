@@ -166,11 +166,6 @@ class SecuredFormView(LoginRequiredMixin,
     """
     template_name = "MrMap/detail_views/generic_form.html"
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({"request": self.request})
-        return kwargs
-
     def get_success_url(self):
         last_url = self.request.META.get('HTTP_REFERER')
         sections = urlparse(last_url)
@@ -193,7 +188,7 @@ class SecuredDependingListMixin(LoginRequiredMixin, GenericPermissionListMixin, 
     action = 'view'
 
 
-class SecuredConfirmView(LoginRequiredMixin, PermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, ConfirmView):
+class SecuredConfirmView(LoginRequiredMixin, GenericPermissionRequiredMixin, GenericViewContextMixin, InitFormMixin, SuccessMessageMixin, ConfirmView):
     """
     Secured `ConfirmView` class with default permission '<app_label>.change_<model_name>'
     """

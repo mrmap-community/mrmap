@@ -655,9 +655,22 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         if self._state.adding:
             adding = True
         super().save(*args, **kwargs)
-        if not adding:
-            document = self.documents.filter(is_original=False).get()
-            document.update_xml_content(related_object=self)
+        if not adding and self.document:
+            self.document.update_xml_content()
+
+    def restore(self):
+        if self.document:
+            document, parsed_metadata = self.document.restore()
+            self._meta.model.objects.filter(pk=self.pk).update(**parsed_metadata.get_field_dict())
+
+    def get_field_dict(self):
+        field_dict = {}
+        for field in self._meta.fields:
+            if not (isinstance(field, models.ForeignKey) or
+                    isinstance(field, models.OneToOneField) or
+                    isinstance(field, models.ManyToManyField)):
+                field_dict.update({field.name: getattr(self, field.name)})
+        return field_dict
 
     def add_dataset_metadata_relation(self, relation_type, origin, related_object, is_internal=False):
         kwargs = {}

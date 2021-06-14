@@ -86,6 +86,12 @@ class GenericModelMixin:
         except NoReverseMatch:
             return ""
 
+    def get_restore_url(self) -> str:
+        try:
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_restore', args=[self.pk, ])
+        except NoReverseMatch:
+            return ""
+
 
 class UuidPk(models.Model):
     """

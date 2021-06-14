@@ -11,67 +11,55 @@ from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
 
 class Document(CommonInfo):
     HELP_TEXT = _("the metadata object which is parsed from this xml.")
-    uuid = models.SlugField(editable=False)
-    service = models.ForeignKey(to=Service,
-                                on_delete=models.CASCADE,
-                                null=True,
-                                blank=True,
-                                related_name="documents",
-                                related_query_name="document",
-                                verbose_name=_("related service"),
-                                help_text=_("the service object which is described by this document."))
-    service_metadata = models.ForeignKey(to=ServiceMetadata,
-                                         on_delete=models.CASCADE,
-                                         null=True,
-                                         blank=True,
-                                         related_name="documents",
-                                         related_query_name="document",
-                                         verbose_name=_("related dataset metadata"),
-                                         help_text=HELP_TEXT)
-    layer_metadata = models.ForeignKey(to=LayerMetadata,
-                                       on_delete=models.CASCADE,
-                                       null=True,
-                                       blank=True,
-                                       related_name="documents",
-                                       related_query_name="document",
-                                       verbose_name=_("related layer metadata"),
-                                       help_text=HELP_TEXT)
-    feature_type_metadata = models.ForeignKey(to=FeatureTypeMetadata,
-                                              on_delete=models.CASCADE,
-                                              null=True,
-                                              blank=True,
-                                              related_name="documents",
-                                              related_query_name="document",
-                                              verbose_name=_("related feature type metadata"),
-                                              help_text=HELP_TEXT)
-    dataset_metadata = models.ForeignKey(to=DatasetMetadata,
-                                         on_delete=models.CASCADE,
-                                         null=True,
-                                         blank=True,
-                                         related_name="documents",
-                                         related_query_name="document",
-                                         verbose_name=_("related dataset metadata"),
-                                         help_text=HELP_TEXT)
-    content = models.TextField(verbose_name=_("content"),
-                               help_text=_("the xml as string."))
-    is_original = models.BooleanField(default=False,
-                                      verbose_name=_("is original?"),
-                                      help_text=_("check if this document is the original xml."))
+    service = models.OneToOneField(to=Service,
+                                   on_delete=models.CASCADE,
+                                   null=True,
+                                   blank=True,
+                                   related_name="document",
+                                   related_query_name="document",
+                                   verbose_name=_("related service"),
+                                   help_text=_("the service object which is described by this document."))
+    service_metadata = models.OneToOneField(to=ServiceMetadata,
+                                            on_delete=models.CASCADE,
+                                            null=True,
+                                            blank=True,
+                                            related_name="document",
+                                            related_query_name="document",
+                                            verbose_name=_("related dataset metadata"),
+                                            help_text=HELP_TEXT)
+    layer_metadata = models.OneToOneField(to=LayerMetadata,
+                                          on_delete=models.CASCADE,
+                                          null=True,
+                                          blank=True,
+                                          related_name="document",
+                                          related_query_name="document",
+                                          verbose_name=_("related layer metadata"),
+                                          help_text=HELP_TEXT)
+    feature_type_metadata = models.OneToOneField(to=FeatureTypeMetadata,
+                                                 on_delete=models.CASCADE,
+                                                 null=True,
+                                                 blank=True,
+                                                 related_name="document",
+                                                 related_query_name="document",
+                                                 verbose_name=_("related feature type metadata"),
+                                                 help_text=HELP_TEXT)
+    dataset_metadata = models.OneToOneField(to=DatasetMetadata,
+                                            on_delete=models.CASCADE,
+                                            null=True,
+                                            blank=True,
+                                            related_name="document",
+                                            related_query_name="document",
+                                            verbose_name=_("related dataset metadata"),
+                                            help_text=HELP_TEXT)
+    xml = models.TextField(verbose_name=_("xml"),
+                           help_text=_("the xml as string."))
+    xml_backup = models.TextField(verbose_name=_("xml backup"),
+                                  help_text=_("the original xml as backup to restore the xml field."))
 
     class Meta:
         # One Metadata/Service object can be related to multiple Document objects, cause we save the original and the
         # customized version of a given xml.
-        # But one Metadata object can only have one Document which is original
         constraints = [
-            models.UniqueConstraint(
-                name="%(app_label)s_%(class)s_one_original",
-                fields=("service",
-                        "service_metadata",
-                        "layer_metadata",
-                        "feature_type_metadata",
-                        "dataset_metadata",
-                        "is_original",)
-            ),
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_one_related_object_selected",
                 check=Q(
@@ -120,15 +108,12 @@ class Document(CommonInfo):
         ]
 
     def __str__(self):
-        return f"{self.related_object} (document) | {self.is_original}"
+        return f"{self.related_object} (document)"
 
     def save(self, *args, **kwargs):
-        adding = False
         if self._state.adding:
-            adding = True
+            self.xml_backup = self.xml
         super().save(*args, **kwargs)
-        if adding and self.is_original:
-            Document.objects.create(**self.get_copy_fields_dict())
 
     def clean(self):
         """ Raise ValidationError if service metadata, layer metadata, feature type metadata and dataset metadata are
@@ -179,21 +164,19 @@ class Document(CommonInfo):
         elif self.dataset_metadata:
             return self.dataset_metadata
 
-    def get_copy_fields_dict(self):
-        return {"uuid": self.uuid,
-                "is_original": False,
-                "content": self.content,
-                "service": self.service,
-                "service_metadata": self.service_metadata,
-                "layer_metadata": self.layer_metadata,
-                "feature_type_metadata":self.feature_type_metadata,
-                "dataset_metadata": self.dataset_metadata}
-
-    def update_xml_content(self, related_object=None):
-        if not related_object:
-            related_object = self.related_object
-        parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.content, 'utf-8'),
+    def _get_parsed_object(self):
+        # todo: capabilities are also stored in self.xml
+        parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.xml_backup, 'utf-8'),
                                                             xmlclass=WrappedIsoMetadata)
-        parsed_metadata.iso_metadata.update_fields_from_db_object(db_object=related_object)
-        self.content = str(parsed_metadata.serializeDocument(), "UTF-8")
+        return parsed_metadata.iso_metadata
+
+    def restore(self):
+        self.xml = self.xml_backup
+        self.save()
+        return self, self._get_parsed_object()
+
+    def update_xml_content(self):
+        parsed_metadata = self._get_parsed_object()
+        parsed_metadata.update_fields(**self.related_object.get_field_dict())
+        self.xml = str(parsed_metadata.serializeDocument(), "UTF-8")
         self.save()

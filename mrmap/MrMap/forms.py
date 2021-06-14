@@ -7,6 +7,7 @@ from django.urls import reverse, resolve
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.responses import DefaultContext
+from main.forms import Form
 
 CURRENT_VIEW_QUERY_PARAM = 'current-view'
 CURRENT_VIEW_ARG_QUERY_PARAM = 'current-view-arg'
@@ -235,7 +236,7 @@ class MrMapConfirmForm(MrMapForm):
         return cleaned_data
 
 
-class ConfirmForm(forms.Form):
+class ConfirmForm(Form):
     is_confirmed = forms.BooleanField()
 
     def __init__(self, *args, **kwargs):

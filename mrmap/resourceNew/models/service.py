@@ -98,6 +98,18 @@ class Service(GenericModelMixin, CommonInfo):
         except NoReverseMatch:
             return ""
 
+    def get_tree_view_url(self) -> str:
+        try:
+            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_tree_view', args=[self.pk])
+        except NoReverseMatch:
+            return ""
+
+    def get_xml_view_url(self) -> str:
+        try:
+            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_xml_view', args=[self.pk])
+        except NoReverseMatch:
+            return ""
+
     @property
     def icon(self):
         try:
@@ -450,6 +462,12 @@ class FeatureType(ServiceElement):
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if not adding and self.is_active:
+            Service.objects.filter(pk=self.service_id).update(is_active=self.is_active)
 
     def fetch_describe_feature_type_document(self, save=True):
         """ Return the fetched described feature type document and update the content if save is True """

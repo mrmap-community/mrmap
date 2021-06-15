@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.validators import validate_get_capablities_uri
 from main.forms import ModelForm
 from resourceNew.enums.service import AuthTypeEnum
-from resourceNew.models import Service, Layer
+from resourceNew.models import Service, Layer, FeatureType
 from structure.models import Organization
 
 
@@ -54,4 +54,10 @@ class ServiceModelForm(ModelForm):
 class LayerModelForm(ModelForm):
     class Meta:
         model = Layer
+        fields = "__all__"
+
+
+class FeatureTypeModelForm(ModelForm):
+    class Meta:
+        model = FeatureType
         fields = "__all__"

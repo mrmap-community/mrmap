@@ -64,24 +64,9 @@ class FeatureTypeElementListView(SecuredListMixin, FilterView):
     queryset = model.objects.for_table_view()
 
 
-class ServiceDetailView(RedirectView):
-    pattern_name = "resourceNew:service_tree_view"
-    query_string = True
-
-    def get_redirect_url(self, *args, **kwargs):
-        view_kind = self.request.GET.get("vk", None)
-        if view_kind:
-            # todo: del vk query_param from the request.META["QUERY_STRING"] dict
-            if "tree" == view_kind:
-                self.pattern_name = "resourceNew:service_tree_view"
-            elif "xml" == view_kind:
-                self.pattern_name = "resourceNew:service_xml_view"
-        return super().get_redirect_url(*args, **kwargs)
-
-
 class ServiceXmlView(SecuredDetailView):
     model = Service
-    queryset = Service.objects.for_detail_view()
+    queryset = Service.objects.all().select_related("document").values("document__xml")
     content_type = "application/xml"
 
     def render_to_response(self, context, **response_kwargs):
@@ -89,34 +74,46 @@ class ServiceXmlView(SecuredDetailView):
                             content_type=self.content_type)
 
 
-class ServiceTreeView(SecuredDetailView):
+class ServiceWmsTreeView(SecuredDetailView):
     model = Service
-    template_name = 'generic_views/resource.html'
+    template_name = 'resourceNew/service/views/wms_tree.html'
+    queryset = Service.objects.for_tree_view(OGCServiceEnum.WMS)
+    extra_context = {'tree_style': True}
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({'tree_style': True})
 
-        if self.object.is_service_type(OGCServiceEnum.WFS):
-            self.template_name = 'resourceNew/service/views/wfs_tree.html'
-        elif self.object.is_service_type(OGCServiceEnum.WMS):
-            collapse = self.request.GET.get("collapse", None)
-            nodes = self.object.root_layer.get_descendants(include_self=True).annotate(has_dataset_metadata=Count('dataset_metadata'))
-            if collapse:
-                layers_to_collapse = Layer.objects.get(pk=collapse).get_ancestors(include_self=True).values_list("pk", flat=True)
-                nodes = nodes.annotate(collapse=ExpressionWrapper(Q(pk__in=layers_to_collapse),
-                                                                  output_field=BooleanField()))
+        collapse = self.request.GET.get("collapse", None)
+        nodes = self.object.root_layer.get_descendants(include_self=True)\
+                                      .select_related("metadata")\
+                                      .annotate(has_dataset_metadata=Count('dataset_metadata'))
+        if collapse:
+            layers_to_collapse = Layer.objects.get(pk=collapse)\
+                                              .get_ancestors(include_self=True).values_list("pk", flat=True)
+            nodes = nodes.annotate(collapse=ExpressionWrapper(Q(pk__in=layers_to_collapse),
+                                                              output_field=BooleanField()))
+        perm_checker = ObjectPermissionChecker(self.request.user)
+        perm_checker.prefetch_perms(nodes)
+        context.update({"nodes": nodes,
+                        "perm_checker": perm_checker})
+        return context
 
-            perm_checker = ObjectPermissionChecker(self.request.user)
-            perm_checker.prefetch_perms(nodes)
 
-            context.update({"nodes": nodes,
-                            "perm_checker": perm_checker})
-            self.template_name = 'resourceNew/service/views/wms_tree.html'
-        elif self.object.is_service_type(OGCServiceEnum.CSW):
-            self.template_name = 'resourceNew/service/views/csw.html'
-            # todo
+class ServiceWfsTreeView(SecuredDetailView):
+    model = Service
+    template_name = 'resourceNew/service/views/wfs_tree.html'
+    queryset = Service.objects.for_tree_view(OGCServiceEnum.WFS)
+    extra_context = {'tree_style': True}
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        feature_types = self.object.featuretypes.all().annotate(has_dataset_metadata=Count('dataset_metadata'))
+
+        perm_checker = ObjectPermissionChecker(self.request.user)
+        perm_checker.prefetch_perms(feature_types)
+        context.update({"feature_types": feature_types,
+                        "perm_checker": perm_checker})
         return context
 
 
@@ -151,6 +148,7 @@ class RegisterServiceFormView(SecuredFormView):
 class ServiceUpdateView(SecuredUpdateView):
     model = Service
     form_class = ServiceModelForm
+    update_query_string = True
 
 
 class ServiceDeleteView(SecuredDeleteView):
@@ -159,5 +157,11 @@ class ServiceDeleteView(SecuredDeleteView):
 
 class LayerUpdateView(SecuredUpdateView):
     model = Layer
+    form_class = LayerModelForm
+    update_query_string = True
+
+
+class FeatureTypeUpdateView(SecuredUpdateView):
+    model = FeatureType
     form_class = LayerModelForm
     update_query_string = True

@@ -447,13 +447,18 @@ class ServiceManager(models.Manager):
                                        "owned_by_org") \
                        .order_by("-metadata__title")
 
-    def for_detail_view(self):
-        return self.get_queryset().select_related("document")\
-            .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
-                                                      output_field=BooleanField()))
+    def for_tree_view(self, service_type__name: OGCServiceEnum):
+        queryset = self.get_queryset()
+        if service_type__name.value == OGCServiceEnum.WFS.value:
+            queryset = self.with_feature_types_counter().prefetch_related("featuretypes",
+                                                                          "featuretypes__metadata",
+                                                                          "featuretypes__elements")
+        return queryset.select_related("metadata")\
+                       .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
+                                                                 output_field=BooleanField()))
 
     def with_layers_counter(self):
-        return self.get_queryset().annotate(layers_count=Count("layer", distinct=True))
+        return self.get_queryset().annotate(layers_count=Count("layer"))
 
     def with_feature_types_counter(self):
         return self.get_queryset().annotate(feature_types_count=Count("featuretype", distinct=True))

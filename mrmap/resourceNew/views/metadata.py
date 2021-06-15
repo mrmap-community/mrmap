@@ -4,8 +4,8 @@ from django_filters.views import FilterView
 from main.views import SecuredListMixin, SecuredUpdateView, SecuredDetailView, SecuredConfirmView
 from resourceNew.filtersets.metadata import DatasetMetadataFilterSet, LayerMetadataFilterSet, ServiceMetadataFilterSet, \
     FeatureTypeMetadataFilterSet
-from resourceNew.forms.metadata import ServiceMetadataModelForm, MetadataContactModelForm, DatasetMetadataModelForm
-from resourceNew.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata, MetadataContact
+from resourceNew.forms.metadata import ServiceMetadataModelForm, DatasetMetadataModelForm
+from resourceNew.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
 from resourceNew.tables.metadata import DatasetMetadataTable, ServiceMetadataTable, LayerMetadataTable, \
     FeatureTypeMetadataTable
 
@@ -45,8 +45,8 @@ class ServiceMetadataUpdateView(SecuredUpdateView):
 
 class ServiceMetadataDetailView(SecuredDetailView):
     model = ServiceMetadata
-    queryset = ServiceMetadata.objects.for_detail_view()
     content_type = "application/xml"
+    queryset = ServiceMetadata.objects.all().select_related("document").values("document__xml")
 
     def render_to_response(self, context, **response_kwargs):
         return HttpResponse(content=self.object.document.xml,
@@ -82,7 +82,7 @@ class DatasetMetadataDetailView(RedirectView):
 
 class DatasetMetadataXmlView(SecuredDetailView):
     model = DatasetMetadata
-    queryset = DatasetMetadata.objects.for_detail_view()
+    queryset = DatasetMetadata.objects.all().select_related("document").values("document__xml")
     content_type = "application/xml"
 
     def render_to_response(self, context, **response_kwargs):

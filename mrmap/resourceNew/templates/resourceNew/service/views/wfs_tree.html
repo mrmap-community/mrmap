@@ -1,13 +1,13 @@
-{% extends 'service/base.html' %}
+{% extends 'resourceNew/service/base.html' %}
 {% load mptt_tags %}
 {% load static i18n %}
 {% load django_tables2 %}
 {% load guardian_tags %}
 {% block card_body %}
-{% for featuretype in object.featuretypes.all %}
-{% get_obj_perms request.user for featuretype as "perms" %}
+{% for featuretype in feature_types %}
+{% get_obj_perms request.user for featuretype as "perms" perm_checker %}
 <div id="id_accordion_{{featuretype.pk}}">
-  <div class="card">
+  <div class="card {% if featuretype.pk|stringformat:'s' == request.GET.collapse %}animate__animated animate__flash border border-success{% endif %}">
     <div class="card-header" id="id_accordion_header_{{featuretype.pk}}">
       <div class="row">
     <div class="col-7 col-md text-left">
@@ -18,9 +18,6 @@
       </h5>
     </div>
     <div class="col-7 col-md text-left text-md-center">
-      <a class="btn btn-sm btn-secondary mb-1" href="{{featuretype.metadata.detail_table_view_uri}}" role="button">
-        <div class="d-xl-none">{{ ICONS.INFO|safe }}</div><div class="d-none d-xl-block">{{ ICONS.INFO|safe }} {% trans 'Details' %}</div>
-      </a>
       <div class="btn-group mb-1">
         <button type="button" class="btn btn-sm btn-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><div class="d-xl-none">{{ ICONS.METADATA|safe }}</div><div class="d-none d-xl-block">{{ ICONS.METADATA|safe }} {% trans 'Metadata' %}</div></button>
         <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -28,11 +25,11 @@
         </button>
         <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{object.pk}}">
           <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-          <a class="dropdown-item" href="{{object.service_metadata_uri}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
-          <a class="dropdown-item" href="{{object.html_metadata_uri}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+          <a class="dropdown-item" href="{{object.metadata.get_detail_url}}?vk=xml">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+          <a class="dropdown-item" href="{{object.metadata.get_detail_url}}?vk=html">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
         </div>
       </div>
-      {% if featuretype.metadata.has_dataset_metadatas %}
+      {% if featuretype.has_dataset_metadata %}
       <a class="btn btn-sm btn-secondary mb-1" href="{{featuretype.metadata.detail_related_datasets_view_uri}}" role="button">
         <div class="d-xl-none">{{ ICONS.DATASET|safe }}</div><div class="d-none d-xl-block">{{ ICONS.DATASET|safe }} {% trans 'Datasets' %}</div>
       </a>
@@ -40,31 +37,18 @@
     </div>
     <div class="col-7 col-md text-left text-md-right">
       <div class="d-inline-flex">
-        {% if "activate_resource" in perms %}
-        <form class="mr-1" action="{{object.activate_view_uri}}" method="post">
+        {% if "change_featuretype" in perms and featuretype.get_change_url %}
+        <form class="mr-1" action="{{featuretype.get_change_url}}?collapse={{featuretype.pk}}" method="post">
           {% csrf_token %}
-          <input type="hidden"  name="is_active" {% if not object.is_active %}value="on"{% endif %}>
-          <button type="submit" class="btn btn-sm {% if object.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if object.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
+          <input type="hidden"  name="is_active" {% if not featuretype.is_active %}value="on"{% endif %}>
+          <button type="submit" class="btn btn-sm {% if featuretype.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if featuretype.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
         </form>
-        {% endif %}
-        {% if "change_metadata" in perms %}
-        <a class="btn btn-sm btn-warning mr-1" href="{{object.edit_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the metadata file' %}">
-          {{ ICONS.EDIT|safe }}
-        </a>
-        <a class="btn btn-sm btn-warning" href="{{object.edit_access_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the security access of the resource' %}">
-          {{ ICONS.ACCESS|safe }}
-        </a>
-        {% endif %}
-        {% if object.is_custom and "change_metadata" in perms %}
-        <a class="btn btn-sm btn-danger mr-1" href="{{object.restore_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Restore the metadata of this resource' %}">
-          {{ ICONS.RESTORE|safe }}
-        </a>
         {% endif %}
       </div>
     </div>
 </div>
     </div>
-    <div id="id_accordion_collapse_{{featuretype.pk}}" class="collapse {% if featuretype.pk == selected_featuretype.pk %}show{% endif %}" aria-labelledby="id_accordion_header_{{featuretype.pk}}" data-parent="#id_accordion_{{featuretype.pk}}">
+    <div id="id_accordion_collapse_{{featuretype.pk}}" class="collapse {% if featuretype.pk|stringformat:'s' == request.GET.collapse %}show{% endif %}" aria-labelledby="id_accordion_header_{{featuretype.pk}}" data-parent="#id_accordion_{{featuretype.pk}}">
       <div class="card-body">
           <h5>{% trans 'Elements' %}</h5>
           <table class="table table-striped">

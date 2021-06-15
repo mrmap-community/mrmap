@@ -10,7 +10,8 @@ from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_
 from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
-from resourceNew.tables.template_codes import SERVICE_DETAIL_ICONS, LAYER_DETAIL_ICONS
+from resourceNew.tables.template_codes import SERVICE_DETAIL_ICONS, LAYER_FEATURE_TYPE_DETAIL_ICONS, \
+    FEATURE_TYPE_ELEMENT_DETAIL_ICONS, LAYER_TABLE_ACTIONS, FEATURE_TYPE_TABLE_ACTIONS
 from service.helper.enums import MetadataEnum
 from service.templatecodes import SERVICE_TABLE_ACTIONS
 from guardian.core import ObjectPermissionChecker
@@ -90,7 +91,7 @@ class LayerTable(SecuredTable):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
                                   accessor="metadata")
-    details = tables.TemplateColumn(template_code=LAYER_DETAIL_ICONS,
+    details = tables.TemplateColumn(template_code=LAYER_FEATURE_TYPE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)
     owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
@@ -98,7 +99,7 @@ class LayerTable(SecuredTable):
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=SERVICE_TABLE_ACTIONS,
+                                    template_code=LAYER_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 
@@ -137,18 +138,22 @@ class FeatureTypeTable(SecuredTable):
     perm_checker = None
     title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
                                   accessor="metadata")
+    details = tables.TemplateColumn(template_code=LAYER_FEATURE_TYPE_DETAIL_ICONS,
+                                    verbose_name=_("Details"),
+                                    orderable=False)
     owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
                                   accessor='owned_by_org')
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=SERVICE_TABLE_ACTIONS,
+                                    template_code=FEATURE_TYPE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 
     class Meta:
         model = FeatureType
         fields = ("title",
+                  "details",
                   "elements_count",
                   "dataset_metadata_count",
                   "service",
@@ -174,12 +179,16 @@ class FeatureTypeTable(SecuredTable):
 
 class FeatureTypeElementTable(SecuredTable):
     perm_checker = None
+    details = tables.TemplateColumn(template_code=FEATURE_TYPE_ELEMENT_DETAIL_ICONS,
+                                    verbose_name=_("Details"),
+                                    orderable=False)
     owner = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
                                   accessor='owned_by_org')
 
     class Meta:
         model = FeatureTypeElement
         fields = ("name",
+                  "details",
                   "data_type",
                   "feature_type",
                   "feature_type__service",)

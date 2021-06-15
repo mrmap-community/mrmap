@@ -11,13 +11,15 @@ urlpatterns = [
     path("service/featuretypes", service_views.FeatureTypeListView.as_view(), name="feature_type_list"),
     path("service/featuretypeelements", service_views.FeatureTypeElementListView.as_view(), name="feature_type_element_list"),
 
-    path("service/<pk>", service_views.ServiceDetailView.as_view(), name="service_view"),
     path("service/<pk>/xml", service_views.ServiceXmlView.as_view(), name="service_xml_view"),
-    path("service/<pk>/tree", service_views.ServiceTreeView.as_view(), name="service_tree_view"),
     path("service/<pk>/change", service_views.ServiceUpdateView.as_view(), name="service_change"),
     path("service/<pk>/delete", service_views.ServiceDeleteView.as_view(), name="service_delete"),
 
+    path("service/wms/<pk>/tree", service_views.ServiceWmsTreeView.as_view(), name="service_wms_tree_view"),
+    path("service/wfs/<pk>/tree", service_views.ServiceWfsTreeView.as_view(), name="service_wfs_tree_view"),
+
     path("service/layers/<pk>/change", service_views.LayerUpdateView.as_view(), name="layer_change"),
+    path("service/featuretypes/<pk>/change", service_views.FeatureTypeUpdateView.as_view(), name="feature_type_change"),
 
     path("metadata/services", metadata_views.ServiceMetadataListView.as_view(), name="service_metadata_list"),
     path("metadata/layers", metadata_views.LayerMetadataListView.as_view(), name="layer_metadata_list"),

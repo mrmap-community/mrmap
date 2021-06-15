@@ -60,19 +60,6 @@
           <button type="submit" class="btn btn-sm {% if node.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if node.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
         </form>
         {% endif %}
-        {% if "change_metadata" in perms %}
-        <a class="btn btn-sm btn-warning mr-1" href="{{node.edit_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the metadata file' %}">
-          {{ ICONS.EDIT|safe }}
-        </a>
-        <a class="btn btn-sm btn-warning" href="{{node.edit_access_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Customize the security access of the resource' %}">
-          {{ ICONS.ACCESS|safe }}
-        </a>
-        {% endif %}
-        {% if node.is_custom and "change_metadata" in perms %}
-        <a class="btn btn-sm btn-danger mr-1" href="{{node.restore_view_uri}}" role="button" data-toggle="tooltip" data-placement="top" title="{% trans 'Restore the metadata of this resource' %}">
-          {{ ICONS.RESTORE|safe }}
-        </a>
-        {% endif %}
       </div>
     </div>
       </div>

@@ -10,36 +10,7 @@ SERVICE_TABLE_ACTIONS = """
       <button type="submit" class="btn btn-sm {% if record.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="left" title="{% if record.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
     </form>
     {% endif %}
-    {% if record.service_type.value == 'csw' and "harvest_service" in perms %}
-    <form class="mr-1" action="{{record.harvest_view_uri}}" method="post">
-      {% csrf_token %}
-      <input type="hidden"  name="metadata" value="{{ record.pk }}">
-      <button type="submit" class="btn btn-sm btn-info" data-toggle="tooltip" data-placement="left" title="{% trans 'Harvest the resource' %}">{{ ICONS.HARVEST|safe }}</button>
-    </form>
-    {% else %}
-        {% if "change_metadata" in perms %}
-        <a class="btn btn-sm btn-warning mr-1" href="{{record.edit_view_uri}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit the metadata of this resource' %}">
-          {{ ICONS.EDIT|safe }}
-        </a>
-        <a class="btn btn-sm btn-warning mr-1" href="{{record.edit_access_view_uri}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit the access of this resource' %}">
-          {{ ICONS.ACCESS|safe }}
-        </a>
-        {% endif %}
-        {% if record.metadata_type == 'service' %}
-            {% if "update_resource" in perms %}
-            <a class="btn btn-sm btn-info mr-1" href="{{record.update_view_uri}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Update this resource' %}">
-              {{ ICONS.UPDATE|safe }}
-            </a>
-            {% endif %}
-            {% if "add_monitoringrun" in perms %}
-            <form class="mr-1" action="{{record.run_monitoring_view_uri}}" method="post">
-              {% csrf_token %}
-              <input type="hidden"  name="metadatas" value="{{ record.pk }}">
-              <button type="submit" class="btn btn-sm btn-info" data-toggle="tooltip" data-placement="left" title="{% trans 'Run monitoring for this resource' %}">{{ ICONS.HEARTBEAT|safe }}</button>
-            </form>
-            {% endif %}
-        {% endif %}
-    {% endif %}
+    
     {% if "delete_service" in perms and record.get_delete_url %}
     <a class="btn btn-sm btn-danger" href="{{record.get_delete_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Remove this resource' %}">
       {{ ICONS.DELETE|safe }}

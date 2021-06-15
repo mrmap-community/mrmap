@@ -10,6 +10,7 @@ from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_
 from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
+from resourceNew.tables.template_codes import SERVICE_DETAIL_ICONS
 from service.helper.enums import MetadataEnum
 from service.templatecodes import SERVICE_TABLE_ACTIONS
 from guardian.core import ObjectPermissionChecker
@@ -34,7 +35,11 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 class ServiceTable(SecuredTable):
     perm_checker = None
     title = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
-                                  accessor="metadata")
+                                  accessor="metadata",
+                                  verbose_name=_("Title"))
+    details = tables.TemplateColumn(template_code=SERVICE_DETAIL_ICONS,
+                                    verbose_name=_("Details"),
+                                    orderable=False)
 
     """
     status_icons = tables.TemplateColumn(template_code=SERVICE_STATUS_ICONS,
@@ -59,6 +64,7 @@ class ServiceTable(SecuredTable):
     class Meta:
         model = Service
         fields = ("title",
+                  "details",
                   "layers_count",
                   "feature_types_count",
                   "service_type__version",

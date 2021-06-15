@@ -140,8 +140,13 @@ class AbstractMetadataManager(models.Manager):
                                        "owned_by_org") \
                        .order_by("-title")
 
+    def for_detail_view(self):
+        return self.get_queryset().select_related("document")\
+            .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
+                                                      output_field=BooleanField()))
 
-class DatasetManager(models.Manager):
+
+class DatasetManager(AbstractMetadataManager):
 
     def for_table_view(self):
         return self.get_queryset().annotate(linked_layer_count=Count("self_pointing_layers",
@@ -153,11 +158,6 @@ class DatasetManager(models.Manager):
                                             )\
                                   .prefetch_related("self_pointing_layers", "self_pointing_feature_types")\
                                   .order_by("-title")
-
-    def for_detail_view(self):
-        return self.get_queryset().select_related("document")\
-            .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
-                                                      output_field=BooleanField()))
 
 
 class DatasetMetadataRelationManager(models.Manager):

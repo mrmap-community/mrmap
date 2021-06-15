@@ -18,7 +18,6 @@ class AppViewModelConsumer(NonAnonymousJsonWebsocketConsumer):
         self.update_app_view_model()
 
     def update_app_view_model(self):
-        print("update")
         self.send_msg({'msg': get_app_view_model(self.user)})
 
 

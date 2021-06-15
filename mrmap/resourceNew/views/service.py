@@ -1,10 +1,15 @@
+from django.db.models import ExpressionWrapper, BooleanField, F
+from django.http import HttpResponse
+from django.views import View
+from django.views.generic import RedirectView
+
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
-from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView
+from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.filtersets.service import LayerFilterSet, FeatureTypeFilterSet, FeatureTypeElementFilterSet
-from resourceNew.forms.service import RegisterServiceForm
+from resourceNew.forms.service import RegisterServiceForm, ServiceModelForm, LayerModelForm
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
 from django.urls import reverse_lazy
 from django_filters.views import FilterView
@@ -57,6 +62,29 @@ class FeatureTypeElementListView(SecuredListMixin, FilterView):
     queryset = model.objects.for_table_view()
 
 
+class ServiceDetailView(RedirectView):
+    pattern_name = "resourceNew:service_tree_view"
+
+    def get_redirect_url(self, *args, **kwargs):
+        view_kind = self.request.GET.get("vk", None)
+        if view_kind:
+            if "tree" == view_kind:
+                self.pattern_name = "resourceNew:service_tree_view"
+            elif "xml" == view_kind:
+                self.pattern_name = "resourceNew:service_xml_view"
+        return super().get_redirect_url(*args, **kwargs)
+
+
+class ServiceXmlView(SecuredDetailView):
+    model = Service
+    queryset = Service.objects.for_detail_view()
+    content_type = "application/xml"
+
+    def render_to_response(self, context, **response_kwargs):
+        return HttpResponse(content=self.object.document.xml,
+                            content_type=self.content_type)
+
+
 class ServiceTreeView(SecuredDetailView):
     model = Service
     template_name = 'generic_views/resource.html'
@@ -68,6 +96,13 @@ class ServiceTreeView(SecuredDetailView):
         if self.object.is_service_type(OGCServiceEnum.WFS):
             self.template_name = 'resourceNew/service/views/wfs_tree.html'
         elif self.object.is_service_type(OGCServiceEnum.WMS):
+            collapse = self.request.GET.get("collapse", None)
+            if collapse:
+                layers_to_collapse = Layer.objects.filter(pk=collapse).get_siblings(include_self=True).values_list("pk", flat=True)
+                # todo: build it with queryset.annotate
+                self.object.root_layer.get_descendants(include_self=True)\
+                    .annotate(collapse=ExpressionWrapper(F("pk") in layers_to_collapse,
+                                                         output_field=BooleanField()))
             context.update({"nodes": self.object.root_layer.get_descendants(include_self=True)})
             self.template_name = 'resourceNew/service/views/wms_tree.html'
         elif self.object.is_service_type(OGCServiceEnum.CSW):
@@ -107,4 +142,14 @@ class RegisterServiceFormView(SecuredFormView):
 
 class ServiceUpdateView(SecuredUpdateView):
     model = Service
-    fields = ("is_active", )
+    form_class = ServiceModelForm
+
+
+class ServiceDeleteView(SecuredDeleteView):
+    model = Service
+
+
+class LayerUpdateView(SecuredUpdateView):
+    model = Layer
+    form_class = LayerModelForm
+    update_query_string = True

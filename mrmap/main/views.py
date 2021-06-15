@@ -1,5 +1,6 @@
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
+from django.http import QueryDict
 from django.urls import reverse_lazy, NoReverseMatch
 from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
@@ -7,7 +8,7 @@ from MrMap.views import CustomSingleTableMixin, SuccessMessageDeleteMixin, Gener
     ConfirmView, DependingListMixin
 from django.contrib.auth.mixins import PermissionRequiredMixin as DjangoPermissionRequiredMixin
 from django.utils.translation import gettext_lazy as _
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from django.views.generic import FormView
 from breadcrumb.utils import check_path_exists
 
@@ -137,6 +138,7 @@ class SecuredUpdateView(LoginRequiredMixin,
     """
     action = 'change'
     template_name = "MrMap/detail_views/generic_form.html"
+    update_query_string = False
 
     def get_title(self):
         return _("Edit ") + self.get_object().__str__()
@@ -148,8 +150,17 @@ class SecuredUpdateView(LoginRequiredMixin,
 
     def get_success_url(self):
         last_url = self.request.META.get('HTTP_REFERER')
-        sections = urlparse(last_url)
-        if self.request.path != sections.path and check_path_exists(sections.path):
+        (scheme, netloc, path, params, query, fragment) = urlparse(last_url)
+
+        if self.request.path != path and check_path_exists(path):
+            if self.update_query_string:
+                last_query_dict = QueryDict(query).copy()
+                current_query_dict = self.request.GET.copy()
+                for key, value in current_query_dict.items():
+                    last_query_dict.update({key: value})
+
+                query = last_query_dict.urlencode()
+                last_url = urlunparse((scheme, netloc, path, params, query, fragment))
             return last_url
         return super().get_success_url()
 

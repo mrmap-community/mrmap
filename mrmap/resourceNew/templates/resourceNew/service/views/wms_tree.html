@@ -4,7 +4,6 @@
 {% load guardian_tags %}
 {% block card_body %}
 {% recursetree nodes %}
-
 <div id="id_accordion_{{node.pk}}">
   <div class="card">
     <div class="card-header" id="id_accordion_header_{{node.pk}}">
@@ -22,9 +21,6 @@
       </h5>
     </div>
     <div class="col-7 col-md text-left text-md-center">
-      <a class="btn btn-sm btn-secondary mb-1" href="{{node.detail_table_view_uri}}" role="button">
-        <div class="d-xl-none">{{ ICONS.INFO|safe }}</div><div class="d-none d-xl-block">{{ ICONS.INFO|safe }} {% trans 'Details' %}</div>
-      </a>
       <div class="btn-group mb-1">
         <button type="button" class="btn btn-sm btn-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <div class="d-xl-none">{{ ICONS.CAPABILITIES|safe }}</div><div class="d-none d-xl-block">{{ ICONS.CAPABILITIES|safe }} {% trans 'Capabilities' %}</div>
@@ -45,8 +41,8 @@
         </button>
         <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{node.pk}}">
           <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-          <a class="dropdown-item" href="{{node.service_metadata_uri}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
-          <a class="dropdown-item" href="{{node.html_metadata_uri}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+          <a class="dropdown-item" href="{{object.metadata.get_detail_url}}?vk=xml">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+          <a class="dropdown-item" href="{{object.metadata.get_detail_url}}?vk=html">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
         </div>
       </div>
       {% if node.has_dataset_metadata %}
@@ -57,8 +53,8 @@
     </div>
     <div class="col-7 col-md text-left text-md-right">
       <div class="d-inline-flex">
-        {% if "activate_resource" in perms %}
-        <form class="mr-1" action="{{node.activate_view_uri}}" method="post">
+        {% if "change_layer" in perms and node.get_change_url %}
+        <form class="mr-1" action="{{node.get_change_url}}?collapse={{node.pk}}" method="post">
           {% csrf_token %}
           <input type="hidden"  name="is_active" {% if not node.is_active %}value="on"{% endif %}>
           <button type="submit" class="btn btn-sm {% if node.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if node.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>

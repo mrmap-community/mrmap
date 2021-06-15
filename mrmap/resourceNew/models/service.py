@@ -61,9 +61,9 @@ class Service(GenericModelMixin, CommonInfo):
                                      verbose_name=_("service type"),
                                      help_text=_("the concrete type and version of the service."))
     is_active = models.BooleanField(default=False,
-                                    verbose_name=_("is active"),
+                                    verbose_name=_("is active?"),
                                     help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
-                                                "cant request the resource through the Mr. Map proxy."))
+                                                "cant request the service through the Mr. Map proxy."))
     objects = ServiceManager()
     xml_objects = ServiceXmlManager()
 
@@ -76,6 +76,20 @@ class Service(GenericModelMixin, CommonInfo):
             return f"{self.metadata.title} ({self.pk})"
         else:
             return str(self.pk)
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        old = None
+        if not adding:
+            old = Service.objects.filter(pk=self.pk).first()
+        super().save(*args, **kwargs)
+        if not adding and old and old.is_active != self.is_active:
+            # the active sate of this and all descendant elements shall be changed to the new value. Bulk update
+            # is the most efficient way to do it.
+            if self.is_service_type(OGCServiceEnum.WMS):
+                self.layers.update(is_active=self.is_active)
+            elif self.is_service_type(OGCServiceEnum.WFS):
+                self.featuretypes.update(is_active=self.is_active)
 
     def get_absolute_url(self) -> str:
         try:
@@ -275,8 +289,13 @@ class ServiceElement(GenericModelMixin, CommonInfo):
                                                related_name="%(class)s",
                                                related_query_name="%(class)s",
                                                blank=True,
+                                               editable=False,
                                                verbose_name=_("reference systems"),
                                                help_text=_("all reference systems which this element supports"))
+    is_active = models.BooleanField(default=False,
+                                    verbose_name=_("is active?"),
+                                    help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
+                                                "cant request the service through the Mr. Map proxy."))
 
     class Meta:
         abstract = True
@@ -320,12 +339,14 @@ class Layer(ServiceElement, MPTTModel):
                                                   "as if they were local layers"))
     scale_min = models.FloatField(null=True,
                                   blank=True,
+                                  editable=False,
                                   verbose_name=_("scale minimum value"),
                                   help_text=_("minimum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
                                               "images. None value means no restriction."))
     scale_max = models.FloatField(null=True,
                                   blank=True,
+                                  editable=False,
                                   verbose_name=_("scale maximum value"),
                                   help_text=_("maximum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
@@ -336,6 +357,21 @@ class Layer(ServiceElement, MPTTModel):
         verbose_name_plural = _("layers")
 
     objects = LayerManager()
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        old = None
+        if not adding:
+            old = Layer.objects.filter(pk=self.pk).first()
+        super().save(*args, **kwargs)
+        if not adding and old and old.is_active != self.is_active:
+            # the active sate of this and all descendant layers shall be changed to the new value. Bulk update
+            # is the most efficient way to do it.
+            if self.is_active:
+                self.get_family().update(is_active=self.is_active)
+                Service.objects.filter(pk=self.service_id).update(is_active=self.is_active)
+            else:
+                self.get_descendants().update(is_active=self.is_active)
 
     @cached_property
     def bbox(self) -> Polygon:

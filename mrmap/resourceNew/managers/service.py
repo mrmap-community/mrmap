@@ -1,5 +1,5 @@
 from django.db import models, transaction
-from django.db.models import Max, Count, F, OuterRef, Subquery, Q
+from django.db.models import Max, Count, F, OuterRef, Subquery, Q, ExpressionWrapper, BooleanField
 from django.db.models.functions import Floor
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
@@ -448,6 +448,11 @@ class ServiceManager(models.Manager):
                                        "created_by_user",
                                        "owned_by_org") \
                        .order_by("-metadata__title")
+
+    def for_detail_view(self):
+        return self.get_queryset().select_related("document")\
+            .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
+                                                      output_field=BooleanField()))
 
     def with_layers_counter(self):
         return self.get_queryset().annotate(layers_count=Count("layer", distinct=True))

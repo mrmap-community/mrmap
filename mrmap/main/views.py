@@ -157,8 +157,7 @@ class SecuredUpdateView(LoginRequiredMixin,
                 last_query_dict = QueryDict(query).copy()
                 current_query_dict = self.request.GET.copy()
                 for key, value in current_query_dict.items():
-                    last_query_dict.update({key: value})
-
+                    last_query_dict[key] = value
                 query = last_query_dict.urlencode()
                 last_url = urlunparse((scheme, netloc, path, params, query, fragment))
             return last_url

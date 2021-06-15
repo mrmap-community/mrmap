@@ -306,11 +306,6 @@ class ServiceElement(GenericModelMixin, CommonInfo):
         except:
             return str(self.pk)
 
-    # todo: check if we need cached_property here.
-    @cached_property
-    def has_dataset_metadata(self):
-        return self.dataset_metadata.exists()
-
 
 class Layer(ServiceElement, MPTTModel):
     """ Concrete model class to store parsed layers """

@@ -7,7 +7,7 @@
 {% endif %}
 {% endblock %}
 {% block content %}
-{% get_obj_perms request.user for object as "perms" %}
+{% get_obj_perms request.user for object as "perms" perm_checker %}
 <div class="card bg-light my-3">
   <div class="card-header">
     <div class="row">
@@ -75,4 +75,7 @@
     {% endblock %}
   </div>
 </div>
+<script type="application/javascript">
+  document.getElementById('id_accordion_{{request.GET.collapse}}').scrollIntoView({ behavior: 'smooth' })
+</script>
 {% endblock %}

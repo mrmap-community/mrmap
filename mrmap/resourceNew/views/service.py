@@ -1,16 +1,16 @@
-from django.db.models import ExpressionWrapper, BooleanField, F
+from django.db.models import ExpressionWrapper, BooleanField, Q, F, Subquery, Count
 from django.http import HttpResponse
-from django.views import View
 from django.views.generic import RedirectView
-
+from guardian.core import ObjectPermissionChecker
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
 from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
-from resourceNew.filtersets.service import LayerFilterSet, FeatureTypeFilterSet, FeatureTypeElementFilterSet
+from resourceNew.filtersets.service import LayerFilterSet, FeatureTypeFilterSet, FeatureTypeElementFilterSet, \
+    ServiceFilterSet
 from resourceNew.forms.service import RegisterServiceForm, ServiceModelForm, LayerModelForm
-from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
+from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement, DatasetMetadataRelation
 from django.urls import reverse_lazy
 from django_filters.views import FilterView
 from django.utils.translation import gettext
@@ -20,6 +20,7 @@ from resourceNew.tables.service import ServiceTable, LayerTable, FeatureTypeTabl
 class WmsListView(SecuredListMixin, FilterView):
     model = Service
     table_class = ServiceTable
+    filterset_class = ServiceFilterSet
     title = get_icon(IconEnum.WMS) + gettext(" Web Map Services")
     queryset = model.objects.for_table_view(service_type__name=OGCServiceEnum.WMS)
 
@@ -32,6 +33,7 @@ class WmsListView(SecuredListMixin, FilterView):
 class WfsListView(SecuredListMixin, FilterView):
     model = Service
     table_class = ServiceTable
+    filterset_class = ServiceFilterSet
     title = get_icon(IconEnum.WFS) + gettext(" Web Feature Services")
     queryset = model.objects.for_table_view(service_type__name=OGCServiceEnum.WFS)
 
@@ -64,10 +66,12 @@ class FeatureTypeElementListView(SecuredListMixin, FilterView):
 
 class ServiceDetailView(RedirectView):
     pattern_name = "resourceNew:service_tree_view"
+    query_string = True
 
     def get_redirect_url(self, *args, **kwargs):
         view_kind = self.request.GET.get("vk", None)
         if view_kind:
+            # todo: del vk query_param from the request.META["QUERY_STRING"] dict
             if "tree" == view_kind:
                 self.pattern_name = "resourceNew:service_tree_view"
             elif "xml" == view_kind:
@@ -97,13 +101,17 @@ class ServiceTreeView(SecuredDetailView):
             self.template_name = 'resourceNew/service/views/wfs_tree.html'
         elif self.object.is_service_type(OGCServiceEnum.WMS):
             collapse = self.request.GET.get("collapse", None)
+            nodes = self.object.root_layer.get_descendants(include_self=True).annotate(has_dataset_metadata=Count('dataset_metadata'))
             if collapse:
-                layers_to_collapse = Layer.objects.filter(pk=collapse).get_siblings(include_self=True).values_list("pk", flat=True)
-                # todo: build it with queryset.annotate
-                self.object.root_layer.get_descendants(include_self=True)\
-                    .annotate(collapse=ExpressionWrapper(F("pk") in layers_to_collapse,
-                                                         output_field=BooleanField()))
-            context.update({"nodes": self.object.root_layer.get_descendants(include_self=True)})
+                layers_to_collapse = Layer.objects.get(pk=collapse).get_ancestors(include_self=True).values_list("pk", flat=True)
+                nodes = nodes.annotate(collapse=ExpressionWrapper(Q(pk__in=layers_to_collapse),
+                                                                  output_field=BooleanField()))
+
+            perm_checker = ObjectPermissionChecker(self.request.user)
+            perm_checker.prefetch_perms(nodes)
+
+            context.update({"nodes": nodes,
+                            "perm_checker": perm_checker})
             self.template_name = 'resourceNew/service/views/wms_tree.html'
         elif self.object.is_service_type(OGCServiceEnum.CSW):
             self.template_name = 'resourceNew/service/views/csw.html'

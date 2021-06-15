@@ -4,6 +4,16 @@ from django_filters.widgets import RangeWidget
 from resourceNew.models.service import Layer, FeatureType, FeatureTypeElement
 from django.utils.translation import gettext_lazy as _
 
+from resourceNew.models.service import Service
+
+
+class ServiceFilterSet(django_filters.FilterSet):
+    class Meta:
+        model = Service
+        fields = {
+            "id": ["in", ],
+        }
+
 
 class LayerFilterSet(django_filters.FilterSet):
     title = django_filters.CharFilter(field_name='metadata__title',

@@ -1,10 +1,8 @@
 from django.db import models, transaction
-from django.db.models import Max, Count, F, OuterRef, Subquery, Q, ExpressionWrapper, BooleanField
-from django.db.models.functions import Floor
+from django.db.models import Max, Count, F, Exists, OuterRef, Q, ExpressionWrapper, BooleanField
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from mptt.managers import TreeManager
-from django.contrib.postgres.aggregates import ArrayAgg
 from main.models import get_current_owner
 from resourceNew.enums.metadata import MetadataOrigin
 from resourceNew.enums.service import OGCServiceEnum

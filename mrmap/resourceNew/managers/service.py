@@ -466,7 +466,9 @@ class LayerManager(TreeManager):
             .annotate(children_count=Count("child", distinct=True))\
             .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
             .select_related("service",
+                            "service__metadata",
                             "parent",
+                            "parent__metadata",
                             "created_by_user",
                             "owned_by_org")
 

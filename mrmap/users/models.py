@@ -8,7 +8,7 @@ Created on: 28.05.19
 import uuid
 
 import six
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from guardian.shortcuts import get_objects_for_user
 from django.utils.functional import cached_property
 from acl.models.acl import AccessControlList
@@ -78,7 +78,7 @@ class MrMapUser(AbstractUser):
                 organizations |= org.can_publish_for.all()
             return organizations.distinct('name', 'pk')
 
-    def get_instances(self, klass, filter: Q = None, perms: str = None, accept_global_perms: bool = False):
+    def get_instances(self, klass, filter: Q = None, perms: str = None, accept_global_perms: bool = False) -> QuerySet:
         if not perms:
             perms = f'{klass._meta.app_label}.view_{klass._meta.object_name.lower()}'
         if filter:

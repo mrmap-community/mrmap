@@ -52,38 +52,38 @@
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <h6 class="dropdown-header">{% trans 'Web Map Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:service_wms_list' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span class="badge badge-secondary">{{wms_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resourceNew:service_wms_list' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span data-bind="text: wmsCount" class="badge badge-secondary"></span></a>
                         {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
-                    <a class="dropdown-item" href="{% url 'resourceNew:layer_list' %}">{% autoescape off %}{{ICONS.LAYER}}{% endautoescape %}  {% trans 'Layers' %} <span class="badge badge-secondary">{{layers_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:layer_list' %}">{% autoescape off %}{{ICONS.LAYER}}{% endautoescape %}  {% trans 'Layers' %} <span data-bind="text: layersCount"class="badge badge-secondary"></span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Web Feature Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:service_wfs_list' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span class="badge badge-secondary">{{wfs_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resourceNew:service_wfs_list' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span data-bind="text: wfsCount" class="badge badge-secondary"></span></a>
                         {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
-                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature types' %} <span class="badge badge-secondary">{{feature_type_count}}</span></a>
-                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_element_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature type elements' %} <span class="badge badge-secondary">{{feature_type_element_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature types' %} <span data-bind="text: featureTypesCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_element_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature type elements' %} <span data-bind="text: featureTypeElementsCount" class="badge badge-secondary"></span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Catalogue Service' %}</h6>
                     <div class="d-flex">
                         <!-- TODO: url -->
-                        <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span class="badge badge-secondary">{{csw_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span data-bind="text: cswCount" class="badge badge-secondary"></span></a>
                         {% if "service.add_resource" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Metadata' %}</h6>
-                    <a class="dropdown-item" href="{% url 'resourceNew:service_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %} <span class="badge badge-secondary">{{service_metadata_count}}</span></a>
-                    <a class="dropdown-item" href="{% url 'resourceNew:layer_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Layer Metadata' %} <span class="badge badge-secondary">{{layer_metadata_count}}</span></a>
-                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Feature Type Metadata' %} <span class="badge badge-secondary">{{feature_type_metadata_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:service_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %} <span data-bind="text: serviceMetadataCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:layer_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Layer Metadata' %} <span data-bind="text: layerMetadataCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Feature Type Metadata' %} <span data-bind="text: featureTypeMetadataCount" class="badge badge-secondary"></span></a>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:dataset_metadata_list' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Dataset Metadata' %} <span class="badge badge-secondary">{{dataset_metadata_count}}</span></a>
+                        <a class="dropdown-item" href="{% url 'resourceNew:dataset_metadata_list' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Dataset Metadata' %} <span data-bind="text: datasetMetadataCount" class="badge badge-secondary"></span></a>
                          <!-- TODO: url -->
                         {% if "service.add_dataset_metadata" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'editor:dataset-metadata-wizard-new' %}" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
@@ -130,10 +130,10 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarJobDropdown">
                     <h6 class="dropdown-header">{% trans 'Jobs' %}</h6>
-                    <a class="dropdown-item flex-grow-1" href="{% url 'job:job_list' %}">{% trans 'Jobs' %} <span data-bind="text: jobCount" class="badge {% if job_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'job:job_list' %}">{% trans 'Jobs' %} <span data-bind="text: jobsCount" class="badge {% if job_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Tasks' %}</h6>
-                    <a class="dropdown-item" href="{% url 'job:task_list' %}">{% trans 'Tasks' %} <span data-bind="text: taskCount" class="badge {% if task_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
+                    <a class="dropdown-item" href="{% url 'job:task_list' %}">{% trans 'Tasks' %} <span data-bind="text: tasksCount" class="badge {% if task_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'acls' %}active{% endif %}">
@@ -152,9 +152,9 @@
             </li>
         </ul>
         <div>
-        <a data-bind="visible: jobCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'job:job_list' %}">
+        <a data-bind="visible: jobsCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'job:job_list' %}">
             <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'There are open jobs' %}">
-               {{ICONS.PENDING_TASKS}} <span data-bind="text: jobCount" class="badge badge-pill badge-light fading"></span>
+               {{ICONS.PENDING_TASKS}} <span data-bind="text: jobsCount" class="badge badge-pill badge-light fading"></span>
             </span>
         </a>
             <a class="btn btn-outline-light" href="{% url 'password_change_done' %}" title="{% trans 'Account' %}" role="button">

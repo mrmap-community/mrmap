@@ -16,7 +16,7 @@ function ws_connect(path, search) {
         }
         // start reconnecting every 5 secs
         setTimeout(function() {
-          connect();
+          ws_connect(path, search);
         }, 5000);
     };
 
@@ -41,8 +41,18 @@ function handle_toast(){
 
 function AppViewModel() {
     var appViewModel = this;
-    this.jobCount = ko.observable();
-    this.taskCount = ko.observable();
+    this.jobsCount = ko.observable();
+    this.tasksCount = ko.observable();
+    this.wmsCount = ko.observable();
+    this.wfsCount = ko.observable();
+    this.cswCount = ko.observable();
+    this.layersCount = ko.observable();
+    this.featureTypesCount = ko.observable();
+    this.featureTypeElementsCount = ko.observable();
+    this.serviceMetadataCount = ko.observable();
+    this.layerMetadataCount = ko.observable();
+    this.featureTypeMetadataCount = ko.observable();
+    this.datasetMetadataCount = ko.observable();
 
     var ws_socket = ws_connect('/ws/app-view-model/', '')
     ws_socket.onmessage = function message(event) {

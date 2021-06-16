@@ -70,7 +70,7 @@ class ServiceXmlView(SecuredDetailView):
     content_type = "application/xml"
 
     def render_to_response(self, context, **response_kwargs):
-        return HttpResponse(content=self.object.document.xml,
+        return HttpResponse(content=self.object.get("document__xml", None),
                             content_type=self.content_type)
 
 
@@ -86,7 +86,8 @@ class ServiceWmsTreeView(SecuredDetailView):
         collapse = self.request.GET.get("collapse", None)
         nodes = self.object.root_layer.get_descendants(include_self=True)\
                                       .select_related("metadata")\
-                                      .annotate(has_dataset_metadata=Count('dataset_metadata'))
+                                      .annotate(has_dataset_metadata=Count('dataset_metadata'))\
+                                      .prefetch_related("dataset_metadata")
         if collapse:
             layers_to_collapse = Layer.objects.get(pk=collapse)\
                                               .get_ancestors(include_self=True).values_list("pk", flat=True)
@@ -108,7 +109,9 @@ class ServiceWfsTreeView(SecuredDetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        feature_types = self.object.featuretypes.all().annotate(has_dataset_metadata=Count('dataset_metadata'))
+        feature_types = self.object.featuretypes.all()\
+                                   .annotate(has_dataset_metadata=Count('dataset_metadata'))\
+                                   .prefetch_related("dataset_metadata", "elements")
 
         perm_checker = ObjectPermissionChecker(self.request.user)
         perm_checker.prefetch_perms(feature_types)

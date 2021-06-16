@@ -43,13 +43,13 @@ class ServiceMetadataUpdateView(SecuredUpdateView):
     form_class = ServiceMetadataModelForm
 
 
-class ServiceMetadataDetailView(SecuredDetailView):
+class ServiceMetadataXmlView(SecuredDetailView):
     model = ServiceMetadata
     content_type = "application/xml"
     queryset = ServiceMetadata.objects.all().select_related("document").values("document__xml")
 
     def render_to_response(self, context, **response_kwargs):
-        return HttpResponse(content=self.object.document.xml,
+        return HttpResponse(content=self.object.get("document__xml", None),
                             content_type=self.content_type)
 
 
@@ -66,25 +66,11 @@ class DatasetMetadataRestoreView(SecuredConfirmView):
         return super().form_valid(form=form)
 
 
-class DatasetMetadataDetailView(RedirectView):
-    pattern_name = "resourceNew:dataset_metadata_xml_view"
-
-    def get_redirect_url(self, *args, **kwargs):
-        view_kind = self.request.GET.get("vk", None)
-        if view_kind:
-            if "html" == view_kind:
-                # todo
-                pass
-            elif "xml" == view_kind:
-                self.pattern_name = "resourceNew:service_xml_view"
-        return super().get_redirect_url(*args, **kwargs)
-
-
 class DatasetMetadataXmlView(SecuredDetailView):
     model = DatasetMetadata
     queryset = DatasetMetadata.objects.all().select_related("document").values("document__xml")
     content_type = "application/xml"
 
     def render_to_response(self, context, **response_kwargs):
-        return HttpResponse(content=self.object.document.xml,
+        return HttpResponse(content=self.object.get("document__xml", None),
                             content_type=self.content_type)

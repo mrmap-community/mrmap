@@ -26,10 +26,9 @@ urlpatterns = [
     path("metadata/featuretypes", metadata_views.FeatureTypeMetadataListView.as_view(), name="feature_type_metadata_list"),
     path("metadata/datasets", metadata_views.DatasetMetadataListView.as_view(), name="dataset_metadata_list"),
 
-    path("metadata/services/<pk>", metadata_views.ServiceMetadataDetailView.as_view(), name="service_metadata_view"),
+    path("metadata/services/<pk>/xml", metadata_views.ServiceMetadataXmlView.as_view(), name="service_metadata_xml_view"),
     path("metadata/services/<pk>/change", metadata_views.ServiceMetadataUpdateView.as_view(), name="service_metadata_change"),
 
-    path("metadata/datasets/<pk>", metadata_views.DatasetMetadataDetailView.as_view(), name="dataset_metadata_view"),
     path("metadata/datasets/<pk>/xml", metadata_views.DatasetMetadataXmlView.as_view(), name="dataset_metadata_xml_view"),
     path("metadata/datasets/<pk>/change", metadata_views.DatasetMetadataUpdateView.as_view(), name="dataset_metadata_change"),
     path("metadata/datasets/<pk>/restore", metadata_views.DatasetMetadataRestoreView.as_view(), name="dataset_metadata_restore"),

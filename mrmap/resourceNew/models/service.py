@@ -9,6 +9,7 @@ from django.urls import reverse, NoReverseMatch
 from MrMap.icons import get_icon, IconEnum
 from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
+from main.utils import camel_to_snake
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
@@ -93,20 +94,20 @@ class Service(GenericModelMixin, CommonInfo):
 
     def get_absolute_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_list') \
-                   + f'?id__in={self.pk}'
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_view', args=[self.pk, ])
+        except NoReverseMatch:
+            return ""
+
+    def get_table_url(self) -> str:
+        try:
+            return reverse(
+                f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_list') + f'?id__in={self.pk}'
         except NoReverseMatch:
             return ""
 
     def get_tree_view_url(self) -> str:
         try:
             return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_tree_view', args=[self.pk])
-        except NoReverseMatch:
-            return ""
-
-    def get_xml_view_url(self) -> str:
-        try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_xml_view', args=[self.pk])
         except NoReverseMatch:
             return ""
 
@@ -317,6 +318,15 @@ class ServiceElement(GenericModelMixin, CommonInfo):
             return f"{self.metadata.title} ({self.pk})"
         except:
             return str(self.pk)
+
+    def get_dataset_table_url(self) -> str:
+        if self.dataset_metadata.exists():
+            try:
+                return reverse(f'{self._meta.app_label}:dataset_metadata_list') + \
+                       f'?id__in={",".join([str(dataset.pk) for dataset in self.dataset_metadata.all()])}'
+            except NoReverseMatch:
+                pass
+        return ""
 
 
 class Layer(ServiceElement, MPTTModel):

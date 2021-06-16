@@ -1,23 +1,35 @@
+VALUE_TABLE_VIEW_LINK = """
+{% load i18n %}
+{% if value.get_table_url %}
+<a href="{{value.get_table_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show table view' %}">{{value}}</a>
+{% endif %}
+"""
 SERVICE_DETAIL_ICONS = """
 {% load i18n %}
 {% if record.get_tree_view_url %}
 <a href="{{record.get_tree_view_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show tree view' %}">{{ICONS.HIERARCHY}}</a>
 {% endif %}
-</div>
 """
 LAYER_FEATURE_TYPE_DETAIL_ICONS = """
 {% load i18n %}
 {% if record.service.get_tree_view_url %}
 <a href="{{record.service.get_tree_view_url}}?collapse={{record.pk}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show tree view' %}">{{ICONS.HIERARCHY}}</a>
 {% endif %}
-</div>
 """
 FEATURE_TYPE_ELEMENT_DETAIL_ICONS = """
 {% load i18n %}
 {% if record.feature_type.service.get_tree_view_url %}
 <a href="{{record.feature_type.service.get_tree_view_url}}?collapse={{record.feature_type.pk}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show tree view' %}">{{ICONS.HIERARCHY}}</a>
 {% endif %}
-</div>
+"""
+METADATA_DETAIL_ICONS = """
+{% load i18n %}
+{% if record.get_xml_view_url %}
+<a href="{{record.get_xml_view_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show dataset metadata as xml representation' %}">{{ICONS.CAPABILITIES}}</a>
+{% endif %}
+{% if record.get_absolute_url %}
+<a href="{{record.get_absolute_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show dataset metadata as html representation' %}">{{ICONS.NEWSPAPER}}</a>
+{% endif %}
 """
 SERVICE_TABLE_ACTIONS = """
 {% load i18n %}

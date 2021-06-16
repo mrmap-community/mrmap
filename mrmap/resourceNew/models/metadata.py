@@ -552,7 +552,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
     ]
 
     SPATIAL_RES_TYPE_CHOICES = [("groundDistance", "groundDistance"),
-                                ("scaleDenominator", "groundDistance")]
+                                ("scaleDenominator", "scaleDenominator")]
 
     INDETERMINATE_POSITION_CHOICES = [("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
 

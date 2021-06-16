@@ -64,13 +64,14 @@ class GenericModelMixin:
 
     def get_absolute_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_list') + f'?id__in={self.pk}'
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view', args=[self.pk, ])
         except NoReverseMatch:
             return ""
 
-    def get_detail_url(self) -> str:
+    def get_table_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view', args=[self.pk, ])
+            return reverse(
+                f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_list') + f'?id__in={self.pk}'
         except NoReverseMatch:
             return ""
 
@@ -89,6 +90,12 @@ class GenericModelMixin:
     def get_restore_url(self) -> str:
         try:
             return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_restore', args=[self.pk, ])
+        except NoReverseMatch:
+            return ""
+
+    def get_xml_view_url(self) -> str:
+        try:
+            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_xml_view', args=[self.pk])
         except NoReverseMatch:
             return ""
 

@@ -41,13 +41,13 @@
           </button>
           <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{node.pk}}">
             <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-            <a class="dropdown-item" href="{{object.metadata.get_detail_url}}?vk=xml">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
-            <a class="dropdown-item" href="{{object.metadata.get_detail_url}}?vk=html">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+            <a class="dropdown-item" href="{{node.metadata.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+            <a class="dropdown-item" href="{{node.metadata.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
           </div>
         </div>
           {% if node.has_dataset_metadata %}
-          <a class="btn btn-sm btn-secondary mb-1" href="{{node.detail_related_datasets_view_uri}}" role="button">
-            <div class="d-xl-none">{{ ICONS.DATASET|safe }}</div><div class="d-none d-xl-block">{{ ICONS.DATASET|safe }} {% trans 'Datasets' %}</div>
+          <a class="btn btn-sm btn-secondary mb-1" href="{{node.get_dataset_table_url}}" role="button">
+            <div class="d-xl-none">{{ ICONS.DATASET|safe }}</div><div class="d-none d-xl-block">{{ ICONS.DATASET|safe }} {% trans 'Datasets' %} <span class="badge badge-light">{{node.has_dataset_metadata}}</span></div>
           </a>
           {% endif %}
         </div>

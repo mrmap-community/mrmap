@@ -28,7 +28,8 @@ class LayerFilterSet(django_filters.FilterSet):
         fields = {
             "id": ["in", ],
             "parent__id": ["in", ],
-            "service__id": ["in", ]
+            "service__id": ["in", ],
+            "owned_by_org__name": ["icontains"],
         }
 
     def filter_time_dimension(self, queryset, name, value):

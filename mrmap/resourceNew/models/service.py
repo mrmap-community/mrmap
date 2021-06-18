@@ -49,7 +49,21 @@ class ServiceType(models.Model):
         return self.name
 
 
-class Service(GenericModelMixin, CommonInfo):
+class CommonServiceInfo(models.Model):
+    hits = models.PositiveIntegerField(default=0,
+                                       editable=False,
+                                       verbose_name=_("hits"),
+                                       help_text=_("how many times this metadata was requested by a client"),)
+    is_active = models.BooleanField(default=False,
+                                    verbose_name=_("is active?"),
+                                    help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
+                                                "cant request the service through the Mr. Map proxy."))
+
+    class Meta:
+        abstract = True
+
+
+class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
     """ Light polymorph model class to store all registered services. """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -61,10 +75,7 @@ class Service(GenericModelMixin, CommonInfo):
                                      related_query_name="service",
                                      verbose_name=_("service type"),
                                      help_text=_("the concrete type and version of the service."))
-    is_active = models.BooleanField(default=False,
-                                    verbose_name=_("is active?"),
-                                    help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
-                                                "cant request the service through the Mr. Map proxy."))
+
     objects = ServiceManager()
     xml_objects = ServiceXmlManager()
 
@@ -157,7 +168,6 @@ class ExternalAuthentication(CommonInfo):
                                 verbose_name=_("password"),
                                 help_text=_("the password used for the authentication."))
     auth_type = models.CharField(max_length=100,
-                                 default=AuthTypeEnum.NONE.value,
                                  choices=AuthTypeEnum.as_choices(),
                                  verbose_name=_("authentication type"),
                                  help_text=_("kind of authentication mechanism shall used."))
@@ -268,11 +278,18 @@ class OperationUrl(CommonInfo):
                                 verbose_name=_("related service"),
                                 help_text=_("the service for that this url can be used for."))
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                    fields=['method', 'url'],
+                    name='%(app_label)s_%(class)s_unique_method_and_url')
+        ]
+
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"
 
 
-class ServiceElement(GenericModelMixin, CommonInfo):
+class ServiceElement(GenericModelMixin, CommonServiceInfo, CommonInfo):
     """ Abstract model class to generalize some fields and functions for layers and feature types """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -305,10 +322,6 @@ class ServiceElement(GenericModelMixin, CommonInfo):
                                                editable=False,
                                                verbose_name=_("reference systems"),
                                                help_text=_("all reference systems which this element supports"))
-    is_active = models.BooleanField(default=False,
-                                    verbose_name=_("is active?"),
-                                    help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
-                                                "cant request the service through the Mr. Map proxy."))
 
     class Meta:
         abstract = True

@@ -334,9 +334,6 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
-    # todo: do we need this flag?
-    is_custom = models.BooleanField(default=False,
-                                    editable=False)
     hits = models.IntegerField(default=0,
                                verbose_name=_("hits"),
                                help_text=_("how many times this metadata was requested by a client"),
@@ -346,6 +343,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
+    language = None  # Todo
     objects = AbstractMetadataManager()
 
     class Meta:
@@ -751,7 +749,7 @@ class Dimension(CommonInfo):
 
 class TimeExtent(CommonInfo):
     start = models.DateTimeField()
-    stop = models.DateTimeField()
+    stop = models.DateTimeField()  # FIXME: allow null=True, to signal no ending time interval
     # null signals infinity resolution or a single value if start and stop is equal
     resolution = models.DurationField(null=True)
     dimension = models.ForeignKey(to=Dimension,

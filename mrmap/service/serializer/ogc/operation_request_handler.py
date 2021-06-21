@@ -1230,36 +1230,6 @@ class OGCOperationRequestHandler:
                     self.get_uri = utils.set_uri_GET_param(self.get_uri, key, val)
         return self.get_uri
 
-    # todo: maybe we don't need this function after refactoring SecuredOperation,
-    #  cause we can do this with a lookup expression
-    #  tag:delete
-    def _check_get_feature_info_operation_access(self, sec_ops: QueryDict):
-        """ Checks whether the user given x/y Point parameter object is inside the geometry, which defines the allowed
-        access for the GetFeatureInfo operation
-
-        Args:
-            sec_ops (QueryDict): A QueryDict containing SecuredOperation objects
-        Returns:
-             Whether the Point is inside the geometry or not
-        """
-
-        # User is at least in one group that has access to this operation on this metadata.
-        # Now check the spatial restriction!
-        constraints = {}
-        if self.x_y_coord is not None:
-            constraints["x_y"] = False
-
-        for sec_op in sec_ops:
-            if sec_op.allowed_area.empty:
-                # there is no specific area, so this group is allowed to request everywhere
-                constraints["x_y"] = True
-                break
-            total_bounding_geometry = sec_op.allowed_area.unary_union
-            if self.x_y_coord is not None and total_bounding_geometry.covers(self.x_y_coord):
-                constraints["x_y"] = True
-
-        return False not in constraints.values()
-
     def _create_secured_service_mask(self, metadata: Metadata, sec_ops: QueryDict):
         """ Creates call to local mapserver and returns the response
 

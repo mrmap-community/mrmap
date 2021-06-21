@@ -4,6 +4,7 @@ from job.models import Task, Job
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
     FeatureTypeMetadata, DatasetMetadata
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxyLog
 
 
 def get_app_view_model(user):
@@ -20,6 +21,9 @@ def get_app_view_model(user):
     layer_metadata_count = user.get_instances(klass=LayerMetadata).count()
     feature_type_metadata_count = user.get_instances(klass=FeatureTypeMetadata).count()
     dataset_metadata_count = user.get_instances(klass=DatasetMetadata).count()
+    allowed_operations_count = user.get_instances(klass=AllowedOperation).count()
+    service_access_groups_count = user.get_instances(klass=ServiceAccessGroup).count()
+    proxy_log_count = user.get_instances(klass=ProxyLog).count()
 
     response = {
         "jobsCount": 0,
@@ -34,5 +38,8 @@ def get_app_view_model(user):
         "layerMetadataCount": layer_metadata_count,
         "featureTypeMetadataCount": feature_type_metadata_count,
         "datasetMetadataCount": dataset_metadata_count,
+        "allowedOperationsCount": allowed_operations_count,
+        "serviceAccessGroupsCount": service_access_groups_count,
+        "proxyLogCount": proxy_log_count,
     }
     return response

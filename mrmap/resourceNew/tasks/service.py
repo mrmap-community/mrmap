@@ -208,7 +208,7 @@ def create_service_from_parsed_service(self,
     Returns:
         db_service_list (list): the id's of the created service object(s)
     """
-    if form["auth_type"] != AuthTypeEnum.NONE.value:
+    if form.get("auth_type", None):
         external_auth = ExternalAuthentication(
             username=form["username"],
             password=form["password"],

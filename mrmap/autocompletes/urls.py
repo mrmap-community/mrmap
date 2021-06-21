@@ -7,6 +7,11 @@ urlpatterns = [
     path('kw/', autocompletes.KeywordAutocomplete.as_view(create_field="keyword"), name="keyword"),
     path('cat/', autocompletes.CategoryAutocomplete.as_view(), name="category"),
 
+    path("services", autocompletes.ServiceAutocomplete.as_view(), name="service"),
+    path("service-access-groups", autocompletes.ServiceAccessGroupAutocomplete.as_view(), name="service_access_group"),
+    path("layers", autocompletes.LayerAutocomplete.as_view(), name="layer"),
+    path("feature-types", autocompletes.FeatureTypeAutocomplete.as_view(), name="feature_type"),
+
     path('md/', autocompletes.MetadataAutocomplete.as_view(), name="metadata"),
     path('md-s/', autocompletes.MetadataServiceAutocomplete.as_view(), name="metadata_service"),
     path('md-d/', autocompletes.MetadataDatasetAutocomplete.as_view(), name="metadata_dataset"),

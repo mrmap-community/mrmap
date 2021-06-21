@@ -9,11 +9,13 @@ from guardian.shortcuts import get_objects_for_user
 
 from acl.models.acl import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
+from resourceNew.models import Service, Layer, FeatureType
 from service.helper.enums import MetadataEnum
-from service.models import Category, Metadata, OGCOperation
+from service.models import Category, Metadata
 from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
 from resourceNew.models.metadata import Keyword, MetadataContact, ReferenceSystem
+from resourceNew.models.security import OGCOperation, ServiceAccessGroup
 
 
 class CreateObjectMixin:
@@ -49,6 +51,26 @@ class KeywordAutocomplete(LoginRequiredMixin, CreateObjectMixin, autocomplete.Se
 class CategoryAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = Category
     search_fields = ['title_locale_1']
+
+
+class ServiceAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = Service
+    search_fields = ['metadata__title', 'id']
+
+
+class ServiceAccessGroupAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = ServiceAccessGroup
+    search_fields = ['name', 'id']
+
+
+class LayerAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = Layer
+    search_fields = ['metadata__title', 'id']
+
+
+class FeatureTypeAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = FeatureType
+    search_fields = ['metadata__title', 'id']
 
 
 class MetadataContactAutocomplete(LoginRequiredMixin, SecuredAutocompleteMixin, autocomplete.Select2QuerySetView):

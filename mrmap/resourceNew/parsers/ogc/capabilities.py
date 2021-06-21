@@ -30,6 +30,9 @@ class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
         method = dic.get("method", None)
         if method and ":" in method:
             dic.update({"method": method.rsplit(":", 1)[-1]})
+        url = dic.get("url", None)
+        if url:
+            dic.update({"url": url.split("?", 1)[0]})
         return dic
 
 

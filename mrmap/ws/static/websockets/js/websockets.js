@@ -53,6 +53,9 @@ function AppViewModel() {
     this.layerMetadataCount = ko.observable();
     this.featureTypeMetadataCount = ko.observable();
     this.datasetMetadataCount = ko.observable();
+    this.allowedOperationsCount = ko.observable();
+    this.serviceAccessGroupsCount = ko.observable();
+    this.proxyLogCount = ko.observable();
 
     var ws_socket = ws_connect('/ws/app-view-model/', '')
     ws_socket.onmessage = function message(event) {

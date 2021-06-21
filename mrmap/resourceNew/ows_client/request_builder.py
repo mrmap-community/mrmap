@@ -1,5 +1,6 @@
 from abc import ABC
 from requests import Request
+from django.contrib.gis.geos import Polygon
 
 
 class WebService(ABC):
@@ -39,13 +40,14 @@ class WmsService(WebService):
     LAYERS_QP = "LAYERS"
     STYLES_QP = "STYLES"
     CRS_QP = "CRS"
-    BBOX_QP = "CRS"
+    BBOX_QP = "BBOX"
     WIDTH_QP = "WIDTH"
     HEIGHT_QP = "HEIGHT"
     FORMAT_QP = "FORMAT"
     TRANSPARENT_QP = "TRANSPARENT"
     GET_MAP_QV = "GetMap"
     GET_FEATURE_INFO_QV = "GetFeatureInfo"
+    get_params = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -58,45 +60,75 @@ class WmsService(WebService):
             self.GET_MAP_QV = "map"
             self.GET_FEATURE_INFO_QV = "feature_info"
 
-    def get_get_params(self, get_dict):
+    def get_get_params(self, query_params: dict):
         """ Parses the GET parameters into all member variables, which can be found in a request.
 
         Returns:
             the for this version converted get_dict
         """
-        _get_dict = {}
-        for key, val in get_dict.items():
+        _query_params = {}
+        for key, val in query_params.items():
             key = key.upper()
             if key == "SERVICE":
-                _get_dict.update({self.SERVICE_QP: val})
+                _query_params.update({self.SERVICE_QP: val})
             if key == "REQUEST":
-                _get_dict.update({self.REQUEST_QP: val})
+                _query_params.update({self.REQUEST_QP: val})
             elif key == "LAYERS":
-                _get_dict.update({self.LAYERS_QP: val})
+                _query_params.update({self.LAYERS_QP: val})
             elif key == "BBOX":
-                _get_dict.update({self.BBOX_QP: val})
+                _query_params.update({self.BBOX_QP: val})
             elif key == "VERSION":
-                _get_dict.update({self.VERSION_QP: val})
+                _query_params.update({self.VERSION_QP: val})
             elif key == "FORMAT" or key == "OUTPUTFORMAT":
-                _get_dict.update({self.FORMAT_QP: val})
+                _query_params.update({self.FORMAT_QP: val})
             elif key == "SRS" or key == "CRS" or key == "SRSNAME":
-                _get_dict.update({self.CRS_QP: val})
+                _query_params.update({self.CRS_QP: val})
             elif key == "WIDTH":
-                _get_dict.update({self.WIDTH_QP: val})
+                _query_params.update({self.WIDTH_QP: val})
             elif key == "HEIGHT":
-                _get_dict.update({self.HEIGHT_QP: val})
-        return _get_dict
+                _query_params.update({self.HEIGHT_QP: val})
+        return _query_params
+
+    def get_requested_layers(self, query_params: dict):
+        return self.get_get_params(query_params=query_params).get(self.LAYERS_QP).split(",")
+
+    def construct_polygon_from_bbox(self, get_dict):
+        """
+            wms 1.1.1, 1.3.0:
+                * CRS=namespace:identifier | M | Coordinate reference system.
+                * BBOX=minx,miny,maxx,maxy | M | Bounding box corners (lower left, upper right) in CRS units.
+
+        """
+        get_dict = self.get_get_params(get_dict)
+        bbox = get_dict.get(self.BBOX_QP, None)
+        srid = get_dict.get(self.CRS_QP, None)
+        if bbox and srid:
+            min_x, min_y, max_x, max_y = bbox.split(",")
+            # todo: handle different namespaces
+            srid = srid.split(":")[-1]
+            return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=srid)
 
     def construct_request_with_get_dict(self, get_dict) -> Request:
         get_dict = self.get_get_params(get_dict=get_dict)
         if hasattr(self, get_dict.get(self.REQUEST_QP).lower()):
-            return getattr(self, get_dict.get(self.REQUEST_QP))(**get_dict)
+            return getattr(self, get_dict.get(self.REQUEST_QP).lower())(**get_dict)
+
+    def convert_kwargs_for_get_map(self, **kwargs):
+        return {
+            "layer_list": kwargs[self.LAYERS_QP].split(","),
+            "crs": kwargs[self.CRS_QP],
+            "bbox": kwargs[self.BBOX_QP],
+            "width": kwargs[self.WIDTH_QP],
+            "height": kwargs[self.HEIGHT_QP],
+            "format": kwargs[self.FORMAT_QP],
+            "style_list": kwargs.get(self.STYLES_QP, None),
+        }
 
     def getmap(self, **kwargs):
-        return self.get_get_map_request(**kwargs)
+        return self.get_get_map_request(**self.convert_kwargs_for_get_map(**kwargs))
 
     def map(self, **kwargs):
-        return self.get_get_map_request(**kwargs)
+        return self.get_get_map_request(**self.convert_kwargs_for_get_map(**kwargs))
 
     def get_get_map_request(self,
                             layer_list,
@@ -105,8 +137,7 @@ class WmsService(WebService):
                             width: int,
                             height: int,
                             format: str,
-                            style_list=None,
-                            **kwargs) -> Request:
+                            style_list=None) -> Request:
 
         if isinstance(layer_list, str):
             layer_list = [layer_list]
@@ -133,7 +164,7 @@ class WmsService(WebService):
     def getfeatureinfo(self, **kwargs):
         return self.get_get_feature_info_request(**kwargs)
 
-    def get_get_feature_info_request(self, layer_list, x: int, y: int, info_format=None, feature_count=None, **kwargs):
+    def get_get_feature_info_request(self, layer_list, x: int, y: int, info_format=None, feature_count=None):
         raise NotImplementedError
 
 

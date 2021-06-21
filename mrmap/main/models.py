@@ -62,6 +62,14 @@ class GenericModelMixin:
         except AttributeError:
             return ""
 
+    @classmethod
+    def get_add_url(cls) -> str:
+        instance = cls()
+        try:
+            return reverse(f'{instance._meta.app_label}:{camel_to_snake(instance.__class__.__name__)}_add')
+        except NoReverseMatch:
+            return ""
+
     def get_absolute_url(self) -> str:
         try:
             return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view', args=[self.pk, ])

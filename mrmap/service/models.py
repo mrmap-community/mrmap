@@ -2082,9 +2082,9 @@ class AllowedOperation(UuidPk, CommonInfo):
     secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
                       applies to.
     """
-    operations = models.ManyToManyField(OGCOperation, related_name="allowed_operations")
+    operations = models.ManyToManyField(OGCOperation)
     # todo: we removed MrMapGroup from our models. What to do here? Which kind of groups we need here?
-    allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
+    allowed_groups = models.ManyToManyField(Group)
     allowed_area = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")

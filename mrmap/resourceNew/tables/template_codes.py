@@ -79,4 +79,3 @@ FEATURE_TYPE_TABLE_ACTIONS = """
     {% endif %}
 </div>
 """
-

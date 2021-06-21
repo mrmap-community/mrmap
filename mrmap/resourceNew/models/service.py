@@ -22,6 +22,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from resourceNew.parsers.ogc.wfs import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
+from cryptography.fernet import Fernet
 
 
 class ServiceType(models.Model):
@@ -181,16 +182,46 @@ class ExternalAuthentication(CommonInfo):
                                verbose_name=_("Service url"),
                                help_text=_("this shall be the full get capabilities request url."))
 
+    @property
+    def filepath(self):
+        return f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service_id}.key"
+
+    @property
+    def key(self):
+        file = open(self.filepath, "rb")
+        return file.read()
+
+    def write_key_to_file(self, force_return: bool = False):
+        key = Fernet.generate_key()
+        file = None
+        try:
+            file = open(self.filepath, "wb")  # open file in write-bytes mode
+            file.write(key)
+            return key, True
+        except FileNotFoundError:
+            # directory might not exist yet
+            tmp = self.filepath.split("/")
+            del tmp[-1]
+            dir_path = "/".join(tmp)
+            os.mkdir(dir_path)
+
+            # try again
+            if force_return:
+                raise FileNotFoundError("can't generate the key file for external authentication.")
+            else:
+                return self.write_key_to_file(force_return=True)
+        finally:
+            if file:
+                file.close()
+
     def save(self, register_service=False, *args, **kwargs):
         # todo: if adding, set proxy for the secured_service object
-        crypt_handler = CryptoHandler()
-        key = crypt_handler.generate_key()
-        crypt_handler.write_key_to_file(f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service.pk}.key",
-                                        key)
-        self.encrypt(key)
-        super().save(*args, **kwargs)
+        key, success = self.write_key_to_file()
+        if success:
+            self.__encrypt()
+            super().save(*args, **kwargs)
 
-    def delete(self, using=None, keep_parents=False):
+    def delete(self, *args, **kwargs):
         """ Overwrites default delete function
 
         Removes local stored file if it exists!
@@ -199,49 +230,35 @@ class ExternalAuthentication(CommonInfo):
             using:
             keep_parents:
         Returns:
+            the deleted object
         """
-        # remove local stored key
-        filepath = f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service.pk}.key"
         try:
-            os.remove(filepath)
+            os.remove(self.filepath)
         except FileNotFoundError:
             pass
-        super().delete(using, keep_parents)
+        finally:
+            super().delete(*args, **kwargs)
 
-    def encrypt(self, key: str):
-        """ Encrypts the login credentials using a given key
+    def __encrypt(self):
+        """ Encrypt the login credentials using the stored key
 
-        Args:
-            key (str):
         Returns:
-
+            None
         """
-        crypto_handler = CryptoHandler(msg=self.username, key=key)
-        crypto_handler.encrypt()
-        self.username = crypto_handler.crypt_message.decode("ascii")
+        cipher_suite = Fernet(self.key)
+        self.username = cipher_suite.encrypt(self.username.encode("ascii")).decode("ascii")
+        self.password = cipher_suite.encrypt(self.password.encode("ascii")).decode("ascii")
 
-        crypto_handler.message = self.password
-        crypto_handler.encrypt()
-        self.password = crypto_handler.crypt_message.decode("ascii")
+    def decrypt(self):
+        """ Decrypt the login credentials using the stored key
 
-    def decrypt(self, key):
-        """ Decrypts the login credentials using a given key
-
-        Args:
-            key:
         Returns:
-
+            username, password (tuple): the username and password in clear text
         """
-        crypto_handler = CryptoHandler()
-        crypto_handler.key = key
-
-        crypto_handler.crypt_message = self.password.encode("ascii")
-        crypto_handler.decrypt()
-        self.password = crypto_handler.message.decode("ascii")
-
-        crypto_handler.crypt_message = self.username.encode("ascii")
-        crypto_handler.decrypt()
-        self.username = crypto_handler.message.decode("ascii")
+        cipher_suite = Fernet(self.key)
+        password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
+        username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
+        return username, password
 
 
 class OperationUrl(CommonInfo):
@@ -277,13 +294,6 @@ class OperationUrl(CommonInfo):
                                 related_query_name="operation_url",
                                 verbose_name=_("related service"),
                                 help_text=_("the service for that this url can be used for."))
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                    fields=['method', 'url'],
-                    name='%(app_label)s_%(class)s_unique_method_and_url')
-        ]
 
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"

@@ -330,7 +330,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                                   "process."))
     insufficient_quality = models.TextField(null=True,
                                             blank=True,
-                                            help_text=_(""))
+                                            help_text=_("todo"))
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
@@ -561,13 +561,14 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                         related_name="dataset_contact_metadata",
                                         related_query_name="dataset_contact_metadata",
                                         verbose_name=_("contact"),
-                                        help_text=_(""))
+                                        help_text=_("this is the contact which provides this dataset."))
     metadata_contact = models.ForeignKey(to=MetadataContact,
                                          on_delete=models.RESTRICT,
                                          related_name="metadata_contact_metadata",
                                          related_query_name="metadata_contact_metadata",
                                          verbose_name=_("contact"),
-                                         help_text=_(""))
+                                         help_text=_("this is the contact which is responsible for the metadata "
+                                                     "information of the dataset."))
     spatial_res_type = models.CharField(max_length=20,
                                         choices=SPATIAL_RES_TYPE_CHOICES,
                                         null=True,

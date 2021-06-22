@@ -1,6 +1,7 @@
 from main.forms import ModelForm
 from django import forms
 
+from main.widgets import TreeSelectMultiple
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Layer, FeatureType, Service
 from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting
@@ -71,15 +72,6 @@ class AllowedOperationPage2ModelForm(ModelForm):
                 'map_srid': 4326,
             }),
             "secured_service": forms.HiddenInput(),
-            "secured_layers": autocomplete.ModelSelect2Multiple(
-                url="autocompletes:layer",
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
             "secured_feature_types": autocomplete.ModelSelect2Multiple(
                 url="autocompletes:feature_type",
                 attrs={
@@ -98,7 +90,7 @@ class AllowedOperationPage2ModelForm(ModelForm):
             if secured_service.service_type_name == OGCServiceEnum.WMS.value:
                 self.fields.pop("secured_feature_types")
                 self.fields["secured_layers"].queryset = Layer.objects.filter(service=secured_service)
-                i=0
+                self.fields["secured_layers"].widget = TreeSelectMultiple(tree=secured_service.root_layer.get_descendants(include_self=True).select_related("metadata"))
             elif secured_service.service_type_name == OGCServiceEnum.WFS.value:
                 self.fields.pop("secured_layers")
                 self.fields["secured_feature_types"].queryset = FeatureType.objects.filter(service=secured_service)

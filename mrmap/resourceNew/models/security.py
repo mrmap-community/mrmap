@@ -101,12 +101,20 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
                 file.close()
 
     def save(self, register_service=False, *args, **kwargs):
-        key, success = self.write_key_to_file()
-        if success:
+        if self._state.adding:
+            key, success = self.write_key_to_file()
+            if success:
+                self.__encrypt()
+                super().save(*args, **kwargs)
+        else:
+            # We check if password has become changed. If not we need to get the old password from the ciphered password
+            # by set the decrypted password to the current ExternalAuthentication object.
+            old_self = ExternalAuthentication.objects.get(pk=self.pk)
+            if old_self.password == self.password:
+                username, password = self.decrypt()
+                self.password = password
             self.__encrypt()
-            super().save(*args, **kwargs)
-        # todo: handle updates... in forms we should not decrypt the password... just check if password has changed
-        #  if so we encrypt it again...
+            super().save(*args, *kwargs)
 
     def delete(self, *args, **kwargs):
         """ Overwrites default delete function

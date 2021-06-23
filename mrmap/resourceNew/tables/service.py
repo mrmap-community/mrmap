@@ -41,11 +41,10 @@ class ServiceTable(SecuredTable):
     details = tables.TemplateColumn(template_code=SERVICE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)
-
-    """
     status_icons = tables.TemplateColumn(template_code=SERVICE_STATUS_ICONS,
                                          verbose_name=_('Status'),
                                          empty_values=[],)
+    """
     health_icons = tables.TemplateColumn(template_code=SERVICE_HEALTH_ICONS,
                                          verbose_name=_('Health'),
                                          empty_values=[],
@@ -65,6 +64,7 @@ class ServiceTable(SecuredTable):
     class Meta:
         model = Service
         fields = ("title",
+                  "status_icons",
                   "details",
                   "layers_count",
                   "feature_types_count",

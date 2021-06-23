@@ -56,6 +56,8 @@ function AppViewModel() {
     this.allowedOperationsCount = ko.observable();
     this.serviceAccessGroupsCount = ko.observable();
     this.proxyLogCount = ko.observable();
+    this.externalAuthenticationCount = ko.observable();
+    this.proxySettingsCount = ko.observable();
 
     var ws_socket = ws_connect('/ws/app-view-model/', '')
     ws_socket.onmessage = function message(event) {

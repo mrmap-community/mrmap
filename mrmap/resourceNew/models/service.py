@@ -7,22 +7,17 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse, NoReverseMatch
 from MrMap.icons import get_icon, IconEnum
-from MrMap.validators import validate_get_capablities_uri
 from main.models import GenericModelMixin, CommonInfo
 from main.utils import camel_to_snake
-from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
-    AuthTypeEnum
+from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
 from resourceNew.ows_client.request_builder import OgcService
 from service.helper.common_connector import CommonConnector
-from service.helper.crypto_handler import CryptoHandler
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from resourceNew.parsers.ogc.wfs import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
-from cryptography.fernet import Fernet
 
 
 class ServiceType(models.Model):
@@ -123,6 +118,13 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
         except NoReverseMatch:
             return ""
 
+    def get_external_authentication_url(self) -> str:
+        from resourceNew.models.security import ExternalAuthentication
+        try:
+            return self.external_authentication.get_change_url()
+        except ExternalAuthentication.DoesNotExist:
+            return ExternalAuthentication.get_add_url()
+
     @property
     def icon(self):
         try:
@@ -159,106 +161,6 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
             return self.layers.get(parent=None)
         else:
             return None
-
-
-class ExternalAuthentication(CommonInfo):
-    username = models.CharField(max_length=255,
-                                verbose_name=_("username"),
-                                help_text=_("the username used for the authentication."))
-    password = models.CharField(max_length=500,
-                                verbose_name=_("password"),
-                                help_text=_("the password used for the authentication."))
-    auth_type = models.CharField(max_length=100,
-                                 choices=AuthTypeEnum.as_choices(),
-                                 verbose_name=_("authentication type"),
-                                 help_text=_("kind of authentication mechanism shall used."))
-    secured_service = models.OneToOneField(to=Service,
-                                           on_delete=models.CASCADE,
-                                           related_name="external_authentication",
-                                           related_query_name="external_authentication",
-                                           verbose_name=_("secured service"),
-                                           help_text=_("the service which uses this credentials."))
-    test_url = models.URLField(validators=[validate_get_capablities_uri],
-                               verbose_name=_("Service url"),
-                               help_text=_("this shall be the full get capabilities request url."))
-
-    @property
-    def filepath(self):
-        return f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service_id}.key"
-
-    @property
-    def key(self):
-        file = open(self.filepath, "rb")
-        return file.read()
-
-    def write_key_to_file(self, force_return: bool = False):
-        key = Fernet.generate_key()
-        file = None
-        try:
-            file = open(self.filepath, "wb")  # open file in write-bytes mode
-            file.write(key)
-            return key, True
-        except FileNotFoundError:
-            # directory might not exist yet
-            tmp = self.filepath.split("/")
-            del tmp[-1]
-            dir_path = "/".join(tmp)
-            os.mkdir(dir_path)
-
-            # try again
-            if force_return:
-                raise FileNotFoundError("can't generate the key file for external authentication.")
-            else:
-                return self.write_key_to_file(force_return=True)
-        finally:
-            if file:
-                file.close()
-
-    def save(self, register_service=False, *args, **kwargs):
-        # todo: if adding, set proxy for the secured_service object
-        key, success = self.write_key_to_file()
-        if success:
-            self.__encrypt()
-            super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        """ Overwrites default delete function
-
-        Removes local stored file if it exists!
-
-        Args;
-            using:
-            keep_parents:
-        Returns:
-            the deleted object
-        """
-        try:
-            os.remove(self.filepath)
-        except FileNotFoundError:
-            pass
-        finally:
-            super().delete(*args, **kwargs)
-
-    def __encrypt(self):
-        """ Encrypt the login credentials using the stored key
-
-        Returns:
-            None
-        """
-        cipher_suite = Fernet(self.key)
-        self.username = cipher_suite.encrypt(self.username.encode("ascii")).decode("ascii")
-        self.password = cipher_suite.encrypt(self.password.encode("ascii")).decode("ascii")
-
-    def decrypt(self):
-        """ Decrypt the login credentials using the stored key
-
-        Returns:
-            username, password (tuple): the username and password in clear text
-        """
-        cipher_suite = Fernet(self.key)
-        password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
-        username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
-        return username, password
 
 
 class OperationUrl(CommonInfo):
@@ -504,6 +406,7 @@ class FeatureType(ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """ Return the fetched described feature type document and update the content if save is True """
+        from resourceNew.models.security import ExternalAuthentication  # to avoid circular import
         try:
             external_authentication = self.service.external_authentication
         except ExternalAuthentication.DoesNotExist:

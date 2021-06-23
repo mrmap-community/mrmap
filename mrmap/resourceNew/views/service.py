@@ -5,6 +5,7 @@ from guardian.core import ObjectPermissionChecker
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
 from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
+from resourceNew.models.security import ProxySetting
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.filtersets.service import LayerFilterSet, FeatureTypeFilterSet, FeatureTypeElementFilterSet, \
@@ -15,6 +16,7 @@ from django.urls import reverse_lazy
 from django_filters.views import FilterView
 from django.utils.translation import gettext
 from resourceNew.tables.service import ServiceTable, LayerTable, FeatureTypeTable, FeatureTypeElementTable
+from django.forms import inlineformset_factory
 
 
 class WmsListView(SecuredListMixin, FilterView):

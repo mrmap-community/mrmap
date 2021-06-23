@@ -11,7 +11,7 @@ from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, Metad
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
-from resourceNew.models.service import Layer, FeatureType, Service, ExternalAuthentication
+from resourceNew.models.service import Layer, FeatureType, Service
 from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
 from service.helper.common_connector import CommonConnector
 from uuid import uuid4
@@ -214,6 +214,7 @@ class RemoteMetadata(CommonInfo):
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
+        from resourceNew.models.security import ExternalAuthentication  # to avoid circular import
         try:
             external_authentication = self.service.external_authentication
         except ExternalAuthentication.DoesNotExist:

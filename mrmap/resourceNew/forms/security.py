@@ -4,11 +4,29 @@ from django import forms
 from main.widgets import TreeSelectMultiple
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Layer, FeatureType, Service
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, ExternalAuthentication
 from leaflet.forms.widgets import LeafletWidget
 from dal import autocomplete
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+
+
+class ExternalAuthenticationModelForm(ModelForm):
+    class Meta:
+        model = ExternalAuthentication
+        fields = "__all__"
+        widgets = {
+            "password": forms.PasswordInput()
+        }
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get("instance", None)
+        if instance:
+            username, password = instance.decrypt()
+            instance.username = username
+        super().__init__(*args, **kwargs)
+        if kwargs.get("instance", None):
+            self.fields["secured_service"].widget.attrs['disabled'] = True
 
 
 class ServiceAccessGroupModelForm(ModelForm):
@@ -112,3 +130,11 @@ class ProxySettingModelForm(ModelForm):
     class Meta:
         model = ProxySetting
         fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if kwargs.get("instance", None):
+            self.fields["secured_service"].widget.attrs['disabled'] = True
+
+            if self.instance.secured_service.allowed_operations.exists():
+                self.fields["camouflage"].widget.attrs['readonly'] = True

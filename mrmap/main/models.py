@@ -55,12 +55,16 @@ class GenericModelMixin:
 
     """
 
-    @property
-    def icon(self):
+    @classmethod
+    def get_icon(cls) -> str:
         try:
-            return get_icon(getattr(IconEnum, self.__class__.__name__.upper()))
+            return get_icon(getattr(IconEnum, camel_to_snake(cls.__name__).upper()))
         except AttributeError:
             return ""
+
+    @property
+    def icon(self) -> str:
+        return self.get_icon()
 
     @classmethod
     def get_add_url(cls) -> str:

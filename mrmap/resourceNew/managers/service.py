@@ -444,8 +444,12 @@ class ServiceManager(models.Manager):
                                        "metadata__service_contact",
                                        "metadata__metadata_contact",
                                        "created_by_user",
-                                       "owned_by_org") \
-                       .order_by("-metadata__title")
+                                       "owned_by_org",
+                                       "external_authentication",
+                                       "proxy_setting") \
+                       .prefetch_related("allowed_operations")\
+                       .order_by("-metadata__title")\
+                       .annotate(is_secured=Count("allowed_operation"))
 
     def for_tree_view(self, service_type__name: OGCServiceEnum):
         queryset = self.get_queryset()

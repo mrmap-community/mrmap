@@ -41,12 +41,21 @@ urlpatterns = [
     path("metadata/datasets/<pk>/restore", metadata_views.DatasetMetadataRestoreView.as_view(), name="dataset_metadata_restore"),
 
     # Security views
+    path("security/external-authentications", security_views.ExternalAuthenticationListView.as_view(), name="external_authentication_list"),
+    path("security/external-authentications/add", security_views.ExternalAuthenticationAddView.as_view(), name="external_authentication_add"),
+    path("security/external-authentications/<pk>/change", security_views.ExternalAuthenticationChangeView.as_view(), name="external_authentication_change"),
+    path("security/external-authentications/<pk>/delete", security_views.ExternalAuthenticationDeleteView.as_view(), name="external_authentication_delete"),
+
     path("security/service-access-groups", security_views.ServiceAccessGroupListView.as_view(), name="service_access_group_list"),
     path("security/service-access-groups/add", security_views.ServiceAccessGroupCreateView.as_view(), name="service_access_group_add"),
 
     path("security/allowed-operations", security_views.AllowedOperationListView.as_view(), name="allowed_operation_list"),
     path("security/allowed-operations/add", security_wizards.AllowedOperationWizard.as_view(form_list=ALLOWED_OPERATION_WIZARD_FORMS), name="allowed_operation_add"),
     path("security/allowed-operations/<pk>/change", security_views.AllowedOperationChangeView.as_view(), name="allowed_operation_change"),
+
+    path("security/proxy-settings", security_views.ProxySettingListView.as_view(), name="proxy_setting_list"),
+    path("security/proxy-settings/add", security_views.ProxySettingCreateView.as_view(), name="proxy_setting_add"),
+    path("security/proxy-settings/<pk>/change", security_views.ProxySettingUpdateView.as_view(), name="proxy_setting_change"),
 
     path("security/proxy-logs", security_views.ProxyLogListView.as_view(), name="proxy_log_list")
 ]

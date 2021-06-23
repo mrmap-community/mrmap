@@ -100,23 +100,37 @@
             </li>
             <li class="nav-item dropdown {% if PATH == 'security' %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarSecurityDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{ICONS.SECURITY}}{% endautoescape %} {% trans 'Security' %}
+                    {% autoescape off %}{{ICONS.ACCESS}}{% endautoescape %} {% trans 'Security' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarSecurityDropdown">
-                    <h6 class="dropdown-header">{% trans 'Service Access Groups' %}</h6>
+                    <h6 class="dropdown-header">{% trans 'Service authentication' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:external_authentication_list' %}">{% autoescape off %}{{ICONS.EXTERNAL_AUTHENTICATION}}{% endautoescape %} {% trans 'External authentications' %} <span data-bind="text: externalAuthenticationCount" class="badge badge-secondary"></span></a>
+                        {% if "resourceNew.add_externalauthentication" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:external_authentication_add' %}" title="{% trans 'New external authentication' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">{% trans 'Security Proxy' %}</h6>
+                    <div class="d-flex">
+                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:proxy_setting_list' %}">{% trans 'Service proxy settings' %} <span data-bind="text: proxySettingsCount" class="badge badge-secondary"></span></a>
+                        {% if "resourceNew.add_serviceaccessgroup" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:proxy_setting_add' %}" title="{% trans 'New proxy setting' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        {% endif %}
+                    </div>
                     <div class="d-flex">
                         <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:service_access_group_list' %}">{% trans 'Service Access Groups' %} <span data-bind="text: serviceAccessGroupsCount" class="badge badge-secondary"></span></a>
                         {% if "resourceNew.add_serviceaccessgroup" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:service_access_group_add' %}" title="{% trans 'New service access group' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
-                    <h6 class="dropdown-header">{% trans 'Allowed Operations' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:allowed_operation_list' %}">{% trans 'Allowed Operations' %} <span data-bind="text: allowedOperationsCount" class="badge badge-secondary"></span></a>
+                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:allowed_operation_list' %}">{% autoescape off %}{{ICONS.ALLOWED_OPERATION}}{% endautoescape %} {% trans 'Allowed Operations' %} <span data-bind="text: allowedOperationsCount" class="badge badge-secondary"></span></a>
                         {% if "resourceNew.add_allowedoperation" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:allowed_operation_add' %}" title="{% trans 'New allowed operation' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
+                    <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Service request logging' %}</h6>
                     <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:proxy_log_list' %}">{% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %} <span data-bind="text: proxyLogCount" class="badge badge-secondary"></span></a>
                 </div>
@@ -155,11 +169,11 @@
             </li>
             <li class="nav-item dropdown {% if PATH == 'acls' %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarAclsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{ICONS.COGS}}{% endautoescape %} {% trans 'Acl\'s' %}
+                    {% autoescape off %}{{ICONS.ACCESS_CONTROL_LIST}}{% endautoescape %} {% trans 'Acl\'s' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarAclsDropdown">
                     <h6 class="dropdown-header">{% trans 'Acls' %}</h6>
-                    <a class="dropdown-item flex-grow-1" href="{% url 'acl:accesscontrollist_overview' %}">{% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'acl:accesscontrollist_overview' %}">{% autoescape off %}{{ICONS.ACCESS_CONTROL_LIST}}{% endautoescape %} {% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">

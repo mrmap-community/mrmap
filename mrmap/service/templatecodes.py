@@ -10,7 +10,11 @@ SERVICE_TABLE_ACTIONS = """
       <button type="submit" class="btn btn-sm {% if record.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="left" title="{% if record.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
     </form>
     {% endif %}
-    
+    {% if "change_service" in perms %}
+    <a class="btn btn-sm {% if record.external_authentication %}btn-warning{% else %}btn-success{% endif %} mr-1" href="{{record.get_external_authentication_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% if record.external_authentication %}{% trans 'Edit external authentication' %}{% else %}{% trans 'Add external authentication' %}{% endif %}">
+      {{ ICONS.EXTERNAL_AUTHENTICATION|safe }}
+    </a>
+    {% endif %}
     {% if "delete_service" in perms and record.get_delete_url %}
     <a class="btn btn-sm btn-danger" href="{{record.get_delete_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Remove this resource' %}">
       {{ ICONS.DELETE|safe }}

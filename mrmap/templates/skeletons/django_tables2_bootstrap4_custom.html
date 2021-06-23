@@ -3,8 +3,8 @@
 {% block table-wrapper %}
 {% load bootstrap4 %}
 {% load custom_template_filters %}
+{% if table.paginator %}
     <div class="row"><!--<t-head-->
-        {% if table.paginator %}
         <div class="col"><!--pagination-->
                 <div class="dropdown d-inline-block">
                     {% trans 'Show' %}
@@ -23,8 +23,8 @@
                         </div>
                 </div>
         </div><!--</pagination-->
-        {% endif %}
     </div><!--</t-head-->
+{% endif %}
 <div class="mt-3"><!--<t-content-->
     <div class="row">
     <div class="col">

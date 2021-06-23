@@ -2,7 +2,8 @@ from django.utils import timezone
 from celery import shared_task, chain, chord, group
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service as DbService, FeatureType, DatasetMetadata
-from resourceNew.models import ExternalAuthentication, RemoteMetadata
+from resourceNew.models import RemoteMetadata
+from resourceNew.models.security import ExternalAuthentication
 from service.helper.common_connector import CommonConnector
 from job.tasks import NewJob, CurrentTask
 from resourceNew.parsers.ogc.capabilities import get_parsed_service

@@ -6,6 +6,14 @@ VALUE_ABSOLUTE_LINK = """
 {% endif %}
 """
 
+VALUE_TABLE_LINK = """
+{% if value.get_table_url%}
+<a href="{{value.get_table_url}}">{{value}}</a>
+{% else %}
+{{value}}
+{% endif %}
+"""
+
 VALUE_ABSOLUTE_LINK_LIST = """
 {% for val in value %}
 <a href="{{val.get_absolute_url}}">{{val}}</a>,
@@ -34,10 +42,26 @@ VALUE_BADGE_LIST = """
 SERVICE_STATUS_ICONS = """
 {% load i18n %}
 <span class="{% if record.is_active %}text-success{% else %}text-danger{% endif %}">{{ICONS.POWER_OFF}}</span>
-{% if record.use_proxy_uri %}<span class="">{{ICONS.PROXY}}</span>{% endif %}
-{% if record.log_proxy_access %}<span class="">{{ICONS.LOGGING}}</span>{% endif %}
-{% if record.is_secured %}<a class="btn btn-sm btn-outline-info" href="record.security_overview_uri">{{ICONS.WFS}}</a>{% endif %}
-{% if record.external_authentication %}{{ICONS.PASSWORD}}{% endif %}
+{% if record.proxy_setting.camouflage %}<span class="">{{ICONS.PROXY}}</span>{% endif %}
+{% if record.proxy_setting.log_response %}<span class="">{{ICONS.LOGGING}}</span>{% endif %}
+{% if record.is_secured %}
+<span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="left" title="{% trans 'This service is secured spatial' %}">
+<a href="
+{% for allowed_operation in record.allowed_operations.all %}
+{% if forloop.first %}
+{{allowed_operation.get_table_url}}
+{% else %}
+,{{allowed_operation.pk}}
+{% endif %}
+{% endfor %}
+">{{ICONS.ALLOWED_OPERATION}}</a>
+</span>
+{% endif %}
+{% if record.external_authentication %}
+<span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="left" title="{% trans 'This service uses an authentication' %}">
+<a href="{{record.external_authentication.get_table_url}}">{{record.external_authentication.icon}}</a>
+</span>
+{% endif %}
 """
 
 SERVICE_HEALTH_ICONS = """
@@ -71,8 +95,8 @@ DEFAULT_ACTION_BUTTONS = """
     {% if "change_"|add:model_name in perms and record.get_restore_url and record.is_customized %}
     <a href="{{record.get_restore_url}}" class="btn btn-sm btn-danger mr-1" data-toggle="tooltip" data-placement="left" title="{% trans 'Restore' %}">{{ ICONS.RESTORE|safe }}</a>
     {% endif %}
-    {% if "delete_{{record|to_class_name|lower}}" in perms and record.get_delete_url %}
-    <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit' %}">{{ ICONS.REMOVE|safe }}</a>
+    {% if "delete_"|add:model_name in perms and record.get_delete_url %}
+    <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Delete' %}">{{ ICONS.DELETE|safe }}</a>
     {% endif %}
     {% endwith %}
 </div>

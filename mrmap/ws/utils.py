@@ -4,7 +4,8 @@ from job.models import Task, Job
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
     FeatureTypeMetadata, DatasetMetadata
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxyLog
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxyLog, ExternalAuthentication, \
+    ProxySetting
 
 
 def get_app_view_model(user):
@@ -21,12 +22,14 @@ def get_app_view_model(user):
     layer_metadata_count = user.get_instances(klass=LayerMetadata).count()
     feature_type_metadata_count = user.get_instances(klass=FeatureTypeMetadata).count()
     dataset_metadata_count = user.get_instances(klass=DatasetMetadata).count()
+    external_authentication_count = user.get_instances(klass=ExternalAuthentication).count()
     allowed_operations_count = user.get_instances(klass=AllowedOperation).count()
     service_access_groups_count = user.get_instances(klass=ServiceAccessGroup).count()
     proxy_log_count = user.get_instances(klass=ProxyLog).count()
+    proxy_settings_count = user.get_instances(klass=ProxySetting).count()
 
     response = {
-        "jobsCount": 0,
+        "jobsCount": 0,  # todo
         "tasksCount": tasks_count,
         "wmsCount": wms_count,
         "wfsCount": wfs_count,
@@ -38,8 +41,10 @@ def get_app_view_model(user):
         "layerMetadataCount": layer_metadata_count,
         "featureTypeMetadataCount": feature_type_metadata_count,
         "datasetMetadataCount": dataset_metadata_count,
+        "externalAuthenticationCount": external_authentication_count,
         "allowedOperationsCount": allowed_operations_count,
         "serviceAccessGroupsCount": service_access_groups_count,
         "proxyLogCount": proxy_log_count,
+        "proxySettingsCount": proxy_settings_count,
     }
     return response

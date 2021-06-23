@@ -1,12 +1,119 @@
+import os
+
 from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from main.models import CommonInfo, GenericModelMixin
-from resourceNew.enums.service import OGCOperationEnum, OGCServiceEnum
-from MrMap.validators import geometry_is_empty
+from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum
+from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
 from resourceNew.models import Service, Layer, FeatureType
-from django.db.models import Q
+from cryptography.fernet import Fernet
+
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+
+
+class ExternalAuthentication(GenericModelMixin, CommonInfo):
+    secured_service = models.OneToOneField(to=Service,
+                                           on_delete=models.CASCADE,
+                                           related_name="external_authentication",
+                                           related_query_name="external_authentication",
+                                           verbose_name=_("secured service"),
+                                           help_text=_("the service which uses this credentials."))
+    username = models.CharField(max_length=255,
+                                verbose_name=_("username"),
+                                help_text=_("the username used for the authentication."))
+    password = models.CharField(max_length=500,
+                                verbose_name=_("password"),
+                                help_text=_("the password used for the authentication."))
+    auth_type = models.CharField(max_length=100,
+                                 choices=AuthTypeEnum.as_choices(),
+                                 verbose_name=_("authentication type"),
+                                 help_text=_("kind of authentication mechanism shall used."))
+    test_url = models.URLField(validators=[validate_get_capablities_uri],
+                               editable=False,
+                               verbose_name=_("Service url"),
+                               help_text=_("this shall be the full get capabilities request url."))
+
+    def __str__(self):
+        return f"External authentication for {self.secured_service.__str__()}"
+
+    @property
+    def filepath(self):
+        return f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service_id}.key"
+
+    @property
+    def key(self):
+        file = open(self.filepath, "rb")
+        return file.read()
+
+    def write_key_to_file(self, force_return: bool = False):
+        key = Fernet.generate_key()
+        file = None
+        try:
+            file = open(self.filepath, "wb")  # open file in write-bytes mode
+            file.write(key)
+            return key, True
+        except FileNotFoundError:
+            # directory might not exist yet
+            tmp = self.filepath.split("/")
+            del tmp[-1]
+            dir_path = "/".join(tmp)
+            os.mkdir(dir_path)
+
+            # try again
+            if force_return:
+                raise FileNotFoundError("can't generate the key file for external authentication.")
+            else:
+                return self.write_key_to_file(force_return=True)
+        finally:
+            if file:
+                file.close()
+
+    def save(self, register_service=False, *args, **kwargs):
+        key, success = self.write_key_to_file()
+        if success:
+            self.__encrypt()
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """ Overwrites default delete function
+
+        Removes local stored file if it exists!
+
+        Args;
+            using:
+            keep_parents:
+        Returns:
+            the deleted object
+        """
+        try:
+            os.remove(self.filepath)
+        except FileNotFoundError:
+            pass
+        finally:
+            super().delete(*args, **kwargs)
+
+    def __encrypt(self):
+        """ Encrypt the login credentials using the stored key
+
+        Returns:
+            None
+        """
+        cipher_suite = Fernet(self.key)
+        self.username = cipher_suite.encrypt(self.username.encode("ascii")).decode("ascii")
+        self.password = cipher_suite.encrypt(self.password.encode("ascii")).decode("ascii")
+
+    def decrypt(self):
+        """ Decrypt the login credentials using the stored key
+
+        Returns:
+            username, password (tuple): the username and password in clear text
+        """
+        cipher_suite = Fernet(self.key)
+        password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
+        username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
+        return username, password
 
 
 class OGCOperation(models.Model):
@@ -64,12 +171,12 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
 
 
 class ProxySetting(GenericModelMixin, CommonInfo):
-    configured_service = models.OneToOneField(to=Service,
-                                              on_delete=models.CASCADE,
-                                              related_name="proxy_settings",
-                                              related_query_name="proxy_setting",
-                                              verbose_name=_("configured service"),
-                                              help_text=_("the configured service for this proxy settings"))
+    secured_service = models.OneToOneField(to=Service,
+                                           on_delete=models.CASCADE,
+                                           related_name="proxy_setting",
+                                           related_query_name="proxy_setting",
+                                           verbose_name=_("secured service"),
+                                           help_text=_("the configured service for this proxy settings"))
     camouflage = models.BooleanField(default=False,
                                      verbose_name=_("camouflage"),
                                      help_text=_("if true, all related xml documents are secured, by replace all "

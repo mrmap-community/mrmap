@@ -257,6 +257,7 @@ class SuccessMessageDeleteMixin:
 class CustomSingleTableMixin(SingleTableMixin):
     title = None
     template_extend_base = True
+    add_url = None
     # Implement lazy pagination, preventing any count() queries to increase performance.
     # todo: disabled since refactoring service app to resourceNew app... we need to to test the performance of all
     #  table views. If we got performance problems we could activate the LazyPaginator again. But for the user
@@ -268,15 +269,21 @@ class CustomSingleTableMixin(SingleTableMixin):
         if not self.title:
             instance = self.model()
             if hasattr(instance, 'icon'):
-                return instance.icon + ' ' + instance._meta.verbose_name_plural.__str__()
+                return instance.icon + ' ' + instance._meta.verbose_name_plural.__str__().title()
             else:
-                return instance._meta.verbose_name_plural
+                return instance._meta.verbose_name_plural.__str__().title()
         return self.title
+
+    def get_add_url(self):
+        if not self.add_url and hasattr(self.model(), "get_add_url"):
+            return self.model().get_add_url()
+        return self.add_url
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super().get_table(**kwargs)
         table.title = self.get_title()
+        table.add_url = self.get_add_url()
         model = self.model
         # todo: bad practice --> results in multiple db querys for get_all_permissions()
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):

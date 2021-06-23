@@ -4,9 +4,9 @@
 <h4 class="mb-1 mr-3">{{table.title|safe}}</h4>
 {% endblock %}
 {% block card-header-title-right %}
-{% for action in table.actions %}
-    {{action|safe}}
-{% endfor %}
+{% if table.add_url %}
+<a class="btn btn-sm btn-success" href="{{table.add_url}}">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+{% endif %}
 {% endblock %}
 {% block card-body %}
 {% render_table table %}

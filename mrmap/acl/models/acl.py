@@ -53,10 +53,6 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
         verbose_name = _('Access Control List')
         verbose_name_plural = _('Access Control Lists')
 
-    @property
-    def icon(self):
-        return get_icon(IconEnum.COGS)
-
     @classmethod
     def get_accessible_fields(cls):
         """helper function to get all m2m fields where the name contains 'accessible_'"""

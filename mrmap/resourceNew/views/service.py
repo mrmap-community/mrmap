@@ -1,10 +1,12 @@
 from django.db.models import ExpressionWrapper, BooleanField, Q, F, Subquery, Count
 from django.http import HttpResponse
 from django.views.generic import RedirectView
+from extra_views import UpdateWithInlinesView, NamedFormsetsMixin
 from guardian.core import ObjectPermissionChecker
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
 from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
+from resourceNew.formsets.service import ExternalAuthenticationInline, ProxySettingInline
 from resourceNew.models.security import ProxySetting
 from resourceNew.tasks import service as service_tasks
 from resourceNew.enums.service import OGCServiceEnum
@@ -16,7 +18,6 @@ from django.urls import reverse_lazy
 from django_filters.views import FilterView
 from django.utils.translation import gettext
 from resourceNew.tables.service import ServiceTable, LayerTable, FeatureTypeTable, FeatureTypeElementTable
-from django.forms import inlineformset_factory
 
 
 class WmsListView(SecuredListMixin, FilterView):
@@ -150,10 +151,18 @@ class RegisterServiceFormView(SecuredFormView):
         return super().form_valid(form=form)
 
 
-class ServiceUpdateView(SecuredUpdateView):
+# todo: implement a secured UpdateWithInlinesView version
+class ServiceUpdateView(UpdateWithInlinesView):
     model = Service
+    inlines = [ExternalAuthenticationInline, ProxySettingInline]
     form_class = ServiceModelForm
-    update_query_string = True
+    #update_query_string = True
+    template_name = "MrMap/detail_views/generic_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
 
 
 class ServiceDeleteView(SecuredDeleteView):

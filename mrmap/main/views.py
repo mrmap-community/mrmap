@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from urllib.parse import urlparse, urlunparse
 from django.views.generic import FormView
 from breadcrumb.utils import check_path_exists
+from main.utils import camel_to_snake
 
 
 class GenericPermissionMixin:
@@ -118,10 +119,11 @@ class SecuredDeleteView(LoginRequiredMixin,
     Secured django `DeleteView` class with default permission '<app_label>.delete_<model_name>'
     """
     action = 'delete'
+    template_name = "MrMap/detail_views/delete.html"
 
     def get_success_url(self):
         if not self.success_url:
-            return reverse_lazy(f'{self.app_label}:{self.model_name}_overview')
+            return reverse_lazy(f'{self.app_label}:{camel_to_snake(self.__class__.__name__)}_list')
         else:
             return super().get_success_url()
 

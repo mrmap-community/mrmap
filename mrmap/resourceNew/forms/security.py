@@ -16,7 +16,7 @@ class ExternalAuthenticationModelForm(ModelForm):
         model = ExternalAuthentication
         fields = "__all__"
         widgets = {
-            "password": forms.PasswordInput()
+            "password": forms.PasswordInput(render_value=True)
         }
 
     def __init__(self, *args, **kwargs):
@@ -24,6 +24,7 @@ class ExternalAuthenticationModelForm(ModelForm):
         if instance:
             username, password = instance.decrypt()
             instance.username = username
+            instance.password = password
         super().__init__(*args, **kwargs)
         if kwargs.get("instance", None):
             self.fields["secured_service"].widget.attrs['disabled'] = True

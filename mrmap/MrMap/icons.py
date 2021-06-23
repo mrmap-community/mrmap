@@ -99,6 +99,7 @@ class IconEnum(EnumChoice):
     ALLOWED_OPERATION = 'fas fa-lock'
     ACCESS_CONTROL_LIST = "fas fa-user-shield"
     HEALTH_STATE = "fas fa-heartbeat"
+    PROXY_SETTING = "fas fa-archway"
 
 
 def get_icon(enum: IconEnum, color=None) -> SafeString:

@@ -8,6 +8,15 @@ register = template.Library()
 
 
 @register.filter
+def model_to_title(value):
+    instance = value
+    if hasattr(instance, 'icon'):
+        return instance.icon + ' ' + instance._meta.verbose_name.__str__().title()
+    else:
+        return instance._meta.verbose_name.__str__().title()
+
+
+@register.filter
 def to_class_name(value):
     return value.__class__.__name__
 

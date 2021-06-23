@@ -2,6 +2,8 @@ import os
 
 from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from main.models import CommonInfo, GenericModelMixin
@@ -21,22 +23,50 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
                                            verbose_name=_("secured service"),
                                            help_text=_("the service which uses this credentials."))
     username = models.CharField(max_length=255,
+                                blank=True,  # to support empty inline formset posting
                                 verbose_name=_("username"),
                                 help_text=_("the username used for the authentication."))
     password = models.CharField(max_length=500,
+                                blank=True,  # to support empty inline formset posting
                                 verbose_name=_("password"),
                                 help_text=_("the password used for the authentication."))
     auth_type = models.CharField(max_length=100,
+                                 blank=True,  # to support empty inline formset posting
                                  choices=AuthTypeEnum.as_choices(),
                                  verbose_name=_("authentication type"),
                                  help_text=_("kind of authentication mechanism shall used."))
     test_url = models.URLField(validators=[validate_get_capablities_uri],
                                editable=False,
+                               null=True,
                                verbose_name=_("Service url"),
                                help_text=_("this shall be the full get capabilities request url."))
 
+    class Meta:
+        """
+        # todo:
+        constraints = [
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_empty_fields",
+                check=Q(username=None) | Q(password=None) | Q(auth_type=None)
+            )
+        ]"""
+
     def __str__(self):
         return f"External authentication for {self.secured_service.__str__()}"
+
+    def clean(self):
+        errors = {}
+        # cause we support blank fields to support empty inline formset posting, we need to validate the blank fields
+        # here
+        if self.username or self.password or self.auth_type:
+            if not self.username:
+                errors.update({"username": _("username can't be leave empty.")})
+            if not self.password:
+                errors.update({"password": _("password can't be leave empty.")})
+            if not self.auth_type:
+                errors.update({"auth_type": _("auth type can't be leave empty.")})
+        if errors:
+            raise ValidationError(errors)
 
     @property
     def filepath(self):
@@ -75,6 +105,8 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         if success:
             self.__encrypt()
             super().save(*args, **kwargs)
+        # todo: handle updates... in forms we should not decrypt the password... just check if password has changed
+        #  if so we encrypt it again...
 
     def delete(self, *args, **kwargs):
         """ Overwrites default delete function
@@ -159,7 +191,7 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
                                             related_query_name="allowed_operation",
                                             verbose_name=_("secured layers"),
                                             help_text=_("Select one or more layers. Note that all sub layers of a "
-                                                        "selected layer will also be secured."),)
+                                                        "selected layer will also be secured."), )
     secured_feature_types = models.ManyToManyField(to=FeatureType,
                                                    related_name="allowed_operations",
                                                    related_query_name="allowed_operation",
@@ -183,8 +215,26 @@ class ProxySetting(GenericModelMixin, CommonInfo):
                                                  "hostname/internet addresses of the related service by the hostname of"
                                                  " the current mr. map instance."))
     log_response = models.BooleanField(default=False,
-                                       verbose_name=_("log response",),
+                                       verbose_name=_("log response", ),
                                        help_text=_("if true, all responses of the related service will be logged."))
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_log_response_without_camouflage",
+                check=Q(camouflage=True, log_response=True) |
+                      Q(camouflage=True, log_response=False) |
+                      Q(camouflage=False, log_response=False)
+            )
+            # todo: check if secured_service.allowed_operations.exists; if so camouflage shall always be true
+        ]
+
+    def clean(self):
+        if self.log_response and not self.camouflage:
+            raise ValidationError({"camouflage": _("log response without active camouflage is not supported.")})
+        if not self.camouflage and self.secured_service.allowed_operations.exists():
+            raise ValidationError({"camouflage": _("There are configured allowed operation objects. Camouflage can not"
+                                                   "be disabled.")})
 
 
 class ProxyLog(GenericModelMixin, CommonInfo):

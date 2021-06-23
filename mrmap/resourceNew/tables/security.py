@@ -32,6 +32,7 @@ class ExternalAuthenticationTable(SecuredTable):
 
 class ServiceAccessGroupTable(SecuredTable):
     perm_checker = None
+    user_set__all = tables.ManyToManyColumn()
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
@@ -42,7 +43,8 @@ class ServiceAccessGroupTable(SecuredTable):
     class Meta:
         model = ServiceAccessGroup
         fields = ("name",
-                  "description",)
+                  "description",
+                  "user_set__all")
         prefix = 'service-access-group-table'
 
 

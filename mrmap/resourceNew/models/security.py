@@ -165,7 +165,7 @@ class OGCOperation(models.Model):
         return self.operation
 
 
-class ServiceAccessGroup(Group, CommonInfo):
+class ServiceAccessGroup(GenericModelMixin, Group, CommonInfo):
     description = models.CharField(max_length=512,
                                    verbose_name=_("description"),
                                    help_text=_("a short description what this group is for."))
@@ -182,6 +182,7 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
     operations = models.ManyToManyField(to=OGCOperation,
                                         related_name="allowed_operations",
                                         related_query_name="allowed_operation")
+    # todo: to=Group? then we can add organizations
     allowed_groups = models.ManyToManyField(to=ServiceAccessGroup,
                                             related_name="allowed_operations",
                                             related_query_name="allowed_operation")

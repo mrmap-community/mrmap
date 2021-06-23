@@ -1,3 +1,6 @@
+from django.contrib.admin.widgets import FilteredSelectMultiple
+from django.contrib.auth import get_user_model
+
 from main.forms import ModelForm
 from django import forms
 
@@ -30,9 +33,42 @@ class ExternalAuthenticationModelForm(ModelForm):
 
 
 class ServiceAccessGroupModelForm(ModelForm):
+    user_set = forms.ModelMultipleChoiceField(
+        queryset=get_user_model().objects.all(),
+        required=False,
+        widget=autocomplete.ModelSelect2Multiple(
+                url='autocompletes:users',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
+                    }
+                },
+            ),
+        label=_("users")
+    )
+
     class Meta:
         model = ServiceAccessGroup
         fields = ("name", "description")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.pk:
+            self.fields['user_set'].initial = self.instance.user_set.all()
+
+    def save(self, commit=True):
+        group = super().save(commit=False)
+
+        if commit:
+            group.save()
+
+        if group.pk:
+            group.user_set.set(self.cleaned_data['user_set'])
+            self.save_m2m()
+
+        return group
 
 
 class AllowedOperationPage1ModelForm(ModelForm):
@@ -114,7 +150,7 @@ class AllowedOperationPage2ModelForm(ModelForm):
                 self.fields["secured_feature_types"].queryset = FeatureType.objects.filter(service=secured_service)
         else:
             # todo
-            raise Exception
+            raise NotImplemented
 
     def clean_secured_layers(self):
         configured_layers = self.cleaned_data.get("secured_layers")

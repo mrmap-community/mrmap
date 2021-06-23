@@ -1,8 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q, QuerySet, F, Avg
+from django.db.models import QuerySet
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from acl.models.acl import AccessControlList
@@ -11,15 +10,9 @@ from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
-from structure.enums import PendingTaskEnum
 from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
-from django_celery_results.models import TaskResult
-from django.db.models import Case, When
-from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
-from django.utils.functional import cached_property
-from django.db.models import Max, Count, F, OuterRef, Subquery, Q
 
 
 class Contact(models.Model):

@@ -20,7 +20,6 @@ class ExternalAuthenticationListView(SecuredListMixin, FilterView):
 class ExternalAuthenticationAddView(SecuredCreateView):
     model = ExternalAuthentication
     form_class = ExternalAuthenticationModelForm
-    success_url = reverse_lazy('resourceNew:external_authentication_list')
 
 
 class ExternalAuthenticationChangeView(SecuredUpdateView):
@@ -41,7 +40,11 @@ class ServiceAccessGroupListView(SecuredListMixin, FilterView):
 class ServiceAccessGroupCreateView(SecuredCreateView):
     model = ServiceAccessGroup
     form_class = ServiceAccessGroupModelForm
-    success_url = reverse_lazy('resourceNew:service_access_group_list')
+
+
+class ServiceAccessGroupChangeView(SecuredUpdateView):
+    model = ServiceAccessGroup
+    form_class = ServiceAccessGroupModelForm
 
 
 class AllowedOperationListView(SecuredListMixin, FilterView):
@@ -63,13 +66,11 @@ class ProxySettingListView(SecuredListMixin, FilterView):
 class ProxySettingCreateView(SecuredCreateView):
     model = ProxySetting
     form_class = ProxySettingModelForm
-    #success_url = reverse_lazy('resourceNew:proxy_setting_list')
 
 
 class ProxySettingUpdateView(SecuredUpdateView):
     model = ProxySetting
     form_class = ProxySettingModelForm
-    #success_url = reverse_lazy('resourceNew:proxy_setting_list')
 
 
 class ProxyLogListView(SecuredListMixin, FilterView):

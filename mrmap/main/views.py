@@ -38,7 +38,10 @@ class GenericSuccessUrlMixin:
             try:
                 url = self.object.get_absolute_url()
             except NoReverseMatch:
-                raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
+                try:
+                    url = self.object.get_table_url()
+                except NoReverseMatch:
+                    raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
             return url
         else:
             return self.success_url

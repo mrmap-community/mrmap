@@ -15,6 +15,7 @@ class ServiceAccessGroupFilterSet(django_filters.FilterSet):
     class Meta:
         model = ServiceAccessGroup
         fields = {
+            "id": ["in"],
             "name": ["icontains"],
             "description": ["icontains", ],
         }
@@ -36,6 +37,7 @@ class ProxyLogFilterSet(django_filters.FilterSet):
     class Meta:
         model = ProxyLog
         fields = {
+            "id": ["in"],
             "service__id": ["in"],
             "user__id": ["in"],
             "operation__operation": ["in"],

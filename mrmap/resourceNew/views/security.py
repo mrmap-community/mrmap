@@ -47,6 +47,10 @@ class ServiceAccessGroupChangeView(SecuredUpdateView):
     form_class = ServiceAccessGroupModelForm
 
 
+class ServiceAccessGroupDeleteView(SecuredDeleteView):
+    model = ServiceAccessGroup
+
+
 class AllowedOperationListView(SecuredListMixin, FilterView):
     model = AllowedOperation
     table_class = AllowedOperationTable

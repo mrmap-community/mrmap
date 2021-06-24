@@ -1,7 +1,9 @@
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ImproperlyConfigured
+from django.db.models import ProtectedError
 from django.http import QueryDict
-from django.urls import reverse_lazy, NoReverseMatch
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
 from django.views.generic import DetailView, DeleteView, UpdateView, CreateView
 from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin, PermissionListMixin
 from MrMap.views import CustomSingleTableMixin, SuccessMessageDeleteMixin, GenericViewContextMixin, InitFormMixin, \
@@ -11,7 +13,24 @@ from django.utils.translation import gettext_lazy as _
 from urllib.parse import urlparse, urlunparse
 from django.views.generic import FormView
 from breadcrumb.utils import check_path_exists
-from main.utils import camel_to_snake
+from main.utils import camel_to_snake, handle_protected_error
+
+
+class LastUrlMixin:
+    update_query_string = False
+
+    def get_last_url(self):
+        last_url = self.request.META.get('HTTP_REFERER')
+        (scheme, netloc, path, params, query, fragment) = urlparse(last_url)
+        if self.request.path != path and check_path_exists(path):
+            if self.update_query_string:
+                last_query_dict = QueryDict(query).copy()
+                current_query_dict = self.request.GET.copy()
+                for key, value in current_query_dict.items():
+                    last_query_dict[key] = value
+                query = last_query_dict.urlencode()
+                last_url = urlunparse((scheme, netloc, path, params, query, fragment))
+            return last_url
 
 
 class GenericPermissionMixin:
@@ -35,12 +54,10 @@ class GenericPermissionMixin:
 class GenericSuccessUrlMixin:
     def get_success_url(self):
         if not self.success_url:
-            try:
-                url = self.object.get_absolute_url()
-            except NoReverseMatch:
-                try:
-                    url = self.object.get_concrete_table_url()
-                except NoReverseMatch:
+            url = self.object.get_absolute_url()
+            if not url:
+                url = self.object.get_concrete_table_url()
+                if not url:
                     raise ImproperlyConfigured(f'configure success_url or define a default detail view for {self.model_name}')
             return url
         else:
@@ -99,7 +116,7 @@ class SecuredCreateView(LoginRequiredMixin,
 
     def get_success_message(self, cleaned_data):
         if not self.success_message:
-            return _("Successfully created %(obj)s") % self.object
+            return _("Successfully created %(obj)s") % {"obj": self.object}
         else:
             return super().get_success_message(cleaned_data)
 
@@ -123,12 +140,26 @@ class SecuredDeleteView(LoginRequiredMixin,
                         GenericPermissionRequiredMixin,
                         GenericViewContextMixin,
                         SuccessMessageDeleteMixin,
+                        LastUrlMixin,
                         DeleteView):
     """
     Secured django `DeleteView` class with default permission '<app_label>.delete_<model_name>'
     """
     action = 'delete'
     template_name = "MrMap/detail_views/delete.html"
+
+    def delete(self, request, *args, **kwargs):
+        try:
+            super().delete(request=request, *args, **kwargs)
+        except ProtectedError as e:
+            handle_protected_error([self.object, ], request, e)
+            last_url = self.get_last_url()
+            if last_url:
+                return redirect(last_url)
+            elif self.object.get_concrete_table_url():
+                return redirect(self.object.get_concrete_table_url())
+            else:
+                return redirect(self.object.get_table_url())
 
     def get_success_message(self):
         if not self.success_message:
@@ -152,6 +183,7 @@ class SecuredUpdateView(LoginRequiredMixin,
                         GenericViewContextMixin,
                         InitFormMixin,
                         SuccessMessageMixin,
+                        LastUrlMixin,
                         UpdateView):
     """
     Secured django `UpdateView` class with default permission '<app_label>.change_<model_name>'
@@ -170,22 +202,13 @@ class SecuredUpdateView(LoginRequiredMixin,
 
     def get_success_message(self, cleaned_data):
         if not self.success_message:
-            return _("Successfully updated %(obj)s") % self.object
+            return _("Successfully updated %(obj)s") % {"obj": self.object}
         else:
             return super().get_success_message(cleaned_data)
 
     def get_success_url(self):
-        last_url = self.request.META.get('HTTP_REFERER')
-        (scheme, netloc, path, params, query, fragment) = urlparse(last_url)
-
-        if self.request.path != path and check_path_exists(path):
-            if self.update_query_string:
-                last_query_dict = QueryDict(query).copy()
-                current_query_dict = self.request.GET.copy()
-                for key, value in current_query_dict.items():
-                    last_query_dict[key] = value
-                query = last_query_dict.urlencode()
-                last_url = urlunparse((scheme, netloc, path, params, query, fragment))
+        last_url = self.get_last_url(),
+        if last_url:
             return last_url
         return super().get_success_url()
 
@@ -196,6 +219,7 @@ class SecuredFormView(LoginRequiredMixin,
                       GenericViewContextMixin,
                       InitFormMixin,
                       SuccessMessageMixin,
+                      LastUrlMixin,
                       FormView):
     """
     Secured django `UpdateView` class with default permission '<app_label>.change_<model_name>'
@@ -203,9 +227,8 @@ class SecuredFormView(LoginRequiredMixin,
     template_name = "MrMap/detail_views/generic_form.html"
 
     def get_success_url(self):
-        last_url = self.request.META.get('HTTP_REFERER')
-        sections = urlparse(last_url)
-        if self.request.path != sections.path and check_path_exists(sections.path):
+        last_url = self.get_last_url()
+        if last_url:
             return last_url
         return super().get_success_url()
 

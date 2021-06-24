@@ -36,17 +36,18 @@ class GenericOwsServiceOperationFacade(View):
         super().setup(request=request, *args, **kwargs)
         self.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
+            allowed_operations = AllowedOperation.objects.filter(
+                secured_service__pk=OuterRef('pk')
+            )
             self.service = Service.objects \
                 .select_related("document",
                                 "service_type",
                                 "external_authentication",
                                 ) \
-                .prefetch_related("operation_urls",
-                                  "allowed_operations",  # todo: prefetch only if needed... it slows down a lot
-                                  "allowed_operations__secured_layers",
-                                  "allowed_operations__secured_feature_types", )\
+                .prefetch_related("operation_urls")\
                 .annotate(camouflage=F("proxy_setting__camouflage"),
-                          log_response=F("proxy_setting__log_response"))\
+                          log_response=F("proxy_setting__log_response"),
+                          is_secured=Exists(allowed_operations))\
                 .get(pk=self.kwargs.get("pk"))
             base_url = self.service.operation_urls.values_list('url', flat=True) \
                 .get(method=HttpMethodEnum.GET.value,
@@ -55,16 +56,18 @@ class GenericOwsServiceOperationFacade(View):
                                              service_type=self.service.service_type_name,
                                              version=self.service.service_version)
         except Service.DoesNotExist:
-            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+            self.service = None
 
     def get(self, request, *args, **kwargs):
+        if not self.service:
+            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
         if not self.query_parameters.get("request"):
             return HttpResponse(status=400, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
         elif not self.service.is_active:
             return HttpResponse(status=423, content=SERVICE_DISABLED)
         elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
             return self.get_capabilities()
-        elif self.service.allowed_operations.exists():
+        elif self.service.is_secured:
             # this service is basically secured! we need to check some things...
             # 1. requesting user has principle access?
             # 2. requesting user has access for the requested area?

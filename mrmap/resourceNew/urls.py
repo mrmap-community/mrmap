@@ -50,6 +50,7 @@ urlpatterns = [
     path("security/service-access-groups", security_views.ServiceAccessGroupListView.as_view(), name="service_access_group_list"),
     path("security/service-access-groups/add", security_views.ServiceAccessGroupCreateView.as_view(), name="service_access_group_add"),
     path("security/service-access-groups/<pk>/change", security_views.ServiceAccessGroupChangeView.as_view(), name="service_access_group_change"),
+    path("security/service-access-groups/<pk>/delete", security_views.ServiceAccessGroupDeleteView.as_view(), name="service_access_group_delete"),
 
     path("security/allowed-operations", security_views.AllowedOperationListView.as_view(), name="allowed_operation_list"),
     path("security/allowed-operations/add", security_wizards.AllowedOperationWizard.as_view(form_list=ALLOWED_OPERATION_WIZARD_FORMS), name="allowed_operation_add"),

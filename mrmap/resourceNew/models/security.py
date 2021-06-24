@@ -170,6 +170,19 @@ class OGCOperation(models.Model):
         return self.operation
 
 
+class AllowedOperationGroupRelation(models.Model):
+    """ Custom M2M relation table model to protect referenced ServiceAccessGroup from deleting if the are referenced.
+
+    """
+    service_access_group = models.ForeignKey(to="ServiceAccessGroup",
+                                             on_delete=models.PROTECT)
+    allowed_operation = models.ForeignKey(to="AllowedOperation",
+                                          on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.allowed_operation.__str__()
+
+
 class ServiceAccessGroup(GenericModelMixin, Group, CommonInfo):
     description = models.CharField(max_length=512,
                                    verbose_name=_("description"),
@@ -189,6 +202,7 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
                                         related_query_name="allowed_operation")
     # todo: to=Group? then we can add organizations
     allowed_groups = models.ManyToManyField(to=ServiceAccessGroup,
+                                            through=AllowedOperationGroupRelation,
                                             related_name="allowed_operations",
                                             related_query_name="allowed_operation")
     allowed_area = models.MultiPolygonField(null=True,
@@ -214,6 +228,9 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
     description = models.CharField(max_length=512,
                                    verbose_name=_("description"),
                                    help_text=_("a short description what this allowed operation controls."))
+
+    def __str__(self):
+        return f"AllowedOperation ({self.pk}) for service {self.secured_service}"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

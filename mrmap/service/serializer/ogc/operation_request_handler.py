@@ -40,9 +40,10 @@ from service.helper.epsg_api import EpsgApi
 from service.serializer.ogc.request_builder import OGCRequestPOSTBuilder
 from service.models import Metadata, FeatureType, Layer, ProxyLog, AllowedOperation
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
-    MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
+    MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
     RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
+from django.conf import settings
 
 
 class OGCOperationRequestHandler:
@@ -1249,7 +1250,7 @@ class OGCOperationRequestHandler:
                 if op.allowed_area is None or op.allowed_area.empty:
                     return None
                 request_dict = {
-                    "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
+                    "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
                     "version": "1.1.1",
                     "request": "GetMap",
                     "service": "WMS",
@@ -1265,7 +1266,7 @@ class OGCOperationRequestHandler:
                     "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
                 }
                 uri = "{}?{}".format(
-                    MAPSERVER_LOCAL_PATH,
+                    settings.MAPSERVER_LOCAL_PATH,
                     urllib.parse.urlencode(request_dict)
                 )
 

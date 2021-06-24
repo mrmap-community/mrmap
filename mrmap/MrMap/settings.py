@@ -449,6 +449,13 @@ XML_NAMESPACES = {
 GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 ################################################################
+# Mapserver
+################################################################
+MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/security_mask.map")
+
+
+################################################################
 # Logger settings
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')

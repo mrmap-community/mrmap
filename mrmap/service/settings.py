@@ -42,9 +42,8 @@ SERVICE_LEGEND_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HOST
 REQUEST_TIMEOUT = 100  # seconds
 
 # security proxy settings
-MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(os.path.dirname(__file__), "helper/mapserver/security_mask.map")
-MAPSERVER_SECURITY_MASK_TABLE = "service_allowedoperation"
+
+MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 

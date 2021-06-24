@@ -1,54 +1,25 @@
 from io import BytesIO
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import StreamingHttpResponse
 from django.views.generic.base import View
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
 from resourceNew.ows_client.request_builder import OgcService
-from service.helper.enums import OGCOperationEnum
 from django.db.models import Q, QuerySet
 from requests.auth import HTTPDigestAuth
 from requests import Session, Response, Request
-
-import time
-import urllib
 import io
-from collections import OrderedDict
-from copy import copy
-
 from queue import Queue
 from threading import Thread
-
 from PIL import Image, ImageFont, ImageDraw
-from cryptography.fernet import InvalidToken
-from django.contrib.gis.gdal import SpatialReference
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
 from django.db.models import Q
-from lxml import etree
-
-from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
-from django.http import HttpRequest, HttpResponse, QueryDict
-from lxml.etree import QName, _Element
-
-from MrMap import utils
-from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
-    SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
-    OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
+from django.http import HttpResponse
 from MrMap.utils import execute_threads
-from service.helper import xml_helper
-from service.helper.common_connector import CommonConnector
-from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
-from service.helper.epsg_api import EpsgApi
-from service.serializer.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, ProxyLog, AllowedOperation
-from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
-    MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
-
+from service.helper.enums import OGCOperationEnum, OGCServiceEnum
+from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
+from django.conf import settings
 
 
 class GenericOwsServiceOperationFacade(View):
@@ -56,14 +27,16 @@ class GenericOwsServiceOperationFacade(View):
     remote_service = None
     content_type = None
     query_parameters = None
+    access_denied_img = None  # if sub elements are not accessible for the user, this PIL.Image object represents an
+    # overlay with information about the resources, which can not be accessed
 
     def setup(self, request, *args, **kwargs):
         super().setup(request=request, *args, **kwargs)
         self.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
             self.service = Service.security.for_security_facade(query_parameters=self.query_parameters,
-                                                                user=self.request.user)\
-                                           .get(pk=self.kwargs.get("pk"))
+                                                                user=self.request.user) \
+                .get(pk=self.kwargs.get("pk"))
             self.remote_service = OgcService(base_url=self.service.base_operation_url,
                                              service_type=self.service.service_type_name,
                                              version=self.service.service_version)
@@ -80,7 +53,9 @@ class GenericOwsServiceOperationFacade(View):
         elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
             return self.get_capabilities()
         elif not self.service.is_secured or \
-                (not self.service.is_spatial_secured and self.service.user_is_principle_entitled):
+                (not self.service.is_spatial_secured and self.service.user_is_principle_entitled) or\
+                not self.query_parameters.get("request").lower() in [OGCOperationEnum.GET_MAP.value.lower(),
+                                                                     OGCOperationEnum.GET_FEATURE_INFO.value.lower()]:
             return self.get_response()
         elif self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.get_secured_response()
@@ -116,7 +91,7 @@ class GenericOwsServiceOperationFacade(View):
                 if allowed_area is None or allowed_area.empty:
                     return None
                 query_parameters = {
-                    "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
+                    "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
                     "version": get_params.get(self.remote_service.VERSION_QP),
                     "request": "GetMap",
                     "service": "WMS",
@@ -132,7 +107,7 @@ class GenericOwsServiceOperationFacade(View):
                     "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
                 }
                 request = Request(method="GET",
-                                  url=MAPSERVER_LOCAL_PATH,
+                                  url=settings.MAPSERVER_LOCAL_PATH,
                                   params=query_parameters)
                 session = Session()
                 response = session.send(request.prepare())
@@ -180,13 +155,12 @@ class GenericOwsServiceOperationFacade(View):
 
         return text_img
 
-    def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):
+    def _create_masked_image(self, img: bytes, mask: bytes):
         """ Creates a masked image from two image byte object
 
         Args:
             img (byte): The bytes of the image
             mask (byte): The bytes of the mask
-            as_bytes (bool): Whether the image should be returned as Image object or as bytes
         Returns:
              img (Image): The masked image
         """
@@ -235,19 +209,21 @@ class GenericOwsServiceOperationFacade(View):
             img = Image.alpha_composite(img, self.access_denied_img)
             img.format = old_format
 
-        if as_bytes:
-            out_bytes_stream = io.BytesIO()
-            try:
-                img.save(out_bytes_stream, img.format, quality=80)
-                img = out_bytes_stream.getvalue()
-            except IOError:
-                # happens if a non-alpha channel format is requested, such as jpeg
-                # replace alpha channel with white background
-                bg = Image.new("RGB", img.size, (255, 255, 255))
-                bg.paste(img, mask=img.split()[3])
-                bg.save(out_bytes_stream, img.format, quality=80)
-                img = out_bytes_stream.getvalue()
         return img
+
+    def image_to_bytes(self, image):
+        out_bytes_stream = io.BytesIO()
+        try:
+            image.save(out_bytes_stream, image.format, quality=80)
+            image = out_bytes_stream.getvalue()
+        except IOError:
+            # happens if a non-alpha channel format is requested, such as jpeg
+            # replace alpha channel with white background
+            bg = Image.new("RGB", image.size, (255, 255, 255))
+            bg.paste(image, mask=image.split()[3])
+            bg.save(out_bytes_stream, image.format, quality=80)
+            image = out_bytes_stream.getvalue()
+        return image
 
     def get_secured_response(self):
         """ Return a filtered response based on the requested bbox
@@ -260,11 +236,11 @@ class GenericOwsServiceOperationFacade(View):
             layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
             is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
 
-            self.service.allowed_areas = self.service.allowed_operations\
-                .filter(is_layer_secured)\
-                .distinct("pk")\
+            self.service.allowed_areas = self.service.allowed_operations \
+                .filter(is_layer_secured) \
+                .distinct("pk") \
                 .values_list("pk", "allowed_area")
-            i=0
+            i = 0
 
             # We don't check any kind of is-allowed or not here.
             # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
@@ -294,12 +270,10 @@ class GenericOwsServiceOperationFacade(View):
                 else:
                     mask = result
 
-            secured_image = self._create_masked_image(remote_response.content, mask, as_bytes=True)
-            self.content_type = secured_image.format
-            _response = object()
-            _response.content = secured_image
-            _response.status_code = 200
-            return self.return_http_response(response=_response)
+            secured_image = self._create_masked_image(remote_response.content, mask)
+            if secured_image.format == "PNG":
+                self.content_type = "image/png"
+            return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
 
         elif self.service.service_type_name == OGCServiceEnum.WFS.value:
             pass
@@ -338,15 +312,19 @@ class GenericOwsServiceOperationFacade(View):
                 else: HttpResponse
 
         """
-        if len(response.content) >= 5000000:
+        if isinstance(response, dict):
+            content = response.get("content", None)
+            status_code = response.get("status_code", 200)
+        else:
+            content = response.content
+            status_code = response.status_code
+
+        if len(content) >= 5000000:
             # data too big - we should stream it!
-            # make sure the response is in bytes
-            if not isinstance(response, bytes):
-                response = bytes(response)
-            buffer = BytesIO(response)
-            return StreamingHttpResponse(streaming_content=buffer,
+            return StreamingHttpResponse(status=status_code,
+                                         streaming_content=BytesIO(content),
                                          content_type=self.content_type)
         else:
-            return HttpResponse(status=response.status_code,
-                                content=response.content,
+            return HttpResponse(status=status_code,
+                                content=content,
                                 content_type=self.content_type)

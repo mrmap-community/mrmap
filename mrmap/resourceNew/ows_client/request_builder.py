@@ -108,8 +108,8 @@ class WmsService(WebService):
             srid = srid.split(":")[-1]
             return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=srid)
 
-    def construct_request_with_get_dict(self, get_dict) -> Request:
-        get_dict = self.get_get_params(get_dict=get_dict)
+    def construct_request_with_get_dict(self, query_params) -> Request:
+        get_dict = self.get_get_params(query_params=query_params)
         if hasattr(self, get_dict.get(self.REQUEST_QP).lower()):
             return getattr(self, get_dict.get(self.REQUEST_QP).lower())(**get_dict)
 

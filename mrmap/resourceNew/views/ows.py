@@ -40,12 +40,13 @@ class GenericOwsServiceOperationFacade(View):
                 .select_related("document",
                                 "service_type",
                                 "external_authentication",
-                                "proxy_setting",
                                 ) \
                 .prefetch_related("operation_urls",
-                                  "allowed_operations",
+                                  "allowed_operations",  # todo: prefetch only if needed... it slows down a lot
                                   "allowed_operations__secured_layers",
-                                  "allowed_operations__secured_feature_types", ) \
+                                  "allowed_operations__secured_feature_types", )\
+                .annotate(camouflage=F("proxy_setting__camouflage"),
+                          log_response=F("proxy_setting__log_response"))\
                 .get(pk=self.kwargs.get("pk"))
             base_url = self.service.operation_urls.values_list('url', flat=True) \
                 .get(method=HttpMethodEnum.GET.value,
@@ -74,7 +75,7 @@ class GenericOwsServiceOperationFacade(View):
     def get_capabilities(self):
         # todo: handle different service versions
         capabilities = self.service.document.xml
-        if hasattr(self.service, "proxy_setting") and self.service.proxy_setting.camouflage:
+        if self.service.camouflage:
             capabilities = self.service.document.camouflaged(request=self.request)
         return HttpResponse(status=200,
                             content=capabilities,
@@ -96,7 +97,7 @@ class GenericOwsServiceOperationFacade(View):
             pass
 
     def get_response(self):
-        request = self.remote_service.construct_request_with_get_dict(get_dict=self.request.GET)
+        request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
         if hasattr(self.service, "external_authenticaion"):
             username, password = self.service.external_authenticaion.decrypt()
             if self.service.external_authenticaion.auth_type == AuthTypeEnum.BASIC.value:

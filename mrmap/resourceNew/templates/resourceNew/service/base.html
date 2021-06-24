@@ -44,8 +44,8 @@
     </div>
     <div class="col-7 col-md text-left text-md-right">
       <div class="d-inline-flex">
-        {% if "change_service" in perms and object.get_change_url %}
-        <form class="mr-1" action="{{object.get_change_url}}?collapse=" method="post">
+        {% if "change_service" in perms and object.get_activate_url %}
+        <form class="mr-1" action="{{object.get_activate_url}}?collapse=" method="post">
           {% csrf_token %}
           <input type="hidden"  name="is_active" {% if not object.is_active %}value="on"{% endif %}>
           <button type="submit" class="btn btn-sm {% if object.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="top" title="{% if object.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>

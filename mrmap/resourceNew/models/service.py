@@ -2,7 +2,7 @@ import os
 from django.contrib.gis.geos import Polygon
 from django.db import models
 from django.contrib.gis.db import models as gis_models
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse, NoReverseMatch
@@ -105,7 +105,7 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
         except NoReverseMatch:
             return ""
 
-    def get_table_url(self) -> str:
+    def get_concrete_table_url(self) -> str:
         try:
             return reverse(
                 f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_list') + f'?id__in={self.pk}'
@@ -118,12 +118,11 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
         except NoReverseMatch:
             return ""
 
-    def get_external_authentication_url(self) -> str:
-        from resourceNew.models.security import ExternalAuthentication
+    def get_activate_url(self) -> str:
         try:
-            return self.external_authentication.get_change_url()
-        except ExternalAuthentication.DoesNotExist:
-            return ExternalAuthentication.get_add_url()
+            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_activate', args=[self.pk])
+        except NoReverseMatch:
+            return ""
 
     @property
     def icon(self):
@@ -161,6 +160,17 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
             return self.layers.get(parent=None)
         else:
             return None
+
+    @cached_property
+    def all_documents(self) -> QuerySet:
+        from resourceNew.models.document import Document
+        query = Q(service__id=self.pk) | Q(service_metadata__id=self.metadata.pk)
+        # todo: dataset metadata documents also?
+        if self.is_service_type(OGCServiceEnum.WMS):
+            query |= Q(layer_metadata__in=self.layers.all().values_list("metadata__pk", flat=True))
+        elif self.is_service_type(OGCServiceEnum.WFS):
+            query |= Q(feature_type_metadata__in=self.featuretypes.all().values_list("metadata_pk", flat=True))
+        return Document.objects.filter(query)
 
 
 class OperationUrl(CommonInfo):

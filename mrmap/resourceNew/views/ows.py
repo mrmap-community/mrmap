@@ -40,6 +40,7 @@ class GenericOwsServiceOperationFacade(View):
                 .select_related("document",
                                 "service_type",
                                 "external_authentication",
+                                "proxy_setting",
                                 ) \
                 .prefetch_related("operation_urls",
                                   "allowed_operations",
@@ -72,8 +73,11 @@ class GenericOwsServiceOperationFacade(View):
 
     def get_capabilities(self):
         # todo: handle different service versions
+        capabilities = self.service.document.xml
+        if hasattr(self.service, "proxy_setting") and self.service.proxy_setting.camouflage:
+            capabilities = self.service.document.camouflaged(request=self.request)
         return HttpResponse(status=200,
-                            content=self.service.document.xml,
+                            content=capabilities,
                             content_type="application/xml")
 
     def get_secured_response(self):

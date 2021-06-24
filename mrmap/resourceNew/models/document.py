@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from main.models import CommonInfo
@@ -180,3 +181,14 @@ class Document(CommonInfo):
         parsed_metadata.update_fields(**self.related_object.get_field_dict())
         self.xml = str(parsed_metadata.serializeDocument(), "UTF-8")
         self.save()
+
+    def camouflaged(self, request: HttpRequest):
+        """ Camouflage all urls which are founded in current xml from the xml attribute on-the-fly with the hostname
+            from the given request.
+
+            Returns:
+                the secured xml as string
+        """
+        # todo
+        hostname = request.get_host()
+        return self.xml

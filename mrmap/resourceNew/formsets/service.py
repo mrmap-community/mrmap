@@ -1,8 +1,6 @@
 from extra_views import InlineFormSetFactory
-
-from resourceNew.forms.security import ExternalAuthenticationModelForm, ProxySettingModelForm, \
-    AllowedOperationPage2ModelForm
-from resourceNew.models.security import ExternalAuthentication, ProxySetting, AllowedOperation
+from resourceNew.forms.security import ExternalAuthenticationModelForm, ProxySettingModelForm
+from resourceNew.models.security import ExternalAuthentication, ProxySetting
 
 
 class ExternalAuthenticationInline(InlineFormSetFactory):

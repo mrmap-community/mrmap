@@ -80,7 +80,16 @@ class GenericModelMixin:
         except NoReverseMatch:
             return ""
 
-    def get_table_url(self) -> str:
+    @classmethod
+    def get_table_url(cls) -> str:
+        instance = cls()
+        try:
+            return reverse(
+                f'{instance._meta.app_label}:{camel_to_snake(instance.__class__.__name__)}_list')
+        except NoReverseMatch:
+            return ""
+
+    def get_concrete_table_url(self) -> str:
         try:
             return reverse(
                 f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_list') + f'?id__in={self.pk}'

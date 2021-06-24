@@ -18,6 +18,7 @@ urlpatterns = [
 
     path("service/<pk>/operation", ows_views.GenericOwsServiceOperationFacade.as_view(), name="service_operation_view"),
     path("service/<pk>/xml", service_views.ServiceXmlView.as_view(), name="service_xml_view"),
+    path("service/<pk>/activate", service_views.ServiceActivateView.as_view(), name="service_activate"),
     path("service/<pk>/change", service_views.ServiceUpdateView.as_view(), name="service_change"),
     path("service/<pk>/delete", service_views.ServiceDeleteView.as_view(), name="service_delete"),
 
@@ -53,6 +54,7 @@ urlpatterns = [
     path("security/allowed-operations", security_views.AllowedOperationListView.as_view(), name="allowed_operation_list"),
     path("security/allowed-operations/add", security_wizards.AllowedOperationWizard.as_view(form_list=ALLOWED_OPERATION_WIZARD_FORMS), name="allowed_operation_add"),
     path("security/allowed-operations/<pk>/change", security_views.AllowedOperationChangeView.as_view(), name="allowed_operation_change"),
+    path("security/allowed-operations/<pk>/delete", security_views.AllowedOperationDeleteView.as_view(), name="allowed_operation_delete"),
 
     path("security/proxy-settings", security_views.ProxySettingListView.as_view(), name="proxy_setting_list"),
     path("security/proxy-settings/add", security_views.ProxySettingCreateView.as_view(), name="proxy_setting_add"),

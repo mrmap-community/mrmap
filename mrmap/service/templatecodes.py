@@ -3,8 +3,8 @@ SERVICE_TABLE_ACTIONS = """
 {% load guardian_tags %}
 {% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
-    {% if "change_service" in perms and record.get_change_url %}
-    <form class="mr-1" action="{{record.get_change_url}}" method="post">
+    {% if "change_service" in perms and record.get_activate_url %}
+    <form class="mr-1" action="{{record.get_activate_url}}" method="post">
       {% csrf_token %}
       <input type="hidden"  name="is_active" {% if not record.is_active %}value="on"{% endif %}>
       <button type="submit" class="btn btn-sm {% if record.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="left" title="{% if record.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>

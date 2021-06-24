@@ -15,6 +15,9 @@ from django.utils.translation import gettext_lazy as _
 
 
 class ExternalAuthenticationModelForm(ModelForm):
+    secured_service = forms.ModelChoiceField(queryset=Service.objects.all(),
+                                             widget=forms.TextInput(attrs={'readonly': 'readonly'}))
+
     class Meta:
         model = ExternalAuthentication
         fields = "__all__"
@@ -28,8 +31,6 @@ class ExternalAuthenticationModelForm(ModelForm):
             username, password = instance.decrypt()
             instance.username = username
         super().__init__(*args, **kwargs)
-        if kwargs.get("instance", None):
-            self.fields["secured_service"].widget.attrs['disabled'] = True
 
 
 class ServiceAccessGroupModelForm(ModelForm):

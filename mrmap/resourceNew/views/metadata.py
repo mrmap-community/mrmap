@@ -46,10 +46,13 @@ class ServiceMetadataUpdateView(SecuredUpdateView):
 class ServiceMetadataXmlView(SecuredDetailView):
     model = ServiceMetadata
     content_type = "application/xml"
-    queryset = ServiceMetadata.objects.all().select_related("document").values("document__xml")
+    queryset = ServiceMetadata.objects.all().select_related("service__proxy_setting", "document")
 
     def render_to_response(self, context, **response_kwargs):
-        return HttpResponse(content=self.object.get("document__xml", None),
+        doc = self.service.document.xml
+        if hasattr(self.object.service, "proxy_setting") and self.object.service.proxy_setting.camouflage:
+            doc = self.object.document.camouflaged(request=self.request)
+        return HttpResponse(content=doc,
                             content_type=self.content_type)
 
 

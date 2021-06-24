@@ -23,4 +23,4 @@ class AllowedOperationWizard(SessionWizardView, ABC):
 
     def done(self, form_list, **kwargs):
         obj = form_list[-1].save()
-        return redirect(to=obj.get_table_url())
+        return redirect(to=obj.get_concrete_table_url())

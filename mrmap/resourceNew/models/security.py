@@ -3,7 +3,8 @@ import os
 from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Q, F
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from main.models import CommonInfo, GenericModelMixin
@@ -111,7 +112,7 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
             # by set the decrypted password to the current ExternalAuthentication object.
             old_self = ExternalAuthentication.objects.get(pk=self.pk)
             if old_self.password == self.password:
-                username, password = self.decrypt()
+                password = self.decrypt_password()
                 self.password = password
             self.__encrypt()
             super().save(*args, *kwargs)
@@ -144,7 +145,11 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         self.username = cipher_suite.encrypt(self.username.encode("ascii")).decode("ascii")
         self.password = cipher_suite.encrypt(self.password.encode("ascii")).decode("ascii")
 
-    def decrypt(self):
+    def decrypt_password(self):
+        cipher_suite = Fernet(self.key)
+        return cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
+
+    def decrypt(self, ):
         """ Decrypt the login credentials using the stored key
 
         Returns:
@@ -210,6 +215,15 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
                                    verbose_name=_("description"),
                                    help_text=_("a short description what this allowed operation controls."))
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
+        # does NOT call save() or triggers signals
+        proxy_setting = ProxySetting.objects.filter(secured_service=self.secured_service).update(camouflage=True)
+        if proxy_setting == 0:
+            ProxySetting.objects.create(secured_service=self.secured_service,
+                                        camouflage=True)
+
 
 class ProxySetting(GenericModelMixin, CommonInfo):
     secured_service = models.OneToOneField(to=Service,
@@ -234,16 +248,25 @@ class ProxySetting(GenericModelMixin, CommonInfo):
                 check=Q(camouflage=True, log_response=True) |
                       Q(camouflage=True, log_response=False) |
                       Q(camouflage=False, log_response=False)
-            )
-            # todo: check if secured_service.allowed_operations.exists; if so camouflage shall always be true
+            ),
         ]
 
     def clean(self):
         if self.log_response and not self.camouflage:
             raise ValidationError({"camouflage": _("log response without active camouflage is not supported.")})
         if not self.camouflage and self.secured_service.allowed_operations.exists():
-            raise ValidationError({"camouflage": _("There are configured allowed operation objects. Camouflage can not"
-                                                   "be disabled.")})
+            url = f"{AllowedOperation.get_table_url()}?id__in="
+            for pk in self.secured_service.allowed_operations.all().values_list("pk", flat=True):
+                if url.endswith('?id__in='):
+                    url += f'{pk}'
+                else:
+                    url += f',{pk}'
+            raise ValidationError(
+                {"camouflage": format_html(_("There are configured allowed operation objects. Camouflage can not"
+                                             " be disabled. See all allowed operations <a href=%(url)s>here</a>")
+                                           % {"url": url})
+                 }
+            )
 
 
 class ProxyLog(GenericModelMixin, CommonInfo):

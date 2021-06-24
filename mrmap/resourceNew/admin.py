@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from resourceNew.models import FeatureTypeElement, MetadataContact, Service, ServiceType
 from resourceNew.models.document import Document
-from resourceNew.models.security import OGCOperation, AllowedOperation
+from resourceNew.models.security import OGCOperation, AllowedOperation, ProxySetting
 
 
 @admin.register(FeatureTypeElement)
@@ -18,3 +18,5 @@ admin.site.register(ServiceType)
 admin.site.register(Document)
 admin.site.register(OGCOperation)
 admin.site.register(AllowedOperation)
+admin.site.register(ProxySetting)
+

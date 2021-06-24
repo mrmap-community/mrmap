@@ -58,6 +58,10 @@ class AllowedOperationChangeView(SecuredUpdateView):
     form_class = AllowedOperationPage2ModelForm
 
 
+class AllowedOperationDeleteView(SecuredDeleteView):
+    model = AllowedOperation
+
+
 class ProxySettingListView(SecuredListMixin, FilterView):
     model = ProxySetting
     table_class = ProxySettingTable

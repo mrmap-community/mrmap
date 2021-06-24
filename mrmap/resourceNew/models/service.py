@@ -161,17 +161,6 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
         else:
             return None
 
-    @cached_property
-    def all_documents(self) -> QuerySet:
-        from resourceNew.models.document import Document
-        query = Q(service__id=self.pk) | Q(service_metadata__id=self.metadata.pk)
-        # todo: dataset metadata documents also?
-        if self.is_service_type(OGCServiceEnum.WMS):
-            query |= Q(layer_metadata__in=self.layers.all().values_list("metadata__pk", flat=True))
-        elif self.is_service_type(OGCServiceEnum.WFS):
-            query |= Q(feature_type_metadata__in=self.featuretypes.all().values_list("metadata_pk", flat=True))
-        return Document.objects.filter(query)
-
 
 class OperationUrl(CommonInfo):
     """ Concrete model class to store operation urls for registered services

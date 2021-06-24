@@ -8,10 +8,10 @@ import sys
 
 host="http://127.0.0.1:8000"
 # generate a token on the web interface and insert it here
-token = "dd72a6013cb99869e2ddbf443fbd2395be83555e"  # example:e165337d7cb46cd625d4f23435962a344d5f1aa0
+token = "40b3d6be68526524fc55deb183caa21714f5026a"  # example:e165337d7cb46cd625d4f23435962a344d5f1aa0
 
 # register parameters
-registering_for_organization = "803aaf37-434e-4e7d-92c1-3730b76a83c3"  # int
+registering_for_organization = "04b91371-f756-479f-abc3-ccdd84da9af9"  # int
 external_authentication = False  # bool
 external_username = ""  # str
 external_password = ""  #str

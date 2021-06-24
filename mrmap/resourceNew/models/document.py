@@ -1,13 +1,16 @@
 from django.db import models
 from django.db.models import Q
 from django.http import HttpRequest
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from main.models import CommonInfo
+from resourceNew.enums.document import DocumentEnum
 from resourceNew.models import ServiceMetadata, LayerMetadata, FeatureTypeMetadata, DatasetMetadata, Service
 from eulxml import xmlmap
-
+import urllib.parse
 from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
+from resourceNew.parsers.ogc.capabilities import get_parsed_service
 
 
 class Document(CommonInfo):
@@ -165,16 +168,27 @@ class Document(CommonInfo):
         elif self.dataset_metadata:
             return self.dataset_metadata
 
-    def _get_parsed_object(self):
-        # todo: capabilities are also stored in self.xml
-        parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.xml_backup, 'utf-8'),
-                                                            xmlclass=WrappedIsoMetadata)
-        return parsed_metadata.iso_metadata
+    @property
+    def document_type(self):
+        if isinstance(self.related_object, Service):
+            return DocumentEnum.CAPABILITY
+        else:
+            return DocumentEnum.METADATA
+
+    def _get_parsed_object(self, get_original: bool = False):
+        xml = self.xml if get_original else self.xml_backup
+        xml = bytes(xml, "utf-8")
+        if self.document_type == DocumentEnum.METADATA:
+            parsed_metadata = xmlmap.load_xmlobject_from_string(string=xml,
+                                                                xmlclass=WrappedIsoMetadata)
+            return parsed_metadata.iso_metadata
+        else:
+            return get_parsed_service(xml=xml)
 
     def restore(self):
         self.xml = self.xml_backup
         self.save()
-        return self, self._get_parsed_object()
+        return self, self._get_parsed_object(get_original=True)
 
     def update_xml_content(self):
         parsed_metadata = self._get_parsed_object()
@@ -189,6 +203,18 @@ class Document(CommonInfo):
             Returns:
                 the secured xml as string
         """
-        # todo
-        hostname = request.get_host()
-        return self.xml
+
+        path = reverse("resourceNew:service_operation_view", args=[self.service_id])
+        new_url = f"{request.scheme}://{request.get_host()}{path}?"
+        if self.document_type == DocumentEnum.METADATA:
+            # todo
+            return self.xml
+        else:
+            xml_service = self._get_parsed_object()
+            for operation_url in xml_service.operation_urls:
+                operation_url.url = new_url
+            xml_service.service_url.url = new_url
+            for layer in xml_service.get_all_layers():
+                for style in layer.styles:
+                    style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+            return xml_service.serializeDocument()

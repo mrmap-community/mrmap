@@ -15,6 +15,10 @@ from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum
 from resourceNew.settings import parser_logger
 
 
+class XlinkHref(xmlmap.XmlObject):
+    url = xmlmap.StringField(xpath="@xlink:href")
+
+
 class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.MimeType'
 
@@ -23,7 +27,7 @@ class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
 
 class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.OperationUrl'
-    url = xmlmap.StringField(xpath=f"@{NS_WC}href']")
+    url = xmlmap.StringField(xpath=f"@xlink:href")
 
     def get_field_dict(self):
         dic = super().get_field_dict()
@@ -87,7 +91,7 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
 class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.LegendUrl'
 
-    legend_url = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']")
+    legend_url = xmlmap.NodeField(xpath=f"{NS_WC}OnlineResource']", node_class=XlinkHref)
     height = xmlmap.IntegerField(xpath=f"@{NS_WC}height']")
     width = xmlmap.IntegerField(xpath=f"@{NS_WC}width']")
     mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
@@ -235,7 +239,6 @@ class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 class ServiceElementMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
     abstract = xmlmap.StringField(xpath=f"{NS_WC}Abstract']")
-
     # ManyToManyField
     keywords = xmlmap.NodeListField(xpath=f"{NS_WC}KeywordList']/{NS_WC}Keyword']|{NS_WC}Keywords']/{NS_WC}Keyword']",
                                     node_class=Keyword)
@@ -429,6 +432,7 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Service'
     # todo: new field with node_class RemoteMetadata for wms and wfs
     remote_metadata = None
+    service_url = xmlmap.NodeField(xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
 
 
 class WmsService(Service):

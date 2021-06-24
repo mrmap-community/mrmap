@@ -240,7 +240,6 @@ class GenericOwsServiceOperationFacade(View):
                 .filter(is_layer_secured) \
                 .distinct("pk") \
                 .values_list("pk", "allowed_area")
-            i = 0
 
             # We don't check any kind of is-allowed or not here.
             # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
@@ -276,6 +275,7 @@ class GenericOwsServiceOperationFacade(View):
             return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
 
         elif self.service.service_type_name == OGCServiceEnum.WFS.value:
+            # todo
             pass
 
     def get_remote_response(self) -> Response:

@@ -46,6 +46,8 @@ class ServiceAccessGroupModelForm(ModelForm):
                     }
                 },
             ),
+        help_text=_("Select the users which shall be member of this access group. If you select AnonymousUser, "
+                    "all users are allowed."),
         label=_("users")
     )
 

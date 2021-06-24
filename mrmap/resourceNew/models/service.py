@@ -10,6 +10,7 @@ from MrMap.icons import get_icon, IconEnum
 from main.models import GenericModelMixin, CommonInfo
 from main.utils import camel_to_snake
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum
+from resourceNew.managers.security import ServiceSecurityManager
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
 from mptt.models import MPTTModel, TreeForeignKey
@@ -73,6 +74,7 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
                                      help_text=_("the concrete type and version of the service."))
 
     objects = ServiceManager()
+    security = ServiceSecurityManager()
     xml_objects = ServiceXmlManager()
 
     class Meta:

@@ -1,29 +1,14 @@
-import base64
 from io import BytesIO
-from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse, StreamingHttpResponse
 from django.views.generic.base import View
-from requests.exceptions import ReadTimeout
-from MrMap.decorators import log_proxy
-from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED,\
-    SERVICE_LAYER_NOT_FOUND, SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT
+from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
-from resourceNew.models.security import AllowedOperation
 from resourceNew.ows_client.request_builder import OgcService
-from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCOperationEnum, HttpMethodEnum
-from service.serializer.ogc.operation_request_handler import OGCOperationRequestHandler
-from service.models import Metadata, ProxyLog
-from service.tasks import async_log_response
-from django.db.models import Max, Count, F, Exists, OuterRef, Q, ExpressionWrapper, BooleanField
+from service.helper.enums import OGCOperationEnum
+from django.db.models import Q
 from requests.auth import HTTPDigestAuth
 from requests import Session, Response
-from queue import Queue
-from threading import Thread
-from MrMap.utils import execute_threads
-from django.db import connection
 
 
 class GenericOwsServiceOperationFacade(View):
@@ -36,23 +21,10 @@ class GenericOwsServiceOperationFacade(View):
         super().setup(request=request, *args, **kwargs)
         self.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
-            allowed_operations = AllowedOperation.objects.filter(
-                secured_service__pk=OuterRef('pk')
-            )
-            self.service = Service.objects \
-                .select_related("document",
-                                "service_type",
-                                "external_authentication",
-                                ) \
-                .prefetch_related("operation_urls")\
-                .annotate(camouflage=F("proxy_setting__camouflage"),
-                          log_response=F("proxy_setting__log_response"),
-                          is_secured=Exists(allowed_operations))\
-                .get(pk=self.kwargs.get("pk"))
-            base_url = self.service.operation_urls.values_list('url', flat=True) \
-                .get(method=HttpMethodEnum.GET.value,
-                     operation__iexact=self.query_parameters.get("request"))
-            self.remote_service = OgcService(base_url=base_url,
+            self.service = Service.security.for_security_facade(query_parameters=self.query_parameters,
+                                                                user=self.request.user)\
+                                           .get(pk=self.kwargs.get("pk"))
+            self.remote_service = OgcService(base_url=self.service.base_operation_url,
                                              service_type=self.service.service_type_name,
                                              version=self.service.service_version)
         except Service.DoesNotExist:
@@ -67,13 +39,13 @@ class GenericOwsServiceOperationFacade(View):
             return HttpResponse(status=423, content=SERVICE_DISABLED)
         elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
             return self.get_capabilities()
-        elif self.service.is_secured:
-            # this service is basically secured! we need to check some things...
-            # 1. requesting user has principle access?
-            # 2. requesting user has access for the requested area?
+        elif not self.service.is_secured or \
+                (not self.service.is_spatial_secured and self.service.user_is_principle_entitled):
+            return self.get_response()
+        elif self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.get_secured_response()
         else:
-            return self.get_response()
+            return HttpResponse(status=403, content="user has no permission to access the requested service.")
 
     def get_capabilities(self):
         # todo: handle different service versions
@@ -85,16 +57,21 @@ class GenericOwsServiceOperationFacade(View):
                             content_type="application/xml")
 
     def get_secured_response(self):
-        is_user_entitled_filter = Q(allowed_groups__pk__in=self.request.user.groups.values_list("pk", flat=True),
-                                    operations__operation__iexact=self.query_parameters.get("request"))
-        if self.service.allowed_operations.filter(is_user_entitled_filter).exists():
-            return HttpResponse(status=403, content="user has no permission to access the requested service.")
-        if self.service.service_type_name == OGCServiceEnum.WMS.value:
+        """ Return a filtered response based on the requested bbox
 
+            This function will only be called, if the service is spatial secured and the user is in principle
+            entitled! If so we filter the allowed_operations again by with the bbox param.
+        """
+
+        if self.service.service_type_name == OGCServiceEnum.WMS.value:
             layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
             is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
-            self.service.allowed_areas = self.service.allowed_operations.filter(is_layer_secured).values_list(
-                "allowed_area", flat=True)
+
+            self.service.allowed_areas = self.service.allowed_operations\
+                .filter(is_layer_secured)\
+                .distinct("pk")\
+                .values_list("allowed_area", flat=True)
+            i=0
 
         elif self.service.service_type_name == OGCServiceEnum.WFS.value:
             pass
@@ -112,14 +89,24 @@ class GenericOwsServiceOperationFacade(View):
         response = s.send(request.prepare())
         self.content_type = response.headers.get("content-type")
         self.log_response(response=response)
-        return self.get_http_response(response=response)
+        return self.return_http_response(response=response)
 
     def log_response(self, response: Response):
+        """ Check if response logging is active. If so, the response will be logged.
+
+        """
         if self.service.log_response:
             # todo
             pass
 
-    def get_http_response(self, response):
+    def return_http_response(self, response):
+        """ Check if response is greater than ~5 MB.
+
+            Returns:
+                if response >= ~ 5MB: StreamingHttpResponse
+                else: HttpResponse
+
+        """
         if len(response.content) >= 5000000:
             # data too big - we should stream it!
             # make sure the response is in bytes

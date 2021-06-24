@@ -207,7 +207,7 @@ class SecuredUpdateView(LoginRequiredMixin,
             return super().get_success_message(cleaned_data)
 
     def get_success_url(self):
-        last_url = self.get_last_url(),
+        last_url = self.get_last_url()
         if last_url:
             return last_url
         return super().get_success_url()

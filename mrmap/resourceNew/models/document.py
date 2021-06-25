@@ -214,7 +214,7 @@ class Document(CommonInfo):
             # todo: camouflage metadata urls also
             for operation_url in xml_service.operation_urls:
                 operation_url.url = new_url
-            xml_service.service_url.url = new_url
+            xml_service.url.url = new_url
             for layer in xml_service.get_all_layers():
                 for style in layer.styles:
                     style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"

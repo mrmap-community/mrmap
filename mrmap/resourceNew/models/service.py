@@ -72,7 +72,10 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
                                      related_query_name="service",
                                      verbose_name=_("service type"),
                                      help_text=_("the concrete type and version of the service."))
-
+    url = models.URLField(max_length=4096,
+                          editable=False,
+                          verbose_name=_("url"),
+                          help_text=_("the base url of the service"))
     objects = ServiceManager()
     security = ServiceSecurityManager()
     xml_objects = ServiceXmlManager()

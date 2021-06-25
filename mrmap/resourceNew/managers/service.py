@@ -119,7 +119,7 @@ class ServiceXmlManager(models.Manager):
         # create service instance first
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
-        service = super().create(service_type=service_type, *args, **kwargs)
+        service = super().create(service_type=service_type, *args, **kwargs, **parsed_service.get_field_dict())
 
         from resourceNew.models.document import Document  # to avoid circular import errors
         Document.objects.create(service=service,

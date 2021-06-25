@@ -37,7 +37,7 @@ class GenericOwsServiceOperationFacade(View):
             self.service = Service.security.for_security_facade(query_parameters=self.query_parameters,
                                                                 user=self.request.user) \
                 .get(pk=self.kwargs.get("pk"))
-            self.remote_service = OgcService(base_url=self.service.base_operation_url,
+            self.remote_service = OgcService(base_url=self.service.base_operation_url or self.service.unknown_operation_url,
                                              service_type=self.service.service_type_name,
                                              version=self.service.service_version)
         except Service.DoesNotExist:
@@ -91,16 +91,16 @@ class GenericOwsServiceOperationFacade(View):
                 if allowed_area is None or allowed_area.empty:
                     return None
                 query_parameters = {
+                    self.remote_service.VERSION_QP: get_params.get(self.remote_service.VERSION_QP),
+                    self.remote_service.REQUEST_QP: "GetMap",
+                    self.remote_service.SERVICE_QP: "WMS",
+                    self.remote_service.FORMAT_QP: "image/png",
+                    self.remote_service.LAYERS_QP: "mask",
+                    self.remote_service.CRS_QP: get_params.get(self.remote_service.CRS_QP),
+                    self.remote_service.BBOX_QP: get_params.get(self.remote_service.BBOX_QP),
+                    self.remote_service.WIDTH_QP: width,
+                    self.remote_service.HEIGHT_QP: height,
                     "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
-                    "version": get_params.get(self.remote_service.VERSION_QP),
-                    "request": "GetMap",
-                    "service": "WMS",
-                    "format": "image/png",
-                    "layers": "mask",
-                    "srs": get_params.get(self.remote_service.CRS_QP),
-                    "bbox": get_params.get(self.remote_service.BBOX_QP),
-                    "width": width,
-                    "height": height,
                     "keys": f"'{pk}'",
                     "table": MAPSERVER_SECURITY_MASK_TABLE,
                     "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
@@ -205,8 +205,9 @@ class GenericOwsServiceOperationFacade(View):
         # (contains info about which layers are restricted or if there was an error during mask creation)
         if self.access_denied_img is not None:
             old_format = img.format
-            # todo: if img.mode != self.access_denied_img.mode --> img.convert() to self.access_denied_img.mode
-            img = Image.alpha_composite(img, self.access_denied_img)
+            # FIXME: for alpha_composite both images needs to be RGBA!
+            # img = Image.alpha_composite(img, self.access_denied_img)
+            img = Image.composite(img, img, self.access_denied_img)
             img.format = old_format
 
         return img

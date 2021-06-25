@@ -9,7 +9,8 @@ class ServiceSecurityManager(models.Manager):
     def for_security_facade(self, query_parameters, user):
         from resourceNew.models.service import OperationUrl  # to avoid circular import
         from resourceNew.models.security import AllowedOperation  # to avoid circular import
-
+        # todo: analyze query_parameters.get("request"); only if a secured operation like GetMap, GetFeatureInfo is
+        #  requested, we need to calculate extra things like the is_spatial_secured query
         qs = super().get_queryset()
         is_secured_subquery = AllowedOperation.objects.filter(
             secured_service__pk=OuterRef('pk')
@@ -31,7 +32,12 @@ class ServiceSecurityManager(models.Manager):
             method=HttpMethodEnum.GET.value,
             operation__iexact=query_parameters.get("request")
         ).values_list('url', flat=True)[:1]
-
+        # some services support for example GetLegendGraphic operation requests but doesn't provide it as operation url.
+        # for that we use the first url we can found.
+        unknown_operation_url_subquery = OperationUrl.objects.filter(
+            service=OuterRef('pk'),
+            method=HttpMethodEnum.GET.value,
+        ).values_list('url', flat=True)[:1]
         return qs.select_related(
             "document",
             "service_type",
@@ -42,4 +48,5 @@ class ServiceSecurityManager(models.Manager):
                       is_secured=Exists(is_secured_subquery),
                       user_is_principle_entitled=Exists(user_is_principle_entitled_subquery),
                       base_operation_url=base_url_subquery,
+                      unknown_operation_url=unknown_operation_url_subquery
                       )

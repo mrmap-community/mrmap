@@ -432,7 +432,13 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'resourceNew.Service'
     # todo: new field with node_class RemoteMetadata for wms and wfs
     remote_metadata = None
-    service_url = xmlmap.NodeField(xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
+    url = xmlmap.NodeField(xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
+
+    def get_field_dict(self):
+        field_dict = super().get_field_dict()
+        if self.url:
+            field_dict.update({"url": self.url.url})
+        return field_dict
 
 
 class WmsService(Service):

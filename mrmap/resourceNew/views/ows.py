@@ -76,10 +76,8 @@ class GenericOwsServiceOperationFacade(View):
 
         Gets a mask image, which can be used to remove restricted areas from another image
 
-        Args:
-            allowed_operations (QuerySet): AllowedOperations objects as tuples (pk, allowed_area)
         Returns:
-             bytes
+             secured_image (Image)
         """
         masks = []
         get_params = self.remote_service.get_get_params(query_params=self.query_parameters)
@@ -100,6 +98,7 @@ class GenericOwsServiceOperationFacade(View):
                     self.remote_service.BBOX_QP: get_params.get(self.remote_service.BBOX_QP),
                     self.remote_service.WIDTH_QP: width,
                     self.remote_service.HEIGHT_QP: height,
+                    self.remote_service.TRANSPARENT_QP: "TRUE",
                     "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
                     "keys": f"'{pk}'",
                     "table": MAPSERVER_SECURITY_MASK_TABLE,
@@ -272,8 +271,7 @@ class GenericOwsServiceOperationFacade(View):
                     mask = result
 
             secured_image = self._create_masked_image(remote_response.content, mask)
-            if secured_image.format == "PNG":
-                self.content_type = "image/png"
+            self.content_type = remote_response.headers.get("content-type")
             return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
 
         elif self.service.service_type_name == OGCServiceEnum.WFS.value:

@@ -234,6 +234,7 @@ class GenericOwsServiceOperationFacade(View):
 
         if self.service.service_type_name == OGCServiceEnum.WMS.value:
             layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
+            # FIXME: mapserver processes case insensitive layer identifiers... This query won't work then..
             is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
 
             self.service.allowed_areas = self.service.allowed_operations \

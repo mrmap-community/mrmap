@@ -211,6 +211,7 @@ class Document(CommonInfo):
             return self.xml
         else:
             xml_service = self._get_parsed_object()
+            # todo: camouflage metadata urls also
             for operation_url in xml_service.operation_urls:
                 operation_url.url = new_url
             xml_service.service_url.url = new_url

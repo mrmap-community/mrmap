@@ -112,6 +112,8 @@ class WmsService(WebService):
         get_dict = self.get_get_params(query_params=query_params)
         if hasattr(self, get_dict.get(self.REQUEST_QP).lower()):
             return getattr(self, get_dict.get(self.REQUEST_QP).lower())(**get_dict)
+        else:
+            return Request(method="GET", url=self.base_url, params=query_params)
 
     def convert_kwargs_for_get_map(self, **kwargs):
         return {

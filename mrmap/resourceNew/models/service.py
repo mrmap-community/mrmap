@@ -204,6 +204,10 @@ class OperationUrl(CommonInfo):
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"
 
+    @property
+    def concrete_url(self):
+        return f'{reverse("resourceNew:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
+
 
 class ServiceElement(GenericModelMixin, CommonServiceInfo, CommonInfo):
     """ Abstract model class to generalize some fields and functions for layers and feature types """

@@ -992,6 +992,9 @@ class MapContextCreateView(SecuredCreateView):
     success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
     success_url = reverse_lazy('resource:mapcontexts-index')
 
+    def get_form_kwargs(self):
+        return {}
+
 
 @method_decorator(login_required, name='dispatch')
 class MapContextEditView(SecuredUpdateView):
@@ -1000,6 +1003,9 @@ class MapContextEditView(SecuredUpdateView):
     success_url = reverse_lazy('resource:mapcontexts-index')
     model = MapContext
     form_class = MapContextForm
+
+    def get_form_kwargs(self):
+        return {}
 
 
 @method_decorator(login_required, name='dispatch')

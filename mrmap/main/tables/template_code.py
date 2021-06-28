@@ -101,3 +101,7 @@ DEFAULT_ACTION_BUTTONS = """
     {% endwith %}
 </div>
 """
+OPERATION_URLS = """
+{% load i18n %}
+<button type="button" class="btn btn-sm btn-info" data-container="body" data-toggle="popover" title="{% trans 'Operation urls' %}" data-html="true" data-content="{% for url in value %}<a href='{{url.concrete_url}}'>{{url.operation}} ({{url.method}})</a><br>{% endfor %}">{% trans 'details' %}</button>
+"""

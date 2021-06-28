@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from main.tables.tables import SecuredTable
 from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
-    SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS
+    SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS, OPERATION_URLS
 from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
@@ -44,6 +44,7 @@ class ServiceTable(SecuredTable):
     status_icons = tables.TemplateColumn(template_code=SERVICE_STATUS_ICONS,
                                          verbose_name=_('Status'),
                                          empty_values=[],)
+    operation_urls__all = tables.TemplateColumn(template_code=OPERATION_URLS)
     """
     health_icons = tables.TemplateColumn(template_code=SERVICE_HEALTH_ICONS,
                                          verbose_name=_('Health'),
@@ -72,6 +73,7 @@ class ServiceTable(SecuredTable):
                   #'service__service_type__version',
 
                   #'contact',
+                  "operation_urls__all",
                   'created_at',
                   'owner',
                   'actions',

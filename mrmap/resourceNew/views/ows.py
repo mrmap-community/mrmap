@@ -1,6 +1,8 @@
 from io import BytesIO
 from django.http import StreamingHttpResponse
 from django.views.generic.base import View
+from eulxml import xmlmap
+
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
@@ -16,6 +18,7 @@ from django.db import connection
 from django.db.models import Q
 from django.http import HttpResponse
 from MrMap.utils import execute_threads
+from resourceNew.parsers.ogc.feature_collection import FeatureCollection
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
@@ -260,19 +263,40 @@ class GenericOwsServiceOperationFacade(View):
         self.content_type = remote_response.headers.get("content-type")
         return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
 
+    def handle_secured_get_feature_info(self):
+        if self.service.is_spatial_secured_and_covers:
+            return self.return_http_response(response=self.get_remote_response())
+        else:
+            try:
+                request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+                request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
+                response = self.get_remote_response(request=request)
+                feature_collection = xmlmap.load_xmlobject_from_string(response.content, xmlclass=FeatureCollection)
+                polygon = feature_collection.bounded_by.get_polygon()
+                self.get_allowed_areas_by_layers()
+                for pk, allowed_area in self.service.allowed_areas:
+                    if allowed_area.contains(polygon.convex_hull):
+                        # is allowed
+                        return self.return_http_response(response=self.get_remote_response())
+            except Exception as e:
+                return HttpResponse(status=403, content="user has no permission to access the requested service.")
+
+    def get_allowed_areas_by_layers(self):
+        layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
+        # FIXME: mapserver processes case insensitive layer identifiers... This query won't work then..
+        is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
+
+        self.service.allowed_areas = self.service.allowed_operations \
+            .filter(is_layer_secured) \
+            .distinct("pk") \
+            .values_list("pk", "allowed_area")
+
     def handle_secured_wms(self):
         if self.query_parameters.get("request").lower() == OGCOperationEnum.GET_MAP.value.lower():
-            layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
-            # FIXME: mapserver processes case insensitive layer identifiers... This query won't work then..
-            is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
-
-            self.service.allowed_areas = self.service.allowed_operations \
-                .filter(is_layer_secured) \
-                .distinct("pk") \
-                .values_list("pk", "allowed_area")
+            self.get_allowed_areas_by_layers()
             return self.handle_secured_get_map()
         elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
-            return self.return_http_response(response=self.get_remote_response())
+            return self.handle_secured_get_feature_info()
 
     def get_secured_response(self):
         """ Return a filtered response based on the requested bbox
@@ -288,8 +312,9 @@ class GenericOwsServiceOperationFacade(View):
             # todo
             pass
 
-    def get_remote_response(self) -> Response:
-        request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+    def get_remote_response(self, request=None) -> Response:
+        if not request:
+            request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
         if hasattr(self.service, "external_authenticaion"):
             username, password = self.service.external_authenticaion.decrypt()
             if self.service.external_authenticaion.auth_type == AuthTypeEnum.BASIC.value:

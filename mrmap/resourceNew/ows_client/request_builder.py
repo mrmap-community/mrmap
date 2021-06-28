@@ -38,7 +38,7 @@ class WebService(ABC):
     @classmethod
     def construct_polygon_from_bbox_query_param(cls, get_dict):
         try:
-            if get_dict["request"].lower() in ["getmap", "map", ] \
+            if get_dict["request"].lower() in ["getmap", "map", "getfeatureinfo", "feature_info"] \
                     and "bbox" in get_dict and ("srs" in get_dict or "crs" in get_dict):
                 # it's a wms
                 bbox = get_dict["bbox"]

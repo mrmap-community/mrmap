@@ -49,8 +49,10 @@ class ServiceSecurityManager(models.Manager):
                       is_secured=Exists(is_secured_subquery),
                       user_is_principle_entitled=Exists(user_is_principle_entitled_subquery),
                       base_operation_url=base_url_subquery,
-                      unknown_operation_url=unknown_operation_url_subquery)
-        if bbox:
-            qs.annotate(is_spatial_secured_and_covers=Exists(is_spatial_secured_subquery.filter(allowed_area__covers=bbox)))
+                      unknown_operation_url=unknown_operation_url_subquery,
+                      is_spatial_secured_and_covers=Exists(is_spatial_secured_subquery.filter(allowed_area__covers=bbox)))
+        # FIXME:
+        """if bbox:
+            qs.annotate(is_spatial_secured_and_covers=Exists(is_spatial_secured_subquery.filter(allowed_area__covers=bbox)))"""
 
         return qs

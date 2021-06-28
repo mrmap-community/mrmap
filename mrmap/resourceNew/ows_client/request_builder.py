@@ -1,3 +1,4 @@
+import distutils
 from abc import ABC
 from requests import Request
 from django.contrib.gis.geos import Polygon
@@ -45,6 +46,10 @@ class WmsService(WebService):
     HEIGHT_QP = "HEIGHT"
     FORMAT_QP = "FORMAT"
     TRANSPARENT_QP = "TRANSPARENT"
+    BG_COLOR_QP = "BGCOLOR"
+    EXCEPTIONS_QP = "EXCEPTIONS"
+    TIME_QP = "TIME"
+    ELEVATION_QP = "ELEVATION"
     GET_MAP_QV = "GetMap"
     GET_FEATURE_INFO_QV = "GetFeatureInfo"
     get_params = {}
@@ -87,6 +92,16 @@ class WmsService(WebService):
                 _query_params.update({self.WIDTH_QP: val})
             elif key == "HEIGHT":
                 _query_params.update({self.HEIGHT_QP: val})
+            elif key == "TRANSPARENT":
+                _query_params.update({self.TRANSPARENT_QP: val})
+            elif key == "EXCEPTIONS":
+                _query_params.update({self.EXCEPTIONS_QP: val})
+            elif key == "BGCOLOR":
+                _query_params.update({self.BG_COLOR_QP: val})
+            elif key == "TIME":
+                _query_params.update({self.TIME_QP: val})
+            elif key == "ELEVATION":
+                _query_params.update({self.ELEVATION_QP: val})
         return _query_params
 
     def get_requested_layers(self, query_params: dict):
@@ -116,6 +131,13 @@ class WmsService(WebService):
             return Request(method="GET", url=self.base_url, params=query_params)
 
     def convert_kwargs_for_get_map(self, **kwargs):
+        transparent = kwargs.get(self.TRANSPARENT_QP, False),
+        if isinstance(transparent, str):
+            if transparent == "TRUE":
+                transparent = True
+            else:
+                transparent = False
+
         return {
             "layer_list": kwargs[self.LAYERS_QP].split(","),
             "crs": kwargs[self.CRS_QP],
@@ -124,6 +146,11 @@ class WmsService(WebService):
             "height": kwargs[self.HEIGHT_QP],
             "format": kwargs[self.FORMAT_QP],
             "style_list": kwargs.get(self.STYLES_QP, None),
+            "transparent": transparent,
+            "bg_color": kwargs.get(self.BG_COLOR_QP, "0xFFFFFF"),
+            "exceptions": kwargs.get(self.EXCEPTIONS_QP, "XML"),
+            "time": kwargs.get(self.TIME_QP, None),
+            "elevation": kwargs.get(self.ELEVATION_QP, None)
         }
 
     def getmap(self, **kwargs):
@@ -139,7 +166,13 @@ class WmsService(WebService):
                             width: int,
                             height: int,
                             format: str,
-                            style_list=None) -> Request:
+                            time: str = None,
+                            elevation: str = None,
+                            style_list=None,
+                            transparent: bool = False,
+                            bg_color: str = "0xFFFFFF",
+                            exceptions: str = "XML",
+                            ) -> Request:
 
         if isinstance(layer_list, str):
             layer_list = [layer_list]
@@ -156,7 +189,14 @@ class WmsService(WebService):
                              self.BBOX_QP: bbox,
                              self.WIDTH_QP: width,
                              self.HEIGHT_QP: height,
-                             self.FORMAT_QP: format})
+                             self.FORMAT_QP: format,
+                             self.TRANSPARENT_QP: "TRUE" if transparent else "FALSE",
+                             self.BG_COLOR_QP: bg_color,
+                             self.EXCEPTIONS_QP: exceptions})
+        if time:
+            query_params.update({self.TIME_QP: time})
+        if elevation:
+            query_params.update({self.ELEVATION_QP: elevation})
         req = Request(method="GET", url=self.base_url, params=query_params)
         return req
 

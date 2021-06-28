@@ -4,7 +4,7 @@ from django.views.generic.base import View
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
-from resourceNew.ows_client.request_builder import OgcService
+from resourceNew.ows_client.request_builder import OgcService, WebService
 from django.db.models import Q, QuerySet
 from requests.auth import HTTPDigestAuth
 from requests import Session, Response, Request
@@ -34,8 +34,10 @@ class GenericOwsServiceOperationFacade(View):
         super().setup(request=request, *args, **kwargs)
         self.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
+            bbox = WebService.construct_polygon_from_bbox_query_param(get_dict=self.query_parameters)
             self.service = Service.security.for_security_facade(query_parameters=self.query_parameters,
-                                                                user=self.request.user) \
+                                                                user=self.request.user,
+                                                                bbox=bbox) \
                 .get(pk=self.kwargs.get("pk"))
             self.remote_service = OgcService(base_url=self.service.base_operation_url or self.service.unknown_operation_url,
                                              service_type=self.service.service_type_name,
@@ -225,14 +227,41 @@ class GenericOwsServiceOperationFacade(View):
             image = out_bytes_stream.getvalue()
         return image
 
-    def get_secured_response(self):
-        """ Return a filtered response based on the requested bbox
+    def handle_secured_get_map(self):
+        # We don't check any kind of is-allowed or not here.
+        # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
+        # To improve the performance here, we use a multithreaded approach, where the original map image and the
+        # mask are generated at the same time. This speed up the process by ~30%!
+        thread_list = []
+        results = Queue()
+        # to differ the results we return a dict for the remote response
+        thread_list.append(
+            Thread(target=lambda r: r.put({"response": self.get_remote_response()}, connection.close()),
+                   args=(results,))
+        )
+        thread_list.append(
+            Thread(target=lambda r: r.put(self._create_secured_service_mask(), connection.close()),
+                   args=(results,))
+        )
+        execute_threads(thread_list)
 
-            This function will only be called, if the service is spatial secured and the user is in principle
-            entitled! If so we filter the allowed_operations again by with the bbox param.
-        """
+        # Since we have no idea which result will be on which position in the query
+        remote_response = None
+        mask = None
+        while not results.empty():
+            result = results.get()
+            if isinstance(result, dict):
+                # the img response!
+                remote_response = result.get("response")
+            else:
+                mask = result
 
-        if self.service.service_type_name == OGCServiceEnum.WMS.value:
+        secured_image = self._create_masked_image(remote_response.content, mask)
+        self.content_type = remote_response.headers.get("content-type")
+        return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
+
+    def handle_secured_wms(self):
+        if self.query_parameters.get("request").lower() == OGCOperationEnum.GET_MAP.value.lower():
             layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
             # FIXME: mapserver processes case insensitive layer identifiers... This query won't work then..
             is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
@@ -241,38 +270,19 @@ class GenericOwsServiceOperationFacade(View):
                 .filter(is_layer_secured) \
                 .distinct("pk") \
                 .values_list("pk", "allowed_area")
+            return self.handle_secured_get_map()
+        elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
+            return self.return_http_response(response=self.get_remote_response())
 
-            # We don't check any kind of is-allowed or not here.
-            # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
-            # To improve the performance here, we use a multithreaded approach, where the original map image and the
-            # mask are generated at the same time. This speed up the process by ~30%!
-            thread_list = []
-            results = Queue()
-            # to differ the results we return a dict for the remote response
-            thread_list.append(
-                Thread(target=lambda r: r.put({"response": self.get_remote_response()}, connection.close()),
-                       args=(results,))
-            )
-            thread_list.append(
-                Thread(target=lambda r: r.put(self._create_secured_service_mask(), connection.close()),
-                       args=(results,))
-            )
-            execute_threads(thread_list)
+    def get_secured_response(self):
+        """ Return a filtered response based on the requested bbox
 
-            # Since we have no idea which result will be on which position in the query
-            remote_response = None
-            mask = None
-            while not results.empty():
-                result = results.get()
-                if isinstance(result, dict):
-                    # the img response!
-                    remote_response = result.get("response")
-                else:
-                    mask = result
+            This function will only be called, if the service is spatial secured and the user is in principle
+            entitled! If so we filter the allowed_operations again by with the bbox param.
+        """
 
-            secured_image = self._create_masked_image(remote_response.content, mask)
-            self.content_type = remote_response.headers.get("content-type")
-            return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
+        if self.service.service_type_name == OGCServiceEnum.WMS.value:
+            return self.handle_secured_wms()
 
         elif self.service.service_type_name == OGCServiceEnum.WFS.value:
             # todo

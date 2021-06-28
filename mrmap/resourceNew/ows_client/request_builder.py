@@ -1,4 +1,3 @@
-import distutils
 from abc import ABC
 from requests import Request
 from django.contrib.gis.geos import Polygon
@@ -36,6 +35,33 @@ class WebService(ABC):
     def get_operation_by_name(self, operation: str):
         return getattr(self, operation)
 
+    @classmethod
+    def construct_polygon_from_bbox_query_param(cls, get_dict):
+        try:
+            if get_dict["request"].lower() in ["getmap", "map", ] \
+                    and "bbox" in get_dict and ("srs" in get_dict or "crs" in get_dict):
+                # it's a wms
+                bbox = get_dict["bbox"]
+                srid = get_dict.get("srs", None)
+                if not srid:
+                    srid = get_dict["crs"]
+                min_x, min_y, max_x, max_y = bbox.split(",")
+                min_x = float(min_x)
+                min_y = float(min_y)
+                max_x = float(max_x)
+                max_y = float(max_y)
+                # todo: handle different namespaces
+                srid = int(srid.split(":")[-1])
+                return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)), srid=srid)
+            elif get_dict["request"].lower() in ["getfeatureinfo", ]:
+                # it's a wfs
+                pass
+            else:
+                return None
+        except Exception as e:
+            i=0
+            return None
+
 
 class WmsService(WebService):
     LAYERS_QP = "LAYERS"
@@ -50,6 +76,11 @@ class WmsService(WebService):
     EXCEPTIONS_QP = "EXCEPTIONS"
     TIME_QP = "TIME"
     ELEVATION_QP = "ELEVATION"
+    QUERY_LAYERS_QP = "QUERY_LAYERS"
+    INFO_FORMAT_QP = "INFO_FORMAT"
+    FEATURE_COUNT_QP = "FEATURE_COUNT"
+    I_QP = "I"
+    J_QP = "J"
     GET_MAP_QV = "GetMap"
     GET_FEATURE_INFO_QV = "GetFeatureInfo"
     get_params = {}
@@ -102,10 +133,22 @@ class WmsService(WebService):
                 _query_params.update({self.TIME_QP: val})
             elif key == "ELEVATION":
                 _query_params.update({self.ELEVATION_QP: val})
+            elif key == "QUERY_LAYERS":
+                _query_params.update({self.QUERY_LAYERS_QP: val})
+            elif key == "INFO_FORMAT":
+                _query_params.update({self.INFO_FORMAT_QP: val})
+            elif key == "FEATURE_COUNT":
+                _query_params.update({self.FEATURE_COUNT_QP: val})
+            elif key == "I":
+                _query_params.update({self.I_QP: val})
+            elif key == "J":
+                _query_params.update({self.J_QP: val})
         return _query_params
 
     def get_requested_layers(self, query_params: dict):
         return self.get_get_params(query_params=query_params).get(self.LAYERS_QP).split(",")
+
+
 
     def construct_polygon_from_bbox(self, get_dict):
         """
@@ -159,21 +202,20 @@ class WmsService(WebService):
     def map(self, **kwargs):
         return self.get_get_map_request(**self.convert_kwargs_for_get_map(**kwargs))
 
-    def get_get_map_request(self,
-                            layer_list,
-                            crs: str,
-                            bbox: str,
-                            width: int,
-                            height: int,
-                            format: str,
-                            time: str = None,
-                            elevation: str = None,
-                            style_list=None,
-                            transparent: bool = False,
-                            bg_color: str = "0xFFFFFF",
-                            exceptions: str = "XML",
-                            ) -> Request:
-
+    def get_get_map_kwargs(self,
+                           layer_list,
+                           crs: str,
+                           bbox: str,
+                           width: int,
+                           height: int,
+                           format: str,
+                           time: str = None,
+                           elevation: str = None,
+                           style_list=None,
+                           transparent: bool = False,
+                           bg_color: str = "0xFFFFFF",
+                           exceptions: str = "XML",
+                           **kwargs):
         if isinstance(layer_list, str):
             layer_list = [layer_list]
         if not style_list:
@@ -181,24 +223,56 @@ class WmsService(WebService):
         if isinstance(style_list, str):
             style_list = [style_list]
 
-        query_params = self.get_default_query_params()
-        query_params.update({self.REQUEST_QP: self.GET_MAP_QV,
-                             self.LAYERS_QP: ",".join(layer_list) if len(layer_list) > 1 else layer_list[0],
-                             self.STYLES_QP: ",".join(style_list) if len(style_list) > 1 else style_list[0],
-                             self.CRS_QP: crs,
-                             self.BBOX_QP: bbox,
-                             self.WIDTH_QP: width,
-                             self.HEIGHT_QP: height,
-                             self.FORMAT_QP: format,
-                             self.TRANSPARENT_QP: "TRUE" if transparent else "FALSE",
-                             self.BG_COLOR_QP: bg_color,
-                             self.EXCEPTIONS_QP: exceptions})
+        query_params = {self.LAYERS_QP: ",".join(layer_list) if len(layer_list) > 1 else layer_list[0],
+                        self.STYLES_QP: ",".join(style_list) if len(style_list) > 1 else style_list[0],
+                        self.CRS_QP: crs,
+                        self.BBOX_QP: bbox,
+                        self.WIDTH_QP: width,
+                        self.HEIGHT_QP: height,
+                        self.FORMAT_QP: format,
+                        self.TRANSPARENT_QP: "TRUE" if transparent else "FALSE",
+                        self.BG_COLOR_QP: bg_color,
+                        self.EXCEPTIONS_QP: exceptions}
         if time:
             query_params.update({self.TIME_QP: time})
         if elevation:
             query_params.update({self.ELEVATION_QP: elevation})
+        return query_params
+
+    def get_get_map_request(self, **kwargs) -> Request:
+        query_params = self.get_get_map_kwargs(**kwargs)
+        query_params.update({self.REQUEST_QP: self.GET_MAP_QV})
+        query_params.update(self.get_default_query_params())
         req = Request(method="GET", url=self.base_url, params=query_params)
         return req
+
+    def convert_kwargs_for_get_feature_info(self, **kwargs):
+        return {
+            "query_layers": kwargs[self.QUERY_LAYERS_QP].split(","),
+            "info_format": kwargs[self.INFO_FORMAT_QP],
+            "feature_count": kwargs.get(self.FEATURE_COUNT_QP, 1),
+            "i": kwargs[self.I_QP],
+            "j": kwargs[self.J_QP],
+            "exceptions": kwargs.get(self.EXCEPTIONS_QP, "XML"),
+        }
+
+    def get_get_feature_info_kwargs(self,
+                                    query_layers,
+                                    info_format: str,
+                                    i: int,
+                                    j: int,
+                                    feature_count: int = 1,
+                                    exceptions: str = "XML",
+                                    **kwargs):
+        if isinstance(query_layers, str):
+            query_layers = [query_layers]
+        query_params = {self.QUERY_LAYERS_QP: ",".join(query_layers) if len(query_layers) > 1 else query_layers[0],
+                        self.INFO_FORMAT_QP: info_format,
+                        self.FEATURE_COUNT_QP: feature_count,
+                        self.I_QP: i,
+                        self.J_QP: j,
+                        self.EXCEPTIONS_QP: exceptions}
+        return query_params
 
     def feature_info(self, **kwargs):
         return self.get_get_feature_info_request(**kwargs)
@@ -206,8 +280,13 @@ class WmsService(WebService):
     def getfeatureinfo(self, **kwargs):
         return self.get_get_feature_info_request(**kwargs)
 
-    def get_get_feature_info_request(self, layer_list, x: int, y: int, info_format=None, feature_count=None):
-        raise NotImplementedError
+    def get_get_feature_info_request(self, **kwargs):
+        query_params = self.get_get_map_kwargs(**self.convert_kwargs_for_get_map(**kwargs))
+        query_params.update(self.get_get_feature_info_kwargs(**self.convert_kwargs_for_get_feature_info(**kwargs)))
+        query_params.update({self.REQUEST_QP: self.GET_FEATURE_INFO_QV})
+        query_params.update(self.get_default_query_params())
+        req = Request(method="GET", url=self.base_url, params=query_params)
+        return req
 
 
 class WfsService(WebService):

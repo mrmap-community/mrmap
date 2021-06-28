@@ -4,6 +4,7 @@ from extra_views import UpdateWithInlinesView
 from guardian.core import ObjectPermissionChecker
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
+from main.utils import camel_to_snake
 from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
 from resourceNew.formsets.service import ExternalAuthenticationInline, ProxySettingInline
 from resourceNew.tasks import service as service_tasks
@@ -171,6 +172,15 @@ class ServiceUpdateView(UpdateWithInlinesView):
 
 class ServiceDeleteView(SecuredDeleteView):
     model = Service
+
+    def get_success_url(self):
+        model_instance = self.model()
+        if self.object.service_type_name == OGCServiceEnum.WMS.value:
+            return reverse_lazy(f'{model_instance._meta.app_label}:{camel_to_snake(model_instance.__class__.__name__)}_wms_list')
+        elif self.object.service_type_name == OGCServiceEnum.WFS.value:
+            return reverse_lazy(f'{model_instance._meta.app_label}:{camel_to_snake(model_instance.__class__.__name__)}_wfs_list')
+        elif self.object.service_type_name == OGCServiceEnum.CSW.value:
+            return reverse_lazy(f'{model_instance._meta.app_label}:{camel_to_snake(model_instance.__class__.__name__)}_csw_list')
 
 
 class LayerUpdateView(SecuredUpdateView):

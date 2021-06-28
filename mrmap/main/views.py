@@ -150,7 +150,7 @@ class SecuredDeleteView(LoginRequiredMixin,
 
     def delete(self, request, *args, **kwargs):
         try:
-            super().delete(request=request, *args, **kwargs)
+            return super().delete(request=request, *args, **kwargs)
         except ProtectedError as e:
             handle_protected_error([self.object, ], request, e)
             last_url = self.get_last_url()

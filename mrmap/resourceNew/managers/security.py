@@ -1,12 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.gis.geos import Polygon
 from service.helper.enums import HttpMethodEnum
 from django.db import models
-from django.db.models import F, Exists, OuterRef
+from django.db.models import F, Exists, OuterRef, ExpressionWrapper, BooleanField, Q
 
 
 class ServiceSecurityManager(models.Manager):
-    def for_security_facade(self, query_parameters, user):
+    def for_security_facade(self, query_parameters, user, bbox: Polygon = None):
         from resourceNew.models.service import OperationUrl  # to avoid circular import
         from resourceNew.models.security import AllowedOperation  # to avoid circular import
         # todo: analyze query_parameters.get("request"); only if a secured operation like GetMap, GetFeatureInfo is
@@ -38,7 +39,7 @@ class ServiceSecurityManager(models.Manager):
             service=OuterRef('pk'),
             method=HttpMethodEnum.GET.value,
         ).values_list('url', flat=True)[:1]
-        return qs.select_related(
+        qs = qs.select_related(
             "document",
             "service_type",
             "external_authentication",) \
@@ -48,5 +49,8 @@ class ServiceSecurityManager(models.Manager):
                       is_secured=Exists(is_secured_subquery),
                       user_is_principle_entitled=Exists(user_is_principle_entitled_subquery),
                       base_operation_url=base_url_subquery,
-                      unknown_operation_url=unknown_operation_url_subquery
-                      )
+                      unknown_operation_url=unknown_operation_url_subquery)
+        if bbox:
+            qs.annotate(is_spatial_secured_and_covers=Exists(is_spatial_secured_subquery.filter(allowed_area__covers=bbox)))
+
+        return qs

@@ -27,6 +27,7 @@ class LayerFilterSet(django_filters.FilterSet):
         model = Layer
         fields = {
             "id": ["in", ],
+            "is_queryable": ["exact"],
             "parent__id": ["in", ],
             "service__id": ["in", ],
             "owned_by_org__name": ["icontains"],

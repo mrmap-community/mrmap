@@ -59,6 +59,14 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         return f"External authentication for {self.secured_service.__str__()}"
 
     def clean(self):
+        """ Additional clean method. Cause we configured some fields to allow blank posting in model forms, such as used
+        in the :class:`resourceNew.views.service.ServiceUpdateView` to support adding optional
+        :class:`resourceNew.models.security.ExternalAuthentication` instances for a given
+        :class:`resourceNew.models.service.Service`, we need to check in this custom clean() if there are empty posted
+        fields.
+
+        :raises: :class:`django.core.exceptions.ValidationError`: If username, password or auth_type where empty.
+        """
         errors = {}
         # cause we support blank fields to support empty inline formset posting, we need to validate the blank fields
         # here
@@ -74,14 +82,19 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
 
     @property
     def filepath(self):
+        """the path of the key file for this external authentication"""
         return f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service_id}.key"
 
     @property
     def key(self):
+        """the key to decrypt this external authentication"""
         file = open(self.filepath, "rb")
         return file.read()
 
     def write_key_to_file(self, force_return: bool = False):
+        """Generate and store a key for this external authentication to
+        :attr:`.ExternalAuthentication.filepath`
+        """
         key = Fernet.generate_key()
         file = None
         try:
@@ -174,7 +187,7 @@ class OGCOperation(models.Model):
 
 
 class AllowedOperationGroupRelation(models.Model):
-    """ Custom M2M relation table model to protect referenced ServiceAccessGroup from deleting if the are referenced.
+    """ Custom M2M relation table model to protect referenced ServiceAccessGroup from deleting if they are referenced.
 
     """
     service_access_group = models.ForeignKey(to="ServiceAccessGroup",
@@ -193,11 +206,30 @@ class ServiceAccessGroup(GenericModelMixin, Group, CommonInfo):
 
 
 class AllowedOperation(GenericModelMixin, CommonInfo):
-    """ Configures the operation(s) which allows one or more groups to access a :class:`resourceNew.models.Service`.
+    """ A AllowedOperation represents a security configuration for a given :class:`resourceNew.models.service.Service`.
 
-    operations: a list of allowed ``OGCOperation`` objects
-    allowed_groups: a list of groups which are allowed to perform the operations from the ``operations`` field on all
-                    ``Service`` objects from the secured_service list.
+
+    One allowed operation is a configuration to allow
+        * a set of :class:`resourceNew.models.security.ServiceAccessGroup`
+        * to access a set of :class:`resourceNew.models.service.Layer` or :class:`resourceNew.models.FeatureType`
+        * for one configured :class:`resourceNew.models.service.Service`
+        * limited by the configured :class:`resourceNew.models.security.OGCOperation`
+        * and (optional) limited by a configured :class:`django.contrib.gis.geos.MultiPolygon`
+
+
+    :attr operations:  :class:`django.db.models.fields.related.ManyToManyField` field to configure allowed OGC
+                       operations.
+    :attr allowed_groups: :class:`django.db.models.fields.related.ManyToManyField` field to configure allowed groups to
+                          access the configured service.
+    :attr allowed_area: (optional) :class:`django.contrib.gis.db.models.fields.MultiPolygonField` to configure an
+                        allowed area. If set, only the configured area is allowed to request.
+    :attr secured_service: :class:`django.db.models.fields.related.ForeignKey` field to configure the secured service.
+    :attr secured_layers: :class:`django.db.models.fields.related.ManyToManyField` field to configure all secured
+                          layers.
+    :attr secured_feature_types: :class:`django.db.models.fields.related.ManyToManyField` field to configure all secured
+                          feature types.
+    :attr description: :class:`django.db.models.fields.CharField` short description for better administrating different
+                       :class:`~AllowedOperation` instances.
 
     """
     operations = models.ManyToManyField(to=OGCOperation,
@@ -236,6 +268,13 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
         return f"AllowedOperation ({self.pk}) for service {self.secured_service}"
 
     def save(self, *args, **kwargs):
+        """Custom save function to update related :class:`resourceNew.models.security.ProxySetting` instance.
+        IF there is a related :class:`resourceNew.models.security.ProxySetting` instance, the
+        :attr:`.ProxySetting.camouflage` attribute is updated to the value ``True``
+        ELSE we create a new :class:`resourceNew.models.security.ProxySetting` instance with the initial
+        ``camouflage=True`` attribute.
+
+        """
         super().save(*args, **kwargs)
         # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
         # does NOT call save() or triggers signals

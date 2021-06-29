@@ -16,6 +16,7 @@ MrMap components are arranged into functional subsections called `apps` (a carry
 
 * ``users``: Customize the Django authentication system
 * ``structure``: todo
+* ``resource``: todo
 * ``service``: todo
 * ``quality``: todo
 * ``monitoring``: todo

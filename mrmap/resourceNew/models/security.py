@@ -208,15 +208,6 @@ class ServiceAccessGroup(GenericModelMixin, Group, CommonInfo):
 class AllowedOperation(GenericModelMixin, CommonInfo):
     """ A AllowedOperation represents a security configuration for a given :class:`resourceNew.models.service.Service`.
 
-
-    One allowed operation is a configuration to allow
-        * a set of :class:`resourceNew.models.security.ServiceAccessGroup`
-        * to access a set of :class:`resourceNew.models.service.Layer` or :class:`resourceNew.models.FeatureType`
-        * for one configured :class:`resourceNew.models.service.Service`
-        * limited by the configured :class:`resourceNew.models.security.OGCOperation`
-        * and (optional) limited by a configured :class:`django.contrib.gis.geos.MultiPolygon`
-
-
     :attr operations:  :class:`django.db.models.fields.related.ManyToManyField` field to configure allowed OGC
                        operations.
     :attr allowed_groups: :class:`django.db.models.fields.related.ManyToManyField` field to configure allowed groups to
@@ -230,6 +221,17 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
                           feature types.
     :attr description: :class:`django.db.models.fields.CharField` short description for better administrating different
                        :class:`~AllowedOperation` instances.
+
+    One allowed operation is a configuration to allow
+        * a set of :class:`resourceNew.models.security.ServiceAccessGroup`
+        * to access a set of :class:`resourceNew.models.service.Layer` or :class:`resourceNew.models.FeatureType`
+        * for one configured :class:`resourceNew.models.service.Service`
+        * limited by the configured :class:`resourceNew.models.security.OGCOperation`
+        * and (optional) limited by a configured :class:`django.contrib.gis.geos.MultiPolygon`
+
+    .. warning::
+        IF there are two :class:`~AllowedOperation` instances for the same set of ``operations`` and ``allowed_groups``
+        and one has no allowed area configured the one with ``allowed_area=None`` allows all areas.
 
     """
     operations = models.ManyToManyField(to=OGCOperation,

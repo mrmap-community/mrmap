@@ -1,6 +1,6 @@
 from abc import ABC
 from requests import Request
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 
 
 class WebService(ABC):
@@ -52,15 +52,15 @@ class WebService(ABC):
                 max_y = float(max_y)
                 # todo: handle different namespaces
                 srid = int(srid.split(":")[-1])
+                # FIXME: check axis order for the requested service and switch if needed
                 return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)), srid=srid)
             elif get_dict["request"].lower() in ["getfeatureinfo", ]:
                 # it's a wfs
                 pass
             else:
-                return None
+                return GEOSGeometry('POLYGON EMPTY')
         except Exception as e:
-            i=0
-            return None
+            return GEOSGeometry('POLYGON EMPTY')
 
 
 class WmsService(WebService):
@@ -147,8 +147,6 @@ class WmsService(WebService):
 
     def get_requested_layers(self, query_params: dict):
         return self.get_get_params(query_params=query_params).get(self.LAYERS_QP).split(",")
-
-
 
     def construct_polygon_from_bbox(self, get_dict):
         """

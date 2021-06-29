@@ -1,15 +1,22 @@
+import traceback
 from io import BytesIO
-from django.http import StreamingHttpResponse
+from django.http import StreamingHttpResponse, JsonResponse
+from django.shortcuts import render
+from django.template import Template
+from django.template.loader import render_to_string
 from django.views.generic.base import View
 from eulxml import xmlmap
 
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
+from MrMap.settings import PROXIES
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
+from resourceNew.models.security import ProxyLog
 from resourceNew.ows_client.request_builder import OgcService, WebService
 from django.db.models import Q, QuerySet
 from requests.auth import HTTPDigestAuth
 from requests import Session, Response, Request
+from requests.exceptions import ConnectTimeout as ConnectTimeoutException, ConnectionError as ConnectionErrorException
 import io
 from queue import Queue
 from threading import Thread
@@ -50,22 +57,23 @@ class GenericOwsServiceOperationFacade(View):
 
     def get(self, request, *args, **kwargs):
         if not self.service:
-            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+            return self.return_http_response({"status_code": 404, "content": SERVICE_NOT_FOUND})
         if not self.query_parameters.get("request", None):
-            return HttpResponse(status=400, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
+            return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE})
         elif not self.service.is_active:
-            return HttpResponse(status=423, content=SERVICE_DISABLED)
+            return self.return_http_response({"status_code": 423, "content": SERVICE_DISABLED})
         elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
             return self.get_capabilities()
         elif not self.service.is_secured or \
                 (not self.service.is_spatial_secured and self.service.user_is_principle_entitled) or\
                 not self.query_parameters.get("request").lower() in [OGCOperationEnum.GET_MAP.value.lower(),
                                                                      OGCOperationEnum.GET_FEATURE_INFO.value.lower()]:
-            return self.get_response()
+            return self.return_http_response(response=self.get_remote_response())
         elif self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.get_secured_response()
         else:
-            return HttpResponse(status=403, content="user has no permission to access the requested service.")
+            return self.return_http_response({"status_code": 403,
+                                              "content": "User has no permissions to request this service."})
 
     def get_capabilities(self):
         # todo: handle different service versions
@@ -231,6 +239,9 @@ class GenericOwsServiceOperationFacade(View):
         return image
 
     def handle_secured_get_map(self):
+        if not self.service.is_spatial_secured_and_intersects:
+            return self.return_http_response({"status_code": 403,
+                                              "content": "User has no permissions to request this service."})
         # We don't check any kind of is-allowed or not here.
         # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
@@ -258,28 +269,52 @@ class GenericOwsServiceOperationFacade(View):
                 remote_response = result.get("response")
             else:
                 mask = result
+        if isinstance(remote_response, dict):
+            return self.return_http_response(response=remote_response)
 
         secured_image = self._create_masked_image(remote_response.content, mask)
-        self.content_type = remote_response.headers.get("content-type")
-        return self.return_http_response(response={"content": self.image_to_bytes(secured_image)})
+        return self.return_http_response(response={"status_code": 200,
+                                                   "content": self.image_to_bytes(secured_image),
+                                                   "content_type": remote_response.headers.get("content-type")})
 
     def handle_secured_get_feature_info(self):
+        """ Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
+            contained in any allowed area.
+            IF not we response with a owsExceptionReport in xml format.
+
+            .. note:: excerpt from ogc specs
+                **ogc wms 1.3.0**: The server shall return a response according to the requested INFO_FORMAT if the
+                                   request is valid, or issue a service  exception  otherwise. The nature of the
+                                   response is at the discretion of the service provider, but it shall pertain to the
+                                   feature(s) nearest to (I,J). (see section 7.4.4)
+
+            Returns:
+                the GetFeatureInfo response as requested OR an owsExceptionReport in xml if the request is not allowed.
+        """
         if self.service.is_spatial_secured_and_covers:
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
                 request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+                info_format_old = request.params.get(self.remote_service.INFO_FORMAT_QP, "unknown")
                 request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
-                response = self.get_remote_response(request=request)
-                feature_collection = xmlmap.load_xmlobject_from_string(response.content, xmlclass=FeatureCollection)
+                remote_response = self.get_remote_response(request=request)
+                feature_collection = xmlmap.load_xmlobject_from_string(remote_response.content, xmlclass=FeatureCollection)
                 polygon = feature_collection.bounded_by.get_polygon()
                 self.get_allowed_areas_by_layers()
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
                         # is allowed
-                        return self.return_http_response(response=self.get_remote_response())
+                        if info_format_old == "text/xml":
+                            return self.return_http_response(response=remote_response)
+                        else:
+                            # todo: we can get both responses in parallel mode by using threads.
+                            return self.return_http_response(response=self.get_remote_response())
             except Exception as e:
-                return HttpResponse(status=403, content="user has no permission to access the requested service.")
+                response = Response()
+                response.status_code = 403
+                response._content = "user has no permissions to access the requested area."
+                return self.return_http_response(response=response)
 
     def get_allowed_areas_by_layers(self):
         layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
@@ -309,10 +344,10 @@ class GenericOwsServiceOperationFacade(View):
             return self.handle_secured_wms()
 
         elif self.service.service_type_name == OGCServiceEnum.WFS.value:
-            # todo
-            pass
+            return self.return_http_response(response={"status_code": 501,
+                                                       "content": "Not implemented"})
 
-    def get_remote_response(self, request=None) -> Response:
+    def get_remote_response(self, request=None):
         if not request:
             request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
         if hasattr(self.service, "external_authenticaion"):
@@ -323,19 +358,41 @@ class GenericOwsServiceOperationFacade(View):
                 request.auth = HTTPDigestAuth(username=username,
                                               password=password)
         s = Session()
-        return s.send(request.prepare())
-
-    def get_response(self):
-        response = self.get_remote_response()
-        self.content_type = response.headers.get("content-type")
-        self.log_response(response=response)
-        return self.return_http_response(response=response)
+        s.proxies = PROXIES
+        r = {}
+        try:
+            r = s.send(request.prepare())
+        except ConnectTimeoutException:
+            # response with GatewayTimeout; the remote service response not in timeout
+            r.update({"status_code": 504,
+                      "code": "MaxResponseTimeExceeded",
+                      "content": "remote service didn't response in time."})
+        except ConnectionErrorException:
+            # response with Bad Gateway; we can't connect to the remote service
+            r.update({"status_code": 502,
+                      "code": "MaxRetriesExceeded",
+                      "content": "can't reach remote service."})
+        except Exception as e:
+            # todo: log exception
+            r.update({"status_code": 500,
+                      "code": "InternalServerError",
+                      "content": f"{type(e).__name__} raised in function get_remote_response()"})
+        return r
 
     def log_response(self, response: Response):
         """ Check if response logging is active. If so, the response will be logged.
 
         """
         if self.service.log_response:
+            return
+            ProxyLog.response_logging.create(user=self.request.user,
+                                             service=self.service,
+                                             # todo:
+                                             operation=self.query_parameters.get("request"),
+                                             # todo:
+                                             uri=self.request.url,
+                                             post_body=self.request.POST,
+                                             response_content=response.content)
             # todo
             pass
 
@@ -348,18 +405,29 @@ class GenericOwsServiceOperationFacade(View):
 
         """
         if isinstance(response, dict):
-            content = response.get("content", None)
+            content = response.get("content", "unknown")
             status_code = response.get("status_code", 200)
+            content_type = response.get("content_type", None)
         else:
             content = response.content
             status_code = response.status_code
+            content_type = response.headers.get("content-type")
+
+        if isinstance(response, dict):
+            if status_code > 399:
+                # todo: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
+                content = render_to_string(template_name="resourceNew/xml/ows/exception.xml",
+                                           context=response)
+                content_type = "text/xml"
+        else:
+            self.log_response(response=response)
 
         if len(content) >= 5000000:
             # data too big - we should stream it!
             return StreamingHttpResponse(status=status_code,
                                          streaming_content=BytesIO(content),
-                                         content_type=self.content_type)
+                                         content_type=content_type)
         else:
             return HttpResponse(status=status_code,
                                 content=content,
-                                content_type=self.content_type)
+                                content_type=content_type)

@@ -7,9 +7,12 @@ from django.db.models import Q, F
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from requests import Response
+
 from main.models import CommonInfo, GenericModelMixin
-from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum
+from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
 from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
+from resourceNew.managers.security import ProxyLogManager
 from resourceNew.models import Service, Layer, FeatureType
 from cryptography.fernet import Fernet
 
@@ -288,23 +291,34 @@ class ProxySetting(GenericModelMixin, CommonInfo):
 
 class ProxyLog(GenericModelMixin, CommonInfo):
     service = models.ForeignKey(to=Service,
-                                on_delete=models.CASCADE,
+                                on_delete=models.PROTECT,
                                 related_name="proxy_logs",
                                 related_query_name="proxy_log")
     user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
-                             on_delete=models.CASCADE,
+                             on_delete=models.PROTECT,
                              related_name="proxy_logs",
                              related_query_name="proxy_log")
     operation = models.CharField(max_length=100,
                                  choices=OGCOperationEnum.as_choices())
     uri = models.URLField(max_length=4096)
-    post_body = models.TextField(null=True,
-                                 blank=True)
+    query_params = models.JSONField(default=dict)
+    post_body = models.JSONField(default=dict)
     timestamp = models.DateTimeField(auto_now_add=True)
     response_wfs_num_features = models.IntegerField(null=True,
                                                     blank=True)
     response_wms_megapixel = models.FloatField(null=True,
                                                blank=True)
 
+    response_logging = ProxyLogManager()
+
     class Meta:
         ordering = ["-timestamp"]
+
+    def log_response(self, response: Response):
+        if self.service.is_service_type(OGCServiceEnum.WMS):
+            pass
+        elif self.service.is_service_type(OGCServiceEnum.WFS):
+            pass
+
+    def log_wms_response(self, response: Response):
+        pass

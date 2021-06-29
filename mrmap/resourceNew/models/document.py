@@ -218,4 +218,5 @@ class Document(CommonInfo):
             for layer in xml_service.get_all_layers():
                 for style in layer.styles:
                     style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+            # todo: only support xml Exception format --> remove all others
             return xml_service.serializeDocument()

@@ -24,7 +24,7 @@ class BoundingBox(xmlmap.XmlObject):
         srid = self.srs_name.split("/")[-1]
         if "#" in srid:
             srid = srid.split("#")[-1]
-        # FIXME: wrong
+        # FIXME: wrong axis order
         return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)), srid=int(srid))
 
 

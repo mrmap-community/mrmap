@@ -263,7 +263,10 @@ class ServiceElement(GenericModelMixin, CommonServiceInfo, CommonInfo):
 
 
 class Layer(ServiceElement, MPTTModel):
-    """ Concrete model class to store parsed layers """
+    """Concrete model class to store parsed layers.
+
+    :attr objects: custom models manager :class:`resourceNew.managers.service.LayerManager`
+    """
     parent = TreeForeignKey(to="self",
                             on_delete=models.CASCADE,
                             null=True,
@@ -309,6 +312,12 @@ class Layer(ServiceElement, MPTTModel):
     objects = LayerManager()
 
     def save(self, *args, **kwargs):
+        """Custom save function to handle activate process for the layer, all his descendants and his related service.
+           If the given layer shall be active, the complete family (:meth:`mptt.models.MPTTModel.get_family`) of this
+           layer and the related :class:`resourceNew.models.service.Service` will be updated with ``ìs_active=True``.
+           If the given layer shall be inactive, all descendants (:meth:`mptt.models.MPTTModel.get_descendants`) of this
+           layer will be updated with ``is_active=False``.
+        """
         adding = self._state.adding
         old = None
         if not adding:
@@ -325,17 +334,18 @@ class Layer(ServiceElement, MPTTModel):
 
     @cached_property
     def bbox(self) -> Polygon:
-        """ Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
+        """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
 
-            .. note:: excerpt from ogc specs
-                **ogc wms 1.1.1**: Every Layer shall have exactly one <LatLonBoundingBox> element that is either stated
-                                   explicitly or inherited from a parent Layer. (see section 7.1.4.5.6)
-                **ogc wms 1.3.0**: Every named Layer shall have exactly one <EX_GeographicBoundingBox> element that is
-                                   either stated explicitly or inherited from a parent Layer. (see section 7.2.4.6.6)
+        .. note:: excerpt from ogc specs
 
-        Returns:
-            bbox_lat_lon (geos.Polygon): self.bbox_lat_lon if not None else bbox_lat_lon from the first ancestors where
-                                         bbox_lat_lon is not None
+           * **ogc wms 1.1.1**: Every Layer shall have exactly one <LatLonBoundingBox> element that is either stated
+             explicitly or inherited from a parent Layer. (see section 7.1.4.5.6)
+           * **ogc wms 1.3.0**: Every named Layer shall have exactly one <EX_GeographicBoundingBox> element that is
+             either stated explicitly or inherited from a parent Layer. (see section 7.2.4.6.6)
+
+
+        :return: self.bbox_lat_lon if not None else bbox_lat_lon from the first ancestors where bbox_lat_lon is not None
+        :rtype: :class:`django.contrib.gis.geos.polygon`
         """
         if self.bbox_lat_lon:
             return self.bbox_lat_lon
@@ -344,47 +354,54 @@ class Layer(ServiceElement, MPTTModel):
 
     @cached_property
     def supported_reference_systems(self) -> QuerySet:
-        """ Return all supported reference systems for this layer, based on the inheritance from other layers as
-            requested in the ogc specs.
+        """Return all supported reference systems for this layer, based on the inheritance from other layers as
+        requested in the ogc specs.
 
-            .. note:: excerpt from ogc specs
-                **ogc wms 1.1.1**: Every Layer shall have at least one <SRS> element that is either stated explicitly or
-                                   inherited from a parent Layer (see section 7.1.4.5.5).
-                **ogc wms 1.3.0**: Every Layer is available in one or more layer coordinate reference systems. 6.7.3
-                                   discusses the Layer CRS. In order to indicate which Layer CRSs are available, every
-                                   named Layer shall have at least one <CRS> element that is either stated explicitly
-                                   or inherited from a parent Layer.
+        .. note:: excerpt from ogc specs
 
-        Returns:
-            reference_systems (QuerySet): all supported reference systems (ReferenceSystem) for this layer
+           * **ogc wms 1.1.1**: Every Layer shall have at least one <SRS> element that is either stated explicitly or
+             inherited from a parent Layer (see section 7.1.4.5.5).
+           * **ogc wms 1.3.0**: Every Layer is available in one or more layer coordinate reference systems. 6.7.3
+             discusses the Layer CRS. In order to indicate which Layer CRSs are available, every named Layer shall have
+             at least one <CRS> element that is either stated explicitly or inherited from a parent Layer.
+
+        :return: all supported reference systems :class:`resourceNew.models.metadata.ReferenceSystem` for this layer
+        :rtype: :class:`django.db.models.query.QuerySet`
         """
         from resourceNew.models import ReferenceSystem  # to avoid circular import errors
         return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
 
     @cached_property
     def dimensions(self) -> QuerySet:
-        """ Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
-            specs.
+        """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
+        specs.
 
-            .. note:: excerpt from ogc specs
-                **ogc wms 1.1.1**: Dimension declarations are inherited from parent Layers.  Any new Dimension
-                                   declarations in the child are added to the list inherited from the parent.
-                                   A child **shall not** redefine a Dimension with the same name attribute as one
-                                   that was inherited.
-                                   Extent declarations are inherited from parent Layers.  Any Extent declarations in
-                                   the child with the same name attribute as one inherited from the parent replaces
-                                   the value declared by the parent.  A Layer shall not declare an Extent unless a
-                                   Dimension with the same name has been declared or inherited earlier in the
-                                   Capabilities XML.
-                **ogc wms 1.3.0**: Dimension  declarations  are  inherited  from  parent  Layers.  Any  new  Dimension
-                                   declaration  in  the  child  with  the  same name attribute as one inherited from
-                                   the parent replaces the value declared by the parent.
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: Dimension declarations are inherited from parent Layers. Any new Dimension declarations
+             in the child are added to the list inherited from the parent. A child **shall not** redefine a  Dimension
+             with the same name attribute as one that was inherited. Extent declarations are inherited from parent
+             Layers. Any Extent declarations in the child with the same name attribute as one inherited from the parent
+             replaces the value declared by the parent.  A Layer shall not declare an Extent unless a Dimension with the
+             same name has been declared or inherited earlier in the Capabilities XML.
+
+           * **ogc wms 1.3.0**: Dimension  declarations  are  inherited  from  parent  Layers.  Any  new  Dimension
+             declaration  in  the  child  with  the  same name attribute as one inherited from the parent replaces the
+             value declared by the parent.
+
+
+        :return: all dimensions of this layer
+        :rtype: :class:`django.db.models.query.QuerySet`
         """
         from resourceNew.models import Dimension  # to avoid circular import errors
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
 class FeatureType(ServiceElement):
+    """Concrete model class to store parsed FeatureType.
+
+    :attr objects: custom models manager :class:`resourceNew.managers.service.FeatureTypeManager`
+    """
     output_formats = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                             blank=True,
                                             editable=False,
@@ -407,6 +424,12 @@ class FeatureType(ServiceElement):
         verbose_name_plural = _("feature types")
 
     def save(self, *args, **kwargs):
+        """Custom save function to handle activate process for the feature type and his related service.
+           If the given feature type shall be active, the feature type it self and the related
+           :class:`resourceNew.models.service.Service` will be updated with ``is_active=True``.
+           If the given feature type shall be inactive only the feature type it self will be updated with
+           ``is_active=False``.
+        """
         adding = self._state.adding
         super().save(*args, **kwargs)
         if not adding and self.is_active:

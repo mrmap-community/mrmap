@@ -18,9 +18,11 @@ Table of content
 ==================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
 
    introduction/index
-   use_cases/index
    installation/index
    development/index
+   models/index
+   managers/index
+   modules/index

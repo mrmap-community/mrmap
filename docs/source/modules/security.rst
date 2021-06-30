@@ -4,8 +4,8 @@
 Security Module
 ===============
 
-OWS security proxy
-##################
+Security Proxy Facade
+#####################
 
 .. automodule:: resourceNew.views.ows
    :members:

@@ -312,11 +312,9 @@ class GenericOwsServiceOperationFacade(View):
 
             .. figure:: ../images/security/example_2_result.png
               :width: 50%
-
               :alt: Result: bbox intersects allowed area
 
               Result: bbox intersects allowed area
-
 
             :return: The cropped map image with status code 200 or an error message with status code 403 (Forbidden) if
                      the bbox doesn't intersects any allowed area.
@@ -361,18 +359,18 @@ class GenericOwsServiceOperationFacade(View):
                                                    "content_type": remote_response.headers.get("content-type")})
 
     def handle_secured_get_feature_info(self):
-        """ Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
-            contained in any allowed area.
-            IF not we response with a owsExceptionReport in xml format.
+        """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
+           contained in any allowed area.
+           IF not we response with a owsExceptionReport in xml format.
 
-            .. note:: excerpt from ogc specs
-                **ogc wms 1.3.0**: The server shall return a response according to the requested INFO_FORMAT if the
-                                   request is valid, or issue a service  exception  otherwise. The nature of the
-                                   response is at the discretion of the service provider, but it shall pertain to the
-                                   feature(s) nearest to (I,J). (see section 7.4.4)
+           .. note:: excerpt from ogc specs
+               **ogc wms 1.3.0**: The server shall return a response according to the requested INFO_FORMAT if the
+               request is valid, or issue a service  exception  otherwise. The nature of the response is at the
+               discretion of the service provider, but it shall pertain to the feature(s) nearest to (I,J).
+               (see section 7.4.4)
 
-            :return: the GetFeatureInfo response
-            :rtype: :class:`request.models.Response` or dict if the request is not allowed.
+           :return: the GetFeatureInfo response
+           :rtype: :class:`request.models.Response` or dict if the request is not allowed.
         """
         if self.service.is_spatial_secured_and_covers:
             return self.return_http_response(response=self.get_remote_response())

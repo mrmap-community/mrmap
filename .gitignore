@@ -130,3 +130,4 @@ coverage-report.xml
 /mrmap/docker/postgis/postgresql_data/
 /mrmap/docker/redis/redis_data/
 
+ext_auth_keys/

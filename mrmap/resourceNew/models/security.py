@@ -349,7 +349,7 @@ class ProxyLog(GenericModelMixin, CommonInfo):
                                                     blank=True)
     response_wms_megapixel = models.FloatField(null=True,
                                                blank=True)
-
+    objects = models.Manager()
     response_logging = ProxyLogManager()
 
     class Meta:

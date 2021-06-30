@@ -241,7 +241,7 @@ class GenericOwsServiceOperationFacade(View):
     def handle_secured_get_map(self):
         if not self.service.is_spatial_secured_and_intersects:
             return self.return_http_response({"status_code": 403,
-                                              "content": "User has no permissions to request this service."})
+                                              "content": "User has no permissions to access the requested area."})
         # We don't check any kind of is-allowed or not here.
         # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the

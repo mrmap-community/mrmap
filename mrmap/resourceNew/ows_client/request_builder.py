@@ -1,6 +1,7 @@
 from abc import ABC
 from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.contrib.gis import gdal
 
 
 class WebService(ABC):
@@ -37,7 +38,45 @@ class WebService(ABC):
 
     @classmethod
     def construct_polygon_from_bbox_query_param(cls, get_dict):
+        """Construct a polygon from the parsed bbox query parameter, based on the given service type and version.
+
+        * In WMS version < 1.3.0 requests with a Geographic Coordinate Reference System, the bbox is interpreted with
+          X-axis ≙ Longitude and Y-axis ≙ Latitude value.
+        * In WMS version >= 1.3.0 requests the bbox axis order is interpreted like the axis order of the requested
+          reference system.
+
+        So there are different checks to be done:
+
+        * IF ``service_type==wms`` AND ``version < 1.3.0`` AND crs.geographic == True:
+          BBOX=min_long,min_lat,max_long,max_lat ==> BBOX=min_x,min_y,max_x,max_y
+        * ELIF ``service_type==wms`` AND ``version < 1.3.0`` AND crs.geographic == False:
+          BBOX=min_long,min_lat,max_long,max_lat ==> BBOX=min_y,min_x,max_y,max_x
+
+        .. note:: excerpt from ogc specs
+
+            * **OGC WMS 1.1.0**: When the SRS parameter specifies a Geographic Coordinate Reference System, e.g.,
+              "EPSG:4326", the returned image is implicitly projected using a pseudo-Plate Carrée projection that plots
+              Longitude along the X-axis and Latitude along the Y-axis. The BBOX request parameter (Section 7.2.3.6)
+              values for such a coordinate reference system shall be specified in the order minimum longitude, minimum
+              latitude, maximum longitude, maximum latitude. The BBOX parameter values shall use the coordinate
+              reference system units.
+              Some Projected Coordinate Reference Systems, e.g., "EPSG:30800" ("RT38 2.5 gon W", used in Sweden), have
+              axes order other than X=East, Y=North. The BBOX request parameter values for such a coordinate system
+              shall be specified in the order minimum Easting, minimum Northing, maximum Easting, maximum Northing.
+              The BBOX parameters shall use the coordinate reference system units. (see 6.5.5.1)
+            * **OGC WMS 1.3.0**: EXAMPLE EPSG:4326 refers to WGS 84 geographic latitude, then longitude. That is, in
+              this CRS the x axis corresponds to latitude, and the y axis to longitude. (see 6.7.3.3)
+
+        :return: the bbox parsed from the get_dict
+        :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
+
+        """
         try:
+            major_version, minor_version, fix_version = get_dict["version"].split(".")
+            major_version = int(major_version)
+            minor_version = int(minor_version)
+            fix_version = int(fix_version)
+
             if get_dict["request"].lower() in ["getmap", "map", "getfeatureinfo", "feature_info"] \
                     and "bbox" in get_dict and ("srs" in get_dict or "crs" in get_dict):
                 # it's a wms
@@ -50,10 +89,16 @@ class WebService(ABC):
                 min_y = float(min_y)
                 max_x = float(max_x)
                 max_y = float(max_y)
-                # todo: handle different namespaces
-                srid = int(srid.split(":")[-1])
-                # FIXME: check axis order for the requested service and switch if needed
-                return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=srid)
+
+                crs = gdal.SpatialReference(srs_input=srid)
+                if minor_version < 3 and crs.geographic or minor_version >= 3 and crs.projected:
+                    return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)),
+                                   srid=crs.srid)
+                elif minor_version < 3 and crs.geographic or minor_version >= 3 and crs.geographic:
+                    return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
+                                   srid=crs.srid)
+                else:
+                    return GEOSGeometry('POLYGON EMPTY')
             elif get_dict["request"].lower() in ["getfeatureinfo", ]:
                 # it's a wfs
                 pass

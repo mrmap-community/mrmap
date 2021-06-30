@@ -1,6 +1,5 @@
 from django.contrib.gis.geos import Polygon
 from eulxml import xmlmap
-from resourceNew.parsers.consts import NS_WC
 
 
 class BoundingBox(xmlmap.XmlObject):
@@ -24,8 +23,8 @@ class BoundingBox(xmlmap.XmlObject):
         srid = self.srs_name.split("/")[-1]
         if "#" in srid:
             srid = srid.split("#")[-1]
-        # FIXME: wrong axis order
-        return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)), srid=int(srid))
+        # FIXME: dynamic axis order possible; we need to use the epsg api
+        return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=int(srid))
 
 
 class FeatureCollection(xmlmap.XmlObject):

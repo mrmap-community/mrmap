@@ -1,8 +1,5 @@
-import traceback
 from io import BytesIO
-from django.http import StreamingHttpResponse, JsonResponse
-from django.shortcuts import render
-from django.template import Template
+from django.http import StreamingHttpResponse
 from django.template.loader import render_to_string
 from django.views.generic.base import View
 from eulxml import xmlmap
@@ -13,7 +10,6 @@ from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
 from resourceNew.models.security import ProxyLog
 from resourceNew.ows_client.request_builder import OgcService, WebService
-from django.db.models import Q, QuerySet
 from requests.auth import HTTPDigestAuth
 from requests import Session, Response, Request
 from requests.exceptions import ConnectTimeout as ConnectTimeoutException, ConnectionError as ConnectionErrorException
@@ -33,14 +29,23 @@ from django.conf import settings
 
 
 class GenericOwsServiceOperationFacade(View):
+    """ Security proxy facade to secure registered services spatial by there operations and for sets of users.
+
+        :attr service:  :class:`resourceNew.models.service.Service` the requested service which was found by the pk.
+        :attr remote_service: :class:`resourceNew.ows_client.request_builder.WebService` the request builder to get
+                              prepared :class:`requests.models.Request` objects with the correct uri and query params.
+        :attr query_parameters: all query parameters in lower case.
+        :attr access_denied_img: if sub elements are not accessible for the user, this PIL.Image object represents an
+                                 overlay with information about the resources, which can not be accessed
+
+    """
     service = None
     remote_service = None
-    content_type = None
     query_parameters = None
-    access_denied_img = None  # if sub elements are not accessible for the user, this PIL.Image object represents an
-    # overlay with information about the resources, which can not be accessed
+    access_denied_img = None
 
     def setup(self, request, *args, **kwargs):
+        """Setup all basically needed attributes of this class."""
         super().setup(request=request, *args, **kwargs)
         self.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
@@ -56,9 +61,40 @@ class GenericOwsServiceOperationFacade(View):
             self.service = None
 
     def get(self, request, *args, **kwargs):
+        """Http get method with security case decisioning.
+
+            **Principle constraints**:
+                * service is found by the given primary key. If not return ``404 - Service not found.``
+                * service is active. If not return ``423 - Service is disabled.``
+                * request query parameter is provided. If not return ``400 - Request param is missing``
+
+            **Service is not secured condition**:
+                * service.is_secured == False ``OR``
+                * service.is_spatial_secured == False and service.user_is_principle_entitled == True ``OR``
+                * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
+
+                If one condition matches, return the response from the remote service.
+
+            **Service is secured condition**:
+                * service.is_spatial_secured ==True and service.user_is_principle_entitled == True
+
+                If the condition matches, return the result from
+                :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
+
+            **Default behavior**:
+                return ``403 (Forbidden) - User has no permissions to request this service.``
+
+            .. note::
+                all error messages will be send as an owsExceptionReport. See
+                :meth:`~GenericOwsServiceOperationFacade.return_http_response` for details.
+
+
+            :return: the computed response based on some principle decisions.
+            :rtype: dict or :class:`requests.models.Request`
+        """
         if not self.service:
             return self.return_http_response({"status_code": 404, "content": SERVICE_NOT_FOUND})
-        if not self.query_parameters.get("request", None):
+        elif not self.query_parameters.get("request", None):
             return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE})
         elif not self.service.is_active:
             return self.return_http_response({"status_code": 423, "content": SERVICE_DISABLED})
@@ -76,6 +112,15 @@ class GenericOwsServiceOperationFacade(View):
                                               "content": "User has no permissions to request this service."})
 
     def get_capabilities(self):
+        """Return the camouflaged capabilities document of the founded service.
+
+           .. note::
+              See :meth:`resourceNew.models.document.Document.camouflaged` for details of camouflage function.
+
+
+           :return: the camouflaged capabilities document.
+           :rtype: :class:`django.http.response.HttpResponse`
+        """
         # todo: handle different service versions
         capabilities = self.service.document.xml
         if self.service.camouflage:
@@ -224,7 +269,7 @@ class GenericOwsServiceOperationFacade(View):
 
         return img
 
-    def image_to_bytes(self, image):
+    def _image_to_bytes(self, image):
         out_bytes_stream = io.BytesIO()
         try:
             image.save(out_bytes_stream, image.format, quality=80)
@@ -239,11 +284,49 @@ class GenericOwsServiceOperationFacade(View):
         return image
 
     def handle_secured_get_map(self):
+        """ Compute the secured get map response if the requested bbox intersects any allowed area.
+
+
+        **Example 1: bbox covers allowed area**
+
+            .. figure:: ../images/security/example_1_request.png
+              :width: 50%
+              :class: with-border
+              :alt: Request: bbox covers allowed area
+
+              Request: bbox covers allowed area
+
+            .. figure:: ../images/security/example_1_result.png
+              :width: 50%
+              :alt: Result: bbox covers allowed area
+
+              Result: bbox covers allowed area
+
+        **Example 2: bbox intersects allowed area**
+
+            .. figure:: ../images/security/example_2_request.png
+              :width: 50%
+              :alt: Request: bbox intersects allowed area
+
+              Request: bbox intersects allowed area
+
+            .. figure:: ../images/security/example_2_result.png
+              :width: 50%
+
+              :alt: Result: bbox intersects allowed area
+
+              Result: bbox intersects allowed area
+
+
+            :return: The cropped map image with status code 200 or an error message with status code 403 (Forbidden) if
+                     the bbox doesn't intersects any allowed area.
+            :rtype: dict
+
+        """
         if not self.service.is_spatial_secured_and_intersects:
             return self.return_http_response({"status_code": 403,
                                               "content": "User has no permissions to access the requested area."})
-        # We don't check any kind of is-allowed or not here.
-        # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
+        # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
         # mask are generated at the same time. This speed up the process by ~30%!
         thread_list = []
@@ -274,7 +357,7 @@ class GenericOwsServiceOperationFacade(View):
 
         secured_image = self._create_masked_image(remote_response.content, mask)
         return self.return_http_response(response={"status_code": 200,
-                                                   "content": self.image_to_bytes(secured_image),
+                                                   "content": self._image_to_bytes(secured_image),
                                                    "content_type": remote_response.headers.get("content-type")})
 
     def handle_secured_get_feature_info(self):
@@ -288,8 +371,8 @@ class GenericOwsServiceOperationFacade(View):
                                    response is at the discretion of the service provider, but it shall pertain to the
                                    feature(s) nearest to (I,J). (see section 7.4.4)
 
-            Returns:
-                the GetFeatureInfo response as requested OR an owsExceptionReport in xml if the request is not allowed.
+            :return: the GetFeatureInfo response
+            :rtype: :class:`request.models.Response` or dict if the request is not allowed.
         """
         if self.service.is_spatial_secured_and_covers:
             return self.return_http_response(response=self.get_remote_response())
@@ -317,6 +400,8 @@ class GenericOwsServiceOperationFacade(View):
                 return self.return_http_response(response=response)
 
     def get_allowed_areas_by_layers(self):
+        """Database query to extend current :attr:`~GenericOwsServiceOperationFacade.service` by all related allowed
+        areas and there primary key."""
         layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
         # FIXME: mapserver processes case insensitive layer identifiers... This query won't work then..
         is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
@@ -327,6 +412,11 @@ class GenericOwsServiceOperationFacade(View):
             .values_list("pk", "allowed_area")
 
     def handle_secured_wms(self):
+        """Handler to decide which subroutine for the given request param shall run.
+
+            :return: the correct handler function for the given request param.
+            :rtype: function
+        """
         if self.query_parameters.get("request").lower() == OGCOperationEnum.GET_MAP.value.lower():
             self.get_allowed_areas_by_layers()
             return self.handle_secured_get_map()
@@ -336,8 +426,12 @@ class GenericOwsServiceOperationFacade(View):
     def get_secured_response(self):
         """ Return a filtered response based on the requested bbox
 
-            This function will only be called, if the service is spatial secured and the user is in principle
-            entitled! If so we filter the allowed_operations again by with the bbox param.
+            .. note::
+                This function will only be called, if the service is spatial secured and the user is in principle
+                entitled! If so we filter the allowed_operations again by with the bbox param.
+
+            :return: the correct handler function for the given service type.
+            :rtype: function
         """
 
         if self.service.service_type_name == OGCServiceEnum.WMS.value:
@@ -347,7 +441,17 @@ class GenericOwsServiceOperationFacade(View):
             return self.return_http_response(response={"status_code": 501,
                                                        "content": "Not implemented"})
 
-    def get_remote_response(self, request=None):
+    def get_remote_response(self, request: Request = None):
+        """Perform a request to the :attr:`~GenericOwsServiceOperationFacade.remote_service` with the given
+           query parameters or if ``request`` is provided this request is performed.
+
+           :param request: a prepared request which shall used instead of the constructed request from the remote
+                           service.
+           :type request: :class:`requests.models.Request`, optional
+           :return: the response of the remote service
+           :rtype: :class:`requests.models.Response` or dict with ``status_code``, ``content`` and ``code`` if any
+                   error occurs.
+        """
         if not request:
             request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
         if hasattr(self.service, "external_authenticaion"):
@@ -380,9 +484,7 @@ class GenericOwsServiceOperationFacade(View):
         return r
 
     def log_response(self, response: Response):
-        """ Check if response logging is active. If so, the response will be logged.
-
-        """
+        """Check if response logging is active. If so, the response will be logged."""
         if self.service.log_response:
             return
             ProxyLog.response_logging.create(user=self.request.user,
@@ -397,11 +499,15 @@ class GenericOwsServiceOperationFacade(View):
             pass
 
     def return_http_response(self, response):
-        """ Check if response is greater than ~5 MB.
+        """ Return the http response for the client.
 
-            Returns:
-                if response >= ~ 5MB: StreamingHttpResponse
-                else: HttpResponse
+            :param response: the response with status code, content and content type
+            :type response: :class:`requests.models.Response` or dict
+
+            :return: The secured response or an ows exception report if ``status_code >399`` and
+                     ``isinstance(response, dict) == True``.
+            :rtype: :class:`django.http.response.StreamingHttpResponse` if response >= 500000 else
+                    :class:`django.http.response.HttpResponse`
 
         """
         if isinstance(response, dict):

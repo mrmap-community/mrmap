@@ -8,7 +8,6 @@ from main.models import CommonInfo
 from resourceNew.enums.document import DocumentEnum
 from resourceNew.models import ServiceMetadata, LayerMetadata, FeatureTypeMetadata, DatasetMetadata, Service
 from eulxml import xmlmap
-import urllib.parse
 from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
 from resourceNew.parsers.ogc.capabilities import get_parsed_service
 
@@ -200,8 +199,8 @@ class Document(CommonInfo):
         """ Camouflage all urls which are founded in current xml from the xml attribute on-the-fly with the hostname
             from the given request.
 
-            Returns:
-                the secured xml as string
+            :return: the secured xml
+            :rtype: str
         """
 
         path = reverse("resourceNew:service_operation_view", args=[self.service_id])

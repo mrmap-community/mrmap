@@ -18,5 +18,6 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    project-structure
    commands
    models
+   modules
    docker
    pycharm-configuration

@@ -53,7 +53,7 @@ class WebService(ABC):
                 # todo: handle different namespaces
                 srid = int(srid.split(":")[-1])
                 # FIXME: check axis order for the requested service and switch if needed
-                return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)), srid=srid)
+                return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=srid)
             elif get_dict["request"].lower() in ["getfeatureinfo", ]:
                 # it's a wfs
                 pass

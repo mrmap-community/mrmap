@@ -24,6 +24,8 @@ class BoundingBox(xmlmap.XmlObject):
         if "#" in srid:
             srid = srid.split("#")[-1]
         # FIXME: dynamic axis order possible; we need to use the epsg api
+        #  gml 3.1.1 <= traditional without epsg api
+        #  gml > 3.1.1 epsg api request
         return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=int(srid))
 
 

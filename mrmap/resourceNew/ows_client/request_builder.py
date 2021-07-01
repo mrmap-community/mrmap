@@ -1,7 +1,8 @@
 from abc import ABC
 from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
-from django.contrib.gis import gdal
+from django.contrib.gis.gdal import SpatialReference
+from epsg_registry_offline.registry import Registry
 
 
 class WebService(ABC):
@@ -45,13 +46,6 @@ class WebService(ABC):
         * In WMS version >= 1.3.0 requests the bbox axis order is interpreted like the axis order of the requested
           reference system.
 
-        So there are different checks to be done:
-
-        * IF ``service_type==wms`` AND ``version < 1.3.0`` AND crs.geographic == True:
-          BBOX=min_long,min_lat,max_long,max_lat ==> BBOX=min_x,min_y,max_x,max_y
-        * ELIF ``service_type==wms`` AND ``version < 1.3.0`` AND crs.geographic == False:
-          BBOX=min_long,min_lat,max_long,max_lat ==> BBOX=min_y,min_x,max_y,max_x
-
         .. note:: excerpt from ogc specs
 
             * **OGC WMS 1.1.0**: When the SRS parameter specifies a Geographic Coordinate Reference System, e.g.,
@@ -67,9 +61,8 @@ class WebService(ABC):
             * **OGC WMS 1.3.0**: EXAMPLE EPSG:4326 refers to WGS 84 geographic latitude, then longitude. That is, in
               this CRS the x axis corresponds to latitude, and the y axis to longitude. (see 6.7.3.3)
 
-        :return: the bbox parsed from the get_dict
+        :return: the bbox parsed from the get_dict or an empty polygon if something went wrong.
         :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
-
         """
         try:
             major_version, minor_version, fix_version = get_dict["version"].split(".")
@@ -90,13 +83,15 @@ class WebService(ABC):
                 max_x = float(max_x)
                 max_y = float(max_y)
 
-                crs = gdal.SpatialReference(srs_input=srid)
-                if minor_version < 3 and crs.geographic or minor_version >= 3 and crs.projected:
-                    return Polygon(((min_y, min_x), (min_y, max_x), (max_y, max_x), (max_y, min_x), (min_y, min_x)),
-                                   srid=crs.srid)
-                elif minor_version < 3 and crs.geographic or minor_version >= 3 and crs.geographic:
+                sr = SpatialReference(srs_input=srid)
+                registry = Registry()
+                epsg_sr = registry.get(srid=sr.srid)
+                if minor_version < 3 or minor_version >= 3 and epsg_sr.is_xy_order:
                     return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
-                                   srid=crs.srid)
+                                   srid=epsg_sr.srid)
+                elif minor_version >= 3 and epsg_sr.is_yx_order:
+                    return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
+                                   srid=epsg_sr.srid)
                 else:
                     return GEOSGeometry('POLYGON EMPTY')
             elif get_dict["request"].lower() in ["getfeatureinfo", ]:

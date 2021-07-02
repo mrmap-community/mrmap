@@ -22,7 +22,7 @@ class SpatialReference(GdalSpatialReference):
     properties.
 
     Implement the c gdal lib function calls for OSREPSGTreatsAsLatLong and OSREPSGTreatsAsNorthingEasting to get the
-    axis order interpretation.
+    axis order interpretation. See https://wiki.osgeo.org/wiki/Axis_Order_Confusion for detail problem.
 
     :param origin: the origin of this ``SpatialReference`` instance. Used in
                    :class:`epsg_registry_offline.registry.Registry` to signal where the information for this instance

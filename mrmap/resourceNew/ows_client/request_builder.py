@@ -3,6 +3,8 @@ from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.contrib.gis.gdal import SpatialReference
 from epsg_registry_offline.registry import Registry
+from epsg_registry_offline.utils import get_epsg_srid
+from resourceNew.ows_client.exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam
 
 
 class WebService(ABC):
@@ -38,7 +40,72 @@ class WebService(ABC):
         return getattr(self, operation)
 
     @classmethod
-    def construct_polygon_from_bbox_query_param(cls, get_dict):
+    def _construct_polygon_from_bbox_query_param_for_wfs(cls, get_dict):
+        """Construct a polygon from the parsed bbox query parameter, based on the given service type and version.
+
+        **WFS 1.0.0 (see wfs specs - 6.2.8.2.3 BBOX)**:
+        * Provides geographic coordinates in longitude/latitude | east/north and may not be trusted to
+          respect the EPSG definition axis order. ==> mathematical x,y order is used.
+        * The coordinate reference system of the bbox always matches the crs of the SRS query param.
+
+
+        **WFS >1.0.0 (see wfs specs - 14.3.3 Bounding box)**:
+        * Respects the axis order defined by the EPSG definition. ==> dynamic x,y order based on the result
+          of the epsg registry is used.
+        * The bbox values support n axis crs systems ==> BBOX=lcc1,lcc2,...,lccN,ucc1,ucc2,...uccN[,crsuri]
+        * The coordinate reference system of the bbox by default is WGS84 (EPSG:4326). IF the bbox param provides a
+        crsuri value this coordinate reference system shall be used instead.
+
+        :return: the bbox parsed from the get_dict or an empty polygon if something went wrong.
+        :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
+        """
+        try:
+            major_version, minor_version, fix_version = get_dict["version"].split(".")
+            major_version = int(major_version)
+            minor_version = int(minor_version)
+            bbox = get_dict["bbox"]
+            srid = get_dict.get("srs", None)
+            if not srid:
+                srid = get_dict.get("srsname", None)
+                if not srid:
+                    raise MissingCrsParam
+
+            xy_order = True
+
+            if major_version == 1 and minor_version < 1:
+                min_x, min_y, max_x, max_y = bbox.split(",")
+                min_x = float(min_x)
+                min_y = float(min_y)
+                max_x = float(max_x)
+                max_y = float(max_y)
+            else:
+                bbox_values = bbox.split(",")
+                registry = Registry()
+                if len(bbox_values == 4):
+                    epsg_sr = registry.get(srid=4326)
+                elif len(bbox_values == 5):
+                    authority, srid = get_epsg_srid(bbox_values[5])
+                    epsg_sr = registry.get(srid=srid)
+                else:
+                    raise NotImplementedError("multiple dimension crs is not implemented.")
+                min_x = float(bbox_values[0])
+                min_y = float(bbox_values[1])
+                max_x = float(bbox_values[2])
+                max_y = float(bbox_values[3])
+                xy_order = epsg_sr.is_xy_order
+
+            if xy_order:
+                return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
+                               srid=srid)
+            else:
+                return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
+                              srid=srid)
+        except Exception as e:
+            pass
+        return GEOSGeometry('POLYGON EMPTY')
+
+    @classmethod
+    def _construct_polygon_from_bbox_query_param_for_wms(cls, get_dict):
         """Construct a polygon from the parsed bbox query parameter, based on the given service type and version.
 
         * In WMS version < 1.3.0 requests with a Geographic Coordinate Reference System, the bbox is interpreted with
@@ -66,41 +133,49 @@ class WebService(ABC):
         """
         try:
             major_version, minor_version, fix_version = get_dict["version"].split(".")
-            major_version = int(major_version)
             minor_version = int(minor_version)
-            fix_version = int(fix_version)
-
-            if get_dict["request"].lower() in ["getmap", "map", "getfeatureinfo", "feature_info"] \
-                    and "bbox" in get_dict and ("srs" in get_dict or "crs" in get_dict):
-                # it's a wms
-                bbox = get_dict["bbox"]
-                srid = get_dict.get("srs", None)
+            srid = get_dict.get("srs", None)
+            if not srid:
+                srid = get_dict.get("crs", None)
                 if not srid:
-                    srid = get_dict["crs"]
-                min_x, min_y, max_x, max_y = bbox.split(",")
-                min_x = float(min_x)
-                min_y = float(min_y)
-                max_x = float(max_x)
-                max_y = float(max_y)
+                    raise MissingCrsParam
 
+            bbox = get_dict["bbox"]
+            min_x, min_y, max_x, max_y = bbox.split(",")
+            min_x = float(min_x)
+            min_y = float(min_y)
+            max_x = float(max_x)
+            max_y = float(max_y)
+
+            xy_order = True
+            if minor_version >= 3:
                 sr = SpatialReference(srs_input=srid)
                 registry = Registry()
                 epsg_sr = registry.get(srid=sr.srid)
-                if minor_version < 3 or minor_version >= 3 and epsg_sr.is_xy_order:
-                    return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
-                                   srid=epsg_sr.srid)
-                elif minor_version >= 3 and epsg_sr.is_yx_order:
-                    return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
-                                   srid=epsg_sr.srid)
-                else:
-                    return GEOSGeometry('POLYGON EMPTY')
-            elif get_dict["request"].lower() in ["getfeatureinfo", ]:
-                # it's a wfs
-                pass
+                srid = epsg_sr.srid
+                xy_order = epsg_sr.is_xy_order
+
+            if xy_order:
+                return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
+                               srid=srid)
             else:
-                return GEOSGeometry('POLYGON EMPTY')
+                return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
+                               srid=srid)
         except Exception as e:
-            return GEOSGeometry('POLYGON EMPTY')
+            pass
+        return GEOSGeometry('POLYGON EMPTY')
+
+    @classmethod
+    def construct_polygon_from_bbox_query_param(cls, get_dict):
+        service_type = get_dict.get("service", None)
+        if not get_dict.get("service", None):
+            raise MissingServiceParam
+        if not get_dict.get("bbox", None):
+            raise MissingBboxParam
+        if service_type.lower() == "wms":
+            return cls._construct_polygon_from_bbox_query_param_for_wms(get_dict=get_dict)
+        elif service_type.lower() == "wfs":
+            return cls._construct_polygon_from_bbox_query_param_for_wfs(get_dict=get_dict)
 
 
 class WmsService(WebService):

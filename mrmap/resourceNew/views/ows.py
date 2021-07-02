@@ -1,4 +1,6 @@
 from io import BytesIO
+
+from django.contrib.gis.geos import GEOSGeometry
 from django.http import StreamingHttpResponse
 from django.template.loader import render_to_string
 from django.views.generic.base import View
@@ -9,6 +11,7 @@ from MrMap.settings import PROXIES
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
 from resourceNew.models.security import ProxyLog
+from resourceNew.ows_client.exceptions import MissingBboxParam, MissingServiceParam
 from resourceNew.ows_client.request_builder import OgcService, WebService
 from requests.auth import HTTPDigestAuth
 from requests import Session, Response, Request
@@ -37,7 +40,6 @@ class GenericOwsServiceOperationFacade(View):
         :attr query_parameters: all query parameters in lower case.
         :attr access_denied_img: if sub elements are not accessible for the user, this PIL.Image object represents an
                                  overlay with information about the resources, which can not be accessed
-
     """
     service = None
     remote_service = None
@@ -50,11 +52,15 @@ class GenericOwsServiceOperationFacade(View):
         self.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
             bbox = WebService.construct_polygon_from_bbox_query_param(get_dict=self.query_parameters)
+        except (MissingBboxParam, MissingServiceParam):
+            bbox = GEOSGeometry('POLYGON EMPTY')
+        try:
             self.service = Service.security.for_security_facade(query_parameters=self.query_parameters,
                                                                 user=self.request.user,
                                                                 bbox=bbox) \
                 .get(pk=self.kwargs.get("pk"))
-            self.remote_service = OgcService(base_url=self.service.base_operation_url or self.service.unknown_operation_url,
+            self.remote_service = OgcService(base_url=self.service.base_operation_url or
+                                                      self.service.unknown_operation_url,
                                              service_type=self.service.service_type_name,
                                              version=self.service.service_version)
         except Service.DoesNotExist:
@@ -101,7 +107,7 @@ class GenericOwsServiceOperationFacade(View):
         elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
             return self.get_capabilities()
         elif not self.service.is_secured or \
-                (not self.service.is_spatial_secured and self.service.user_is_principle_entitled) or\
+                (not self.service.is_spatial_secured and self.service.user_is_principle_entitled) or \
                 not self.query_parameters.get("request").lower() in [OGCOperationEnum.GET_MAP.value.lower(),
                                                                      OGCOperationEnum.GET_FEATURE_INFO.value.lower()]:
             return self.return_http_response(response=self.get_remote_response())
@@ -380,7 +386,8 @@ class GenericOwsServiceOperationFacade(View):
                 info_format_old = request.params.get(self.remote_service.INFO_FORMAT_QP, "unknown")
                 request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
                 remote_response = self.get_remote_response(request=request)
-                feature_collection = xmlmap.load_xmlobject_from_string(remote_response.content, xmlclass=FeatureCollection)
+                feature_collection = xmlmap.load_xmlobject_from_string(remote_response.content,
+                                                                       xmlclass=FeatureCollection)
                 polygon = feature_collection.bounded_by.get_polygon()
                 self.get_allowed_areas_by_layers()
                 for pk, allowed_area in self.service.allowed_areas:
@@ -392,10 +399,8 @@ class GenericOwsServiceOperationFacade(View):
                             # todo: we can get both responses in parallel mode by using threads.
                             return self.return_http_response(response=self.get_remote_response())
             except Exception as e:
-                response = Response()
-                response.status_code = 403
-                response._content = "user has no permissions to access the requested area."
-                return self.return_http_response(response=response)
+                pass
+        return self.return_http_response(response={"status_code": 403, "content": "user has no permissions to access the requested area."})
 
     def get_allowed_areas_by_layers(self):
         """Database query to extend current :attr:`~GenericOwsServiceOperationFacade.service` by all related allowed

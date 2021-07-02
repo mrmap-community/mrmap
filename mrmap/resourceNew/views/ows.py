@@ -1,3 +1,4 @@
+import copy
 from io import BytesIO
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -383,21 +384,43 @@ class GenericOwsServiceOperationFacade(View):
         else:
             try:
                 request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
-                info_format_old = request.params.get(self.remote_service.INFO_FORMAT_QP, "unknown")
-                request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
-                remote_response = self.get_remote_response(request=request)
-                feature_collection = xmlmap.load_xmlobject_from_string(remote_response.content,
+                if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
+                    """We use multithreading to send two requests at the same time to speed up the response time."""
+                    thread_list = []
+                    results = Queue()
+                    xml_request = copy.deepcopy(request)
+                    xml_request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
+                    # to differ the results we return a dict for the remote response
+                    thread_list.append(
+                        Thread(target=lambda r: r.put({"xml_response": self.get_remote_response(request=xml_request)},
+                                                      connection.close()),
+                               args=(results,))
+                    )
+                    thread_list.append(
+                        Thread(target=lambda r: r.put({"requested_response": self.get_remote_response(request=request)},
+                                                      connection.close()),
+                               args=(results,))
+                    )
+                    execute_threads(thread_list)
+                    # Since we have no idea which result will be on which position in the query
+                    xml_response = None
+                    requested_response = None
+                    while not results.empty():
+                        result = results.get()
+                        if result.get("xml_response", None):
+                            xml_response = result["xml_response"]
+                        elif result.get("requested_response", None):
+                            requested_response = result["requested_response"]
+                else:
+                    xml_response = self.get_remote_response(request=request)
+                    requested_response = xml_response
+                feature_collection = xmlmap.load_xmlobject_from_string(xml_response.content,
                                                                        xmlclass=FeatureCollection)
                 polygon = feature_collection.bounded_by.get_polygon()
                 self.get_allowed_areas_by_layers()
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
-                        # is allowed
-                        if info_format_old == "text/xml":
-                            return self.return_http_response(response=remote_response)
-                        else:
-                            # todo: we can get both responses in parallel mode by using threads.
-                            return self.return_http_response(response=self.get_remote_response())
+                        return self.return_http_response(response=requested_response)
             except Exception as e:
                 pass
         return self.return_http_response(response={"status_code": 403, "content": "user has no permissions to access the requested area."})

@@ -21,7 +21,10 @@ if __name__ == '__main__':
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     fc = xmlmap.load_xmlobject_from_file(
-        filename=current_dir + '/../test_data/feature_collection/example.xml',
+        filename=current_dir + '/../test_data/feature_collection/dwd_2m.xml',
         xmlclass=FeatureCollection)
-    fc.bounded_by.get_polygon()
+    poly = fc.bounded_by.get_geometry()
+
+    poly2 = fc.members[0].geom.get_geometry()
+
     i=0

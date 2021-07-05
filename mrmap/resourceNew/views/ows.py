@@ -4,6 +4,8 @@ from io import BytesIO
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.http import StreamingHttpResponse
 from django.template.loader import render_to_string
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from eulxml import xmlmap
 
@@ -33,6 +35,7 @@ from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_M
 from django.conf import settings
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class GenericOwsServiceOperationFacade(View):
     """ Security proxy facade to secure registered services spatial by there operations and for sets of users.
 
@@ -65,7 +68,7 @@ class GenericOwsServiceOperationFacade(View):
             # exception handling in self.get()
             pass
         try:
-            query = request.url.split("?")[1]
+            query = request.get_full_path().split("?")[1]
             if self.service.base_operation_url:
                 url = f"{self.service.base_operation_url}?{query}"
             else:
@@ -75,57 +78,62 @@ class GenericOwsServiceOperationFacade(View):
             # exception handling in self.get()
             pass
 
+    def post(self, request, *args, **kwargs):
+        return self.get_post(request=request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):
-        """Http get method with security case decisioning.
+        return self.get_post(request=request, *args, **kwargs)
 
-            **Principle constraints**:
-                * service is found by the given primary key. If not return ``404 - Service not found.``
-                * service is active. If not return ``423 - Service is disabled.``
-                * request query parameter is provided. If not return ``400 - Request param is missing``
+    def get_post(self, request, *args, **kwargs):
+        """Http get/post method with security case decisioning.
 
-            **Service is not secured condition**:
-                * service.is_secured == False ``OR``
-                * service.is_spatial_secured == False and service.user_is_principle_entitled == True ``OR``
-                * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
+        **Principle constraints**:
+            * service is found by the given primary key. If not return ``404 - Service not found.``
+            * service is active. If not return ``423 - Service is disabled.``
+            * request query parameter is provided. If not return ``400 - Request param is missing``
 
-                If one condition matches, return the response from the remote service.
+        **Service is not secured condition**:
+            * service.is_secured == False ``OR``
+            * service.is_spatial_secured == False and service.user_is_principle_entitled == True ``OR``
+            * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
 
-            **Service is secured condition**:
-                * service.is_spatial_secured ==True and service.user_is_principle_entitled == True
+            If one condition matches, return the response from the remote service.
 
-                If the condition matches, return the result from
-                :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
+        **Service is secured condition**:
+            * service.is_spatial_secured ==True and service.user_is_principle_entitled == True
 
-            **Default behavior**:
-                return ``403 (Forbidden) - User has no permissions to request this service.``
+            If the condition matches, return the result from
+            :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
 
-            .. note::
-                all error messages will be send as an owsExceptionReport. See
-                :meth:`~GenericOwsServiceOperationFacade.return_http_response` for details.
+        **Default behavior**:
+            return ``403 (Forbidden) - User has no permissions to request this service.``
+
+        .. note::
+            all error messages will be send as an owsExceptionReport. See
+            :meth:`~GenericOwsServiceOperationFacade.return_http_response` for details.
 
 
-            :return: the computed response based on some principle decisions.
-            :rtype: dict or :class:`requests.models.Request`
-        """
+        :return: the computed response based on some principle decisions.
+        :rtype: dict or :class:`requests.models.Request`
+    """
         if not self.service:
             return self.return_http_response({"status_code": 404, "content": SERVICE_NOT_FOUND})
-        elif not self.query_parameters.get("request", None):
+        elif not self.request.query_parameters.get("request", None):
             return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE})
-        elif not self.query_parameters.get("version", None):
-            return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE})
-        elif not self.query_parameters.get("service", None):
+        elif not self.request.query_parameters.get("service", None):
             return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE})
+        elif self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
+            return self.get_capabilities()
+        elif not self.request.query_parameters.get("version", None):
+            return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE})
         elif not self.service.is_active:
             return self.return_http_response({"status_code": 423, "content": SERVICE_DISABLED})
-        elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
-            return self.get_capabilities()
         elif not self.service.is_secured or \
                 (not self.service.is_spatial_secured and self.service.user_is_principle_entitled) or \
-                not self.query_parameters.get("request").lower() in [OGCOperationEnum.GET_MAP.value.lower(),
-                                                                     OGCOperationEnum.GET_FEATURE_INFO.value.lower(),
-                                                                     OGCOperationEnum.GET_FEATURE.value.lower(),
-                                                                     OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.lower(),
-                                                                     OGCOperationEnum.TRANSACTION.value.lower()]:
+                not self.request.query_parameters.get("request").lower() in [OGCOperationEnum.GET_MAP.value.lower(),
+                                                                             OGCOperationEnum.GET_FEATURE_INFO.value.lower(),
+                                                                             OGCOperationEnum.GET_FEATURE.value.lower(),
+                                                                             OGCOperationEnum.TRANSACTION.value.lower()]:
             return self.return_http_response(response=self.get_remote_response())
         elif self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.get_secured_response()
@@ -160,7 +168,7 @@ class GenericOwsServiceOperationFacade(View):
              secured_image (Image)
         """
         masks = []
-        get_params = self.remote_service.get_get_params(query_params=self.query_parameters)
+        get_params = self.remote_service.get_get_params(query_params=self.request.query_parameters)
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         height = int(get_params.get(self.remote_service.HEIGHT_QP))
         try:
@@ -223,7 +231,7 @@ class GenericOwsServiceOperationFacade(View):
         Returns:
              text_img (Image): The image containing text
         """
-        get_params = self.remote_service.get_get_params(query_params=self.query_parameters)
+        get_params = self.remote_service.get_get_params(query_params=self.request.query_parameters)
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
@@ -382,7 +390,7 @@ class GenericOwsServiceOperationFacade(View):
 
     def handle_get_feature_info_with_multithreading(self):
         """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+        request = self.remote_service.construct_request(query_params=self.request.GET)
         thread_list = []
         results = Queue()
         xml_request = copy.deepcopy(request)
@@ -428,7 +436,7 @@ class GenericOwsServiceOperationFacade(View):
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
-                request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+                request = self.remote_service.construct_request(query_params=self.request.GET)
                 if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
                     xml_response, requested_response = self.handle_get_feature_info_with_multithreading()
                 else:
@@ -436,7 +444,7 @@ class GenericOwsServiceOperationFacade(View):
                     requested_response = xml_response
                 feature_collection = xmlmap.load_xmlobject_from_string(xml_response.content,
                                                                        xmlclass=FeatureCollection)
-                polygon = feature_collection.bounded_by.get_polygon()
+                polygon = feature_collection.bounded_by.get_geometry()
                 self.get_allowed_areas_by_layers()
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
@@ -463,12 +471,12 @@ class GenericOwsServiceOperationFacade(View):
            :return: the correct handler function for the given request param.
            :rtype: function
         """
-        if self.query_parameters.get("request").lower() == OGCOperationEnum.GET_MAP.value.lower():
+        if self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_MAP.value.lower():
             self.get_allowed_areas_by_layers()
             # FIXME: check if any allowed area is none. In this case, minimum one allowed operation object does allow
             #  the request without any spatial restriction.
             return self.handle_secured_get_map()
-        elif self.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
+        elif self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
             return self.handle_secured_get_feature_info()
 
     def handle_secured_get_feature(self):
@@ -481,19 +489,26 @@ class GenericOwsServiceOperationFacade(View):
 
         """
 
-        if self.query_parameters.get("bbox", None) and not self.service.is_spatial_secured_and_intersects:
+        if self.request.query_parameters.get("bbox", None) and not self.service.is_spatial_secured_and_intersects:
             """If there is a bbox param and the bbox did not intersects with any allowed area, this request is not 
             allowed."""
             return self.return_http_response({"status_code": 403,
                                               "content": "User has no permissions to access the requested area."})
-        elif self.query_parameters.get("bbox", None) and not self.request.bbox.empty:
+        else:
             """bbox query param was present and parsed polygon is not empty. In this case we need to intersect the bbox 
             polygon with allowed areas which are united together. The final polygon is the represents the secured area.
             """
-            secured_bbox = self.request.bbox.intersection(self.service.allowed_area_united)
-            filter_xml = self.remote_service.construct_filter_xml(polygon=secured_bbox)
-            secured_request = self.remote_service.get_get_feature_request(filter_xml=filter_xml, **self.request.query_parameters)
-            return self.return_http_response(response=self.get_remote_response(request=secured_request))
+            if not self.request.bbox.empty:
+                secured_bbox = self.request.bbox.intersection(self.service.allowed_area_united)
+            else:
+                secured_bbox = self.service.allowed_area_united
+            if hasattr(secured_bbox, "ogr"):
+                secured_bbox = secured_bbox.ogr
+
+            # todo
+            response = self.get_remote_response(self.remote_service.construct_request(data=self.request.body,
+                                                                                      query_params=self.request.query_parameters, ))
+            return self.return_http_response(response=response)
 
     def handle_secured_describe_feature_type(self):
         # todo
@@ -509,11 +524,9 @@ class GenericOwsServiceOperationFacade(View):
            :return: the correct handler function for the given request param.
            :rtype: function
         """
-        if self.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE.value.lower():
+        if self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE.value.lower():
             return self.handle_secured_get_feature()
-        elif self.query_parameters.get("request").lower() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.lower():
-            return self.handle_secured_describe_feature_type()
-        elif self.query_parameters.get("request").lower() == OGCOperationEnum.TRANSACTION.value.lower():
+        elif self.request.query_parameters.get("request").lower() == OGCOperationEnum.TRANSACTION.value.lower():
             return self.handle_secured_transaction()
 
     def get_secured_response(self):
@@ -545,7 +558,7 @@ class GenericOwsServiceOperationFacade(View):
                    error occurs.
         """
         if not request:
-            request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+            request = self.remote_service.construct_request(query_params=self.request.GET)
         if hasattr(self.service, "external_authenticaion"):
             username, password = self.service.external_authenticaion.decrypt()
             if self.service.external_authenticaion.auth_type == AuthTypeEnum.BASIC.value:
@@ -582,7 +595,7 @@ class GenericOwsServiceOperationFacade(View):
             ProxyLog.response_logging.create(user=self.request.user,
                                              service=self.service,
                                              # todo:
-                                             operation=self.query_parameters.get("request"),
+                                             operation=self.request.query_parameters.get("request"),
                                              # todo:
                                              uri=self.request.url,
                                              post_body=self.request.POST,
@@ -606,10 +619,18 @@ class GenericOwsServiceOperationFacade(View):
             content = response.get("content", "unknown")
             status_code = response.get("status_code", 200)
             content_type = response.get("content_type", None)
+            headers = {}
         else:
             content = response.content
             status_code = response.status_code
             content_type = response.headers.get("content-type")
+            headers = {}
+            content_disposition = response.headers.get("Content-Disposition", None)
+            content_encoding = response.headers.get("Content-Encoding", None)
+            if content_disposition:
+                headers.update({"Content-Disposition": content_disposition})
+            if content_encoding:
+                headers.update({"Content-Encoding": content_encoding})
 
         if isinstance(response, dict):
             if status_code > 399:
@@ -624,8 +645,10 @@ class GenericOwsServiceOperationFacade(View):
             # data too big - we should stream it!
             return StreamingHttpResponse(status=status_code,
                                          streaming_content=BytesIO(content),
-                                         content_type=content_type)
+                                         content_type=content_type,
+                                         headers=headers)
         else:
             return HttpResponse(status=status_code,
                                 content=content,
-                                content_type=content_type)
+                                content_type=content_type,
+                                headers=headers)

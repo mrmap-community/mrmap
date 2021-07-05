@@ -1,4 +1,4 @@
-def get_epsg_srid(srs_name: str):
+def get_epsg_srid(srs_name):
     """Parse a given srs name in different possible formats
 
     WFS 1.1.0 supports (see 9.2, page 36):
@@ -6,7 +6,7 @@ def get_epsg_srid(srs_name: str):
     * URI Style 2
     * urn:EPSG:geographicCRS:<epsg code>
 
-    :param string srs_name: the Coordinate reference system. Examples:
+    :param srs_name: the Coordinate reference system. Examples:
           * EPSG:<EPSG code>
           * http://www.opengis.net/def/crs/EPSG/0/<EPSG code> (URI Style 1)
           * http://www.opengis.net/gml/srs/epsg.xml#<EPSG code> (URI Style 2)

@@ -105,6 +105,7 @@ SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED = _("The requested operation is not
 SECURITY_PROXY_ERROR_BROKEN_URI = _("The requested uri seems to be broken. Please inform an administrator.")
 SECURITY_PROXY_WARNING_ONLY_FOR_ROOT = _("This setting is only available for the top level element.")
 SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE = _("Incomplete request: REQUEST parameter missing.")
+SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE = _("Incomplete request: VERSION parameter missing.")
 SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE = _("Incomplete request: SERVICE parameter missing.")
 SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is missing. Please inform an administrator.")
 SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is wrong. Please inform an administrator.")

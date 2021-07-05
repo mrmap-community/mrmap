@@ -1,10 +1,15 @@
 from abc import ABC
+from django.template.loader import render_to_string
 from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.contrib.gis.gdal import SpatialReference
+from epsg_registry_offline.models import SpatialReference as ExtendedSpatialReference
 from epsg_registry_offline.registry import Registry
 from epsg_registry_offline.utils import get_epsg_srid
-from resourceNew.ows_client.exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam
+from resourceNew.ows_client.exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam, \
+    MissingVersionParam
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 
 class WebService(ABC):
@@ -12,6 +17,8 @@ class WebService(ABC):
     SERVICE_QP = "SERVICE"
     VERSION_QP = "VERSION"
     GET_CAPABILITIES_QV = "GetCapabilities"
+    BBOX_QP = "BBOX"
+    CRS_QP = None
 
     def __init__(self, base_url: str, service_type: str, version: str, *args, **kwargs):
         self.base_url = base_url.split("?", 1)[0]
@@ -37,7 +44,33 @@ class WebService(ABC):
         return req
 
     def get_operation_by_name(self, operation: str):
-        return getattr(self, operation)
+        if hasattr(self, operation):
+            return getattr(self, operation)
+
+    def construct_request_with_get_dict(self, query_params) -> Request:
+        get_dict = self.get_get_params(query_params=query_params)
+        if self.get_operation_by_name(get_dict.get(self.REQUEST_QP).lower()):
+            return self.get_operation_by_name(get_dict.get(self.REQUEST_QP).lower())(**get_dict)
+        else:
+            return Request(method="GET", url=self.base_url, params=query_params)
+
+    @classmethod
+    def manufacture_service(cls, url):
+        parsed = urlparse.urlparse(url)
+        service_type = parse_qs(parsed.query).get("SERVICE", None)
+        version = parse_qs(parsed.query).get("VERSION", None)
+        if not service_type:
+            service_type = parse_qs(parsed.query).get("service", None)
+            if not service_type:
+                raise MissingServiceParam
+        if not version:
+            version = parse_qs(parsed.query).get("version", None)
+            if not version:
+                raise MissingVersionParam
+        if service_type[0] in ["wms", "WMS"]:
+            return WmsService(base_url=url, version=version[0])
+        elif service_type[0] in ["wfs", "WFS"]:
+            return WfsService(base_url=url, version=version[0])
 
     @classmethod
     def _construct_polygon_from_bbox_query_param_for_wfs(cls, get_dict):
@@ -167,6 +200,11 @@ class WebService(ABC):
 
     @classmethod
     def construct_polygon_from_bbox_query_param(cls, get_dict):
+        """Construct a polygon from the parsed bbox query parameter, based on the given service type and version.
+
+        :return: the bbox parsed from the get_dict or an empty polygon if something went wrong.
+        :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
+        """
         service_type = get_dict.get("service", None)
         if not get_dict.get("service", None):
             raise MissingServiceParam
@@ -182,7 +220,6 @@ class WmsService(WebService):
     LAYERS_QP = "LAYERS"
     STYLES_QP = "STYLES"
     CRS_QP = "CRS"
-    BBOX_QP = "BBOX"
     WIDTH_QP = "WIDTH"
     HEIGHT_QP = "HEIGHT"
     FORMAT_QP = "FORMAT"
@@ -201,7 +238,7 @@ class WmsService(WebService):
     get_params = {}
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(service_type="wms", *args, **kwargs)
         if self.major_version == 1 and self.minor_version < 3:
             self.CRS_QP = "SRS"
         if self.major_version == 1 and self.minor_version < 1:
@@ -262,29 +299,6 @@ class WmsService(WebService):
 
     def get_requested_layers(self, query_params: dict):
         return self.get_get_params(query_params=query_params).get(self.LAYERS_QP).split(",")
-
-    def construct_polygon_from_bbox(self, get_dict):
-        """
-            wms 1.1.1, 1.3.0:
-                * CRS=namespace:identifier | M | Coordinate reference system.
-                * BBOX=minx,miny,maxx,maxy | M | Bounding box corners (lower left, upper right) in CRS units.
-
-        """
-        get_dict = self.get_get_params(get_dict)
-        bbox = get_dict.get(self.BBOX_QP, None)
-        srid = get_dict.get(self.CRS_QP, None)
-        if bbox and srid:
-            min_x, min_y, max_x, max_y = bbox.split(",")
-            # todo: handle different namespaces
-            srid = srid.split(":")[-1]
-            return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)), srid=srid)
-
-    def construct_request_with_get_dict(self, query_params) -> Request:
-        get_dict = self.get_get_params(query_params=query_params)
-        if hasattr(self, get_dict.get(self.REQUEST_QP).lower()):
-            return getattr(self, get_dict.get(self.REQUEST_QP).lower())(**get_dict)
-        else:
-            return Request(method="GET", url=self.base_url, params=query_params)
 
     def convert_kwargs_for_get_map(self, **kwargs):
         transparent = kwargs.get(self.TRANSPARENT_QP, False),
@@ -405,14 +419,112 @@ class WmsService(WebService):
 class WfsService(WebService):
     DESCRIBE_FEATURE_TYPE_QV = "DescribeFeatureType"
     GET_FEATURE_QV = "GetFeature"
-    TYPE_NAME_QV = "typeName"
-    OUTPUT_FORMAT_QV = "outputFormat"
+    TYPE_NAME_QP = "typeName"
+    OUTPUT_FORMAT_QP = "outputFormat"
+    CRS_QP = "srsName"
+    FEATURE_ID_QP = "featureID"
+    COUNT_QP = "count"
+    MAX_FEATURES_QP = "maxFeatures"
+    SORT_BY_QP = "sortBy"
+    PROPERTY_NAME_QP = "propertyName"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(service_type="wms", *args, **kwargs)
         if self.major_version == 2 and self.minor_version == 0 and self.path_version < 2:
-            self.TYPE_NAME_QV = "TYPENAME"
-            self.OUTPUT_FORMAT_QV = "OUTPUTFORMAT"
+            self.TYPE_NAME_QP = "TYPENAME"
+            self.OUTPUT_FORMAT_QP = "OUTPUTFORMAT"
+
+    def get_get_params(self, query_params: dict):
+        """ Parses the GET parameters into all member variables, which can be found in a request.
+
+        Returns:
+            the for this version converted get_dict
+        """
+        _query_params = {}
+        for key, val in query_params.items():
+            key = key.upper()
+            if key == "SERVICE":
+                _query_params.update({self.SERVICE_QP: val})
+            if key == "REQUEST":
+                _query_params.update({self.REQUEST_QP: val})
+            elif key == "BBOX":
+                _query_params.update({self.BBOX_QP: val})
+            elif key == "VERSION":
+                _query_params.update({self.VERSION_QP: val})
+            elif key == "OUTPUTFORMAT":
+                _query_params.update({self.OUTPUT_FORMAT_QP: val})
+            elif key == "SRSNAME":
+                _query_params.update({self.CRS_QP: val})
+            elif key == "TYPENAMES" or key == "TYPENAME":
+                _query_params.update({self.TYPE_NAME_QP: val})
+            elif key == "FEATUREID":
+                _query_params.update({self.FEATURE_ID_QP: val})
+            elif key == "COUNT":
+                _query_params.update({self.COUNT_QP: val})
+            elif key == "MAXFEATURES":
+                _query_params.update({self.MAX_FEATURES_QP: val})
+            elif key == "SORTBY":
+                _query_params.update({self.SORT_BY_QP: val})
+            elif key == "PROPERTYNAME":
+                _query_params.update({self.PROPERTY_NAME_QP: val})
+        return _query_params
+
+    def convert_kwargs_for_get_feature(self, **kwargs):
+        return {
+            "type_names": kwargs[self.TYPE_NAME_QP],
+            "bbox": kwargs.get(self.BBOX_QP, None),
+            "filter_xml": kwargs.get("filter_xml", None),
+            "srs_name": kwargs.get("srs_name", None),
+            "feature_id": kwargs.get("feature_id", None),
+            "count": kwargs.get("count", None),
+            "property_name": kwargs.get("property_name", None),
+            "sort_by": kwargs.get("sort_by", None),
+            "max_features": kwargs.get("max_features", None),
+        }
+
+    def get_get_feature_kwargs(self,
+                               type_names,
+                               bbox: Polygon = None,
+                               filter_xml: str = None,
+                               srs_name: str = None,
+                               feature_id: str = None,
+                               count: int = None,
+                               property_name=None,
+                               sort_by: str = None,
+                               max_features: int = None,
+                               **kwargs):
+        if isinstance(type_names, str):
+            type_names = [type_names]
+        if property_name and isinstance(property_name, str):
+            property_name = [property_name]
+
+        if not bbox and not filter_xml:
+            raise Exception("empty bbox and filter_xml is not supported")
+
+        query_params = {self.TYPE_NAME_QP: ",".join(type_names) if len(type_names) > 1 else type_names[0]}
+        if property_name:
+            query_params.update({self.PROPERTY_NAME_QP: ",".join(property_name) if len(property_name) > 1 else property_name[0]})
+        if bbox:
+            sr = ExtendedSpatialReference(srs_input=bbox.srid)
+            # FIXME: depending on wfs version wfs < 2.0.0 always xy ordered
+            if sr.is_yx_order:
+                query_params.update({self.BBOX_QP: f"{bbox.extent[1]},{bbox.extent[0]},{bbox.extent[3]},{bbox.extent[2]}"})
+            else:
+                query_params.update({self.BBOX_QP: f"{bbox.extent[0]},{bbox.extent[1]},{bbox.extent[2]},{bbox.extent[3]}"})
+        if srs_name:
+            query_params.update({self.CRS_QP: srs_name})
+        if feature_id:
+            query_params.update({self.FEATURE_ID_QP: feature_id})
+        if count:
+            query_params.update({self.COUNT_QP: count})
+        if sort_by:
+            query_params.update({self.SORT_BY_QP: sort_by})
+        if max_features:
+            query_params.update({self.MAX_FEATURES_QP: max_features})
+        return query_params
+
+    def get_requested_feature_types(self, query_params: dict):
+        return self.get_get_params(query_params=query_params).get(self.TYPE_NAME_QP).split(",")
 
     def get_describe_feature_type_request(self, type_name_list=None, output_format=None):
         query_params = self.get_default_query_params()
@@ -421,20 +533,37 @@ class WfsService(WebService):
             if isinstance(type_name_list, str):
                 type_name_list = [type_name_list]
             query_params.update(
-                {self.TYPE_NAME_QV: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0]})
+                {self.TYPE_NAME_QP: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0]})
         if output_format:
-            query_params.update({self.OUTPUT_FORMAT_QV: output_format})
+            query_params.update({self.OUTPUT_FORMAT_QP: output_format})
         req = Request(method="GET", url=self.base_url, params=query_params)
         return req
 
-    def get_get_feature_request(self):
-        # todo
-        raise NotImplementedError
-        req = PreparedRequest()
-        query_params = self.get_default_query_params()
+    def get_feature(self, **kwargs):
+        return self.get_get_feature_request(**kwargs)
+
+    def get_get_feature_request(self, **kwargs):
+        query_params = self.get_get_feature_kwargs(**self.convert_kwargs_for_get_feature(**kwargs))
         query_params.update({self.REQUEST_QP: self.GET_FEATURE_QV})
-        req.prepare_url(self.base_url, query_params)
+        query_params.update(self.get_default_query_params())
+        if "filter_xml" in kwargs:
+            req = Request(method="POST",
+                          url=self.base_url,
+                          params=query_params,
+                          data=kwargs["filter_xml"],
+                          headers={"content-type": "application/xml"})
+        else:
+            req = Request(method="GET",
+                          url=self.base_url,
+                          params=query_params)
         return req
+
+    def construct_filter_xml(self, polygon: Polygon):
+        if self.major_version >= 2:
+            template_name = "resourceNew/xml/wfs/filter_v2.xml"
+        else:
+            template_name = "resourceNew/xml/wfs/filter_v1.xml"
+        return render_to_string(template_name=template_name, context={"service": self, "polygon": polygon})
 
 
 def OgcService(base_url: str, service_type: str, version: str):
@@ -449,6 +578,6 @@ def OgcService(base_url: str, service_type: str, version: str):
             the specific WebService object based on the given service_type
     """
     if service_type == "wms":
-        return WmsService(base_url=base_url, service_type=service_type, version=version)
+        return WmsService(base_url=base_url, version=version)
     elif service_type == "wfs":
-        return WfsService(base_url=base_url, service_type=service_type, version=version)
+        return WfsService(base_url=base_url, version=version)

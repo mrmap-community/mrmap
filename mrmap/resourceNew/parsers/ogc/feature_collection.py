@@ -35,9 +35,7 @@ class BoundingBox(xmlmap.XmlObject):
 
         authority, srid = get_epsg_srid(self.srs_name)
 
-        # dynamic axis order possible; we need to use the epsg api
-        # gml 3.1.1 >= traditional without epsg api
-        # gml > 3.1.1 epsg api request
+        # FIXME: unclear which axis order in different versions of gml shall be used.
         sr = SpatialReference(srs_input=srid)
         registry = Registry()
         epsg_sr = registry.get(srid=sr.srid)

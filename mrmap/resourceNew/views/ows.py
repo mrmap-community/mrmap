@@ -365,6 +365,36 @@ class GenericOwsServiceOperationFacade(View):
                                                    "content": self._image_to_bytes(secured_image),
                                                    "content_type": remote_response.headers.get("content-type")})
 
+    def handle_get_feature_info_with_multithreading(self):
+        """We use multithreading to send two requests at the same time to speed up the response time."""
+        request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
+        thread_list = []
+        results = Queue()
+        xml_request = copy.deepcopy(request)
+        xml_request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
+        # to differ the results we return a dict for the remote response
+        thread_list.append(
+            Thread(target=lambda r: r.put({"xml_response": self.get_remote_response(request=xml_request)},
+                                          connection.close()),
+                   args=(results,))
+        )
+        thread_list.append(
+            Thread(target=lambda r: r.put({"requested_response": self.get_remote_response(request=request)},
+                                          connection.close()),
+                   args=(results,))
+        )
+        execute_threads(thread_list)
+        # Since we have no idea which result will be on which position in the query
+        xml_response = None
+        requested_response = None
+        while not results.empty():
+            result = results.get()
+            if result.get("xml_response", None):
+                xml_response = result["xml_response"]
+            elif result.get("requested_response", None):
+                requested_response = result["requested_response"]
+        return xml_response, requested_response
+
     def handle_secured_get_feature_info(self):
         """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
            contained in any allowed area.
@@ -385,32 +415,7 @@ class GenericOwsServiceOperationFacade(View):
             try:
                 request = self.remote_service.construct_request_with_get_dict(query_params=self.request.GET)
                 if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
-                    """We use multithreading to send two requests at the same time to speed up the response time."""
-                    thread_list = []
-                    results = Queue()
-                    xml_request = copy.deepcopy(request)
-                    xml_request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
-                    # to differ the results we return a dict for the remote response
-                    thread_list.append(
-                        Thread(target=lambda r: r.put({"xml_response": self.get_remote_response(request=xml_request)},
-                                                      connection.close()),
-                               args=(results,))
-                    )
-                    thread_list.append(
-                        Thread(target=lambda r: r.put({"requested_response": self.get_remote_response(request=request)},
-                                                      connection.close()),
-                               args=(results,))
-                    )
-                    execute_threads(thread_list)
-                    # Since we have no idea which result will be on which position in the query
-                    xml_response = None
-                    requested_response = None
-                    while not results.empty():
-                        result = results.get()
-                        if result.get("xml_response", None):
-                            xml_response = result["xml_response"]
-                        elif result.get("requested_response", None):
-                            requested_response = result["requested_response"]
+                    xml_response, requested_response = self.handle_get_feature_info_with_multithreading()
                 else:
                     xml_response = self.get_remote_response(request=request)
                     requested_response = xml_response

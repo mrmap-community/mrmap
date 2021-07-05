@@ -33,6 +33,7 @@ from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
 from django.conf import settings
+import time
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -479,6 +480,22 @@ class GenericOwsServiceOperationFacade(View):
         elif self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
             return self.handle_secured_get_feature_info()
 
+    def check_feature_collection_member(self, secured_bbox, member):
+        import time
+
+        start = time.time()
+        try:
+            geom = member.geom.get_geometry()
+            end = time.time()
+            print(end - start)
+            if hasattr(geom, "ogr"):
+                geom = geom.ogr
+            if secured_bbox.contains(geom):
+                del member
+        except:
+            del member
+
+
     def handle_secured_get_feature(self):
         """
 
@@ -488,8 +505,8 @@ class GenericOwsServiceOperationFacade(View):
         polygon is the secured area for that the user can principle get features.
 
         """
-
-        if self.request.query_parameters.get("bbox", None) and not self.service.is_spatial_secured_and_intersects:
+        if False:
+        #if self.request.query_parameters.get("bbox", None) and not self.service.is_spatial_secured_and_intersects:
             """If there is a bbox param and the bbox did not intersects with any allowed area, this request is not 
             allowed."""
             return self.return_http_response({"status_code": 403,
@@ -505,10 +522,26 @@ class GenericOwsServiceOperationFacade(View):
             if hasattr(secured_bbox, "ogr"):
                 secured_bbox = secured_bbox.ogr
 
-            # todo
             response = self.get_remote_response(self.remote_service.construct_request(data=self.request.body,
                                                                                       query_params=self.request.query_parameters, ))
-            return self.return_http_response(response=response)
+
+            if response.status_code < 300:
+                feature_collection = xmlmap.load_xmlobject_from_string(string=response.content,
+                                                                       xmlclass=FeatureCollection)
+                # FIXME: slow solution... but secure :/
+                for member in feature_collection.members:
+                    thread = Thread(target=self.check_feature_collection_member(secured_bbox=secured_bbox, member=member))
+                    thread.start()
+                    thread.join()
+
+                return self.return_http_response(response={
+                    "status_code": response.status_code,
+                    "content": feature_collection.serializeDocument(),
+                    "content_type": "application/xml",
+                    "headers": {"Content-Disposition": response.headers.get("Content-Disposition")}})
+            else:
+
+                return self.return_http_response(response=response)
 
     def handle_secured_describe_feature_type(self):
         # todo
@@ -619,7 +652,7 @@ class GenericOwsServiceOperationFacade(View):
             content = response.get("content", "unknown")
             status_code = response.get("status_code", 200)
             content_type = response.get("content_type", None)
-            headers = {}
+            headers = response.get("headers", {})
         else:
             content = response.content
             status_code = response.status_code

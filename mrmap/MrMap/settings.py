@@ -265,8 +265,8 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+# To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 ################################################################
 # Redis settings
 ################################################################

@@ -3,9 +3,8 @@ from django.template.loader import render_to_string
 from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.contrib.gis.gdal import SpatialReference
-from epsg_registry_offline.models import SpatialReference as ExtendedSpatialReference
 from epsg_registry_offline.registry import Registry
-from epsg_registry_offline.utils import get_epsg_srid
+from epsg_registry_offline.utils import get_epsg_srid, adjust_axis_order
 from resourceNew.ows_client.exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam, \
     MissingVersionParam
 import urllib.parse as urlparse
@@ -544,6 +543,9 @@ class WfsService(WebService):
             if self.BBOX_QP.lower() in kwargs:
                 # bbox and xml filter together is not supported.
                 del query_params[self.BBOX_QP]
+            if self.TYPE_NAME_QP.lower() in kwargs:
+                # typename and xml filter together is not supported.
+                del query_params[self.TYPE_NAME_QP]
             req = Request(method="POST",
                           url=self.base_url,
                           params=query_params,
@@ -557,12 +559,16 @@ class WfsService(WebService):
             raise MissingBboxParam
         return req
 
-    def construct_filter_xml(self, polygon: Polygon):
+    def construct_filter_xml(self, type_names, value_reference, polygon: Polygon):
         if self.major_version >= 2:
-            template_name = "resourceNew/xml/wfs/filter_v2.xml"
+            polygon = adjust_axis_order(polygon)
+
+            template_name = "resourceNew/xml/wfs/fitler_v2.xml"
         else:
             template_name = "resourceNew/xml/wfs/filter_v1.xml"
-        return render_to_string(template_name=template_name, context={"service": self, "polygon": polygon})
+        return render_to_string(template_name=template_name, context={"type_names": type_names,
+                                                                      "value_reference": value_reference,
+                                                                      "polygon": polygon})
 
 
 def OgcService(base_url: str, service_type: str, version: str):

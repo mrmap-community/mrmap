@@ -1,4 +1,6 @@
 <?xml version='1.0' encoding="UTF-8" standalone="no" ?>
-<ExceptionReport version="1.1.0" xmlns="http://www.opengis.net/ows/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ows/1.1 http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd">
-<Exception{%if code %} code="{{code}}"{%endif%}>{{content}}</Exception>
-</ExceptionReport>
+<ows:ExceptionReport version="1.1.0" xmlns="http://www.opengis.net/ows/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ows/1.1 http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd">
+    <ows:Exception{%if exception_code %} exceptionCode="{{exception_code}}"{%endif%}>
+        <ows:ExceptionText>{{content}}</ows:ExceptionText>
+    </ows:Exception>
+</ows:ExceptionReport>

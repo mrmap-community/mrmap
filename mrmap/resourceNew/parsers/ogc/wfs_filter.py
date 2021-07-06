@@ -6,6 +6,8 @@ from django.template.loader import render_to_string
 from eulxml import xmlmap
 from lxml import etree
 
+from epsg_registry_offline.utils import adjust_axis_order
+
 
 class Filter(xmlmap.XmlObject):
     name = xmlmap.StringField(xpath="name()")
@@ -14,26 +16,13 @@ class Filter(xmlmap.XmlObject):
 class GetFeature(xmlmap.XmlObject):
     filter = xmlmap.NodeField(xpath="wfs:Query/fes:Filter/*",
                               node_class=Filter)
-    type_names = xmlmap.StringField(xpath="@typeNames")
+    type_names = xmlmap.StringField(xpath="wfs:Query/@typeNames")
 
-    def secure_spatial(self, value_reference, srid, coords):
-        within_template_string = """
-        <fes:Within xmlns:fes="http://www.opengis.net/fes/2.0"
-                    xmlns:gml="http://www.opengis.net/gml/3.2">
-            <fes:ValueReference>{{value_reference}}</fes:ValueReference>
-            <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:{{srid}}">
-                <gml:exterior>
-                    <gml:LinearRing>
-                        <gml:posList>{{coords}}</gml:posList>
-                    </gml:LinearRing>
-                </gml:exterior>
-            </gml:Polygon>
-        </fes:Within>
-        """
-        context = Context({"value_reference": value_reference,
-                           "srid": srid,
-                           "coords": coords})
-        within_filter = Template(template_string=within_template_string).render(context=context)
+    def secure_spatial(self, value_reference, polygon: Polygon):
+        polygon = adjust_axis_order(polygon)
+        within_filter = render_to_string(template_name="resourceNew/xml/wfs/filter_within_v2.xml",
+                                         context={"value_reference": value_reference,
+                                                  "polygon": polygon,})
         within_tree = etree.fromstring(within_filter)
 
         if "And" in self.filter.name:

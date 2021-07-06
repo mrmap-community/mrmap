@@ -15,6 +15,7 @@ from MrMap.settings import PROXIES
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
 from resourceNew.models.security import ProxyLog
+from resourceNew.ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
 from resourceNew.ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam
 from resourceNew.ows_client.request_builder import OgcService, WebService
 from requests.auth import HTTPDigestAuth
@@ -481,62 +482,63 @@ class GenericOwsServiceOperationFacade(View):
         elif self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
             return self.handle_secured_get_feature_info()
 
-    def check_feature_collection_member(self, secured_bbox, member):
-        import time
-
-        start = time.time()
-        try:
-            geom = member.geom.get_geometry()
-            end = time.time()
-            print(end - start)
-            if hasattr(geom, "ogr"):
-                geom = geom.ogr
-            if secured_bbox.contains(geom):
-                del member
-        except:
-            del member
-
-
     def handle_secured_get_feature(self):
-        """
+        """Compute the secured get feature request based on the given request.
 
-        If the client request with a bbox, the bbox will be parsed and converted to a instance of type
-        :class:`django.contrib.gis.geos.polygon.Polygon`. If the converted bbox polygon intersects with any allowed
-        area, the bbox and the allowed area which intersects will be merged together by an intersection. The merged
-        polygon is the secured area for that the user can principle get features.
+        **HTTP GET**:
+        If the client does request with http get method, the bbox will be parsed and converted to a instance of type
+        :class:`django.contrib.gis.geos.polygon.Polygon`. The converted bbox parameter will then intersects with the
+        configured allowed areas. The resulting secured bbox will then send via HTTP Post to the remote server as a
+        xml filter query.
+
+        **HTTP POST**:
+        If the client does request with http post method AND the request body is not empty, the filter xml will be
+        parsed and extended by the allowed area polygon. The resulting secured filter xml will then send via HTTP post
+        to the remote server as a xml filter query.
+
+        :return: the remote response
+        :rtype: func
 
         """
-        if False:
-        #if self.request.query_parameters.get("bbox", None) and not self.service.is_spatial_secured_and_intersects:
-            """If there is a bbox param and the bbox did not intersects with any allowed area, this request is not 
-            allowed."""
-            return self.return_http_response({"status_code": 403,
-                                              "content": "User has no permissions to access the requested area."})
-        else:
-            """bbox query param was present and parsed polygon is not empty. In this case we need to intersect the bbox 
-            polygon with allowed areas which are united together. The final polygon is the represents the secured area.
-            """
+        if self.request.method == "GET" or self.request.method == "POST" and not self.request.body:
+            # there where no filter xml we can parse and secure, so we try to handle the request in any case like a get
             if not self.request.bbox.empty:
                 allowed_area = self.request.bbox.intersection(self.service.allowed_area_united)
             else:
                 allowed_area = self.service.allowed_area_united
             if hasattr(allowed_area, "ogr"):
                 allowed_area = allowed_area.ogr
+            type_names = self.request.query_parameters.get(self.remote_service.TYPE_NAME_QP.lower(), None)
+            if not type_names:
+                return self.return_http_response(response=NO_FEATURE_TYPES)
+            elif len(type_names.split(" ")) > 1:
+                return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
+            value_reference = self.service.featuretypes.get(identifier=type_names) \
+                .elements.values_list("name", flat=True).get(data_type__in=["gml:GeometryPropertyType",
+                                                                            "gml:MultiSurfacePropertyType"])
+            filter_xml = self.remote_service.construct_filter_xml(type_names=type_names,
+                                                                  value_reference=value_reference,
+                                                                  polygon=allowed_area)
+            response = self.get_remote_response(self.remote_service.construct_request(data=filter_xml,
+                                                                                      query_params=self.request.query_parameters, ))
+            return self.return_http_response(response=response)
 
-            if self.request.method == "POST":
-                get_feature_xml = xmlmap.load_xmlobject_from_string(string=self.request.body,
-                                                                    xmlclass=GetFeature)
-                value_reference = self.service.featuretypes.get(identifier=get_feature_xml.type_names)\
-                    .elements.values_list("name", flat=True).get(data_type__icontains="GeometryPropertyType")
-
-                get_feature_xml.secure_spatial(value_reference=value_reference, polygon=allowed_area)
-                response = self.get_remote_response(self.remote_service.construct_request(data=get_feature_xml.serializeDocument(),
-                                                                                          query_params=self.request.query_parameters, ))
-                return self.return_http_response(response=response)
-
-    def handle_secured_describe_feature_type(self):
-        # todo
-        return
+        elif self.request.method == "POST" and self.request.body:
+            # there is a filter xml we can parse and secure.
+            get_feature_xml = xmlmap.load_xmlobject_from_string(string=self.request.body,
+                                                                xmlclass=GetFeature)
+            if not get_feature_xml.type_names:
+                return self.return_http_response(response=NO_FEATURE_TYPES)
+            elif len(get_feature_xml.type_names.split(" ")) > 1:
+                return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
+            value_reference = self.service.featuretypes.get(identifier=get_feature_xml.type_names)\
+                .elements.values_list("name", flat=True).get(data_type__in=["gml:GeometryPropertyType",
+                                                                            "gml:MultiSurfacePropertyType"])
+            get_feature_xml.secure_spatial(value_reference=value_reference,
+                                           polygon=self.service.allowed_area_united)
+            response = self.get_remote_response(self.remote_service.construct_request(data=get_feature_xml.serializeDocument(),
+                                                                                      query_params=self.request.query_parameters, ))
+            return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):
         # todo

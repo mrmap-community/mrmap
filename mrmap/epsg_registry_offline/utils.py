@@ -1,3 +1,10 @@
+from operator import ge
+
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
+
+from epsg_registry_offline.registry import Registry
+
+
 def get_epsg_srid(srs_name):
     """Parse a given srs name in different possible formats
 
@@ -46,3 +53,22 @@ def get_epsg_srid(srs_name):
             srid = values[1]
     return authority, srid
 
+
+def switch_axis_order(polygon):
+    polygons = []
+    for _polygon in polygon.coords:
+        coords = []
+        for coord in _polygon[0]:
+            coords.append((coord[1], coord[0]))
+        polygons.append(Polygon(tuple(coords), srid=polygon.srid))
+
+    converted_polygon = MultiPolygon(polygons, srid=polygon.srid)
+    return converted_polygon
+
+
+def adjust_axis_order(polygon):
+    registry = Registry()
+    epsg_sr = registry.get(srid=polygon.srid)
+    if epsg_sr.is_yx_order:
+        polygon = switch_axis_order(polygon)
+    return polygon

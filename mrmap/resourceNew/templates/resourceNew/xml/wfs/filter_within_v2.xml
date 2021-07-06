@@ -1,0 +1,37 @@
+{% if polygon.coords|length == 1 %}
+<fes:Within xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:gml="http://www.opengis.net/gml/3.2">
+    <fes:ValueReference>{{value_reference}}</fes:ValueReference>
+    <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:{{polygon.srid}}">
+        <gml:exterior>
+            <gml:LinearRing>
+                <gml:posList>
+                {% for coord in polygon.coords.0.0 %}
+                {% if forloop.first %}{{coord.0}} {{coord.1}}{% else %} {{coord.0}} {{coord.1}}{% endif %}
+                {% endfor %}
+                </gml:posList>
+            </gml:LinearRing>
+        </gml:exterior>
+    </gml:Polygon>
+</fes:Within>
+{% else %}
+<fes:Or xmlns:fes="http://www.opengis.net/fes/2.0"
+        xmlns:gml="http://www.opengis.net/gml/3.2">
+    {% for poly in polygon.coords %}
+    <fes:Within>
+        <fes:ValueReference>{{value_reference}}</fes:ValueReference>
+        <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:{{polygon.srid}}">
+            <gml:exterior>
+                <gml:LinearRing>
+                    <gml:posList>
+                    {% for coord in poly.0 %}
+                    {% if forloop.first %}{{coord.0}} {{coord.1}}{% else %} {{coord.0}} {{coord.1}}{% endif %}
+                    {% endfor %}
+                    </gml:posList>
+                </gml:LinearRing>
+            </gml:exterior>
+        </gml:Polygon>
+    </fes:Within>
+    {% endfor %}
+</fes:Or>
+{% endif %}

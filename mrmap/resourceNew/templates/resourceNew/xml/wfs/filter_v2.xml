@@ -1,8 +1,11 @@
-<?xml version='1.0' encoding="UTF-8" standalone="no" ?>
-<fes:Filter version="{{service.version}}" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2">
-    <fes:Within>
-        <fes:ValueReference>
-            {{polygon.gml|safe}}
-        </fes:ValueReference>
-    </fes:Within>
-</fes:Filter>
+<fes:Within xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2">
+    <fes:ValueReference>{{geometry_property_type_name}}</fes:ValueReference>
+    <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:{{polygon.srid}}">
+        <gml:exterior>
+            <gml:LinearRing>
+                <gml:posList>{{coords}}</gml:posList>
+            </gml:LinearRing>
+        </gml:exterior>
+    </gml:Polygon>
+</fes:Within>
+

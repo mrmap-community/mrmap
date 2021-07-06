@@ -108,6 +108,7 @@ class LayerTable(SecuredTable):
     class Meta:
         model = Layer
         fields = ("title",
+                  "identifier",
                   "details",
                   "children_count",
                   "dataset_metadata_count",
@@ -155,6 +156,7 @@ class FeatureTypeTable(SecuredTable):
     class Meta:
         model = FeatureType
         fields = ("title",
+                  "identifier",
                   "details",
                   "elements_count",
                   "dataset_metadata_count",

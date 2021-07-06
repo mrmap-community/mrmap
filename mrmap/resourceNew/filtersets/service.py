@@ -31,6 +31,7 @@ class LayerFilterSet(django_filters.FilterSet):
             "parent__id": ["in", ],
             "service__id": ["in", ],
             "owned_by_org__name": ["icontains"],
+            "identifier": ["icontains"],
         }
 
     def filter_time_dimension(self, queryset, name, value):
@@ -59,7 +60,8 @@ class FeatureTypeFilterSet(django_filters.FilterSet):
         model = FeatureType
         fields = {
             "id": ["in", ],
-            "service__id": ["in", ]
+            "service__id": ["in", ],
+            "identifier": ["icontains"],
         }
 
     def filter_time_dimension(self, queryset, name, value):

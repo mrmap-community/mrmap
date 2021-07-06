@@ -29,6 +29,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from MrMap.utils import execute_threads
 from resourceNew.parsers.ogc.feature_collection import FeatureCollection
+from resourceNew.parsers.ogc.wfs_filter import GetFeature
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
@@ -516,31 +517,21 @@ class GenericOwsServiceOperationFacade(View):
             polygon with allowed areas which are united together. The final polygon is the represents the secured area.
             """
             if not self.request.bbox.empty:
-                secured_bbox = self.request.bbox.intersection(self.service.allowed_area_united)
+                allowed_area = self.request.bbox.intersection(self.service.allowed_area_united)
             else:
-                secured_bbox = self.service.allowed_area_united
-            if hasattr(secured_bbox, "ogr"):
-                secured_bbox = secured_bbox.ogr
+                allowed_area = self.service.allowed_area_united
+            if hasattr(allowed_area, "ogr"):
+                allowed_area = allowed_area.ogr
 
-            response = self.get_remote_response(self.remote_service.construct_request(data=self.request.body,
-                                                                                      query_params=self.request.query_parameters, ))
+            if self.request.method == "POST":
+                get_feature_xml = xmlmap.load_xmlobject_from_string(string=self.request.body,
+                                                                    xmlclass=GetFeature)
+                value_reference = self.service.featuretypes.get(identifier=get_feature_xml.type_names)\
+                    .elements.values_list("name", flat=True).get(data_type__icontains="GeometryPropertyType")
 
-            if response.status_code < 300:
-                feature_collection = xmlmap.load_xmlobject_from_string(string=response.content,
-                                                                       xmlclass=FeatureCollection)
-                # FIXME: slow solution... but secure :/
-                for member in feature_collection.members:
-                    thread = Thread(target=self.check_feature_collection_member(secured_bbox=secured_bbox, member=member))
-                    thread.start()
-                    thread.join()
-
-                return self.return_http_response(response={
-                    "status_code": response.status_code,
-                    "content": feature_collection.serializeDocument(),
-                    "content_type": "application/xml",
-                    "headers": {"Content-Disposition": response.headers.get("Content-Disposition")}})
-            else:
-
+                get_feature_xml.secure_spatial(value_reference=value_reference, polygon=allowed_area)
+                response = self.get_remote_response(self.remote_service.construct_request(data=get_feature_xml.serializeDocument(),
+                                                                                          query_params=self.request.query_parameters, ))
                 return self.return_http_response(response=response)
 
     def handle_secured_describe_feature_type(self):

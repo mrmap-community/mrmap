@@ -468,7 +468,8 @@ LOG_SUB_DIRS = {
     'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
     'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
     'service': {'dir': '/service', 'log_file': 'service.log'},
-    'resourceNew.parser': {'dir': '/resourceNew/parser', 'log_file': 'parser.log'},
+    'resourceNew.parser': {'dir': '/resourceNew', 'log_file': 'parser.log'},
+    'resourceNew.models': {'dir': '/resourceNew', 'log_file': 'models.log'},
     'structure': {'dir': '/structure', 'log_file': 'structure.log'},
     'users': {'dir': '/users', 'log_file': 'users.log'},
 }
@@ -562,6 +563,14 @@ LOGGING = {
             'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.parser']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.parser']['log_file'],
             'formatter': 'verbose',
         },
+        'MrMap.resourceNew.models.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.models']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.models']['log_file'],
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'MrMap.root': {
@@ -596,6 +605,11 @@ LOGGING = {
         },
         'MrMap.resourceNew.parser': {
             'handlers': ['MrMap.resourceNew.parser.file', ],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'MrMap.resourceNew.models': {
+            'handlers': ['MrMap.resourceNew.models.file', ],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },

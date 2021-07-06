@@ -67,6 +67,8 @@ class IsoMetadataManager(models.Manager):
         db_dataset_contact = self._create_contact(contact=parsed_metadata.dataset_contact)
 
         field_dict = parsed_metadata.get_field_dict()
+        update = False
+        exists = False
         try:
             db_dataset_metadata = self.model.objects.get(dataset_id=field_dict["dataset_id"],
                                                          dataset_id_code_space=field_dict["dataset_id_code_space"])
@@ -78,13 +80,15 @@ class IsoMetadataManager(models.Manager):
                 self.model.objects.update(metadata_contact=db_metadata_contact,
                                           dataset_contact=db_dataset_contact,
                                           **field_dict)
+                update = True
+            exists = True
         except self.model.DoesNotExist:
             db_dataset_metadata = super().create(metadata_contact=db_metadata_contact,
                                                  dataset_contact=db_dataset_contact,
                                                  origin=MetadataOrigin.ISO_METADATA.value,
                                                  origin_url=origin_url,
                                                  **field_dict)
-        return db_dataset_metadata
+        return db_dataset_metadata, exists, update
 
     def _create_service_metadata(self, parsed_metadata, *args, **kwargs):
         db_metadata_contact = self._create_contact(contact=parsed_metadata.metadata_contact).save()
@@ -98,33 +102,36 @@ class IsoMetadataManager(models.Manager):
         self._reset_local_variables()
         with transaction.atomic():
             from resourceNew.models.document import Document  # to avoid circular import errors
-
+            update = False
             if parsed_metadata.hierarchy_level == "service":
                 # todo: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
                 db_metadata = self._create_service_metadata(parsed_metadata=parsed_metadata, *args, **kwargs)
             else:
-                db_metadata = self._create_dataset_metadata(parsed_metadata=parsed_metadata, origin_url=origin_url)
+                db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
+                                                                            origin_url=origin_url)
                 db_metadata.add_dataset_metadata_relation(relation_type=MetadataRelationEnum.DESCRIBES.value,
                                                           related_object=related_object,
                                                           origin=MetadataOriginEnum.CAPABILITIES.value)
-                Document.objects.create(dataset_metadata=db_metadata,
-                                        xml=str(parsed_metadata.serializeDocument(), "UTF-8"))
+                if not exists:
+                    Document.objects.create(dataset_metadata=db_metadata,
+                                            xml=str(parsed_metadata.serializeDocument(), "UTF-8"))
+            if update:
                 db_keyword_list = []
-            for keyword in parsed_metadata.keywords:
-                if not self.keyword_cls:
-                    self.keyword_cls = parsed_metadata.keywords[0].get_model_class()
-                db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
-                db_keyword_list.append(db_keyword)
-            db_metadata.keywords.add(*db_keyword_list)
+                for keyword in parsed_metadata.keywords:
+                    if not self.keyword_cls:
+                        self.keyword_cls = parsed_metadata.keywords[0].get_model_class()
+                    db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
+                    db_keyword_list.append(db_keyword)
+                db_metadata.keywords.add(*db_keyword_list)
 
-            db_reference_system_list = []
-            for reference_system in parsed_metadata.reference_systems:
-                if not self.reference_system_cls:
-                    self.reference_system_cls = parsed_metadata.reference_systems[0].get_model_class()
-                db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
-                db_reference_system_list.append(db_reference_system)
-            db_metadata.reference_systems.add(*db_reference_system_list)
+                db_reference_system_list = []
+                for reference_system in parsed_metadata.reference_systems:
+                    if not self.reference_system_cls:
+                        self.reference_system_cls = parsed_metadata.reference_systems[0].get_model_class()
+                    db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
+                    db_reference_system_list.append(db_reference_system)
+                db_metadata.reference_systems.add(*db_reference_system_list)
 
             # todo: categories
 

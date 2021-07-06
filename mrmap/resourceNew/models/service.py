@@ -6,10 +6,14 @@ from django.db.models import QuerySet, Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse, NoReverseMatch
+from requests import Session
+from requests.auth import HTTPDigestAuth
+
 from MrMap.icons import get_icon, IconEnum
 from main.models import GenericModelMixin, CommonInfo
 from main.utils import camel_to_snake
-from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum
+from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
+    AuthTypeEnum
 from resourceNew.managers.security import ServiceSecurityManager
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
@@ -19,6 +23,7 @@ from resourceNew.ows_client.request_builder import OgcService
 from service.helper.common_connector import CommonConnector
 from resourceNew.parsers.ogc.wfs import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
+from resourceNew.settings import models_logger
 
 
 class ServiceType(models.Model):
@@ -437,28 +442,29 @@ class FeatureType(ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """ Return the fetched described feature type document and update the content if save is True """
-        from resourceNew.models.security import ExternalAuthentication  # to avoid circular import
-        try:
-            external_authentication = self.service.external_authentication
-        except ExternalAuthentication.DoesNotExist:
-            external_authentication = None
         base_url = self.service.operation_urls.values_list('url', flat=True)\
                                               .get(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
                                                    method=HttpMethodEnum.GET.value)
-        link = OgcService(base_url=base_url,
-                          service_type=self.service.service_type_name,
-                          version=self.service.service_version)\
-            .get_describe_feature_type_request(type_name_list=self.identifier).url
-        connector = CommonConnector(url=link,
-                                    external_auth=external_authentication)
-        connector.load()
-        content = connector.content
-        if isinstance(content, bytes):
-            content = str(content, "UTF-8")
-        self.describe_feature_type_document = content
-        if save:
-            self.save()
-        return self.describe_feature_type_document
+        request = OgcService(base_url=base_url,
+                             service_type=self.service.service_type_name,
+                             version=self.service.service_version)\
+                    .get_describe_feature_type_request(type_name_list=self.identifier)
+        if hasattr(self.service, "external_authenticaion"):
+            username, password = self.service.external_authenticaion.decrypt()
+            if self.service.external_authenticaion.auth_type == AuthTypeEnum.BASIC.value:
+                request.auth = (username, password)
+            elif self.service.external_authenticaion.auth_type == AuthTypeEnum.DIGEST.value:
+                request.auth = HTTPDigestAuth(username=username,
+                                              password=password)
+        session = Session()
+        response = session.send(request=request.prepare())
+        if response.status_code <= 202 and "xml" in response.headers["content-type"]:
+            self.describe_feature_type_document = response.content
+            if save:
+                self.save()
+            return self.describe_feature_type_document
+        else:
+            models_logger.error(msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}")
 
     def parse(self):
         """ Return the parsed self.remote_content
@@ -467,8 +473,7 @@ class FeatureType(ServiceElement):
                 ValueError: if self.remote_content is null
         """
         if self.describe_feature_type_document:
-            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(string=bytes(self.describe_feature_type_document,
-                                                                             "UTF-8"),
+            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(string=self.describe_feature_type_document,
                                                                              xmlclass=XmlDescribedFeatureType)
             return parsed_feature_type_elements
         else:

@@ -355,6 +355,7 @@ class GenericOwsServiceOperationFacade(View):
 
         """
         if not self.service.is_spatial_secured_and_intersects:
+            # todo: return transparent image
             return self.return_http_response({"status_code": 403,
                                               "content": "User has no permissions to access the requested area."})
         # we fetch the map image as it is and mask it, using our secured operations geometry.
@@ -454,7 +455,8 @@ class GenericOwsServiceOperationFacade(View):
                         return self.return_http_response(response=requested_response)
             except Exception as e:
                 pass
-        return self.return_http_response(response={"status_code": 403, "content": "user has no permissions to access the requested area."})
+        return self.return_http_response(response={"status_code": 403,
+                                                   "content": "user has no permissions to access the requested area."})
 
     def get_allowed_areas_by_layers(self):
         """Database query to extend current :attr:`~GenericOwsServiceOperationFacade.service` by all related allowed
@@ -504,8 +506,13 @@ class GenericOwsServiceOperationFacade(View):
             # there where no filter xml we can parse and secure, so we try to handle the request in any case like a get
             if not self.request.bbox.empty:
                 allowed_area = self.request.bbox.intersection(self.service.allowed_area_united)
+                if allowed_area.empty:
+                    # todo: return empty FeatureCollection
+                    return self.return_http_response(response={"status_code": 403,
+                                                               "content": "user has no permissions to access the requested area."})
             else:
                 allowed_area = self.service.allowed_area_united
+
             if hasattr(allowed_area, "ogr"):
                 allowed_area = allowed_area.ogr
             type_names = self.request.query_parameters.get(self.remote_service.TYPE_NAME_QP.lower(), None)

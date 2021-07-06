@@ -563,7 +563,7 @@ class WfsService(WebService):
         if self.major_version >= 2:
             polygon = adjust_axis_order(polygon)
 
-            template_name = "resourceNew/xml/wfs/fitler_v2.xml"
+            template_name = "resourceNew/xml/wfs/filter_v2.xml"
         else:
             template_name = "resourceNew/xml/wfs/filter_v1.xml"
         return render_to_string(template_name=template_name, context={"type_names": type_names,

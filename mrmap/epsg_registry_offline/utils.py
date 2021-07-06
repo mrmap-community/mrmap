@@ -1,7 +1,5 @@
-from operator import ge
-
-from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
-
+from django.contrib.gis.geos import MultiPolygon, Polygon
+from django.contrib.gis.gdal.geometries import MultiPolygon as GdalMultiPolygon, Polygon as GdalPolygon
 from epsg_registry_offline.registry import Registry
 
 
@@ -54,16 +52,21 @@ def get_epsg_srid(srs_name):
     return authority, srid
 
 
-def switch_axis_order(polygon):
+def switch_axis_order(polygon) -> MultiPolygon:
     polygons = []
-    for _polygon in polygon.coords:
+    if isinstance(polygon, Polygon) or isinstance(polygon, GdalPolygon):
         coords = []
-        for coord in _polygon[0]:
-            coords.append((coord[1], coord[0]))
+        for _polygon in polygon.coords:
+            for coord in _polygon:
+                coords.append((coord[1], coord[0]))
         polygons.append(Polygon(tuple(coords), srid=polygon.srid))
-
-    converted_polygon = MultiPolygon(polygons, srid=polygon.srid)
-    return converted_polygon
+    elif isinstance(polygon, MultiPolygon) or isinstance(polygon, GdalMultiPolygon):
+        for _polygon in polygon.coords:
+            coords = []
+            for coord in _polygon[0]:
+                coords.append((coord[1], coord[0]))
+            polygons.append(Polygon(tuple(coords), srid=polygon.srid))
+    return MultiPolygon(polygons, srid=polygon.srid)
 
 
 def adjust_axis_order(polygon):

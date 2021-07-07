@@ -1,5 +1,7 @@
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.auth import get_user_model
+from django.db.models import Q
+from django.utils.html import format_html
 
 from main.forms import ModelForm
 from django import forms
@@ -170,15 +172,6 @@ class AllowedOperationPage2ModelForm(ModelForm):
         else:
             # todo
             raise NotImplemented
-
-    def clean_secured_layers(self):
-        configured_layers = self.cleaned_data.get("secured_layers")
-        for layer in configured_layers:
-            needed_layers = layer.get_descendants(include_self=True)
-            if not all(layer in configured_layers for layer in needed_layers):
-                raise ValidationError(message=_('Some sub layers are missing.'),
-                                      code='invalid',)
-        return configured_layers
 
 
 class ProxySettingModelForm(ModelForm):

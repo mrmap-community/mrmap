@@ -311,18 +311,18 @@ class WmsService(WebService):
                 transparent = False
 
         return {
-            "layer_list": kwargs[self.LAYERS_QP.lower()].split(","),
-            "crs": kwargs[self.CRS_QP.lower()],
-            "bbox": kwargs[self.BBOX_QP.lower()],
-            "width": kwargs[self.WIDTH_QP.lower()],
-            "height": kwargs[self.HEIGHT_QP.lower()],
-            "format": kwargs[self.FORMAT_QP.lower()],
-            "style_list": kwargs.get(self.STYLES_QP.lower(), None),
+            "layer_list": kwargs[self.LAYERS_QP].split(","),
+            "crs": kwargs[self.CRS_QP],
+            "bbox": kwargs[self.BBOX_QP],
+            "width": kwargs[self.WIDTH_QP],
+            "height": kwargs[self.HEIGHT_QP],
+            "format": kwargs[self.FORMAT_QP],
+            "style_list": kwargs.get(self.STYLES_QP, None),
             "transparent": transparent,
-            "bg_color": kwargs.get(self.BG_COLOR_QP.lower(), "0xFFFFFF"),
-            "exceptions": kwargs.get(self.EXCEPTIONS_QP.lower(), "XML"),
-            "time": kwargs.get(self.TIME_QP.lower(), None),
-            "elevation": kwargs.get(self.ELEVATION_QP.lower(), None)
+            "bg_color": kwargs.get(self.BG_COLOR_QP, "0xFFFFFF"),
+            "exceptions": kwargs.get(self.EXCEPTIONS_QP, "XML"),
+            "time": kwargs.get(self.TIME_QP, None),
+            "elevation": kwargs.get(self.ELEVATION_QP, None)
         }
 
     def getmap(self, **kwargs):

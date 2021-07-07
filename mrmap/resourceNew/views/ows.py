@@ -31,11 +31,11 @@ from django.http import HttpResponse
 from MrMap.utils import execute_threads
 from resourceNew.parsers.ogc.feature_collection import FeatureCollection
 from resourceNew.parsers.ogc.wfs_filter import GetFeature
+from resourceNew.settings import SECURE_ABLE_OPERATIONS, SECURE_ABLE_OPERATIONS_LOWER
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
 from django.conf import settings
-import time
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -64,22 +64,18 @@ class GenericOwsServiceOperationFacade(View):
             request.bbox = WebService.construct_polygon_from_bbox_query_param(get_dict=request.query_parameters)
         except (MissingBboxParam, MissingServiceParam):
             request.bbox = GEOSGeometry('POLYGON EMPTY')
-        try:
-            self.service = Service.security.for_security_facade(request=request) \
-                .get(pk=self.kwargs.get("pk"))
-        except Service.DoesNotExist:
-            # exception handling in self.get()
-            pass
-        try:
-            query = request.get_full_path().split("?")[1]
-            if self.service.base_operation_url:
-                url = f"{self.service.base_operation_url}?{query}"
-            else:
-                url = f"{self.service.unknown_operation_url}?{query}"
-            self.remote_service = WebService.manufacture_service(url=url)
-        except (MissingServiceParam, MissingVersionParam):
-            # exception handling in self.get()
-            pass
+        self.service = Service.security.construct_service(pk=self.kwargs.get("pk"), request=request)
+        if self.service:
+            try:
+                query = request.get_full_path().split("?")[1]
+                if self.service.base_operation_url:
+                    url = f"{self.service.base_operation_url}?{query}"
+                else:
+                    url = f"{self.service.unknown_operation_url}?{query}"
+                self.remote_service = WebService.manufacture_service(url=url)
+            except (MissingServiceParam, MissingVersionParam):
+                # exception handling in self.get()
+                pass
 
     def post(self, request, *args, **kwargs):
         return self.get_post(request=request, *args, **kwargs)
@@ -131,12 +127,11 @@ class GenericOwsServiceOperationFacade(View):
             return self.return_http_response({"status_code": 400, "content": SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE})
         elif not self.service.is_active:
             return self.return_http_response({"status_code": 423, "content": SERVICE_DISABLED})
-        elif not self.service.is_secured or \
-                (not self.service.is_spatial_secured and self.service.user_is_principle_entitled) or \
-                not self.request.query_parameters.get("request").lower() in [OGCOperationEnum.GET_MAP.value.lower(),
-                                                                             OGCOperationEnum.GET_FEATURE_INFO.value.lower(),
-                                                                             OGCOperationEnum.GET_FEATURE.value.lower(),
-                                                                             OGCOperationEnum.TRANSACTION.value.lower()]:
+        elif not self.request.query_parameters.get("request").lower() in SECURE_ABLE_OPERATIONS_LOWER:
+            # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
+            # is_spatial_secured, user_is_principle_entitled...
+            return self.return_http_response(response=self.get_remote_response())
+        elif not self.service.is_secured or not self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.return_http_response(response=self.get_remote_response())
         elif self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.get_secured_response()
@@ -449,7 +444,6 @@ class GenericOwsServiceOperationFacade(View):
                 feature_collection = xmlmap.load_xmlobject_from_string(xml_response.content,
                                                                        xmlclass=FeatureCollection)
                 polygon = feature_collection.bounded_by.get_geometry()
-                self.get_allowed_areas_by_layers()
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
                         return self.return_http_response(response=requested_response)
@@ -458,18 +452,6 @@ class GenericOwsServiceOperationFacade(View):
         return self.return_http_response(response={"status_code": 403,
                                                    "content": "user has no permissions to access the requested area."})
 
-    def get_allowed_areas_by_layers(self):
-        """Database query to extend current :attr:`~GenericOwsServiceOperationFacade.service` by all related allowed
-        areas and there primary key."""
-        layer_identifiers = self.remote_service.get_requested_layers(query_params=self.request.GET)
-        # FIXME: mapserver processes case insensitive layer identifiers... This query won't work then..
-        is_layer_secured = Q(secured_layers__identifier__in=layer_identifiers)
-
-        self.service.allowed_areas = self.service.allowed_operations \
-            .filter(is_layer_secured) \
-            .distinct("pk") \
-            .values_list("pk", "allowed_area")
-
     def handle_secured_wms(self):
         """Handler to decide which subroutine for the given request param shall run.
 
@@ -477,9 +459,6 @@ class GenericOwsServiceOperationFacade(View):
            :rtype: function
         """
         if self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_MAP.value.lower():
-            self.get_allowed_areas_by_layers()
-            # FIXME: check if any allowed area is none. In this case, minimum one allowed operation object does allow
-            #  the request without any spatial restriction.
             return self.handle_secured_get_map()
         elif self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE_INFO.value.lower():
             return self.handle_secured_get_feature_info()
@@ -512,6 +491,7 @@ class GenericOwsServiceOperationFacade(View):
                                                                "content": "user has no permissions to access the requested area."})
             else:
                 allowed_area = self.service.allowed_area_united
+                # todo: FILTER query param is also possible.
 
             if hasattr(allowed_area, "ogr"):
                 allowed_area = allowed_area.ogr

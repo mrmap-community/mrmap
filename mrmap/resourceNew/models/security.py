@@ -12,7 +12,7 @@ from requests import Response
 from main.models import CommonInfo, GenericModelMixin
 from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
 from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
-from resourceNew.managers.security import ProxyLogManager
+from resourceNew.managers.security import ProxyLogManager, AllowedOperationManager
 from resourceNew.models import Service, Layer, FeatureType
 from cryptography.fernet import Fernet
 
@@ -265,6 +265,8 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
     description = models.CharField(max_length=512,
                                    verbose_name=_("description"),
                                    help_text=_("a short description what this allowed operation controls."))
+
+    objects = AllowedOperationManager()
 
     def __str__(self):
         return f"AllowedOperation ({self.pk}) for service {self.secured_service}"

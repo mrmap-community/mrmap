@@ -7,11 +7,14 @@ from django import forms
 from main.widgets import TreeSelectMultiple
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Layer, FeatureType, Service
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, ExternalAuthentication
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, ExternalAuthentication, \
+    OGCOperation
 from leaflet.forms.widgets import LeafletWidget
 from dal import autocomplete
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+
+from resourceNew.settings import SECURE_ABLE_WMS_OPERATIONS, SECURE_ABLE_WFS_OPERATIONS
 
 
 class ExternalAuthenticationModelForm(ModelForm):
@@ -104,15 +107,6 @@ class AllowedOperationPage2ModelForm(ModelForm):
                   "secured_layers",
                   "secured_feature_types",)
         widgets = {
-            "operations": autocomplete.ModelSelect2Multiple(
-                url='autocompletes:operations',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
             "allowed_groups": autocomplete.ModelSelect2Multiple(
                 url="autocompletes:service_access_group",
                 attrs={
@@ -125,7 +119,7 @@ class AllowedOperationPage2ModelForm(ModelForm):
             "allowed_area": LeafletWidget(attrs={
                 'map_height': '500px',
                 'map_width': '100%',
-                # 'display_raw': 'true',
+                #'display_raw': 'true',
                 'map_srid': 4326,
             }),
             "secured_service": forms.HiddenInput(),
@@ -144,13 +138,35 @@ class AllowedOperationPage2ModelForm(ModelForm):
         super().__init__(*args, **kwargs)
         if "secured_service" in self.initial:
             secured_service = Service.objects.select_related("service_type").get(pk=self.initial.get("secured_service"))
+            ogc_operation_ac_url = None
             if secured_service.service_type_name == OGCServiceEnum.WMS.value:
                 self.fields.pop("secured_feature_types")
                 self.fields["secured_layers"].queryset = Layer.objects.filter(service=secured_service)
                 self.fields["secured_layers"].widget = TreeSelectMultiple(tree=secured_service.root_layer.get_descendants(include_self=True).select_related("metadata"))
+                self.fields["operations"].widget = autocomplete.ModelSelect2Multiple(
+                    url="resourceNew.autocomplete:ogcoperation_wms_ac",
+                    attrs={
+                        "data-containerCss": {
+                            "height": "3em",
+                            "width": "3em",
+                        }
+                    },
+                )
+                self.fields["operations"].queryset = OGCOperation.objects.filter(operation__in=SECURE_ABLE_WMS_OPERATIONS)
             elif secured_service.service_type_name == OGCServiceEnum.WFS.value:
                 self.fields.pop("secured_layers")
                 self.fields["secured_feature_types"].queryset = FeatureType.objects.filter(service=secured_service)
+                self.fields["operations"].widget = autocomplete.ModelSelect2Multiple(
+                    url="resourceNew.autocomplete:ogcoperation_wfs_ac",
+                    attrs={
+                        "data-containerCss": {
+                            "height": "3em",
+                            "width": "3em",
+                        }
+                    },
+                )
+                self.fields["operations"].queryset = OGCOperation.objects.filter(operation__in=SECURE_ABLE_WFS_OPERATIONS)
+
         else:
             # todo
             raise NotImplemented

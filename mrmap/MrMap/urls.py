@@ -19,11 +19,14 @@ from django.urls import path, include
 from MrMap.settings import DEBUG
 
 urlpatterns = [
+    # Admin
     path('admin/', admin.site.urls),
+
+    # Apps
     path('', include('users.urls')),
     path('structure/', include('structure.urls')),
     path('acl/', include('acl.urls')),
-    path('ac/', include('autocompletes.urls')),
+    path('ac-old/', include('autocompletes.urls')),
     path('resource/', include('service.urls')),
     path('resourceNew/', include('resourceNew.urls')),
     path('monitoring/', include('monitoring.urls')),
@@ -34,6 +37,9 @@ urlpatterns = [
     path('csw/', include('csw.urls')),
     path('quality/', include('quality.urls')),
     path('job/', include('job.urls')),
+
+    # Autocompletes
+    path('ac/resourceNew/', include('resourceNew.autocompletes.urls')),
 ]
 
 if DEBUG:

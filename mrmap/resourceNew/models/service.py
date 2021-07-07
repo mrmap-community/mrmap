@@ -14,7 +14,7 @@ from main.models import GenericModelMixin, CommonInfo
 from main.utils import camel_to_snake
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
-from resourceNew.managers.security import ServiceSecurityManager
+from resourceNew.managers.security import ServiceSecurityManager, OperationUrlManager
 from resourceNew.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
 from mptt.models import MPTTModel, TreeForeignKey
@@ -205,6 +205,8 @@ class OperationUrl(CommonInfo):
                                 related_query_name="operation_url",
                                 verbose_name=_("related service"),
                                 help_text=_("the service for that this url can be used for."))
+    objects = models.Manager()
+    security_objects = OperationUrlManager()
 
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"

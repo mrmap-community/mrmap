@@ -102,6 +102,8 @@ With the virtual environment activated, install the project's required Python pa
 
 .. code-block:: console
 
+    (mrmap) $ sudo apt install libcurl4-openssl-dev libssl-dev python3-venv libpq-dev python3-dev python3-wheel python3-pip python3-gdal
+    (mrmap) $ python -m pip install wheel
     (mrmap) $ python -m pip install -r requirements.txt
     Collecting Django==3.1 (from -r requirements.txt (line 1))
     Cache entry deserialization failed, entry ignored

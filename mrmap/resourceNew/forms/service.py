@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 
 
 class RegisterServiceForm(forms.Form):
-    test_url = forms.URLField(validators=[validate_get_capablities_uri],
+    test_url = forms.URLField(#validators=[validate_get_capablities_uri],
                               label=_("Service url"),
                               help_text=_("this shall be the full get capabilities request url."))
     collect_linked_metadata = forms.BooleanField(initial=True,

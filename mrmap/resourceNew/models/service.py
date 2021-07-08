@@ -451,11 +451,11 @@ class FeatureType(ServiceElement):
                              service_type=self.service.service_type_name,
                              version=self.service.service_version)\
                     .get_describe_feature_type_request(type_name_list=self.identifier)
-        if hasattr(self.service, "external_authenticaion"):
-            username, password = self.service.external_authenticaion.decrypt()
-            if self.service.external_authenticaion.auth_type == AuthTypeEnum.BASIC.value:
+        if hasattr(self.service, "external_authentication"):
+            username, password = self.service.external_authentication.decrypt()
+            if self.service.external_authentication.auth_type == AuthTypeEnum.BASIC.value:
                 request.auth = (username, password)
-            elif self.service.external_authenticaion.auth_type == AuthTypeEnum.DIGEST.value:
+            elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
                 request.auth = HTTPDigestAuth(username=username,
                                               password=password)
         session = Session()
@@ -489,8 +489,8 @@ class FeatureType(ServiceElement):
 
 
 class FeatureTypeElement(CommonInfo):
-    maxOccurs = models.IntegerField()
-    minOccurs = models.IntegerField()
+    max_occurs = models.IntegerField(default=1)
+    min_occurs = models.IntegerField(default=0)
     name = models.CharField(max_length=255)
     data_type = models.CharField(max_length=255, null=True, blank=True)
     required = models.BooleanField(default=False)

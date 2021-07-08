@@ -484,6 +484,8 @@ class GenericOwsServiceOperationFacade(View):
         if self.request.method == "GET" or self.request.method == "POST" and not self.request.body:
             # there where no filter xml we can parse and secure, so we try to handle the request in any case like a get
             if not self.request.bbox.empty:
+                if self.request.bbox.srid != self.service.allowed_area_united.srid:
+                    self.request.bbox.transform(ct=self.service.allowed_area_united.srid)
                 allowed_area = self.request.bbox.intersection(self.service.allowed_area_united)
                 if allowed_area.empty:
                     # todo: return empty FeatureCollection
@@ -572,11 +574,11 @@ class GenericOwsServiceOperationFacade(View):
         """
         if not request:
             request = self.remote_service.construct_request(query_params=self.request.GET)
-        if hasattr(self.service, "external_authenticaion"):
-            username, password = self.service.external_authenticaion.decrypt()
-            if self.service.external_authenticaion.auth_type == AuthTypeEnum.BASIC.value:
+        if hasattr(self.service, "external_authentication"):
+            username, password = self.service.external_authentication.decrypt()
+            if self.service.external_authentication.auth_type == AuthTypeEnum.BASIC.value:
                 request.auth = (username, password)
-            elif self.service.external_authenticaion.auth_type == AuthTypeEnum.DIGEST.value:
+            elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
                 request.auth = HTTPDigestAuth(username=username,
                                               password=password)
         s = Session()

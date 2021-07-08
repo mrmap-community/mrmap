@@ -189,6 +189,10 @@ class WebService(ABC):
                 epsg_sr = registry.get(srid=sr.srid)
                 srid = epsg_sr.srid
                 xy_order = epsg_sr.is_xy_order
+            else:
+                if ":" in srid:
+                    srid = srid.split(":")[-1]
+                srid = int(srid)
 
             if xy_order:
                 return Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)),
@@ -432,8 +436,8 @@ class WfsService(WebService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(service_type="wfs", *args, **kwargs)
-        if self.major_version == 2 and self.minor_version == 0 and self.path_version < 2:
-            self.TYPE_NAME_QP = "TYPENAME"
+        if self.major_version == 2 and self.minor_version == 0:
+            self.TYPE_NAME_QP = "TYPENAMES"
             self.OUTPUT_FORMAT_QP = "OUTPUTFORMAT"
 
     def get_get_params(self, query_params: dict):
@@ -551,12 +555,10 @@ class WfsService(WebService):
                           params=query_params,
                           data=data,
                           headers={"content-type": "application/xml"})
-        elif self.BBOX_QP in kwargs:
+        else:
             req = Request(method="GET",
                           url=self.base_url,
                           params=query_params)
-        else:
-            raise MissingBboxParam
         return req
 
     def construct_filter_xml(self, type_names, value_reference, polygon: Polygon):

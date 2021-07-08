@@ -54,6 +54,8 @@ class Member(xmlmap.XmlObject):
 
 
 class FeatureCollection(xmlmap.XmlObject):
+    number_matched = xmlmap.IntegerField(xpath=f"@numberMatched")
+    number_returned = xmlmap.IntegerField(xpath=f"@numberReturned")
     bounded_by = xmlmap.NodeField(xpath=f"{NS_WC}boundedBy']/gml:*", node_class=Gml)
     members = xmlmap.NodeListField(xpath=f"{NS_WC}member']", node_class=Member)
 

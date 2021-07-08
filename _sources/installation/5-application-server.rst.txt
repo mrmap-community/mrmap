@@ -28,10 +28,10 @@ We need a `service definition for gunicorn <https://github.com/mrmap-community/m
 
 .. code-block:: console
 
-    # copy gunicorn systemd config (service file)
+    # copy daphne systemd config (service file)
     $ cp -a /opt/mrmap/install/confs/mrmap_gunicorn_service /etc/systemd/system/gunicorn.service
 
-2. Activate and start gunicorn service
+3. Activate and start gunicorn service
 
 .. code-block:: console
 
@@ -42,7 +42,7 @@ We need a `service definition for gunicorn <https://github.com/mrmap-community/m
 Verify Service Status
 *********************
 
-3. Check the output of
+1. Check the output of
 
 .. code-block:: console
 
@@ -69,12 +69,12 @@ We use `uvicorn server <https://github.com/encode/uvicorn>`_ for serving the asg
 Configure
 *********
 
-2. Adjust if needed and copy the config files to their destination:
+1. Adjust if needed and copy the config files to their destination:
 We need a `service definition for uvicorn <https://github.com/mrmap-community/mrmap/blob/master/install/confs/mrmap_uvicorn_service>`_
 
 .. code-block:: console
 
-    # copy uvicorn systemd config (service file)
+    # copy daphne systemd config (service file)
     $ cp -a /opt/mrmap/install/confs/mrmap_uvicorn_service /etc/systemd/system/uvicorn.service
 
 3. Activate and start uvicorn service
@@ -88,7 +88,7 @@ We need a `service definition for uvicorn <https://github.com/mrmap-community/mr
 Verify Service Status
 *********************
 
-4. Check the output of
+1. Check the output of
 
 .. code-block:: console
 

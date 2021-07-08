@@ -87,7 +87,6 @@
             
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../use_cases/index.html">Use Case analysis</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
@@ -256,7 +255,9 @@
 <div class="section" id="install-dependencies">
 <h3>Install Dependencies<a class="headerlink" href="#install-dependencies" title="Permalink to this headline">¶</a></h3>
 <p>With the virtual environment activated, install the project’s required Python packages using the <code class="docutils literal notranslate"><span class="pre">pip</span></code> module:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">(mrmap) $</span> python -m pip install -r requirements.txt
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">(mrmap) $</span> sudo apt install libcurl4-openssl-dev libssl-dev python3-venv libpq-dev python3-dev python3-wheel python3-pip python3-gdal
+<span class="gp">(mrmap) $</span> python -m pip install wheel
+<span class="gp">(mrmap) $</span> python -m pip install -r requirements.txt
 <span class="go">Collecting Django==3.1 (from -r requirements.txt (line 1))</span>
 <span class="go">Cache entry deserialization failed, entry ignored</span>
 <span class="go">Using cached https://files.pythonhosted.org/packages/2b/5a/4bd5624546912082a1bd2709d0edc0685f5c7827a278d806a20cf6adea28/Django-3.1-py3-none-any.whl</span>

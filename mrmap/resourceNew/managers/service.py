@@ -447,7 +447,8 @@ class ServiceManager(models.Manager):
                                        "owned_by_org",
                                        "external_authentication",
                                        "proxy_setting") \
-                       .prefetch_related("allowed_operations")\
+                       .prefetch_related("allowed_operations",
+                                         "operation_urls")\
                        .order_by("-metadata__title")\
                        .annotate(is_secured=Count("allowed_operation"))
 
@@ -478,6 +479,7 @@ class LayerManager(TreeManager):
             .annotate(children_count=Count("child", distinct=True))\
             .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
             .select_related("service",
+                            "service__service_type",
                             "service__metadata",
                             "parent",
                             "parent__metadata",
@@ -495,6 +497,8 @@ class FeatureTypeManager(models.Manager):
             .annotate(elements_count=Count("element", distinct=True))\
             .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
             .select_related("service",
+                            "service__metadata",
+                            "service__service_type",
                             "created_by_user",
                             "owned_by_org")
 
@@ -505,6 +509,9 @@ class FeatureTypeElementManager(models.Manager):
         return super().get_queryset().select_related("feature_type")
 
     def for_table_view(self):
-        return self.get_queryset().select_related("feature_type__service",
+        return self.get_queryset().select_related("feature_type__metadata",
+                                                  "feature_type__service",
+                                                  "feature_type__service__service_type",
+                                                  "feature_type__service__metadata",
                                                   "created_by_user",
                                                   "owned_by_org")

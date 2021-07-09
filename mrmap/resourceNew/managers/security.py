@@ -155,3 +155,13 @@ class ServiceSecurityManager(models.Manager):
         except ObjectDoesNotExist:
             pass
         return service
+
+
+class AnalyzedResponseLogTableManager(models.Manager):
+    def for_table_view(self):
+        return self.get_queryset().select_related("response",
+                                                  "response__request",
+                                                  "response__request__service",
+                                                  "response__request__service__service_type",
+                                                  "response__request__service__metadata",
+                                                  "response__request__user")

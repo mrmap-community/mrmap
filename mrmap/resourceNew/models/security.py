@@ -1,8 +1,10 @@
 from PIL import Image
+from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -11,10 +13,11 @@ from main.models import CommonInfo, GenericModelMixin
 from resourceNew.enums.security import EntityUnits
 from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
 from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
-from resourceNew.managers.security import AllowedOperationManager
+from resourceNew.managers.security import AllowedOperationManager, AnalyzedResponseLogTableManager
 from resourceNew.models import Service, Layer, FeatureType
 from cryptography.fernet import Fernet
 import time
+from resourceNew.tasks.security import async_analyze_log
 
 
 def key_file_path(instance, filename):
@@ -347,8 +350,10 @@ class HttpResponseLog(models.Model):
             adding = True
         super().save(*args, **kwargs)
         if adding:
-            pass
-            # todo: create AnalyzedResponseLog() object async
+            transaction.on_commit(lambda: async_analyze_log.apply_async(
+                args=(self.pk, ),
+                kwargs={'created_by_user_pk': get_user_model().objects.values_list("pk", flat=True).get(username="system"),
+                        'owned_by_org_pk': self.request.service.owned_by_org_id}))
 
     def delete(self, *args, **kwargs):
         self.content.delete(save=False)
@@ -371,14 +376,9 @@ class AnalyzedResponseLog(GenericModelMixin, CommonInfo):
                                                      "For WFS this will be discrete number of feature types that are "
                                                      "returned by the service.")
     entity_unit = models.CharField(max_length=5,
-                                   choices=EntityUnits.as_choices(),
+                                   choices=EntityUnits.as_choices(drop_empty_choice=True),
                                    help_text="The unit in which the entity count is stored.")
-    objects = models.Manager()
-
-    def save(self, *args, **kwargs):
-        if self._state.adding:
-            self.analyze_response()
-        super().save(*args, **kwargs)
+    objects = AnalyzedResponseLogTableManager()
 
     def analyze_response(self):
         if self.response.request.service.is_service_type(OGCServiceEnum.WMS):

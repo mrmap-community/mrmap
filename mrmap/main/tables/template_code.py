@@ -7,8 +7,16 @@ VALUE_ABSOLUTE_LINK = """
 """
 
 VALUE_TABLE_LINK = """
-{% if value.get_table_url%}
+{% if value.get_table_url %}
 <a href="{{value.get_table_url}}">{{value}}</a>
+{% else %}
+{{value}}
+{% endif %}
+"""
+
+VALUE_CONCRETE_TABLE_LINK = """
+{% if value.get_concrete_table_url %}
+<a href="{{value.get_concrete_table_url}}">{{value}}</a>
 {% else %}
 {{value}}
 {% endif %}
@@ -16,7 +24,7 @@ VALUE_TABLE_LINK = """
 
 VALUE_ABSOLUTE_LINK_LIST = """
 {% for val in value %}
-<a href="{{val.get_absolute_url}}">{{val}}</a>,
+<a href="{{val.get_table_url}}">{{val}}</a>,
 {% endfor %}
 """
 

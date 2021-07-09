@@ -1,14 +1,13 @@
 from main.views import SecuredListMixin, SecuredCreateView, SecuredUpdateView, SecuredDeleteView
-from resourceNew.filtersets.security import AllowedOperationFilterSet, ServiceAccessGroupFilterSet, ProxyLogFilterSet, \
+from resourceNew.filtersets.security import AllowedOperationFilterSet, ServiceAccessGroupFilterSet, AnalyzedResponseLogFilterSet, \
     ExternalAuthenticationFilterSet
 from resourceNew.forms.security import ServiceAccessGroupModelForm, ProxySettingModelForm, \
     AllowedOperationPage2ModelForm, ExternalAuthenticationModelForm
 from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, AnalyzedResponseLog, \
     ExternalAuthentication
-from resourceNew.tables.security import AllowedOperationTable, ServiceAccessGroupTable, ProxyLogTable, \
+from resourceNew.tables.security import AllowedOperationTable, ServiceAccessGroupTable, AnalyzedResponseLogTable, \
     ExternalAuthenticationTable, ProxySettingTable
 from django_filters.views import FilterView
-from django.urls import reverse_lazy
 
 
 class ExternalAuthenticationListView(SecuredListMixin, FilterView):
@@ -81,7 +80,8 @@ class ProxySettingUpdateView(SecuredUpdateView):
     form_class = ProxySettingModelForm
 
 
-class ProxyLogListView(SecuredListMixin, FilterView):
+class AnalyzedResponseLogListView(SecuredListMixin, FilterView):
     model = AnalyzedResponseLog
-    table_class = ProxyLogTable
-    filterset_class = ProxyLogFilterSet
+    table_class = AnalyzedResponseLogTable
+    filterset_class = AnalyzedResponseLogFilterSet
+    queryset = model.objects.for_table_view()

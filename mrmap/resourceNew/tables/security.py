@@ -1,6 +1,9 @@
 import django_tables2 as tables
+import urllib3.util
+
 from main.tables.tables import SecuredTable
-from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK, VALUE_TABLE_LINK
+from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK, VALUE_TABLE_LINK, \
+    VALUE_ABSOLUTE_LINK_LIST, VALUE_CONCRETE_TABLE_LINK
 from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
     ProxySetting
 from django.utils.translation import gettext_lazy as _
@@ -100,17 +103,30 @@ class ProxySettingTable(SecuredTable):
         prefix = 'proxy-setting-table'
 
 
-class ProxyLogTable(tables.Table):
+class AnalyzedResponseLogTable(SecuredTable):
+    perm_checker = None
+    response__request__service = tables.TemplateColumn(template_code=VALUE_CONCRETE_TABLE_LINK)
+    operation = tables.Column(verbose_name=_("operation"),
+                              accessor="response__request__url")
 
     class Meta:
         model = AnalyzedResponseLog
-        fields = ("service",
-                  "user",
+        fields = ("response__request__service",
+                  "response__request__user",
                   "operation",
-                  "uri",
-                  "timestamp",
-                  "response_wfs_num_features",
-                  "response_wms_megapixel")
-        prefix = 'proxy-log-table'
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+                  "response__request__url",
+                  "response__request__timestamp",
+                  "entity_count",
+                  "entity_total_count",
+                  "entity_unit")
+        prefix = 'analyzed-response-log-table'
 
+    def render_operation(self, value):
+        import urllib.parse as urlparse
+        from urllib.parse import parse_qs
+        parsed = urlparse.urlparse(value)
+        query_parameters = {k.lower(): v for k, v in parse_qs(parsed.query).items()}
+        operation = query_parameters.get('request', None)
+        if operation:
+            operation = operation[0]
+        return operation

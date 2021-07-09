@@ -40,6 +40,7 @@ urlpatterns = [
 
     # Autocompletes
     path('ac/resourceNew/', include('resourceNew.autocompletes.urls')),
+    path('ac/users/', include('users.autocompletes.urls')),
 ]
 
 if DEBUG:

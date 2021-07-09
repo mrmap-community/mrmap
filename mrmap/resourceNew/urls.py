@@ -61,6 +61,6 @@ urlpatterns = [
     path("security/proxy-settings/add", security_views.ProxySettingCreateView.as_view(), name="proxy_setting_add"),
     path("security/proxy-settings/<pk>/change", security_views.ProxySettingUpdateView.as_view(), name="proxy_setting_change"),
 
-    path("security/proxy-logs", security_views.ProxyLogListView.as_view(), name="proxy_log_list")
+    path("security/proxy-logs", security_views.AnalyzedResponseLogListView.as_view(), name="proxy_log_list")
 ]
 

@@ -1,6 +1,5 @@
 from django.utils import timezone
 from celery import shared_task, chain, chord, group
-from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service as DbService, FeatureType, DatasetMetadata
 from resourceNew.models import RemoteMetadata
 from resourceNew.models.security import ExternalAuthentication
@@ -10,7 +9,6 @@ from resourceNew.parsers.ogc.capabilities import get_parsed_service
 from service.settings import service_logger
 from structure.enums import PendingTaskEnum
 from django.db import transaction
-from django.conf import settings
 from django.urls import reverse
 
 

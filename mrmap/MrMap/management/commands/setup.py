@@ -70,37 +70,24 @@ class Command(BaseCommand):
         Returns:
              nothing
         """
-        # Check if superuser already exists
-        name = input("Enter a username: ")
-
-        if get_user_model().objects.filter(username=name).exists():
-            self.stdout.write(self.style.NOTICE("User with that name already exists! Please choose another one!"))
-            exit()
-
-        # check password
-        password = getpass("Enter a password: ")
-        password_conf = getpass("Enter the password again: ")
-        while password != password_conf:
-            self.stdout.write(self.style.ERROR("Passwords didn't match! Try again!"))
-            password = getpass("Enter the password: ")
-            password_conf = getpass("Enter the password again: ")
+        if get_user_model().objects.filter(username="mrmap").exists():
+            return
 
         superuser = get_user_model().objects.create_superuser(
-            name,
-            "",
-            password
+            username="mrmap",
+            password="mrmap"
         )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.save()
-        msg = "Superuser '" + name + "' was created successfully!"
+        msg = "Superuser 'mrmap' with password 'mrmap' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
         # handle root organization
         orga = self._create_default_organization()
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser '" + name + "' added to organization '" + str(orga.name) + "'!"
+        msg = "Superuser 'mrmap' added to organization '" + str(orga.name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()

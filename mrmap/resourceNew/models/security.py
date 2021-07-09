@@ -1,22 +1,25 @@
-import os
-
+from PIL import Image
 from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
-from django.db.models import Q, F
+from django.core.files.base import ContentFile
+from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from requests import Response
-
 from main.models import CommonInfo, GenericModelMixin
+from resourceNew.enums.security import EntityUnits
 from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
 from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
-from resourceNew.managers.security import ProxyLogManager, AllowedOperationManager
+from resourceNew.managers.security import AllowedOperationManager
 from resourceNew.models import Service, Layer, FeatureType
 from cryptography.fernet import Fernet
+import time
 
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+
+def key_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/ext_auth_keys/service_<id>/<filename>
+    return 'ext_auth_keys/service_{0}/{1}'.format(instance.secured_service_id, filename)
 
 
 class ExternalAuthentication(GenericModelMixin, CommonInfo):
@@ -44,16 +47,9 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
                                null=True,
                                verbose_name=_("Service url"),
                                help_text=_("this shall be the full get capabilities request url."))
-
-    class Meta:
-        """
-        # todo:
-        constraints = [
-            models.CheckConstraint(
-                name="%(app_label)s_%(class)s_empty_fields",
-                check=Q(username=None) | Q(password=None) | Q(auth_type=None)
-            )
-        ]"""
+    key_file = models.FileField(upload_to=key_file_path,
+                                editable=False,
+                                max_length=1024)
 
     def __str__(self):
         return f"External authentication for {self.secured_service.__str__()}"
@@ -80,49 +76,14 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         if errors:
             raise ValidationError(errors)
 
-    @property
-    def filepath(self):
-        """the path of the key file for this external authentication"""
-        return f"{EXTERNAL_AUTHENTICATION_FILEPATH}/service_{self.secured_service_id}.key"
-
-    @property
-    def key(self):
-        """the key to decrypt this external authentication"""
-        file = open(self.filepath, "rb")
-        return file.read()
-
-    def write_key_to_file(self, force_return: bool = False):
-        """Generate and store a key for this external authentication to
-        :attr:`.ExternalAuthentication.filepath`
-        """
-        key = Fernet.generate_key()
-        file = None
-        try:
-            file = open(self.filepath, "wb")  # open file in write-bytes mode
-            file.write(key)
-            return key, True
-        except FileNotFoundError:
-            # directory might not exist yet
-            tmp = self.filepath.split("/")
-            del tmp[-1]
-            dir_path = "/".join(tmp)
-            os.mkdir(dir_path)
-
-            # try again
-            if force_return:
-                raise FileNotFoundError("can't generate the key file for external authentication.")
-            else:
-                return self.write_key_to_file(force_return=True)
-        finally:
-            if file:
-                file.close()
-
     def save(self, register_service=False, *args, **kwargs):
-        if self._state.adding:
-            key, success = self.write_key_to_file()
-            if success:
-                self.__encrypt()
-                super().save(*args, **kwargs)
+        if self._state.adding and not self.key_file:
+            key = Fernet.generate_key()
+            self.key_file.save(name=f'{time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.key',
+                               content=ContentFile(key),
+                               save=False)
+            self.__encrypt()
+            super().save(*args, **kwargs)
         else:
             # We check if password has become changed. If not we need to get the old password from the ciphered password
             # by set the decrypted password to the current ExternalAuthentication object.
@@ -144,12 +105,12 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         Returns:
             the deleted object
         """
-        try:
-            os.remove(self.filepath)
-        except FileNotFoundError:
-            pass
-        finally:
-            super().delete(*args, **kwargs)
+        self.key_file.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+    @property
+    def key(self):
+        return self.key_file.open().read()
 
     def __encrypt(self):
         """ Encrypt the login credentials using the stored key
@@ -332,36 +293,121 @@ class ProxySetting(GenericModelMixin, CommonInfo):
             )
 
 
-class ProxyLog(GenericModelMixin, CommonInfo):
+def request_body_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/security_proxy/logs/requests/service_<id>/<username>/<filename>
+    return 'security_proxy/logs/requests/service_{0}/{1}/{2}'.format(instance.service.id,
+                                                                     instance.user.username,
+                                                                     filename)
+
+
+class HttpRequestLog(models.Model):
+    timestamp = models.DateTimeField()
+    elapsed = models.DurationField()
+    method = models.CharField(max_length=20)
+    url = models.URLField(max_length=4096)
+    body = models.FileField(upload_to=request_body_path, max_length=1024)
+    headers = models.JSONField(default=dict)
     service = models.ForeignKey(to=Service,
                                 on_delete=models.PROTECT,
-                                related_name="proxy_logs",
-                                related_query_name="proxy_log")
+                                related_name="http_request_logs",
+                                related_query_name="http_request_log")
     user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
                              on_delete=models.PROTECT,
-                             related_name="proxy_logs",
-                             related_query_name="proxy_log")
-    operation = models.CharField(max_length=100,
-                                 choices=OGCOperationEnum.as_choices())
-    uri = models.URLField(max_length=4096)
-    query_params = models.JSONField(default=dict)
-    post_body = models.JSONField(default=dict)
-    timestamp = models.DateTimeField(auto_now_add=True)
-    response_wfs_num_features = models.IntegerField(null=True,
-                                                    blank=True)
-    response_wms_megapixel = models.FloatField(null=True,
-                                               blank=True)
+                             related_name="http_request_logs",
+                             related_query_name="http_request_log")
+
+    def delete(self, *args, **kwargs):
+        self.body.delete(save=False)
+        d = super().delete(*args, **kwargs)
+        return d
+
+
+def response_content_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/security_proxy/logs/responses/service_<id>/<username>/<filename>
+    return 'security_proxy/logs/responses/service_{0}/{1}/{2}'.format(instance.request.service.id,
+                                                                      instance.request.user.username,
+                                                                      filename)
+
+
+class HttpResponseLog(models.Model):
+    status_code = models.IntegerField(default=0)
+    reason = models.CharField(max_length=50)
+    elapsed = models.DurationField()
+    headers = models.JSONField(default=dict)
+    url = models.URLField(max_length=4096)
+    content = models.FileField(upload_to=response_content_path, max_length=1024)
+    request = models.OneToOneField(to=HttpRequestLog,
+                                   on_delete=models.PROTECT,
+                                   related_name="response",
+                                   related_query_name="response")
+
+    def save(self, *args, **kwargs):
+        adding = False
+        if self._state.adding:
+            adding = True
+        super().save(*args, **kwargs)
+        if adding:
+            pass
+            # todo: create AnalyzedResponseLog() object async
+
+    def delete(self, *args, **kwargs):
+        self.content.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+
+class AnalyzedResponseLog(GenericModelMixin, CommonInfo):
+    response = models.OneToOneField(to=HttpResponseLog,
+                                    on_delete=models.PROTECT,
+                                    related_name="analyzed_response",
+                                    related_query_name="analyzed_response")
+    entity_count = models.FloatField(help_text="Stores the response entity count. "
+                                               "For WMS this will be the indiscreet number of megapixels that are "
+                                               "returned by the service. "
+                                               "For WFS this will be discrete number of feature types that are returned"
+                                               " by the service.")
+    entity_total_count = models.FloatField(help_text="Stores the response entity total count. "
+                                                     "For WMS this will be the indiscreet number of megapixels that are"
+                                                     " returned by the service. "
+                                                     "For WFS this will be discrete number of feature types that are "
+                                                     "returned by the service.")
+    entity_unit = models.CharField(max_length=5,
+                                   choices=EntityUnits.as_choices(),
+                                   help_text="The unit in which the entity count is stored.")
     objects = models.Manager()
-    response_logging = ProxyLogManager()
 
-    class Meta:
-        ordering = ["-timestamp"]
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            self.analyze_response()
+        super().save(*args, **kwargs)
 
-    def log_response(self, response: Response):
-        if self.service.is_service_type(OGCServiceEnum.WMS):
-            pass
-        elif self.service.is_service_type(OGCServiceEnum.WFS):
-            pass
+    def analyze_response(self):
+        if self.response.request.service.is_service_type(OGCServiceEnum.WMS):
+            self._analyze_wms_response()
+        elif self.response.request.service.is_service_type(OGCServiceEnum.WFS):
+            self._analyze_wfs_response()
 
-    def log_wms_response(self, response: Response):
+    def _analyze_wms_response(self):
+        img = Image.open(self.response.content.open(mode='rb'))
+        tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        tmp.paste(img)
+        img = tmp
+
+        # Get alpha channel pixel values as list
+        all_pixel_vals = list(img.getdata(3))
+        # Count all alpha pixel (value == 0)
+        num_alpha_pixels = all_pixel_vals.count(0)
+
+        # Compute data pixels
+        self.entity_count = round((len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
+        # Compute full image pixel count (including transparent pixels)
+        self.entity_total_count = round((img.height * img.width) / 1000000, 4)
+        self.entity_unit = EntityUnits.MEGA_PIXEL.value
+
+        # todo: implement GetFeatureInfo analyzing
+
+    def _analyze_wfs_response(self):
+        # todo: implement csv analyzing
+        # todo: implement kml analyzing
+        # todo: implement geojson analyzing
+        # todo: implement xml/gml analyzing
         pass

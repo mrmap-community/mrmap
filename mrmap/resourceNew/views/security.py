@@ -3,7 +3,7 @@ from resourceNew.filtersets.security import AllowedOperationFilterSet, ServiceAc
     ExternalAuthenticationFilterSet
 from resourceNew.forms.security import ServiceAccessGroupModelForm, ProxySettingModelForm, \
     AllowedOperationPage2ModelForm, ExternalAuthenticationModelForm
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, ProxyLog, \
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, AnalyzedResponseLog, \
     ExternalAuthentication
 from resourceNew.tables.security import AllowedOperationTable, ServiceAccessGroupTable, ProxyLogTable, \
     ExternalAuthenticationTable, ProxySettingTable
@@ -82,6 +82,6 @@ class ProxySettingUpdateView(SecuredUpdateView):
 
 
 class ProxyLogListView(SecuredListMixin, FilterView):
-    model = ProxyLog
+    model = AnalyzedResponseLog
     table_class = ProxyLogTable
     filterset_class = ProxyLogFilterSet

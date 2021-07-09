@@ -2,7 +2,7 @@ import django_filters
 from dal import autocomplete
 from django.contrib.gis.geos import GEOSGeometry
 
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxyLog, ExternalAuthentication
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication
 from django.utils.translation import gettext_lazy as _
 
 
@@ -41,13 +41,14 @@ class AllowedOperationFilterSet(django_filters.FilterSet):
 
 class ProxyLogFilterSet(django_filters.FilterSet):
     class Meta:
-        model = ProxyLog
+        model = AnalyzedResponseLog
         fields = {
             "id": ["in"],
-            "service__id": ["in"],
-            "user__id": ["in"],
-            "operation__operation": ["in"],
-            "uri": ["icontains"],
-            "response_wfs_num_features": ["icontains"],
-            "response_wms_megapixel": ["icontains"],
+            "response__request__service__id": ["in"],
+            "response__request__user__id": ["in"],
+            #"operation__operation": ["in"],
+            "response__request__url": ["icontains"],
+            "entity_count": ["icontains"],
+            "entity_total_count": ["icontains"],
+            "entity_unit": ["exact"],
         }

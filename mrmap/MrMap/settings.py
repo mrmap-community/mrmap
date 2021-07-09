@@ -20,6 +20,8 @@ from kombu import Queue, Exchange
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+MEDIA_ROOT = BASE_DIR + "/media"
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 
@@ -470,6 +472,7 @@ LOG_SUB_DIRS = {
     'service': {'dir': '/service', 'log_file': 'service.log'},
     'resourceNew.parser': {'dir': '/resourceNew', 'log_file': 'parser.log'},
     'resourceNew.models': {'dir': '/resourceNew', 'log_file': 'models.log'},
+    'resourceNew.views': {'dir': '/resourceNew', 'log_file': 'views.log'},
     'structure': {'dir': '/structure', 'log_file': 'structure.log'},
     'users': {'dir': '/users', 'log_file': 'users.log'},
 }
@@ -571,6 +574,14 @@ LOGGING = {
             'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.models']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.models']['log_file'],
             'formatter': 'verbose',
         },
+        'MrMap.resourceNew.views.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.views']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.views']['log_file'],
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'MrMap.root': {
@@ -610,6 +621,11 @@ LOGGING = {
         },
         'MrMap.resourceNew.models': {
             'handlers': ['MrMap.resourceNew.models.file', ],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'MrMap.resourceNew.views': {
+            'handlers': ['MrMap.resourceNew.views.file', ],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },

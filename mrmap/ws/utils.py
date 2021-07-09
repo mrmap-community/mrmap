@@ -4,7 +4,7 @@ from job.models import Task, Job
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
     FeatureTypeMetadata, DatasetMetadata
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, ProxyLog, ExternalAuthentication, \
+from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
     ProxySetting
 
 
@@ -25,7 +25,7 @@ def get_app_view_model(user):
     external_authentication_count = user.get_instances(klass=ExternalAuthentication).count()
     allowed_operations_count = user.get_instances(klass=AllowedOperation).count()
     service_access_groups_count = user.get_instances(klass=ServiceAccessGroup).count()
-    proxy_log_count = user.get_instances(klass=ProxyLog).count()
+    proxy_log_count = user.get_instances(klass=AnalyzedResponseLog).count()
     proxy_settings_count = user.get_instances(klass=ProxySetting).count()
 
     response = {

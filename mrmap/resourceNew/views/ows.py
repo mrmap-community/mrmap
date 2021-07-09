@@ -1,7 +1,12 @@
 import copy
+import re
+
 from io import BytesIO
 
-from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import GEOSGeometry
+from django.core.files.base import ContentFile
+from django.db.models.functions import datetime
 from django.http import StreamingHttpResponse
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
@@ -14,24 +19,23 @@ from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUE
 from MrMap.settings import PROXIES
 from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
 from resourceNew.models import Service
-from resourceNew.models.security import ProxyLog
+from resourceNew.models.security import HttpRequestLog, HttpResponseLog
 from resourceNew.ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
 from resourceNew.ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam
-from resourceNew.ows_client.request_builder import OgcService, WebService
+from resourceNew.ows_client.request_builder import WebService
 from requests.auth import HTTPDigestAuth
-from requests import Session, Response, Request
+from requests import Session, Request
 from requests.exceptions import ConnectTimeout as ConnectTimeoutException, ConnectionError as ConnectionErrorException
 import io
 from queue import Queue
 from threading import Thread
 from PIL import Image, ImageFont, ImageDraw
-from django.db import connection
-from django.db.models import Q
+from django.db import connection, transaction
 from django.http import HttpResponse
 from MrMap.utils import execute_threads
 from resourceNew.parsers.ogc.feature_collection import FeatureCollection
 from resourceNew.parsers.ogc.wfs_filter import GetFeature
-from resourceNew.settings import SECURE_ABLE_OPERATIONS, SECURE_ABLE_OPERATIONS_LOWER
+from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
@@ -55,17 +59,22 @@ class GenericOwsServiceOperationFacade(View):
     query_parameters = None
     access_denied_img = None
     bbox = None
+    start_time = None
 
     def setup(self, request, *args, **kwargs):
         """Setup all basically needed attributes of this class."""
         super().setup(request=request, *args, **kwargs)
+        self.start_time = datetime.datetime.now()
         request.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
         try:
             request.bbox = WebService.construct_polygon_from_bbox_query_param(get_dict=request.query_parameters)
         except (MissingBboxParam, MissingServiceParam):
             request.bbox = GEOSGeometry('POLYGON EMPTY')
+
         self.service = Service.security.construct_service(pk=self.kwargs.get("pk"), request=request)
+
         if self.service:
+            _start_time = datetime.datetime.now()
             try:
                 query = request.get_full_path().split("?")[1]
                 if self.service.base_operation_url:
@@ -78,12 +87,12 @@ class GenericOwsServiceOperationFacade(View):
                 pass
 
     def post(self, request, *args, **kwargs):
-        return self.get_post(request=request, *args, **kwargs)
+        return self.get_and_post(request=request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        return self.get_post(request=request, *args, **kwargs)
+        return self.get_and_post(request=request, *args, **kwargs)
 
-    def get_post(self, request, *args, **kwargs):
+    def get_and_post(self, request, *args, **kwargs):
         """Http get/post method with security case decisioning.
 
         **Principle constraints**:
@@ -381,9 +390,12 @@ class GenericOwsServiceOperationFacade(View):
                 mask = result
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
-
         secured_image = self._create_masked_image(remote_response.content, mask)
         return self.return_http_response(response={"status_code": 200,
+                                                   "reason": remote_response.reason,
+                                                   "elapsed": remote_response.elapsed,
+                                                   "headers": dict(remote_response.headers),
+                                                   "url": remote_response.url,
                                                    "content": self._image_to_bytes(secured_image),
                                                    "content_type": remote_response.headers.get("content-type")})
 
@@ -603,20 +615,62 @@ class GenericOwsServiceOperationFacade(View):
                       "content": f"{type(e).__name__} raised in function get_remote_response()"})
         return r
 
-    def log_response(self, response: Response):
-        """Check if response logging is active. If so, the response will be logged."""
+    def log_response(self, response):
+        """Check if response logging is active. If so, the request and response will be logged."""
         if self.service.log_response:
-            return
-            ProxyLog.response_logging.create(user=self.request.user,
+            with transaction.atomic():
+                if self.request.user.username == '':
+                    user = get_user_model().objects.get(username="AnonymousUser")
+                else:
+                    user = self.request.user
+                regex = re.compile('^HTTP_')
+                headers = dict((regex.sub('', header), value) for (header, value) in self.request.META.items() if header.startswith('HTTP_'))
+                request_log = HttpRequestLog(timestamp=self.start_time,
+                                             elapsed=datetime.datetime.now() - self.start_time,
+                                             method=self.request.method,
+                                             url=self.request.get_full_path(),
+                                             headers=headers,
                                              service=self.service,
-                                             # todo:
-                                             operation=self.request.query_parameters.get("request"),
-                                             # todo:
-                                             uri=self.request.url,
-                                             post_body=self.request.POST,
-                                             response_content=response.content)
-            # todo
-            pass
+                                             user=user)
+                if self.request.body:
+                    content_type = self.request.content_type
+                    if "/" in content_type:
+                        content_type = content_type.split("/")[-1]
+                    request_log.body.save(name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
+                                          content=ContentFile(self.request.body))
+                else:
+                    request_log.save()
+                if isinstance(response, dict):
+                    response_log = HttpResponseLog(status_code=response.get("status_code"),
+                                                   reason=response.get("reason"),
+                                                   elapsed=response.get("elapsed"),
+                                                   headers=response.get("headers"),
+                                                   url=response.get("url"),
+                                                   request=request_log)
+                    if response.get("content", None):
+                        content_type = response.get("content_type")
+                        if "/" in content_type:
+                            content_type = content_type.split("/")[-1]
+                        response_log.content.save(
+                            name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
+                            content=ContentFile(response.get("content")))
+                    else:
+                        response_log.save()
+                else:
+                    response_log = HttpResponseLog(status_code=response.status_code,
+                                                   reason=response.reason,
+                                                   elapsed=response.elapsed,
+                                                   headers=dict(response.headers),
+                                                   url=response.url,
+                                                   request=request_log)
+                    if response.content:
+                        content_type = response.headers.get("content-type")
+                        if "/" in content_type:
+                            content_type = content_type.split("/")[-1]
+                        response_log.content.save(name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
+                                                  content=ContentFile(response.content))
+                    else:
+                        response_log.save()
 
     def return_http_response(self, response):
         """ Return the http response for the client.
@@ -630,40 +684,39 @@ class GenericOwsServiceOperationFacade(View):
                     :class:`django.http.response.HttpResponse`
 
         """
+        headers = {}
         if isinstance(response, dict):
             content = response.get("content", "unknown")
             status_code = response.get("status_code", 200)
             content_type = response.get("content_type", None)
-            headers = response.get("headers", {})
         else:
             content = response.content
             status_code = response.status_code
             content_type = response.headers.get("content-type")
-            headers = {}
-            content_disposition = response.headers.get("Content-Disposition", None)
-            content_encoding = response.headers.get("Content-Encoding", None)
+            content_disposition = response.headers.get("content-disposition", None)
+            content_encoding = response.headers.get("content-encoding", None)
             if content_disposition:
                 headers.update({"Content-Disposition": content_disposition})
             if content_encoding:
                 headers.update({"Content-Encoding": content_encoding})
 
-        if isinstance(response, dict):
-            if status_code > 399:
-                # todo: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
-                content = render_to_string(template_name="resourceNew/xml/ows/exception.xml",
-                                           context=response)
-                content_type = "text/xml"
-        else:
-            self.log_response(response=response)
+        if isinstance(response, dict) and status_code > 399:
+            # todo: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
+            content = render_to_string(template_name="resourceNew/xml/ows/exception.xml",
+                                       context=response)
+            content_type = "text/xml"
 
         if len(content) >= 5000000:
             # data too big - we should stream it!
-            return StreamingHttpResponse(status=status_code,
-                                         streaming_content=BytesIO(content),
-                                         content_type=content_type,
-                                         headers=headers)
+            computed_response = StreamingHttpResponse(status=status_code,
+                                                      streaming_content=BytesIO(content),
+                                                      content_type=content_type,
+                                                      headers=headers)
         else:
-            return HttpResponse(status=status_code,
-                                content=content,
-                                content_type=content_type,
-                                headers=headers)
+            computed_response = HttpResponse(status=status_code,
+                                             content=content,
+                                             content_type=content_type,
+                                             headers=headers)
+
+        self.log_response(response=response)
+        return computed_response

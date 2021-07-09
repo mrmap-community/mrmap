@@ -1,15 +1,10 @@
 from typing import Optional
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
-from django.contrib.gis.geos import Polygon
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.functions import Coalesce
 from django.db.models import Value as V, QuerySet
-from requests import Response
-
 from resourceNew.enums.service import OGCOperationEnum
 from resourceNew.ows_client.request_builder import WebService, WmsService, WfsService
 from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
@@ -160,10 +155,3 @@ class ServiceSecurityManager(models.Manager):
         except ObjectDoesNotExist:
             pass
         return service
-
-
-class ProxyLogManager(models.Manager):
-    def create(self, response: Response, **kwargs):
-        obj = super().create(**kwargs)
-        obj.log_response(response=response)
-        return obj

@@ -426,6 +426,7 @@ class WfsService(WebService):
     DESCRIBE_FEATURE_TYPE_QV = "DescribeFeatureType"
     GET_FEATURE_QV = "GetFeature"
     TYPE_NAME_QP = "typeName"
+    TYPE_NAME_DFT_QP = "TYPENAME"
     OUTPUT_FORMAT_QP = "outputFormat"
     CRS_QP = "srsName"
     FEATURE_ID_QP = "featureID"
@@ -530,7 +531,7 @@ class WfsService(WebService):
             if isinstance(type_name_list, str):
                 type_name_list = [type_name_list]
             query_params.update(
-                {self.TYPE_NAME_QP: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0]})
+                {self.TYPE_NAME_DFT_QP: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0]})
         if output_format:
             query_params.update({self.OUTPUT_FORMAT_QP: output_format})
         req = Request(method="GET", url=self.base_url, params=query_params)

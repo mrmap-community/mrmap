@@ -1,5 +1,6 @@
-from django.contrib.gis.geos import MultiPolygon, Polygon
-from django.contrib.gis.gdal.geometries import MultiPolygon as GdalMultiPolygon, Polygon as GdalPolygon
+from django.contrib.gis.geos import MultiPolygon, Polygon, Point
+from django.contrib.gis.gdal.geometries import MultiPolygon as GdalMultiPolygon, Polygon as GdalPolygon, \
+    Point as GdalPoint
 from epsg_registry_offline.registry import Registry
 
 
@@ -52,26 +53,28 @@ def get_epsg_srid(srs_name):
     return authority, srid
 
 
-def switch_axis_order(polygon) -> MultiPolygon:
-    polygons = []
-    if isinstance(polygon, Polygon) or isinstance(polygon, GdalPolygon):
+def switch_axis_order(geometry):
+    if isinstance(geometry, Polygon) or isinstance(geometry, GdalPolygon):
         coords = []
-        for _polygon in polygon.coords:
+        for _polygon in geometry.coords:
             for coord in _polygon:
                 coords.append((coord[1], coord[0]))
-        polygons.append(Polygon(tuple(coords), srid=polygon.srid))
-    elif isinstance(polygon, MultiPolygon) or isinstance(polygon, GdalMultiPolygon):
-        for _polygon in polygon.coords:
+        return Polygon(tuple(coords), srid=geometry.srid)
+    elif isinstance(geometry, MultiPolygon) or isinstance(geometry, GdalMultiPolygon):
+        polygons = []
+        for _polygon in geometry.coords:
             coords = []
             for coord in _polygon[0]:
                 coords.append((coord[1], coord[0]))
-            polygons.append(Polygon(tuple(coords), srid=polygon.srid))
-    return MultiPolygon(polygons, srid=polygon.srid)
+            polygons.append(Polygon(tuple(coords), srid=geometry.srid))
+        return MultiPolygon(polygons, srid=geometry.srid)
+    elif isinstance(geometry, Point) or isinstance(geometry, GdalPoint):
+        Point(x=geometry.y, y=geometry.x, srid=geometry.srid)
 
 
-def adjust_axis_order(polygon):
+def adjust_axis_order(geometry):
     registry = Registry()
-    epsg_sr = registry.get(srid=polygon.srid)
+    epsg_sr = registry.get(srid=geometry.srid)
     if epsg_sr.is_yx_order:
-        polygon = switch_axis_order(polygon)
-    return polygon
+        geometry = switch_axis_order(geometry)
+    return geometry

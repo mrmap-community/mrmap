@@ -21,7 +21,7 @@ from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
 from resourceNew.ows_client.request_builder import OgcService
 from service.helper.common_connector import CommonConnector
-from resourceNew.parsers.ogc.wfs import DescribedFeatureType as XmlDescribedFeatureType
+from resourceNew.parsers.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
 from resourceNew.settings import models_logger
 
@@ -146,12 +146,24 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
         return self.service_type
 
     @cached_property
-    def service_type_name(self):
+    def service_type_name(self) -> str:
         return self._service_type.name
 
     @cached_property
-    def service_version(self):
+    def service_version(self) -> str:
         return self._service_type.version
+
+    @cached_property
+    def major_service_version(self) -> int:
+        return int(self.service_version.split('.')[0])
+
+    @cached_property
+    def minor_service_version(self) -> int:
+        return int(self.service_version.split('.')[1])
+
+    @cached_property
+    def fix_service_version(self) -> int:
+        return int(self.service_version.split('.')[2])
 
     def is_service_type(self, name: OGCServiceEnum):
         """ Return True if the given service type name matches else return None

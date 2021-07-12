@@ -1,4 +1,7 @@
 import os
+
+from resourceNew.parsers.ogc.wfs_transaction import Transaction
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MrMap.settings_docker")
 
 import django
@@ -16,10 +19,9 @@ from django.contrib.gis.geos import Polygon
 if __name__ == '__main__':
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    get_feature_xml = xmlmap.load_xmlobject_from_file(
-        filename=current_dir + '/../test_data/wfs_filter/geo5_gemarkung_wfs.xml',
-        xmlclass=GetFeature)
-    poly = Polygon(((1, 2), (2, 2), (2, 1), (2, 2), (1, 2)), srid=4326)
-    get_feature_xml.filter.secure_spatial("test", poly)
+    transaction_xml = xmlmap.load_xmlobject_from_file(
+        filename=current_dir + '/../test_data/wfs_transaction/delete.xml',
+        xmlclass=Transaction)
+
 
     i=0

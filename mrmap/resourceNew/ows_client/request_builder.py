@@ -1,5 +1,6 @@
 from abc import ABC
 from django.template.loader import render_to_string
+from eulxml import xmlmap
 from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.contrib.gis.gdal import SpatialReference
@@ -9,6 +10,9 @@ from resourceNew.ows_client.exceptions import MissingServiceParam, MissingBboxPa
     MissingVersionParam
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
+
+from resourceNew.parsers.ogc.wfs_get_feature import GetFeature
+from resourceNew.parsers.ogc.wfs_transaction import Transaction
 
 
 class WebService(ABC):
@@ -425,6 +429,7 @@ class WmsService(WebService):
 class WfsService(WebService):
     DESCRIBE_FEATURE_TYPE_QV = "DescribeFeatureType"
     GET_FEATURE_QV = "GetFeature"
+    TRANSACTION_QV = "Transaction"
     TYPE_NAME_QP = "typeName"
     TYPE_NAME_DFT_QP = "TYPENAME"
     OUTPUT_FORMAT_QP = "outputFormat"
@@ -521,8 +526,24 @@ class WfsService(WebService):
             query_params.update({self.MAX_FEATURES_QP: max_features})
         return query_params
 
-    def get_requested_feature_types(self, query_params: dict):
-        return self.get_get_params(query_params=query_params).get(self.TYPE_NAME_QP).split(",")
+    def convert_kwargs_for_transaction(self, **kwargs):
+        return {}
+
+    def get_transaction_kwargs(self, **kwargs):
+        return {}
+
+    def get_requested_feature_types(self, query_params: dict, post_body: str):
+        if post_body:
+            if "transaction" == query_params.get("request").lower():
+                transaction_xml = xmlmap.load_xmlobject_from_string(string=post_body,
+                                                                    xmlclass=Transaction)
+                return transaction_xml.operation.get_type_names().split(",")
+            elif "getfeature" == query_params.get("request").lower():
+                get_feature_xml = xmlmap.load_xmlobject_from_string(string=post_body,
+                                                                    xmlclass=GetFeature)
+                return get_feature_xml.get_type_names().split(",")
+        else:
+            return self.get_get_params(query_params=query_params).get(self.TYPE_NAME_QP).split(",")
 
     def get_describe_feature_type_request(self, type_name_list=None, output_format=None):
         query_params = self.get_default_query_params()
@@ -562,13 +583,30 @@ class WfsService(WebService):
                           params=query_params)
         return req
 
+    def transaction(self, **kwargs):
+        return self.get_transaction_request(**kwargs)
+
+    def get_transaction_request(self, data: str, **kwargs):
+        query_params = self.get_transaction_kwargs(**self.convert_kwargs_for_transaction(**kwargs))
+        query_params.update({self.REQUEST_QP: self.TRANSACTION_QV})
+        query_params.update(self.get_default_query_params())
+
+        if self.TYPE_NAME_QP.lower() in kwargs:
+            # typename and xml filter together is not supported.
+            del query_params[self.TYPE_NAME_QP]
+        return Request(method="POST",
+                       url=self.base_url,
+                       params=query_params,
+                       data=data,
+                       headers={"content-type": "application/xml"})
+
     def construct_filter_xml(self, type_names, value_reference, polygon: Polygon):
         if self.major_version >= 2:
             polygon = adjust_axis_order(polygon)
 
-            template_name = "resourceNew/xml/wfs/filter_v2.xml"
+            template_name = "resourceNew/xml/wfs/get_feature_v2.xml"
         else:
-            template_name = "resourceNew/xml/wfs/filter_v1.xml"
+            template_name = "resourceNew/xml/wfs/get_feature_v1.xml"
         return render_to_string(template_name=template_name, context={"type_names": type_names,
                                                                       "value_reference": value_reference,
                                                                       "polygon": polygon})

@@ -23,7 +23,8 @@ class AllowedOperationManager(models.Manager):
                 secured_layers__identifier__iregex=r'(' + '|'.join(layer_identifiers) + ')'
             )
         elif isinstance(dummy_service, WfsService):
-            feature_type_identifiers = dummy_service.get_requested_feature_types(query_params=request.query_parameters)
+            feature_type_identifiers = dummy_service.get_requested_feature_types(query_params=request.query_parameters,
+                                                                                 post_body=request.body)
             qs.filter(
                 secured_feature_types__identifier__iregex=r'(' + '|'.join(feature_type_identifiers) + ')'
             )

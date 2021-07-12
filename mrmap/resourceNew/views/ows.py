@@ -2,6 +2,7 @@ import copy
 import re
 
 from io import BytesIO
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import GEOSGeometry
@@ -34,7 +35,8 @@ from django.db import connection, transaction
 from django.http import HttpResponse
 from MrMap.utils import execute_threads
 from resourceNew.parsers.ogc.feature_collection import FeatureCollection
-from resourceNew.parsers.ogc.wfs_filter import GetFeature
+from resourceNew.parsers.ogc.wfs_get_feature import GetFeature
+from resourceNew.parsers.ogc.wfs_transaction import Transaction
 from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
@@ -74,7 +76,6 @@ class GenericOwsServiceOperationFacade(View):
         self.service = Service.security.construct_service(pk=self.kwargs.get("pk"), request=request)
 
         if self.service:
-            _start_time = datetime.datetime.now()
             try:
                 query = request.get_full_path().split("?")[1]
                 if self.service.base_operation_url:
@@ -455,7 +456,9 @@ class GenericOwsServiceOperationFacade(View):
                     requested_response = xml_response
                 feature_collection = xmlmap.load_xmlobject_from_string(xml_response.content,
                                                                        xmlclass=FeatureCollection)
-                polygon = feature_collection.bounded_by.get_geometry()
+                # FIXME: depends on xml wfs version not on the registered service version
+                axis_order_correction = True if self.service.major_service_version >= 2 else False
+                polygon = feature_collection.bounded_by.get_geometry(axis_order_correction)
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
                         return self.return_http_response(response=requested_response)
@@ -526,24 +529,58 @@ class GenericOwsServiceOperationFacade(View):
 
         elif self.request.method == "POST" and self.request.body:
             # there is a filter xml we can parse and secure.
-            get_feature_xml = xmlmap.load_xmlobject_from_string(string=self.request.body,
+            get_feature_xml = xmlmap.load_xmlobject_from_string(string=self.request.body.decode("utf-8"),
                                                                 xmlclass=GetFeature)
             if not get_feature_xml.type_names:
                 return self.return_http_response(response=NO_FEATURE_TYPES)
             elif len(get_feature_xml.type_names.split(" ")) > 1:
                 return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
-            value_reference = self.service.featuretypes.get(identifier=get_feature_xml.type_names)\
+            value_reference = self.service.featuretypes.get(identifier=get_feature_xml.get_type_names())\
                 .elements.values_list("name", flat=True).get(data_type__in=["gml:GeometryPropertyType",
                                                                             "gml:MultiSurfacePropertyType"])
-            get_feature_xml.secure_spatial(value_reference=value_reference,
-                                           polygon=self.service.allowed_area_united)
+            get_feature_xml.filter.secure_spatial(value_reference=value_reference,
+                                                  polygon=self.service.allowed_area_united)
             response = self.get_remote_response(self.remote_service.construct_request(data=get_feature_xml.serializeDocument(),
                                                                                       query_params=self.request.query_parameters, ))
             return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):
-        # todo
-        return
+        transaction_xml = xmlmap.load_xmlobject_from_string(string=self.request.body,
+                                                            xmlclass=Transaction)
+        axis_order_correction = True if transaction_xml.get_major_service_version() >= 2 else False
+
+        if not transaction_xml.operation.get_type_names():
+            return self.return_http_response(response=NO_FEATURE_TYPES)
+        elif len(transaction_xml.operation.get_type_names().split(" ")) > 1:
+            return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
+
+        if "insert" in transaction_xml.operation.action.lower():
+            # fes filter is not possible on insert transactions... we need to check any gml if these are covered
+            # by the allowed area..
+            # todo: implement configurable threshold instead of fix number
+            if len(transaction_xml.operation.feature_types) >= 20:
+                return self.return_http_response(response={"status_code": 400,
+                                                           "content": f"To many feature types at once."})
+            for feature_type in transaction_xml.operation.feature_types:
+                if feature_type.element.geom:
+                    geometry = feature_type.element.geom.get_geometry(axis_order_correction=axis_order_correction)
+                    if geometry.srid != self.service.allowed_area_united.srid:
+                        geometry.transform(ct=self.service.allowed_area_united.srid)
+                    if not self.service.allowed_area_united.covers(geometry):
+                        return self.return_http_response(response={"status_code": 403,
+                                                                   "content": "Some geometries are outside the allowed area."})
+        else:
+            value_reference = self.service.featuretypes.get(identifier=transaction_xml.operation.get_type_names()) \
+                .elements.values_list("name", flat=True).get(data_type__in=["gml:GeometryPropertyType",
+                                                                            "gml:MultiGeometryPropertyType",
+                                                                            "gml:SurfacePropertyType",
+                                                                            "gml:MultiSurfacePropertyType"])
+            transaction_xml.operation.secure_spatial(value_reference=value_reference,
+                                                     polygon=self.service.allowed_area_united,
+                                                     axis_order_correction=axis_order_correction)
+        response = self.get_remote_response(self.remote_service.construct_request(data=transaction_xml.serializeDocument(),
+                                                                                  query_params=self.request.query_parameters, ))
+        return self.return_http_response(response=response)
 
     def handle_secured_wfs(self):
         """Handler to decide which subroutine for the given request param shall run.

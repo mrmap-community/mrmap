@@ -1,11 +1,6 @@
-from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.auth import get_user_model
-from django.db.models import Q
-from django.utils.html import format_html
-
 from main.forms import ModelForm
 from django import forms
-
 from main.widgets import TreeSelectMultiple
 from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Layer, FeatureType, Service
@@ -13,9 +8,7 @@ from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, Pr
     OGCOperation
 from leaflet.forms.widgets import LeafletWidget
 from dal import autocomplete
-from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-
 from resourceNew.settings import SECURE_ABLE_WMS_OPERATIONS, SECURE_ABLE_WFS_OPERATIONS
 
 

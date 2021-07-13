@@ -1,9 +1,11 @@
 from django.urls import path
 from resourceNew.views import service as service_views
 from resourceNew.views import metadata as metadata_views
+from resourceNew.views import mapcontext as mapcontext_views
 from resourceNew.views import ows as ows_views
 from resourceNew.views import security as security_views
 from resourceNew.wizards import security as security_wizards
+
 from resourceNew.wizards.security import ALLOWED_OPERATION_WIZARD_FORMS
 
 app_name = 'resourceNew'
@@ -40,6 +42,12 @@ urlpatterns = [
     path("metadata/datasets/<pk>/xml", metadata_views.DatasetMetadataXmlView.as_view(), name="dataset_metadata_xml_view"),
     path("metadata/datasets/<pk>/change", metadata_views.DatasetMetadataUpdateView.as_view(), name="dataset_metadata_change"),
     path("metadata/datasets/<pk>/restore", metadata_views.DatasetMetadataRestoreView.as_view(), name="dataset_metadata_restore"),
+
+    # MapContext views
+    path('mapcontexts/', mapcontext_views.MapContextIndexView.as_view(), name='map_context_list'),
+    path('mapcontexts/add/', mapcontext_views.MapContextCreateView.as_view(), name='map_context_add'),
+    path('mapcontexts/<pk>/change', mapcontext_views.MapContextEditView.as_view(), name='map_context_change'),
+    path('mapcontexts/<pk>/delete', mapcontext_views.MapContextDeleteView.as_view(), name='map_context_delete'),
 
     # Security views
     path("security/external-authentications", security_views.ExternalAuthenticationListView.as_view(), name="external_authentication_list"),

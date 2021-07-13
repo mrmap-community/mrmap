@@ -1,0 +1,24 @@
+.jstree i {
+    cursor: pointer;
+}
+
+.pull-right {
+    float: right;
+}
+
+/*
+.jstree a + i,
+.jstree a + i + i,
+.jstree a + i + i + i {
+    visibility: hidden;
+}
+
+.jstree i:hover,
+.jstree i:hover + i,
+.jstree i:hover + i + i,
+.jstree a:hover + i,
+.jstree a:hover + i + i,
+.jstree a:hover + i + i + i {
+    visibility: visible;
+}
+*/

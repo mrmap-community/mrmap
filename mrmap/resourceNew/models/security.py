@@ -115,7 +115,10 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
 
     @property
     def key(self):
-        return self.key_file.open().read()
+        try:
+            return self.key_file.open().read()
+        except FileNotFoundError:
+            return None
 
     def __encrypt(self):
         """ Encrypt the login credentials using the stored key
@@ -131,16 +134,18 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         cipher_suite = Fernet(self.key)
         return cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
 
-    def decrypt(self, ):
+    def decrypt(self):
         """ Decrypt the login credentials using the stored key
 
         Returns:
             username, password (tuple): the username and password in clear text
         """
-        cipher_suite = Fernet(self.key)
-        password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
-        username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
-        return username, password
+        if self.key:
+            cipher_suite = Fernet(self.key)
+            password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
+            username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
+            return username, password
+        return None, None
 
     def get_auth_for_request(self):
         username, password = self.decrypt()

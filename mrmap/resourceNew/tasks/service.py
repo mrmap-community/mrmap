@@ -1,9 +1,13 @@
 from django.utils import timezone
 from celery import shared_task, chain, chord, group
+from requests import Session, Request
+from requests.auth import HTTPDigestAuth
+
+from MrMap.settings import PROXIES
+from resourceNew.enums.service import AuthTypeEnum
 from resourceNew.models import Service as DbService, FeatureType, DatasetMetadata
 from resourceNew.models import RemoteMetadata
 from resourceNew.models.security import ExternalAuthentication
-from service.helper.common_connector import CommonConnector
 from job.tasks import NewJob, CurrentTask
 from resourceNew.parsers.ogc.capabilities import get_parsed_service
 from service.settings import service_logger
@@ -207,22 +211,29 @@ def create_service_from_parsed_service(self,
     Returns:
         db_service_list (list): the id's of the created service object(s)
     """
-    if form.get("auth_type", None):
-        external_auth = ExternalAuthentication(
-            username=form["username"],
-            password=form["password"],
-            auth_type=form["auth_type"],
-        )
-    else:
-        external_auth = None
-
     if self.task:
         self.task.status = PendingTaskEnum.STARTED.value
         self.task.phase = "download capabilities document..."
         self.task.started_at = timezone.now()
         self.task.save()
-    connector = CommonConnector(url=form["test_url"], external_auth=external_auth)
-    connector.load()
+
+    auth = form.get("auth_type", None)
+    if auth:
+        external_auth = ExternalAuthentication(username=form["username"],
+                                               password=form["password"],
+                                               auth_type=form["auth_type"],
+                                               test_url=form["test_url"])
+        if self.service.external_authentication.auth_type == AuthTypeEnum.BASIC.value:
+            auth = (form["username"], form["password"])
+        elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
+            auth = HTTPDigestAuth(username=form["username"],
+                                  password=form["password"])
+    session = Session()
+    session.proxies = PROXIES
+    request = Request(method="GET",
+                      url=form["test_url"],
+                      auth=auth)
+    response = session.send(request.prepare())
 
     if self.task:
         self.task.status = PendingTaskEnum.STARTED.value
@@ -230,7 +241,7 @@ def create_service_from_parsed_service(self,
         self.task.progress = 1/3
         self.task.save()
 
-    parsed_service = get_parsed_service(xml=connector.content)
+    parsed_service = get_parsed_service(xml=response.content)
 
     if self.task:
         self.task.phase = "persisting service..."

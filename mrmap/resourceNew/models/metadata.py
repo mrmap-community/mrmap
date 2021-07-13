@@ -6,14 +6,17 @@ from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from requests import Session, Request
+
+from MrMap.settings import PROXIES
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
+from resourceNew.enums.service import AuthTypeEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
 from resourceNew.models.service import Layer, FeatureType, Service
 from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
-from service.helper.common_connector import CommonConnector
 from uuid import uuid4
 
 
@@ -216,13 +219,17 @@ class RemoteMetadata(CommonInfo):
         """ Return the fetched remote content and update the content if save is True """
         from resourceNew.models.security import ExternalAuthentication  # to avoid circular import
         try:
-            external_authentication = self.service.external_authentication
+            auth = self.service.external_authentication
+            auth = auth.get_auth_for_request()
         except ExternalAuthentication.DoesNotExist:
-            external_authentication = None
-        connector = CommonConnector(url=self.link,
-                                    external_auth=external_authentication)
-        connector.load()
-        content = connector.content
+            auth = None
+        session = Session()
+        session.proxies = PROXIES
+        request = Request(method="GET",
+                          url=self.link,
+                          auth=auth)
+        response = session.send(request.prepare())
+        content = response.content
         if isinstance(content, bytes):
             content = str(content, "UTF-8")
         self.remote_content = content

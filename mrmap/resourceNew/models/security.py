@@ -9,6 +9,8 @@ from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from requests.auth import HTTPDigestAuth
+
 from main.models import CommonInfo, GenericModelMixin
 from resourceNew.enums.security import EntityUnits
 from resourceNew.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
@@ -139,6 +141,17 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
         username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
         return username, password
+
+    def get_auth_for_request(self):
+        username, password = self.decrypt()
+        if self.auth_type == AuthTypeEnum.BASIC.value:
+            auth = (username, password)
+        elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
+            auth = HTTPDigestAuth(username=username,
+                                  password=password)
+        else:
+            auth = None
+        return auth
 
 
 class OGCOperation(models.Model):

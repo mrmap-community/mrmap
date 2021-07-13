@@ -1,9 +1,6 @@
 import copy
 import re
-
 from io import BytesIO
-from io import StringIO
-
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
@@ -14,17 +11,15 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from eulxml import xmlmap
-
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, \
     SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE, SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE
 from MrMap.settings import PROXIES
-from resourceNew.enums.service import AuthTypeEnum, OGCServiceEnum
+from resourceNew.enums.service import OGCServiceEnum
 from resourceNew.models import Service
 from resourceNew.models.security import HttpRequestLog, HttpResponseLog
 from resourceNew.ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
 from resourceNew.ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam
 from resourceNew.ows_client.request_builder import WebService
-from requests.auth import HTTPDigestAuth
 from requests import Session, Request
 from requests.exceptions import ConnectTimeout as ConnectTimeoutException, ConnectionError as ConnectionErrorException
 import io
@@ -627,12 +622,7 @@ class GenericOwsServiceOperationFacade(View):
         if not request:
             request = self.remote_service.construct_request(query_params=self.request.GET)
         if hasattr(self.service, "external_authentication"):
-            username, password = self.service.external_authentication.decrypt()
-            if self.service.external_authentication.auth_type == AuthTypeEnum.BASIC.value:
-                request.auth = (username, password)
-            elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
-                request.auth = HTTPDigestAuth(username=username,
-                                              password=password)
+            request.auth = self.service.external_authentication.get_auth_for_request()
         s = Session()
         s.proxies = PROXIES
         r = {}

@@ -1,6 +1,8 @@
 import os
+
+from django.conf import settings
 from django.contrib.gis.geos import Polygon
-from django.db import models
+from django.db import models, transaction
 from django.contrib.gis.db import models as gis_models
 from django.db.models import QuerySet, Q
 from django.utils.functional import cached_property
@@ -70,7 +72,7 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
                           default=uuid4,
                           editable=False)
     service_type = models.ForeignKey(to=ServiceType,
-                                     on_delete=models.RESTRICT,
+                                     on_delete=models.PROTECT,
                                      editable=False,
                                      related_name="services",
                                      related_query_name="service",
@@ -525,4 +527,28 @@ class FeatureTypeElement(CommonInfo):
 
 
 class HarvestResult(CommonInfo):
-    pass
+    service = models.ForeignKey(to=Service,
+                                on_delete=models.CASCADE,
+                                related_name="harvest_results",
+                                related_query_name="harvest_result")
+    timestamp_start = models.DateTimeField(blank=True,
+                                           null=True)
+    timestamp_end = models.DateTimeField(blank=True,
+                                         null=True)
+    number_results = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Harvest Result ({self.service_id})"
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            from csw.tasks import async_harvest
+            transaction.on_commit(lambda: async_harvest.apply_async(args=(self.service.owned_by_org.pk if self.service.owned_by_org else None,
+                                                                          self.pk, ),
+                                                                    kwargs={'created_by_user_pk': self.created_by_user.pk},
+                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN))

@@ -71,8 +71,7 @@
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Catalogue Service' %}</h6>
                     <div class="d-flex">
-                        <!-- TODO: url -->
-                        <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span data-bind="text: cswCount" class="badge badge-secondary"></span></a>
+                        <a class="dropdown-item" href="{% url 'resourceNew:service_csw_list' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span data-bind="text: cswCount" class="badge badge-secondary"></span></a>
                         {% if "resourceNew.add_service" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}

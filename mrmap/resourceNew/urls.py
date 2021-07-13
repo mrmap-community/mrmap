@@ -12,11 +12,15 @@ app_name = 'resourceNew'
 urlpatterns = [
     # Service views
     path("service/add", service_views.RegisterServiceFormView.as_view(), name="service_add"),
+
     path("service/wms", service_views.WmsListView.as_view(), name="service_wms_list"),
     path("service/layers", service_views.LayerListView.as_view(), name="layer_list"),
+
     path("service/wfs", service_views.WfsListView.as_view(), name="service_wfs_list"),
     path("service/featuretypes", service_views.FeatureTypeListView.as_view(), name="feature_type_list"),
     path("service/featuretypeelements", service_views.FeatureTypeElementListView.as_view(), name="feature_type_element_list"),
+
+    path("service/csw", service_views.CswListView.as_view(), name="service_csw_list"),
 
     path("service/<pk>/operation", ows_views.GenericOwsServiceOperationFacade.as_view(), name="service_operation_view"),
     path("service/<pk>/xml", service_views.ServiceXmlView.as_view(), name="service_xml_view"),

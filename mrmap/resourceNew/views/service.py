@@ -193,3 +193,16 @@ class FeatureTypeUpdateView(SecuredUpdateView):
     model = FeatureType
     form_class = LayerModelForm
     update_query_string = True
+
+
+class CswListView(SecuredListMixin, FilterView):
+    model = Service
+    table_class = ServiceTable
+    filterset_class = ServiceFilterSet
+    title = get_icon(IconEnum.CSW) + gettext(" Catalogue Web Service")
+    queryset = model.objects.for_table_view(service_type__name=OGCServiceEnum.CSW)
+
+    def get_table_kwargs(self):
+        return {
+            'exclude': ('layers_count', 'feature_types_count',)
+        }

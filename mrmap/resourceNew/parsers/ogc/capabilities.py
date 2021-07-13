@@ -46,7 +46,7 @@ class WmsOperationUrl(OperationUrl):
     mime_types = xmlmap.NodeListField(xpath=f"../../../../{NS_WC}Format']", node_class=MimeType)
 
 
-class WfsOperationUrl(OperationUrl):
+class WfsCswOperationUrl(OperationUrl):
     method = xmlmap.StringField(xpath="name(.)")
     operation = xmlmap.StringField(xpath=f"../../../@{NS_WC}name']")
     mime_types = xmlmap.NodeListField(
@@ -391,7 +391,7 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ServiceType"
 
     wms_name = xmlmap.StringField(xpath=f"{NS_WC}Service']/{NS_WC}Name']")
-    wfs_name = xmlmap.StringField(xpath=f"{NS_WC}ServiceIdentification']/{NS_WC}ServiceType']")
+    wfs_csw_name = xmlmap.StringField(xpath=f"{NS_WC}ServiceIdentification']/{NS_WC}ServiceType']")
     version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
 
     def get_field_dict(self):
@@ -408,19 +408,19 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
         dic = super().get_field_dict()
         if dic.get("wms_name", None):
             name = dic.get("wms_name").lower()
-        elif dic.get("wfs_name", None):
-            name = dic.get("wfs_name").lower()
+        elif dic.get("wfs_csw_name", None):
+            name = dic.get("wfs_csw_name").lower()
         else:
             raise SemanticError("could not determine the service type for the parsed capabilities document.")
 
-        del dic["wms_name"], dic["wfs_name"]
+        del dic["wms_name"], dic["wfs_csw_name"]
 
         if ":" in name:
             name = name.split(":", 1)[-1]
         elif " " in name:
             name = name.split(" ", 1)[-1]
 
-        if name not in ["wms", "wfs"]:
+        if name not in ["wms", "wfs", "csw"]:
             raise SemanticError(f"could not determine the service type for the parsed capabilities document. "
                                 f"Parsed name was {name}")
         dic.update({"name": name})
@@ -473,9 +473,18 @@ class Wfs200Service(Service):
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"
               f"{NS_WC}OperationsMetadata']/{NS_WC}Operation']//{NS_WC}DCP']/{NS_WC}HTTP']/*",
-        node_class=WfsOperationUrl)
+        node_class=WfsCswOperationUrl)
     feature_types = xmlmap.NodeListField(xpath=f"{NS_WC}FeatureTypeList']//{NS_WC}FeatureType']",
                                          node_class=FeatureType)
+
+
+class CswService(Service):
+    service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
+    service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
+    operation_urls = xmlmap.NodeListField(
+        xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"
+              f"{NS_WC}OperationsMetadata']/{NS_WC}Operation']//{NS_WC}DCP']/{NS_WC}HTTP']/*",
+        node_class=WfsCswOperationUrl)
 
 
 def get_parsed_service(xml):
@@ -512,6 +521,8 @@ def get_parsed_service(xml):
             xml_class = Wfs200Service
         elif service_type_dict["version"] == OGCServiceVersionEnum.V_2_0_2.value:
             xml_class = Wfs200Service
+    elif service_type_dict['name'] == OGCServiceEnum.CSW.value:
+        xml_class = CswService
 
     if not xml_class:
         raise NotImplementedError(f"unsupported service type `{service_type_dict['name']}` with version "

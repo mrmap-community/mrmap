@@ -218,6 +218,7 @@ def create_service_from_parsed_service(self,
         self.task.save()
 
     auth = form.get("auth_type", None)
+    external_auth = None
     if auth:
         external_auth = ExternalAuthentication(username=form["username"],
                                                password=form["password"],

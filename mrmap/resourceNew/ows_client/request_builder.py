@@ -54,6 +54,9 @@ class WebService(ABC):
         get_dict = self.get_get_params(query_params=query_params)
         if self.get_operation_by_name(get_dict.get(self.REQUEST_QP).lower()):
             if data:
+                if isinstance(data, bytes):
+                    # don't know why, but if we don't decode and encode again with UTF-8 the encoding is always wrong..
+                    data = data.decode("UTF-8").encode("UTF-8")
                 return self.get_operation_by_name(get_dict.get(self.REQUEST_QP).lower())(data=data, **get_dict)
             else:
                 return self.get_operation_by_name(get_dict.get(self.REQUEST_QP).lower())(**get_dict)

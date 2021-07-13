@@ -578,8 +578,11 @@ class GenericOwsServiceOperationFacade(View):
             transaction_xml.operation.secure_spatial(value_reference=value_reference,
                                                      polygon=self.service.allowed_area_united,
                                                      axis_order_correction=axis_order_correction)
-        response = self.get_remote_response(self.remote_service.construct_request(data=transaction_xml.serializeDocument(),
-                                                                                  query_params=self.request.query_parameters, ))
+
+        request = self.remote_service.construct_request(data=transaction_xml.serializeDocument(),
+                                                        query_params=self.request.query_parameters, )
+
+        response = self.get_remote_response(request=request)
         return self.return_http_response(response=response)
 
     def handle_secured_wfs(self):

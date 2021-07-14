@@ -3627,3 +3627,14 @@ class MapContext(Resource):
     @property
     def remove_view_uri(self):
         return reverse("resource:mapcontexts-remove", args=[self.pk])
+
+
+class MapContextLayer(MPTTModel):
+    #map_context = models.ForeignKey(MapContext, on_delete=models.CASCADE)
+    title = models.CharField(max_length=1000, null=False, blank=False, verbose_name=_('Title'))
+    # parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    # todo referenz auf Dataset (mit Layer)
+    # todo referenz auf Layer
+    # todo referenz auf FeatureType (zukünftig)
+    # zukünftig: featuretype, kml, gml, ...

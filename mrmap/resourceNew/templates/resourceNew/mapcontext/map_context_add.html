@@ -9,19 +9,25 @@
     <form id="id_mapcontext_form" action="{{form_mapcontext.action_url}}" method="post">
         {% csrf_token %}
         <div class="modal-body">
-            {% bootstrap_form form %}
+            {{ form.management_form }}
             <label for="mapcontext_tree">Ebenen und Datenangebote</label>
             <div id="mapcontext_tree"
                  style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
                  class="form-group" data-mapcontext-id="{{ context_id }}">
             </div>
+            {% for form in form %}
+            <div class="mapcontext_layer_form" data-jstree-node-id="{{form.id.value}}" style="display: none">
+                {% bootstrap_form form %}
+            </div>
+            {% endfor %}
         </div>
         <div class="modal-footer">
             <!-- <modal-footer> -->
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-sm">
-                        <a href="{% url 'resource:mapcontexts-index' %}" class="btn btn-warning" role="button" aria-pressed="true">
+                        <a href="{% url 'resource:mapcontexts-index' %}" class="btn btn-warning" role="button"
+                           aria-pressed="true">
                             <i class="fas fa-trash"></i> Abbrechen
                         </a>
                     </div>
@@ -53,12 +59,12 @@
                     <div class="form-group">
                         <label for="id_owsresource_name">Name</label>
                         <input type="text" name="name" class="form-control" placeholder="Name" title="" required
-                            id="id_owsresource_name">
+                               id="id_owsresource_name">
                     </div>
                     <div class="form-group">
                         <label for="id_wms_offering">WMS Offering</label>
                         <input type="text" name="wms_layer" class="form-control" placeholder="WMS Layer" title=""
-                            required id="id_wms_offering">
+                               required id="id_wms_offering">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -70,12 +76,8 @@
     </div>
 </div>
 
-<script type="application/javascript">
-    $('#id_modal_{{id_modal}}').modal('show');
-</script>
-
-<link rel="stylesheet" type="text/css" href="{% static '/css/jstree-default/style.min.css' %}" media="all" />
-<link rel="stylesheet" type="text/css" href="{% static '/resourceNew/mapcontext/css/folder-style.css' %}" media="all" />
+<link rel="stylesheet" type="text/css" href="{% static '/css/jstree-default/style.min.css' %}" media="all"/>
+<link rel="stylesheet" type="text/css" href="{% static '/resourceNew/mapcontext/css/folder-style.css' %}" media="all"/>
 
 <script type="text/javascript" src="{% static '/js/jstree.min.js' %}"></script>
 <script type="text/javascript" src="{% static '/js/jstree-actions.min.js' %}"></script>

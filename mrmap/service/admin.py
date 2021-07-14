@@ -258,4 +258,6 @@ admin.site.register(Style, StyleAdmin)
 #admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(ServiceUrl, ServiceUrlAdmin)
 admin.site.register(GenericUrl, GenericUrlAdmin)
+admin.site.register(MapContext)
+admin.site.register(MapContextLayer)
 """

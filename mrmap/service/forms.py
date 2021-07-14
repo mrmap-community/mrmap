@@ -182,3 +182,9 @@ class MapContextForm(forms.ModelForm):
             'update_date': BootstrapDatePickerInput(),
             'layer_tree': forms.HiddenInput()
         }
+
+
+class MapContextLayerForm(forms.Form):
+    id = forms.CharField(widget=forms.HiddenInput)
+    parent = forms.CharField(widget=forms.HiddenInput, required=False)
+    title = forms.CharField(widget=forms.TextInput, required=False)

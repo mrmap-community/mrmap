@@ -2,27 +2,12 @@ $(function () {
   function get_node_by_id(node_id) {
     return $('#mapcontext_tree').jstree(true).get_node(node_id);
   }
-  function get_base_url(node_id) {
-    let mapContextId = $('#mapcontext_tree').data("mapcontext-id");
-    return '/resource/mapcontext/' + mapContextId + '/folders';
-  }
   function get_node_name(node) {
     let name = node.text.trim();
     if (name !== '/') {
       return name;
     }
     return '';
-  }
-  function get_folder_path(node) {
-    let path = '';
-    while (node.parent && node.parent !== '#') {
-      node = get_node_by_id(node.parent);
-      path = get_node_name(node) + "/" + path;
-    }
-    return path;
-  }
-  function url_encode_folder_path(path) {
-    return path.split('/').map(component => encodeURIComponent(component)).join('/');
   }
   function append_layer_form_field() {
     const layerForms = document.querySelectorAll('.mapcontext_layer_form');

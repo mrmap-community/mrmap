@@ -62,9 +62,6 @@ class MapContextCreateView(FormView):
                 id_to_db_layer[data.get('id')] = layer
         return super(MapContextCreateView, self).form_valid(form)
 
-    def get_form_kwargs(self):
-        return {}
-
 
 class MapContextEditViewOld(SecuredUpdateView):
     model = MapContext

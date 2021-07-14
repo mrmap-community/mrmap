@@ -28,10 +28,12 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
                                                  blank=True,
                                                  verbose_name=_('Accessible resource'),
                                                  help_text=_('Select which resource shall be accessible with the configured permissions.'))
-    accessible_pendingtasks = models.ManyToManyField(to='structure.PendingTask',
+    # todo
+    """accessible_pendingtasks = models.ManyToManyField(to='structure.PendingTask',
                                                      blank=True,
                                                      verbose_name=_('Accessible pending tasks'),
                                                      help_text=_('Select which pending tasks shall be accessible with the configured permissions.'))
+     """
     accessible_accesscontrollists = models.ManyToManyField(to='self',
                                                            blank=True,
                                                            verbose_name=_('Accessible access control lists'),
@@ -50,10 +52,6 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
     class Meta:
         verbose_name = _('Access Control List')
         verbose_name_plural = _('Access Control Lists')
-
-    @property
-    def icon(self):
-        return get_icon(IconEnum.COGS)
 
     @classmethod
     def get_accessible_fields(cls):

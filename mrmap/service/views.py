@@ -39,32 +39,41 @@ from MrMap.messages import SERVICE_UPDATED, \
     SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SERVICE_SUCCESSFULLY_DELETED, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED, MAP_CONTEXT_SUCCESSFULLY_CREATED, MAP_CONTEXT_SUCCESSFULLY_EDITED, \
     MAP_CONTEXT_SUCCESSFULLY_DELETED
-from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION
-from MrMap.views import CustomSingleTableMixin
 from csw.models import HarvestResult
 from main.views import SecuredDetailView, SecuredListMixin, SecuredDeleteView, SecuredUpdateView
 from monitoring.models import HealthState
+from MrMap.settings import SEMANTIC_WEB_HTML_INFORMATION, BASE_DIR
+from MrMap.views import CustomSingleTableMixin
 from service.filters import OgcWmsFilter, DatasetFilter, ProxyLogTableFilter
-from service.filters import PendingTaskFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, MapContextForm, MapContextLayerForm
 from service.helper import service_helper
 from service.helper import update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
-from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
+from service.serializer.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.helper.service_helper import get_resource_capabilities
 from service.models import Metadata, Layer, Service, Style, ProxyLog, MapContext, MapContextLayer
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, PendingTaskTable, ResourceDetailTable, \
+from service.tables import UpdateServiceElements, DatasetTable, OgcServiceTable, ResourceDetailTable, \
     ProxyLogTable, MapContextTable
 from service.tasks import async_log_response
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import PendingTask
 from structure.permissionEnums import PermissionEnum
 from users.models import Subscription
 
+
+def test(request):
+    import os
+
+    from eulxml import xmlmap
+    from service.serializer.ogc.parser.new import Service as PlainService
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print(BASE_DIR)
+    xml_obj = xmlmap.load_xmlobject_from_file(filename=current_dir + '/dwd_wms_1.3.0.xml', xmlclass=PlainService)
+    xml_obj.to_db()
+    return HttpResponse(status=200)
 
 def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySet:
     qs = Metadata.objects.filter(
@@ -113,14 +122,6 @@ def get_queryset_filter_by_service_type(service_type: OGCServiceEnum) -> QuerySe
         )
 
     return qs
-
-
-class PendingTaskView(SecuredListMixin, FilterView):
-    model = PendingTask
-    table_class = PendingTaskTable
-    filterset_class = PendingTaskFilter
-    title = get_icon(IconEnum.PENDING_TASKS) + _(' Pending tasks').__str__()
-    template_name = 'service/views/pending_tasks.html'
 
 
 class WmsIndexView(SecuredListMixin, FilterView):
@@ -1022,6 +1023,9 @@ class MapContextCreateView(FormView):
                 id_to_db_layer[data.get('id')] = layer
         return super(MapContextCreateView, self).form_valid(form)
 
+    def get_form_kwargs(self):
+        return {}
+
 
 @method_decorator(login_required, name='dispatch')
 class MapContextEditView(SecuredUpdateView):
@@ -1030,6 +1034,9 @@ class MapContextEditView(SecuredUpdateView):
     success_url = reverse_lazy('resource:mapcontexts-index')
     model = MapContext
     form_class = MapContextForm
+
+    def get_form_kwargs(self):
+        return {}
 
 
 @method_decorator(login_required, name='dispatch')

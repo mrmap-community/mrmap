@@ -1,8 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q, QuerySet, F
+from django.db.models import QuerySet
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from acl.models.acl import AccessControlList
@@ -13,8 +12,7 @@ from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from structure.permissionEnums import PermissionEnum
 from users.settings import default_request_activation_time
-from django_celery_results.models import TaskResult
-from django.db.models import Case, When
+from django.utils import timezone
 
 
 class Contact(models.Model):
@@ -23,7 +21,7 @@ class Contact(models.Model):
     null to store bad quality metadata as well.
     """
     person_name = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name=_("Contact person"))
-    email = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('E-Mail'))
+    email = models.EmailField(max_length=100, default="", null=True, blank=True, verbose_name=_('E-Mail'))
     phone = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_('Phone'))
     facsimile = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("Facsimile"))
     city = models.CharField(max_length=100, default="", null=True, blank=True, verbose_name=_("City"))
@@ -38,6 +36,17 @@ class Contact(models.Model):
 
     class Meta:
         abstract = True
+        unique_together = (
+            "person_name",
+            "email",
+            "phone",
+            "facsimile",
+            "city",
+            "postal_code",
+            "address_type",
+            "address",
+            "state_or_province",
+            "country")
 
 
 class Organization(UuidPk, CommonInfo, Contact):
@@ -64,18 +73,6 @@ class Organization(UuidPk, CommonInfo, Contact):
     # todo: add parent/child field (mptt)
 
     class Meta:
-        unique_together = (
-            "person_name",
-            "email",
-            "phone",
-            "facsimile",
-            "city",
-            "postal_code",
-            "address_type",
-            "address",
-            "state_or_province",
-            "country",
-            "description",)
         # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
         # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
         # the right default way here...
@@ -218,12 +215,3 @@ class PublishRequest(BaseInternalRequest):
         else:
             super().save(*args, **kwargs)
 
-
-class PendingTask(CommonInfo, TaskResult):
-    class Meta:
-        ordering = [Case(When(status='STARTED', then=0),
-                         When(status='PENDING', then=1),
-                         When(status='FAILURE', then=2),
-                         When(status='SUCCESS', then=3)),
-                    '-date_done',
-                    '-task_id',]

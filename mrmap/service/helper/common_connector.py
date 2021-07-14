@@ -110,7 +110,7 @@ class CommonConnector:
         response = types.SimpleNamespace()
         # Example from http://pycurl.io/docs/latest/quickstart.html
         # import curl #normally we would use pycurl - but the class has been renamed?
-        #import re
+        # import re
         # try:
         #    from io import BytesIO
         # except ImportError:

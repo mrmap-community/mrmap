@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wfs:Transaction xmlns:wfs="http://www.opengis.net/wfs" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml" xmlns:wfstest="https://github.com/mrmap-community/mrmap/wfs-t" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="1.0.0" xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.0.0/WFS-transaction.xsd https://github.com/mrmap-community/mrmap/wfs-t http://mrmap.geospatial-interoperability-solutions.eu:8080/geoserver/wfs/DescribeFeatureType?typename=wfstest:polygon">
+   <wfs:Insert typeName="wfstest:polygon">
+      <wfstest:polygon>
+         <wfstest:the_geom>
+            <gml:Polygon srsName="http://www.opengis.net/gml/srs/epsg.xml#4326">
+               <gml:outerBoundaryIs>
+                  <gml:LinearRing>
+                     <gml:coordinates decimal="." cs="," ts=" ">6.83474063873291,50.17912425955248 6.832895278930664,50.17846467405517 6.8338823318481445,50.17601863166723 6.836543083190918,50.175413972671315 6.839933395385742,50.176156053099106 6.838259696960449,50.17851963986112 6.837401390075684,50.179179224599544 6.83474063873291,50.17912425955248</gml:coordinates>
+                  </gml:LinearRing>
+               </gml:outerBoundaryIs>
+            </gml:Polygon>
+         </wfstest:the_geom>
+         <wfstest:name_varchar255>Gemündener Maar</wfstest:name_varchar255>
+         <wfstest:description_text>Gemündener Maar description</wfstest:description_text>
+         <wfstest:created_timestamp>2021-09-07T07:00:00Z</wfstest:created_timestamp>
+         <wfstest:date_date>2021-07-09</wfstest:date_date>
+         <wfstest:color_varchar255>simple_point</wfstest:color_varchar255>
+      </wfstest:polygon>
+   </wfs:Insert>
+</wfs:Transaction>

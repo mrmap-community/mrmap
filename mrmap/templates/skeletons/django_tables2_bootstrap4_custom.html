@@ -2,56 +2,10 @@
 {% load i18n %}
 {% block table-wrapper %}
 {% load bootstrap4 %}
-{% load template_filters %}
+{% load custom_template_filters %}
+{% if table.paginator %}
     <div class="row"><!--<t-head-->
-        <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
-            {% if table.context.filter %}
-            <div id="id_filter_accordion_{{table.table_id}}">
-                <div class="card border border-white rounded">
-                    <div class="card-header" id="id_filter_card_header_{{table.table_id}}">
-                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Click to open filter options' %}">
-                            <button id="id_filter_btn_{{table.table_id}}" class="btn btn-info" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
-                                <i class="fas fa-filter"></i> {% trans 'Filter table' %}
-                            </button>
-                        </span>
-                    </div>
-                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.context.filter.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
-                            <div class="card-body">
-                                <form action="" method="get" class="form {% if table.filter.inline %} form-inline {% endif %}">
-                                    <div class="col">
-                                        <div class="row">
-                                            {{table.context.filter.form.media}}
-                                            {% for field in table.context.filter.form %}
-                                            <div class="col">
-                                                {% bootstrap_field field %}
-                                            </div>
-                                            {% endfor %}
-                                            <div class="col">
-                                                <div class="d-flex align-items-end flex-column mt-auto">
-                                                    <div class="row mb-1">
-                                                    <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Filter the table' %}">
-                                                        <button type="submit" class="btn btn-info"><i class="fas fa-search"></i></button>
-                                                    </span>
-                                                    </div>
-                                                    <div class="row">
-                                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Dismiss all filters' %}">
-                                                            <a class="btn btn-info" href="{{ request.path }}"><i class="fas fa-undo"></i></a>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        {% if table.paginator %}
-        <div class="col-md-5 col-lg-3 col-xl-2"><!--pagination-->
-            <div class="d-flex align-items-end flex-column mt-auto">
+        <div class="col"><!--pagination-->
                 <div class="dropdown d-inline-block">
                     {% trans 'Show' %}
                         <button class="btn btn-info dropdown-toggle" type="button" id="id_table_per_page_dropdown"
@@ -63,16 +17,14 @@
                         </button>
                     {% trans 'entries' %}
                     <div class="dropdown-menu" aria-labelledby="id_table_per_page_dropdown">
-                        <a class="dropdown-item" href="{% querystring table.per_page_field=1 without table.prefixed_page_field%}">1</a>
-                        <a class="dropdown-item" href="{% querystring table.per_page_field=5 without table.prefixed_page_field%}">5</a>
-                        <a class="dropdown-item" href="{% querystring table.per_page_field=10 without table.prefixed_page_field%}">10</a>
-                        <a class="dropdown-item" href="{% querystring table.per_page_field=20 without table.prefixed_page_field%}">20</a>
-                    </div>
+                        {% for n in settings.PER_PAGE_DEFAULTS %}
+                        <a class="dropdown-item" href="{% querystring table.per_page_field=n without table.prefixed_page_field%}">{{n}}</a>
+                        {% endfor %}
+                        </div>
                 </div>
-            </div>
         </div><!--</pagination-->
-        {% endif %}
     </div><!--</t-head-->
+{% endif %}
 <div class="mt-3"><!--<t-content-->
     <div class="row">
     <div class="col">
@@ -180,7 +132,7 @@
                     {% endblock table.tfoot %}
                 </table>
             {% endblock table %}
-
+            <p class="text-right">{% trans 'Showing' %} {{ table.page.start_index }}-{{ table.page.end_index }} {% trans 'of' %} {{ table.page.paginator.count }}</p>
             {% block pagination %}
                 {% if table.page and table.paginator.num_pages > 1 %}
                 <nav aria-label="Table navigation">

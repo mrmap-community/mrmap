@@ -17,7 +17,7 @@ from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
 from csw.utils.parameter import ParameterResolver
 from csw.utils.request_resolver import RequestResolver
 from main.views import SecuredCreateView
-from service.helper.ogc.ows import OWSException
+from service.serializer.ogc.exceptions.ows import OWSException
 
 
 @csrf_exempt

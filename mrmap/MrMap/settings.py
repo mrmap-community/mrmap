@@ -14,10 +14,13 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 import logging
 from api.settings import REST_FRAMEWORK # noqa
+from kombu import Queue, Exchange
 
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+MEDIA_ROOT = BASE_DIR + "/media"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
@@ -47,6 +50,7 @@ INSTALLED_APPS = [
     'service',
     'users',
     'structure',
+    'job',
     'django_extensions',
     'editor',
     'captcha',
@@ -70,12 +74,12 @@ INSTALLED_APPS = [
     'breadcrumb',
     'mptt',
     'autocompletes',
-
+    'resourceNew',
+    'main',
 ]
 
 TEMPLATE_LOADERS = (
-    'django.template.loaders.structure.mr_map_filters.py',
-    'django.template.loaders.structure.template_filters.py',
+    'django.template.loaders.main.custom_template_filters.py'
     'django.template.loaders.app_directories.Loader'
 )
 
@@ -149,6 +153,13 @@ TEMPLATES = [
         },
     },
 ]
+PER_PAGE_DEFAULT = 25
+PER_PAGE_DEFAULTS = [
+    25, 50, 100, 250, 500, 1000
+]
+PER_PAGE_MAX = 2500
+
+METADATA_URL = ["request=GetMetadata&", ]
 
 # Defines basic server information
 HTTP_OR_SSL = "http://"
@@ -256,7 +267,8 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-
+# To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 ################################################################
 # Redis settings
 ################################################################
@@ -290,6 +302,16 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
+CELERY_DEFAULT_QUEUE = "default"
+CELERY_DEFAULT_EXCHANGE = "default"
+
+CELERY_QUEUES = (
+    Queue('default', Exchange('default'), routing_key='default'),
+    Queue('download_iso_metadata', Exchange('download_iso_metadata'), routing_key='download_iso_metadata'),
+    Queue('download_described_elements', Exchange('download_described_elements'), routing_key='download_described_elements'),
+    Queue('harvest', Exchange('harvest'),  routing_key='harvest'),
+)
+
 
 ################################################################
 # django channels settings
@@ -335,7 +357,7 @@ STATIC_ROOT = BASE_DIR + "/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/service/static'
+    BASE_DIR + '/resourceNew/static'
 ]
 
 WSGI_APPLICATION = 'MrMap.wsgi.application'
@@ -388,7 +410,7 @@ NOSE_ARGS = [
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',
-    '--cover-xml-file=coverage-report.xml',
+    f'--cover-xml-file={BASE_DIR}coverage-report.xml',
 ]
 
 ################################################################
@@ -430,6 +452,13 @@ XML_NAMESPACES = {
 GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 ################################################################
+# Mapserver
+################################################################
+MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/security_mask.map")
+
+
+################################################################
 # Logger settings
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')
@@ -442,6 +471,9 @@ LOG_SUB_DIRS = {
     'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
     'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
     'service': {'dir': '/service', 'log_file': 'service.log'},
+    'resourceNew.parser': {'dir': '/resourceNew', 'log_file': 'parser.log'},
+    'resourceNew.models': {'dir': '/resourceNew', 'log_file': 'models.log'},
+    'resourceNew.views': {'dir': '/resourceNew', 'log_file': 'views.log'},
     'structure': {'dir': '/structure', 'log_file': 'structure.log'},
     'users': {'dir': '/users', 'log_file': 'users.log'},
 }
@@ -453,7 +485,8 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d}: {message}',
+            # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
+            'format': '{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}',
             'style': '{',
         },
         'simple': {
@@ -526,46 +559,85 @@ LOGGING = {
             'filename': LOG_DIR + LOG_SUB_DIRS['users']['dir'] + '/' + LOG_SUB_DIRS['users']['log_file'],
             'formatter': 'verbose',
         },
+        'MrMap.resourceNew.parser.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.parser']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.parser']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.resourceNew.models.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.models']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.models']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.resourceNew.views.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.views']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.views']['log_file'],
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'MrMap.root': {
             'handlers': ['MrMap.root.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.api': {
             'handlers': ['MrMap.api.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.csw': {
             'handlers': ['MrMap.csw.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.editor': {
             'handlers': ['MrMap.editor.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.monitoring': {
             'handlers': ['MrMap.monitoring.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.service': {
             'handlers': ['MrMap.service.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'MrMap.resourceNew.parser': {
+            'handlers': ['MrMap.resourceNew.parser.file', ],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'MrMap.resourceNew.models': {
+            'handlers': ['MrMap.resourceNew.models.file', ],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': True,
+        },
+        'MrMap.resourceNew.views': {
+            'handlers': ['MrMap.resourceNew.views.file', ],
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.structure': {
             'handlers': ['MrMap.structure.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
         'MrMap.users': {
             'handlers': ['MrMap.users.file', ],
-            'level': 'INFO',
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': True,
         },
     },

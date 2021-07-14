@@ -6,11 +6,15 @@ Created on: 12.08.19
 
 """
 import base64
+import json
 import time
 import celery.states as states
 from celery import shared_task, current_task
 from MrMap.settings import EXEC_TIME_PRINT
-from main.tasks import default_task_handler
+from service.helper.common_connector import CommonConnector
+from service.helper.enums import ConnectionEnum
+from service.serializer.ogc.factory.factorys import OGCServiceFactory
+from main.tasks import DefaultBehaviourTask
 from service.models import Metadata, ExternalAuthentication, ProxyLog
 from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
@@ -30,7 +34,24 @@ def async_increase_hits(metadata_id: int):
     md.increase_hits()
 
 
-@shared_task(name="async_new_service_task")
+@shared_task(name="resolve_linked_iso_md")
+def get_linked_iso_metadata(uri):
+    ows_connector = CommonConnector(
+        url=uri,
+        external_auth=None,
+        connection_type=ConnectionEnum.REQUESTS
+    )
+    ows_connector.http_method = 'GET'
+    ows_connector.load()
+    if ows_connector.status_code == 200:
+        return {'uri': uri,
+                'response': ows_connector.content.decode("UTF-8")}
+    else:
+        return {'uri': uri,
+                'response': ''}
+
+
+@shared_task(name="async_new_service_task", base=DefaultBehaviourTask)
 def async_new_service(owned_by_org: str,
                       url_dict: dict,
                       external_auth: dict,
@@ -45,11 +66,11 @@ def async_new_service(owned_by_org: str,
         owned_by_org (str): pk of the organization which shall own this service
         url_dict (dict): Contains basic information about the service like connection uri
         external_auth (dict): ExternalAuthentication object as dict
-        quantity (int): how many services from this url are registered in one process. Default is 1
+        quantity (int): how many services from this url are registered in one process. Default is 1. Only used for
+                        developing purposes.
     Returns:
         nothing
     """
-    default_task_handler(**kwargs)
     if current_task:
         current_task.update_state(
             state=states.STARTED,
@@ -75,16 +96,28 @@ def async_new_service(owned_by_org: str,
     register_for_organization = Organization.objects.get(pk=owned_by_org)
 
     t_start = time.time()
-    services = service_helper.create_service(
-        url_dict.get("service"),
-        url_dict.get("version"),
-        url_dict.get("base_uri"),
-        register_for_organization,
-        external_auth=external_auth,
-        quantity=quantity,
-    )
-    for service in services:
-        # after service AND documents have been persisted, we can now set the service being secured if needed
+
+    service = OGCServiceFactory.get_service_instance(service_type=url_dict.get("service"),
+                                                     version=url_dict.get("version"),
+                                                     service_connect_url=url_dict.get("base_uri"),
+                                                     external_auth=external_auth)
+
+    service.parse()
+
+    if current_task:
+        current_task.update_state(
+            state=states.STARTED,
+            meta={
+                'current': PROGRESS_STATUS_AFTER_PARSING,
+                'phase': 'Persisting...',
+            }
+        )
+    links = ''
+    for x in range(quantity):
+        service_db_instance = service.to_db(
+            register_for_organization,
+            None
+        )
         if external_auth is not None:
             #todo: check this......
             if current_task:
@@ -93,24 +126,22 @@ def async_new_service(owned_by_org: str,
                     meta={
                         'current': PROGRESS_STATUS_AFTER_PARSING,
                         'phase': 'Securing...',
-                        'service': service.metadata.title
+                        'service': service_db_instance.metadata.title
                     }
                 )
-            service.metadata.set_proxy(True)
+            service_db_instance.metadata.set_proxy(True)
+
+        links += f'<a href={service_db_instance.metadata.get_absolute_url()}>{service_db_instance.metadata.title} </a>'
 
     service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
 
     result = {'msg': 'Done. New service registered.',
-              'id': str(service.metadata.pk),
-              'absolute_url': service.metadata.get_absolute_url(),
-              'absolute_url_html': f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title}</a>'}
+              #'id': str(service.metadata.pk),
+              #'absolute_url': service.metadata.get_absolute_url(),
+              'absolute_url_html': links}
 
     if quantity > 1:
-        links = ''
-        for service in services:
-            links += f'<a href={service.metadata.get_absolute_url()}>{service.metadata.title} </a>'
-        result.update({'msg': f'Done. {quantity} equal services registered',
-                       'absolute_url_html': links})
+        result.update({'msg': f'Done. {quantity} equal services registered'})
     return result
 
 

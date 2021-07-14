@@ -5,6 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 06.05.19
 
 """
+import random
+import string
 from getpass import getpass
 
 from dateutil.parser import parse
@@ -39,6 +41,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             self._pre_setup()
             # sec run the main setup
+            self._run_system_user_default_setup()
             self._run_superuser_default_setup()
             # then load the default categories
             call_command('load_categories')
@@ -64,43 +67,37 @@ class Command(BaseCommand):
             call_command('migrate')
         #call_command('create_roles')
 
+    def _run_system_user_default_setup(self):
+        if get_user_model().objects.filter(username="system").exists():
+            return
+        characters = string.ascii_letters + string.digits + string.punctuation
+        password = ''.join(random.choice(characters) for i in range(20))
+        get_user_model().objects.create(username="system", password=password, is_active=False)
+
     def _run_superuser_default_setup(self):
         """ Encapsules the main setup for creating all default objects and the superuser
 
         Returns:
              nothing
         """
-        # Check if superuser already exists
-        name = input("Enter a username: ")
-
-        if get_user_model().objects.filter(username=name).exists():
-            self.stdout.write(self.style.NOTICE("User with that name already exists! Please choose another one!"))
-            exit()
-
-        # check password
-        password = getpass("Enter a password: ")
-        password_conf = getpass("Enter the password again: ")
-        while password != password_conf:
-            self.stdout.write(self.style.ERROR("Passwords didn't match! Try again!"))
-            password = getpass("Enter the password: ")
-            password_conf = getpass("Enter the password again: ")
+        if get_user_model().objects.filter(username="mrmap").exists():
+            return
 
         superuser = get_user_model().objects.create_superuser(
-            name,
-            "",
-            password
+            username="mrmap",
+            password="mrmap"
         )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.save()
-        msg = "Superuser '" + name + "' was created successfully!"
+        msg = "Superuser 'mrmap' with password 'mrmap' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
         # handle root organization
         orga = self._create_default_organization()
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser '" + name + "' added to organization '" + str(orga.name) + "'!"
+        msg = "Superuser 'mrmap' added to organization '" + str(orga.name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()

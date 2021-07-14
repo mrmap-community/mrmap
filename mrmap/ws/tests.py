@@ -10,7 +10,7 @@ from django_tables2 import RequestConfig
 from acl.models.acl import AccessControlList
 from service.filters import PendingTaskFilter
 from service.tables import PendingTaskTable
-from structure.models import PendingTask
+from structure.models import Workflow
 from tests.baker_recipes.db_setup import create_superadminuser, create_public_organization
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from channels.testing import WebsocketCommunicator
@@ -31,7 +31,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
 
     @sync_to_async
     def create_pending_task(self):
-        pending_task = PendingTask.objects.create(task_id=123, )
+        pending_task = Workflow.objects.create(task_id=123, )
         return pending_task
 
     @sync_to_async

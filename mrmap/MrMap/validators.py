@@ -92,14 +92,21 @@ def check_uri_provides_ogc_capabilities(value) -> ValidationError:
     Args:
         value: The url parameter
     Returns:
-         None|ValidationError: None if the checks are valid, ValidationError else
+         None: if the checks are valid
+    Raises:
+        ValidationError: if checks are not valid
     """
     connector = CommonConnector(url=value)
     connector.load()
+    if connector.status_code < 0:
+        # Not even callable!
+        raise ValidationError(_("URL could not be resolved to a server. Please check your input!"))
     if connector.status_code == 401:
         # This means the resource needs authentication to be called. At this point we can not check whether this is
-        # a proper OGC capabilities or not. Skip this check.
-        return None
+        # a proper OGC capabilities or not.
+        return ValidationError(_("The remote service response with http status code 401. "
+                                 "This service needs authentication. This error shows also if the used credentials are"
+                                 "wrong."))
     try:
         xml_response = xml_helper.parse_xml(connector.content)
         root_elem = xml_response.getroot()
@@ -190,10 +197,10 @@ def validate_get_capablities_uri(value):
     validation_errors = []
 
     validate_funcs = [
-        check_uri_provides_ogc_capabilities,
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,
+        check_uri_provides_ogc_capabilities,
         check_uri_is_reachable,
     ]
 

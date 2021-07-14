@@ -1,0 +1,9 @@
+/* Accordion collapse icon customization
+-------------------------------------------------- */
+.accordion .fa:before {
+  content: "\f139";
+}
+
+.accordion.collapsed .fa:before {
+  content: "\f13a";
+}

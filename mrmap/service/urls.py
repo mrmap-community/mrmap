@@ -7,6 +7,8 @@ from service.wizards import NewResourceWizard, NEW_RESOURCE_WIZARD_FORMS
 
 app_name = 'resource'
 urlpatterns = [
+    path('test/', test, name='test'),
+
     # index views
     path('wms/', WmsIndexView.as_view(), name='wms-index'),
     path('wfs/', WfsIndexView.as_view(), name='wfs-index'),
@@ -14,9 +16,6 @@ urlpatterns = [
     path('datasets/', DatasetIndexView.as_view(), name='datasets-index'),
     path('mapcontexts/', MapContextIndexView.as_view(), name='mapcontexts-index'),
     path('logs/', LogsIndexView.as_view(), name='logs-view'),
-
-    # PendingTasks
-    path('pending-tasks/', PendingTaskView.as_view(), name="pending-tasks"),
 
     # actions
     path('add', NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,), name='add'),

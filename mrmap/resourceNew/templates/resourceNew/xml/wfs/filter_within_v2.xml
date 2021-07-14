@@ -1,0 +1,31 @@
+{% if polygon.coords|length == 1 %}
+<{% if filter_namespace %}{{filter_namespace}}:{% endif %}Within {% if filter_namespace_url %} xmlns:{{filter_namespace}}="{{filter_namespace_url}}"{% endif %} xmlns:gml="{{gml_namespace_url}}">
+    <{% if filter_namespace %}{{filter_namespace}}:{% endif %}ValueReference>{{value_reference}}</{% if filter_namespace %}{{filter_namespace}}:{% endif %}ValueReference>
+    <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:{{polygon.srid}}">
+        <gml:exterior>
+            <gml:LinearRing>
+                <gml:posList>{% for coord in polygon.coords.0.0 %}{% if forloop.first %}{{coord.0}} {{coord.1}}{% else %} {{coord.0}} {{coord.1}}{% endif %}{% endfor %}</gml:posList>
+            </gml:LinearRing>
+        </gml:exterior>
+    </gml:Polygon>
+</{% if filter_namespace %}{{filter_namespace}}:{% endif %}Within>
+{% else %}
+<{% if filter_namespace %}{{filter_namespace}}:{% endif %}Or {% if filter_namespace_url %} xmlns:{{filter_namespace}}="{{filter_namespace_url}}"{% endif %} xmlns:gml="{{gml_namespace_url}}">
+    {% for poly in polygon.coords %}
+    <{% if filter_namespace %}{{filter_namespace}}:{% endif %}Within>
+        <{% if filter_namespace %}{{filter_namespace}}:{% endif %}ValueReference>{{value_reference}}</{% if filter_namespace %}{{filter_namespace}}:{% endif %}ValueReference>
+        <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:{{polygon.srid}}">
+            <gml:exterior>
+                <gml:LinearRing>
+                    <gml:posList>
+                    {% for coord in poly.0 %}
+                    {% if forloop.first %}{{coord.0}} {{coord.1}}{% else %} {{coord.0}} {{coord.1}}{% endif %}
+                    {% endfor %}
+                    </gml:posList>
+                </gml:LinearRing>
+            </gml:exterior>
+        </gml:Polygon>
+    </{% if filter_namespace %}{{filter_namespace}}:{% endif %}Within>
+    {% endfor %}
+</{% if filter_namespace %}{{filter_namespace}}:{% endif %}Or>
+{% endif %}

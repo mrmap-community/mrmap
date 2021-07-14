@@ -183,8 +183,8 @@ class GenericUrlAdmin(admin.ModelAdmin):
 
 
 class ServiceUrlAdmin(admin.ModelAdmin):
-    list_display = ('id', 'operation', 'method', 'description', 'url')
-    search_fields = ['id', 'operation', 'method', 'description', 'url', 'service__metadata__title']
+    list_display = ('id', 'operation', 'method', 'url')
+    search_fields = ['id', 'operation', 'method', 'url', 'service__metadata__title']
 
 
 class ServiceTypeAdmin(admin.ModelAdmin):
@@ -227,7 +227,7 @@ class LegalReportAdmin(admin.ModelAdmin):
 class LegalDateAdmin(admin.ModelAdmin):
     list_display = ('id', 'date_type_code')
 
-
+"""
 admin.site.register(Dimension, DimensionAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
@@ -260,3 +260,4 @@ admin.site.register(ServiceUrl, ServiceUrlAdmin)
 admin.site.register(GenericUrl, GenericUrlAdmin)
 admin.site.register(MapContext)
 admin.site.register(MapContextLayer)
+"""

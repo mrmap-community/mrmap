@@ -9,10 +9,13 @@ from guardian.shortcuts import get_objects_for_user
 
 from acl.models.acl import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
+from resourceNew.models import Service, Layer, FeatureType
 from service.helper.enums import MetadataEnum
-from service.models import Keyword, Category, ReferenceSystem, Metadata, OGCOperation
+from service.models import Category, Metadata
 from structure.models import Organization
 from structure.permissionEnums import PermissionEnum
+from resourceNew.models.metadata import Keyword, MetadataContact, ReferenceSystem
+from resourceNew.models.security import OGCOperation, ServiceAccessGroup
 
 
 class CreateObjectMixin:
@@ -42,12 +45,37 @@ class SecuredAutocompleteMixin:
 class KeywordAutocomplete(LoginRequiredMixin, CreateObjectMixin, autocomplete.Select2QuerySetView):
     model = Keyword
     search_fields = ['keyword']
-    add_perm = PermissionEnum.CAN_EDIT_METADATA
+    add_perm = "add_keyword"
 
 
 class CategoryAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = Category
     search_fields = ['title_locale_1']
+
+
+class ServiceAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = Service
+    search_fields = ['metadata__title', 'id']
+
+
+class ServiceAccessGroupAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = ServiceAccessGroup
+    search_fields = ['name', 'id']
+
+
+class LayerAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = Layer
+    search_fields = ['metadata__title', 'id']
+
+
+class FeatureTypeAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = FeatureType
+    search_fields = ['metadata__title', 'id']
+
+
+class MetadataContactAutocomplete(LoginRequiredMixin, SecuredAutocompleteMixin, autocomplete.Select2QuerySetView):
+    model = MetadataContact
+    search_fields = ['name']
 
 
 class ReferenceSystemAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):

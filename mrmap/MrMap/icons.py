@@ -95,16 +95,21 @@ class IconEnum(EnumChoice):
     CODE = "fas fa-code"
     BOOK_OPEN = 'fas fa-book-open'
     PENDING = 'fas fa-ellipsis-h'
-    COGS = 'fa fa-cogs'
+    EXTERNAL_AUTHENTICATION = 'fas fa-user-lock'
+    ALLOWED_OPERATION = 'fas fa-lock'
+    ACCESS_CONTROL_LIST = "fas fa-user-shield"
+    HEALTH_STATE = "fas fa-heartbeat"
+    PROXY_SETTING = "fas fa-archway"
 
 
 def get_icon(enum: IconEnum, color=None) -> SafeString:
-    pattern = "<i class=\'{} {}\'></i>"
-    return format_html(pattern, enum.value, color)
+    icon = f"<i class=\"{enum.value} {color}\"></i>" if color else f"<i class=\"{enum.value}\"></i>"
+    return format_html(icon)
 
 
 def get_all_icons() -> dict:
     icons = {}
-    for enum in IconEnum:
-        icons.update({enum.name: get_icon(enum)})
+    # if we do not iterate over __members__, duplicate enum values will be ignored.
+    for name, enum in IconEnum.__members__.items():
+        icons.update({name: get_icon(enum)})
     return icons

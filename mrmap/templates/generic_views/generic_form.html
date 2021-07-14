@@ -1,6 +1,6 @@
 {% load bootstrap4 %}
 {% load i18n %}
-
+{% load custom_template_filters %}
 <div class="card bg-light my-3">
   <div class="card-header">
     {{ title }}
@@ -10,6 +10,15 @@
         {% csrf_token %}
         {{form.media}}
         {% bootstrap_form form %}
+          {% for formset in inlines %}
+          <hr class="separator">
+          {{ formset.model|model_to_title|safe }}
+            {{formset.management_form}}
+            {% for form in formset.forms %}
+
+             {% bootstrap_form form %}
+            {% endfor %}
+          {% endfor %}
       </div>
       <div class="card-footer text-muted">
         <button type="submit" class="btn btn-primary">

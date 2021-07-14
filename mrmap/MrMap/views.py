@@ -1,5 +1,5 @@
 import uuid
-
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
@@ -154,7 +154,6 @@ class ConfirmView(FormMixin, DetailView):
     template_name = 'MrMap/detail_views/generic_form.html'
     success_url = reverse_lazy('home')
     form_class = ConfirmForm
-    action = ""
     action_url = ""
     action_btn_color = ButtonColorEnum.PRIMARY
 
@@ -171,8 +170,7 @@ class ConfirmView(FormMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update({"action": self.action,
-                        "action_url": self.action_url,
+        context.update({"action_url": self.action_url,
                         "action_btn_color": self.action_btn_color,})
         return context
 
@@ -203,6 +201,12 @@ class AsyncConfirmView(ConfirmView):
 
 
 class InitFormMixin(FormMixin):
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"request": self.request})
+        return kwargs
+
     def get_initial(self):
         initial = super().get_initial()
         initial.update(self.request.GET.copy())
@@ -253,22 +257,33 @@ class SuccessMessageDeleteMixin:
 class CustomSingleTableMixin(SingleTableMixin):
     title = None
     template_extend_base = True
+    add_url = None
     # Implement lazy pagination, preventing any count() queries to increase performance.
-    paginator_class = LazyPaginator
+    # todo: disabled since refactoring service app to resourceNew app... we need to to test the performance of all
+    #  table views. If we got performance problems we could activate the LazyPaginator again. But for the user
+    #  experience it would be better to dispense LazyPaginator cause with the default pagination we can show total
+    #  table count.
+    # paginator_class = LazyPaginator
 
     def get_title(self):
         if not self.title:
             instance = self.model()
             if hasattr(instance, 'icon'):
-                return instance.icon + ' ' + instance._meta.verbose_name_plural.__str__()
+                return instance.icon + ' ' + instance._meta.verbose_name_plural.__str__().title()
             else:
-                return instance._meta.verbose_name_plural
+                return instance._meta.verbose_name_plural.__str__().title()
         return self.title
+
+    def get_add_url(self):
+        if not self.add_url and hasattr(self.model(), "get_add_url"):
+            return self.model().get_add_url()
+        return self.add_url
 
     def get_table(self, **kwargs):
         # set some custom attributes for template rendering
         table = super().get_table(**kwargs)
         table.title = self.get_title()
+        table.add_url = self.get_add_url()
         model = self.model
         # todo: bad practice --> results in multiple db querys for get_all_permissions()
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):
@@ -281,7 +296,13 @@ class CustomSingleTableMixin(SingleTableMixin):
 
     def dispatch(self, request, *args, **kwargs):
         # configure table_pagination dynamically to support per_page switching
-        self.table_pagination = {"per_page": self.request.GET.get('per_page', 5), }
+        try:
+            per_page = int(self.request.GET.get('per_page', settings.PER_PAGE_DEFAULT))
+        except ValueError:
+            per_page = settings.PER_PAGE_DEFAULT
+        if per_page > settings.PER_PAGE_MAX:
+            per_page = settings.PER_PAGE_MAX
+        self.table_pagination = {"per_page": per_page}
 
         if not self.template_name:
             self.template_extend_base = bool(self.request.GET.get('with-base', self.get_template_extend_base()))

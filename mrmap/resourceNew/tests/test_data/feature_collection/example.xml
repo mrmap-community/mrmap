@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<FeatureCollection xmlns="http://www.opengis.net/wfs" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gml="http://www.opengis.net/gml" xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.0.0/WFS-basic.xsd http://www.deegree.org/database https://prod.bbsr-geodienste.de/wms/services?request=GetFeatureInfoSchema&amp;layers=juengere_arbeitslose_kreise">
+  <gml:boundedBy>
+    <gml:Box srsName="http://www.opengis.net/def/crs/EPSG/0/32632">
+      <gml:coordinates decimal="." cs="," ts=" ">49.745200,9.382934 50.239421,10.050700</gml:coordinates>
+    </gml:Box>
+  </gml:boundedBy>
+  <gml:featureMember>
+    <app:juengere_arbeitslose_kreise xmlns:app="http://www.deegree.org/database" fid="ID_1479260">
+      <app:krs1217>9677000</app:krs1217>
+      <app:value>11,5</app:value>
+      <app:color>#67A03F</app:color>
+    </app:juengere_arbeitslose_kreise>
+  </gml:featureMember>
+</FeatureCollection>

@@ -65,17 +65,14 @@ class Resource(models.Model):
         return reverse('resource:details', args=[self.pk])
 
 
-class Keyword(UuidPk):
-    keyword = models.CharField(max_length=255, unique=True)
+class Keyword(models.Model):
+    keyword = models.CharField(max_length=255, unique=True, db_index=True)
 
     def __str__(self):
         return self.keyword
 
     class Meta:
-        ordering = ['-id']
-        indexes = [
-            models.Index(fields=["keyword"])
-        ]
+        ordering = ['keyword']
 
 
 class RequestOperation(models.Model):
@@ -239,8 +236,14 @@ class GenericUrl(UuidPk, CommonInfo):
         return "{} | {} ({})".format(self.pk, self.url, self.method)
 
 
-class ServiceUrl(GenericUrl):
+class ServiceUrl(CommonInfo):
+    method = models.CharField(max_length=255, choices=HttpMethodEnum.as_choices(), blank=True, null=True)
+    # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
+    url = models.URLField(max_length=4096)
     operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
+
+    def __str__(self):
+        return "{} | {} ({})".format(self.pk, self.url, self.method)
 
 
 class Metadata(UuidPk, CommonInfo, Resource):
@@ -250,6 +253,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
     identifier = models.CharField(max_length=1000, null=True)
     title = models.CharField(max_length=1000, verbose_name=_l('Title'))
     abstract = models.TextField(null=True, blank=True)
+
     online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
     capabilities_original_uri = models.CharField(max_length=1000, blank=True, null=True)
@@ -1397,9 +1401,9 @@ class Metadata(UuidPk, CommonInfo, Resource):
         service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
-        service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
+        service = service.get_service_instance(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
-        service.deserialize_from_capabilities(metadata_only=True, external_auth=external_auth)
+        service.parse_from_capabilities(metadata_only=True, external_auth=external_auth)
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
@@ -1450,11 +1454,11 @@ class Metadata(UuidPk, CommonInfo, Resource):
             service = self.featuretype.service
         service_version = service_helper.resolve_version_enum(service.service_type.version)
         service_tmp = OGCWebFeatureServiceFactory()
-        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.capabilities_original_uri)
+        service_tmp = service_tmp.get_service_instance(version=service_version, service_connect_url=self.capabilities_original_uri)
         if service_tmp is None:
             return
         service_tmp.get_capabilities()
-        service_tmp.deserialize_from_capabilities(metadata_only=True)
+        service_tmp.parse_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
             return self._restore_feature_type_md(service_tmp, external_auth=external_auth)
@@ -2078,9 +2082,9 @@ class AllowedOperation(UuidPk, CommonInfo):
     secured_metadata: a list of all `Metadata`` objects for which the restrictions, based on ``operations`` list,
                       applies to.
     """
-    operations = models.ManyToManyField(OGCOperation, related_name="allowed_operations")
+    operations = models.ManyToManyField(OGCOperation)
     # todo: we removed MrMapGroup from our models. What to do here? Which kind of groups we need here?
-    allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
+    allowed_groups = models.ManyToManyField(Group)
     allowed_area = models.MultiPolygonField(blank=True, null=True, validators=[geometry_is_empty])
     root_metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     secured_metadata = models.ManyToManyField(Metadata, related_name="allowed_operations")
@@ -3049,7 +3053,8 @@ class Service(UuidPk, CommonInfo, Resource):
         )
 
 
-class Layer(GenericModelMixin, Service, MPTTModel):
+class Layer(GenericModelMixin, MPTTModel):
+
     identifier = models.CharField(max_length=500, null=True)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
@@ -3274,8 +3279,8 @@ class LegalDate(UuidPk):
         return self.date_type_code
 
 
-class MimeType(UuidPk):
-    operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
+class MimeType(models.Model):
+    operation = models.CharField(max_length=255, default='', choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
 
     class Meta:
@@ -3285,7 +3290,7 @@ class MimeType(UuidPk):
         return self.mime_type
 
 
-class Dimension(UuidPk):
+class Dimension(models.Model):
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)
@@ -3478,7 +3483,7 @@ class Dimension(UuidPk):
         super().save(*args, **kwargs)
 
 
-class Style(GenericFKSaveMixin, UuidPk):
+class Style(models.Model):
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
     name = models.CharField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
@@ -3543,7 +3548,7 @@ class FeatureType(UuidPk, CommonInfo, Resource):
         service = None
         if self.parent_service.is_service_type(OGCServiceEnum.WFS):
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
+            service = service.get_service_instance(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

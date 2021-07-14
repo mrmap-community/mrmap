@@ -9,7 +9,6 @@ import urllib
 from asyncio import current_task
 from celery import current_task, states
 from django.conf import settings
-from django.db import transaction
 from django.http import HttpResponse, HttpRequest
 from MrMap.messages import SERVICE_DISABLED, PARAMETER_ERROR
 from MrMap.utils import resolve_boolean_attribute_val
@@ -18,9 +17,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.ogc.csw import OGCCatalogueService
-from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-from service.helper.ogc.wms import OGCWebMapServiceFactory
+from service.serializer.ogc.factory.factorys import OGCServiceFactory
 from service.models import Service, ExternalAuthentication, Document, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import PROGRESS_STATUS_AFTER_PARSING
@@ -159,6 +156,7 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
+# deprecated
 def create_service(service_type,
                    version,
                    base_uri,
@@ -180,28 +178,14 @@ def create_service(service_type,
     Returns:
 
     """
-    service = None
-    if service_type is OGCServiceEnum.WMS:
-        # create WMS object
-        wms_factory = OGCWebMapServiceFactory()
-        service = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri, external_auth=external_auth)
-
-    elif service_type is OGCServiceEnum.WFS:
-        # create WFS object
-        wfs_factory = OGCWebFeatureServiceFactory()
-        service = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri, external_auth=external_auth)
-
-    elif service_type is OGCServiceEnum.CSW:
-        # create CSW object
-        # We need no factory pattern in here since we do not support different CSW versions
-        service = OGCCatalogueService(service_connect_url=base_uri, service_version=version, external_auth=external_auth, service_type=service_type)
-
-    else:
-        # For future implementation
-        pass
+    factory = OGCServiceFactory()
+    service = factory.get_service_instance(service_type=service_type,
+                                           version=version,
+                                           service_connect_url=base_uri,
+                                           external_auth=external_auth)
 
     service.get_capabilities()
-    service.deserialize_from_capabilities(external_auth=external_auth)
+    service.parse_from_capabilities()
 
     if current_task:
         current_task.update_state(
@@ -212,9 +196,7 @@ def create_service(service_type,
             }
         )
     services = []
-    print(quantity)
     for x in range(quantity):
-        print(x)
         services.append(service.to_db(
             register_for_organization,
             is_update_candidate_for

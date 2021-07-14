@@ -22,9 +22,9 @@ from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
 from service.settings import service_logger
-from structure.models import PendingTask
-from service.templatecodes import RESOURCE_TABLE_ACTIONS
-from service.templatecodes import RESOURCE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
+from structure.enums import PendingTaskEnum
+from service.templatecodes import SERVICE_TABLE_ACTIONS
+from service.templatecodes import SERVICE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
 from structure.template_codes import PENDING_TASK_ACTIONS
 from guardian.core import ObjectPermissionChecker
 
@@ -43,118 +43,6 @@ TOOLTIP_STATUS = _(
     'Shows the status of the resource. You can see active state, secured access state and secured externally state.')
 TOOLTIP_HEALTH = _('Shows the health status of the resource.')
 TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
-
-
-class PendingTaskTable(tables.Table):
-    bs4helper = None
-    status = tables.Column(verbose_name=_('Status'),
-                           attrs={"th": {"class": "col-sm-1"}})
-    created_by_user = tables.Column(attrs={"th": {"class": "col-sm-1"}})
-    type = tables.Column(verbose_name=_('Type'),
-                         accessor='task_name',
-                         attrs={"th": {"class": "col-sm-1"}})
-    phase = tables.Column(verbose_name=_('Phase'),
-                          accessor='result',
-                          attrs={"th": {"class": "col-sm-3"}},
-                          empty_values=[])
-    date_created = tables.Column(verbose_name=_('Date Created:'),
-                                 attrs={"th": {"class": "col-sm-1"}},
-                                 empty_values=[])
-    date_done = tables.Column(verbose_name=_('Date Done:'),
-                              attrs={"th": {"class": "col-sm-1"}},
-                              empty_values=[])
-    progress = tables.Column(verbose_name=_('Progress'),
-                             accessor='result',
-                             attrs={"th": {"class": "col-sm-3"}},
-                             empty_values=[])
-    actions = tables.TemplateColumn(verbose_name=_('Actions'),
-                                    template_code=PENDING_TASK_ACTIONS,
-                                    # extra_context is needed to use table.as_html() in ws/consumers.py
-                                    extra_context={'ICONS': get_all_icons()},
-                                    attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
-
-    class Meta:
-        model = PendingTask
-        fields = ('status', 'created_by_user', 'task_id', 'type', 'phase', 'date_created', 'date_done', 'progress', 'actions')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        prefix = 'pending-task-table'
-        orderable = False
-
-    def before_render(self, request):
-        self.render_helper = RenderHelper(user_permissions=list(filter(None, request.user.get_all_permissions())))
-
-    def render_status(self, value):
-        icon = ''
-        if value == states.PENDING:
-            icon = get_icon(IconEnum.PENDING, 'text-warning')
-            tooltip = _('Task is pending')
-        elif value == states.STARTED:
-            icon = get_icon(IconEnum.PLAY, 'text-success')
-            tooltip = _('Task is running')
-        elif value == states.SUCCESS:
-            icon = get_icon(IconEnum.OK, 'text-success')
-            tooltip = _('Task successfully done')
-        elif value == states.FAILURE:
-            icon = get_icon(IconEnum.CRITICAL, 'text-danger')
-            tooltip = _('Task unexpected stopped')
-        # use Template with templatecode to speed up rendering
-        context = Context()
-        context.update({'content': icon,
-                        'tooltip': tooltip})
-        return Template(TOOLTIP).render(context)
-
-    def render_type(self, value):
-        if value == 'async_new_service_task':
-            return _('Register new service')
-        elif value == 'async_process_securing_access':
-            return _('Securing service')
-        elif value == 'run_manual_service_monitoring':
-            return _('Monitor service')
-        elif value == 'async_harvest':
-            return _('Harvest catalogue')
-
-    def render_phase(self, record, value):
-        phase = ' '
-        try:
-            result = json.loads(value)
-            if record.status == states.STARTED:
-                phase = result.get('phase', '')
-            elif record.status == states.SUCCESS:
-                phase = f'{result.get("msg", "")} {result.get("absolute_url_html", "")}'
-            elif record.status == states.FAILURE:
-                phase = _('Task failed unexpected. See error log for details.')
-        except (AttributeError, KeyError) as e:
-            service_logger.warn(msg=e)
-        except TypeError:
-            # value is None or something else happens
-            pass
-        return format_html(phase)
-
-    @staticmethod
-    def render_progress(record, value):
-        progress = 0
-        color = None
-        animated = True
-        if record.status == states.STARTED and value:
-            result = json.loads(value)
-            try:
-                progress = result['current']
-            except KeyError:
-                pass
-        if record.status == states.SUCCESS:
-            progress = 100
-            color = ProgressColorEnum.SUCCESS
-            animated = False
-        if record.status == states.FAILURE:
-            color = ProgressColorEnum.DANGER
-            animated = False
-        # use Template with templatecode to speed up rendering
-        context = Context()
-        context.update({'value': round(progress, 2),
-                        'color': color.value if color else None,
-                        'animated': animated,
-                        'striped': animated})
-        return Template(PROGRESS_BAR).render(context)
 
 
 class OgcServiceTable(tables.Table):
@@ -194,7 +82,7 @@ class OgcServiceTable(tables.Table):
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=RESOURCE_TABLE_ACTIONS,
+                                    template_code=SERVICE_TABLE_ACTIONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
 

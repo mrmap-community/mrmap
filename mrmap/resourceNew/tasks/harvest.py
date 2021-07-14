@@ -2,13 +2,11 @@ from celery import shared_task, chain, chord, group
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from eulxml import xmlmap
-
-from job.models import Job
 from job.tasks import NewJob, CurrentTask
 from resourceNew.enums.service import OGCOperationEnum, HttpMethodEnum
 from resourceNew.models import DatasetMetadata, Service, OperationUrl
 from resourceNew.models.harvest import HarvestResult
-from resourceNew.ows_client.request_builder import WebService
+from resourceNew.ows_client.request_builder import CatalogueServiceWeb
 from resourceNew.parsers.ogc.csw_get_record_response import GetRecordsResponse
 from structure.enums import PendingTaskEnum
 
@@ -16,15 +14,15 @@ from structure.enums import PendingTaskEnum
 @shared_task(name="async_harvest_service",
              bind=True,
              base=NewJob)
-def register_service(self,
-                     service_id,
-                     **kwargs):
-    workflow = schedule_get_records.s(service_id, **kwargs)
+def harvest_service(self,
+                    service,
+                    **kwargs):
+    workflow = schedule_get_records.s(service, **kwargs)
     workflow.apply_async()
     return self.job.pk
 
 
-@shared_task(name="async_get_records_total_hits",
+@shared_task(name="async_schedule_get_records",
              bind=True,
              base=CurrentTask)
 def schedule_get_records(self,
@@ -32,12 +30,14 @@ def schedule_get_records(self,
                          step_size=100,
                          **kwargs):
     db_service = Service.objects.get(pk=service_id)
-    get_records_url = OperationUrl.objects.values_list("url").get(service__id=service_id,
-                                                                  operation=OGCOperationEnum.GET_RECORDS.value,
-                                                                  method=HttpMethodEnum.GET.value)
-    remote_service = WebService.manufacture_service(url=get_records_url)
-    request = remote_service.get_get_records_request(**{"type_name_list": "gmd:MD_Metadata",
-                                                        "result_type": "hits"})
+    get_records_url = OperationUrl.objects.values_list("url", flat=True).get(service__id=service_id,
+                                                                             operation=OGCOperationEnum.GET_RECORDS.value,
+                                                                             method=HttpMethodEnum.GET.value)
+    remote_service = CatalogueServiceWeb(base_url=get_records_url,
+                                         version=db_service.service_version)
+    request = remote_service.get_get_records_request(**{remote_service.TYPE_NAME_QP: "gmd:MD_Metadata",
+                                                        remote_service.OUTPUT_SCHEMA_QP: "http://www.isotc211.org/2005/gmd",
+                                                        remote_service.RESULT_TYPE_QP: "hits"})
     session = db_service.get_session_for_request()
     response = session.send(request.prepare())
 
@@ -54,9 +54,9 @@ def schedule_get_records(self,
         start_position = round_trip * step_size
         if round_trip != 0:
             start_position += 1
-        get_record_tasks.append(get_records.s(service_id, max_records, start_position, **kwargs))
+        get_record_tasks.append(get_records.s(service_id, max_records, step_size, start_position, **kwargs))
     header = get_record_tasks
-    callback = analyze_results.s(**kwargs)
+    callback = analyze_results.s(service_id, **kwargs)
     chord(header)(callback)
 
 
@@ -67,16 +67,20 @@ def schedule_get_records(self,
 def get_records(self,
                 service_id,
                 max_records,
+                step_size,
                 start_position,
                 **kwargs):
     db_service = Service.objects.get(pk=service_id)
-    get_records_url = OperationUrl.objects.values_list("url").get(service__id=service_id,
-                                                                  operation=OGCOperationEnum.GET_RECORDS.value,
-                                                                  method=HttpMethodEnum.GET.value)
-    remote_service = WebService.manufacture_service(url=get_records_url)
-    request = remote_service.get_get_records_request(**{"type_name_list": "gmd:MD_Metadata",
-                                                        "max_records": max_records,
-                                                        "start_position": start_position})
+    get_records_url = OperationUrl.objects.values_list("url", flat=True).get(service__id=service_id,
+                                                                             operation=OGCOperationEnum.GET_RECORDS.value,
+                                                                             method=HttpMethodEnum.GET.value)
+    remote_service = CatalogueServiceWeb(base_url=get_records_url,
+                                         version=db_service.service_version)
+    request = remote_service.get_get_records_request(**{remote_service.TYPE_NAME_QP: "gmd:MD_Metadata",
+                                                        remote_service.OUTPUT_SCHEMA_QP: "http://www.isotc211.org/2005/gmd",
+                                                        remote_service.RESULT_TYPE_QP: "results",
+                                                        remote_service.MAX_RECORDS_QP: step_size,
+                                                        remote_service.START_POSITION_QP: start_position})
     session = db_service.get_session_for_request()
     response = session.send(request.prepare())
 
@@ -84,8 +88,8 @@ def get_records(self,
     if "/" in content_type:
         content_type = content_type.split("/")[-1]
     result = HarvestResult.objects.create(service=Service.objects.get(id=service_id),
-                                          job=Job.objects.get(id=self.job.pk))
-    result.result_file.save(name=f'{max_records}_{start_position}.{content_type}',
+                                          job=self.task.job)
+    result.result_file.save(name=f'{start_position}_to_{start_position + step_size - 1}_of_{max_records}.{content_type}',
                             content=ContentFile(response.text))
     return result.pk
 
@@ -96,14 +100,23 @@ def get_records(self,
              queue="harvest")
 def analyze_results(self,
                     harvest_results,
+                    service_id,
                     **kwargs):
+    service = Service.objects.get(pk=service_id)
     results = HarvestResult.objects.filter(id__in=harvest_results)
     dataset_list = []
     for result in results:
         xml = result.parse()
         for md_metadata in xml.records:
-            if md_metadata.hierarchy_level == "dataset":
-                dataset_list.append(DatasetMetadata.iso_metadata.create_from_parsed_metadata(md_metadata))
+            try:
+                if md_metadata.hierarchy_level == "dataset":
+                    dataset = DatasetMetadata.iso_metadata.create_from_parsed_metadata(parsed_metadata=md_metadata,
+                                                                                       related_object=service,
+                                                                                       origin_url=None)
+                    dataset_list.append(dataset.pk)
+            except Exception as e:
+                # todo: log the exception
+                pass
     if self.task:
         self.task.status = PendingTaskEnum.SUCCESS.value
         self.task.done_at = timezone.now()

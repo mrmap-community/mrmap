@@ -236,51 +236,55 @@ class WebMapAndFeatureService(WebService):
 
 class CatalogueServiceWeb(WebService):
     GET_RECORDS_QV = "GetRecords"
-    TYPE_NAME_QV = "typeNames"
-    OUTPUT_SCHEMA_QV = "outputSchema"
-    CONSTRAINT_LANGUAGE_QV = "constraintLanguage"
-    ELEMENT_SET_NAME_QV = "ElementSetName"
-    RESULT_TYPE_QV = "resultType"
-    START_POSITION_QV = "startPosition"
-    MAX_RECORDS_QV = "maxRecords"
+    TYPE_NAME_QP = "typeNames"
+    OUTPUT_SCHEMA_QP = "outputSchema"
+    CONSTRAINT_LANGUAGE_QP = "CONSTRAINTLANGUAGE"
+    ELEMENT_SET_NAME_QP = "ElementSetName"
+    RESULT_TYPE_QP = "resultType"
+    START_POSITION_QP = "startPosition"
+    MAX_RECORDS_QP = "maxRecords"
+    OUTPUT_FORMAT_QP = "outputFormat"
+    REQUEST_ID_QP = "requestId"
 
     def __init__(self, *args, **kwargs):
         super().__init__(service_type="csw", *args, **kwargs)
 
     def get_get_records_kwargs(self,
                                type_name_list,
-                               result_type: str = None,
-                               start_position: int = None,
-                               max_records: int = None,
-                               output_schema: str = "http://www.isotc211.org/2005/gmd",
+                               request_id: str = None,
+                               result_type: str = "hits",
+                               start_position: int = 1,
+                               max_records: int = 10,
+                               output_format: str = "application/xml",
+                               output_schema: str = "http://www.opengis.net/cat/csw/2.0.2",
                                constraint_language: str = "FILTER",
                                element_set_name: str = "full",
                                **kwargs):
         if isinstance(type_name_list, str):
             type_name_list = [type_name_list]
-
-        query_params = {self.OUTPUT_SCHEMA_QV: output_schema,
-                        self.RESULT_TYPE_QV: result_type,
-                        self.CONSTRAINT_LANGUAGE_QV: constraint_language,
-                        self.ELEMENT_SET_NAME_QV: element_set_name}
-        if type_name_list:
-            query_params.update({self.TYPE_NAME_QV: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0]})
-        if start_position:
-            query_params.update({self.START_POSITION_QV: start_position})
-        if max_records:
-            query_params.update({self.MAX_RECORDS_QV: max_records})
-
+        query_params = {self.TYPE_NAME_QP: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0],
+                        self.RESULT_TYPE_QP: result_type,
+                        self.START_POSITION_QP: start_position,
+                        self.MAX_RECORDS_QP: max_records,
+                        self.OUTPUT_FORMAT_QP: output_format,
+                        self.OUTPUT_SCHEMA_QP: output_schema,
+                        self.CONSTRAINT_LANGUAGE_QP: constraint_language,
+                        self.ELEMENT_SET_NAME_QP: element_set_name}
+        if request_id:
+            query_params.update({self.REQUEST_ID_QP: request_id})
         return query_params
 
     def convert_kwargs_for_get_records(self, **kwargs):
         return {
-            "type_name_list": kwargs[self.TYPE_NAME_QV].split(","),
-            "result_type": kwargs[self.RESULT_TYPE_QV],
-            "output_schema": kwargs[self.OUTPUT_SCHEMA_QV],
-            "constraint_language": kwargs[self.CONSTRAINT_LANGUAGE_QV],
-            "element_set_name": kwargs[self.ELEMENT_SET_NAME_QV],
-            "start_position": kwargs.get(self.START_POSITION_QV, None),
-            "max_records": kwargs.get(self.MAX_RECORDS_QV, None),
+            "type_name_list": kwargs[self.TYPE_NAME_QP].split(","),
+            "result_type": kwargs.get(self.RESULT_TYPE_QP, None),
+            "request_id": kwargs.get(self.REQUEST_ID_QP, None),
+            "output_format": kwargs.get(self.OUTPUT_FORMAT_QP, None),
+            "output_schema": kwargs.get(self.OUTPUT_SCHEMA_QP, None),
+            "constraint_language": kwargs.get(self.CONSTRAINT_LANGUAGE_QP, None),
+            "element_set_name": kwargs.get(self.ELEMENT_SET_NAME_QP, None),
+            "start_position": kwargs.get(self.START_POSITION_QP, None),
+            "max_records": kwargs.get(self.MAX_RECORDS_QP, None),
         }
 
     def getrecords(self, **kwargs):

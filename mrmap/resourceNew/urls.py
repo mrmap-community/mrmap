@@ -4,8 +4,8 @@ from resourceNew.views import metadata as metadata_views
 from resourceNew.views import mapcontext as mapcontext_views
 from resourceNew.views import ows as ows_views
 from resourceNew.views import security as security_views
+from resourceNew.views import harvest as harvest_views
 from resourceNew.wizards import security as security_wizards
-
 from resourceNew.wizards.security import ALLOWED_OPERATION_WIZARD_FORMS
 
 app_name = 'resourceNew'
@@ -27,6 +27,7 @@ urlpatterns = [
     path("service/<pk>/activate", service_views.ServiceActivateView.as_view(), name="service_activate"),
     path("service/<pk>/change", service_views.ServiceUpdateView.as_view(), name="service_change"),
     path("service/<pk>/delete", service_views.ServiceDeleteView.as_view(), name="service_delete"),
+    path("service/<pk>/harvest", harvest_views.HarvestServiceFormView.as_view(), name="service_harvest"),
 
     path("service/wms/<pk>/tree", service_views.ServiceWmsTreeView.as_view(), name="service_wms_tree_view"),
     path("service/wfs/<pk>/tree", service_views.ServiceWfsTreeView.as_view(), name="service_wfs_tree_view"),

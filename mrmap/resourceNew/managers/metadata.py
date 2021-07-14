@@ -110,9 +110,7 @@ class IsoMetadataManager(models.Manager):
             else:
                 db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
                                                                             origin_url=origin_url)
-                db_metadata.add_dataset_metadata_relation(relation_type=MetadataRelationEnum.DESCRIBES.value,
-                                                          related_object=related_object,
-                                                          origin=MetadataOriginEnum.CAPABILITIES.value)
+                db_metadata.add_dataset_metadata_relation(related_object=related_object)
                 if not exists:
                     Document.objects.create(dataset_metadata=db_metadata,
                                             xml=str(parsed_metadata.serializeDocument(), "UTF-8"))

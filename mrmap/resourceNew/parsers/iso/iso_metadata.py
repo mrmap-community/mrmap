@@ -1,13 +1,9 @@
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from django.contrib.gis.geos import MultiPolygon
 from eulxml import xmlmap
-
 from resourceNew.parsers.consts import NS_WC
 from resourceNew.parsers.mixins import DBModelConverterMixin
-from pathlib import Path
 import urllib
-
-from service.helper.epsg_api import EpsgApi
 
 
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
@@ -24,17 +20,17 @@ class Category(DBModelConverterMixin, xmlmap.XmlObject):
 
 class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
     # todo:
-    temporal_extent_start = xmlmap.DateTimeField(xpath="gmd:extent/gml:TimePeriod/gml:beginPosition")
-    temporal_extent_start_indeterminate_position = xmlmap.StringField(xpath="gmd:extent/gml:TimePeriod/gml:beginPosition/@indeterminatePosition")
-    temporal_extent_end = xmlmap.DateTimeField(xpath="gmd:extent/gml:TimePeriod/gml:endPosition")
-    temporal_extent_end_indeterminate_position = xmlmap.StringField(xpath="gmd:extent/gml:TimePeriod/gml:endPosition/@indeterminatePosition")
+    temporal_extent_start = xmlmap.DateTimeField(xpath=f"{NS_WC}extent']/{NS_WC}TimePeriod']/{NS_WC}beginPosition']")
+    temporal_extent_start_indeterminate_position = xmlmap.StringField(xpath=f"{NS_WC}extent']/{NS_WC}TimePeriod']/{NS_WC}beginPosition']/@indeterminatePosition")
+    temporal_extent_end = xmlmap.DateTimeField(xpath=f"{NS_WC}extent']/{NS_WC}TimePeriod']/{NS_WC}endPosition']")
+    temporal_extent_end_indeterminate_position = xmlmap.StringField(xpath=f"{NS_WC}extent']/{NS_WC}TimePeriod']/{NS_WC}endPosition']/@indeterminatePosition")
 
 
 class EXGeographicBoundingBox(xmlmap.XmlObject):
-    min_x = xmlmap.FloatField(xpath="gmd:westBoundLongitude/gco:Decimal")
-    max_x = xmlmap.FloatField(xpath="gmd:eastBoundLongitude/gco:Decimal")
-    min_y = xmlmap.FloatField(xpath="gmd:southBoundLatitude/gco:Decimal")
-    max_y = xmlmap.FloatField(xpath="gmd:northBoundLatitude/gco:Decimal")
+    min_x = xmlmap.FloatField(xpath=f"{NS_WC}westBoundLongitude']/{NS_WC}Decimal']")
+    max_x = xmlmap.FloatField(xpath=f"{NS_WC}eastBoundLongitude']/{NS_WC}Decimal']")
+    min_y = xmlmap.FloatField(xpath=f"{NS_WC}southBoundLatitude']/{NS_WC}Decimal']")
+    max_y = xmlmap.FloatField(xpath=f"{NS_WC}northBoundLatitude']/{NS_WC}Decimal']")
 
     def to_polygon(self):
         if self.min_x and self.max_x and self.min_y and self.max_y:
@@ -46,8 +42,8 @@ class EXGeographicBoundingBox(xmlmap.XmlObject):
 
 
 class LinearRing(xmlmap.XmlObject):
-    pos_list = xmlmap.StringField(xpath="gml:LinearRing/gml:posList")
-    coordinates = xmlmap.StringField(xpath="gml:LinearRing/gml:coordinates")
+    pos_list = xmlmap.StringField(xpath=f"{NS_WC}LinearRing']/{NS_WC}posList']")
+    coordinates = xmlmap.StringField(xpath=f"{NS_WC}LinearRing']/{NS_WC}coordinates']")
 
     def to_polygon(self):
         if self.pos_list:
@@ -60,8 +56,8 @@ class LinearRing(xmlmap.XmlObject):
 
 class Polygon(xmlmap.XmlObject):
     srs = xmlmap.StringField(xpath="@srsName")
-    exterior = xmlmap.NodeField(xpath="gml:exterior", node_class=LinearRing)
-    interior_list = xmlmap.NodeListField(xpath="gml:interior", node_class=LinearRing)
+    exterior = xmlmap.NodeField(xpath=f"{NS_WC}exterior']", node_class=LinearRing)
+    interior_list = xmlmap.NodeListField(xpath=f"{NS_WC}interior']", node_class=LinearRing)
 
     def to_polygon(self):
         if self.exterior:
@@ -74,7 +70,7 @@ class Polygon(xmlmap.XmlObject):
 
 
 class EXBoundingPolygon(xmlmap.XmlObject):
-    polygon_list = xmlmap.NodeListField(xpath="//gmd:polygon/gml:Polygon", node_class=Polygon)
+    polygon_list = xmlmap.NodeListField(xpath=f"//{NS_WC}polygon']/{NS_WC}Polygon']", node_class=Polygon)
 
     def to_polygon(self):
         if self.polygon_list:
@@ -84,7 +80,7 @@ class EXBoundingPolygon(xmlmap.XmlObject):
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ReferenceSystem"
 
-    ref_system = xmlmap.StringField(xpath="gmd:code/gco:CharacterString")
+    ref_system = xmlmap.StringField(xpath=f"{NS_WC}code']/{NS_WC}CharacterString']")
 
     def get_field_dict(self):
         field_dict = super().get_field_dict()
@@ -103,47 +99,47 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
 class MetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.MetadataContact"
 
-    name = xmlmap.StringField(xpath=f"gmd:organisationName/{NS_WC}CharacterString']")
-    person_name = xmlmap.StringField(xpath=f"gmd:individualName/{NS_WC}CharacterString']")
-    phone = xmlmap.StringField(xpath=f"gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/{NS_WC}CharacterString']")
-    email = xmlmap.StringField(xpath=f"gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/{NS_WC}CharacterString']")
+    name = xmlmap.StringField(xpath=f"{NS_WC}organisationName']/{NS_WC}CharacterString']")
+    person_name = xmlmap.StringField(xpath=f"{NS_WC}individualName']/{NS_WC}CharacterString']")
+    phone = xmlmap.StringField(xpath=f"{NS_WC}contactInfo']/{NS_WC}CI_Contact']/{NS_WC}phone']/{NS_WC}CI_Telephone']/{NS_WC}voice']/{NS_WC}CharacterString']")
+    email = xmlmap.StringField(xpath=f"{NS_WC}contactInfo']/{NS_WC}CI_Contact']/{NS_WC}address']/{NS_WC}CI_Address']/{NS_WC}electronicMailAddress']/{NS_WC}CharacterString']")
 
 
 class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.ServiceMetadata"
 
-    title = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
-    abstract = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:abstract/gco:CharacterString")
-    # language = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:language/gmd:LanguageCode")
-    access_constraints = xmlmap.StringField(xpath='gmd:identificationInfo//gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString')
+    title = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}citation']/{NS_WC}CI_Citation']/{NS_WC}title']/{NS_WC}CharacterString']")
+    abstract = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}abstract']/{NS_WC}CharacterString']")
+    # language = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}language']/{NS_WC}LanguageCode']")
+    access_constraints = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}resourceConstraints']/{NS_WC}MD_LegalConstraints'][{NS_WC}accessConstraints']/{NS_WC}MD_RestrictionCode']/@codeListValue=\"otherRestrictions\"]/{NS_WC}otherConstraints']/{NS_WC}CharacterString']")
 
-    file_identifier = xmlmap.StringField(xpath="gmd:fileIdentifier/gco:CharacterString")
-    # character_set_code = xmlmap.StringField(xpath="gmd:characterSet/gmd:MD_CharacterSetCode/@codeListValue")
-    date_stamp_date = xmlmap.DateField(xpath="gmd:dateStamp/gco:Date")
-    date_stamp_date_time = xmlmap.DateTimeField(xpath="gmd:dateStamp/gco:DateTime")
-    hierarchy_level = xmlmap.StringField(xpath="gmd:hierarchyLevel/gmd:MD_ScopeCode/@codeListValue")
+    file_identifier = xmlmap.StringField(xpath=f"{NS_WC}fileIdentifier']/{NS_WC}CharacterString']")
+    # character_set_code = xmlmap.StringField(xpath=f"{NS_WC}characterSet']/{NS_WC}MD_CharacterSetCode']/@codeListValue")
+    date_stamp_date = xmlmap.DateField(xpath=f"{NS_WC}dateStamp']/{NS_WC}Date']")
+    date_stamp_date_time = xmlmap.DateTimeField(xpath=f"{NS_WC}dateStamp']/{NS_WC}DateTime']")
+    hierarchy_level = xmlmap.StringField(xpath=f"{NS_WC}hierarchyLevel']/{NS_WC}MD_ScopeCode']/@codeListValue")
 
-    equivalent_scale = xmlmap.FloatField(xpath="gmd:identificationInfo//gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
-    ground_res = xmlmap.FloatField(xpath="gmd:identificationInfo//gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance")
+    equivalent_scale = xmlmap.FloatField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}spatialResolution']/{NS_WC}MD_Resolution']/{NS_WC}equivalentScale']/{NS_WC}MD_RepresentativeFraction']/{NS_WC}denominator']/{NS_WC}Integer']")
+    ground_res = xmlmap.FloatField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}spatialResolution']/{NS_WC}MD_Resolution']/{NS_WC}distance']/{NS_WC}Distance']")
 
-    bbox_lat_lon_list = xmlmap.NodeListField(xpath="//gmd:identificationInfo//gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox", node_class=EXGeographicBoundingBox)
-    bounding_polygon_list = xmlmap.NodeListField(xpath="//gmd:identificationInfo//gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon", node_class=EXBoundingPolygon)
+    bbox_lat_lon_list = xmlmap.NodeListField(xpath=f"//{NS_WC}identificationInfo']//{NS_WC}extent']/{NS_WC}EX_Extent']/{NS_WC}geographicElement']/{NS_WC}EX_GeographicBoundingBox']", node_class=EXGeographicBoundingBox)
+    bounding_polygon_list = xmlmap.NodeListField(xpath=f"//{NS_WC}identificationInfo']//{NS_WC}extent']/{NS_WC}EX_Extent']/{NS_WC}geographicElement']/{NS_WC}EX_BoundingPolygon']", node_class=EXBoundingPolygon)
 
-    metadata_contact = xmlmap.NodeField(xpath="gmd:contact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
-    dataset_contact = xmlmap.NodeField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
+    metadata_contact = xmlmap.NodeField(xpath=f"{NS_WC}contact']/{NS_WC}CI_ResponsibleParty']", node_class=MetadataContact)
+    dataset_contact = xmlmap.NodeField(xpath=f"{NS_WC}identificationInfo']/{NS_WC}MD_DataIdentification']/{NS_WC}pointOfContact']/{NS_WC}CI_ResponsibleParty']", node_class=MetadataContact)
 
-    keywords = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
-    categories = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:topicCategory/gmd:MD_TopicCategoryCode", node_class=Category)
+    keywords = xmlmap.NodeListField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}descriptiveKeywords']/{NS_WC}MD_Keywords']/{NS_WC}keyword']/{NS_WC}CharacterString']", node_class=Keyword)
+    categories = xmlmap.NodeListField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}topicCategory']/{NS_WC}MD_TopicCategoryCode']", node_class=Category)
 
-    reference_systems = xmlmap.NodeListField(xpath="gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
+    reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}referenceSystemInfo']/{NS_WC}MD_ReferenceSystem']/{NS_WC}referenceSystemIdentifier']/{NS_WC}RS_Identifier']", node_class=ReferenceSystem)
 
     # todo:
-    dimensions = xmlmap.NodeListField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent", node_class=Dimension)
+    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}identificationInfo']/{NS_WC}MD_DataIdentification']/{NS_WC}extent']/{NS_WC}EX_Extent']/{NS_WC}temporalElement']/{NS_WC}EX_TemporalExtent']", node_class=Dimension)
 
     # dataset specific fields
-    code_md = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString")
-    code_rs = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
-    code_space_rs = xmlmap.StringField("gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:codeSpace/gco:CharacterString")
+    code_md = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']/{NS_WC}MD_DataIdentification']/{NS_WC}citation']/{NS_WC}CI_Citation']/{NS_WC}identifier']/{NS_WC}MD_Identifier']/{NS_WC}code']/{NS_WC}CharacterString']")
+    code_rs = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']/{NS_WC}MD_DataIdentification']/{NS_WC}citation']/{NS_WC}CI_Citation']/{NS_WC}identifier']/{NS_WC}RS_Identifier']/{NS_WC}code']/{NS_WC}CharacterString']")
+    code_space_rs = xmlmap.StringField(f"{NS_WC}identificationInfo']/{NS_WC}MD_DataIdentification']/{NS_WC}citation']/{NS_WC}CI_Citation']/{NS_WC}identifier']/{NS_WC}RS_Identifier']/{NS_WC}codeSpace']/{NS_WC}CharacterString']")
 
     def get_model_class(self):
         if self.hierarchy_level == "service":

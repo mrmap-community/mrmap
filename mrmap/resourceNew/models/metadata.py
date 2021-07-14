@@ -452,6 +452,12 @@ class DatasetMetadataRelation(CommonInfo):
                                      blank=True,
                                      related_name="dataset_metadata_relations",
                                      related_query_name="dataset_metadata_relation")
+    service = models.ForeignKey(to=Service,
+                                on_delete=models.CASCADE,
+                                null=True,  # nullable to support polymorph using in DatasetMetadata model
+                                blank=True,
+                                related_name="dataset_metadata_relations",
+                                related_query_name="dataset_metadata_relation")
     dataset_metadata = models.ForeignKey(to="DatasetMetadata",
                                          on_delete=models.CASCADE,
                                          related_name="dataset_metadata_relations",
@@ -475,9 +481,12 @@ class DatasetMetadataRelation(CommonInfo):
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_one_related_object_selected",
-                check=Q((Q(layer=True, feature_type=False) | Q(layer=False, feature_type=True))
-                        and ~Q(Q(layer=True) and Q(feature_type=True))
-                        and ~Q(Q(layer=False) and Q(feature_type=False)))
+                check=Q((Q(layer=True, feature_type=False, service=False) |
+                         Q(layer=False, feature_type=True, service=False) |
+                         Q(layer=False, feature_type=False, service=True))
+                        and ~Q(Q(layer=True) and Q(feature_type=True) and Q(service=True))
+                        and ~Q(Q(layer=False) and Q(feature_type=False) and Q(service=False)))
+                # todo: some more cases are possible
             )
         ]
 
@@ -487,14 +496,17 @@ class DatasetMetadataRelation(CommonInfo):
             self_str += f" layer {self.layer.metadata.title}"
         elif self.feature_type:
             self_str += f" feature type {self.feature_type.metadata.title}"
+        elif self.service:
+            self_str += f" service {self.service.metadata.title}"
         return self_str
 
     def clean(self):
         """ Raise ValidationError if layer and feature type are null or if both are configured. """
-        if not self.layer and not self.feature_type:
-            raise ValidationError("either layer or feature type must be linked.")
-        elif self.layer and self.feature_type:
-            raise ValidationError("link layer and feature type is not supported.")
+        if not self.layer and not self.feature_type and not self.service:
+            raise ValidationError("either layer, feature type or service must be linked.")
+        elif self.layer and self.feature_type and self.service:
+            raise ValidationError("link layer, feature type and service is not supported.")
+        # todo: some more cases are possible
 
 
 class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -679,17 +691,24 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                 field_dict.update({field.name: getattr(self, field.name)})
         return field_dict
 
-    def add_dataset_metadata_relation(self, relation_type, origin, related_object, is_internal=False):
+    def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
         kwargs = {}
         if related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object})
+            kwargs.update({"layer": related_object,
+                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
         elif related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object})
+            kwargs.update({"feature_type": related_object,
+                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object._meta.model == Service:
+            kwargs.update({"service": related_object,
+                           "relation_type": relation_type if relation_type else MetadataRelationEnum.HARVESTED_THROUGH.value,
+                           "origin": origin if origin else MetadataOriginEnum.CATALOGUE.value})
+            is_internal = True
         relation, created = DatasetMetadataRelation.objects.get_or_create(
             dataset_metadata=self,
-            relation_type=relation_type,
             is_internal=is_internal,
-            origin=origin,
             **kwargs
         )
         return relation
@@ -700,6 +719,8 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             kwargs.update({"layer": related_object})
         elif related_object._meta.model == FeatureType:
             kwargs.update({"feature_type": related_object})
+        elif related_object._meta.model == Service:
+            kwargs.update({"service": related_object})
         DatasetMetadataRelation.objects.filter(
             from_metadata=self,
             relation_type=relation_type,

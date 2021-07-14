@@ -136,6 +136,14 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
         except NoReverseMatch:
             return ""
 
+    def get_harvest_url(self) -> str:
+        if self.is_service_type(OGCServiceEnum.CSW):
+            try:
+                return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_harvest', args=[self.pk])
+            except NoReverseMatch:
+                pass
+        return ""
+
     @property
     def icon(self):
         try:

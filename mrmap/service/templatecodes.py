@@ -15,6 +15,13 @@ SERVICE_TABLE_ACTIONS = """
       {{ ICONS.EDIT|safe }}
     </a>
     {% endif %}
+    {% if record.get_harvest_url %}
+    <form class="mr-1" action="{{record.get_harvest_url}}" method="post">
+      {% csrf_token %}
+      <input type="hidden"  name="service" value="{{record.pk}}">
+      <button type="submit" class="btn btn-sm btn-info" data-toggle="tooltip" data-placement="left" title="{% trans 'Start harvesting process' %}">{{ ICONS.HARVEST|safe }}</button>
+    </form>
+    {% endif %}
     {% if "delete_service" in perms and record.get_delete_url %}
     <a class="btn btn-sm btn-danger" href="{{record.get_delete_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Remove this resource' %}">
       {{ ICONS.DELETE|safe }}

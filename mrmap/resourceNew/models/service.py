@@ -12,6 +12,7 @@ from requests import Session
 from requests.auth import HTTPDigestAuth
 
 from MrMap.icons import get_icon, IconEnum
+from job.models import Job
 from main.models import GenericModelMixin, CommonInfo
 from main.utils import camel_to_snake
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
@@ -183,6 +184,12 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
             return self.layers.get(parent=None)
         else:
             return None
+
+    def get_session_for_request(self) -> Session:
+        session = Session()
+        if hasattr(self, "external_authentication"):
+            session.auth = self.external_authentication.get_auth_for_request()
+        return session
 
 
 class OperationUrl(CommonInfo):
@@ -524,31 +531,3 @@ class FeatureTypeElement(CommonInfo):
 
     def __str__(self):
         return self.name
-
-
-class HarvestResult(CommonInfo):
-    service = models.ForeignKey(to=Service,
-                                on_delete=models.CASCADE,
-                                related_name="harvest_results",
-                                related_query_name="harvest_result")
-    timestamp_start = models.DateTimeField(blank=True,
-                                           null=True)
-    timestamp_end = models.DateTimeField(blank=True,
-                                         null=True)
-    number_results = models.IntegerField(default=0)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"Harvest Result ({self.service_id})"
-
-    def save(self, *args, **kwargs):
-        adding = self._state.adding
-        super().save(*args, **kwargs)
-        if adding:
-            from csw.tasks import async_harvest
-            transaction.on_commit(lambda: async_harvest.apply_async(args=(self.service.owned_by_org.pk if self.service.owned_by_org else None,
-                                                                          self.pk, ),
-                                                                    kwargs={'created_by_user_pk': self.created_by_user.pk},
-                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN))

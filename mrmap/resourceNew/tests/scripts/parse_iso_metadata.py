@@ -20,7 +20,7 @@ def create_from_file():
     import time
 
     start = time.time()
-    parsed_iso_md = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../../parsers/iso/templates/md_metadata.xml',
+    parsed_iso_md = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../test_data/iso_md/bplan.xml',
                                                     xmlclass=WrappedIsoMetadata)
 
 

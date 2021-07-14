@@ -119,7 +119,7 @@ class GenericOwsServiceOperationFacade(View):
 
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
-    """
+        """
         if not self.service:
             return self.return_http_response({"status_code": 404, "content": SERVICE_NOT_FOUND})
         elif not self.request.query_parameters.get("request", None):

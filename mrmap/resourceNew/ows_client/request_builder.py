@@ -20,8 +20,6 @@ class WebService(ABC):
     SERVICE_QP = "SERVICE"
     VERSION_QP = "VERSION"
     GET_CAPABILITIES_QV = "GetCapabilities"
-    BBOX_QP = "BBOX"
-    CRS_QP = None
 
     def __init__(self, base_url: str, service_type: str, version: str, *args, **kwargs):
         self.base_url = base_url.split("?", 1)[0]
@@ -80,6 +78,13 @@ class WebService(ABC):
             return WmsService(base_url=url, version=version[0])
         elif service_type[0] in ["wfs", "WFS"]:
             return WfsService(base_url=url, version=version[0])
+        elif service_type[0] in ["csw", "CSW"]:
+            return CatalogueServiceWeb(base_url=url, version=version[0])
+
+
+class WebMapAndFeatureService(WebService):
+    BBOX_QP = "BBOX"
+    CRS_QP = None
 
     @classmethod
     def _construct_polygon_from_bbox_query_param_for_wfs(cls, get_dict):
@@ -229,7 +234,55 @@ class WebService(ABC):
             return cls._construct_polygon_from_bbox_query_param_for_wfs(get_dict=get_dict)
 
 
-class WmsService(WebService):
+class CatalogueServiceWeb(WebService):
+    GET_RECORDS_QV = "GetRecords"
+    TYPE_NAME_QV = "typeNames"
+    OUTPUT_SCHEMA_QV = "outputSchema"
+    CONSTRAINT_LANGUAGE_QV = "constraintLanguage"
+    ELEMENT_SET_NAME_QV = "ElementSetName"
+    RESULT_TYPE_QV = "resultType"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(service_type="csw", *args, **kwargs)
+
+    def get_get_records_kwargs(self,
+                               type_name_list,
+                               result_type: str,
+                               output_schema: str = "http://www.isotc211.org/2005/gmd",
+                               constraint_language: str = "FILTER",
+                               element_set_name: str = "full",
+                               **kwargs):
+        if isinstance(type_name_list, str):
+            type_name_list = [type_name_list]
+
+        query_params = {self.TYPE_NAME_QV: ",".join(type_name_list) if len(type_name_list) > 1 else type_name_list[0],
+                        self.OUTPUT_SCHEMA_QV: output_schema,
+                        self.RESULT_TYPE_QV: result_type,
+                        self.CONSTRAINT_LANGUAGE_QV: constraint_language,
+                        self.ELEMENT_SET_NAME_QV: element_set_name}
+        return query_params
+
+    def convert_kwargs_for_get_records(self, **kwargs):
+        return {
+            "type_name_list": kwargs[self.TYPE_NAME_QV].split(","),
+            "result_type": kwargs[self.RESULT_TYPE_QV],
+            "output_schema": kwargs[self.OUTPUT_SCHEMA_QV],
+            "constraint_language": kwargs[self.CONSTRAINT_LANGUAGE_QV],
+            "element_set_name": kwargs[self.ELEMENT_SET_NAME_QV],
+        }
+
+    def getrecords(self, **kwargs):
+        return self.get_get_records_request(**kwargs)
+
+    def get_get_records_request(self, **kwargs):
+        query_params = self.get_get_records_kwargs(**self.convert_kwargs_for_get_records(**kwargs))
+        query_params.update({self.REQUEST_QP: self.GET_RECORDS_QV})
+        query_params.update(self.get_default_query_params())
+        req = Request(method="GET", url=self.base_url, params=query_params)
+        return req
+
+
+class WmsService(WebMapAndFeatureService):
     LAYERS_QP = "LAYERS"
     STYLES_QP = "STYLES"
     CRS_QP = "CRS"
@@ -429,7 +482,7 @@ class WmsService(WebService):
         return req
 
 
-class WfsService(WebService):
+class WfsService(WebMapAndFeatureService):
     DESCRIBE_FEATURE_TYPE_QV = "DescribeFeatureType"
     GET_FEATURE_QV = "GetFeature"
     TRANSACTION_QV = "Transaction"

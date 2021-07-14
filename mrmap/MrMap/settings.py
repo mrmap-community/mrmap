@@ -309,6 +309,7 @@ CELERY_QUEUES = (
     Queue('default', Exchange('default'), routing_key='default'),
     Queue('download_iso_metadata', Exchange('download_iso_metadata'), routing_key='download_iso_metadata'),
     Queue('download_described_elements', Exchange('download_described_elements'), routing_key='download_described_elements'),
+    Queue('harvest', Exchange('harvest'),  routing_key='harvest'),
 )
 
 

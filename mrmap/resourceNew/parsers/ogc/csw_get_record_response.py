@@ -8,6 +8,6 @@ class GetRecordsResponse(xmlmap.XmlObject):
     returned_records = xmlmap.IntegerField(xpath=f"//{NS_WC}SearchResults']/@numberOfRecordsReturned")
     next_record = xmlmap.IntegerField(xpath=f"//{NS_WC}SearchResults']/@nextRecord")
 
-    records = xmlmap.NodeListField(xpath=f"//{NS_WC}SearchResults']/{NS_WC}MD_Metadata']",
+    records = xmlmap.NodeListField(xpath=f"//{NS_WC}SearchResults']//{NS_WC}MD_Metadata']",
                                    node_class=IsoMetadata)
 

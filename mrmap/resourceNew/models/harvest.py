@@ -1,7 +1,10 @@
 from django.contrib.gis.db import models
+from eulxml import xmlmap
+
 from job.models import Job
 from main.models import CommonInfo
 from resourceNew.models import Service
+from resourceNew.parsers.ogc.csw_get_record_response import GetRecordsResponse
 
 
 def result_file_path(instance, filename):
@@ -26,4 +29,6 @@ class HarvestResult(CommonInfo):
         ordering = ['-created_at']
 
     def parse(self):
-        xml = self.result_file.open().read()
+        result_xml = xmlmap.load_xmlobject_from_string(string=self.result_file.open().read(),
+                                                       xmlclass=GetRecordsResponse)
+        return result_xml

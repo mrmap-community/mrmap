@@ -131,3 +131,4 @@ coverage-report.xml
 /mrmap/docker/redis/redis_data/
 
 ext_auth_keys/
+mrmap/media/

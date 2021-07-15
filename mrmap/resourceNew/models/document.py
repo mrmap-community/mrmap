@@ -195,7 +195,7 @@ class Document(CommonInfo):
         self.xml = str(parsed_metadata.serializeDocument(), "UTF-8")
         self.save()
 
-    def camouflaged(self, request: HttpRequest):
+    def camouflaged(self, request: HttpRequest) -> str:
         """ Camouflage all urls which are founded in current xml from the xml attribute on-the-fly with the hostname
             from the given request.
 

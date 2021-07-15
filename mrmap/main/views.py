@@ -227,9 +227,10 @@ class SecuredFormView(LoginRequiredMixin,
     template_name = "MrMap/detail_views/generic_form.html"
 
     def get_success_url(self):
-        last_url = self.get_last_url()
-        if last_url:
-            return last_url
+        if not self.success_url:
+            last_url = self.get_last_url()
+            if last_url:
+                return last_url
         return super().get_success_url()
 
 

@@ -77,6 +77,7 @@ class IsoMetadataManager(models.Manager):
                 field_dict["date_stamp"] = datetime.combine(field_dict["date_stamp"], datetime.min.time())
             dt_aware = timezone.make_aware(field_dict["date_stamp"], timezone.get_current_timezone())
             if dt_aware > db_dataset_metadata.date_stamp:
+                # todo: on update we need to check custom metadata
                 self.model.objects.update(metadata_contact=db_metadata_contact,
                                           dataset_contact=db_dataset_contact,
                                           **field_dict)
@@ -110,10 +111,17 @@ class IsoMetadataManager(models.Manager):
             else:
                 db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
                                                                             origin_url=origin_url)
+
+
                 db_metadata.add_dataset_metadata_relation(related_object=related_object)
                 if not exists:
                     Document.objects.create(dataset_metadata=db_metadata,
-                                            xml=str(parsed_metadata.serializeDocument(), "UTF-8"))
+                                            xml="<?xml version='1.0' encoding='UTF-8'?>\n" + str(parsed_metadata.serialize(), "UTF-8"))
+                elif update:
+                    # todo: on update we need to check custom metadata
+                    Document.objects.update(dataset_metadata=db_metadata,
+                                            xml="<?xml version='1.0' encoding='UTF-8'?>\n" + str(
+                                                parsed_metadata.serialize(), "UTF-8"))
             if update:
                 db_keyword_list = []
                 for keyword in parsed_metadata.keywords:

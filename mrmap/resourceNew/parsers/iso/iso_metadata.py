@@ -224,4 +224,7 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class WrappedIsoMetadata(xmlmap.XmlObject):
+    # /*[namespace-uri()='http://www.isotc211.org/2005/gmd' and local-name()='MD_Metadata']
     iso_metadata = xmlmap.NodeField(xpath=f"//{NS_WC}MD_Metadata']", node_class=IsoMetadata)
+
+

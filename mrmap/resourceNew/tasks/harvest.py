@@ -219,6 +219,10 @@ def analyze_results(self,
                 self.task.save()
             try:
                 if md_metadata.hierarchy_level == "dataset":
+                    # todo: "tile", "series", ==> dataset
+                    # todo: "service"
+                    # todo: "application"
+                    # todo: "nonGeographicDataset"
                     dataset = DatasetMetadata.iso_metadata.create_from_parsed_metadata(parsed_metadata=md_metadata,
                                                                                        related_object=service,
                                                                                        origin_url=None)

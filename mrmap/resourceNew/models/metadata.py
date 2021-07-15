@@ -655,6 +655,14 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                          verbose_name=_("feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
+    self_pointing_services = models.ManyToManyField(to=Service,
+                                                    through=DatasetMetadataRelation,
+                                                    editable=False,
+                                                    related_name="dataset_metadata",
+                                                    related_query_name="dataset_metadata",
+                                                    blank=True,
+                                                    verbose_name=_("services"),
+                                                    help_text=_("all services from which this dataset was harvested."))
 
     objects = DatasetManager()
     iso_metadata = IsoMetadataManager()

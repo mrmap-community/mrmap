@@ -247,7 +247,7 @@ class CatalogueServiceWeb(WebService):
     REQUEST_ID_QP = "requestId"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(service_type="csw", *args, **kwargs)
+        super().__init__(service_type="CSW", *args, **kwargs)
 
     def get_get_records_kwargs(self,
                                type_name_list,

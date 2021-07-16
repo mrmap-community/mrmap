@@ -166,10 +166,14 @@ class DatasetManager(AbstractMetadataManager):
                                                                      distinct=True),
                                             linked_feature_type_count=Count("self_pointing_feature_types",
                                                                             distinct=True),
+                                            linked_service_count=Count("self_pointing_services",
+                                                                       distinct=True),
                                             is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
                                                                             output_field=BooleanField())
                                             )\
-                                  .prefetch_related("self_pointing_layers", "self_pointing_feature_types")\
+                                  .prefetch_related("self_pointing_layers",
+                                                    "self_pointing_feature_types",
+                                                    "self_pointing_services")\
                                   .order_by("-title")
 
 

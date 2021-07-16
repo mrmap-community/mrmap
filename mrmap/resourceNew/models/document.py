@@ -180,7 +180,7 @@ class Document(CommonInfo):
         if self.document_type == DocumentEnum.METADATA:
             parsed_metadata = xmlmap.load_xmlobject_from_string(string=xml,
                                                                 xmlclass=WrappedIsoMetadata)
-            return parsed_metadata.iso_metadata
+            return parsed_metadata.iso_metadata[0]
         else:
             return get_parsed_service(xml=xml)
 

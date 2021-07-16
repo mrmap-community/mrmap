@@ -229,10 +229,7 @@ class RemoteMetadata(CommonInfo):
                           url=self.link,
                           auth=auth)
         response = session.send(request.prepare())
-        content = response.content
-        if isinstance(content, bytes):
-            content = str(content, "UTF-8")
-        self.remote_content = content
+        self.remote_content = response.text
         if save:
             self.save()
         return self.remote_content
@@ -246,7 +243,7 @@ class RemoteMetadata(CommonInfo):
         if self.remote_content:
             parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.remote_content, "UTF-8"),
                                                                 xmlclass=WrappedIsoMetadata)
-            return parsed_metadata.iso_metadata
+            return parsed_metadata.iso_metadata[0]
         else:
             raise ValueError("there is no fetched content. You need to call fetch_remote_content() first.")
 

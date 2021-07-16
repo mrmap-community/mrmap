@@ -64,7 +64,8 @@ class DatasetMetadataTable(SecuredTable):
         fields = ("title",
                   "details",
                   "linked_layer_count",
-                  "linked_feature_type_count")
+                  "linked_feature_type_count",
+                  "linked_service_count")
         prefix = 'dataset-metadata-table'
 
     def render_linked_layer_count(self, record, value):
@@ -82,5 +83,14 @@ class DatasetMetadataTable(SecuredTable):
         link = f'<a href="{reverse("resourceNew:feature_type_list")}?id__in='
         for feature_type in record.self_pointing_feature_types.all():
             link += f'{feature_type.pk  },'
+        link += f'">{value}</a>'
+        return format_html(link)
+
+    def render_linked_service_count(self, record, value):
+        f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
+        f'data-bs-content="content">details</a> '
+        link = f'<a href="{reverse("resourceNew:service_csw_list")}?id__in='
+        for service in record.self_pointing_services.all():
+            link += f'{service.pk  },'
         link += f'">{value}</a>'
         return format_html(link)

@@ -72,3 +72,13 @@ class DBModelConverterMixin:
     def update_fields(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+    @classmethod
+    def from_dict(cls, initial: dict):
+        """Initial the current class from the given dict"""
+        instance = cls()
+        field_keys = instance._fields.keys()
+        for key, value in initial.items():
+            if key in field_keys:
+                setattr(instance, key, value)
+        return instance

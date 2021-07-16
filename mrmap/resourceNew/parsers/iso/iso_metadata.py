@@ -79,7 +79,7 @@ class Polygon(xmlmap.XmlObject):
 class EXBoundingPolygon(xmlmap.XmlObject):
     ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd"), ("gml", "http://www.opengis.net/gml")])
 
-    polygon_list = xmlmap.NodeListField(xpath="//gmd:polygon/gml:Polygon", node_class=Polygon)
+    polygon_list = xmlmap.NodeListField(xpath="gmd:polygon/gml:Polygon", node_class=Polygon)
 
     def to_polygon(self):
         if self.polygon_list:
@@ -108,6 +108,8 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
 
 class MetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     model = "resourceNew.MetadataContact"
+    ROOT_NAME = "CI_ResponsibleParty"
+    ROOT_NS = "gmd"
     ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd"), ("gco", "http://www.isotc211.org/2005/gco")])
 
     name = xmlmap.StringField(xpath="gmd:organisationName/gco:CharacterString")
@@ -117,31 +119,57 @@ class MetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
+    """Parser class to deserialize/serialize metadata information defined in the ISO 19115 specs.
+
+    :Example:
+
+    .. code-block:: python
+       from resourceNew.parsers.iso import iso_metadata
+
+       # iso metadata from scratch
+       iso_md = iso_metadata.IsoMetadata()
+       iso_md = file_identifier = "4be3fcf9-9376-4813-9bfd-708912038635"
+       iso_md.hierarchy_level = "dataset"
+       ...
+       iso_md.serializeDocument()  # to get the serialized xml document
+
+       # iso metadata from other object. All field names which shall be initiated shall have the same name.
+       iso_md = IsoMetadata.from_dict({"file_identifier": "4be3fcf9-9376-4813-9bfd-708912038635",
+                                       "hierarchy_level": "dataset", ... })
+       iso_md.serializeDocument()  # to get the serialized xml document
+
+    """
     model = "resourceNew.ServiceMetadata"
+    ROOT_NAME = "MD_Metadata"
+    ROOT_NS = "gmd"
     ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd"), ("gco", "http://www.isotc211.org/2005/gco")])
 
-    title = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
-    abstract = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:abstract/gco:CharacterString")
-    # language = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}language']/{NS_WC}LanguageCode']")
-    access_constraints = xmlmap.StringField(xpath="gmd:identificationInfo//gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue=\"otherRestrictions\"]/gmd:otherConstraints/gco:CharacterString")
-
     file_identifier = xmlmap.StringField(xpath="gmd:fileIdentifier/gco:CharacterString")
+    # language = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}language']/{NS_WC}LanguageCode']")
+    hierarchy_level = xmlmap.StringField(xpath="gmd:hierarchyLevel/gmd:MD_ScopeCode[@codeList='http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode']/@codeListValue")
+
+    # todo: gmd:MD_DataIdentification or gmd:SV_ServiceIdentification is possible
+
+    title = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
+    abstract = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString")
+
+    access_constraints = xmlmap.StringField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue=\"otherRestrictions\"]/gmd:otherConstraints/gco:CharacterString")
+
     # character_set_code = xmlmap.StringField(xpath=f"{NS_WC}characterSet']/{NS_WC}MD_CharacterSetCode']/@codeListValue")
     date_stamp_date = xmlmap.DateField(xpath="gmd:dateStamp/gco:Date")
     date_stamp_date_time = xmlmap.DateTimeField(xpath="gmd:dateStamp/gco:DateTime")
-    hierarchy_level = xmlmap.StringField(xpath="gmd:hierarchyLevel/gmd:MD_ScopeCode/@codeListValue")
 
-    equivalent_scale = xmlmap.FloatField(xpath="gmd:identificationInfo//gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
-    ground_res = xmlmap.FloatField(xpath="gmd:identificationInfo//gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gmd:Distance")
+    equivalent_scale = xmlmap.FloatField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
+    ground_res = xmlmap.FloatField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gmd:Distance")
 
-    bbox_lat_lon_list = xmlmap.NodeListField(xpath="//gmd:identificationInfo//gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox", node_class=EXGeographicBoundingBox)
-    bounding_polygon_list = xmlmap.NodeListField(xpath="//gmd:identificationInfo//gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon", node_class=EXBoundingPolygon)
+    bbox_lat_lon_list = xmlmap.NodeListField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox", node_class=EXGeographicBoundingBox)
+    bounding_polygon_list = xmlmap.NodeListField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon", node_class=EXBoundingPolygon)
 
     metadata_contact = xmlmap.NodeField(xpath="gmd:contact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
     dataset_contact = xmlmap.NodeField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty", node_class=MetadataContact)
 
-    keywords = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
-    categories = xmlmap.NodeListField(xpath="gmd:identificationInfo//gmd:topicCategory/gmd:MD_TopicCategoryCode", node_class=Category)
+    keywords = xmlmap.NodeListField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString", node_class=Keyword)
+    categories = xmlmap.NodeListField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode", node_class=Category)
 
     reference_systems = xmlmap.NodeListField(xpath="gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
 
@@ -162,9 +190,9 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
     def get_bounding_geometry(self):
         polygon_list = []
-        for bbox in self.bbox_lat_lon_list:
+        for bbox in self.bbox_lat_lon_list:  # noqa xmlmap.<>ListField provide iterator
             polygon_list.append(bbox.to_polygon())
-        for polygon in self.bounding_polygon_list:
+        for polygon in self.bounding_polygon_list:  # noqa xmlmap.<>ListField provide iterator
             _polygon = polygon.to_polygon()
             if _polygon:
                 polygon_list.append(_polygon)
@@ -236,7 +264,11 @@ class IsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class WrappedIsoMetadata(xmlmap.XmlObject):
+    """Helper class to parse wrapped IsoMetadata objects.
+
+    This class is needed you want to parse GetRecordsResponse xml for example. There are 0..n ``gmd:MD_Metadata``
+    nodes wrapped by a ``csw:GetRecordsResponse`` node.
+    """
     ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd")])
 
     iso_metadata = xmlmap.NodeListField(xpath=f"//gmd:MD_Metadata", node_class=IsoMetadata)
-

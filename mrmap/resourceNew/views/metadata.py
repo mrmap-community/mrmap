@@ -1,4 +1,5 @@
-from django.http import HttpResponse
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse, HttpResponseNotFound, Http404
 from django.views.generic import RedirectView
 from django_filters.views import FilterView
 from main.views import SecuredListMixin, SecuredUpdateView, SecuredDetailView, SecuredConfirmView
@@ -46,11 +47,14 @@ class ServiceMetadataUpdateView(SecuredUpdateView):
 class ServiceMetadataXmlView(SecuredDetailView):
     model = ServiceMetadata
     content_type = "application/xml"
-    queryset = ServiceMetadata.objects.all().select_related("service__proxy_setting", "document")
+    queryset = ServiceMetadata.objects.all().select_related("described_object__proxy_setting", "document")
 
     def render_to_response(self, context, **response_kwargs):
-        doc = self.service.document.xml
-        if hasattr(self.object.service, "proxy_setting") and self.object.service.proxy_setting.camouflage:
+        try:
+            doc = self.object.document.xml
+        except ObjectDoesNotExist:
+            raise Http404("No xml representation was found for this service metadata.")
+        if hasattr(self.object.described_object, "proxy_setting") and self.object.described_object.proxy_setting.camouflage:
             doc = self.object.document.camouflaged(request=self.request)
         return HttpResponse(content=doc,
                             content_type=self.content_type)

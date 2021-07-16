@@ -76,4 +76,3 @@ urlpatterns = [
 
     path("security/proxy-logs", security_views.AnalyzedResponseLogListView.as_view(), name="proxy_log_list")
 ]
-

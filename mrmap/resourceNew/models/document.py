@@ -8,8 +8,8 @@ from main.models import CommonInfo
 from resourceNew.enums.document import DocumentEnum
 from resourceNew.models import ServiceMetadata, LayerMetadata, FeatureTypeMetadata, DatasetMetadata, Service
 from eulxml import xmlmap
-from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
-from resourceNew.parsers.ogc.capabilities import get_parsed_service
+from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
+from resourceNew.xmlmapper.ogc.capabilities import get_parsed_service
 
 
 class Document(CommonInfo):

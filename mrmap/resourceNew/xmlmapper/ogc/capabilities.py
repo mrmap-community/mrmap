@@ -1,4 +1,3 @@
-import datetime
 from django.utils import timezone
 from django.contrib.gis.geos import Polygon
 from eulxml import xmlmap
@@ -8,9 +7,9 @@ from isodate.isoduration import parse_duration
 from isodate.isodates import parse_date
 from isodate.isoerror import ISO8601Error
 from isodate.duration import Duration
-from resourceNew.parsers.exceptions import SemanticError
-from resourceNew.parsers.mixins import DBModelConverterMixin
-from resourceNew.parsers.consts import NS_WC, IF_THEN_ELSE
+from resourceNew.xmlmapper.exceptions import SemanticError
+from resourceNew.xmlmapper.mixins import DBModelConverterMixin
+from resourceNew.xmlmapper.consts import NS_WC
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum
 from resourceNew.settings import parser_logger
 

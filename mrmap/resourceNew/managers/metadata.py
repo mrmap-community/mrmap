@@ -64,7 +64,7 @@ class IsoMetadataManager(models.Manager):
 
     def _create_dataset_metadata(self, parsed_metadata, origin_url):
         db_metadata_contact = self._create_contact(contact=parsed_metadata.metadata_contact)
-        db_dataset_contact = self._create_contact(contact=parsed_metadata.dataset_contact)
+        db_dataset_contact = self._create_contact(contact=parsed_metadata.md_data_identification.dataset_contact)
 
         field_dict = parsed_metadata.get_field_dict()
         update = False
@@ -111,7 +111,6 @@ class IsoMetadataManager(models.Manager):
             else:
                 db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
                                                                             origin_url=origin_url)
-
 
                 db_metadata.add_dataset_metadata_relation(related_object=related_object)
                 if not exists:

@@ -4,7 +4,7 @@ from eulxml import xmlmap
 from job.models import Job
 from main.models import CommonInfo
 from resourceNew.models import Service
-from resourceNew.parsers.ogc.csw_get_record_response import GetRecordsResponse
+from resourceNew.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 
 
 def result_file_path(instance, filename):

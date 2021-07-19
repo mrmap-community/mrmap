@@ -11,8 +11,8 @@ from resourceNew.ows_client.exceptions import MissingServiceParam, MissingBboxPa
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
 
-from resourceNew.parsers.ogc.wfs_get_feature import GetFeature
-from resourceNew.parsers.ogc.wfs_transaction import Transaction
+from resourceNew.xmlmapper.ogc.wfs_get_feature import GetFeature
+from resourceNew.xmlmapper.ogc.wfs_transaction import Transaction
 
 
 class WebService(ABC):

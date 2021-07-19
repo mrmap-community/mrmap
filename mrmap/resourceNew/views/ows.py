@@ -29,9 +29,9 @@ from PIL import Image, ImageFont, ImageDraw
 from django.db import connection, transaction
 from django.http import HttpResponse
 from MrMap.utils import execute_threads
-from resourceNew.parsers.ogc.feature_collection import FeatureCollection
-from resourceNew.parsers.ogc.wfs_get_feature import GetFeature
-from resourceNew.parsers.ogc.wfs_transaction import Transaction
+from resourceNew.xmlmapper.ogc.feature_collection import FeatureCollection
+from resourceNew.xmlmapper.ogc.wfs_get_feature import GetFeature
+from resourceNew.xmlmapper.ogc.wfs_transaction import Transaction
 from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \

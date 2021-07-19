@@ -1,9 +1,9 @@
+from django.contrib.gis.geos import Polygon
 from eulxml import xmlmap
 
-from resourceNew.parsers.consts import NS_WC
-from resourceNew.parsers.gml.gml import Gml
-from resourceNew.parsers.iso.iso_metadata import Polygon
-from resourceNew.parsers.ogc.wfs_filter import Filter
+from resourceNew.xmlmapper.consts import NS_WC
+from resourceNew.xmlmapper.gml.gml import Gml
+from resourceNew.xmlmapper.ogc.wfs_filter import Filter
 
 
 class FeatureTypeElement(xmlmap.XmlObject):

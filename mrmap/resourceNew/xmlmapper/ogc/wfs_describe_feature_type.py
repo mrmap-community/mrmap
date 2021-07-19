@@ -1,7 +1,7 @@
 from eulxml import xmlmap
 
-from resourceNew.parsers.consts import NS_WC
-from resourceNew.parsers.mixins import DBModelConverterMixin
+from resourceNew.xmlmapper.consts import NS_WC
+from resourceNew.xmlmapper.mixins import DBModelConverterMixin
 
 
 class FeatureTypeElement(DBModelConverterMixin, xmlmap.XmlObject):

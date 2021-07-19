@@ -10,7 +10,7 @@ from resourceNew.enums.service import OGCOperationEnum, HttpMethodEnum
 from resourceNew.models import DatasetMetadata, Service, OperationUrl
 from resourceNew.models.harvest import HarvestResult
 from resourceNew.ows_client.request_builder import CatalogueServiceWeb
-from resourceNew.parsers.ogc.csw_get_record_response import GetRecordsResponse
+from resourceNew.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 from structure.enums import PendingTaskEnum
 from time import sleep
 

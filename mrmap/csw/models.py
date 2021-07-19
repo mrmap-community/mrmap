@@ -28,9 +28,7 @@ class HarvestResult(CommonInfo):
         return "Harvest Result ({})".format(self.metadata.title)
 
     def save(self, *args, **kwargs):
-        adding = False
-        if self._state.adding:
-            adding = True
+        adding = self._state.adding
         super().save(*args, **kwargs)
         if adding:
             from csw.tasks import async_harvest

@@ -1,6 +1,6 @@
 from eulxml import xmlmap
-from resourceNew.parsers.consts import NS_WC
-from resourceNew.parsers.gml.gml import Gml
+from resourceNew.xmlmapper.consts import NS_WC
+from resourceNew.xmlmapper.gml.gml import Gml
 
 
 class Member(xmlmap.XmlObject):

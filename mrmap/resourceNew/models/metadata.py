@@ -7,16 +7,14 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from requests import Session, Request
-
 from MrMap.settings import PROXIES
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
-from resourceNew.enums.service import AuthTypeEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
 from resourceNew.models.service import Layer, FeatureType, Service
-from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
+from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 from uuid import uuid4
 
 

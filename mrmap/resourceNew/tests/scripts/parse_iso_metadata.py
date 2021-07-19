@@ -11,7 +11,7 @@ from resourceNew.models.service import Service as DbService
 from resourceNew.models import RemoteMetadata
 from resourceNew.tasks.service import schedule_collect_linked_metadata
 from eulxml import xmlmap
-from resourceNew.parsers.iso.iso_metadata import WrappedIsoMetadata
+from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 
 
 def create_from_file():
@@ -20,7 +20,7 @@ def create_from_file():
     import time
 
     start = time.time()
-    parsed_iso_md = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../test_data/iso_md/csw_get_records_response.xml',
+    parsed_iso_md = xmlmap.load_xmlobject_from_file(filename=current_dir + '/../test_data/iso_md/bplan.xml',
                                                     xmlclass=WrappedIsoMetadata)
 
 

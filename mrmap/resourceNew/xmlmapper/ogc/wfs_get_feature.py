@@ -1,5 +1,5 @@
 from eulxml import xmlmap
-from resourceNew.parsers.ogc.wfs_filter import Filter
+from resourceNew.xmlmapper.ogc.wfs_filter import Filter
 
 
 class GetFeature(xmlmap.XmlObject):

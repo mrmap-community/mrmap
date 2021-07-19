@@ -23,7 +23,7 @@ from resourceNew.managers.service import ServiceXmlManager, ServiceManager, Laye
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
 from resourceNew.ows_client.request_builder import OgcService
-from resourceNew.parsers.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
+from resourceNew.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
 from resourceNew.settings import models_logger
 

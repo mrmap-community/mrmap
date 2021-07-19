@@ -1,6 +1,6 @@
 from eulxml import xmlmap
-from resourceNew.parsers.consts import NS_WC
-from resourceNew.parsers.iso.iso_metadata import IsoMetadata
+from resourceNew.xmlmapper.consts import NS_WC
+from resourceNew.xmlmapper.iso_metadata.iso_metadata import MdMetadata
 
 
 class GetRecordsResponse(xmlmap.XmlObject):
@@ -9,5 +9,5 @@ class GetRecordsResponse(xmlmap.XmlObject):
     next_record = xmlmap.IntegerField(xpath=f"//{NS_WC}SearchResults']/@nextRecord")
 
     records = xmlmap.NodeListField(xpath=f"//{NS_WC}SearchResults']//{NS_WC}MD_Metadata']",
-                                   node_class=IsoMetadata)
+                                   node_class=MdMetadata)
 

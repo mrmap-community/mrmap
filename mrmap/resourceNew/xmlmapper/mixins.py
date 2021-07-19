@@ -74,11 +74,12 @@ class DBModelConverterMixin:
             setattr(self, key, value)
 
     @classmethod
-    def from_dict(cls, initial: dict):
+    def from_field_dict(cls, initial: dict):
         """Initial the current class from the given dict"""
         instance = cls()
         field_keys = instance._fields.keys()
         for key, value in initial.items():
             if key in field_keys:
+                # todo: check if it is a node field and call the node_class.from_field_dict with initial=value.
                 setattr(instance, key, value)
         return instance

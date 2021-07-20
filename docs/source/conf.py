@@ -22,16 +22,11 @@ import django
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 # Get an instance of a logger
-from MrMap.settings import LOG_DIR, LOG_SUB_DIRS
+from MrMap.settings import LOG_DIR
 
 # create log dir if it does not exist
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
-
-# create sub log dir if it does not exist
-for key, value in LOG_SUB_DIRS.items():
-    if not os.path.exists(LOG_DIR + value['dir']):
-        os.makedirs(LOG_DIR + value['dir'])
 
 django.setup()
 

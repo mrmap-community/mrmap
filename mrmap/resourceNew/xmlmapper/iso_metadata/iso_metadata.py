@@ -292,7 +292,7 @@ class MdMetadata(BaseIsoMetadata):
         return super().get_model_class()
 
     def get_field_dict(self):
-        """Custom function to convert xml object to database model.
+        """Custom function to convert xml object to database model schema.
 
         :return: all attributes in db model structure
         :rtype: dict

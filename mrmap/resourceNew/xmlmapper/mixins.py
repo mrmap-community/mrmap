@@ -69,17 +69,65 @@ class DBModelConverterMixin:
                 settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
         return field_dict
 
-    def update_fields(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    def update_fields(self, obj: dict):
+        """Update/Set all founded fields by the given obj dict.
+
+        :class:`eulxml.xmlmap.fields.NodeField` and :class:`eulxml.xmlmap.fields.NodeListField` attributes shall be
+        defined as sub dict.
+
+        :Example:
+
+        .. code-block:: python
+           obj = {
+                  "file_identifier": "id-123-123-123-123-123",
+                  "md_data_identification":
+                        {"equivalent_scale": 1.23}
+                  }
+
+           from resourceNew.xmlmapper.iso_metadata import iso_metadata
+
+           iso_md = xmlmap.load_xmlobject_from_file(filename='something.xml',
+                                                    xmlclass=WrappedIsoMetadata)
+           iso_md.update_fields(obj=obj)
+
+        :param obj: the object which shall be used to iterate fields
+        :type obj: dict
+        """
+        field_keys = self._fields.keys()
+        for key, value in obj.items():
+            if key in field_keys:
+                if isinstance(self._fields.get(key), xmlmap.NodeField) or \
+                        isinstance(self._fields.get(key), xmlmap.NodeListField):
+                    _field = self._fields.get(key)
+                    _instance = _field.node_class.from_field_dict(value)
+                    setattr(self, key, _instance)
+                else:
+                    setattr(self, key, value)
 
     @classmethod
     def from_field_dict(cls, initial: dict):
-        """Initial the current class from the given dict"""
+        """Initial the current class from the given dict.
+
+        :class:`eulxml.xmlmap.fields.NodeField` and :class:`eulxml.xmlmap.fields.NodeListField` attributes shall be
+        defined as sub dict.
+
+        :Example:
+
+        .. code-block:: python
+           initial = {
+                      "file_identifier": "id-123-123-123-123-123",
+                      "md_data_identification":
+                            {"equivalent_scale": 1.23}
+                      }
+
+           from resourceNew.xmlmapper.iso_metadata import iso_metadata
+
+           # iso metadata from scratch
+           iso_md = iso_metadata.IsoMetadata.from_field_dict(initial=initial)
+
+        :param initial: the object which shall be used to iterate fields
+        :type initial: dict
+        """
         instance = cls()
-        field_keys = instance._fields.keys()
-        for key, value in initial.items():
-            if key in field_keys:
-                # todo: check if it is a node field and call the node_class.from_field_dict with initial=value.
-                setattr(instance, key, value)
+        instance.update_fields(obj=initial)
         return instance

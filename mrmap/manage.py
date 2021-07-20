@@ -8,11 +8,6 @@ from MrMap import settings as mrmap_settings
 if not os.path.exists(mrmap_settings.LOG_DIR):
     os.makedirs(mrmap_settings.LOG_DIR)
 
-# create sub log dir if it does not exist
-for key, value in mrmap_settings.LOG_SUB_DIRS.items():
-    if not os.path.exists(mrmap_settings.LOG_DIR + value['dir']):
-        os.makedirs(mrmap_settings.LOG_DIR + value['dir'])
-
 if __name__ == '__main__':
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MrMap.settings')
     try:

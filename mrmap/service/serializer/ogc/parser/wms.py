@@ -12,9 +12,9 @@ from abc import ABC
 
 from celery import current_task, states
 from celery.result import AsyncResult
-from django.db import transaction, IntegrityError
+from django.db import IntegrityError
 from MrMap.messages import SERVICE_NO_ROOT_LAYER
-from service.settings import PROGRESS_STATUS_AFTER_PARSING, service_logger
+from service.settings import PROGRESS_STATUS_AFTER_PARSING
 from MrMap.settings import EXEC_TIME_PRINT, \
     XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap import utils
@@ -29,6 +29,7 @@ from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     Style, ExternalAuthentication, ServiceUrl
 from structure.models import Organization
 from django.core.exceptions import MultipleObjectsReturned
+from django.conf import settings
 
 
 class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
@@ -99,24 +100,24 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
         if service_metadata_uri is not None:
             self.get_service_metadata(uri=service_metadata_uri)
 
-        service_logger.debug(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
+        settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations_and_formats(cap_xml)
-        service_logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
         start_time = time.time()
         self.get_service_dataset_metadata(xml_obj=cap_xml)
-        service_logger.debug(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+        settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
         self.get_version_specific_metadata(xml_obj=cap_xml)
 
         if not metadata_only:
             start_time = time.time()
             self._parse_layers(xml_obj=cap_xml)
-            service_logger.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+            settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     def get_service_operations_and_formats(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
@@ -637,7 +638,7 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
             # No division by zero!
             len_layers = 1
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
-        service_logger.debug("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
+        settings.ROOT_LOGGER.debug("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
         self._parse_layers_recursive(layers, step_size=step_size)
 
@@ -794,7 +795,7 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
                     }
                 )
             results = group(get_linked_iso_metadata.s(item.uri) for item in self.iso_md_list)().get(disable_sync_subtasks=False)
-            service_logger.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
+            settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("resolving iso metadata", time.time() - start_time))
 
             if current_task:
                 current_task.update_state(
@@ -877,13 +878,13 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
                             'statistics': {'persisting Iso Metadatas': {'duration': time.time() - start_time}},
                         }
                     )
-                service_logger.debug(EXEC_TIME_PRINT % ("persisting iso metadata", time.time() - start_time))
+                settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("persisting iso metadata", time.time() - start_time))
 
             start_time = time.time()
             db_metadata_list = [item[2] for item in layers]
             Metadata.objects.bulk_create(db_metadata_list)
 
-            service_logger.debug(EXEC_TIME_PRINT % ("persisting service/layer metadata", time.time() - start_time))
+            settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("persisting service/layer metadata", time.time() - start_time))
 
             start_time = time.time()
             # todo: refactor Layer db model without multi table inheritance so we can use bulk_create
@@ -902,7 +903,7 @@ class OGCWebMapServiceParser(OGCWebServiceParser, ABC):
                         'statistics': {'persisting layer and m2m': {'duration': time.time() - start_time}},
                     }
                 )
-            service_logger.debug(EXEC_TIME_PRINT % ("persisting layer and m2m", time.time() - start_time))
+            settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("persisting layer and m2m", time.time() - start_time))
 
         except KeyError:
             raise IndexError(SERVICE_NO_ROOT_LAYER)

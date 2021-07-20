@@ -15,8 +15,6 @@ from MrMap.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME, STATIC_ROOT
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 import logging
 
-service_logger = logging.getLogger('MrMap.service')
-
 # Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionEnum.REQUESTS
 DEFAULT_SERVICE_VERSION = OGCServiceVersionEnum.V_1_1_1

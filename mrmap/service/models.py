@@ -45,11 +45,11 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS, \
-    service_logger
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS
 from structure.models import Organization
 from service.helper import xml_helper
 from structure.permissionEnums import PermissionEnum
+from django.conf import settings
 
 
 # todo: check if we still need this class?
@@ -1430,7 +1430,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             )
             cap_doc.restore()
         except ObjectDoesNotExist:
-            service_logger.error(
+            settings.ROOT_LOGGER.error(
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
 
@@ -1482,7 +1482,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
             )
             cap_doc.restore()
         except ObjectDoesNotExist:
-            service_logger.error(
+            settings.ROOT_LOGGER.error(
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
 
@@ -1551,7 +1551,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
                 is_original=True,).content
             doc.save()
         except ObjectDoesNotExist:
-            service_logger.error(
+            settings.ROOT_LOGGER.error(
                 "Restoring of metadata {} didn't find any capability document!".format(self.id)
             )
         self.is_custom = False
@@ -1815,7 +1815,7 @@ class ProxyLog(UuidPk, CommonInfo):
             pass
         self.operation = request_param
         self.save()
-        service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
+        settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
     def _log_wfs_response_xml(self, xml: str):
         """ Evaluate the wfs response.

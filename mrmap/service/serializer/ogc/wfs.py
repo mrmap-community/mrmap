@@ -10,7 +10,7 @@ from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.db import IntegrityError
 from lxml.etree import _Element
 
-from service.settings import DEFAULT_SRS, service_logger
+from service.settings import DEFAULT_SRS
 from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, GENERIC_NAMESPACE_TEMPLATE
 from MrMap.messages import SERVICE_GENERIC_ERROR
@@ -27,6 +27,7 @@ from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metad
     FeatureTypeElement, RequestOperation, ExternalAuthentication, ServiceUrl
 from service.settings import ALLOWED_SRS, PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Contact, Organization
+from django.conf import settings
 
 
 class OGCWebFeatureService(OGCWebService):
@@ -77,7 +78,7 @@ class OGCWebFeatureService(OGCWebService):
         if not metadata_only:
             start_time = time.time()
             self.get_feature_type_metadata(xml_obj=xml_obj, external_auth=external_auth)
-            service_logger.debug(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
+            settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!

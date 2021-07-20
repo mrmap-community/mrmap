@@ -5,10 +5,6 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 11.11.19
 
 """
-import logging
-
-editor_logger = logging.getLogger('MrMap.editor')
-
 """ WMS SECURED OPERATIONS
 
 If a group is allowed to perform the operation 'GetFeatureInfo', it must(!) be allowed for 'GetMap' as well. 

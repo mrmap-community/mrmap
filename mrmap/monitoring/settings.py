@@ -1,8 +1,6 @@
 import logging
 from django.utils.translation import gettext_lazy as _
 
-monitoring_logger = logging.getLogger('MrMap.monitoring')
-
 # Defines monitoring constants
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds

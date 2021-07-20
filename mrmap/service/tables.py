@@ -14,18 +14,12 @@ from MrMap.icons import IconEnum, get_all_icons, get_icon
 from MrMap.tables import MrMapTable
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
-from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
-from main.tables.template_code import RECORD_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
+from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
     SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS
 from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from quality.models import ConformityCheckRun
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import MetadataRelation, Metadata, FeatureTypeElement, ProxyLog, MapContext
-from service.settings import service_logger
-from structure.enums import PendingTaskEnum
-from service.templatecodes import SERVICE_TABLE_ACTIONS
 from service.templatecodes import SERVICE_TABLE_ACTIONS, MAP_CONTEXT_TABLE_ACTIONS
-from structure.template_codes import PENDING_TASK_ACTIONS
 from guardian.core import ObjectPermissionChecker
 
 

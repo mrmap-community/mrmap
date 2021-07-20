@@ -42,7 +42,7 @@ from service.models import Metadata, FeatureType, Layer, ProxyLog, AllowedOperat
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT
 from django.conf import settings
 
 
@@ -1286,7 +1286,7 @@ class OGCOperationRequestHandler:
             background = Image.new("RGB", (width, height), (255, 255, 255))
             background.paste(mask, mask=mask)
         except Exception as e:
-            service_logger.exception(e)
+            settings.ROOT_LOGGER.exception(e)
             # If anything occurs during the mask creation, we have to make sure the response won't contain any
             # information at all.
             # So create an error mask

@@ -12,8 +12,6 @@ import logging
 
 from service.helper.enums import MetadataEnum
 
-csw_logger = logging.getLogger("MrMap.csw")
-
 CSW_ERROR_LOG_TEMPLATE = "Error on metadata with file identifier '{}' from catalogue '{}'. \nException: {}"
 CSW_EXTENT_WARNING_LOG_TEMPLATE = "Error on extent for metadata with file identifier '{}' from catalogue '{}'. \nFound extent data was '{}'. Could not parse correctly. Fallback to default extent."
 CSW_GENERIC_ERROR_TEMPLATE = "Error occured on catalogue '{}': \n{}"

@@ -24,6 +24,7 @@ exactly 1000 ist give back an error message
 from time import time
 from math import floor
 from urllib.parse import urlparse, parse_qs, urlencode
+from django.conf import settings
 
 from celery import current_task, states
 from celery.result import AsyncResult
@@ -43,7 +44,7 @@ from MrMap.cacher import PageCacher
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from api.settings import API_CACHE_KEY_PREFIX
-from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
+from csw.settings import CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
     CSW_CACHE_PREFIX, HARVEST_GET_REQUEST_OUTPUT_SCHEMA
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
@@ -140,7 +141,7 @@ class Harvester:
             raise ConnectionError(_("Response is not a valid xml: \n{}".format(hits_response)))
         root_element = xml_response.getroot()
         if (root_element.tag == "{}ExceptionReport".format("{http://www.opengis.net/ows}")):
-            csw_logger.error(
+            settings.ROOT_LOGGER.error(
                 "The catalogue answered with an ows exception report: {}".format(
                     hits_response,
                 )
@@ -161,7 +162,7 @@ class Harvester:
                 "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
                 ))
         except TypeError:
-            csw_logger.error("Malicious Harvest response: {}".format(hits_response))
+            settings.ROOT_LOGGER.error("Malicious Harvest response: {}".format(hits_response))
             raise AttributeError(_("Harvest response is missing important data!"))
         if current_task:
             current_task.update_state(
@@ -309,7 +310,7 @@ class Harvester:
                 },
                 nsmap=namespaces
             )
-        csw_logger.debug(
+        settings.ROOT_LOGGER.debug(
             "Harvesting resultType: '{}', http method: {}".format(
                 result_type,
                 "POST",
@@ -385,7 +386,7 @@ class Harvester:
                     "constraintLanguage": "FILTER",
                     "ElementSetName": "full", #needed for pycsw!
                 }
-            csw_logger.debug(
+            settings.ROOT_LOGGER.debug(
                 "Harvesting resultType: '{}', http method: {}, url: {}".format(
                     result_type,
                     "GET",
@@ -400,7 +401,7 @@ class Harvester:
                 data=post_body
             )
             #Set following to ERROR to see the POST in the logs
-            csw_logger.debug(
+            settings.ROOT_LOGGER.debug(
                 "Harvesting request POST: {}".format(
                     post_body
                 )
@@ -423,7 +424,7 @@ class Harvester:
         """
         xml_response = xml_helper.parse_xml(next_response)
         if xml_response is None:
-            csw_logger.error(
+            settings.ROOT_LOGGER.error(
                 "Response is no valid xml. catalogue: {}, startPosition: {}, maxRecords: {}".format(
                     self.metadata.title,
                     self.start_position,
@@ -436,7 +437,7 @@ class Harvester:
         #check for ows exception
         root_element = xml_response.getroot()
         if (root_element.tag == "{}ExceptionReport".format("{http://www.opengis.net/ows}")):
-            csw_logger.error(
+            settings.ROOT_LOGGER.error(
                 "The catalogue answered with an ows exception report: {}".format(
                     next_response,
                 )
@@ -447,7 +448,7 @@ class Harvester:
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         ) or []
-        csw_logger.debug("XML Response: {}".format(next_response))
+        settings.ROOT_LOGGER.debug("XML Response: {}".format(next_response))
 
         next_record_position_result = xml_helper.try_get_attribute_from_xml_element(
             xml_response,
@@ -456,14 +457,14 @@ class Harvester:
         )
 
         if (next_record_position_result is None):
-            csw_logger.debug("CSW Harvesting: Could not get value for nextRecord to iterate further")
+            settings.ROOT_LOGGER.debug("CSW Harvesting: Could not get value for nextRecord to iterate further")
             #get numberOfRecordsReturned
             number_of_records_returned = int(xml_helper.try_get_attribute_from_xml_element(
                 xml_response,
                 "numberOfRecordsReturned",
                 "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
             ))
-            csw_logger.debug(
+            settings.ROOT_LOGGER.debug(
                 "CSW Harvesting: Number of records returned: {}".format(
                     number_of_records_returned,
                 )
@@ -473,21 +474,21 @@ class Harvester:
                 "numberOfRecordsMatched",
                 "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
             ))
-            csw_logger.debug(
+            settings.ROOT_LOGGER.debug(
                 "CSW Harvesting: Number of records matched: {}".format(
                     number_of_records_matched,
                 )
             )
             if (self.max_records_per_request > number_of_records_returned and self.start_position == 1 and number_of_records_returned != number_of_records_matched):
                 self.max_records_per_request = number_of_records_returned
-                csw_logger.debug("CSW Harvesting: Reduce max_records_per_request to: {}".format(number_of_records_returned))
+                settings.ROOT_LOGGER.debug("CSW Harvesting: Reduce max_records_per_request to: {}".format(number_of_records_returned))
 
             if (number_of_records_returned == self.max_records_per_request):
                 next_record_position = self.start_position + number_of_records_returned
-                csw_logger.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
+                settings.ROOT_LOGGER.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
             else:
                 next_record_position = 0
-                csw_logger.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
+                settings.ROOT_LOGGER.debug("CSW Harvesting: Set next_record_position to: {}".format(next_record_position))
 
         else:
             next_record_position = int(next_record_position_result)
@@ -530,7 +531,7 @@ class Harvester:
         connections.close_all()
         execute_threads(process_list)
 
-        csw_logger.debug(
+        settings.ROOT_LOGGER.debug(
             "Harvesting '{}': runtime for {} metadata parsing: {}s ####".format(
                 self.metadata.title,
                 self.max_records_per_request,
@@ -665,14 +666,14 @@ class Harvester:
                     self.parent_child_map[parent_id].append(md)
 
         except (IntegrityError, DataError) as e:
-            csw_logger.error(
+            settings.ROOT_LOGGER.error(
                 CSW_ERROR_LOG_TEMPLATE.format(
                     md.identifier,
                     self.metadata.title,
                     e
                 )
             )
-            csw_logger.exception(e)
+            settings.ROOT_LOGGER.exception(e)
         finally:
             current_task.update_state(
                 state=states.STARTED,
@@ -905,7 +906,7 @@ class Harvester:
                     bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
                 except Exception:
                     # Log malicious extent!
-                    csw_logger.warning(
+                    settings.ROOT_LOGGER.warning(
                         CSW_EXTENT_WARNING_LOG_TEMPLATE.format(
                             _id,
                             self.metadata.title,

@@ -3,7 +3,7 @@ from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from eulxml import xmlmap
 from lxml.etree import XPathEvalError
-from service.settings import service_logger
+from django.conf import settings
 
 
 class DBModelConverterMixin:
@@ -65,8 +65,8 @@ class DBModelConverterMixin:
                         continue
                     field_dict.update({key: getattr(self, key)})
             except XPathEvalError as e:
-                service_logger.error(msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
-                service_logger.exception(e, stack_info=True, exc_info=True)
+                settings.ROOT_LOGGER.error(msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
+                settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
         return field_dict
 
     def update_fields(self, **kwargs):

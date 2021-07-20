@@ -11,7 +11,7 @@ from resourceNew.xmlmapper.exceptions import SemanticError
 from resourceNew.xmlmapper.mixins import DBModelConverterMixin
 from resourceNew.xmlmapper.consts import NS_WC
 from resourceNew.enums.service import OGCServiceEnum, OGCServiceVersionEnum
-from resourceNew.settings import parser_logger
+from django.conf import settings
 
 
 class XlinkHref(xmlmap.XmlObject):
@@ -215,14 +215,14 @@ class Dimension111(DBModelConverterMixin, xmlmap.XmlObject):
                     if _value:
                         self.extents.append(TimeExtent(start=_value, stop=_value))
                     else:
-                        parser_logger.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
+                        settings.ROOT_LOGGER.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
             else:
                 # one single value was detected
                 _value = self.parse_datetime_or_date(self.parsed_extent)
                 if _value:
                     self.extents.append(TimeExtent(start=_value, stop=_value))
                 else:
-                    parser_logger.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
+                    settings.ROOT_LOGGER.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
 
 
 class Dimension130(Dimension111):

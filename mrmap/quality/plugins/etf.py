@@ -11,17 +11,17 @@ from celery import current_task, states
 from django.utils import timezone
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
-from quality.settings import quality_logger
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata
 from structure.celery_helper import runs_as_async_task
+from django.conf import settings
 
 
 class EtfClient:
 
     def __init__(self, url: str):
         self.url = url
-        quality_logger.info(f"Using ETF url {self.url}")
+        settings.ROOT_LOGGER.info(f"Using ETF url {self.url}")
         self.progress_val = 0
         self.progress_max_val = 1
 
@@ -37,7 +37,7 @@ class EtfClient:
         files = {'file': ('testobject.xml', document, 'application/xml')}
         data = {'action': 'upload'}
         url = f'{self.url}v2/TestObjects'
-        quality_logger.info(f'Uploading document as test object to {url}')
+        settings.ROOT_LOGGER.info(f'Uploading document as test object to {url}')
         r = requests.post(url=url, data=data, files=files)
         if r.status_code != requests.codes.ok:
             error_msg = f'Unexpected HTTP response code {r.status_code} from ' \
@@ -49,7 +49,7 @@ class EtfClient:
                 raise Exception(error_msg)
         r_dict = r.json()
         test_object_id = r_dict['testObject']['id']
-        quality_logger.info(f'Uploaded test object with id {test_object_id}')
+        settings.ROOT_LOGGER.info(f'Uploaded test object with id {test_object_id}')
         return test_object_id
 
     def start_test_run(self, test_object_id: str, test_config: dict):
@@ -58,7 +58,7 @@ class EtfClient:
         Returns:
             str: id of the ETF test run
         """
-        quality_logger.info(
+        settings.ROOT_LOGGER.info(
             f'Performing ETF invocation with config {test_config}')
         r = requests.post(url=f'{self.url}v2/TestRuns', json=test_config)
         if r.status_code != 201:
@@ -71,7 +71,7 @@ class EtfClient:
                 raise Exception(error_msg)
         test_run_id = r.json()['EtfItemCollection']['testRuns']['TestRun']['id']
         test_run_url = f'{self.url}v2/TestRuns/{test_run_id}'
-        quality_logger.info(
+        settings.ROOT_LOGGER.info(
             f'Started new test run on ETF test suite: {test_run_url}')
         return test_run_url
 
@@ -85,7 +85,7 @@ class EtfClient:
         response_obj = r.json()
         val = response_obj['val']
         max_val = response_obj['max']
-        quality_logger.info(f'ETF test run status: {val}/{max_val}')
+        settings.ROOT_LOGGER.info(f'ETF test run status: {val}/{max_val}')
         try:
             self.progress_val = int(val)
             self.progress_max_val = int(max_val)
@@ -110,18 +110,18 @@ class EtfClient:
 
     def delete_test_object(self, test_object_id: str):
         url = f'{self.url}v2/TestObjects/{test_object_id}'
-        quality_logger.info(f'Deleting ETF test object {url}')
+        settings.ROOT_LOGGER.info(f'Deleting ETF test object {url}')
         r = requests.delete(url=url)
         if r.status_code != requests.codes.no_content:
-            quality_logger.info(
+            settings.ROOT_LOGGER.info(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint: {url}')
 
     def delete_test_run(self, test_run_url: str):
-        quality_logger.info(f'Deleting ETF test run {test_run_url}')
+        settings.ROOT_LOGGER.info(f'Deleting ETF test run {test_run_url}')
         r = requests.delete(url=test_run_url)
         if r.status_code != requests.codes.no_content:
-            quality_logger.info(
+            settings.ROOT_LOGGER.info(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint: {test_run_url}')
 
@@ -141,7 +141,7 @@ class ValidationDocumentProvider:
         """
         validation_target = self.config.validation_target
         doc_url = getattr(self.metadata, validation_target)
-        quality_logger.info(
+        settings.ROOT_LOGGER.info(
             f"Retrieving document for validation from {doc_url}")
         connector = CommonConnector(url=doc_url)
         connector.load()
@@ -174,7 +174,7 @@ class QualityEtf:
         """
         self.check_run = ConformityCheckRun.objects.create(
             metadata=self.metadata, conformity_check_configuration=self.config)
-        quality_logger.info(f"Created new check run id {self.check_run.pk}")
+        settings.ROOT_LOGGER.info(f"Created new check run id {self.check_run.pk}")
         document = self.document_provider.fetch_validation_document()
         test_object_id = self.client.upload_test_object(document)
         try:
@@ -235,5 +235,5 @@ class QualityEtf:
                 )
         except ZeroDivisionError as e:
             if current_task:
-                quality_logger.error(
+                settings.ROOT_LOGGER.error(
                     f'Could not update pending task with id {current_task.id}. ', e)

@@ -14,8 +14,8 @@ from django.utils import timezone
 from main.tasks import default_task_handler
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.monitoring import Monitoring as Monitor
-from monitoring.settings import monitoring_logger
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 
 @beat_init.connect
@@ -56,9 +56,9 @@ def run_monitoring(setting_id, *args, **kwargs):
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
-            monitoring_logger.debug(f'Health checks completed for {metadata}')
+            settings.ROOT_LOGGER.debug(f'Health checks completed for {metadata}')
         except Exception as e:
-            monitoring_logger.exception(e, exc_info=True, stack_info=True)
+            settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True)
 
     end_time = timezone.now()
     duration = end_time - monitoring_run.start
@@ -91,10 +91,10 @@ def run_manual_service_monitoring(owned_by_org: str, monitoring_run, *args, **kw
         try:
             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
             monitor.run_checks()
-            monitoring_logger.debug(f'Health checks completed for {metadata}')
+            settings.ROOT_LOGGER.debug(f'Health checks completed for {metadata}')
         except Exception as e:
-            monitoring_logger.error(msg=_(f'Something went wrong while monitoring {metadata}'))
-            monitoring_logger.exception(e, exc_info=True, stack_info=True, )
+            settings.ROOT_LOGGER.error(msg=_(f'Something went wrong while monitoring {metadata}'))
+            settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True, )
 
     end_time = timezone.now()
     duration = end_time - monitoring_run.start

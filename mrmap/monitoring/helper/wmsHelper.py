@@ -5,11 +5,9 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-from monitoring.settings import monitoring_logger
 from service.models import Service, Layer
 from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper
-from django.core.exceptions import ObjectDoesNotExist
 
 
 class WmsHelper:

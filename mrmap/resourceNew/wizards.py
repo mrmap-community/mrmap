@@ -12,9 +12,9 @@ from MrMap.wizards import MrMapWizard
 from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
-from service.settings import service_logger
 from structure.permissionEnums import PermissionEnum
 from formtools.wizard.views import SessionWizardView
+from django.conf import settings
 
 FIRST_STEP_ID = "URL"
 SECOND_STEP_ID = "Overview"
@@ -102,7 +102,7 @@ class NewResourceWizard(LoginRequiredMixin, PermissionRequiredMixin, SessionWiza
                     self.task = service_helper.create_new_service(form, self.request.user)
                     messages.success(self.request, 'Async task was created to create new resource.')
                 except Exception as e:
-                    service_logger.exception(e, stack_info=True, exc_info=True)
+                    settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
                     messages.error(self.request, 'Something went wrong. See service.log for details.')
                 finally:
                     return super().done(form_list, **kwargs)

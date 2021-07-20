@@ -6,8 +6,9 @@ from service.helper.enums import MetadataEnum, OGCOperationEnum, MetadataRelatio
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, Dimension, ServiceUrl
 from service.serializer.ogc.objects.core import PlainObject
-from service.settings import ALLOWED_SRS, service_logger
+from service.settings import ALLOWED_SRS
 from structure.models import Organization
+from django.conf import settings
 
 
 class OGCLayer(PlainObject):
@@ -240,7 +241,7 @@ class OGCLayer(PlainObject):
             keyword, created = Keyword.objects.get_or_create(keyword=kw)
             keywords.append(keyword)
         metadata.keywords.add(*keywords)
-        service_logger.debug(EXEC_TIME_PRINT % ("save m2m keywords", time.time() - start_time))
+        settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("save m2m keywords", time.time() - start_time))
 
         # handle reference systems
         srs = []

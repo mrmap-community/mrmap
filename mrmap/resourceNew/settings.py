@@ -1,12 +1,4 @@
-import logging
-
 from resourceNew.enums.service import OGCOperationEnum
-
-resource_logger = logging.getLogger('MrMap.resourceNew')
-parser_logger = logging.getLogger('MrMap.resourceNew.parser')
-models_logger = logging.getLogger('MrMap.resourceNew.models')
-views_logger = logging.getLogger('MrMap.resourceNew.views')
-
 
 SECURE_ABLE_WMS_OPERATIONS = [OGCOperationEnum.GET_MAP.value,
                               OGCOperationEnum.GET_FEATURE_INFO.value]

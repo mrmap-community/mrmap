@@ -37,8 +37,8 @@ from structure.models import Organization, PublishRequest
 from users.forms import SubscriptionForm, MrMapUserForm
 from users.models import Subscription, UserActivation
 from users.models import Subscription
-from users.settings import users_logger
 from users.tables import SubscriptionTable
+from django.conf import settings
 
 
 class MrMapLoginView(SuccessMessageMixin, LoginView):
@@ -48,7 +48,7 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
 
     # Add logging if form is invalid to check logs against security policy
     def form_invalid(self, form):
-        users_logger.info(f'User {form.cleaned_data["username"]} trial to login, but the following error occurs. '
+        settings.ROOT_LOGGER.info(f'User {form.cleaned_data["username"]} trial to login, but the following error occurs. '
                           f'{form.errors}')
         return super().form_invalid(form=form)
 

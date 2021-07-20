@@ -5,10 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 07.06.19
 
 """
-import logging
 from django.utils.translation import gettext_lazy as _
-
-structure_logger = logging.getLogger('MrMap.structure')
 
 # In hours: how long an activation link is valid for a user
 USER_ACTIVATION_TIME_WINDOW = 24

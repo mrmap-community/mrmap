@@ -14,7 +14,7 @@ from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.serializer.ogc.parser.ows import OGCWebServiceParser as OGCWebService
 from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
 from structure.models import Organization
-from csw.settings import csw_logger
+from django.conf import settings
 
 
 class OGCCatalogueService(OGCWebService):
@@ -337,7 +337,7 @@ class OGCCatalogueService(OGCWebService):
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
                 operation
             )
-            csw_logger.error("Type of returned object of get_uri: {}".format(type(get_uri)))
+            settings.ROOT_LOGGER.error("Type of returned object of get_uri: {}".format(type(get_uri)))
 
             get_uri = xml_helper.get_href_attribute(get_uri) if get_uri is not None else None
             post_uris = xml_helper.try_get_element_from_xml(
@@ -355,9 +355,9 @@ class OGCCatalogueService(OGCWebService):
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
                     operation
                 )
-            csw_logger.error("Number of Entries of Post endpoints: {} for operation {}".format(number_of_post_endpoints,
+            settings.ROOT_LOGGER.error("Number of Entries of Post endpoints: {} for operation {}".format(number_of_post_endpoints,
                                                                                              operation_name))
-            csw_logger.error("Type of returned object of post_uri: {}".format(type(post_uri)))
+            settings.ROOT_LOGGER.error("Type of returned object of post_uri: {}".format(type(post_uri)))
             post_uri = xml_helper.get_href_attribute(post_uri) if post_uri is not None else None
 
             if attribute_map.get(operation_name):

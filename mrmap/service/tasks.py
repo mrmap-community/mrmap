@@ -16,9 +16,10 @@ from service.helper.enums import ConnectionEnum
 from service.serializer.ogc.factory.factorys import OGCServiceFactory
 from main.tasks import DefaultBehaviourTask
 from service.models import Metadata, ExternalAuthentication, ProxyLog
-from service.settings import service_logger, PROGRESS_STATUS_AFTER_PARSING
+from service.settings import PROGRESS_STATUS_AFTER_PARSING
 from structure.models import Organization
 from service.helper import service_helper
+from django.conf import settings
 
 
 @shared_task(name="async_increase_hits")
@@ -133,7 +134,7 @@ def async_new_service(owned_by_org: str,
 
         links += f'<a href={service_db_instance.metadata.get_absolute_url()}>{service_db_instance.metadata.title} </a>'
 
-    service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+    settings.ROOT_LOGGER.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
 
     result = {'msg': 'Done. New service registered.',
               #'id': str(service.metadata.pk),

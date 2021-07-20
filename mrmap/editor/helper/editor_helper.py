@@ -10,7 +10,6 @@ from django.db import transaction
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from editor.settings import editor_logger
 from service.helper.iso.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
@@ -20,6 +19,7 @@ from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, Metadata
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document
 from service.helper import xml_helper
+from django.conf import settings
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -403,10 +403,10 @@ def resolve_iso_metadata_links(metadata: Metadata, editor_form):
         _remove_iso_metadata(metadata, md_links, existing_iso_links)
         _add_iso_metadata(metadata, md_links, existing_iso_links)
     except MissingSchema as e:
-        editor_logger.error(msg=EDITOR_INVALID_ISO_LINK.format(e.link))
-        editor_logger.exception(e, exc_info=True, stack_info=True)
+        settings.ROOT_LOGGER.error(msg=EDITOR_INVALID_ISO_LINK.format(e.link))
+        settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True)
     except Exception as e:
-        editor_logger.exception(e, exc_info=True, stack_info=True)
+        settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True)
 
 @transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):

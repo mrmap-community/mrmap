@@ -25,7 +25,7 @@ from uuid import uuid4
 from resourceNew.ows_client.request_builder import OgcService
 from resourceNew.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
-from resourceNew.settings import models_logger
+from django.conf import settings
 
 
 class ServiceType(models.Model):
@@ -494,7 +494,7 @@ class FeatureType(ServiceElement):
                 self.save()
             return self.describe_feature_type_document
         else:
-            models_logger.error(msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}")
+            settings.ROOT_LOGGER.error(msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}")
 
     def parse(self):
         """ Return the parsed self.remote_content

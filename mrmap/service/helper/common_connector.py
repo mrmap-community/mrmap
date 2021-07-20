@@ -20,10 +20,10 @@ from django.http import HttpResponse
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 from service.helper import xml_helper
-from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT, service_logger
+from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
 from MrMap.settings import HTTP_PROXY, PROXIES, VERIFY_SSL_CERTIFICATES
 from service.helper.enums import ConnectionEnum
-
+from django.conf import settings
 
 try:
     from io import BytesIO
@@ -171,14 +171,14 @@ class CommonConnector:
             match = re.search('charset=(\S+)', content_type)
             if match:
                 encoding = match.group(1)
-                service_logger.debug('Decoding using %s' % encoding)
+                settings.ROOT_LOGGER.debug('Decoding using %s' % encoding)
 
         if encoding is None:
             # Default encoding for HTML is iso-8859-1.
             # Other content types may have different default encoding,
             # or in case of binary data, may have no encoding at all.
             encoding = 'iso-8859-1'
-            service_logger.debug('Assuming encoding is %s' % encoding)
+            settings.ROOT_LOGGER.debug('Assuming encoding is %s' % encoding)
 
         response.content = buffer.getvalue()
         response.encoding = encoding

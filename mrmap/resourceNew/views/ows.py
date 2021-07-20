@@ -35,7 +35,7 @@ from resourceNew.xmlmapper.ogc.wfs_transaction import Transaction
 from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT, service_logger
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT
 from django.conf import settings
 
 
@@ -216,7 +216,7 @@ class GenericOwsServiceOperationFacade(View):
             background = Image.new("RGB", (width, height), (255, 255, 255))
             background.paste(mask, mask=mask)
         except Exception as e:
-            service_logger.exception(e)
+            settings.ROOT_LOGGER.exception(e)
             # If anything occurs during the mask creation, we have to make sure the response won't contain any
             # information at all.
             # So create an error mask

@@ -13,13 +13,14 @@ from django.contrib.gis.gdal import GDALException
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from lxml.etree import Element, QName
+from django.conf import settings
 
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Layer, Document, FeatureType
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, service_logger
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
 
 
 class CapabilityXMLBuilder:
@@ -377,16 +378,16 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         start_time = time()
         service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
         self._generate_service_xml(service)
-        service_logger.debug("Service creation took {} seconds".format((time() - start_time)))
+        settings.ROOT_LOGGER.debug("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         capability = xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
         self._generate_capability_xml(capability)
-        service_logger.debug("Capabilities creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        service_logger.debug("Rendering to string took {} seconds".format((time() - start_time)))
+        settings.ROOT_LOGGER.debug("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 
@@ -1088,7 +1089,7 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
             self.original_doc = self.metadata.get_remote_original_capabilities_document(self.service_version)
             self.original_doc = xml_helper.parse_xml(self.original_doc)
         except ConnectionError as e:
-            service_logger.error(e)
+            settings.ROOT_LOGGER.error(e)
             self.original_doc = None
 
     def _generate_keyword_xml(self, upper_elem, md: Metadata):
@@ -1501,27 +1502,27 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
 
         start_time = time()
         self._generate_service_identification_xml(root)
-        service_logger.debug("ServiceIdentification creation took {} seconds".format((time() - start_time)))
+        settings.ROOT_LOGGER.debug("ServiceIdentification creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         self._generate_service_provider_xml(root)
-        service_logger.debug("ServiceProvider creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("ServiceProvider creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_operations_metadata_xml(root)
-        service_logger.debug("OperationsMetadata creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("OperationsMetadata creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_feature_type_list_xml(root)
-        service_logger.debug("FeatureTypeList creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_filter_capabilities_xml(root)
-        service_logger.debug("Filter_Capabilities creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("Filter_Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        service_logger.debug("Rendering to string took {} seconds".format((time() - start_time)))
+        settings.ROOT_LOGGER.debug("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 
@@ -1895,23 +1896,23 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
 
         start_time = time()
         self._generate_service_xml(root)
-        service_logger.debug("Service creation took {} seconds".format((time() - start_time)))
+        settings.ROOT_LOGGER.debug("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         self._generate_capability_xml(root)
-        service_logger.debug("Capabilities creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_feature_type_list_xml(root)
-        service_logger.debug("FeatureTypeList creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         self._generate_filter_capabilities_xml(root)
-        service_logger.debug("Filter_Capabilities creation took {} seconds".format(time() - start_time))
+        settings.ROOT_LOGGER.debug("Filter_Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        service_logger.debug("Rendering to string took {} seconds".format((time() - start_time)))
+        settings.ROOT_LOGGER.debug("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 

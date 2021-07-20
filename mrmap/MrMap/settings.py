@@ -463,21 +463,7 @@ MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/securi
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')
 
-LOG_DIR = BASE_DIR + '/logs'
-LOG_SUB_DIRS = {
-    'root': {'dir': '/root', 'log_file': 'root.log'},
-    'api': {'dir': '/api', 'log_file': 'api.log'},
-    'csw': {'dir': '/csw', 'log_file': 'csw.log'},
-    'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
-    'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
-    'service': {'dir': '/service', 'log_file': 'service.log'},
-    'resourceNew': {'dir': '/resourceNew', 'log_file': 'resource.log'},
-    'resourceNew.parser': {'dir': '/resourceNew', 'log_file': 'parser.log'},
-    'resourceNew.models': {'dir': '/resourceNew', 'log_file': 'models.log'},
-    'resourceNew.views': {'dir': '/resourceNew', 'log_file': 'views.log'},
-    'structure': {'dir': '/structure', 'log_file': 'structure.log'},
-    'users': {'dir': '/users', 'log_file': 'users.log'},
-}
+LOG_DIR = BASE_DIR + '/logs/mrmap/'
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
@@ -496,157 +482,25 @@ LOGGING = {
         },
     },
     'handlers': {
-        'MrMap.root.file': {
-            'level': 'DEBUG',
+        'syslog': {
+            'class': 'logging.handlers.SysLogHandler',
+            'formatter': 'verbose',
+            'facility': 'user',
+            'address': ('localhost', 1514),
+        },
+        'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'maxBytes': LOG_FILE_MAX_SIZE,
             'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['root']['dir'] + '/' + LOG_SUB_DIRS['root']['log_file'],
+            'filename': LOG_DIR + 'logs.log',
             'formatter': 'verbose',
-        },
-        'MrMap.api.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['api']['dir'] + '/' + LOG_SUB_DIRS['api']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.csw.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['csw']['dir'] + '/' + LOG_SUB_DIRS['csw']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.editor.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['editor']['dir'] + '/' + LOG_SUB_DIRS['editor']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.monitoring.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['monitoring']['dir'] + '/' + LOG_SUB_DIRS['monitoring']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.service.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['service']['dir'] + '/' + LOG_SUB_DIRS['service']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.structure.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['structure']['dir'] + '/' + LOG_SUB_DIRS['structure']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.users.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['users']['dir'] + '/' + LOG_SUB_DIRS['users']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.resourceNew.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew']['dir'] + '/' + LOG_SUB_DIRS['resourceNew']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.resourceNew.parser.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.parser']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.parser']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.resourceNew.models.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.models']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.models']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.resourceNew.views.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew.views']['dir'] + '/' + LOG_SUB_DIRS['resourceNew.views']['log_file'],
-            'formatter': 'verbose',
-        },
+        }
     },
     'loggers': {
         'MrMap.root': {
-            'handlers': ['MrMap.root.file', ],
+            'handlers': ['file', 'syslog'],
             'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.api': {
-            'handlers': ['MrMap.api.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.csw': {
-            'handlers': ['MrMap.csw.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.editor': {
-            'handlers': ['MrMap.editor.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.monitoring': {
-            'handlers': ['MrMap.monitoring.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.service': {
-            'handlers': ['MrMap.service.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.resourceNew.parser': {
-            'handlers': ['MrMap.resourceNew.parser.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.resourceNew.models': {
-            'handlers': ['MrMap.resourceNew.models.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.resourceNew.views': {
-            'handlers': ['MrMap.resourceNew.views.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.structure': {
-            'handlers': ['MrMap.structure.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'propagate': True,
-        },
-        'MrMap.users': {
-            'handlers': ['MrMap.users.file', ],
-            'level': 'DEBUG' if DEBUG else 'INFO',
+            'disabled': False,
             'propagate': True,
         },
     },

@@ -13,7 +13,7 @@ from resourceNew.xmlmapper.ogc.capabilities import get_parsed_service
 from structure.enums import PendingTaskEnum
 from django.db import transaction
 from django.urls import reverse
-from resourceNew.settings import resource_logger
+from django.conf import settings
 
 
 @shared_task(name="async_register_service",
@@ -153,7 +153,7 @@ def fetch_remote_metadata_xml(self,
         return remote_metadata.id
     except Exception as e:
         i = 0
-        # service_logger.exception(e, stack_info=True, exc_info=True)
+        # settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
         # todo: log exception in debug level
         return None
 
@@ -179,7 +179,7 @@ def parse_remote_metadata_xml_for_service(self,
                 if isinstance(db_metadata, DatasetMetadata):
                     dataset_list.append(db_metadata.pk)
             except Exception as e:
-                resource_logger.exception(e, stack_info=True, exc_info=True)
+                settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
             if self.task:
                 self.task.refresh_from_db()
                 self.task.progress += progress_step_size

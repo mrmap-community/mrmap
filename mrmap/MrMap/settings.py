@@ -471,6 +471,7 @@ LOG_SUB_DIRS = {
     'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
     'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
     'service': {'dir': '/service', 'log_file': 'service.log'},
+    'resourceNew': {'dir': '/resourceNew', 'log_file': 'resource.log'},
     'resourceNew.parser': {'dir': '/resourceNew', 'log_file': 'parser.log'},
     'resourceNew.models': {'dir': '/resourceNew', 'log_file': 'models.log'},
     'resourceNew.views': {'dir': '/resourceNew', 'log_file': 'views.log'},
@@ -557,6 +558,14 @@ LOGGING = {
             'maxBytes': LOG_FILE_MAX_SIZE,
             'backupCount': LOG_FILE_BACKUP_COUNT,
             'filename': LOG_DIR + LOG_SUB_DIRS['users']['dir'] + '/' + LOG_SUB_DIRS['users']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.resourceNew.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['resourceNew']['dir'] + '/' + LOG_SUB_DIRS['resourceNew']['log_file'],
             'formatter': 'verbose',
         },
         'MrMap.resourceNew.parser.file': {

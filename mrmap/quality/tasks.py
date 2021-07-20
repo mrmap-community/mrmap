@@ -14,7 +14,7 @@ from quality.models import ConformityCheckConfiguration, ConformityCheckRun, \
 from quality.plugins.etf import QualityEtf, ValidationDocumentProvider, \
     EtfClient
 from quality.plugins.internal import QualityInternal
-from service.models import Metadata
+from resourceNew.models.metadata import DatasetMetadata
 from structure.AbortedException import AbortedException
 
 logger = get_task_logger(__name__)
@@ -23,7 +23,7 @@ logger = get_task_logger(__name__)
 @shared_task(name='run_quality_check', base=AbortableTask, bind=True)
 def run_quality_check(self, config_id: int, metadata_id: int):
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
-    metadata = Metadata.objects.get(pk=metadata_id)
+    metadata = DatasetMetadata.objects.get(pk=metadata_id)
     if metadata is None:
         raise Exception("Metadata not defined.")
     if config is None:
@@ -111,7 +111,7 @@ def complete_validation_error(request, exc, traceback, user_id: int = None,
             nothing
     """
     try:
-        metadata = Metadata.objects.get(pk=metadata_id)
+        metadata = DatasetMetadata.objects.get(pk=metadata_id)
 
         # delete run, if it was manually aborted
         if isinstance(exc, AbortedException):

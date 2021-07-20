@@ -708,6 +708,21 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             **kwargs
         ).delete()
 
+    # @property
+    # def metadata_type(self):
+    #     # TODO Add MetadataEnum to Quality
+    #     if self.layer:
+    #         return MetadataEnum.LAYER
+    #     elif self.feature_type:
+    #         return MetadataEnum.FEATURETYPE
+    #     elif self.dataset_metadata:
+    #         return MetadataEnum.DATASET
+
+# def get_validation_url(self) -> str:
+    #     #try:
+    #     return f'../../quality/test' + f'?metadata_id=672d4989 - c630 - 4566 - 89a5 - 6489504a002c' + f'&config_id=614fd594 - 62fc - 4c21 - 9cb5 - 691632940cda'
+    #     #except NoReverseMatch:
+    #      #   return ""
 
 class Dimension(CommonInfo):
     name = models.CharField(max_length=50,

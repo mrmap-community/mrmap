@@ -49,7 +49,8 @@ jobs:
       - name: Commit documentation changes
         run: |
             git clone https://github.com/${GITHUB_REPOSITORY}.git --branch gh-pages --single-branch gh-pages
-            cp -r docs/build/html/* gh-pages/${{env.BRANCH_NAME}}
+            mkdir -p gh-pages/${{env.BRANCH_NAME}}/
+            cp -r docs/build/html/* gh-pages/${{env.BRANCH_NAME}}/
             cd gh-pages
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"

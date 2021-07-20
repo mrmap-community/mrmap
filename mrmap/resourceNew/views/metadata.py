@@ -54,6 +54,7 @@ class ServiceMetadataXmlView(SecuredDetailView):
             doc = self.object.document.xml
         except ObjectDoesNotExist:
             raise Http404("No xml representation was found for this service metadata.")
+        # todo: move this code to manager?
         if hasattr(self.object.described_object, "proxy_setting") and self.object.described_object.proxy_setting.camouflage:
             doc = self.object.document.camouflaged(request=self.request)
         return HttpResponse(content=doc,

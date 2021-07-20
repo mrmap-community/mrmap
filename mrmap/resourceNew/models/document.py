@@ -6,13 +6,33 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from main.models import CommonInfo
 from resourceNew.enums.document import DocumentEnum
-from resourceNew.models import ServiceMetadata, LayerMetadata, FeatureTypeMetadata, DatasetMetadata, Service
+from resourceNew.models import ServiceMetadata, LayerMetadata, FeatureTypeMetadata, DatasetMetadata, Service, Layer
 from eulxml import xmlmap
 from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from resourceNew.xmlmapper.ogc.capabilities import get_parsed_service
+from resourceNew.xmlmapper.ogc.capabilities import get_parsed_service, FeatureType
 
 
 class Document(CommonInfo):
+    """Model to store documents such as xml for different related objects.
+
+    :attr service: This document stores the capabilities document for the related
+     :class:`resourceNew.models.service.Service` service.
+    :attr service_metadata: This document stores the iso MD_Metadata xml representation for the related
+     :class:`resourceNew.models.metadata.ServiceMetadata` which describes the service.
+
+    :attr layer_metadata: This document stores the iso MD_Metadata xml representation for the related
+     :class:`resourceNew.models.metadata.LayerMetadata` which describes this single layer as a service.
+    :attr feature_type_metadata: This document stores the iso MD_Metadata xml representation for the related
+     :class:`resourceNew.models.metadata.FeatureTypeMetadata` which describes this single feature type as a service.
+    :attr dataset_metadata: This document stores the iso MD_Metadata xml representation for the related
+     :class:`resourceNew.models.metadata.DatasetMetadata`.
+
+    # todo:
+    :attr layer: This document stores the capabilities document for the related
+    :class:`resourceNew.models.service.Layer` which contains only the single layer information.
+    :attr feature_type: This document stores the capabilities document for the related
+    :class:`resourceNew.models.service.FeatureType` which contains only the single feature type information.
+    """
     HELP_TEXT = _("the metadata object which is parsed from this xml.")
     service = models.OneToOneField(to=Service,
                                    on_delete=models.CASCADE,
@@ -111,7 +131,7 @@ class Document(CommonInfo):
         ]
 
     def __str__(self):
-        return f"{self.related_object} (document)"
+        return f"{self.related_object_id} ({self.document_type.value})"
 
     def save(self, *args, **kwargs):
         if self._state.adding:
@@ -168,8 +188,23 @@ class Document(CommonInfo):
             return self.dataset_metadata
 
     @property
-    def document_type(self):
-        if isinstance(self.related_object, Service):
+    def related_object_id(self):
+        if self.service:
+            return self.service_id
+        elif self.service_metadata:
+            return self.service_metadata_id
+        elif self.layer_metadata:
+            return self.layer_metadata_id
+        elif self.feature_type_metadata:
+            return self.feature_type_metadata_id
+        elif self.dataset_metadata:
+            return self.dataset_metadata_id
+
+    @property
+    def document_type(self) -> DocumentEnum:
+        if isinstance(self.related_object, Service) or \
+                isinstance(self.related_object, Layer) or \
+                isinstance(self.related_object, FeatureType):
             return DocumentEnum.CAPABILITY
         else:
             return DocumentEnum.METADATA

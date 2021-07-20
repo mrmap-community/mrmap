@@ -1,0 +1,299 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Introduction &mdash; MrMap v0.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Installation" href="../installation/index.html" />
+    <link rel="prev" title="Welcome to MrMap" href="../index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> MrMap
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#what-is-mrmap">What is MrMap?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-mrmap-is-not">What MrMap Is Not</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#design-philosophy">Design Philosophy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#keep-it-simple">Keep it Simple</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#application-stack">Application Stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#supported-python-versions">Supported Python Versions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Introduction</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/introduction/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="introduction">
+<span id="id1"></span><h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<a class="reference internal image-reference" href="../_images/mr_map.png"><img alt="MrMap logo" src="../_images/mr_map.png" style="width: 200px;" /></a>
+<div class="section" id="what-is-mrmap">
+<h2>What is MrMap?<a class="headerlink" href="#what-is-mrmap" title="Permalink to this headline">¶</a></h2>
+<p>Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services <a class="reference external" href="https://www.opengeospatial.org/standards/wms">WMS</a>, web feature services <a class="reference external" href="https://www.opengeospatial.org/standards/wfs">WFS</a> and all the other <a class="reference external" href="http://www.opengeospatial.org/">OGC</a> stuff. A similar project maybe <a class="reference external" href="http://cga-harvard.github.io/Hypermap-Registry/">Hypermap-Registry</a> - but it lacks off many things which are needed in practice. The information model was inspired by the old well known <a class="reference external" href="https://git.osgeo.org/gitea/GDI-RP/Mapbender2.8">mapbender2</a> project and somewhen will be replaced by mrmap.</p>
+<p>Since most GIS solutions out there are specified on a specific use case or aged without proper support, the need for an free and open source, generic geospatial registry system is high.</p>
+<p>It encompasses the following aspects:</p>
+<ul class="simple">
+<li><p>User management</p></li>
+<li><p>Organisation registry</p></li>
+<li><p>Service management (wms/wfs/csw)</p></li>
+<li><p>Metadata Editor (service/dataset)</p></li>
+<li><p>Metadata views</p></li>
+<li><p>ETF testing framework interface (service/dataset)</p></li>
+<li><p>Monitoring of registrated services (wms/wfs)</p></li>
+<li><p>Proxy (service/dataset metadata)</p></li>
+<li><p>Secured Access (wms/wfs/layer/featuretype)</p></li>
+<li><p>Publisher system (orgs/groups/users)</p></li>
+<li><p>Dashboard</p></li>
+<li><p>Catalogue and APIs (REST interfaces for the resources)</p></li>
+<li><p>CSW interface</p></li>
+</ul>
+</div>
+<div class="section" id="what-mrmap-is-not">
+<h2>What MrMap Is Not<a class="headerlink" href="#what-mrmap-is-not" title="Permalink to this headline">¶</a></h2>
+<p>While MrMap strives to cover many areas of geodata infrastructure, the scope of its feature set is necessarily limited. This ensures that development focuses on core functionality and that scope creep is reasonably contained. To that end, it might help to provide some examples of functionality that MrMap does not provide:</p>
+<ul class="simple">
+<li><p>Enhanced web-based Map viewer component</p></li>
+</ul>
+</div>
+<div class="section" id="design-philosophy">
+<h2>Design Philosophy<a class="headerlink" href="#design-philosophy" title="Permalink to this headline">¶</a></h2>
+<p>MrMap was designed with the following tenets foremost in mind.</p>
+</div>
+<div class="section" id="keep-it-simple">
+<h2>Keep it Simple<a class="headerlink" href="#keep-it-simple" title="Permalink to this headline">¶</a></h2>
+<p>When given a choice between a relatively simple <a class="reference external" href="https://en.wikipedia.org/wiki/Pareto_principle">80% solution</a> and a much more complex complete solution, the former will typically be favored. This ensures a lean codebase with a low learning curve.</p>
+</div>
+<div class="section" id="application-stack">
+<h2>Application Stack<a class="headerlink" href="#application-stack" title="Permalink to this headline">¶</a></h2>
+<p>NetBox is built on the <a class="reference external" href="https://djangoproject.com/">Django</a> Python framework and utilizes a <a class="reference external" href="https://www.postgresql.org/">PostgreSQL</a> database. It runs as a WSGI service behind your choice of HTTP server.</p>
+<table class="colwidths-given docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Component</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>HTTP service</p></td>
+<td><p>nginx</p></td>
+</tr>
+<tr class="row-odd"><td><p>Application</p></td>
+<td><p>Django/Python</p></td>
+</tr>
+<tr class="row-even"><td><p>Database</p></td>
+<td><p>PostgreSQL 11.10+</p></td>
+</tr>
+<tr class="row-odd"><td><p>Task queuing</p></td>
+<td><p>Redis/django-rq</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="supported-python-versions">
+<h2>Supported Python Versions<a class="headerlink" href="#supported-python-versions" title="Permalink to this headline">¶</a></h2>
+<p>MrMap supports Python3.7 environment currently.</p>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>See the <a class="reference internal" href="../installation/index.html#installation"><span class="std std-ref">installation guide</span></a> for help getting MrMap up and running quickly.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="../installation/index.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../index.html" class="btn btn-neutral float-left" title="Welcome to MrMap" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, mrmap-community.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

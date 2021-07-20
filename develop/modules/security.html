@@ -1,0 +1,501 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Security Module &mdash; MrMap v0.0.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Mr Map Modules" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> MrMap
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Mr Map Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#module-index">Module Index</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Security Module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#module-resourceNew.views.ows">Security Proxy Facade</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Mr Map Modules</a> &raquo;</li>
+        
+      <li>Security Module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/modules/security.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="security-module">
+<span id="modules-resource-security"></span><h1>Security Module<a class="headerlink" href="#security-module" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-resourceNew.views.ows">
+<span id="security-proxy-facade"></span><h2>Security Proxy Facade<a class="headerlink" href="#module-resourceNew.views.ows" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">resourceNew.views.ows.</span></span><span class="sig-name descname"><span class="pre">GenericOwsServiceOperationFacade</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade" title="Permalink to this definition">¶</a></dt>
+<dd><p>Security proxy facade to secure registered services spatial by there operations and for sets of users.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attr service</dt>
+<dd class="field-odd"><p><a class="reference internal" href="../models/service.html#resourceNew.models.service.Service" title="resourceNew.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">resourceNew.models.service.Service</span></code></a> the requested service which was found by the pk.</p>
+</dd>
+<dt class="field-even">Attr remote_service</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">resourceNew.ows_client.request_builder.WebService</span></code> the request builder to get
+prepared <code class="xref py py-class docutils literal notranslate"><span class="pre">requests.models.Request</span></code> objects with the correct uri and query params.</p>
+</dd>
+<dt class="field-odd">Attr query_parameters</dt>
+<dd class="field-odd"><p>all query parameters in lower case.</p>
+</dd>
+<dt class="field-even">Attr access_denied_img</dt>
+<dd class="field-even"><p>if sub elements are not accessible for the user, this PIL.Image object represents an
+overlay with information about the resources, which can not be accessed</p>
+</dd>
+<dt class="field-odd">Attr bbox</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.geos.polygon.Polygon</span></code> the parsed bbox from query params.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_and_post">
+<span class="sig-name descname"><span class="pre">get_and_post</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_and_post" title="Permalink to this definition">¶</a></dt>
+<dd><p>Http get/post method with security case decisioning.</p>
+<dl>
+<dt><strong>Principle constraints</strong>:</dt><dd><ul class="simple">
+<li><p>service is found by the given primary key. If not return <code class="docutils literal notranslate"><span class="pre">404</span> <span class="pre">-</span> <span class="pre">Service</span> <span class="pre">not</span> <span class="pre">found.</span></code></p></li>
+<li><p>service is active. If not return <code class="docutils literal notranslate"><span class="pre">423</span> <span class="pre">-</span> <span class="pre">Service</span> <span class="pre">is</span> <span class="pre">disabled.</span></code></p></li>
+<li><p>request query parameter is provided. If not return <code class="docutils literal notranslate"><span class="pre">400</span> <span class="pre">-</span> <span class="pre">Request</span> <span class="pre">param</span> <span class="pre">is</span> <span class="pre">missing</span></code></p></li>
+</ul>
+</dd>
+<dt><strong>Service is not secured condition</strong>:</dt><dd><ul class="simple">
+<li><p>service.is_secured == False <code class="docutils literal notranslate"><span class="pre">OR</span></code></p></li>
+<li><p>service.is_spatial_secured == False and service.user_is_principle_entitled == True <code class="docutils literal notranslate"><span class="pre">OR</span></code></p></li>
+<li><p>request query parameter not in [‘GetMap’, ‘GetFeatureType’, ‘GetFeature’]</p></li>
+</ul>
+<p>If one condition matches, return the response from the remote service.</p>
+</dd>
+<dt><strong>Service is secured condition</strong>:</dt><dd><ul class="simple">
+<li><p>service.is_spatial_secured ==True and service.user_is_principle_entitled == True</p></li>
+</ul>
+<p>If the condition matches, return the result from
+<a class="reference internal" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response" title="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_secured_response()</span></code></a></p>
+</dd>
+<dt><strong>Default behavior</strong>:</dt><dd><p>return <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">(Forbidden)</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">has</span> <span class="pre">no</span> <span class="pre">permissions</span> <span class="pre">to</span> <span class="pre">request</span> <span class="pre">this</span> <span class="pre">service.</span></code></p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>all error messages will be send as an owsExceptionReport. See
+<a class="reference internal" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response" title="resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">return_http_response()</span></code></a> for details.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the computed response based on some principle decisions.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict or <code class="xref py py-class docutils literal notranslate"><span class="pre">requests.models.Request</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_capabilities">
+<span class="sig-name descname"><span class="pre">get_capabilities</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_capabilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the camouflaged capabilities document of the founded service.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>See <code class="xref py py-meth docutils literal notranslate"><span class="pre">resourceNew.models.document.Document.camouflaged()</span></code> for details of camouflage function.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the camouflaged capabilities document.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.http.response.HttpResponse</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_remote_response">
+<span class="sig-name descname"><span class="pre">get_remote_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">requests.models.Request</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_remote_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a request to the <code class="xref py py-attr docutils literal notranslate"><span class="pre">remote_service</span></code> with the given
+query parameters or if <code class="docutils literal notranslate"><span class="pre">request</span></code> is provided this request is performed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>request</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">requests.models.Request</span></code>, optional) – a prepared request which shall used instead of the constructed request from the remote
+service.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the response of the remote service</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">requests.models.Response</span></code> or dict with <code class="docutils literal notranslate"><span class="pre">status_code</span></code>, <code class="docutils literal notranslate"><span class="pre">content</span></code> and <code class="docutils literal notranslate"><span class="pre">code</span></code> if any
+error occurs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response">
+<span class="sig-name descname"><span class="pre">get_secured_response</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a filtered response based on the requested bbox</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function will only be called, if the service is spatial secured and the user is in principle
+entitled! If so we filter the allowed_operations again by with the bbox param.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the correct handler function for the given service type.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>function</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_get_feature_info_with_multithreading">
+<span class="sig-name descname"><span class="pre">handle_get_feature_info_with_multithreading</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_get_feature_info_with_multithreading" title="Permalink to this definition">¶</a></dt>
+<dd><p>We use multithreading to send two requests at the same time to speed up the response time.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature">
+<span class="sig-name descname"><span class="pre">handle_secured_get_feature</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the secured get feature request based on the given request.</p>
+<p><strong>HTTP GET</strong>:
+If the client does request with http get method, the bbox will be parsed and converted to a instance of type
+<code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.geos.polygon.Polygon</span></code>. The converted bbox parameter will then intersects with the
+configured allowed areas. The resulting secured bbox will then send via HTTP Post to the remote server as a
+xml filter query.</p>
+<p><strong>HTTP POST</strong>:
+If the client does request with http post method AND the request body is not empty, the filter xml will be
+parsed and extended by the allowed area polygon. The resulting secured filter xml will then send via HTTP post
+to the remote server as a xml filter query.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the remote response</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>func</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature_info">
+<span class="sig-name descname"><span class="pre">handle_secured_get_feature_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
+contained in any allowed area.
+IF not we response with a owsExceptionReport in xml format.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>excerpt from ogc specs
+<strong>ogc wms 1.3.0</strong>: The server shall return a response according to the requested INFO_FORMAT if the
+request is valid, or issue a service  exception  otherwise. The nature of the response is at the
+discretion of the service provider, but it shall pertain to the feature(s) nearest to (I,J).
+(see section 7.4.4)</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the GetFeatureInfo response</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">request.models.Response</span></code> or dict if the request is not allowed.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_map">
+<span class="sig-name descname"><span class="pre">handle_secured_get_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the secured get map response if the requested bbox intersects any allowed area.</p>
+<p><strong>Example 1: bbox covers allowed area</strong></p>
+<blockquote>
+<div><div class="figure align-default" id="id1">
+<a class="with-border reference internal image-reference" href="../_images/example_1_request.png"><img alt="Request: bbox covers allowed area" class="with-border" src="../_images/example_1_request.png" style="width: 50%;" /></a>
+<p class="caption"><span class="caption-text">Request: bbox covers allowed area</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
+<div class="figure align-default" id="id2">
+<a class="reference internal image-reference" href="../_images/example_1_result.png"><img alt="Result: bbox covers allowed area" src="../_images/example_1_result.png" style="width: 50%;" /></a>
+<p class="caption"><span class="caption-text">Result: bbox covers allowed area</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p><strong>Example 2: bbox intersects allowed area</strong></p>
+<blockquote>
+<div><div class="figure align-default" id="id3">
+<a class="reference internal image-reference" href="../_images/example_2_request.png"><img alt="Request: bbox intersects allowed area" src="../_images/example_2_request.png" style="width: 50%;" /></a>
+<p class="caption"><span class="caption-text">Request: bbox intersects allowed area</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
+</div>
+<div class="figure align-default" id="id4">
+<a class="reference internal image-reference" href="../_images/example_2_result.png"><img alt="Result: bbox intersects allowed area" src="../_images/example_2_result.png" style="width: 50%;" /></a>
+<p class="caption"><span class="caption-text">Result: bbox intersects allowed area</span><a class="headerlink" href="#id4" title="Permalink to this image">¶</a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">return</dt>
+<dd class="field-odd"><p>The cropped map image with status code 200 or an error message with status code 403 (Forbidden) if
+the bbox doesn’t intersects any allowed area.</p>
+</dd>
+<dt class="field-even">rtype</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wfs">
+<span class="sig-name descname"><span class="pre">handle_secured_wfs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wfs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handler to decide which subroutine for the given request param shall run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the correct handler function for the given request param.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>function</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wms">
+<span class="sig-name descname"><span class="pre">handle_secured_wms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handler to decide which subroutine for the given request param shall run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the correct handler function for the given request param.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>function</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.log_response">
+<span class="sig-name descname"><span class="pre">log_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.log_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if response logging is active. If so, the request and response will be logged.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response">
+<span class="sig-name descname"><span class="pre">return_http_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the http response for the client.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>response</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">requests.models.Response</span></code> or dict) – the response with status code, content and content type</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The secured response or an ows exception report if <code class="docutils literal notranslate"><span class="pre">status_code</span> <span class="pre">&gt;399</span></code> and
+<code class="docutils literal notranslate"><span class="pre">isinstance(response,</span> <span class="pre">dict)</span> <span class="pre">==</span> <span class="pre">True</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.http.response.StreamingHttpResponse</span></code> if response &gt;= 500000 else
+<code class="xref py py-class docutils literal notranslate"><span class="pre">django.http.response.HttpResponse</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.setup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Setup all basically needed attributes of this class.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="index.html" class="btn btn-neutral float-left" title="Mr Map Modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, mrmap-community.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

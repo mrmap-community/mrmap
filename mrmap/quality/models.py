@@ -5,7 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from django.db import models, transaction
+from django.db import models
 from django.urls import reverse
 
 from main.models import UuidPk
@@ -142,6 +142,7 @@ class ConformityCheckRun(UuidPk):
     """
     Model holding the relation of a metadata record to the results of a check.
     """
+    # TODO handle other resources, Jonas: what is the best approach to model this?
     metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
@@ -157,6 +158,9 @@ class ConformityCheckRun(UuidPk):
 
     def is_running(self):
         return self.time_start is not None and self.passed is None
+
+    # TODO Discuss with Jonas: calling run_quality_check here results in cyclic imports,
+    # so we moved this to the view
 
     # def save(self, *args, **kwargs):
     #     adding = False

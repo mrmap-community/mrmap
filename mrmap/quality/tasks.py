@@ -23,6 +23,7 @@ logger = get_task_logger(__name__)
 @shared_task(name='run_quality_check', base=AbortableTask, bind=True)
 def run_quality_check(self, config_id: int, metadata_id: int):
     config = ConformityCheckConfiguration.objects.get(pk=config_id)
+    # TODO handle other resources
     metadata = DatasetMetadata.objects.get(pk=metadata_id)
     if metadata is None:
         raise Exception("Metadata not defined.")
@@ -111,6 +112,7 @@ def complete_validation_error(request, exc, traceback, user_id: int = None,
             nothing
     """
     try:
+        # TODO handle other resource types
         metadata = DatasetMetadata.objects.get(pk=metadata_id)
 
         # delete run, if it was manually aborted

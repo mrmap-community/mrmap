@@ -12,6 +12,5 @@ from .views import ConformityCheckRunCreateView
 app_name = 'quality'
 urlpatterns = [
     path('<str:metadata_id>/validate', ConformityCheckRunCreateView.as_view(), name='validate'),
-    # path('<str:metadata_id>', ConformityCheckRunCreateView, name='check'),
     # path('<str:metadata_id>/latest', views.get_latest, name='latest'),
 ]

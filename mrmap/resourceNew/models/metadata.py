@@ -709,16 +709,6 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             **kwargs
         ).delete()
 
-    # @property
-    # def metadata_type(self):
-    #     # TODO Add MetadataEnum to Quality
-    #     if self.layer:
-    #         return MetadataEnum.LAYER
-    #     elif self.feature_type:
-    #         return MetadataEnum.FEATURETYPE
-    #     elif self.dataset_metadata:
-    #         return MetadataEnum.DATASET
-
     def get_validate_url(self) -> str:
         try:
             return reverse(f'quality:validate', args=[self.pk])

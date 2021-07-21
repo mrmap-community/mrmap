@@ -8,13 +8,11 @@ Created on: 27.10.20
 from django.db import models, transaction
 from django.urls import reverse
 
-from MrMap import settings
 from main.models import UuidPk
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum
 from resourceNew.models.metadata import DatasetMetadata
-from service.helper.enums import ResourceOriginEnum
 
 
 class ConformityCheckConfigurationManager(models.Manager):
@@ -160,15 +158,25 @@ class ConformityCheckRun(UuidPk):
     def is_running(self):
         return self.time_start is not None and self.passed is None
 
-    def save(self, *args, **kwargs):
-        adding = False
-        if self._state.adding:
-            adding = True
-        super().save(*args, **kwargs)
-        if adding:
-            #self.conformity_check_configuration = args.get('')
-            from quality.tasks import run_quality_check
-            transaction.on_commit(lambda: run_quality_check.apply_async(
-                args=(self.conformity_check_configuration.pk , self.metadata.pk),
-                #kwargs={'created_by_user_pk': args[0].get('user_id')},
-                countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+    # def save(self, *args, **kwargs):
+    #     adding = False
+    #     if self._state.adding:
+    #         adding = True
+    #     super().save(*args, **kwargs)
+    #     if adding:
+    #         # self.conformity_check_configuration = args.get('')
+    #         from quality.tasks import run_quality_check, complete_validation, \
+    #             complete_validation_error
+    #         success_callback = complete_validation.s()
+    #         error_callback = complete_validation_error.s(user_id=args[0].get('user_id'),
+    #                                                      config_id=self.conformity_check_configuration.pk,
+    #                                                      metadata_id=self.metadata.pk)
+    #         # transaction.on_commit(lambda: run_quality_check.apply_async(
+    #         #     args=(self.conformity_check_configuration.pk , self.metadata.pk),
+    #         #     #kwargs={'created_by_user_pk': args[0].get('user_id')},
+    #         #     countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+    #
+    #         transaction.on_commit(
+    #             lambda: run_quality_check.apply_async(args=(self.conformity_check_configuration.pk, self.metadata.pk),
+    #                                                   link=success_callback,
+    #                                                   link_error=error_callback))

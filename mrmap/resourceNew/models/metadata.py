@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.urls import reverse, NoReverseMatch
 from eulxml import xmlmap
 from django.utils.translation import gettext_lazy as _
 from django.contrib.gis.db.models import MultiPolygonField
@@ -718,11 +719,12 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
     #     elif self.dataset_metadata:
     #         return MetadataEnum.DATASET
 
-# def get_validation_url(self) -> str:
-    #     #try:
-    #     return f'../../quality/test' + f'?metadata_id=672d4989 - c630 - 4566 - 89a5 - 6489504a002c' + f'&config_id=614fd594 - 62fc - 4c21 - 9cb5 - 691632940cda'
-    #     #except NoReverseMatch:
-    #      #   return ""
+    def get_validate_url(self) -> str:
+        try:
+            return reverse(f'quality:validate', args=[self.pk])
+        except NoReverseMatch:
+            return ""
+
 
 class Dimension(CommonInfo):
     name = models.CharField(max_length=50,

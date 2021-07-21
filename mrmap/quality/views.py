@@ -5,12 +5,8 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-import json
 
-from celery import current_task, states
-from django.contrib.auth.decorators import login_required, permission_required
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from rest_framework import status
 
@@ -18,10 +14,8 @@ from main.views import SecuredCreateView
 from quality.models import ConformityCheckRun, ConformityCheckConfiguration
 from quality.tasks import run_quality_check, complete_validation, \
     complete_validation_error
-from resourceNew.models import DatasetMetadataRelation, DatasetMetadata
+from resourceNew.models import DatasetMetadata
 from resourceNew.views.metadata import DatasetMetadataListView
-from service.models import Metadata
-from structure.permissionEnums import PermissionEnum
 
 CURRENT_VIEW_QUERY_Param = 'current-view'
 CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
@@ -30,23 +24,35 @@ CURRENT_VIEW_ARG_QUERY_Param = 'current-view-arg'
 class ConformityCheckRunCreateView(SecuredCreateView):
     model = ConformityCheckRun
     queryset = ConformityCheckRun.objects.all()
-    #user= None
-    #@permission_required(PermissionEnum.CAN_RUN_VALIDATION, raise_exception=True)
+
+    # user= None
+    # @permission_required(PermissionEnum.CAN_RUN_VALIDATION, raise_exception=True)
 
     def dispatch(self, request, *args, **kwargs):
-        config_id = request.GET.get('config_id', None)
-        metadata_id = request.GET.get('metadata_id', None)
+        # TODO
+        #config_id = request.GET.get('config_id', None)
+        metadata_id = kwargs.get('metadata_id', None)
         user_id = request.user.pk
 
-        if config_id is None or metadata_id is None:
-            return HttpResponse('Parameter config_id or metadata_id is missing', status=status.HTTP_400_BAD_REQUEST)
+        if metadata_id is None:
+            return HttpResponse('Parameter metadata_id is missing', status=status.HTTP_400_BAD_REQUEST)
 
         ccr = ConformityCheckRun()
-        ccr.conformity_check_configuration = ConformityCheckConfiguration.objects.get_for_metadata_type('dataset').filter(pk=config_id).first()
+        # TODO fetch correct config by id instead of first one
+        ccr.conformity_check_configuration = ConformityCheckConfiguration.objects.get_for_metadata_type(
+            'dataset').first()
+        config_id = ccr.conformity_check_configuration.id
         ccr.metadata = DatasetMetadata.objects.filter(pk=metadata_id).first()
-        ccr.save({"user_id": user_id})
+        ccr.save()
 
-        DatasetMetadataListView()
+        success_callback = complete_validation.s()
+        error_callback = complete_validation_error.s(user_id=user_id,
+                                                     config_id=config_id,
+                                                     metadata_id=metadata_id)
+        run_quality_check.apply_async(args=(config_id, metadata_id),
+                                      link=success_callback,
+                                      link_error=error_callback)
+
         return HttpResponseRedirect(reverse("resourceNew:dataset_metadata_list"), status=303)
 
 # def validate(request, metadata_id: str):

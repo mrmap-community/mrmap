@@ -358,6 +358,10 @@ class Layer(ServiceElement, MPTTModel):
         if not adding:
             old = Layer.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
+        if adding:
+            # todo: for all created layer objects shall be one capabilities xml document stored in the
+            #  resourceNew.models.document.Document. Generate the xml with resourceNew.xmlmapper.ogc.capabilities?
+            pass
         if not adding and old and old.is_active != self.is_active:
             # the active sate of this and all descendant layers shall be changed to the new value. Bulk update
             # is the most efficient way to do it.

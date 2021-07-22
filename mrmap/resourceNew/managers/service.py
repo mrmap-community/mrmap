@@ -486,6 +486,12 @@ class LayerManager(TreeManager):
                             "created_by_user",
                             "owned_by_org")
 
+    def bulk_create(self, objs, batch_size=None, ignore_conflicts=False):
+        objs = super().bulk_create(objs, batch_size, ignore_conflicts)
+        # todo: for all created layer objects shall be one capabilities xml document stored in the
+        #  resourceNew.models.document.Document. Generate the xml with resourceNew.xmlmapper.ogc.capabilities?
+        return objs
+
 
 class FeatureTypeManager(models.Manager):
 

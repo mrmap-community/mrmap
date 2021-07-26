@@ -106,6 +106,9 @@ DEFAULT_ACTION_BUTTONS = """
     {% if "delete_"|add:model_name in perms and record.get_delete_url %}
     <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Delete' %}">{{ ICONS.DELETE|safe }}</a>
     {% endif %}
+    {% if record.get_validate_url %}
+    <a href="{{record.get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION }}</a>
+    {% endif %}    
     {% endwith %}
 </div>
 """

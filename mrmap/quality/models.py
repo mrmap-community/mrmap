@@ -6,12 +6,13 @@ Created on: 27.10.20
 
 """
 from django.db import models
+from django.urls import reverse
 
 from main.models import UuidPk
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum
-from service.models import Metadata
+from resourceNew.models.metadata import DatasetMetadata
 
 
 class ConformityCheckConfigurationManager(models.Manager):
@@ -37,7 +38,7 @@ class ConformityCheckConfiguration(UuidPk):
     def __str__(self):
         return self.name
 
-    def is_allowed_type(self, metadata: Metadata):
+    def is_allowed_type(self, metadata: DatasetMetadata):
         """ Checks if type of metadata is allowed for this config.
 
             Args:
@@ -46,6 +47,7 @@ class ConformityCheckConfiguration(UuidPk):
                 True, if metadata type is allowed for this config,
                 False otherwise.
         """
+
         return metadata.metadata_type in self.metadata_types
 
 
@@ -118,7 +120,7 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
 class ConformityCheckRunManager(models.Manager):
     """ Custom manager to extend ConformityCheckRun methods """
 
-    def has_running_check(self, metadata: Metadata):
+    def has_running_check(self, metadata: DatasetMetadata):
         """ Checks if the given metadata object has a non-finished
         ConformityCheckRun.
 
@@ -130,7 +132,7 @@ class ConformityCheckRunManager(models.Manager):
             metadata=metadata, passed__isnull=True).count()
         return running_checks != 0
 
-    def get_latest_check(self, metadata: Metadata):
+    def get_latest_check(self, metadata: DatasetMetadata):
         check = super().get_queryset().filter(metadata=metadata).latest(
             'time_start')
         return check
@@ -140,7 +142,8 @@ class ConformityCheckRun(UuidPk):
     """
     Model holding the relation of a metadata record to the results of a check.
     """
-    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+    # TODO handle other resources, Jonas: what is the best approach to model this?
+    metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
     time_start = models.DateTimeField(auto_now_add=True)
@@ -150,5 +153,34 @@ class ConformityCheckRun(UuidPk):
 
     objects = ConformityCheckRunManager()
 
+    def get_absolute_url(self):
+        return reverse('check', kwargs={'pk': self.pk})
+
     def is_running(self):
         return self.time_start is not None and self.passed is None
+
+    # TODO Discuss with Jonas: calling run_quality_check here results in cyclic imports,
+    # so we moved this to the view
+
+    # def save(self, *args, **kwargs):
+    #     adding = False
+    #     if self._state.adding:
+    #         adding = True
+    #     super().save(*args, **kwargs)
+    #     if adding:
+    #         # self.conformity_check_configuration = args.get('')
+    #         from quality.tasks import run_quality_check, complete_validation, \
+    #             complete_validation_error
+    #         success_callback = complete_validation.s()
+    #         error_callback = complete_validation_error.s(user_id=args[0].get('user_id'),
+    #                                                      config_id=self.conformity_check_configuration.pk,
+    #                                                      metadata_id=self.metadata.pk)
+    #         # transaction.on_commit(lambda: run_quality_check.apply_async(
+    #         #     args=(self.conformity_check_configuration.pk , self.metadata.pk),
+    #         #     #kwargs={'created_by_user_pk': args[0].get('user_id')},
+    #         #     countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+    #
+    #         transaction.on_commit(
+    #             lambda: run_quality_check.apply_async(args=(self.conformity_check_configuration.pk, self.metadata.pk),
+    #                                                   link=success_callback,
+    #                                                   link_error=error_callback))

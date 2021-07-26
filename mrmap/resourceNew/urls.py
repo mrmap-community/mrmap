@@ -1,6 +1,7 @@
 from django.urls import path
 from resourceNew.views import service as service_views
 from resourceNew.views import metadata as metadata_views
+from resourceNew.views import xml as xml_views
 from resourceNew.views import mapcontext as mapcontext_views
 from resourceNew.views import ows as ows_views
 from resourceNew.views import security as security_views
@@ -41,10 +42,8 @@ urlpatterns = [
     path("metadata/featuretypes", metadata_views.FeatureTypeMetadataListView.as_view(), name="feature_type_metadata_list"),
     path("metadata/datasets", metadata_views.DatasetMetadataListView.as_view(), name="dataset_metadata_list"),
 
-    path("metadata/services/<pk>/xml", metadata_views.ServiceMetadataXmlView.as_view(), name="service_metadata_xml_view"),
     path("metadata/services/<pk>/change", metadata_views.ServiceMetadataUpdateView.as_view(), name="service_metadata_change"),
 
-    path("metadata/datasets/<pk>/xml", metadata_views.DatasetMetadataXmlView.as_view(), name="dataset_metadata_xml_view"),
     path("metadata/datasets/<pk>/change", metadata_views.DatasetMetadataUpdateView.as_view(), name="dataset_metadata_change"),
     path("metadata/datasets/<pk>/restore", metadata_views.DatasetMetadataRestoreView.as_view(), name="dataset_metadata_restore"),
 
@@ -53,6 +52,15 @@ urlpatterns = [
     path('mapcontexts/add/', mapcontext_views.MapContextCreateView.as_view(), name='map_context_add'),
     path('mapcontexts/<pk>/change', mapcontext_views.MapContextEditView.as_view(), name='map_context_change'),
     path('mapcontexts/<pk>/delete', mapcontext_views.MapContextDeleteView.as_view(), name='map_context_delete'),
+
+    # Xml representation views
+    path("services/<pk>/xml", xml_views.ServiceXmlView.as_view(), name="service_xml_view"),
+    path("services/layers/<pk>/xml", xml_views.LayerXmlView.as_view(), name="layer_xml_view"),
+    path("services/featuretypes/<pk>/xml", xml_views.FeatureTypeXmlView.as_view(), name="feature_type_xml_view"),
+    path("metadata/services/<pk>/xml", xml_views.ServiceMetadataXmlView.as_view(), name="service_metadata_xml_view"),
+    path("metadata/layers/<pk>/xml", xml_views.LayerMetadataXmlView.as_view(), name="layer_metadata_xml_view"),
+    path("metadata/featuretypes/<pk>/xml", xml_views.FeatureTypeMetadataXmlView.as_view(), name="feature_type_metadata_xml_view"),
+    path("metadata/datasets/<pk>/xml", xml_views.DatasetMetadataXmlView.as_view(), name="dataset_metadata_xml_view"),
 
     # Security views
     path("security/external-authentications", security_views.ExternalAuthenticationListView.as_view(), name="external_authentication_list"),

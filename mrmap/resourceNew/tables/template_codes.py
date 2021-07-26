@@ -9,11 +9,17 @@ SERVICE_DETAIL_ICONS = """
 {% if record.get_tree_view_url %}
 <a href="{{record.get_tree_view_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show tree view' %}">{{ICONS.HIERARCHY}}</a>
 {% endif %}
+{% if record.get_xml_view_url %}
+<a href="{{record.get_xml_view_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show dataset metadata as xml representation' %}">{{ICONS.CAPABILITIES}}</a>
+{% endif %}
 """
 LAYER_FEATURE_TYPE_DETAIL_ICONS = """
 {% load i18n %}
 {% if record.service.get_tree_view_url %}
 <a href="{{record.service.get_tree_view_url}}?collapse={{record.pk}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show tree view' %}">{{ICONS.HIERARCHY}}</a>
+{% endif %}
+{% if record.get_xml_view_url %}
+<a href="{{record.get_xml_view_url}}" data-toggle="tooltip" data-placement="left" title="{% trans 'Show dataset metadata as xml representation' %}">{{ICONS.CAPABILITIES}}</a>
 {% endif %}
 """
 FEATURE_TYPE_ELEMENT_DETAIL_ICONS = """

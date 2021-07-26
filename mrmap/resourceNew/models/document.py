@@ -5,6 +5,7 @@ from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from eulxml.xmlmap import XmlObject
 
 
 def xml_backup_file_path(instance, filename):
@@ -34,8 +35,22 @@ class DocumentModelMixin(models.Model):
             return self.xml_mapper_cls
         raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
 
+    def get_field_dict(self):
+        """Return the current model instance as dict to instantiate the xml object.
+
+        :return field_dict: the dict with all necessary fields and related fields.
+        :rtype: dict
+        """
+        field_dict = {}
+        for field in self._meta.fields:
+            if not (isinstance(field, models.ForeignKey) or
+                    isinstance(field, models.OneToOneField) or
+                    isinstance(field, models.ManyToManyField)):
+                field_dict.update({field.name: getattr(self, field.name)})
+        return field_dict
+
     @property
-    def xml_backup(self) -> str:
+    def xml_backup_string(self) -> str:
         """Return the xml backup file as string
 
         :return xml_backup: the xml_backup_file as string or empty string if FileNotFound
@@ -43,31 +58,40 @@ class DocumentModelMixin(models.Model):
         """
         try:
             return self.xml_backup_file.open().read()
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError):
             return ""
 
     @property
-    def xml(self):
+    def xml_backup(self) -> XmlObject:
+        """Return the backup xml as XmlObject.
+
+        :return xml_object: the xml mapper object
+        :rtype: :class:`xmlmap.XmlObject`
+        """
+        return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string,
+                                                 xmlclass=self.get_xml_mapper_cls())
+
+    @property
+    def xml(self) -> XmlObject:
         """Return the current model as xml representation based on the given xml_mapper_cls.
 
         :return xml_object: the xml mapper object
         :rtype: :class:`xmlmap.XmlObject`
         """
-        if self.xml_backup:
-            xml_object = xmlmap.load_xmlobject_from_string(string=bytes(self.xml_backup, "utf-8"),
-                                                           xmlclass=self.get_xml_mapper_cls())
-            xml_object.update_fields(**self.__dict__)
+        if self.xml_backup_string:
+            xml_object = self.xml_backup
+            xml_object.update_fields(obj=self.get_field_dict())
         else:
-            xml_object = self.get_xml_mapper_cls().from_field_dict(self.__dict__)
+            xml_object = self.get_xml_mapper_cls().from_field_dict(initial=self.get_field_dict())
         return xml_object
 
     @abstractmethod
-    def xml_secured(self, request: HttpRequest) -> str:
+    def xml_secured(self, request: HttpRequest) -> XmlObject:
         """Camouflage all urls which are founded in current xml from the xml property on-the-fly with the hostname
         from the given request.
 
         :return: the secured xml
-        :rtype: str
+        :rtype: :class:`xmlmap.XmlObject`
         :raises NotImplementedError: if the concrete model does not implement the method.
         """
         raise NotImplementedError
@@ -75,7 +99,10 @@ class DocumentModelMixin(models.Model):
 
 class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
-    def xml_secured(self, request: HttpRequest) -> str:
+    class Meta:
+        abstract = True
+
+    def xml_secured(self, request: HttpRequest) -> XmlObject:
         path = reverse("resourceNew:service_operation_view", args=[self.pk])
         new_url = f"{request.scheme}://{request.get_host()}{path}?"
 
@@ -95,6 +122,9 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
 class MetadataDocumentModelMixin(DocumentModelMixin):
 
+    class Meta:
+        abstract = True
+
     def restore(self):
         """Restore the current model instance from the xml_backup file
 
@@ -103,6 +133,6 @@ class MetadataDocumentModelMixin(DocumentModelMixin):
         # todo: restore_dict = self.xml().get_field_dict()
         raise NotImplementedError
 
-    def xml_secured(self, request: HttpRequest) -> str:
+    def xml_secured(self, request: HttpRequest) -> XmlObject:
         # todo
-        raise NotImplementedError
+        return self.xml

@@ -331,6 +331,10 @@ class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo
                                     editable=False,
                                     verbose_name=_("is broken"),
                                     help_text=_("TODO"))
+    is_customized = models.BooleanField(default=False,
+                                        editable=False,
+                                        verbose_name=_("is customized"),
+                                        help_text=_("If the metadata record is customized, this flag is True"))
     harvest_result = models.CharField(max_length=50,
                                       null=True,
                                       choices=HarvestResultEnum.as_choices(),
@@ -356,6 +360,7 @@ class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo
                                       help_text=_("all keywords which are related to the content of this metadata."))
     language = None  # Todo
     objects = AbstractMetadataManager()
+    xml_mapper_cls = MdMetadata
 
     class Meta:
         abstract = True
@@ -363,6 +368,12 @@ class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        """Custom save function to set `is_customized` on update."""
+        if not self._state.adding:
+            self.is_customized = True
+        super().save(*args, **kwargs)
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -405,9 +416,6 @@ class LayerMetadata(AbstractMetadata):
                  :class:`resource.Document` model.
             * 2. Searching for layer information
 
-        if an instance of this model is created an instance of the model `Document`, who stores the generated
-                xml, shall be created.
-        # todo: if an instance of this model is updated the related instance of the model `Document` shall be updated.
     """
     described_object = models.OneToOneField(to=Layer,
                                             on_delete=models.CASCADE,
@@ -689,28 +697,6 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
                                     name='%(app_label)s_%(class)s_unique_origin_url_file_identifier')
         ]
-
-    def save(self, *args, **kwargs):
-        adding = False
-        if self._state.adding:
-            adding = True
-        super().save(*args, **kwargs)
-        if not adding and self.document:
-            self.document.update_xml_content()
-
-    def restore(self):
-        if self.document:
-            document, parsed_metadata = self.document.restore()
-            self._meta.model.objects.filter(pk=self.pk).update(**parsed_metadata.get_field_dict())
-
-    def get_field_dict(self):
-        field_dict = {}
-        for field in self._meta.fields:
-            if not (isinstance(field, models.ForeignKey) or
-                    isinstance(field, models.OneToOneField) or
-                    isinstance(field, models.ManyToManyField)):
-                field_dict.update({field.name: getattr(self, field.name)})
-        return field_dict
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
         kwargs = {}

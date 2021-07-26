@@ -458,9 +458,7 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter().prefetch_related("featuretypes",
                                                                           "featuretypes__metadata",
                                                                           "featuretypes__elements")
-        return queryset.select_related("metadata")\
-                       .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
-                                                                 output_field=BooleanField()))
+        return queryset.select_related("metadata")
 
     def with_layers_counter(self):
         return self.get_queryset().annotate(layers_count=Count("layer"))

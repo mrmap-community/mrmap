@@ -1,5 +1,6 @@
+from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Max, Count, F, Exists, OuterRef, Q, ExpressionWrapper, BooleanField
+from django.db.models import Max, Count, F, Q, ExpressionWrapper, BooleanField
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from mptt.managers import TreeManager
@@ -120,10 +121,9 @@ class ServiceXmlManager(models.Manager):
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
         service = super().create(service_type=service_type, *args, **kwargs, **parsed_service.get_field_dict())
+        service.xml_backup_file.save(name=f'capabilities.xml',
+                                     content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
 
-        from resourceNew.models.document import Document  # to avoid circular import errors
-        Document.objects.create(service=service,
-                                xml=str(parsed_service.serializeDocument(), "UTF-8"))
         operation_urls = []
         operation_url_model_cls = None
         for operation_url in parsed_service.operation_urls:
@@ -485,12 +485,6 @@ class LayerManager(TreeManager):
                             "parent__metadata",
                             "created_by_user",
                             "owned_by_org")
-
-    def bulk_create(self, objs, batch_size=None, ignore_conflicts=False):
-        objs = super().bulk_create(objs, batch_size, ignore_conflicts)
-        # todo: for all created layer objects shall be one capabilities xml document stored in the
-        #  resourceNew.models.document.Document. Generate the xml with resourceNew.xmlmapper.ogc.capabilities?
-        return objs
 
 
 class FeatureTypeManager(models.Manager):

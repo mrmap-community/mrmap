@@ -22,6 +22,8 @@ from resourceNew.managers.service import ServiceXmlManager, ServiceManager, Laye
     FeatureTypeManager, FeatureTypeElementManager
 from mptt.models import MPTTModel, TreeForeignKey
 from uuid import uuid4
+
+from resourceNew.models.document import CapabilitiesDocumentModelMixin
 from resourceNew.ows_client.request_builder import OgcService
 from resourceNew.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 from eulxml import xmlmap
@@ -67,7 +69,7 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
+class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceInfo, CommonInfo):
     """ Light polymorph model class to store all registered services. """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -86,6 +88,9 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
     objects = ServiceManager()
     security = ServiceSecurityManager()
     xml_objects = ServiceXmlManager()
+
+    # todo:
+    xml_mapper_cls = None
 
     class Meta:
         verbose_name = _("service")
@@ -244,7 +249,7 @@ class OperationUrl(CommonInfo):
         return f'{reverse("resourceNew:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
 
 
-class ServiceElement(GenericModelMixin, CommonServiceInfo, CommonInfo):
+class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceInfo, CommonInfo):
     """ Abstract model class to generalize some fields and functions for layers and feature types """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -277,6 +282,8 @@ class ServiceElement(GenericModelMixin, CommonServiceInfo, CommonInfo):
                                                editable=False,
                                                verbose_name=_("reference systems"),
                                                help_text=_("all reference systems which this element supports"))
+    # todo:
+    xml_mapper_cls = None
 
     class Meta:
         abstract = True
@@ -358,10 +365,6 @@ class Layer(ServiceElement, MPTTModel):
         if not adding:
             old = Layer.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
-        if adding:
-            # todo: for all created layer objects shall be one capabilities xml document stored in the
-            #  resourceNew.models.document.Document. Generate the xml with resourceNew.xmlmapper.ogc.capabilities?
-            pass
         if not adding and old and old.is_active != self.is_active:
             # the active sate of this and all descendant layers shall be changed to the new value. Bulk update
             # is the most efficient way to do it.

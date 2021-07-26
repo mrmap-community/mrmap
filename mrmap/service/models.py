@@ -991,7 +991,7 @@ class Metadata(UuidPk, CommonInfo, Resource):
         from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
 
         capabilty_builder = CapabilityXMLBuilder(metadata=self, force_version=force_version)
-        xml = capabilty_builder.generate_xml()
+        xml = capabilty_builder.write_xml()
         return xml
 
     def get_external_authentication_object(self):

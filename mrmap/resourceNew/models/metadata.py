@@ -13,9 +13,12 @@ from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, Metad
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
+from resourceNew.models.document import MetadataDocumentModelMixin
 from resourceNew.models.service import Layer, FeatureType, Service
-from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
+from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
 from uuid import uuid4
+
+from service.models import Document
 
 
 class MimeType(models.Model):
@@ -284,7 +287,7 @@ class MetadataTermsOfUse(models.Model):
         abstract = True
 
 
-class AbstractMetadata(GenericModelMixin, CommonInfo):
+class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -299,6 +302,8 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
     file_identifier = models.CharField(max_length=1000,
                                        null=True,
                                        editable=False,
+                                       default=uuid4,
+                                       db_index=True,
                                        verbose_name=_("file identifier"),
                                        help_text=_("the parsed file identifier from the iso metadata xml "
                                                    "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
@@ -415,6 +420,16 @@ class LayerMetadata(AbstractMetadata):
     class Meta:
         verbose_name = _("layer metadata")
         verbose_name_plural = _("layer metadata")
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save()
+        if adding:
+            xml = MdMetadata.from_field_dict(self.__dict__)
+            xml_string = xml.serializeDocument()
+            Document.objects.create(layer_metadata=self,
+                                    xml=xml_string,
+                                    xml_backup=xml_string)
 
 
 class FeatureTypeMetadata(AbstractMetadata):

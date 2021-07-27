@@ -21,25 +21,22 @@ logger = get_task_logger(__name__)
 
 
 @shared_task(name='run_quality_check', base=AbortableTask, bind=True)
-def run_quality_check(self, config_id: int, metadata_id: int):
-    config = ConformityCheckConfiguration.objects.get(pk=config_id)
+def run_quality_check(self, run_id: int, s: str):
+    run = ConformityCheckRun.objects.get(id=run_id)
+    if run is None:
+        raise Exception(f'No conformity check run with id {run_id}')
+    config = run.conformity_check_configuration
     # TODO handle other resources
-    metadata = DatasetMetadata.objects.get(pk=metadata_id)
-    if metadata is None:
-        raise Exception("Metadata not defined.")
-    if config is None:
-        raise Exception(
-            "Could not check conformity. ConformityCheckConfiguration is "
-            "None.")
+    metadata = run.metadata
 
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
-        checker = QualityInternal(metadata, config)
+        checker = QualityInternal(run)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
         config_ext = ConformityCheckConfigurationExternal.objects.get(
             pk=config.pk)
         document_provider = ValidationDocumentProvider(metadata, config_ext)
         client = EtfClient(config_ext.external_url)
-        checker = QualityEtf(metadata, config_ext, document_provider, client)
+        checker = QualityEtf(run, config_ext, document_provider, client)
     else:
         raise Exception(
             f"Could not check conformity. Invalid conformity type: "
@@ -88,8 +85,7 @@ def complete_validation(self, run_id: int):
 
 
 @shared_task(name="complete_validation_error_task")
-def complete_validation_error(request, exc, traceback, user_id: int = None,
-                              config_id: int = None, metadata_id: str = None):
+def complete_validation_error(request, exc, traceback, run_id: int = None):
     """ Handles the aborted validation process.
 
         Handler for completing the aborted validation process. This method
@@ -103,23 +99,15 @@ def complete_validation_error(request, exc, traceback, user_id: int = None,
         Args:
             *args: positional arguments
         Keyword arguments:
-            user_id (int): The id of the user that triggered the run.
-            group_id (int): the id of the group that the validated metadata
-            object belongs to.
-            config_id (int): The id of the ConformityCheckConfiguration.
-            metadata_id (uuid): The id of the validated metadata object.
+            run (int): The id of the conformity check run
         Returns:
             nothing
     """
     try:
-        # TODO handle other resource types
-        metadata = DatasetMetadata.objects.get(pk=metadata_id)
-
         # delete run, if it was manually aborted
         if isinstance(exc, AbortedException):
             try:
-                run = ConformityCheckRun.objects.get_latest_check(metadata)
-                run.delete()
+                ConformityCheckRun.objects.filter(id=run_id).delete()
             except ConformityCheckRun.DoesNotExist:
                 pass
 

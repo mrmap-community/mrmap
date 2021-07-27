@@ -27,6 +27,13 @@ SERVICE_TABLE_ACTIONS = """
       {{ ICONS.DELETE|safe }}
     </a>
     {% endif %}
+    {% if record.get_validate_url %}
+    <form class="mr-1" action="{{record.get_validate_url}}" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="is_active" {% if not record.is_active %}value="on"{% endif %}>
+      <button type="submit" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION }}</button>
+    </form>
+    {% endif %}     
 </div>
 """
 

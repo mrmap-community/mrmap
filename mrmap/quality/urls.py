@@ -7,10 +7,11 @@ Created on: 27.10.20
 """
 from django.urls import path
 
-from .views import ConformityCheckRunCreateView
+from .views import ConformityCheckRunCreateView, ConformityCheckRunListView
 
 app_name = 'quality'
 urlpatterns = [
-    path('<str:metadata_id>/validate', ConformityCheckRunCreateView.as_view(), name='validate'),
+    path("runs", ConformityCheckRunListView.as_view(), name='conformity_check_run_list'),
+    path('runs/create', ConformityCheckRunCreateView.as_view(), name='conformity_check_run_add'),
     # path('<str:metadata_id>/latest', views.get_latest, name='latest'),
 ]

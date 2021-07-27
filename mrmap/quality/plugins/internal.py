@@ -6,25 +6,24 @@ Created on: 02.11.20
 
 """
 import json
+
 from celery import states, current_task
 from celery.result import AsyncResult
 from django.utils import timezone
 
 from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \
-    ConformityCheckConfiguration, ConformityCheckConfigurationInternal, \
+    ConformityCheckConfigurationInternal, \
     ConformityCheckRun
-from service.models import Metadata
 from structure.celery_helper import runs_as_async_task
 
 
 class QualityInternal:
 
-    def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration):
-        self.metadata = metadata
-        self.config = ConformityCheckConfigurationInternal.objects.get(
-            pk=base_config.pk)
+    def __init__(self, run: ConformityCheckRun):
+        base_config = run.conformity_check_configuration
+        self.metadata = run.metadata
+        self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
 
         count = self.config.mandatory_rule_sets.all().count() + \
                 self.config.optional_rule_sets.all().count()
@@ -155,4 +154,3 @@ class QualityInternal:
                     "current": progress,
                 }
             )
-

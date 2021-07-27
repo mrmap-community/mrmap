@@ -107,7 +107,11 @@ DEFAULT_ACTION_BUTTONS = """
     <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Delete' %}">{{ ICONS.DELETE|safe }}</a>
     {% endif %}
     {% if record.get_validate_url %}
-    <a href="{{record.get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION }}</a>
+    <form class="mr-1" action="{{record.get_validate_url}}" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="metadata" value="{{record.pk}}">      
+      <button type="submit" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION }}</button>
+    </form>
     {% endif %}    
     {% endwith %}
 </div>

@@ -6,6 +6,7 @@ from MrMap.settings import *
 
 ALLOWED_HOSTS.append("0.0.0.0")
 ALLOWED_HOSTS.append("django")
+ALLOWED_HOSTS.append("172.17.0.1")
 
 
 DATABASES['default']['NAME'] = 'mrmap'

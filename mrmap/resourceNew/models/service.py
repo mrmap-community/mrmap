@@ -144,6 +144,12 @@ class Service(GenericModelMixin, CommonServiceInfo, CommonInfo):
                 pass
         return ""
 
+    def get_validate_url(self) -> str:
+        try:
+            return reverse(f'quality:conformity_check_run_add')
+        except NoReverseMatch:
+            return ""
+
     @property
     def icon(self):
         try:

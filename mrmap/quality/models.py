@@ -5,10 +5,10 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from django.db import models
+from django.db import models, transaction
 from django.urls import reverse
 
-from main.models import UuidPk
+from main.models import UuidPk, CommonInfo
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum
@@ -138,12 +138,14 @@ class ConformityCheckRunManager(models.Manager):
         return check
 
 
-class ConformityCheckRun(UuidPk):
+class ConformityCheckRun(CommonInfo):
     """
     Model holding the relation of a metadata record to the results of a check.
     """
-    # TODO handle other resources, Jonas: what is the best approach to model this?
     metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
+    # resource_type = models.TextField(blank=False, null=False)
+    # resource_id = models.TextField(blank=False, null=False)
+
     conformity_check_configuration = models.ForeignKey(
         ConformityCheckConfiguration, on_delete=models.CASCADE)
     time_start = models.DateTimeField(auto_now_add=True)
@@ -154,33 +156,18 @@ class ConformityCheckRun(UuidPk):
     objects = ConformityCheckRunManager()
 
     def get_absolute_url(self):
-        return reverse('check', kwargs={'pk': self.pk})
+        return f'{reverse("quality:conformity_check_run_list")}?id={self.pk}'
 
     def is_running(self):
         return self.time_start is not None and self.passed is None
 
-    # TODO Discuss with Jonas: calling run_quality_check here results in cyclic imports,
-    # so we moved this to the view
-
-    # def save(self, *args, **kwargs):
-    #     adding = False
-    #     if self._state.adding:
-    #         adding = True
-    #     super().save(*args, **kwargs)
-    #     if adding:
-    #         # self.conformity_check_configuration = args.get('')
-    #         from quality.tasks import run_quality_check, complete_validation, \
-    #             complete_validation_error
-    #         success_callback = complete_validation.s()
-    #         error_callback = complete_validation_error.s(user_id=args[0].get('user_id'),
-    #                                                      config_id=self.conformity_check_configuration.pk,
-    #                                                      metadata_id=self.metadata.pk)
-    #         # transaction.on_commit(lambda: run_quality_check.apply_async(
-    #         #     args=(self.conformity_check_configuration.pk , self.metadata.pk),
-    #         #     #kwargs={'created_by_user_pk': args[0].get('user_id')},
-    #         #     countdown=settings.CELERY_DEFAULT_COUNTDOWN))
-    #
-    #         transaction.on_commit(
-    #             lambda: run_quality_check.apply_async(args=(self.conformity_check_configuration.pk, self.metadata.pk),
-    #                                                   link=success_callback,
-    #                                                   link_error=error_callback))
+    def save(self, *args, **kwargs):
+        adding = False
+        if self._state.adding:
+            adding = True
+        super().save(*args, **kwargs)
+        print('Saving')
+        if adding:
+            print('Adding')
+            from quality.services import schedule_check_run
+            transaction.on_commit(lambda: schedule_check_run(self))

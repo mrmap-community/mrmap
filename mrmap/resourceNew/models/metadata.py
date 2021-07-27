@@ -738,7 +738,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
 
     def get_validate_url(self) -> str:
         try:
-            return reverse(f'quality:validate', args=[self.pk])
+            return reverse('quality:conformity_check_run_add')
         except NoReverseMatch:
             return ""
 

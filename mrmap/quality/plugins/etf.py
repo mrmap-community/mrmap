@@ -6,15 +6,17 @@ Created on: 27.10.20
 
 """
 import time
+
 import requests
 from celery import current_task, states
+from django.conf import settings
 from django.utils import timezone
+
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
 from service.helper.common_connector import CommonConnector
 from service.models import Metadata
 from structure.celery_helper import runs_as_async_task
-from django.conf import settings
 
 
 class EtfClient:
@@ -154,14 +156,13 @@ class ValidationDocumentProvider:
 
 class QualityEtf:
 
-    def __init__(self, metadata: Metadata,
-                 config: ConformityCheckConfigurationExternal,
+    def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
                  document_provider: ValidationDocumentProvider,
                  client: EtfClient):
-        self.metadata = metadata
-        self.config = config
+        self.metadata = run.metadata
+        self.config = config_ext
         self.document_provider = document_provider
-        self.check_run = None
+        self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds
         self.run_url = None
@@ -172,9 +173,9 @@ class QualityEtf:
         Runs the configured ETF suites and updates the associated
         ConformityCheckRun accordingly.
         """
-        self.check_run = ConformityCheckRun.objects.create(
-            metadata=self.metadata, conformity_check_configuration=self.config)
-        settings.ROOT_LOGGER.info(f"Created new check run id {self.check_run.pk}")
+        # self.check_run = ConformityCheckRun.objects.create(
+        #     metadata=self.metadata, conformity_check_configuration=self.config)
+        # settings.ROOT_LOGGER.info(f"Created new check run id {self.check_run.pk}")
         document = self.document_provider.fetch_validation_document()
         test_object_id = self.client.upload_test_object(document)
         try:

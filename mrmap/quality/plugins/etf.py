@@ -54,7 +54,7 @@ class EtfClient:
         settings.ROOT_LOGGER.info(f'Uploaded test object with id {test_object_id}')
         return test_object_id
 
-    def start_test_run(self, test_object_id: str, test_config: dict):
+    def start_test_run(self, test_config: dict):
         """ Starts a new ETF test run for the given test object and test config.
 
         Returns:
@@ -162,6 +162,9 @@ class QualityEtf:
         self.metadata = run.metadata
         self.config = config_ext
         self.document_provider = document_provider
+        # TODO make base url configurable
+        # TODO support other resource types
+        self.resource_url = f'http://172.17.0.1:8000/resourceNew/metadata/datasets/{self.metadata.id}/xml'
         self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds
@@ -176,12 +179,11 @@ class QualityEtf:
         # self.check_run = ConformityCheckRun.objects.create(
         #     metadata=self.metadata, conformity_check_configuration=self.config)
         # settings.ROOT_LOGGER.info(f"Created new check run id {self.check_run.pk}")
-        document = self.document_provider.fetch_validation_document()
-        test_object_id = self.client.upload_test_object(document)
+        #document = self.document_provider.fetch_validation_document()
+        #test_object_id = self.client.upload_test_object(document)
         try:
-            test_config = self.create_etf_test_run_config(test_object_id)
-            self.run_url = self.client.start_test_run(test_object_id,
-                                                      test_config)
+            test_config = self.create_etf_test_run_config()
+            self.run_url = self.client.start_test_run(test_config)
             while not self.client.check_test_run_finished(
                     self.run_url):
                 time.sleep(self.polling_interval_seconds)
@@ -192,7 +194,7 @@ class QualityEtf:
             self.evaluate_test_report(test_report)
         finally:
             self.client.delete_test_run(self.run_url)
-            self.client.delete_test_object(test_object_id)
+            #self.client.delete_test_object(test_object_id)
         return self.check_run
 
     def increase_polling_interval(self):
@@ -202,9 +204,10 @@ class QualityEtf:
             new_interval = self.config.polling_interval_seconds_max
         self.polling_interval_seconds = new_interval
 
-    def create_etf_test_run_config(self, test_object_id):
+    def create_etf_test_run_config(self):
         params = {
-            "test_object_id": test_object_id,
+#            "test_object_id": test_object_id,
+            "resource_url": self.resource_url,
             "metadata": self.metadata
         }
         return map_parameters(params, self.config.parameter_map)

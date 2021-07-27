@@ -1,8 +1,11 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseNotFound, Http404
-from django.views.generic import RedirectView
+from django.views.generic import RedirectView, DetailView
 from django_filters.views import FilterView
-from main.views import SecuredListMixin, SecuredUpdateView, SecuredDetailView, SecuredConfirmView
+
+from MrMap.views import GenericViewContextMixin
+from main.views import SecuredListMixin, SecuredUpdateView, SecuredDetailView, SecuredConfirmView, \
+    GenericPermissionRequiredMixin
 from resourceNew.filtersets.metadata import DatasetMetadataFilterSet, LayerMetadataFilterSet, ServiceMetadataFilterSet, \
     FeatureTypeMetadataFilterSet
 from resourceNew.forms.metadata import ServiceMetadataModelForm, DatasetMetadataModelForm
@@ -73,8 +76,9 @@ class DatasetMetadataRestoreView(SecuredConfirmView):
         self.object.restore()
         return super().form_valid(form=form)
 
-
-class DatasetMetadataXmlView(SecuredDetailView):
+# TODO clarify permissions
+#class DatasetMetadataXmlView(SecuredDetailView):
+class DatasetMetadataXmlView(GenericViewContextMixin, DetailView):
     model = DatasetMetadata
     queryset = DatasetMetadata.objects.all().select_related("document").values("document__xml")
     content_type = "application/xml"

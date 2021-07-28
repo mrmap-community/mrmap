@@ -162,9 +162,8 @@ class QualityEtf:
         self.metadata = run.metadata
         self.config = config_ext
         self.document_provider = document_provider
-        # TODO make base url configurable
         # TODO support other resource types
-        self.resource_url = f'http://172.17.0.1:8000/resourceNew/metadata/datasets/{self.metadata.id}/xml'
+        self.resource_url = f'{settings.ROOT_URL}/resourceNew/metadata/datasets/{self.metadata.id}/xml'
         self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds

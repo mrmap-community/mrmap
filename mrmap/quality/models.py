@@ -8,7 +8,7 @@ Created on: 27.10.20
 from django.db import models, transaction
 from django.urls import reverse
 
-from main.models import CommonInfo
+from main.models import CommonInfo, GenericModelMixin
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum
@@ -109,7 +109,7 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
                                                 blank=True)
 
 
-class ConformityCheckRun(CommonInfo):
+class ConformityCheckRun(CommonInfo, GenericModelMixin):
     """
     Model holding the relation of a metadata record to the results of a check.
     """

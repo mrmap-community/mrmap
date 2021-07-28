@@ -13,5 +13,6 @@ app_name = 'quality'
 urlpatterns = [
     path("runs", ConformityCheckRunListView.as_view(), name='conformity_check_run_list'),
     path('runs/create', ConformityCheckRunCreateView.as_view(), name='conformity_check_run_add'),
+    path('runs/<pk>/delete', ConformityCheckRunCreateView.as_view(), name='conformity_check_run_delete'),
     # path('<str:metadata_id>/latest', views.get_latest, name='latest'),
 ]

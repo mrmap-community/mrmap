@@ -27,6 +27,7 @@ urlpatterns = [
     path("service/<pk>/activate", service_views.ServiceActivateView.as_view(), name="service_activate"),
     path("service/<pk>/change", service_views.ServiceUpdateView.as_view(), name="service_change"),
     path("service/<pk>/delete", service_views.ServiceDeleteView.as_view(), name="service_delete"),
+    # TODO remove pks from URL (redundant + we should see this as a CREATE on HarvestRun)
     path("service/<pk>/harvest", harvest_views.HarvestServiceFormView.as_view(), name="service_harvest"),
 
     path("service/wms/<pk>/tree", service_views.ServiceWmsTreeView.as_view(), name="service_wms_tree_view"),

@@ -10,17 +10,19 @@ from django_filters.views import FilterView
 from main.views import SecuredCreateView, SecuredListMixin
 from quality.forms import ConformityCheckRunModelForm
 from quality.models import ConformityCheckRun, ConformityCheckConfiguration
+from quality.tables import ConformityCheckRunTable
 
 
 class ConformityCheckRunListView(SecuredListMixin, FilterView):
     model = ConformityCheckRun
-    # table_class = ExternalAuthenticationTable
+    table_class = ConformityCheckRunTable
     # filterset_class = ExternalAuthenticationFilterSet
 
 
 class ConformityCheckRunCreateView(SecuredCreateView):
     model = ConformityCheckRun
     form_class = ConformityCheckRunModelForm
+
 
     #
     # # user= None

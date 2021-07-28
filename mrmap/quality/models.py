@@ -8,7 +8,7 @@ Created on: 27.10.20
 from django.db import models, transaction
 from django.urls import reverse
 
-from main.models import UuidPk, CommonInfo
+from main.models import CommonInfo, GenericModelMixin
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum
@@ -24,7 +24,7 @@ class ConformityCheckConfigurationManager(models.Manager):
             metadata_types__contains=metadata_type)
 
 
-class ConformityCheckConfiguration(UuidPk):
+class ConformityCheckConfiguration(models.Model):
     """
     Base model for ConformityCheckConfiguration classes.
     """
@@ -64,7 +64,7 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
                                                        blank=True, null=False)
 
 
-class Rule(UuidPk):
+class Rule(models.Model):
     """
     Model holding the definition of a single rule.
     """
@@ -95,7 +95,7 @@ class Rule(UuidPk):
         }
 
 
-class RuleSet(UuidPk):
+class RuleSet(models.Model):
     """
     Model grouping rules and holding the result of a rule check run.
     """
@@ -166,8 +166,6 @@ class ConformityCheckRun(CommonInfo):
         if self._state.adding:
             adding = True
         super().save(*args, **kwargs)
-        print('Saving')
         if adding:
-            print('Adding')
             from quality.services import schedule_check_run
             transaction.on_commit(lambda: schedule_check_run(self))

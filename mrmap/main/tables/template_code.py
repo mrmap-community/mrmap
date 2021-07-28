@@ -109,7 +109,7 @@ DEFAULT_ACTION_BUTTONS = """
     {% if record.get_validate_url %}
     <form class="mr-1" action="{{record.get_validate_url}}" method="post">
       {% csrf_token %}
-      <input type="hidden" name="metadata" value="{{record.pk}}">      
+      <input type="hidden" name="metadata" value="{{record.pk}}">    
       <button type="submit" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION }}</button>
     </form>
     {% endif %}    

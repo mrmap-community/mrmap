@@ -1,258 +1,138 @@
+from abc import abstractmethod
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
-from django.db.models import Q
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ValidationError
-from main.models import CommonInfo
-from resourceNew.enums.document import DocumentEnum
-from resourceNew.models import ServiceMetadata, LayerMetadata, FeatureTypeMetadata, DatasetMetadata, Service, Layer
 from eulxml import xmlmap
-from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from resourceNew.xmlmapper.ogc.capabilities import get_parsed_service, FeatureType
+from eulxml.xmlmap import XmlObject
 
 
-class Document(CommonInfo):
-    """Model to store documents such as xml for different related objects.
+def xml_backup_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<id>/<filename>
+    return 'xml_documents/{0}/{1}'.format(instance.pk, filename)
 
-    :attr service: This document stores the capabilities document for the related
-     :class:`resourceNew.models.service.Service` service.
-    :attr service_metadata: This document stores the iso MD_Metadata xml representation for the related
-     :class:`resourceNew.models.metadata.ServiceMetadata` which describes the service.
 
-    :attr layer_metadata: This document stores the iso MD_Metadata xml representation for the related
-     :class:`resourceNew.models.metadata.LayerMetadata` which describes this single layer as a service.
-    :attr feature_type_metadata: This document stores the iso MD_Metadata xml representation for the related
-     :class:`resourceNew.models.metadata.FeatureTypeMetadata` which describes this single feature type as a service.
-    :attr dataset_metadata: This document stores the iso MD_Metadata xml representation for the related
-     :class:`resourceNew.models.metadata.DatasetMetadata`.
+class DocumentModelMixin(models.Model):
+    """Abstract model to store documents such as capabilities or ISO MD_Metadata xml for different related objects.
 
-    # todo:
-    :attr layer: This document stores the capabilities document for the related
-    :class:`resourceNew.models.service.Layer` which contains only the single layer information.
-    :attr feature_type: This document stores the capabilities document for the related
-    :class:`resourceNew.models.service.FeatureType` which contains only the single feature type information.
+    :attr xml_backup: the original xml as backup to restore the xml fields.
     """
-    HELP_TEXT = _("the metadata object which is parsed from this xml.")
-    service = models.OneToOneField(to=Service,
-                                   on_delete=models.CASCADE,
-                                   null=True,
-                                   blank=True,
-                                   related_name="document",
-                                   related_query_name="document",
-                                   verbose_name=_("related service"),
-                                   help_text=_("the service object which is described by this document."))
-    service_metadata = models.OneToOneField(to=ServiceMetadata,
-                                            on_delete=models.CASCADE,
-                                            null=True,
-                                            blank=True,
-                                            related_name="document",
-                                            related_query_name="document",
-                                            verbose_name=_("related dataset metadata"),
-                                            help_text=HELP_TEXT)
-    layer_metadata = models.OneToOneField(to=LayerMetadata,
-                                          on_delete=models.CASCADE,
-                                          null=True,
-                                          blank=True,
-                                          related_name="document",
-                                          related_query_name="document",
-                                          verbose_name=_("related layer metadata"),
-                                          help_text=HELP_TEXT)
-    feature_type_metadata = models.OneToOneField(to=FeatureTypeMetadata,
-                                                 on_delete=models.CASCADE,
-                                                 null=True,
-                                                 blank=True,
-                                                 related_name="document",
-                                                 related_query_name="document",
-                                                 verbose_name=_("related feature type metadata"),
-                                                 help_text=HELP_TEXT)
-    dataset_metadata = models.OneToOneField(to=DatasetMetadata,
-                                            on_delete=models.CASCADE,
-                                            null=True,
-                                            blank=True,
-                                            related_name="document",
-                                            related_query_name="document",
-                                            verbose_name=_("related dataset metadata"),
-                                            help_text=HELP_TEXT)
-    xml = models.TextField(verbose_name=_("xml"),
-                           help_text=_("the xml as string."))
-    xml_backup = models.TextField(verbose_name=_("xml backup"),
-                                  help_text=_("the original xml as backup to restore the xml field."))
+    xml_mapper_cls = None
+    xml_backup_file = models.FileField(verbose_name=_("xml backup"),
+                                       help_text=_("the original xml as backup to restore the xml field."),
+                                       upload_to=xml_backup_file_path)
 
     class Meta:
-        # One Metadata/Service object can be related to multiple Document objects, cause we save the original and the
-        # customized version of a given xml.
-        constraints = [
-            models.CheckConstraint(
-                name="%(app_label)s_%(class)s_one_related_object_selected",
-                check=Q(
-                    (Q(service=False,
-                       service_metadata=False,
-                       layer_metadata=False,
-                       feature_type_metadata=False,
-                       dataset_metadata=False) |
-                     Q(service=True,
-                       service_metadata=False,
-                       layer_metadata=False,
-                       feature_type_metadata=False,
-                       dataset_metadata=False) |
-                     Q(service=False,
-                       service_metadata=True,
-                       layer_metadata=False,
-                       feature_type_metadata=False,
-                       dataset_metadata=False) |
-                     Q(service=False,
-                       service_metadata=False,
-                       layer_metadata=True,
-                       feature_type_metadata=False,
-                       dataset_metadata=False) |
-                     Q(service=False,
-                       service_metadata=False,
-                       layer_metadata=False,
-                       feature_type_metadata=True,
-                       dataset_metadata=False) |
-                     Q(service=False,
-                       service_metadata=False,
-                       layer_metadata=False,
-                       feature_type_metadata=False,
-                       dataset_metadata=True))
-                    and ~Q(Q(service=True)
-                           and Q(service_metadata=True)
-                           and Q(layer_metadata=True)
-                           and Q(feature_type_metadata=True)
-                           and Q(dataset_metadata=True))
-                    and ~Q(Q(service=False)
-                           and Q(service_metadata=False)
-                           and Q(layer_metadata=False)
-                           and Q(feature_type_metadata=False)
-                           and Q(dataset_metadata=False))
-                )
-            ),
-        ]
+        abstract = True
 
-    def __str__(self):
-        return f"{self.related_object_id} ({self.document_type.value})"
+    def get_xml_mapper_cls(self):
+        """Return the configured xml_mapper_cls attribute.
 
-    def save(self, *args, **kwargs):
-        if self._state.adding:
-            self.xml_backup = self.xml
-        super().save(*args, **kwargs)
-
-    def clean(self):
-        """ Raise ValidationError if service metadata, layer metadata, feature type metadata and dataset metadata are
-            selected OR if none of them are selected.
+        :raises ImproperlyConfigured: if the concrete model does not configure the xml_mapper_cls attribute.
         """
-        msg = _("multiple or empty selections for related objects are not supported. Select only one of service "
-                "metadata or a layer metadata or a feature type metadata or a dataset metadata.")
-        supported_conditions = [(self.service
-                                 and not self.service_metadata
-                                 and not self.layer_metadata
-                                 and not self.feature_type_metadata
-                                 and not self.dataset_metadata),
-                                (not self.service
-                                 and self.service_metadata
-                                 and not self.layer_metadata
-                                 and not self.feature_type_metadata
-                                 and not self.dataset_metadata),
-                                (not self.service
-                                 and not self.service_metadata
-                                 and self.layer_metadata
-                                 and not self.feature_type_metadata
-                                 and not self.dataset_metadata),
-                                (not self.service
-                                 and not self.service_metadata
-                                 and not self.layer_metadata
-                                 and self.feature_type_metadata
-                                 and not self.dataset_metadata),
-                                (not self.service
-                                 and not self.service_metadata
-                                 and not self.layer_metadata
-                                 and not self.feature_type_metadata
-                                 and self.dataset_metadata)]
-        for supported_condition in supported_conditions:
-            if supported_condition:
-                return
-        raise ValidationError(msg)
+        if self.xml_mapper_cls:
+            return self.xml_mapper_cls
+        raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
+
+    def get_field_dict(self):
+        """Return the current model instance as dict to instantiate the xml object.
+
+        :return field_dict: the dict with all necessary fields and related fields.
+        :rtype: dict
+        """
+        field_dict = {}
+        for field in self._meta.fields:
+            if not (isinstance(field, models.ForeignKey) or
+                    isinstance(field, models.OneToOneField) or
+                    isinstance(field, models.ManyToManyField)):
+                field_dict.update({field.name: getattr(self, field.name)})
+        return field_dict
 
     @property
-    def related_object(self):
-        if self.service:
-            return self.service
-        elif self.service_metadata:
-            return self.service_metadata
-        elif self.layer_metadata:
-            return self.layer_metadata
-        elif self.feature_type_metadata:
-            return self.feature_type_metadata
-        elif self.dataset_metadata:
-            return self.dataset_metadata
+    def xml_backup_string(self) -> str:
+        """Return the xml backup file as string
+
+        :return xml_backup: the xml_backup_file as string or empty string if FileNotFound
+        :rtype: str
+        """
+        try:
+            return self.xml_backup_file.open().read()
+        except (FileNotFoundError, ValueError):
+            return ""
 
     @property
-    def related_object_id(self):
-        if self.service:
-            return self.service_id
-        elif self.service_metadata:
-            return self.service_metadata_id
-        elif self.layer_metadata:
-            return self.layer_metadata_id
-        elif self.feature_type_metadata:
-            return self.feature_type_metadata_id
-        elif self.dataset_metadata:
-            return self.dataset_metadata_id
+    def xml_backup(self) -> XmlObject:
+        """Return the backup xml as XmlObject.
+
+        :return xml_object: the xml mapper object
+        :rtype: :class:`xmlmap.XmlObject`
+        """
+        return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string,
+                                                 xmlclass=self.get_xml_mapper_cls())
 
     @property
-    def document_type(self) -> DocumentEnum:
-        if isinstance(self.related_object, Service) or \
-                isinstance(self.related_object, Layer) or \
-                isinstance(self.related_object, FeatureType):
-            return DocumentEnum.CAPABILITY
+    def xml(self) -> XmlObject:
+        """Return the current model as xml representation based on the given xml_mapper_cls.
+
+        :return xml_object: the xml mapper object
+        :rtype: :class:`xmlmap.XmlObject`
+        """
+        if self.xml_backup_string:
+            xml_object = self.xml_backup
+            xml_object.update_fields(obj=self.get_field_dict())
         else:
-            return DocumentEnum.METADATA
+            xml_object = self.get_xml_mapper_cls().from_field_dict(initial=self.get_field_dict())
+        return xml_object
 
-    def _get_parsed_object(self, get_original: bool = False):
-        xml = self.xml if get_original else self.xml_backup
-        xml = bytes(xml, "utf-8")
-        if self.document_type == DocumentEnum.METADATA:
-            parsed_metadata = xmlmap.load_xmlobject_from_string(string=xml,
-                                                                xmlclass=WrappedIsoMetadata)
-            return parsed_metadata.iso_metadata[0]
-        else:
-            return get_parsed_service(xml=xml)
+    @abstractmethod
+    def xml_secured(self, request: HttpRequest) -> XmlObject:
+        """Camouflage all urls which are founded in current xml from the xml property on-the-fly with the hostname
+        from the given request.
+
+        :return: the secured xml
+        :rtype: :class:`xmlmap.XmlObject`
+        :raises NotImplementedError: if the concrete model does not implement the method.
+        """
+        raise NotImplementedError
+
+
+class CapabilitiesDocumentModelMixin(DocumentModelMixin):
+
+    class Meta:
+        abstract = True
+
+    def xml_secured(self, request: HttpRequest) -> XmlObject:
+        path = reverse("resourceNew:service_operation_view", args=[self.pk])
+        new_url = f"{request.scheme}://{request.get_host()}{path}?"
+
+        capabilities_xml = self.xml
+        # todo: camouflage metadata urls also
+        for operation_url in capabilities_xml.operation_urls:
+            operation_url.url = new_url
+        if capabilities_xml.url:
+            capabilities_xml.url.url = new_url
+        if hasattr(capabilities_xml, "get_all_layers"):
+            for layer in capabilities_xml.get_all_layers():
+                for style in layer.styles:
+                    style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+        # todo: only support xml Exception format --> remove all others
+        return capabilities_xml.serializeDocument()
+
+
+class MetadataDocumentModelMixin(DocumentModelMixin):
+
+    class Meta:
+        abstract = True
 
     def restore(self):
-        self.xml = self.xml_backup
-        self.save()
-        return self, self._get_parsed_object(get_original=True)
+        """Restore the current model instance from the xml_backup file
 
-    def update_xml_content(self):
-        parsed_metadata = self._get_parsed_object()
-        parsed_metadata.update_fields(**self.related_object.get_field_dict())
-        self.xml = str(parsed_metadata.serializeDocument(), "UTF-8")
-        self.save()
-
-    def camouflaged(self, request: HttpRequest) -> str:
-        """ Camouflage all urls which are founded in current xml from the xml attribute on-the-fly with the hostname
-            from the given request.
-
-            :return: the secured xml
-            :rtype: str
+        :raises NotImplementedError: if the concrete model does not implement the method.
         """
+        # todo: restore_dict = self.xml().get_field_dict()
+        raise NotImplementedError
 
-        path = reverse("resourceNew:service_operation_view", args=[self.service_id])
-        new_url = f"{request.scheme}://{request.get_host()}{path}?"
-        if self.document_type == DocumentEnum.METADATA:
-            # todo
-            return self.xml
-        else:
-            xml_service = self._get_parsed_object()
-            # todo: camouflage metadata urls also
-            for operation_url in xml_service.operation_urls:
-                operation_url.url = new_url
-            if xml_service.url:
-                xml_service.url.url = new_url
-            if hasattr(xml_service, "get_all_layers"):
-                for layer in xml_service.get_all_layers():
-                    for style in layer.styles:
-                        style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
-            # todo: only support xml Exception format --> remove all others
-            return xml_service.serializeDocument()
+    def xml_secured(self, request: HttpRequest) -> XmlObject:
+        # todo
+        return self.xml

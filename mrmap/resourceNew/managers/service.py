@@ -1,5 +1,6 @@
+from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Max, Count, F, Exists, OuterRef, Q, ExpressionWrapper, BooleanField
+from django.db.models import Max, Count, F, Q, ExpressionWrapper, BooleanField
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from mptt.managers import TreeManager
@@ -120,10 +121,9 @@ class ServiceXmlManager(models.Manager):
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
         service = super().create(service_type=service_type, *args, **kwargs, **parsed_service.get_field_dict())
+        service.xml_backup_file.save(name=f'capabilities.xml',
+                                     content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
 
-        from resourceNew.models.document import Document  # to avoid circular import errors
-        Document.objects.create(service=service,
-                                xml=str(parsed_service.serializeDocument(), "UTF-8"))
         operation_urls = []
         operation_url_model_cls = None
         for operation_url in parsed_service.operation_urls:
@@ -458,9 +458,7 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter().prefetch_related("featuretypes",
                                                                           "featuretypes__metadata",
                                                                           "featuretypes__elements")
-        return queryset.select_related("metadata")\
-                       .annotate(is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
-                                                                 output_field=BooleanField()))
+        return queryset.select_related("metadata")
 
     def with_layers_counter(self):
         return self.get_queryset().annotate(layers_count=Count("layer"))

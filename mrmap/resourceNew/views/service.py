@@ -68,11 +68,10 @@ class FeatureTypeElementListView(SecuredListMixin, FilterView):
 
 class ServiceXmlView(SecuredDetailView):
     model = Service
-    queryset = Service.objects.all().select_related("document").values("document__xml")
     content_type = "application/xml"
 
     def render_to_response(self, context, **response_kwargs):
-        return HttpResponse(content=self.object.get("document__xml", None),
+        return HttpResponse(content=self.object.xml.serializeDocument(),
                             content_type=self.content_type)
 
 

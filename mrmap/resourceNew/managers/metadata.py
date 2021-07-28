@@ -1,7 +1,8 @@
+from django.core.files.base import ContentFile
 from django.db import models, transaction, OperationalError
 from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q
 from django.utils.translation import gettext_lazy as _
-from resourceNew.enums.metadata import MetadataOriginEnum, MetadataRelationEnum, MetadataOrigin
+from resourceNew.enums.metadata import MetadataOrigin
 from django.utils import timezone
 from datetime import datetime, date
 
@@ -102,7 +103,6 @@ class IsoMetadataManager(models.Manager):
     def create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url, *args, **kwargs):
         self._reset_local_variables()
         with transaction.atomic():
-            from resourceNew.models.document import Document  # to avoid circular import errors
             update = False
             if parsed_metadata.hierarchy_level == "service":
                 # todo: update instead of creating, cause we generate service metadata records out of the box from
@@ -114,13 +114,14 @@ class IsoMetadataManager(models.Manager):
 
                 db_metadata.add_dataset_metadata_relation(related_object=related_object)
                 if not exists:
-                    Document.objects.create(dataset_metadata=db_metadata,
-                                            xml="<?xml version='1.0' encoding='UTF-8'?>\n" + str(parsed_metadata.serialize(), "UTF-8"))
+                    db_metadata.xml_backup_file.save(name=f'md_metadata.xml',
+                                                     content=ContentFile(str(parsed_metadata.serializeDocument(), "UTF-8")))
                 elif update:
                     # todo: on update we need to check custom metadata
-                    Document.objects.update(dataset_metadata=db_metadata,
-                                            xml="<?xml version='1.0' encoding='UTF-8'?>\n" + str(
-                                                parsed_metadata.serialize(), "UTF-8"))
+                    # todo: delete old file
+                    db_metadata.xml_backup_file.save(name=f'md_metadata.xml',
+                                                     content=ContentFile(
+                                                         str(parsed_metadata.serializeDocument(), "UTF-8")))
             if update:
                 db_keyword_list = []
                 for keyword in parsed_metadata.keywords:
@@ -166,9 +167,7 @@ class DatasetManager(AbstractMetadataManager):
                                             linked_feature_type_count=Count("self_pointing_feature_types",
                                                                             distinct=True),
                                             linked_service_count=Count("self_pointing_services",
-                                                                       distinct=True),
-                                            is_customized=ExpressionWrapper(~Q(document__xml__exact=F("document__xml_backup")),
-                                                                            output_field=BooleanField())
+                                                                       distinct=True)
                                             )\
                                   .prefetch_related("self_pointing_layers",
                                                     "self_pointing_feature_types",
@@ -180,7 +179,3 @@ class DatasetMetadataRelationManager(models.Manager):
 
     def get_queryset(self):
         return super().get_queryset().select_related("layer", "feature_type", "dataset_metadata")
-
-    def bulk_update(self, *args, **kwargs):
-        super().bulk_update(*args, **kwargs)
-        # todo: call bulk_update for all related documents

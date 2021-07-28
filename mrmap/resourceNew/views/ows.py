@@ -148,7 +148,7 @@ class GenericOwsServiceOperationFacade(View):
         """Return the camouflaged capabilities document of the founded service.
 
            .. note::
-              See :meth:`resourceNew.models.document.Document.camouflaged` for details of camouflage function.
+              See :meth:`resourceNew.models.document.DocumentModelMixin.xml_secured` for details of xml_secured function.
 
 
            :return: the camouflaged capabilities document.
@@ -157,7 +157,7 @@ class GenericOwsServiceOperationFacade(View):
         # todo: handle different service versions
         capabilities = self.service.document.xml
         if self.service.camouflage:
-            capabilities = self.service.document.camouflaged(request=self.request)
+            capabilities = self.service.document.xml_secured(request=self.request)
         return HttpResponse(status=200,
                             content=capabilities,
                             content_type="application/xml")

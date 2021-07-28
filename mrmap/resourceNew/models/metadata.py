@@ -14,9 +14,12 @@ from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, Metad
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
 from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
+from resourceNew.models.document import MetadataDocumentModelMixin
 from resourceNew.models.service import Layer, FeatureType, Service
-from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata
+from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
 from uuid import uuid4
+
+from service.models import Document
 
 
 class MimeType(models.Model):
@@ -285,7 +288,7 @@ class MetadataTermsOfUse(models.Model):
         abstract = True
 
 
-class AbstractMetadata(GenericModelMixin, CommonInfo):
+class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -300,6 +303,8 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
     file_identifier = models.CharField(max_length=1000,
                                        null=True,
                                        editable=False,
+                                       default=uuid4,
+                                       db_index=True,
                                        verbose_name=_("file identifier"),
                                        help_text=_("the parsed file identifier from the iso metadata xml "
                                                    "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
@@ -327,6 +332,10 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                     editable=False,
                                     verbose_name=_("is broken"),
                                     help_text=_("TODO"))
+    is_customized = models.BooleanField(default=False,
+                                        editable=False,
+                                        verbose_name=_("is customized"),
+                                        help_text=_("If the metadata record is customized, this flag is True"))
     harvest_result = models.CharField(max_length=50,
                                       null=True,
                                       choices=HarvestResultEnum.as_choices(),
@@ -352,6 +361,7 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
                                       help_text=_("all keywords which are related to the content of this metadata."))
     language = None  # Todo
     objects = AbstractMetadataManager()
+    xml_mapper_cls = MdMetadata
 
     class Meta:
         abstract = True
@@ -359,6 +369,12 @@ class AbstractMetadata(GenericModelMixin, CommonInfo):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        """Custom save function to set `is_customized` on update."""
+        if not self._state.adding:
+            self.is_customized = True
+        super().save(*args, **kwargs)
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -401,9 +417,6 @@ class LayerMetadata(AbstractMetadata):
                  :class:`resource.Document` model.
             * 2. Searching for layer information
 
-        if an instance of this model is created an instance of the model `Document`, who stores the generated
-                xml, shall be created.
-        # todo: if an instance of this model is updated the related instance of the model `Document` shall be updated.
     """
     described_object = models.OneToOneField(to=Layer,
                                             on_delete=models.CASCADE,
@@ -416,6 +429,16 @@ class LayerMetadata(AbstractMetadata):
     class Meta:
         verbose_name = _("layer metadata")
         verbose_name_plural = _("layer metadata")
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save()
+        if adding:
+            xml = MdMetadata.from_field_dict(self.__dict__)
+            xml_string = xml.serializeDocument()
+            Document.objects.create(layer_metadata=self,
+                                    xml=xml_string,
+                                    xml_backup=xml_string)
 
 
 class FeatureTypeMetadata(AbstractMetadata):
@@ -675,28 +698,6 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
                                     name='%(app_label)s_%(class)s_unique_origin_url_file_identifier')
         ]
-
-    def save(self, *args, **kwargs):
-        adding = False
-        if self._state.adding:
-            adding = True
-        super().save(*args, **kwargs)
-        if not adding and self.document:
-            self.document.update_xml_content()
-
-    def restore(self):
-        if self.document:
-            document, parsed_metadata = self.document.restore()
-            self._meta.model.objects.filter(pk=self.pk).update(**parsed_metadata.get_field_dict())
-
-    def get_field_dict(self):
-        field_dict = {}
-        for field in self._meta.fields:
-            if not (isinstance(field, models.ForeignKey) or
-                    isinstance(field, models.OneToOneField) or
-                    isinstance(field, models.ManyToManyField)):
-                field_dict.update({field.name: getattr(self, field.name)})
-        return field_dict
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
         kwargs = {}

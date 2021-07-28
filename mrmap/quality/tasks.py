@@ -5,111 +5,111 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
+import sys
+
 from celery import shared_task
-from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
+from django.utils import timezone
+
+from job.tasks import CurrentTask, NewJob
 from quality.enums import ConformityTypeEnum
-from quality.models import ConformityCheckConfiguration, ConformityCheckRun, \
+from quality.models import ConformityCheckRun, \
     ConformityCheckConfigurationExternal
-from quality.plugins.etf import QualityEtf, ValidationDocumentProvider, \
-    EtfClient
+from quality.plugins.etf import QualityEtf, EtfClient
 from quality.plugins.internal import QualityInternal
-from resourceNew.models.metadata import DatasetMetadata
-from structure.AbortedException import AbortedException
+from structure.enums import PendingTaskEnum
 
 logger = get_task_logger(__name__)
 
 
-@shared_task(name='run_quality_check', base=AbortableTask, bind=True)
-def run_quality_check(self, run_id: int, s: str):
+@shared_task(name='async_run_conformity_check',
+             base=NewJob,
+             bind=True)
+def run_conformity_check(self, run_id: int, **kwargs):
     run = ConformityCheckRun.objects.get(id=run_id)
     if run is None:
         raise Exception(f'No conformity check run with id {run_id}')
-    config = run.conformity_check_configuration
-    # TODO handle other resources
-    metadata = run.metadata
-
+    config = run.config
     if config.conformity_type == ConformityTypeEnum.INTERNAL.value:
-        checker = QualityInternal(run)
+        task = run_conformity_check_internal.s(run_id, **kwargs)
     elif config.conformity_type == ConformityTypeEnum.ETF.value:
-        config_ext = ConformityCheckConfigurationExternal.objects.get(
-            pk=config.pk)
-        document_provider = ValidationDocumentProvider(metadata, config_ext)
-        client = EtfClient(config_ext.external_url)
-        checker = QualityEtf(run, config_ext, document_provider, client)
+        task = run_conformity_check_etf.s(run_id, **kwargs)
     else:
         raise Exception(
             f"Could not check conformity. Invalid conformity type: "
             f"{config.conformity_type}.")
+    task.apply_async()
+    return self.job.pk
 
-    # check if this method was called as async task
-    aborted_method = getattr(run_quality_check, 'is_aborted', None)
-    if callable(aborted_method) and run_quality_check.is_aborted():
-        raise AbortedException()
 
-    run = checker.run()
+@shared_task(name='async_run_conformity_check_etf',
+             base=CurrentTask,
+             bind=True)
+def run_conformity_check_etf(self, run_id: int, **kwargs):
+    if self.task:
+        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.phase = "performing ETF-based conformity check..."
+        self.task.started_at = timezone.now()
+        self.task.save()
 
-    # check if this method was called as async task
-    aborted_method = getattr(run_quality_check, 'is_aborted', None)
-    if callable(aborted_method) and run_quality_check.is_aborted():
-        raise AbortedException()
+    try:
+        run = ConformityCheckRun.objects.get(id=run_id)
+        if run is None:
+            raise Exception(f'No conformity check run with id {run_id}')
+        config_ext = ConformityCheckConfigurationExternal.objects.get(
+            pk=run.config.id)
+        client = EtfClient(config_ext.external_url)
+        checker = QualityEtf(run, config_ext, client)
+        run = checker.run()
+    except:
+        logger.exception('ETF conformity check failure', exc_info=sys.exc_info()[0])
+        e = sys.exc_info()[0]
+        self.task.progress = 100
+        self.task.status = PendingTaskEnum.FAILURE
+        self.task.done_at = timezone.now()
+        self.task.phase = str(e)
+        self.task.save()
+        return
 
+    if self.task:
+        self.task.progress = 100
+        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.done_at = timezone.now()
+        self.task.phase = 'Done.'
+        self.task.save()
     return run.pk
 
 
-@shared_task(name="complete_validation_task", bind=True)
-def complete_validation(self, run_id: int):
-    """ Handles the completed validation process.
+@shared_task(name='async_run_conformity_check_internal',
+             base=CurrentTask,
+             bind=True)
+def run_conformity_check_internal(self, run_id: int, **kwargs):
+    if self.task:
+        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.phase = "performing internal conformity check..."
+        self.task.started_at = timezone.now()
+        self.task.save()
 
-        Handler for completing the validation process. This method
-        takes care of deleting the PeriodicTask and adding a
-        new GroupActivity.
-
-        Note: This method should be used to handle the completed validation
-              process (passed, failed). Use complete_validation_error for
-              handling any kind of unexpected exceptions during the validation.
-
-        Args:
-            run_id (int): The id of the ConformityCheckRun.
-        Returns:
-            nothing
-    """
     try:
-        run = ConformityCheckRun.objects.get(pk=run_id)
-        # task is still running
-        if run.passed is None:
-            return
+        run = ConformityCheckRun.objects.get(id=run_id)
+        if run is None:
+            raise Exception(f'No conformity check run with id {run_id}')
+        checker = QualityInternal(run)
+        run = checker.run()
+    except:
+        logger.exception('ETF conformity check failure', exc_info=sys.exc_info()[0])
+        e = sys.exc_info()[0]
+        self.task.progress = 100
+        self.task.status = PendingTaskEnum.FAILURE
+        self.task.done_at = timezone.now()
+        self.task.phase = str(e)
+        self.task.save()
+        return
 
-    except ConformityCheckRun.DoesNotExist as e:
-        logger.error("Could not complete validation. ", e)
-
-
-@shared_task(name="complete_validation_error_task")
-def complete_validation_error(request, exc, traceback, run_id: int = None):
-    """ Handles the aborted validation process.
-
-        Handler for completing the aborted validation process. This method
-        takes care of deleting the PeriodicTask and adding a
-        new GroupActivity.
-
-        Note: This method should be used to handle the aborted validation
-              process (e.g. unhandled Exceptions). Use complete_validation for
-              handling the completed validation process.
-
-        Args:
-            *args: positional arguments
-        Keyword arguments:
-            run (int): The id of the conformity check run
-        Returns:
-            nothing
-    """
-    try:
-        # delete run, if it was manually aborted
-        if isinstance(exc, AbortedException):
-            try:
-                ConformityCheckRun.objects.filter(id=run_id).delete()
-            except ConformityCheckRun.DoesNotExist:
-                pass
-
-    except ConformityCheckRun.DoesNotExist as e:
-        logger.error("Could not complete error task. ", e)
+    if self.task:
+        self.task.progress = 100
+        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.done_at = timezone.now()
+        self.task.phase = 'Done.'
+        self.task.save()
+    return run.pk

@@ -33,7 +33,7 @@ class RuleSetAdmin(admin.ModelAdmin):
 
 class ConformityCheckRunAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'metadata', 'conformity_check_configuration', 'time_start', 'time_stop', 'passed')
+        'id', 'metadata', 'config', 'passed')
 
 
 admin.site.register(ConformityCheckConfigurationExternal,

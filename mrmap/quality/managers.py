@@ -29,5 +29,5 @@ class ConformityCheckRunManager(models.Manager):
 
     def get_latest_check(self, metadata: DatasetMetadata):
         check = super().get_queryset().filter(metadata=metadata).latest(
-            'time_start')
+            'created_at')
         return check

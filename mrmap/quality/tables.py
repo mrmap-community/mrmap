@@ -17,8 +17,5 @@ class ConformityCheckRunTable(SecuredTable):
 
     class Meta:
         model = ConformityCheckRun
-        fields = ("metadata",)
-        prefix = 'external_authentication-table'
-
-    def render_result(self, value):
-        return "HUHU"
+        fields = ('metadata', 'passed', 'created_at', 'created_by_user', 'owned_by_org')
+        prefix = 'conformity_check_run-table'

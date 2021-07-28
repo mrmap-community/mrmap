@@ -10,7 +10,6 @@ import time
 import requests
 from celery import current_task, states
 from django.conf import settings
-from django.utils import timezone
 
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
@@ -157,11 +156,9 @@ class ValidationDocumentProvider:
 class QualityEtf:
 
     def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
-                 document_provider: ValidationDocumentProvider,
                  client: EtfClient):
         self.metadata = run.metadata
         self.config = config_ext
-        self.document_provider = document_provider
         # TODO support other resource types
         self.resource_url = f'{settings.ROOT_URL}/resourceNew/metadata/datasets/{self.metadata.id}/xml'
         self.check_run = run
@@ -175,11 +172,6 @@ class QualityEtf:
         Runs the configured ETF suites and updates the associated
         ConformityCheckRun accordingly.
         """
-        # self.check_run = ConformityCheckRun.objects.create(
-        #     metadata=self.metadata, conformity_check_configuration=self.config)
-        # settings.ROOT_LOGGER.info(f"Created new check run id {self.check_run.pk}")
-        #document = self.document_provider.fetch_validation_document()
-        #test_object_id = self.client.upload_test_object(document)
         try:
             test_config = self.create_etf_test_run_config()
             self.run_url = self.client.start_test_run(test_config)
@@ -193,7 +185,6 @@ class QualityEtf:
             self.evaluate_test_report(test_report)
         finally:
             self.client.delete_test_run(self.run_url)
-            #self.client.delete_test_object(test_object_id)
         return self.check_run
 
     def increase_polling_interval(self):
@@ -205,7 +196,7 @@ class QualityEtf:
 
     def create_etf_test_run_config(self):
         params = {
-#            "test_object_id": test_object_id,
+            #            "test_object_id": test_object_id,
             "resource_url": self.resource_url,
             "metadata": self.metadata
         }
@@ -218,7 +209,6 @@ class QualityEtf:
         """
         self.check_run.result = test_report
         self.check_run.passed = self.client.is_test_report_passed(test_report)
-        self.check_run.time_stop = str(timezone.now())
         self.check_run.save()
 
     def update_progress(self):

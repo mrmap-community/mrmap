@@ -48,7 +48,6 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     Model holding the configs for an external conformity check.
     """
     external_url = models.URLField(max_length=1000, null=True)
-    validation_target = models.TextField(max_length=1000, null=True)
     parameter_map = models.JSONField()
     polling_interval_seconds = models.IntegerField(default=5, blank=True,
                                                    null=False)
@@ -114,13 +113,7 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     Model holding the relation of a metadata record to the results of a check.
     """
     metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
-    # resource_type = models.TextField(blank=False, null=False)
-    # resource_id = models.TextField(blank=False, null=False)
-
-    conformity_check_configuration = models.ForeignKey(
-        ConformityCheckConfiguration, on_delete=models.CASCADE)
-    time_start = models.DateTimeField(auto_now_add=True)
-    time_stop = models.DateTimeField(blank=True, null=True)
+    config = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
     result = models.TextField(blank=True, null=True)
 
@@ -130,13 +123,4 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
         return f'{reverse("quality:conformity_check_run_list")}?id={self.pk}'
 
     def is_running(self):
-        return self.time_start is not None and self.passed is None
-
-    def save(self, *args, **kwargs):
-        adding = False
-        if self._state.adding:
-            adding = True
-        super().save(*args, **kwargs)
-        if adding:
-            from quality.services import schedule_check_run
-            transaction.on_commit(lambda: schedule_check_run(self))
+        return self.passed is None

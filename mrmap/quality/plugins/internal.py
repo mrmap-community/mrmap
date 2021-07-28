@@ -21,7 +21,7 @@ from structure.celery_helper import runs_as_async_task
 class QualityInternal:
 
     def __init__(self, run: ConformityCheckRun):
-        base_config = run.conformity_check_configuration
+        base_config = run.config
         self.metadata = run.metadata
         self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
 
@@ -43,10 +43,7 @@ class QualityInternal:
             The ConformityCheckRun instance
 
         """
-        run = ConformityCheckRun.objects.create(
-            metadata=self.metadata, conformity_check_configuration=self.config)
-
-        config = run.conformity_check_configuration
+        config = self.run.config
 
         results = {
             "success": True,
@@ -75,15 +72,10 @@ class QualityInternal:
             if runs_as_async_task():
                 self.update_progress()
 
-        time_stop = timezone.now()
-        results["time_start"] = str(run.time_start)
-        results["time_stop"] = str(time_stop)
-
-        run.passed = results["success"]
-        run.time_stop = time_stop
-        run.result = json.dumps(results)
-        run.save()
-        return run
+        self.run.passed = results["success"]
+        self.run.result = json.dumps(results)
+        self.run.save()
+        return self.run
 
     def check_ruleset(self, ruleset: RuleSet):
         """ Evaluates all rules of a ruleset for the given metadata object.

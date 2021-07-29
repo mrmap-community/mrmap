@@ -1,5 +1,6 @@
 import django_tables2 as tables
 from django.utils.translation import gettext_lazy as _
+from django_bootstrap_swt.components import Link
 
 from main.tables.tables import SecuredTable
 from main.tables.template_code import DEFAULT_ACTION_BUTTONS
@@ -17,5 +18,8 @@ class ConformityCheckRunTable(SecuredTable):
 
     class Meta:
         model = ConformityCheckRun
-        fields = ('metadata', 'passed', 'created_at', 'created_by_user', 'owned_by_org')
+        fields = ('metadata', 'config', 'passed', 'result', 'created_at', 'created_by_user', 'owned_by_org')
         prefix = 'conformity_check_run-table'
+
+    def render_result(self, record):
+        return Link(url=record.get_result_url(), content='Validation report').render(safe=True)

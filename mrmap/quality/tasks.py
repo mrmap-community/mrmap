@@ -9,6 +9,7 @@ import sys
 
 from celery import shared_task
 from celery.utils.log import get_task_logger
+from django.urls import reverse
 from django.utils import timezone
 
 from job.tasks import CurrentTask, NewJob
@@ -75,7 +76,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
         self.task.progress = 100
         self.task.status = PendingTaskEnum.SUCCESS.value
         self.task.done_at = timezone.now()
-        self.task.phase = 'Done.'
+        self.task.phase = f'Done. <a href="{reverse("quality:conformity_check_run_list")}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
     return run.pk
 
@@ -110,6 +111,6 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
         self.task.progress = 100
         self.task.status = PendingTaskEnum.SUCCESS.value
         self.task.done_at = timezone.now()
-        self.task.phase = 'Done.'
+        self.task.phase = f'Done. <a href="{reverse("quality:conformity_check_run_list")}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
     return run.pk

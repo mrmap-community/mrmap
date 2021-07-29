@@ -6,11 +6,11 @@ Created on: 27.10.20
 
 """
 from django.db import transaction
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseNotFound
 from django_filters.views import FilterView
 
 from job.models import Job
-from main.views import SecuredCreateView, SecuredListMixin
+from main.views import SecuredCreateView, SecuredListMixin, SecuredDeleteView
 from quality.forms import ConformityCheckRunModelForm
 from quality.models import ConformityCheckRun
 from quality.tables import ConformityCheckRunTable
@@ -38,3 +38,16 @@ class ConformityCheckRunCreateView(SecuredCreateView):
         except Job.ObjectDoesNotExist:
             pass
         return response
+
+
+class ConformityCheckRunDeleteView(SecuredDeleteView):
+    model = ConformityCheckRun
+
+# TODO should this be secured?
+# TODO handle mime type (can currently be HTML or JSON)
+# TODO should this be based on a Class-based View?
+def conformity_check_report_download(request, pk):
+    check = ConformityCheckRun.objects.get(pk=pk)
+    if not check:
+        return HttpResponseNotFound(f'No conformity check run with id {pk} found')
+    return HttpResponse(check.result)

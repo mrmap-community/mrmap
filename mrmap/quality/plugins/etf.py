@@ -68,12 +68,20 @@ class EtfClient:
     def fetch_test_report(self, test_run_url: str):
         """ Retrieves the test report for the given finished ETF test run. """
         r = requests.get(url=test_run_url)
-        response = r.json()
         if r.status_code != requests.codes.ok:
             raise Exception(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint')
-        return response
+        return r.json()
+
+    def fetch_test_report_html(self, test_run_url: str):
+        """ Retrieves the HTML test report for the given finished ETF test run. """
+        r = requests.get(url=f'{test_run_url}.html?download=true')
+        if r.status_code != requests.codes.ok:
+            raise Exception(
+                f'Unexpected HTTP response code {r.status_code} from ETF '
+                f'endpoint')
+        return r.text
 
     def is_test_report_passed(self, test_report: dict):
         overall_status = \
@@ -127,7 +135,8 @@ class QualityEtf:
                 if runs_as_async_task():
                     self.update_progress()
             test_report = self.client.fetch_test_report(self.run_url)
-            self.evaluate_test_report(test_report)
+            test_report_html = self.client.fetch_test_report_html(self.run_url)
+            self.evaluate_test_report(test_report, test_report_html)
         finally:
             self.client.delete_test_run(self.run_url)
         return self.check_run
@@ -146,12 +155,12 @@ class QualityEtf:
         }
         return map_parameters(params, self.config.parameter_map)
 
-    def evaluate_test_report(self, test_report):
+    def evaluate_test_report(self, test_report, test_report_html):
         """ Evaluates the test report for the given finished ETF test run.
 
         Updates the ConformityCheckRun accordingly.
         """
-        self.check_run.result = test_report
+        self.check_run.result = test_report_html
         self.check_run.passed = self.client.is_test_report_passed(test_report)
         self.check_run.save()
 

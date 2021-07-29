@@ -5,7 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from django.db import models, transaction
+from django.db import models
 from django.urls import reverse
 
 from main.models import CommonInfo, GenericModelMixin
@@ -121,6 +121,9 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
 
     def get_absolute_url(self):
         return f'{reverse("quality:conformity_check_run_list")}?id={self.pk}'
+
+    def get_result_url(self):
+        return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"
 
     def is_running(self):
         return self.passed is None

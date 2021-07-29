@@ -30,6 +30,11 @@ class PluginEtfTests(TestCase):
                 "test_report": True
             }
 
+        def fetch_test_report_html(self, test_run_url: str):
+            return {
+                "test_report": '<html><title>Test report</title></html>'
+            }
+
         def is_test_report_passed(self, test_report: dict):
             return True
 

@@ -13,8 +13,6 @@ from django.conf import settings
 
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
-from service.helper.common_connector import CommonConnector
-from service.models import Metadata
 from structure.celery_helper import runs_as_async_task
 
 
@@ -25,33 +23,6 @@ class EtfClient:
         settings.ROOT_LOGGER.info(f"Using ETF url {self.url}")
         self.progress_val = 0
         self.progress_max_val = 1
-
-    def upload_test_object(self, document: str):
-        """ Uploads the given XML document as ETF test object.
-
-        Args:
-            document (str): XML to be uploaded
-
-        Returns:
-            str: id of the ETF test object
-        """
-        files = {'file': ('testobject.xml', document, 'application/xml')}
-        data = {'action': 'upload'}
-        url = f'{self.url}v2/TestObjects'
-        settings.ROOT_LOGGER.info(f'Uploading document as test object to {url}')
-        r = requests.post(url=url, data=data, files=files)
-        if r.status_code != requests.codes.ok:
-            error_msg = f'Unexpected HTTP response code {r.status_code} from ' \
-                        f'ETF endpoint.'
-            try:
-                error = r.json()['error']
-                error_msg = f'{error_msg} {error}'
-            finally:
-                raise Exception(error_msg)
-        r_dict = r.json()
-        test_object_id = r_dict['testObject']['id']
-        settings.ROOT_LOGGER.info(f'Uploaded test object with id {test_object_id}')
-        return test_object_id
 
     def start_test_run(self, test_config: dict):
         """ Starts a new ETF test run for the given test object and test config.
@@ -127,32 +98,6 @@ class EtfClient:
                 f'endpoint: {test_run_url}')
 
 
-class ValidationDocumentProvider:
-
-    def __init__(self, metadata: Metadata,
-                 config: ConformityCheckConfigurationExternal):
-        self.metadata = metadata
-        self.config = config
-
-    def fetch_validation_document(self):
-        """ Fetches the XML document that is to be validated.
-
-        Returns:
-            str: document to be validated
-        """
-        validation_target = self.config.validation_target
-        doc_url = getattr(self.metadata, validation_target)
-        settings.ROOT_LOGGER.info(
-            f"Retrieving document for validation from {doc_url}")
-        connector = CommonConnector(url=doc_url)
-        connector.load()
-        if connector.status_code != requests.codes.ok:
-            raise Exception(
-                f"Unexpected HTTP response code {connector.status_code} when "
-                f"retrieving document from: {doc_url}")
-        return connector.content
-
-
 class QualityEtf:
 
     def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
@@ -196,7 +141,6 @@ class QualityEtf:
 
     def create_etf_test_run_config(self):
         params = {
-            #            "test_object_id": test_object_id,
             "resource_url": self.resource_url,
             "metadata": self.metadata
         }

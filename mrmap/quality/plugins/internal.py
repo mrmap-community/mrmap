@@ -24,6 +24,7 @@ class QualityInternal:
         base_config = run.config
         self.metadata = run.metadata
         self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
+        self.check_run = run
 
         count = self.config.mandatory_rule_sets.all().count() + \
                 self.config.optional_rule_sets.all().count()
@@ -43,7 +44,7 @@ class QualityInternal:
             The ConformityCheckRun instance
 
         """
-        config = self.run.config
+        config = self.config
 
         results = {
             "success": True,
@@ -59,8 +60,9 @@ class QualityInternal:
                 results["success"] = False
             results["rule_sets"].append(mandatory_result)
 
-            if runs_as_async_task():
-                self.update_progress()
+            # TODO Adapt for MrMap's current Task model or remove
+            # if runs_as_async_task():
+            #     self.update_progress()
 
         for rule_set in config.optional_rule_sets.all():
             optional_result = self.check_ruleset(rule_set)
@@ -72,10 +74,10 @@ class QualityInternal:
             if runs_as_async_task():
                 self.update_progress()
 
-        self.run.passed = results["success"]
-        self.run.result = json.dumps(results)
-        self.run.save()
-        return self.run
+        self.check_run.passed = results["success"]
+        self.check_run.result = json.dumps(results)
+        self.check_run.save()
+        return self.check_run
 
     def check_ruleset(self, ruleset: RuleSet):
         """ Evaluates all rules of a ruleset for the given metadata object.

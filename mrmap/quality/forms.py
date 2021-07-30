@@ -1,5 +1,5 @@
 from main.forms import ModelForm
-from quality.models import ConformityCheckRun, ConformityCheckConfiguration
+from quality.models import ConformityCheckRun
 
 
 class ConformityCheckRunModelForm(ModelForm):

@@ -9,7 +9,6 @@ import json
 
 from celery import states, current_task
 from celery.result import AsyncResult
-from django.utils import timezone
 
 from quality.enums import RulePropertyEnum
 from quality.models import RuleSet, Rule, \

@@ -1,0 +1,1 @@
+[{"model": "quality.rule", "pk": 1, "fields": {"name": "Title must be longer than 5 characters", "field_name": "title", "property": "len", "operator": ">", "threshold": "5"}}]

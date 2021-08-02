@@ -1,1 +1,12 @@
-[{"model": "quality.ruleset", "pk": 1, "fields": {"name": "Test ruleset", "rules": [1]}}]
+[
+  {
+    "model": "quality.ruleset",
+    "pk": 1,
+    "fields": {
+      "name": "Test ruleset",
+      "rules": [
+        1
+      ]
+    }
+  }
+]

@@ -11,7 +11,7 @@ from django.urls import reverse
 from main.models import CommonInfo, GenericModelMixin
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
-    ConformityTypeEnum
+    ConformityTypeEnum, ReportType
 from quality.managers import ConformityCheckRunManager, ConformityCheckConfigurationManager
 from resourceNew.models.metadata import DatasetMetadata
 
@@ -115,14 +115,13 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
     config = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
-    result = models.TextField(blank=True, null=True)
+    report = models.TextField(blank=True, null=True)
+    report_type = models.TextField(
+        choices=ReportType.as_choices(drop_empty_choice=True))
 
     objects = ConformityCheckRunManager()
 
-    def get_absolute_url(self):
-        return f'{reverse("quality:conformity_check_run_list")}?id={self.pk}'
-
-    def get_result_url(self):
+    def get_report_url(self):
         return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"
 
     def is_running(self):

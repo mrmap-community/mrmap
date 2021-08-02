@@ -10,7 +10,7 @@ import json
 from celery import states, current_task
 from celery.result import AsyncResult
 
-from quality.enums import RulePropertyEnum
+from quality.enums import RulePropertyEnum, ReportType
 from quality.models import RuleSet, Rule, \
     ConformityCheckConfigurationInternal, \
     ConformityCheckRun
@@ -74,7 +74,8 @@ class QualityInternal:
                 self.update_progress()
 
         self.check_run.passed = results["success"]
-        self.check_run.result = json.dumps(results)
+        self.check_run.report = json.dumps(results)
+        self.check_run.report_type = ReportType.JSON.value
         self.check_run.save()
         return self.check_run
 

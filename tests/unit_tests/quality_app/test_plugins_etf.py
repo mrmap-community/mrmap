@@ -78,7 +78,7 @@ class PluginEtfTests(TestCase):
         etf = QualityEtf(self.check_run, self.config, self.etf_client)
         run = etf.run()
         self.assertTrue(run.passed)
-        self.assertTrue(run.result['test_report'])
+        self.assertTrue(run.report['test_report'])
 
     def test_run_fail(self):
         etf_client = self.EtfValidatorClientMock()
@@ -86,7 +86,7 @@ class PluginEtfTests(TestCase):
         etf = QualityEtf(self.check_run, self.config, etf_client)
         run = etf.run()
         self.assertFalse(run.passed)
-        self.assertTrue(run.result['test_report'])
+        self.assertTrue(run.report['test_report'])
 
 
 class EtfClientTests(TestCase):

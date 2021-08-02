@@ -11,6 +11,7 @@ import requests
 from celery import current_task, states
 from django.conf import settings
 
+from quality.enums import ReportType
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
 from structure.celery_helper import runs_as_async_task
@@ -160,7 +161,8 @@ class QualityEtf:
 
         Updates the ConformityCheckRun accordingly.
         """
-        self.check_run.result = test_report_html
+        self.check_run.report = test_report_html
+        self.check_run.report_type = ReportType.HTML.value
         self.check_run.passed = self.client.is_test_report_passed(test_report)
         self.check_run.save()
 

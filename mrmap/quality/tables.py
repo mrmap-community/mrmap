@@ -18,8 +18,8 @@ class ConformityCheckRunTable(SecuredTable):
 
     class Meta:
         model = ConformityCheckRun
-        fields = ('metadata', 'config', 'passed', 'result', 'created_at', 'created_by_user', 'owned_by_org')
+        fields = ('metadata', 'config', 'passed', 'report', 'created_at', 'created_by_user', 'owned_by_org')
         prefix = 'conformity_check_run-table'
 
-    def render_result(self, record):
-        return Link(url=record.get_result_url(), content='Validation report').render(safe=True)
+    def render_report(self, record):
+        return Link(url=record.get_report_url(), content='Validation report').render(safe=True)

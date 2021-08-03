@@ -1,6 +1,7 @@
 SERVICE_TABLE_ACTIONS = """
 {% load i18n %}
 {% load guardian_tags %}
+{% load custom_template_filters %}
 {% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
     {% if "change_service" in perms and record.get_activate_url %}
@@ -26,14 +27,7 @@ SERVICE_TABLE_ACTIONS = """
     <a class="btn btn-sm btn-danger" href="{{record.get_delete_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Remove this resource' %}">
       {{ ICONS.DELETE|safe }}
     </a>
-    {% endif %}
-    {% if record.get_validate_url %}
-    <form class="mr-1" action="{{record.get_validate_url}}" method="post">
-      {% csrf_token %}
-      <input type="hidden" name="metadata" value="{{record.pk}}">
-      <button type="submit" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION }}</button>
-    </form>
-    {% endif %}     
+    {% endif %}       
 </div>
 """
 

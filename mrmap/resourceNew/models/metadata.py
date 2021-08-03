@@ -737,12 +737,6 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             **kwargs
         ).delete()
 
-    def get_validate_url(self) -> str:
-        try:
-            return reverse('quality:conformity_check_run_add')
-        except NoReverseMatch:
-            return ""
-
 
 class Dimension(CommonInfo):
     name = models.CharField(max_length=50,

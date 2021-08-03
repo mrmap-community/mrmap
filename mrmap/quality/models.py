@@ -126,3 +126,10 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
 
     def is_running(self):
         return self.passed is None
+
+    @classmethod
+    def get_validate_url(cls, resource_cls):
+        if resource_cls is DatasetMetadata:
+            return cls.get_add_url()
+        else:
+            return None

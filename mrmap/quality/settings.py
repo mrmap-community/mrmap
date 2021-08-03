@@ -5,7 +5,6 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-import logging
 from django.utils.translation import gettext_lazy as _
 
 # Some pre defined quality messages

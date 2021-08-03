@@ -43,14 +43,8 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
-#  mrmap-etf-webapp:
-#    image: wetransform/etf-webapp:2.0.1-20190716
-#    ports:
-#      - 8091:8080
-#    volumes:
-#      - ./etf/:/etf
-#  mrmap-inspire-validator:
-#    build:
-#      context: ./inspire-validator
-#    ports:
-#      - 8092:8080
+  mrmap-inspire-validator:
+    build:
+      context: ./inspire-validator
+    ports:
+      - 8092:8080

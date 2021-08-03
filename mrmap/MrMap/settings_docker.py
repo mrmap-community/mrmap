@@ -4,8 +4,14 @@ Additional/overwritten settings for Docker dev setup.
 
 from MrMap.settings import *
 
+# for docker-based setups, the host must be reachable by docker containers (e.g. the ETF validator), so
+# we cannot use localhost here
+HOST_NAME = "172.17.0.1:8000"
+ROOT_URL = HTTP_OR_SSL + HOST_NAME
+
 ALLOWED_HOSTS.append("0.0.0.0")
 ALLOWED_HOSTS.append("django")
+ALLOWED_HOSTS.append("172.17.0.1")
 
 
 DATABASES['default']['NAME'] = 'mrmap'

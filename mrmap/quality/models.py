@@ -6,24 +6,17 @@ Created on: 27.10.20
 
 """
 from django.db import models
+from django.urls import reverse
 
-from main.models import UuidPk
+from main.models import CommonInfo, GenericModelMixin
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
-    ConformityTypeEnum
-from service.models import Metadata
+    ConformityTypeEnum, ReportType
+from quality.managers import ConformityCheckRunManager, ConformityCheckConfigurationManager
+from resourceNew.models.metadata import DatasetMetadata
 
 
-class ConformityCheckConfigurationManager(models.Manager):
-    """ Custom manager to extend ConformityCheckConfiguration methods """
-
-    def get_for_metadata_type(self, metadata_type: str):
-        """ Gets all configs that are allowed for the given metadata_type """
-        return super().get_queryset().filter(
-            metadata_types__contains=metadata_type)
-
-
-class ConformityCheckConfiguration(UuidPk):
+class ConformityCheckConfiguration(models.Model):
     """
     Base model for ConformityCheckConfiguration classes.
     """
@@ -37,7 +30,7 @@ class ConformityCheckConfiguration(UuidPk):
     def __str__(self):
         return self.name
 
-    def is_allowed_type(self, metadata: Metadata):
+    def is_allowed_type(self, metadata):
         """ Checks if type of metadata is allowed for this config.
 
             Args:
@@ -46,6 +39,7 @@ class ConformityCheckConfiguration(UuidPk):
                 True, if metadata type is allowed for this config,
                 False otherwise.
         """
+
         return metadata.metadata_type in self.metadata_types
 
 
@@ -54,7 +48,6 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
     Model holding the configs for an external conformity check.
     """
     external_url = models.URLField(max_length=1000, null=True)
-    validation_target = models.TextField(max_length=1000, null=True)
     parameter_map = models.JSONField()
     polling_interval_seconds = models.IntegerField(default=5, blank=True,
                                                    null=False)
@@ -62,7 +55,7 @@ class ConformityCheckConfigurationExternal(ConformityCheckConfiguration):
                                                        blank=True, null=False)
 
 
-class Rule(UuidPk):
+class Rule(models.Model):
     """
     Model holding the definition of a single rule.
     """
@@ -93,7 +86,7 @@ class Rule(UuidPk):
         }
 
 
-class RuleSet(UuidPk):
+class RuleSet(models.Model):
     """
     Model grouping rules and holding the result of a rule check run.
     """
@@ -115,40 +108,28 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
                                                 blank=True)
 
 
-class ConformityCheckRunManager(models.Manager):
-    """ Custom manager to extend ConformityCheckRun methods """
-
-    def has_running_check(self, metadata: Metadata):
-        """ Checks if the given metadata object has a non-finished
-        ConformityCheckRun.
-
-            Returns:
-                True, if a non-finished ConformityCheckRun was found,
-                false otherwise.
-        """
-        running_checks = super().get_queryset().filter(
-            metadata=metadata, passed__isnull=True).count()
-        return running_checks != 0
-
-    def get_latest_check(self, metadata: Metadata):
-        check = super().get_queryset().filter(metadata=metadata).latest(
-            'time_start')
-        return check
-
-
-class ConformityCheckRun(UuidPk):
+class ConformityCheckRun(CommonInfo, GenericModelMixin):
     """
     Model holding the relation of a metadata record to the results of a check.
     """
-    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    conformity_check_configuration = models.ForeignKey(
-        ConformityCheckConfiguration, on_delete=models.CASCADE)
-    time_start = models.DateTimeField(auto_now_add=True)
-    time_stop = models.DateTimeField(blank=True, null=True)
+    metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
+    config = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
-    result = models.TextField(blank=True, null=True)
+    report = models.TextField(blank=True, null=True)
+    report_type = models.TextField(
+        choices=ReportType.as_choices(drop_empty_choice=True))
 
     objects = ConformityCheckRunManager()
 
+    def get_report_url(self):
+        return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"
+
     def is_running(self):
-        return self.time_start is not None and self.passed is None
+        return self.passed is None
+
+    @classmethod
+    def get_validate_url(cls, resource_cls):
+        if resource_cls is DatasetMetadata:
+            return cls.get_add_url()
+        else:
+            return None

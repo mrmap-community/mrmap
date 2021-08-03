@@ -1,13 +1,13 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F, Value
 from django.http import HttpResponse, Http404
-from main.views import SecuredDetailView
+from django.views.generic import DetailView
+
 from resourceNew.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata, Service, Layer, \
     FeatureType
 
 
-# todo: SecuredDetailView needed?
-class GenericXmlRepresentationView(SecuredDetailView):
+class GenericXmlRepresentationView(DetailView):
     content_type = "application/xml"
 
     def render_to_response(self, context, **response_kwargs):

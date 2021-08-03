@@ -7,6 +7,12 @@ Created on: 27.10.20
 """
 from MrMap.enums import EnumChoice
 
+class ReportType(EnumChoice):
+    """ Defines all possible content types for reports
+
+    """
+    HTML = 'text/html'
+    JSON = 'application/json'
 
 class RuleFieldNameEnum(EnumChoice):
     """ Defines all possible field_name types

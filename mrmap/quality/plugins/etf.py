@@ -6,15 +6,15 @@ Created on: 27.10.20
 
 """
 import time
+
 import requests
 from celery import current_task, states
-from django.utils import timezone
+from django.conf import settings
+
+from quality.enums import ReportType
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
-from service.helper.common_connector import CommonConnector
-from service.models import Metadata
 from structure.celery_helper import runs_as_async_task
-from django.conf import settings
 
 
 class EtfClient:
@@ -25,34 +25,7 @@ class EtfClient:
         self.progress_val = 0
         self.progress_max_val = 1
 
-    def upload_test_object(self, document: str):
-        """ Uploads the given XML document as ETF test object.
-
-        Args:
-            document (str): XML to be uploaded
-
-        Returns:
-            str: id of the ETF test object
-        """
-        files = {'file': ('testobject.xml', document, 'application/xml')}
-        data = {'action': 'upload'}
-        url = f'{self.url}v2/TestObjects'
-        settings.ROOT_LOGGER.info(f'Uploading document as test object to {url}')
-        r = requests.post(url=url, data=data, files=files)
-        if r.status_code != requests.codes.ok:
-            error_msg = f'Unexpected HTTP response code {r.status_code} from ' \
-                        f'ETF endpoint.'
-            try:
-                error = r.json()['error']
-                error_msg = f'{error_msg} {error}'
-            finally:
-                raise Exception(error_msg)
-        r_dict = r.json()
-        test_object_id = r_dict['testObject']['id']
-        settings.ROOT_LOGGER.info(f'Uploaded test object with id {test_object_id}')
-        return test_object_id
-
-    def start_test_run(self, test_object_id: str, test_config: dict):
+    def start_test_run(self, test_config: dict):
         """ Starts a new ETF test run for the given test object and test config.
 
         Returns:
@@ -96,12 +69,20 @@ class EtfClient:
     def fetch_test_report(self, test_run_url: str):
         """ Retrieves the test report for the given finished ETF test run. """
         r = requests.get(url=test_run_url)
-        response = r.json()
         if r.status_code != requests.codes.ok:
             raise Exception(
                 f'Unexpected HTTP response code {r.status_code} from ETF '
                 f'endpoint')
-        return response
+        return r.json()
+
+    def fetch_test_report_html(self, test_run_url: str):
+        """ Retrieves the HTML test report for the given finished ETF test run. """
+        r = requests.get(url=f'{test_run_url}.html?download=true')
+        if r.status_code != requests.codes.ok:
+            raise Exception(
+                f'Unexpected HTTP response code {r.status_code} from ETF '
+                f'endpoint')
+        return r.text
 
     def is_test_report_passed(self, test_report: dict):
         overall_status = \
@@ -126,42 +107,15 @@ class EtfClient:
                 f'endpoint: {test_run_url}')
 
 
-class ValidationDocumentProvider:
-
-    def __init__(self, metadata: Metadata,
-                 config: ConformityCheckConfigurationExternal):
-        self.metadata = metadata
-        self.config = config
-
-    def fetch_validation_document(self):
-        """ Fetches the XML document that is to be validated.
-
-        Returns:
-            str: document to be validated
-        """
-        validation_target = self.config.validation_target
-        doc_url = getattr(self.metadata, validation_target)
-        settings.ROOT_LOGGER.info(
-            f"Retrieving document for validation from {doc_url}")
-        connector = CommonConnector(url=doc_url)
-        connector.load()
-        if connector.status_code != requests.codes.ok:
-            raise Exception(
-                f"Unexpected HTTP response code {connector.status_code} when "
-                f"retrieving document from: {doc_url}")
-        return connector.content
-
-
 class QualityEtf:
 
-    def __init__(self, metadata: Metadata,
-                 config: ConformityCheckConfigurationExternal,
-                 document_provider: ValidationDocumentProvider,
+    def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
                  client: EtfClient):
-        self.metadata = metadata
-        self.config = config
-        self.document_provider = document_provider
-        self.check_run = None
+        self.metadata = run.metadata
+        self.config = config_ext
+        # TODO support other resource types
+        self.resource_url = f'{settings.ROOT_URL}/resourceNew/metadata/datasets/{self.metadata.id}/xml'
+        self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds
         self.run_url = None
@@ -172,15 +126,9 @@ class QualityEtf:
         Runs the configured ETF suites and updates the associated
         ConformityCheckRun accordingly.
         """
-        self.check_run = ConformityCheckRun.objects.create(
-            metadata=self.metadata, conformity_check_configuration=self.config)
-        settings.ROOT_LOGGER.info(f"Created new check run id {self.check_run.pk}")
-        document = self.document_provider.fetch_validation_document()
-        test_object_id = self.client.upload_test_object(document)
         try:
-            test_config = self.create_etf_test_run_config(test_object_id)
-            self.run_url = self.client.start_test_run(test_object_id,
-                                                      test_config)
+            test_config = self.create_etf_test_run_config()
+            self.run_url = self.client.start_test_run(test_config)
             while not self.client.check_test_run_finished(
                     self.run_url):
                 time.sleep(self.polling_interval_seconds)
@@ -188,10 +136,10 @@ class QualityEtf:
                 if runs_as_async_task():
                     self.update_progress()
             test_report = self.client.fetch_test_report(self.run_url)
-            self.evaluate_test_report(test_report)
+            test_report_html = self.client.fetch_test_report_html(self.run_url)
+            self.evaluate_test_report(test_report, test_report_html)
         finally:
             self.client.delete_test_run(self.run_url)
-            self.client.delete_test_object(test_object_id)
         return self.check_run
 
     def increase_polling_interval(self):
@@ -201,21 +149,21 @@ class QualityEtf:
             new_interval = self.config.polling_interval_seconds_max
         self.polling_interval_seconds = new_interval
 
-    def create_etf_test_run_config(self, test_object_id):
+    def create_etf_test_run_config(self):
         params = {
-            "test_object_id": test_object_id,
+            "resource_url": self.resource_url,
             "metadata": self.metadata
         }
         return map_parameters(params, self.config.parameter_map)
 
-    def evaluate_test_report(self, test_report):
+    def evaluate_test_report(self, test_report, test_report_html):
         """ Evaluates the test report for the given finished ETF test run.
 
         Updates the ConformityCheckRun accordingly.
         """
-        self.check_run.result = test_report
+        self.check_run.report = test_report_html
+        self.check_run.report_type = ReportType.HTML.value
         self.check_run.passed = self.client.is_test_report_passed(test_report)
-        self.check_run.time_stop = str(timezone.now())
         self.check_run.save()
 
     def update_progress(self):

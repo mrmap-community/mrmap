@@ -6,25 +6,24 @@ Created on: 02.11.20
 
 """
 import json
+
 from celery import states, current_task
 from celery.result import AsyncResult
-from django.utils import timezone
 
-from quality.enums import RulePropertyEnum
+from quality.enums import RulePropertyEnum, ReportType
 from quality.models import RuleSet, Rule, \
-    ConformityCheckConfiguration, ConformityCheckConfigurationInternal, \
+    ConformityCheckConfigurationInternal, \
     ConformityCheckRun
-from service.models import Metadata
 from structure.celery_helper import runs_as_async_task
 
 
 class QualityInternal:
 
-    def __init__(self, metadata: Metadata,
-                 base_config: ConformityCheckConfiguration):
-        self.metadata = metadata
-        self.config = ConformityCheckConfigurationInternal.objects.get(
-            pk=base_config.pk)
+    def __init__(self, run: ConformityCheckRun):
+        base_config = run.config
+        self.metadata = run.metadata
+        self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
+        self.check_run = run
 
         count = self.config.mandatory_rule_sets.all().count() + \
                 self.config.optional_rule_sets.all().count()
@@ -44,10 +43,7 @@ class QualityInternal:
             The ConformityCheckRun instance
 
         """
-        run = ConformityCheckRun.objects.create(
-            metadata=self.metadata, conformity_check_configuration=self.config)
-
-        config = run.conformity_check_configuration
+        config = self.config
 
         results = {
             "success": True,
@@ -63,8 +59,9 @@ class QualityInternal:
                 results["success"] = False
             results["rule_sets"].append(mandatory_result)
 
-            if runs_as_async_task():
-                self.update_progress()
+            # TODO Adapt for MrMap's current Task model or remove
+            # if runs_as_async_task():
+            #     self.update_progress()
 
         for rule_set in config.optional_rule_sets.all():
             optional_result = self.check_ruleset(rule_set)
@@ -76,15 +73,11 @@ class QualityInternal:
             if runs_as_async_task():
                 self.update_progress()
 
-        time_stop = timezone.now()
-        results["time_start"] = str(run.time_start)
-        results["time_stop"] = str(time_stop)
-
-        run.passed = results["success"]
-        run.time_stop = time_stop
-        run.result = json.dumps(results)
-        run.save()
-        return run
+        self.check_run.passed = results["success"]
+        self.check_run.report = json.dumps(results)
+        self.check_run.report_type = ReportType.JSON.value
+        self.check_run.save()
+        return self.check_run
 
     def check_ruleset(self, ruleset: RuleSet):
         """ Evaluates all rules of a ruleset for the given metadata object.
@@ -155,4 +148,3 @@ class QualityInternal:
                     "current": progress,
                 }
             )
-

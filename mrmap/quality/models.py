@@ -30,7 +30,7 @@ class ConformityCheckConfiguration(models.Model):
     def __str__(self):
         return self.name
 
-    def is_allowed_type(self, metadata: DatasetMetadata):
+    def is_allowed_type(self, metadata):
         """ Checks if type of metadata is allowed for this config.
 
             Args:

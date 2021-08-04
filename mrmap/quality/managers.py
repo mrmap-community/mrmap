@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.core.exceptions import ObjectDoesNotExist
 from resourceNew.models import DatasetMetadata
 
 
@@ -27,7 +27,14 @@ class ConformityCheckRunManager(models.Manager):
             metadata=metadata, passed__isnull=True).count()
         return running_checks != 0
 
-    def get_latest_check(self, metadata: DatasetMetadata):
-        check = super().get_queryset().filter(metadata=metadata).latest(
-            'created_at')
-        return check
+    def get_latest_check(self, metadata):
+        try:
+            return super().get_queryset().filter(metadata=metadata).latest('created_at')
+        except ObjectDoesNotExist:
+            return None
+
+    def get_total_check_count(self, metadata):
+        try:
+            return super().get_queryset().filter(metadata=metadata).count()
+        except ObjectDoesNotExist:
+            return None

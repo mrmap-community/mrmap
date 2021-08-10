@@ -2,6 +2,7 @@ import logging
 
 import django_tables2 as tables
 from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django_bootstrap_swt.components import Link
 
@@ -38,6 +39,10 @@ class ConformityCheckRunExtraFieldsTable(tables.Table):
                                  attrs={"th": {"class": "col-sm-1"}},
                                  empty_values=[_("validation report")])
 
+    linked_conformity_check_count = tables.Column(verbose_name=_('Latest check'),
+                                 attrs={"th": {"class": "col-sm-1"}},
+                                 empty_values=[_("validation report")])
+
     class Meta:
         fields = ["latest_check", "linked_conformity_check_count"]
         prefix = "conformity_check_run-extra-fields-table"
@@ -55,9 +60,6 @@ class ConformityCheckRunExtraFieldsTable(tables.Table):
                 icon = get_icon(IconEnum.PENDING, 'text-warning')
 
             link_to_report = reverse('quality:conformity_check_run_report', kwargs={'pk': record.latest_check_pk})
-            content = f'<span>{latest_check_creation_datetime_str} {icon}</span>'
-            return Link(url=link_to_report, content=content).render(safe=True)
-            link_to_report = reverse('quality:conformity_check_run_report', kwargs={'pk': latest_check.pk})
             content = f'<span><a href={link_to_report}>{latest_check_creation_datetime_str} </a>{icon}</span>'
             return format_html(content)
         else:
@@ -67,9 +69,7 @@ class ConformityCheckRunExtraFieldsTable(tables.Table):
     def render_linked_conformity_check_count(record, value):
         if value > 0:
             link_to_list_of_runs = f'{reverse("quality:conformity_check_run_list")}?metadata={record.pk}'
-            content = f'<span>{value}</span>'
-            return Link(url=link_to_list_of_runs, content=content).render(safe=True)
-            content = f'<span><a href={link_to_list_of_runs}>{total_check_count} </a></span>'
+            content = f'<span><a href={link_to_list_of_runs}>{value} </a></span>'
             return format_html(content)
         else:
             return None

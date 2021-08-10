@@ -31,17 +31,18 @@ class ConformityCheckRunTable(SecuredTable):
 
     @staticmethod
     def render_report(record):
-        return Link(url=record.get_report_url(), content='Validation report').render(safe=True)
+        content = f'<span><a href={record.get_report_url()}>{_("Validation report")} </a></span>'
+        return format_html(content)
 
 
 class ConformityCheckRunExtraFieldsTable(tables.Table):
     latest_check = tables.Column(verbose_name=_('Latest check'),
                                  attrs={"th": {"class": "col-sm-1"}},
-                                 empty_values=[_("validation report")])
+                                 empty_values=[_("No Conformity Check available")])
 
     linked_conformity_check_count = tables.Column(verbose_name=_('Latest check'),
-                                 attrs={"th": {"class": "col-sm-1"}},
-                                 empty_values=[_("validation report")])
+                                                  attrs={"th": {"class": "col-sm-1"}},
+                                                  empty_values=[_("No Conformity Check available")])
 
     class Meta:
         fields = ["latest_check", "linked_conformity_check_count"]
@@ -63,7 +64,7 @@ class ConformityCheckRunExtraFieldsTable(tables.Table):
             content = f'<span><a href={link_to_report}>{latest_check_creation_datetime_str} </a>{icon}</span>'
             return format_html(content)
         else:
-            return None
+            return _("No Conformity Check available")
 
     @staticmethod
     def render_linked_conformity_check_count(record, value):
@@ -72,5 +73,5 @@ class ConformityCheckRunExtraFieldsTable(tables.Table):
             content = f'<span><a href={link_to_list_of_runs}>{value} </a></span>'
             return format_html(content)
         else:
-            return None
+            return _("No Conformity Check available")
 

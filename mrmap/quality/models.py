@@ -121,6 +121,9 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
 
     objects = ConformityCheckRunManager()
 
+    class Meta:
+        get_latest_by = "created_at"
+
     def get_report_url(self):
         return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"
 

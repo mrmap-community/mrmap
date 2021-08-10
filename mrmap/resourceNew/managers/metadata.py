@@ -1,6 +1,6 @@
 from django.core.files.base import ContentFile
 from django.db import models, transaction, OperationalError
-from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q
+from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q, Subquery
 from django.utils.translation import gettext_lazy as _
 from resourceNew.enums.metadata import MetadataOrigin
 from django.utils import timezone

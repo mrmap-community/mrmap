@@ -1,7 +1,9 @@
 from django.core.files.base import ContentFile
 from django.db import models, transaction, OperationalError
-from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q, Subquery
+from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q, OuterRef, Subquery, Value, CharField
+from django.db.models.functions import Concat
 from django.utils.translation import gettext_lazy as _
+
 from resourceNew.enums.metadata import MetadataOrigin
 from django.utils import timezone
 from datetime import datetime, date
@@ -162,17 +164,24 @@ class AbstractMetadataManager(models.Manager):
 class DatasetManager(AbstractMetadataManager):
 
     def for_table_view(self):
+        from quality.models import ConformityCheckRun
+        conformity_checks_qs = ConformityCheckRun.objects.order_by("-created_at")
         return self.get_queryset().annotate(linked_layer_count=Count("self_pointing_layers",
                                                                      distinct=True),
                                             linked_feature_type_count=Count("self_pointing_feature_types",
                                                                             distinct=True),
                                             linked_service_count=Count("self_pointing_services",
-                                                                       distinct=True)
+                                                                       distinct=True),
+                                            linked_conformity_check_count=Count("conformitycheckrun",
+                                                                                distinct=True),
+                                            latest_check_pk=Subquery(conformity_checks_qs.values('pk')[:1]),
+                                            latest_check_status=Subquery(conformity_checks_qs.values('passed')[:1]),
+                                            latest_check_date=Subquery(conformity_checks_qs.values('created_at')[:1])
                                             )\
-                                  .prefetch_related("self_pointing_layers",
-                                                    "self_pointing_feature_types",
-                                                    "self_pointing_services")\
-                                  .order_by("-title")
+            .prefetch_related("self_pointing_layers",
+                              "self_pointing_feature_types",
+                              "self_pointing_services")\
+            .order_by("-title")
 
 
 class DatasetMetadataRelationManager(models.Manager):

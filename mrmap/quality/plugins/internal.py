@@ -21,7 +21,8 @@ class QualityInternal:
 
     def __init__(self, run: ConformityCheckRun):
         base_config = run.config
-        self.metadata = run.metadata
+        # TODO other resource types
+        self.metadata = run.dataset_metadata
         self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
         self.check_run = run
 

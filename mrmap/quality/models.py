@@ -112,12 +112,12 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     """
     Model holding the relation of a metadata record to the results of a check.
     """
-    metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
     config = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
     report = models.TextField(blank=True, null=True)
     report_type = models.TextField(
         choices=ReportType.as_choices(drop_empty_choice=True))
+    dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
 
     objects = ConformityCheckRunManager()
 

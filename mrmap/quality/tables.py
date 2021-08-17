@@ -18,7 +18,7 @@ class ConformityCheckRunTable(SecuredTable):
 
     class Meta:
         model = ConformityCheckRun
-        fields = ('metadata', 'config', 'passed', 'report', 'created_at', 'created_by_user', 'owned_by_org')
+        fields = ('config', 'dataset_metadata', 'passed', 'report', 'created_at', 'created_by_user', 'owned_by_org')
         prefix = 'conformity_check_run-table'
 
     def render_report(self, record):

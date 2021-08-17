@@ -31,7 +31,7 @@ class PluginInternalTests(TestCase):
             conformity_type="internal"
         )
         cls.check_run = ConformityCheckRun.objects.create(
-            metadata=cls.metadata,
+            dataset_metadata=cls.metadata,
             config=cls.config
         )
         cls.rule_fail = Rule.objects.create(

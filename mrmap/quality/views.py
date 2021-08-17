@@ -30,7 +30,8 @@ class ConformityCheckRunCreateView(SecuredCreateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         transaction.commit()
-        org_pk = form.cleaned_data["metadata"].owned_by_org_id
+        # TODO other resource types
+        org_pk = form.cleaned_data["dataset_metadata"].owned_by_org_id
         job_pk = run_conformity_check(self.object.pk, **{"created_by_user_pk": self.request.user.pk,
                                                          "owned_by_org_pk": org_pk})
         try:

@@ -111,9 +111,9 @@ class QualityEtf:
 
     def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
                  client: EtfClient):
-        self.metadata = run.metadata
         self.config = config_ext
         # TODO support other resource types
+        self.metadata = run.dataset_metadata
         self.resource_url = f'{settings.ROOT_URL}/resourceNew/metadata/datasets/{self.metadata.id}/xml'
         self.check_run = run
         self.client = client

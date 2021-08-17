@@ -9,11 +9,13 @@ from django.db import models
 from django.urls import reverse
 
 from main.models import CommonInfo, GenericModelMixin
+from main.polymorphic_fk import PolymorphicForeignKey
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum, ReportType
 from quality.managers import ConformityCheckRunManager, ConformityCheckConfigurationManager
-from resourceNew.models.metadata import DatasetMetadata
+from resourceNew.models import Service, Layer, FeatureType
+from resourceNew.models.metadata import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
 
 
 class ConformityCheckConfiguration(models.Model):
@@ -110,20 +112,34 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
 
 class ConformityCheckRun(CommonInfo, GenericModelMixin):
     """
-    Model holding the relation of a metadata record to the results of a check.
+    Model holding the relation of a resource to the results of a check.
     """
     config = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
     report = models.TextField(blank=True, null=True)
     report_type = models.TextField(
         choices=ReportType.as_choices(drop_empty_choice=True))
-    dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE)
+
+    # polymorphic fk: only one of the following resource references should be used
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, null=True, blank=True)
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, null=True, blank=True)
+    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE, null=True, blank=True)
+    dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True)
+    service_metadata = models.ForeignKey(ServiceMetadata, on_delete=models.CASCADE, null=True, blank=True)
+    layer_metadata = models.ForeignKey(LayerMetadata, on_delete=models.CASCADE, null=True, blank=True)
+    feature_type_metadata = models.ForeignKey(FeatureTypeMetadata, on_delete=models.CASCADE, null=True, blank=True)
+
+    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata', 'service_metadata',
+                                      'layer_metadata', 'feature_type_metadata')
 
     objects = ConformityCheckRunManager()
 
     @property
     def resource(self):
-        return self.dataset_metadata
+        return self._resource.get_target(self)
+
+    def clean(self):
+        self._resource.validate(self)
 
     def get_report_url(self):
         return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"

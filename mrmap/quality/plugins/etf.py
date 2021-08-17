@@ -112,16 +112,15 @@ class QualityEtf:
     def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
                  client: EtfClient):
         self.config = config_ext
-        # TODO support other resource types
-        self.metadata = run.dataset_metadata
-        self.resource_url = f'{settings.ROOT_URL}/resourceNew/metadata/datasets/{self.metadata.id}/xml'
+        self.resource = run.checked_resource
+        self.resource_url = settings.ROOT_URL + self.resource.get_xml_view_url()
         self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds
         self.run_url = None
 
     def run(self) -> ConformityCheckRun:
-        """ Runs an ETF check for the associated metadata object.
+        """ Runs an ETF check on the associated resource.
 
         Runs the configured ETF suites and updates the associated
         ConformityCheckRun accordingly.
@@ -152,7 +151,7 @@ class QualityEtf:
     def create_etf_test_run_config(self):
         params = {
             "resource_url": self.resource_url,
-            "metadata": self.metadata
+            "metadata": self.resource
         }
         return map_parameters(params, self.config.parameter_map)
 

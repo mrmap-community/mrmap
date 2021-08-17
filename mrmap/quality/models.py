@@ -121,6 +121,10 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
 
     objects = ConformityCheckRunManager()
 
+    @property
+    def checked_resource(self):
+        return self.dataset_metadata
+
     def get_report_url(self):
         return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"
 

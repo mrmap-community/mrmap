@@ -112,7 +112,7 @@ class QualityEtf:
     def __init__(self, run: ConformityCheckRun, config_ext: ConformityCheckConfigurationExternal,
                  client: EtfClient):
         self.config = config_ext
-        self.resource = run.checked_resource
+        self.resource = run.resource
         self.resource_url = settings.ROOT_URL + self.resource.get_xml_view_url()
         self.check_run = run
         self.client = client
@@ -120,7 +120,7 @@ class QualityEtf:
         self.run_url = None
 
     def run(self) -> ConformityCheckRun:
-        """ Runs an ETF check on the associated resource.
+        """ Runs an ETF check on the resource of the associated ConformityCheckRun instance.
 
         Runs the configured ETF suites and updates the associated
         ConformityCheckRun accordingly.

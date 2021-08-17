@@ -21,8 +21,7 @@ class QualityInternal:
 
     def __init__(self, run: ConformityCheckRun):
         base_config = run.config
-        # TODO other resource types
-        self.metadata = run.dataset_metadata
+        self.metadata = run.resource
         self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
         self.check_run = run
 
@@ -35,7 +34,7 @@ class QualityInternal:
             self.step_size = 80
 
     def run(self) -> ConformityCheckRun:
-        """ Runs the internal check for a given metadata object.
+        """ Runs an internal check on the resource of the associated ConformityCheckRun instance.
 
         Runs the mandatory and optional RuleSets of an internal check
         and updates the associated ConformityCheckRun accordingly.

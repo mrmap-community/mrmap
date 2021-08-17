@@ -122,7 +122,7 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     objects = ConformityCheckRunManager()
 
     @property
-    def checked_resource(self):
+    def resource(self):
         return self.dataset_metadata
 
     def get_report_url(self):

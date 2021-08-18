@@ -5,6 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
+import json
 import sys
 
 from celery import shared_task
@@ -13,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from job.tasks import CurrentTask, NewJob
-from quality.enums import ConformityTypeEnum
+from quality.enums import ConformityTypeEnum, ReportType
 from quality.models import ConformityCheckRun, \
     ConformityCheckConfigurationExternal
 from quality.plugins.etf import QualityEtf, EtfClient
@@ -64,13 +65,20 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
         run = checker.run()
     except:
         logger.exception('ETF conformity check failure', exc_info=sys.exc_info()[0])
+        run.passed = False
+        run.report = json.dumps({
+            "Unexpected error": str(sys.exc_info())
+        })
+        run.report_type = ReportType.JSON.value
+        run.save()
+
         e = sys.exc_info()[0]
         self.task.progress = 100
         self.task.status = PendingTaskEnum.FAILURE
         self.task.done_at = timezone.now()
-        self.task.phase = str(e)
+        self.task.phase = f'Failure. <a href="{reverse("quality:conformity_check_run_list")}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
-        return
+        return run.pk
 
     if self.task:
         self.task.progress = 100
@@ -98,14 +106,21 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
         checker = QualityInternal(run)
         run = checker.run()
     except:
-        logger.exception('ETF conformity check failure', exc_info=sys.exc_info()[0])
+        logger.exception('Internal conformity check failure', exc_info=sys.exc_info()[0])
+        run.passed = False
+        run.report = json.dumps({
+            "Unexpected error": str(sys.exc_info())
+        })
+        run.report_type = ReportType.JSON.value
+        run.save()
+
         e = sys.exc_info()[0]
         self.task.progress = 100
         self.task.status = PendingTaskEnum.FAILURE
         self.task.done_at = timezone.now()
-        self.task.phase = str(e)
+        self.task.phase = f'Failure. <a href="{reverse("quality:conformity_check_run_list")}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
-        return
+        return run.pk
 
     if self.task:
         self.task.progress = 100

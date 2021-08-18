@@ -60,8 +60,12 @@ SERVICE_TABLE_ACTIONS = """
 LAYER_TABLE_ACTIONS = """
 {% load i18n %}
 {% load guardian_tags %}
+{% load custom_template_filters %}
 {% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
+    {% if record|get_validate_url %}
+    <a href="{{record|get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
+    {% endif %}
     {% if "change_layer" in perms and record.get_change_url %}
     <form class="mr-1" action="{{record.get_change_url}}" method="post">
       {% csrf_token %}
@@ -74,8 +78,12 @@ LAYER_TABLE_ACTIONS = """
 FEATURE_TYPE_TABLE_ACTIONS = """
 {% load i18n %}
 {% load guardian_tags %}
+{% load custom_template_filters %}
 {% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
+    {% if record|get_validate_url %}
+    <a href="{{record|get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
+    {% endif %}
     {% if "change_featuretype" in perms and record.get_change_url %}
     <form class="mr-1" action="{{record.get_change_url}}" method="post">
       {% csrf_token %}

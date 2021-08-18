@@ -4,6 +4,9 @@ SERVICE_TABLE_ACTIONS = """
 {% load custom_template_filters %}
 {% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
+    {% if record|get_validate_url %}
+    <a href="{{record|get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
+    {% endif %}
     {% if "change_service" in perms and record.get_activate_url %}
     <form class="mr-1" action="{{record.get_activate_url}}" method="post">
       {% csrf_token %}
@@ -15,7 +18,7 @@ SERVICE_TABLE_ACTIONS = """
     <a class="btn btn-sm btn-warning mr-1" href="{{record.get_change_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit service' %}">
       {{ ICONS.EDIT|safe }}
     </a>
-    {% endif %}
+    {% endif %} 
     {% if record.get_harvest_url %}
     <form class="mr-1" action="{{record.get_harvest_url}}" method="post">
       {% csrf_token %}

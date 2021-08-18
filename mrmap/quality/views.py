@@ -5,13 +5,15 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
+
 from django.db import transaction
-from django.http import HttpResponseRedirect, HttpResponse, HttpResponseNotFound
+from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import DetailView
 from django_filters.views import FilterView
 
 from job.models import Job
 from main.views import SecuredCreateView, SecuredListMixin, SecuredDeleteView
+from quality.filtersets import ConformityCheckRunFilterSet
 from quality.forms import ConformityCheckRunModelForm
 from quality.models import ConformityCheckRun
 from quality.tables import ConformityCheckRunTable
@@ -21,6 +23,13 @@ from quality.tasks import run_conformity_check
 class ConformityCheckRunListView(SecuredListMixin, FilterView):
     model = ConformityCheckRun
     table_class = ConformityCheckRunTable
+    filterset_class = ConformityCheckRunFilterSet
+    queryset = ConformityCheckRun.objects.select_related("config", "service", "service__service_type",
+                                                         "service__metadata", "layer", "layer__metadata",
+                                                         "feature_type", "feature_type__metadata",
+                                                         "dataset_metadata", "service_metadata", "layer_metadata",
+                                                         "feature_type_metadata",
+                                                         "owned_by_org")
 
 
 class ConformityCheckRunCreateView(SecuredCreateView):
@@ -30,10 +39,11 @@ class ConformityCheckRunCreateView(SecuredCreateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         transaction.commit()
-        # TODO other resource types
-        org_pk = form.cleaned_data["dataset_metadata"].owned_by_org_id
-        job_pk = run_conformity_check(self.object.pk, **{"created_by_user_pk": self.request.user.pk,
-                                                         "owned_by_org_pk": org_pk})
+        resource = None
+        for fk_field in self.model._resource.fk_fields:
+            resource = resource or form.cleaned_data[fk_field]
+        org_pk = resource.owned_by_org_id
+        job_pk = run_conformity_check(self.object.pk, created_by_user_pk=self.request.user.pk, owned_by_org_pk=org_pk)
         try:
             job = Job.objects.get(pk=job_pk)
             return HttpResponseRedirect(job.get_absolute_url())

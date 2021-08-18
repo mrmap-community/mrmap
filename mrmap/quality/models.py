@@ -154,9 +154,6 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     def resource(self):
         return self._resource.get_target(self)
 
-    def get_resource(self):
-        return self._resource.get_target(self)
-
     @property
     def resource_type(self):
         return self._resource.get_target(self).__class__.__name__

@@ -46,6 +46,8 @@ class Command(BaseCommand):
             # then load the default categories
             call_command('load_categories')
             call_command('load_licences')
+            # finally load the fixtures
+            self._load_fixtures()
 
     def _is_database_synchronized(self, database):
         connection = connections[database]
@@ -144,3 +146,18 @@ class Command(BaseCommand):
         """
         for key, value in OGCOperationEnum.as_choices(drop_empty_choice=True):
             OGCOperation(operation=value).save()
+
+    @staticmethod
+    def _load_fixtures():
+        # TODO: maybe develop a method to get a list of all available fixtures. Right now is not needed since only 5
+        #  are available. It needs to be in the correct order, to avoid DB constraints.
+        fixture_list = [
+            "conformityCheckConfigurationInit.json",
+            "conformityCheckConfigurationExternalInit.json",
+            "ruleInit.json",
+            "ruleSetInit.json",
+            "conformityCheckConfigurationInternalInit.json"
+        ]
+
+        for index in range(len(fixture_list)):
+            call_command('loaddata', fixture_list[index])

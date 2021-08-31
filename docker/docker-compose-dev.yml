@@ -9,18 +9,21 @@ services:
       POSTGRES_PASSWORD: mrmap
     volumes:
       - ./postgis/postgresql_data:/var/lib/postgresql/data:Z
+
   mrmap-redis:
     image: library/redis:6.2-alpine
     ports:
       - 5556:6379
     volumes:
       - ./redis/redis_data:/data
+
   mrmap-mapserver:
     image: camptocamp/mapserver:7.6
     ports:
       - 5557:80
     volumes:
       - ./mapserver/mapfiles:/etc/mapserver
+
   #mrmap-wsgi:
   #  build:
   #    context: ./wsgi
@@ -31,9 +34,10 @@ services:
   #    - ../:/src
   #  expose:
   #    - "8000"
+
   mrmap-nginx:
     build:
-      context: ./nginx
+      context: nginx
     ports:
       - 80:80
       - 443:443
@@ -45,6 +49,6 @@ services:
 
   mrmap-inspire-validator:
     build:
-      context: ./inspire-validator
+      context: inspire-validator
     ports:
       - 8092:8080

@@ -120,15 +120,15 @@ PyXB-1.2.6/
 logs/
 celerybeat.pid
 
-mrmap/docker/etf-inspire/
-mrmap/docker/etf/
-mrmap/docker/geoserver/
-mrmap/docker/inspire-validator/
-mrmap/docker/postgis/postgresql_data/coverage-report.xml
+docker/etf-inspire/
+docker/etf/
+docker/geoserver/
+docker/inspire-validator/
+docker/postgis/postgresql_data/coverage-report.xml
 coverage-report.xml
 **/xunit-result.xml
-/mrmap/docker/postgis/postgresql_data/
-/mrmap/docker/redis/redis_data/
+/docker/postgis/postgresql_data/
+/docker/redis/redis_data/
 
 ext_auth_keys/
 mrmap/media/

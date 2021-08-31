@@ -1,17 +1,19 @@
 import django_tables2 as tables
-from resourceNew.models.mapcontext import MapContext
 from django.utils.translation import gettext_lazy as _
-from resourceNew.tables.template_codes import MAP_CONTEXT_TABLE_ACTIONS
+
+from main.tables.tables import SecuredTable
+from main.tables.template_code import DEFAULT_ACTION_BUTTONS
+from resourceNew.models.mapcontext import MapContext
 
 
-# TODO
-class MapContextTable(tables.Table):
-
+class MapContextTable(SecuredTable):
+    perm_checker = None
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
-                                    template_code=MAP_CONTEXT_TABLE_ACTIONS,
-                                    attrs={"td": {"style": "white-space:nowrap;"}})
+                                    template_code=DEFAULT_ACTION_BUTTONS,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})
 
     class Meta:
         model = MapContext

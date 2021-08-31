@@ -6,18 +6,13 @@ from main.models import CommonInfo, GenericModelMixin
 from django.utils.translation import gettext_lazy as _
 
 
-# TODO
-class MapContext(GenericModelMixin, CommonInfo):
+class MapContext(CommonInfo, GenericModelMixin):
     title = models.CharField(max_length=1000,
-                             null=False,
-                             blank=False,
-                             verbose_name=_('Title'))
-    abstract = models.TextField(null=False,
-                                blank=False,
-                                verbose_name=_('Abstract'))
-    update_date = models.DateTimeField(auto_now_add=True)
-    layer_tree = models.TextField(null=False,
-                                  blank=False)
+                             verbose_name=_("title"),
+                             help_text=_("a short descriptive title for this map context"))
+    abstract = models.TextField(null=True,
+                                verbose_name=_("abstract"),
+                                help_text=_("brief summary of the topic of this map context"))
     # Additional possible parameters:
     # specReference
     # language
@@ -31,6 +26,9 @@ class MapContext(GenericModelMixin, CommonInfo):
     # resource
     # contextMetadata
     # extension
+
+    def __str__(self):
+        return self.title
 
 
 class MapContextLayer(MPTTModel):

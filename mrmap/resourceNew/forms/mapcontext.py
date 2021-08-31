@@ -1,6 +1,8 @@
 from django import forms
-from main.forms import ModelForm
+from django.utils.translation import gettext_lazy as _
+
 from MrMap.widgets import BootstrapDatePickerInput
+from main.forms import ModelForm
 from resourceNew.models.mapcontext import MapContext
 
 
@@ -12,6 +14,8 @@ class MapContextForm(ModelForm):
     #     ),
     #     required=False, )
     # layer_tree = forms.CharField(widget=forms.HiddenInput)
+
+    abstract = forms.CharField(label=_('Abstract'), help_text=_("brief summary of the topic of this map context"))
 
     class Meta:
         model = MapContext

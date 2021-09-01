@@ -1,9 +1,9 @@
 from django import forms
+from django.forms import TextInput
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.widgets import BootstrapDatePickerInput
 from main.forms import ModelForm
-from resourceNew.models.mapcontext import MapContext
+from resourceNew.models.mapcontext import MapContext, MapContextLayer
 
 
 class MapContextForm(ModelForm):
@@ -20,13 +20,16 @@ class MapContextForm(ModelForm):
     class Meta:
         model = MapContext
         fields = ('title', 'abstract')
-        widgets = {
-            'update_date': BootstrapDatePickerInput(),
-            'layer_tree': forms.HiddenInput()
-        }
 
 
-class MapContextLayerForm(forms.Form):
-    id = forms.CharField(widget=forms.HiddenInput)
-    parent = forms.CharField(widget=forms.HiddenInput, required=False)
-    title = forms.CharField(widget=forms.TextInput, required=False)
+class MapContextLayerForm(ModelForm):
+    #parent_form_idx = forms.CharField(max_length=20, required=False)
+
+    class Meta:
+        model = MapContextLayer
+        # widgets = {
+        #     'id': TextInput(),
+        #     'parent': TextInput()
+        # }
+        # fields = ['id', 'parent', 'parent_form_idx', 'name']
+        fields = '__all__'

@@ -1,9 +1,10 @@
 from django.urls import reverse_lazy
 from django_filters.views import FilterView
+from extra_views import CreateWithInlinesView
 
-from MrMap.messages import MAP_CONTEXT_SUCCESSFULLY_CREATED
-from main.views import SecuredDeleteView, SecuredUpdateView, SecuredCreateView, SecuredListMixin
+from main.views import SecuredDeleteView, SecuredUpdateView, SecuredListMixin
 from resourceNew.forms.mapcontext import MapContextForm
+from resourceNew.formsets.mapcontext import MapContextLayerInline
 from resourceNew.models.mapcontext import MapContext
 from resourceNew.tables.mapcontext import MapContextTable
 
@@ -13,10 +14,20 @@ class MapContextListView(SecuredListMixin, FilterView):
     table_class = MapContextTable
 
 
-class MapContextCreateView(SecuredCreateView):
+# class MapContextCreateView(SecuredCreateView):
+#     model = MapContext
+#     form_class = MapContextForm
+#     success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
+#     success_url = reverse_lazy('resourceNew:map_context_list')
+
+
+class MapContextCreateView(CreateWithInlinesView):
     model = MapContext
-    form_class = MapContextForm
-    success_message = MAP_CONTEXT_SUCCESSFULLY_CREATED
+    fields = "__all__"
+    inlines = [MapContextLayerInline]
+    # TODO check if we should turn this into a generic template
+    # template_name = 'inline_forms/person_form_inline.html'
+    template_name = 'resourceNew/mapcontext/map_context_add.html'
     success_url = reverse_lazy('resourceNew:map_context_list')
 
 

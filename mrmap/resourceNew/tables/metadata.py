@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from main.tables.tables import SecuredTable
 from main.tables.template_code import DEFAULT_ACTION_BUTTONS
+from quality.tables import ConformityCheckRunExtraFieldsTable
 from resourceNew.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
 from resourceNew.tables.template_codes import METADATA_DETAIL_ICONS, VALUE_TABLE_VIEW_LINK
 
@@ -22,6 +23,7 @@ class MetadataTable(SecuredTable):
                                     extra_context={'perm_checker': perm_checker})
 
 
+# TODO: add ConformityCheckRunExtraFieldsTable after adding the validation check to the other types
 class ServiceMetadataTable(MetadataTable):
     class Meta:
         model = ServiceMetadata
@@ -30,6 +32,7 @@ class ServiceMetadataTable(MetadataTable):
                   "described_object")
 
 
+# TODO: add ConformityCheckRunExtraFieldsTable after adding the validation check to the other types
 class LayerMetadataTable(MetadataTable):
     class Meta:
         model = LayerMetadata
@@ -38,6 +41,7 @@ class LayerMetadataTable(MetadataTable):
                   "described_object")
 
 
+# TODO: add ConformityCheckRunExtraFieldsTable after adding the validation check to the other types
 class FeatureTypeMetadataTable(MetadataTable):
 
     class Meta:
@@ -47,7 +51,7 @@ class FeatureTypeMetadataTable(MetadataTable):
                   "described_object")
 
 
-class DatasetMetadataTable(SecuredTable):
+class DatasetMetadataTable(SecuredTable, ConformityCheckRunExtraFieldsTable):
     perm_checker = None
     details = tables.TemplateColumn(template_code=METADATA_DETAIL_ICONS,
                                     verbose_name=_("Details"),
@@ -68,7 +72,8 @@ class DatasetMetadataTable(SecuredTable):
                   "linked_service_count")
         prefix = 'dataset-metadata-table'
 
-    def render_linked_layer_count(self, record, value):
+    @staticmethod
+    def render_linked_layer_count(record, value):
         f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
         f'data-bs-content="content">details</a> '
         link = f'<a href="{reverse("resourceNew:layer_list")}?id__in='
@@ -77,7 +82,8 @@ class DatasetMetadataTable(SecuredTable):
         link += f'">{value}</a>'
         return format_html(link)
 
-    def render_linked_feature_type_count(self, record, value):
+    @staticmethod
+    def render_linked_feature_type_count(record, value):
         f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
         f'data-bs-content="content">details</a> '
         link = f'<a href="{reverse("resourceNew:feature_type_list")}?id__in='
@@ -86,6 +92,7 @@ class DatasetMetadataTable(SecuredTable):
         link += f'">{value}</a>'
         return format_html(link)
 
+    @staticmethod
     def render_linked_service_count(self, record, value):
         f'<a tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="details" ' \
         f'data-bs-content="content">details</a> '

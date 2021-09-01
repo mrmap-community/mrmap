@@ -71,7 +71,7 @@ class MapContextEditViewOld(SecuredUpdateView):
 
 @method_decorator(login_required, name='dispatch')
 class MapContextEditView(SecuredUpdateView):
-    template_name = 'views/map_context_add.html'
+    template_name = 'views/map_context_add.html' # TODO: resourceNew/templates/resourceNew/mapcontext/map_context_add.html
     success_message = MAP_CONTEXT_SUCCESSFULLY_EDITED
     success_url = reverse_lazy('resource:mapcontexts-index')
     model = MapContext

@@ -107,8 +107,8 @@ DEFAULT_ACTION_BUTTONS = """
     <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Delete' %}">{{ ICONS.DELETE|safe }}</a>
     {% endif %}
     {% if record|get_validate_url %}
-    <a href="{{record|get_validate_url}}?metadata={{record.pk}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
-    {% endif %}    
+    <a href="{{record|get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
+    {% endif %}
     {% endwith %}
 </div>
 """

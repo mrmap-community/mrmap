@@ -8,7 +8,7 @@ from django_bootstrap_swt.components import Link
 
 from MrMap.icons import get_icon, IconEnum
 from main.tables.tables import SecuredTable
-from main.tables.template_code import DEFAULT_ACTION_BUTTONS
+from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK
 from quality.models import ConformityCheckRun
 
 # Get an instance of a logger
@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class ConformityCheckRunTable(SecuredTable):
     perm_checker = None
+    resource = tables.columns.TemplateColumn(VALUE_ABSOLUTE_LINK)
     actions = tables.TemplateColumn(verbose_name=_('Actions'),
                                     empty_values=[],
                                     orderable=False,
@@ -26,7 +27,7 @@ class ConformityCheckRunTable(SecuredTable):
 
     class Meta:
         model = ConformityCheckRun
-        fields = ('metadata', 'config', 'passed', 'report', 'created_at', 'created_by_user', 'owned_by_org')
+        fields = ('config', 'resource', 'resource_type', 'passed', 'report', 'created_at', 'owned_by_org')
         prefix = 'conformity_check_run-table'
 
     @staticmethod

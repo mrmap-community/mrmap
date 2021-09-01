@@ -70,7 +70,7 @@ class PluginEtfTests(TestCase):
             }
         )
         cls.check_run = ConformityCheckRun.objects.create(
-            metadata=cls.metadata,
+            dataset_metadata=cls.metadata,
             config=cls.config
         )
 

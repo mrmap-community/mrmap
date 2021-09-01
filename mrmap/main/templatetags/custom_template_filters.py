@@ -63,4 +63,4 @@ def render_item(item: BootstrapComponent):
 
 @register.filter
 def get_validate_url(item):
-    return ConformityCheckRun.get_validate_url(item.__class__)
+    return ConformityCheckRun.get_validate_url(item)

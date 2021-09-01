@@ -3,8 +3,10 @@ from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
+from main.models import GenericModelMixin, CommonInfo
 
-class MapContext(models.Model):
+
+class MapContext(GenericModelMixin, CommonInfo):
     title = models.CharField(max_length=1000,
                              verbose_name=_("title"),
                              help_text=_("a short descriptive title for this map context"))
@@ -31,7 +33,7 @@ class MapContext(models.Model):
 
 
 class MapContextLayer(MPTTModel):
-    parent = TreeForeignKey("Layer", on_delete=models.CASCADE, null=True, blank=True,
+    parent = TreeForeignKey("MapContextLayer", on_delete=models.CASCADE, null=True, blank=True,
                             related_name="child_layers")
     map_context = models.ForeignKey(MapContext, on_delete=models.CASCADE)
     name = models.CharField(max_length=1000,
@@ -40,8 +42,8 @@ class MapContextLayer(MPTTModel):
                             verbose_name=_("name"),
                             help_text=_("an identifying name for this map context layer"))
     title = models.CharField(max_length=1000,
-                             null=False,
-                             blank=False,
+                             null=True,
+                             blank=True,
                              verbose_name=_("title"),
                              help_text=_("a short descriptive title for this map context layer"))
 

@@ -149,6 +149,7 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
 
     class Meta:
         ordering = ["-created_at"]
+        get_latest_by = "-created_at"
 
     @property
     def resource(self):

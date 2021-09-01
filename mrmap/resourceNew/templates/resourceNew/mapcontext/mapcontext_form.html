@@ -13,15 +13,15 @@
             {{form.media}}
             {% bootstrap_form form %}
             {% for formset in inlines %}
+            <hr class="separator">
+            <p>Ebenen und Datenangebote</p>
             <div id="layer_tree"
                  style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
                  class="form-group">
             </div>
-            <hr class="separator">
-            {{ formset.model|model_to_title|safe }}
             {{formset.management_form}}
             {% for form in formset.forms %}
-            <div class="{{ formset.prefix }}-form">
+            <div class="{{ formset.prefix }}-form" style="display:none">
                 {% bootstrap_form form %}
             </div>
             {% endfor %}

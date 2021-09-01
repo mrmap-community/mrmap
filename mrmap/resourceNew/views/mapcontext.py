@@ -20,8 +20,7 @@ class MapContextCreateView(CreateWithInlinesView):
     form_class = MapContextForm
     inlines = [MapContextLayerInline]
     # TODO check if we can turn this into a generic template
-    # template_name = 'inline_forms/person_form_inline.html'
-    template_name = 'resourceNew/mapcontext/map_context_add.html'
+    template_name = 'resourceNew/mapcontext/mapcontext_form.html'
     success_url = reverse_lazy('resourceNew:map_context_list')
 
 
@@ -31,8 +30,7 @@ class MapContextUpdateView(UpdateWithInlinesView):
     form_class = MapContextForm
     inlines = [MapContextLayerInline]
     # TODO check if we can turn this into a generic template
-    # template_name = 'inline_forms/person_form_inline.html'
-    template_name = 'resourceNew/mapcontext/map_context_add.html'
+    template_name = 'resourceNew/mapcontext/mapcontext_form.html'
     success_url = reverse_lazy('resourceNew:map_context_list')
 
 

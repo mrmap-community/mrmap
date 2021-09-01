@@ -121,7 +121,6 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
       "data": function (obj, cb) {
         const nodes = [];
         const forms = $(`.${formPrefix}-form`);
-        console.log("HUHU: " + forms.length);
         if (forms.length === 1) {
           // just a template form present -> create root node
           appendForm();
@@ -174,27 +173,38 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
         "valid_children": []
       }
     }
+  }).on('loaded.jstree', function() {
+    const nodes = jsTree.get_json(undefined, {
+      flat: true,
+      no_a_attr: true,
+      no_li_attr: true,
+      no_state: true
+    });
+    $(this).jstree("open_all");
+    jsTree.select_node(nodes[0].id);
   }).on('create_node.jstree', function (e, data) {
     data.node.data = {
       formIdx: appendForm() - 1
     }
     updateFormset();
+    jsTree.deselect_node(jsTree.get_selected());
+    jsTree.select_node(data.node.id);
   }).on('rename_node.jstree', function (e, data) {
     updateFormset();
   }).on('delete_node.jstree', function (e, data) {
+    jsTree.select_node(data.node.parent);
     updateFormset();
   }).on('move_node.jstree', function (e, data) {
     updateFormset();
   }).on('select_node.jstree', function (e, data) {
-    // TODO switch visibility of form?
+    $(`.${formPrefix}-form`).css( "display", "none" );
+    $(`.${formPrefix}-form`).eq(data.node.data.formIdx).css( "display", "block" );
   });
   const jsTree = $(treeContainerId).jstree(true);
   $(treeContainerId).on('model.jstree', function (e, data) {
     data.nodes.forEach(nodeId => {
       let node = jsTree.get_node(nodeId);
       if (node.type === 'default') {
-        console.log(`nodeId: ${nodeId}`);
-        console.log(`YYY`);
         jsTree.add_action(nodeId, {
           "id": "action_add_folder",
           "class": "fas fa-plus-circle pull-right",
@@ -212,7 +222,6 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
             });
           }
         });
-        console.log(`XXX`);
         if (node.parent !== '#') {
           jsTree.add_action(nodeId, {
             "id": "action_remove",

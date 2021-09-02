@@ -49,9 +49,9 @@ urlpatterns = [
     path("metadata/datasets/<pk>/restore", metadata_views.DatasetMetadataRestoreView.as_view(), name="dataset_metadata_restore"),
 
     # MapContext views
-    path('mapcontexts/', mapcontext_views.MapContextIndexView.as_view(), name='map_context_list'),
+    path('mapcontexts/', mapcontext_views.MapContextListView.as_view(), name='map_context_list'),
     path('mapcontexts/add/', mapcontext_views.MapContextCreateView.as_view(), name='map_context_add'),
-    path('mapcontexts/<pk>/change', mapcontext_views.MapContextEditView.as_view(), name='map_context_change'),
+    path('mapcontexts/<pk>/change', mapcontext_views.MapContextUpdateView.as_view(), name='map_context_change'),
     path('mapcontexts/<pk>/delete', mapcontext_views.MapContextDeleteView.as_view(), name='map_context_delete'),
 
     # Xml representation views

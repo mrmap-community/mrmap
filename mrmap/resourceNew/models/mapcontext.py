@@ -1,23 +1,19 @@
 from django.contrib.gis.db import models
+from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
-from main.models import CommonInfo, GenericModelMixin
-from django.utils.translation import gettext_lazy as _
+from main.models import GenericModelMixin, CommonInfo
 
 
-# TODO
 class MapContext(GenericModelMixin, CommonInfo):
     title = models.CharField(max_length=1000,
-                             null=False,
-                             blank=False,
-                             verbose_name=_('Title'))
-    abstract = models.TextField(null=False,
-                                blank=False,
-                                verbose_name=_('Abstract'))
-    update_date = models.DateTimeField(auto_now_add=True)
-    layer_tree = models.TextField(null=False,
-                                  blank=False)
+                             verbose_name=_("title"),
+                             help_text=_("a short descriptive title for this map context"))
+    abstract = models.TextField(null=True,
+                                verbose_name=_("abstract"),
+                                help_text=_("brief summary of the topic of this map context"))
+
     # Additional possible parameters:
     # specReference
     # language
@@ -32,13 +28,29 @@ class MapContext(GenericModelMixin, CommonInfo):
     # contextMetadata
     # extension
 
+    def __str__(self):
+        return self.title
+
 
 class MapContextLayer(MPTTModel):
-    #map_context = models.ForeignKey(MapContext, on_delete=models.CASCADE)
-    title = models.CharField(max_length=1000, null=False, blank=False, verbose_name=_('Title'))
-    # parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
-    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    parent = TreeForeignKey("MapContextLayer", on_delete=models.CASCADE, null=True, blank=True,
+                            related_name="child_layers")
+    map_context = models.ForeignKey(MapContext, on_delete=models.CASCADE)
+    name = models.CharField(max_length=1000,
+                            null=False,
+                            blank=False,
+                            verbose_name=_("name"),
+                            help_text=_("an identifying name for this map context layer"))
+    title = models.CharField(max_length=1000,
+                             null=True,
+                             blank=True,
+                             verbose_name=_("title"),
+                             help_text=_("a short descriptive title for this map context layer"))
+
     # todo referenz auf Dataset (mit Layer)
     # todo referenz auf Layer
     # todo referenz auf FeatureType (zukünftig)
     # zukünftig: featuretype, kml, gml, ...
+
+    def __str__(self):
+        return f"{self.name}"

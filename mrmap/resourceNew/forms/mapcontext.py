@@ -1,28 +1,24 @@
 from django import forms
-from main.forms import ModelForm
-from MrMap.widgets import BootstrapDatePickerInput
-from resourceNew.models.mapcontext import MapContext
+from django.forms import ModelForm, HiddenInput
+from django.utils.translation import gettext_lazy as _
+
+from resourceNew.models.mapcontext import MapContext, MapContextLayer
 
 
 class MapContextForm(ModelForm):
-    # layer = MetadataModelChoiceField(
-    #     queryset=Metadata.objects.none(),
-    #     widget=autocomplete.ModelSelect2(
-    #         url='editor:layer-autocomplete',
-    #     ),
-    #     required=False, )
-    # layer_tree = forms.CharField(widget=forms.HiddenInput)
+    abstract = forms.CharField(label=_('Abstract'), help_text=_("brief summary of the topic of this map context"))
 
     class Meta:
         model = MapContext
         fields = ('title', 'abstract')
+
+
+class MapContextLayerForm(ModelForm):
+    parent_form_idx = forms.CharField(required=False, widget=HiddenInput)
+
+    class Meta:
+        model = MapContextLayer
         widgets = {
-            'update_date': BootstrapDatePickerInput(),
-            'layer_tree': forms.HiddenInput()
+            'parent': HiddenInput()
         }
-
-
-class MapContextLayerForm(forms.Form):
-    id = forms.CharField(widget=forms.HiddenInput)
-    parent = forms.CharField(widget=forms.HiddenInput, required=False)
-    title = forms.CharField(widget=forms.TextInput, required=False)
+        fields = ['id', 'parent', 'parent_form_idx', 'name', 'title']

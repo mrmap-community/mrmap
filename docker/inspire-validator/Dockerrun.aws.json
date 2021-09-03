@@ -1,0 +1,21 @@
+{
+  "AWSEBDockerrunVersion": 1,
+  "Volumes": [
+    {
+      "HostDirectory": "/efs",
+      "ContainerDirectory": "/etf" 
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "privileged": true
+    }
+  ],
+  "Ports": [
+    {
+      "ContainerPort": 8080,
+      "HostPort": 80
+    }
+  ]
+
+}

@@ -123,7 +123,6 @@ celerybeat.pid
 docker/etf-inspire/
 docker/etf/
 docker/geoserver/
-docker/inspire-validator/
 docker/postgis/postgresql_data/coverage-report.xml
 coverage-report.xml
 **/xunit-result.xml

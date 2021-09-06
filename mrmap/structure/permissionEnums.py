@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 31.08.20
 
 """
-from service.helper.enums import EnumChoice
+from MrMap.enums import EnumChoice
 
 
 class PermissionEnum(EnumChoice):

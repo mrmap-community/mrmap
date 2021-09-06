@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="start mrmap" type="CompoundRunConfigurationType">
+    <toRun name="mrmap-docker" type="docker-deploy" />
+    <toRun name="celery default queue" type="PythonConfigurationType" />
+    <toRun name="celery harvest queue" type="PythonConfigurationType" />
+    <toRun name="runserver" type="PythonConfigurationType" />
+    <toRun name="celery download ft queue" type="PythonConfigurationType" />
+    <toRun name="celery download iso queue" type="PythonConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>

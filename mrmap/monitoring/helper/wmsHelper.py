@@ -14,15 +14,17 @@ class WmsHelper:
 
     def __init__(self, service: Service):
         self.service = service
-        self.parent_service = service.parent_service if service.metadata.is_layer_metadata else service
+        self.parent_service = service
+        #self.parent_service = service.parent_service if service.metadata.is_layer_metadata else service
 
-        # Prefetch useful attributes for requests
-        self.layer = Layer.objects.get(
-            metadata=service.metadata
-        ) if self.service.metadata.is_layer_metadata else Layer.objects.get(
-            parent_service=self.service,
-            parent=None
-        )
+        # # Prefetch useful attributes for requests
+        # self.layer = Layer.objects.get(
+        #     metadata=service.metadata
+        # ) if self.service.metadata.is_layer_metadata else Layer.objects.get(
+        #     parent_service=self.service,
+        #     parent=None
+        # )
+        self.layer = service.root_layer
         self.crs_srs_identifier = 'CRS' if self.service.service_type.version == OGCServiceVersionEnum.V_1_3_0.value else 'SRS'
         self.bbox = self.layer.bbox_lat_lon if self.layer.bbox_lat_lon.area > 0 else self.parent_service.metadata.find_max_bounding_box()
 
@@ -79,17 +81,16 @@ class WmsHelper:
         Returns:
             str: URL for getLegendGraphic request.
         """
-        uri = self.service.operation_urls.filter(
+        operation_url = self.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
             method="Get"
         ).first()
-        if uri is None:
+        if operation_url is None:
             return
-        uri = uri.url
         request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         layer = self.layer.identifier
 
-        service_format = self.service.metadata.get_formats().filter(
+        service_format = operation_url.mime_types.filter(
             mime_type__istartswith='image/'
         ).exclude(
             mime_type__icontains='svg'
@@ -109,7 +110,7 @@ class WmsHelper:
             ('SERVICE', service_type),
             ('VERSION', version),
         ]
-        url = UrlHelper.build(uri, queries)
+        url = UrlHelper.build(operation_url.url, queries)
         return url
 
     def get_describe_layer_url(self):
@@ -195,13 +196,12 @@ class WmsHelper:
         Returns:
             str: URL for getMap request.
         """
-        uri = self.service.operation_urls.filter(
+        operation_url = self.service.operation_urls.filter(
             operation=OGCOperationEnum.GET_MAP.value,
             method="Get"
         ).first()
-        if uri is None:
+        if operation_url is None:
             return
-        uri = uri.url
         # Fetch request parameters
         request_type = OGCOperationEnum.GET_MAP.value
         service_version = self.service.service_type.version
@@ -215,8 +215,7 @@ class WmsHelper:
         width = 1
         height = 1
 
-        service_format = self.service.metadata.get_formats().filter(
-            operation=OGCOperationEnum.GET_MAP.value,
+        service_format = operation_url.mime_types.filter(
             mime_type__istartswith='image/'
         ).exclude(
             mime_type__icontains='svg'
@@ -234,7 +233,7 @@ class WmsHelper:
             ('HEIGHT', height),
             ('FORMAT', service_format)
         ]
-        url = UrlHelper.build(uri, queries)
+        url = UrlHelper.build(operation_url.url, queries)
         return url
 
     def get_get_capabilities_url(self):

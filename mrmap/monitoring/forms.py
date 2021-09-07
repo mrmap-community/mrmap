@@ -1,7 +1,5 @@
-from dal import autocomplete
-from django.forms import ModelForm
+from main.forms import ModelForm
 from monitoring.models import MonitoringRun
-from django.utils.translation import gettext_lazy as _
 
 
 class MonitoringRunForm(ModelForm):
@@ -22,4 +20,4 @@ class MonitoringRunForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        #self.fields['metadatas'].queryset = Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value)
+        # self.fields['metadatas'].queryset = Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value)

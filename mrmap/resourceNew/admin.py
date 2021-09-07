@@ -3,7 +3,6 @@ from django.contrib import admin
 from resourceNew.models import FeatureTypeElement, MetadataContact, Service, ServiceType, Layer
 from resourceNew.models.mapcontext import MapContext
 from resourceNew.models.security import OGCOperation, AllowedOperation, ProxySetting
-from service.models import MapContextLayer
 
 
 @admin.register(FeatureTypeElement)
@@ -21,4 +20,3 @@ admin.site.register(AllowedOperation)
 admin.site.register(ProxySetting)
 admin.site.register(Layer)
 admin.site.register(MapContext)
-admin.site.register(MapContextLayer)

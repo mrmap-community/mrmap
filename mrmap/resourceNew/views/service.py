@@ -127,7 +127,9 @@ class RegisterServiceFormView(SecuredFormView):
     form_class = RegisterServiceForm
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = 'Async task was created to create new resource.'
-    success_url = reverse_lazy('resource:pending-tasks')
+    # FIXME: wrong success_url
+
+    #success_url = reverse_lazy('resource:pending-tasks')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()

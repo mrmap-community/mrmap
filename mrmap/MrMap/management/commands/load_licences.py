@@ -9,7 +9,6 @@ from django.core.management import BaseCommand
 from django.db import transaction
 
 from MrMap.management.commands.setup_settings import LICENCES
-from service.models import Licence
 
 
 class Command(BaseCommand):
@@ -39,6 +38,9 @@ class Command(BaseCommand):
         num_new_licences = 0
         num_updated_licences = 0
         for licence in LICENCES:
+            pass
+            # FIXME
+            """
             existing_licence = Licence.objects.get_or_create(
                 identifier=licence.get("identifier", None)
             )
@@ -56,9 +58,12 @@ class Command(BaseCommand):
             existing_licence.is_active = True
 
             existing_licence.save()
+            """
 
         # Deactivate licences, which are not present in LICENCES anymore
         num_deactivated_licences = 0
+        # FIXME
+        """
         active_licences = Licence.objects.all()
         identifier_keys = [licence["identifier"] for licence in LICENCES]
         for licence in active_licences:
@@ -66,5 +71,5 @@ class Command(BaseCommand):
                 licence.is_active = False
                 licence.save()
                 num_deactivated_licences += 1
-
+        """
         return num_new_licences, num_updated_licences, num_deactivated_licences

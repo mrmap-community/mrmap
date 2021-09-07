@@ -24,10 +24,13 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
                                    blank=True,
                                    verbose_name=_('Description'),
                                    help_text=_('Describe what this acl shall allow.'))
+    # todo
+    """
     accessible_metadata = models.ManyToManyField(to='service.Metadata',
                                                  blank=True,
                                                  verbose_name=_('Accessible resource'),
                                                  help_text=_('Select which resource shall be accessible with the configured permissions.'))
+    """
     # todo
     """accessible_pendingtasks = models.ManyToManyField(to='structure.PendingTask',
                                                      blank=True,

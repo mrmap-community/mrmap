@@ -8,11 +8,9 @@ Created on: 10.09.19
 from dateutil.parser import parse
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
-
+from django.conf import settings
 from MrMap.messages import PARAMETER_ERROR
 from api.settings import API_QUERY_ON_TITLE, API_QUERY_ON_KEYWORDS, API_QUERY_ON_ABSTRACT
-from service.models import Keyword
-from service.settings import DEFAULT_SRS
 
 
 def filter_queryset_service_pid(queryset, pid):
@@ -110,52 +108,6 @@ def create_category_query_filter(query):
             title_EN__icontains=query
         )
     return _filter
-
-
-def filter_queryset_metadata_query(queryset, query, q_test: bool = False):
-    """ Filters a given REST framework queryset by a given query.
-
-    Only keeps elements which title, abstract or keyword can be matched to the given query.
-
-    Args:
-        queryset: A queryset containing elements
-        query: A text snippet which is used for a search
-        q_test (bool): In case of tests, all query settings will be set to True
-    Returns:
-        queryset: The given queryset which only contains matching elements
-    """
-    if query is not None and len(query) > 0:
-        if q_test:
-            q_abstract = True
-            q_keywords = True
-            q_title = True
-        else:
-            q_abstract = API_QUERY_ON_ABSTRACT
-            q_keywords = API_QUERY_ON_KEYWORDS
-            q_title = API_QUERY_ON_TITLE
-
-        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
-        query_list = query.split(" ")
-        q = Q()
-        all_keywords = Keyword.objects.all()
-        for query_elem in query_list:
-            q_tmp = Q()
-            if q_keywords:
-                matching_keywords = all_keywords.filter(keyword__istartswith=query_elem)
-                kws_exist = matching_keywords.exists()
-                if kws_exist:
-                    matching_keywords = matching_keywords.values_list("id")
-                else:
-                    matching_keywords = []
-                q_tmp |= Q(keywords__id__in=matching_keywords)
-            if q_title:
-                q_tmp |= Q(title__icontains=query_elem)
-            if q_abstract:
-                q_tmp |= Q(abstract__icontains=query_elem)
-            q &= q_tmp
-
-        queryset = queryset.filter(q)
-    return queryset
 
 
 def filter_queryset_metadata_category(queryset, category, category_strict):
@@ -261,7 +213,7 @@ def filter_queryset_metadata_bbox(queryset, bbox: str, bbox_srs: str, bbox_stric
             bbox = bbox.split(",")
 
         bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=srs)
-        bbox.transform(DEFAULT_SRS)
+        bbox.transform(settings.DEFAULT_SRS)
 
         if bbox_strict:
             filter_identifier = "bounding_geometry__contained"

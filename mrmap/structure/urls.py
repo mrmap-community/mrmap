@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path
 
 from structure.views.error_report import ErrorReportDetailView
 from structure.views.pending_task import *

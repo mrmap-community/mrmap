@@ -454,8 +454,14 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 ################################################################
 MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
 MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/security_mask.map")
+MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
+MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
+MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
-
+DEFAULT_SRS = 4326
+FONT_IMG_RATIO = 1/20  # Font to image ratio
+ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
+ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
 ################################################################
 # Logger settings
 ################################################################

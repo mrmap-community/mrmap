@@ -37,7 +37,7 @@ class AccessControlListDetailTable(tables.Table):
     name = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK)
     user_set__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Users'))
     permissions__all = tables.TemplateColumn(template_code=VALUE_BADGE_LIST, verbose_name=_('Allowed permissions'))
-    accessible_metadata__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible resources'))
+    #accessible_metadata__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible resources'))
     accessible_accesscontrollist__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible access control lists'))
     accessible_organizations__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible organizations'))
 
@@ -48,7 +48,7 @@ class AccessControlListDetailTable(tables.Table):
                   'description',
                   'user_set__all',
                   'permissions__all',
-                  'accessible_metadata__all',
+                  #'accessible_metadata__all',
                   'accessible_accesscontrollist__all',
                   'accessible_organizations__all',
                   'default_acl')

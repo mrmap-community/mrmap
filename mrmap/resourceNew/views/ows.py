@@ -14,7 +14,7 @@ from eulxml import xmlmap
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, \
     SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE, SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE
 from MrMap.settings import PROXIES
-from resourceNew.enums.service import OGCServiceEnum
+from resourceNew.enums.service import OGCServiceEnum, OGCOperationEnum
 from resourceNew.models import Service
 from resourceNew.models.security import HttpRequestLog, HttpResponseLog
 from resourceNew.ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
@@ -33,9 +33,6 @@ from resourceNew.xmlmapper.ogc.feature_collection import FeatureCollection
 from resourceNew.xmlmapper.ogc.wfs_get_feature import GetFeature
 from resourceNew.xmlmapper.ogc.wfs_transaction import Transaction
 from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
-from service.helper.enums import OGCOperationEnum, OGCServiceEnum
-from service.settings import MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, FONT_IMG_RATIO, ERROR_MASK_VAL, ERROR_MASK_TXT
 from django.conf import settings
 
 
@@ -192,9 +189,9 @@ class GenericOwsServiceOperationFacade(View):
                     self.remote_service.TRANSPARENT_QP: "TRUE",
                     "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
                     "keys": f"'{pk}'",
-                    "table": MAPSERVER_SECURITY_MASK_TABLE,
-                    "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
-                    "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
+                    "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
+                    "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
+                    "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
                 }
                 request = Request(method="GET",
                                   url=settings.MAPSERVER_LOCAL_PATH,
@@ -220,7 +217,7 @@ class GenericOwsServiceOperationFacade(View):
             # If anything occurs during the mask creation, we have to make sure the response won't contain any
             # information at all.
             # So create an error mask
-            background = Image.new("RGB", (width, height), (ERROR_MASK_VAL, ERROR_MASK_VAL, ERROR_MASK_VAL))
+            background = Image.new("RGB", (width, height), (settings.ERROR_MASK_VAL, settings.ERROR_MASK_VAL, settings.ERROR_MASK_VAL))
 
         return background
 
@@ -238,7 +235,7 @@ class GenericOwsServiceOperationFacade(View):
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
-        font_size = int(h * FONT_IMG_RATIO)
+        font_size = int(h * settings.FONT_IMG_RATIO)
 
         font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
         draw.text((0, 0), txt, (0, 0, 0), font=font)
@@ -274,11 +271,11 @@ class GenericOwsServiceOperationFacade(View):
                     mask = Image.open(io.BytesIO(mask))
 
                 # Check if the mask is fine or indicates an error
-                is_error_mask = mask.getpixel((0, 0))[0] == ERROR_MASK_VAL
+                is_error_mask = mask.getpixel((0, 0))[0] == settings.ERROR_MASK_VAL
                 if is_error_mask:
                     # Create full-masking mask and create an access_denied_img
                     mask = Image.new("RGB", img.size, (255, 255, 255))
-                    self.access_denied_img = self._create_image_with_text(img.width, img.height, ERROR_MASK_TXT)
+                    self.access_denied_img = self._create_image_with_text(img.width, img.height, settings.ERROR_MASK_TXT)
 
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))

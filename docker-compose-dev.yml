@@ -2,8 +2,8 @@ version: '3.8'
 services:
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
-    #build:
-    #  context: ./docker/postgis
+    build:
+      context: ./docker/postgis
     ports:
       - "5555:5432"
     environment:
@@ -14,8 +14,8 @@ services:
 
   mrmap-redis:
     image: library/redis:6.2-alpine
-    #build:
-    #  context: ./docker/redis
+    build:
+      context: ./docker/redis
     ports:
       - "5556:6379"
     volumes:
@@ -32,7 +32,7 @@ services:
 
   mrmap-nginx:
     build:
-      context: ./docker/nginx
+      context: .
       dockerfile: ./docker/nginx/Dockerfile
     ports:
       - "80:80"
@@ -45,18 +45,17 @@ services:
 
   mrmap-inspire-validator:
     build:
-      context: ./docker/inspire-validator
+      context: .
       dockerfile: ./docker/inspire-validator/Dockerfile
     ports:
       - "8092:8080"
 
   mrmap-app:
     build:
-      dockerfile: ./docker/mrmap/Dockerfile
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
     ports:
       - "8000:8000"
-    volumes:
-      - ./mrmap:/mrmap
-    links:
-      - mrmap-postgis
-      - mrmap-redis
+    #links:
+    #  - mrmap-postgis
+    #  - mrmap-redis

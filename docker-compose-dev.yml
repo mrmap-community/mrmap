@@ -2,33 +2,31 @@ version: '3.8'
 services:
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
-    build:
-      context: ./docker/postgis
+    #build:
+      #context: ./docker/postgis
     ports:
       - "5555:5432"
     environment:
       POSTGRES_USER: mrmap
       POSTGRES_PASSWORD: mrmap
     volumes:
-      - .docker/postgis/postgresql_data:/var/lib/postgresql/data:Z
+      - ./docker/postgis/postgresql_data:/var/lib/postgresql/data:Z
 
   mrmap-redis:
     image: library/redis:6.2-alpine
-    build:
-      context: ./docker/redis
+    #build:
+      #context: ./docker/redis
     ports:
       - "5556:6379"
     volumes:
-      - .docker/redis/redis_data:/data
+      - ./docker/redis/redis_data:/data
 
   mrmap-mapserver:
     image: camptocamp/mapserver:7.6
-    #build:
-      #context: ./docker/mapserver
     ports:
       - "5557:80"
     volumes:
-      - .docker/mapserver/mapfiles:/etc/mapserver
+      - ./docker/mapserver/mapfiles:/etc/mapserver
 
   mrmap-nginx:
     build:
@@ -38,15 +36,14 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - .docker/nginx/mrmap.conf:/etc/nginx/conf.d/default.conf:ro
-      - .mrmap/static:/opt/mrmap/mrmap
+      - ./docker/nginx/mrmap.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./mrmap/static:/opt/mrmap/mrmap
     extra_hosts:
       - host.docker.internal:host-gateway
 
   mrmap-inspire-validator:
     build:
-      context: .
-      dockerfile: ./docker/inspire-validator/Dockerfile
+      context: ./docker/inspire-validator
     ports:
       - "8092:8080"
 
@@ -54,8 +51,11 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
+      #context: .
+      #dockerfile: ./docker/mrmap/Dockerfile
+    restart: always
     ports:
       - "8000:8000"
-    #links:
-    #  - mrmap-postgis
-    #  - mrmap-redis
+    links:
+      - mrmap-postgis
+      - mrmap-redis

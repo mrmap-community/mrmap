@@ -104,3 +104,6 @@ vine==5.0.0
 wcwidth==0.2.5
 xmltodict==0.12.0
 zope.interface==5.4.0
+gunicorn==20.1.0
+uvicorn==0.15.0
+websockets==9.1

@@ -15,4 +15,5 @@ RUN pip install -r /mrmap/requirements.txt
 # Now copy in our code, and run it
 COPY . /mrmap
 EXPOSE 8000
+ENV DJANGO_SETTINGS_MODULE="MrMap.settings_docker"
 CMD ["python", "/mrmap/manage.py", "runserver", "0.0.0.0:8000"]

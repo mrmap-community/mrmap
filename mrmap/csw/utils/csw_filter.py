@@ -10,7 +10,6 @@ from django.db.models import QuerySet, Q
 from lxml.etree import Element, QName
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
-from service.helper import xml_helper
 
 AND = " and "
 OR = " or "
@@ -187,67 +186,3 @@ def resolve_filter_suffix(is_insensitive: bool, val: str):
         filter_suffix = DJANGO_STARTSWITH_TEMPLATE.format(sensitive)
     return filter_suffix
 
-
-def transform_constraint_to_cql(constraint: str, constraint_language: str):
-    """ Transforms a xml filter style constraint into CQL style
-
-    Args:
-        constraint (str): The constraint parameter
-        constraint_language (str): The constraintlanguage parameter
-    Returns:
-         constraint (str): The transfored constrained
-    """
-    if constraint_language.upper() != "FILTER":
-        raise ValueError("{} is no valid CSW conform value. Choices are `CQL_TEXT, FILTER`".format(constraint_language), "constraintlanguage")
-
-    constraint_xml = xml_helper.parse_xml(constraint)
-    if constraint_xml is None:
-        raise ValueError("Constraint value is no valid xml! Did you set the correct value for 'constraintlanguage'?", CONSTRAINT_LOCATOR)
-    filter_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), constraint_xml.getroot())
-    new_constraint = _transform_constraint_to_cql_recursive(filter_elem)
-
-    return new_constraint
-
-
-def _transform_constraint_to_cql_recursive(upper_elem: Element):
-    constraints = []
-
-    connector_tags = [
-        "and",
-        "or",
-        "not"
-    ]
-    # Prevent <ogc:Filter> from being used as upper_tag joiner in the end
-    upper_tag = QName(upper_elem).localname.lower()
-    upper_tag = upper_tag if upper_tag in connector_tags else ""
-    elements = upper_elem.getchildren()
-
-    for child in elements:
-        child_tag = QName(child).localname
-        if child_tag.lower() in connector_tags:
-            constraints.append(_transform_constraint_to_cql_recursive(child))
-        else:
-            property_name = xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("PropertyName"), xml_elem=child)
-            literal = xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Literal"), xml_elem=child)
-            expr = ""
-            if child_tag == "PropertyIsLike":
-                expr = "like"
-                wild_card = xml_helper.try_get_attribute_from_xml_element(child, "wildCard")
-                literal = literal.replace(wild_card, "%")
-            elif child_tag == "PropertyIsEqualTo":
-                expr = "="
-            elif child_tag == "PropertyIsNotEqualTo":
-                expr = "!="
-            elif child_tag == "PropertyIsGreaterThanOrEqualTo":
-                expr = ">="
-            elif child_tag == "PropertyIsGreaterThan":
-                expr = ">"
-            elif child_tag == "PropertyIsLessThanOrEqualTo":
-                expr = "<="
-            elif child_tag == "PropertyIsLessThan":
-                expr = "<"
-            else:
-                raise ValueError("Unsupported {} found!".format(child_tag), "Filter")
-            constraints.append("{} {} {}".format(property_name, expr, literal))
-    constraint = " {} ".format(upper_tag).join(constraints)
-    return constraint

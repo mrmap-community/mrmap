@@ -18,7 +18,6 @@ from resourceNew.models.service import Layer, FeatureType, Service
 from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
 from uuid import uuid4
 
-from service.models import Document
 
 
 class MimeType(models.Model):
@@ -435,9 +434,10 @@ class LayerMetadata(AbstractMetadata):
         if adding:
             xml = MdMetadata.from_field_dict(self.__dict__)
             xml_string = xml.serializeDocument()
-            Document.objects.create(layer_metadata=self,
-                                    xml=xml_string,
-                                    xml_backup=xml_string)
+            # FIXME: documents are created on the fly by resourceNew.models.DocumentModelMixin
+            #Document.objects.create(layer_metadata=self,
+             #                       xml=xml_string,
+              #                      xml_backup=xml_string)
 
 
 class FeatureTypeMetadata(AbstractMetadata):

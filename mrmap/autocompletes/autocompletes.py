@@ -10,10 +10,7 @@ from guardian.shortcuts import get_objects_for_user
 from acl.models.acl import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from resourceNew.models import Service, Layer, FeatureType
-from service.helper.enums import MetadataEnum
-from service.models import Category, Metadata
 from structure.models import Organization
-from structure.permissionEnums import PermissionEnum
 from resourceNew.models.metadata import Keyword, MetadataContact, ReferenceSystem
 from resourceNew.models.security import OGCOperation, ServiceAccessGroup
 
@@ -46,11 +43,6 @@ class KeywordAutocomplete(LoginRequiredMixin, CreateObjectMixin, autocomplete.Se
     model = Keyword
     search_fields = ['keyword']
     add_perm = "add_keyword"
-
-
-class CategoryAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):
-    model = Category
-    search_fields = ['title_locale_1']
 
 
 class ServiceAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
@@ -111,45 +103,6 @@ class PermissionsAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetVi
 
     def get_result_label(self, result):
         return result.name
-
-
-class MetadataAutocomplete(LoginRequiredMixin, SecuredAutocompleteMixin, autocomplete.Select2QuerySetView):
-    model = Metadata
-    search_fields = ['title', 'id']
-    metadata_type = None
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if self.metadata_type:
-            qs = qs.filter(metadata_type=self.metadata_type.value)
-        return qs
-
-    def get_result_label(self, result):
-        """
-            we need to override this function to show the id of the metadata object,
-            so the user can differentiate the results where title is equal.
-        """
-        return '{} #{}'.format(result.title, result.id)
-
-
-class MetadataServiceAutocomplete(MetadataAutocomplete):
-    metadata_type = MetadataEnum.SERVICE
-
-
-class MetadataDatasetAutocomplete(MetadataAutocomplete):
-    metadata_type = MetadataEnum.DATASET
-
-
-class MetadataLayerAutocomplete(MetadataAutocomplete):
-    metadata_type = MetadataEnum.LAYER
-
-
-class MetadataFeaturetypeAutocomplete(MetadataAutocomplete):
-    metadata_type = MetadataEnum.FEATURETYPE
-
-
-class MetadataCatalougeAutocomplete(MetadataAutocomplete):
-    metadata_type = MetadataEnum.CATALOGUE
 
 
 class MonitoringRunAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):

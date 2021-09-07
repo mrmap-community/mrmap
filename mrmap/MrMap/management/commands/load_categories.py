@@ -7,14 +7,13 @@ Created on: 12.06.19
 """
 import json
 import uuid
-
+from django.conf import settings
 from django.core.management import BaseCommand
 from django.db import transaction
+from requests import Request, Session
 
 from MrMap.management.commands.setup_settings import CATEGORIES, CATEGORIES_LANG
-from service.helper.common_connector import CommonConnector
-from service.helper.enums import CategoryOriginEnum
-from service.models import Category
+from resourceNew.enums.metadata import CategoryOriginEnum
 
 
 class Command(BaseCommand):
@@ -46,17 +45,13 @@ class Command(BaseCommand):
              response (str): The response body content
         """
         uri_lang = category_url.format(language)
-        if (CommonConnector().url_is_reachable("https://www.google.de/",10)[0] is not True):
-            self.stdout.write(
-                self.style.NOTICE("Internet connection test failed! Proxies have to be specified in MrMap/settings.py."))
-            self.stdout.write(
-                self.style.NOTICE("Setup will be canceled! Please make sure to have a working internet connection!"))
-            exit()
 
-        connector = CommonConnector(uri_lang)
-        connector.load()
-        return connector.content
-
+        request = Request(method="GET",
+                          url=uri_lang)
+        session = Session()
+        session.proxies = settings.PROXIES
+        response = session.send(request.prepare())
+        return response.content
 
     def update_categories(self, raw_categories: str, lang_key, origin):
         """ Updates the languages for the previously created categories.
@@ -91,6 +86,8 @@ class Command(BaseCommand):
         for item in items:
             if origin == CategoryOriginEnum.ISO.value:
                 item = item["value"]
+            # FIXME
+            """
             category = Category.objects.get(online_link=item[link])
             if lang_key == "locale_1":
                 # not set yet, we are correct in here
@@ -103,7 +100,7 @@ class Command(BaseCommand):
             else:
                 pass
             category.save()
-            ret_list.append(category)
+            ret_list.append(category)"""
         self.stdout.write(self.style.SUCCESS("Added language '{}' to {} themes.".format(lang_key, origin)))
         return ret_list
 
@@ -139,6 +136,8 @@ class Command(BaseCommand):
         for item in items:
             if origin == CategoryOriginEnum.ISO.value:
                 item = item["value"]
+                # FIXME
+                """
             category = Category.objects.get_or_create(
                 type=origin,
                 title_EN=item[label][text],
@@ -152,6 +151,6 @@ class Command(BaseCommand):
                 category.uuid = uuid.uuid4()
                 category.is_active = True
                 category.save()
-            ret_list.append(category)
+            ret_list.append(category)"""
         self.stdout.write(self.style.SUCCESS("Created initial english {} themes.".format(origin)))
         return ret_list

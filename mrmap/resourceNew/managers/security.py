@@ -5,10 +5,9 @@ from django.contrib.gis.db.models import Union
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.functions import Coalesce
 from django.db.models import Value as V, QuerySet
-from resourceNew.enums.service import OGCOperationEnum
+from resourceNew.enums.service import OGCOperationEnum, HttpMethodEnum
 from resourceNew.ows_client.request_builder import WebService, WmsService, WfsService
 from resourceNew.settings import SECURE_ABLE_OPERATIONS_LOWER
-from service.helper.enums import HttpMethodEnum
 from django.db import models
 from django.db.models import F, Exists, OuterRef, ExpressionWrapper, BooleanField, Q
 

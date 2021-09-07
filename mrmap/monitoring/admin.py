@@ -29,18 +29,12 @@ class MonitoringRunAdmin(admin.ModelAdmin):
 
 
 class MonitoringAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'metadata_link', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run', )
+    list_display = ('uuid', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run', )
     list_filter = ('monitoring_run', )
-
-    def metadata_link(self, obj):
-        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
-
-    metadata_link.allow_tags = True
-    metadata_link.short_description = "metadata"
 
 
 class MonitoringCapabilityAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'metadata', 'needs_update', 'diff')
+    list_display = ('uuid', 'needs_update', 'diff')
 
 
 admin.site.register(HealthStateReason, HealthStateReasonAdmin)

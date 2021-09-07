@@ -6,16 +6,10 @@ from django.utils.translation import gettext_lazy as _
 
 from main.tables.tables import SecuredTable
 from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
-    SERVICE_STATUS_ICONS, SERVICE_HEALTH_ICONS, OPERATION_URLS
-from monitoring.settings import WARNING_RELIABILITY, CRITICAL_RELIABILITY
-from resourceNew.enums.service import OGCServiceEnum
+    SERVICE_STATUS_ICONS, OPERATION_URLS
 from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement
 from resourceNew.tables.template_codes import SERVICE_DETAIL_ICONS, LAYER_FEATURE_TYPE_DETAIL_ICONS, \
-    FEATURE_TYPE_ELEMENT_DETAIL_ICONS, LAYER_TABLE_ACTIONS, FEATURE_TYPE_TABLE_ACTIONS
-from service.helper.enums import MetadataEnum
-from service.templatecodes import SERVICE_TABLE_ACTIONS
-from guardian.core import ObjectPermissionChecker
-from django.db.models import QuerySet
+    FEATURE_TYPE_ELEMENT_DETAIL_ICONS, LAYER_TABLE_ACTIONS, FEATURE_TYPE_TABLE_ACTIONS, SERVICE_TABLE_ACTIONS
 
 TOOLTIP_TITLE = _('The resource title')
 TOOLTIP_ACTIVE = _('Shows whether the resource is active or not.')

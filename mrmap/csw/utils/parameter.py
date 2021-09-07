@@ -7,8 +7,7 @@ Created on: 20.05.20
 """
 from django.http import HttpRequest
 
-from csw.utils.csw_filter import transform_constraint_to_cql, CONSTRAINT_LOCATOR
-from service.helper import xml_helper
+from csw.utils.csw_filter import CONSTRAINT_LOCATOR
 
 INVALID_PARAMETER_TEMPLATE = "Parameter '{}' invalid! Choices are '{}'"
 
@@ -140,11 +139,13 @@ class ParameterResolver:
         # Check if constraint has to be transformed first!
         if self.constraint_language is not None and self.constraint_language.upper() != "CQL_TEXT":
             try:
-                self.constraint = transform_constraint_to_cql(self.constraint, self.constraint_language)
+                #self.constraint = transform_constraint_to_cql(self.constraint, self.constraint_language)
                 self.constraint_language = "CQL_TEXT"
             except TypeError:
                 raise ValueError("XML does not seem to be valid. Please check the CSW specification.", CONSTRAINT_LOCATOR)
         elif self.constraint is not None:
-            xml_elem = xml_helper.parse_xml(self.constraint)
-            if xml_elem is not None:
-                raise ValueError("XML found for constraint parameter but CQL_TEXT found for constraintlanguage. Please set your parameters correctly.", CONSTRAINT_LOCATOR)
+            pass
+            # FIXME
+            #xml_elem = xml_helper.parse_xml(self.constraint)
+           # if xml_elem is not None:
+            #    raise ValueError("XML found for constraint parameter but CQL_TEXT found for constraintlanguage. Please set your parameters correctly.", CONSTRAINT_LOCATOR)

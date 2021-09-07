@@ -13,7 +13,9 @@ class HarvestServiceFormView(SecuredFormView):
     form_class = StartHarvest
     template_name = 'MrMap/detail_views/generic_form.html'
     success_message = 'Async task was created to create new resource.'
-    success_url = reverse_lazy('resource:pending-tasks')
+    # FIXME: wrong success_url
+
+    #success_url = reverse_lazy('resource:pending-tasks')
 
     def form_valid(self, form):
         job_pk = harvest_tasks.harvest_service(

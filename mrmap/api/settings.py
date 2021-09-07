@@ -5,7 +5,6 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 12.09.19
 
 """
-from service.helper.enums import MetadataRelationEnum
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -52,7 +51,6 @@ SUGGESTIONS_MAX_RESULTS = 10
 # Defines a filter to exclude some MetadataRelations, which shall not appear in the API
 API_EXCLUDE_METADATA_RELATIONS = {
     "relation_type__in": [
-        MetadataRelationEnum.HARVESTED_THROUGH.value,
-        MetadataRelationEnum.HARVESTED_PARENT.value,
+
     ]
 }

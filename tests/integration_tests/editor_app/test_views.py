@@ -15,10 +15,10 @@ from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from tests.utils import activate_service
 
 OPERATION_BASE_URI_TEMPLATE = "/resource/metadata/{}/operation"
-EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}?current-view=resource:index"
-RESTORE_BASE_URI_TEMPLATE = "/editor/restore/{}?current-view=resource:index"
+EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}"
+RESTORE_BASE_URI_TEMPLATE = "/editor/restore/{}"
 
-EDIT_ACCESS_BASE_URI_TEMPLATE = "/editor/access/{}?current-view=resource:index"
+EDIT_ACCESS_BASE_URI_TEMPLATE = "/editor/access/{}"
 
 
 class EditorTestCase(TestCase):

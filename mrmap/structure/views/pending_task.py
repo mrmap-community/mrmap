@@ -11,7 +11,8 @@ from django.utils.translation import gettext as _
 
 class PendingTaskDelete(LoginRequiredMixin, SuccessMessageMixin, DetailView):
     model = TaskResult
-    success_url = reverse_lazy('resource:pending-tasks')
+    # FIXME: wrong success_url
+    # success_url = reverse_lazy('resource:pending-tasks')
     template_name = 'generic_views/base_extended/delete.html'
     success_message = _('Task canceled.')
 

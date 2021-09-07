@@ -3,7 +3,7 @@ from django.contrib import admin
 from guardian.models import UserObjectPermission, GroupObjectPermission
 
 from acl.models.acl import AccessControlList
-from acl.models.object_perms import MetadataUserObjectPermission, MetadataGroupObjectPermission
+from acl.models.object_perms import ServiceUserObjectPermission, ServiceGroupObjectPermission
 
 
 class AccessControlListAdmin(admin.ModelAdmin):
@@ -51,5 +51,5 @@ class MetadataGroupObjectPermissionAdmin(admin.ModelAdmin):
     pass
 
 
-admin.site.register(MetadataUserObjectPermission, MetadataUserObjectPermissionAdmin)
-admin.site.register(MetadataGroupObjectPermission, MetadataUserObjectPermissionAdmin)
+admin.site.register(ServiceUserObjectPermission, MetadataUserObjectPermissionAdmin)
+admin.site.register(ServiceGroupObjectPermission, MetadataUserObjectPermissionAdmin)

@@ -10,14 +10,6 @@ This file holds all global constants
 
 DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
 
-SERVICE_DETAIL = "resource:detail"
-SERVICE_ADD = "resource:add"
-
-SERVICE_INDEX_LOG = "resource:logs-view"
-
-STRUCTURE_DETAIL_ORGANIZATION = "structure:organization_view"
-STRUCTURE_INDEX_ORGANIZATION = "structure:organization_overview"
-
 APP_XML = "application/xml"
 
 URL_PATTERN = "<a class={} href='{}'>{}</a>"

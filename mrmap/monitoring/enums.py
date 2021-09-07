@@ -1,4 +1,4 @@
-from service.helper.enums import EnumChoice
+from MrMap.enums import EnumChoice
 
 
 class HealthStateEnum(EnumChoice):

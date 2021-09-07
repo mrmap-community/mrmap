@@ -11,7 +11,6 @@ from django.conf import settings
 
 from csw.models import HarvestResult
 from csw.settings import CSW_GENERIC_ERROR_TEMPLATE
-from csw.utils.harvester import Harvester
 from celery import shared_task
 
 from main.tasks import default_task_handler
@@ -33,8 +32,10 @@ def async_harvest(owned_by_org: str, harvest_result_id: int, **kwargs):
             .select_related('metadata') \
             .get(pk=harvest_result_id)
         try:
-            harvester = Harvester(harvest_result,
-                                  max_records_per_request=500)
+            #FIXME
+            #harvester = Harvester(harvest_result,
+            #                      max_records_per_request=500)
+            harvester = None
             harvester.harvest()
 
             return {'msg': 'Done. Catalogue harvested successful.',

@@ -4,16 +4,15 @@ import django_filters
 from django_filters import FilterSet, CharFilter, ModelMultipleChoiceFilter
 
 from monitoring.models import HealthState, MonitoringRun, MonitoringResult
-from service.helper.enums import MetadataEnum
-from service.models import Metadata
 from django.utils.translation import gettext_lazy as _
 
 
 class MonitoringRunTableFilter(django_filters.FilterSet):
+    """
     metadatas = django_filters.ModelMultipleChoiceFilter(
         queryset=Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value),
         widget=autocomplete.ModelSelect2Multiple(url='autocompletes:metadata_service')
-    )
+    )"""
     monitoring_result = django_filters.ModelMultipleChoiceFilter(
         label=_('Monitoring result'),
         queryset=MonitoringResult.objects.all(),
@@ -35,10 +34,11 @@ class MonitoringResultTableFilter(FilterSet):
         method='search',
         label='Search',
     )
+    """
     metadata = ModelMultipleChoiceFilter(
         queryset=Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value),
         widget=autocomplete.ModelSelect2Multiple(url='autocompletes:metadata_service')
-    )
+    )"""
     monitoring_run = ModelMultipleChoiceFilter(
         queryset=MonitoringRun.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_run')
@@ -64,10 +64,11 @@ class MonitoringResultTableFilter(FilterSet):
 
 
 class HealthStateTableFilter(FilterSet):
+    """
     metadata = ModelMultipleChoiceFilter(
         queryset=Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value),
         widget=autocomplete.ModelSelect2Multiple(url='autocompletes:metadata_service')
-    )
+    )"""
     monitoring_run = ModelMultipleChoiceFilter(
         queryset=MonitoringRun.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_run')

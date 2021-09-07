@@ -7,12 +7,13 @@ https://django-guardian.readthedocs.io/en/v2.3.0/userguide/performance.html#dire
 """
 from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from django.db import models
-from service.models import Metadata
+
+from resourceNew.models import Service
 
 
-class MetadataUserObjectPermission(UserObjectPermissionBase):
-    content_object = models.ForeignKey(to=Metadata, on_delete=models.CASCADE)
+class ServiceUserObjectPermission(UserObjectPermissionBase):
+    content_object = models.ForeignKey(to=Service, on_delete=models.CASCADE)
 
 
-class MetadataGroupObjectPermission(GroupObjectPermissionBase):
-    content_object = models.ForeignKey(to=Metadata, on_delete=models.CASCADE)
+class ServiceGroupObjectPermission(GroupObjectPermissionBase):
+    content_object = models.ForeignKey(to=Service, on_delete=models.CASCADE)

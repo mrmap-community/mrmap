@@ -1,13 +1,15 @@
 import uuid
+from requests import Request, Session
 
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
-from service.helper import xml_helper
-from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum
+from resourceNew.enums.document import DocumentEnum
+from resourceNew.enums.service import OGCServiceEnum
 
 password_has_lower_case_letter = RegexValidator(
     regex='[a-z]',
@@ -71,59 +73,26 @@ def check_uri_is_reachable(value) -> (bool, bool, int):
          needs_authentication (bool)
          status_code (int)
     """
-    connector = CommonConnector(
-        url=value
-    )
-    is_reachable, status_code = connector.url_is_reachable()
-    if not is_reachable:
-        if status_code < 0:
+    request = Request(method="GET",
+                      url=value)
+    session = Session()
+    response = session.send(request.prepare())
+    if not response.ok:
+        if response.status_code < 0:
             # Not even callable!
             msg_suffix = "URL could not be resolved to a server. Please check your input!"
         else:
-            msg_suffix = "Status code was {}".format(status_code)
+            msg_suffix = "Status code was {}".format(response.status_code)
         return ValidationError(message="URL not valid! {}".format(msg_suffix))
-    needs_authentication = status_code == 401
-    return is_reachable, needs_authentication, status_code
-
-
-def check_uri_provides_ogc_capabilities(value) -> ValidationError:
-    """ Checks whether a proper XML OGC Capabilities document can be found at the given url.
-
-    Args:
-        value: The url parameter
-    Returns:
-         None: if the checks are valid
-    Raises:
-        ValidationError: if checks are not valid
-    """
-    connector = CommonConnector(url=value)
-    connector.load()
-    if connector.status_code < 0:
-        # Not even callable!
-        raise ValidationError(_("URL could not be resolved to a server. Please check your input!"))
-    if connector.status_code == 401:
-        # This means the resource needs authentication to be called. At this point we can not check whether this is
-        # a proper OGC capabilities or not.
-        return ValidationError(_("The remote service response with http status code 401. "
-                                 "This service needs authentication. This error shows also if the used credentials are"
-                                 "wrong."))
-    try:
-        xml_response = xml_helper.parse_xml(connector.content)
-        root_elem = xml_response.getroot()
-        tag_text = root_elem.tag
-        if "Capabilities" not in tag_text:
-            return ValidationError(_("This is no capabilities document."))
-    except AttributeError:
-        # No xml found!
-        return ValidationError(_("No XML found."))
+    needs_authentication = response.status_code == 401
+    return response.ok, needs_authentication, response.status_code
 
 
 def _get_request_uri_has_no_request_parameter(value):
-    from service.helper import service_helper
-    url_dict = service_helper.split_service_uri(value)
-
-    if "request" in url_dict and url_dict["request"] is not None:
-        if url_dict["request"].lower() != "getcapabilities":
+    parsed_url = urlparse(value)
+    query_params = parse_qs(parsed_url.query)
+    if "request" in query_params and query_params["request"][0] is not None:
+        if query_params["request"][0].lower() != "getcapabilities":
             # not allowed!
             return ValidationError(
                 _('The given requested method is not GetCapabilities.'),
@@ -135,8 +104,8 @@ def _get_request_uri_has_no_request_parameter(value):
 
 
 def _get_request_uri_has_no_version_parameter(value):
-    from service.helper import service_helper
-    url_dict = service_helper.split_service_uri(value)
+    parsed_url = urlparse(value)
+    query_params = parse_qs(parsed_url.query)
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
     supported_wms_versions = ['1.3.0', '1.1.1', '1.1.0', '1.0.0']
@@ -144,15 +113,15 @@ def _get_request_uri_has_no_version_parameter(value):
     # Todo: append all versions
     supported_csw_versions = ['2.0.2', ]
 
-    if "version" in url_dict and url_dict["version"] is not None:
-        if "service" in url_dict or url_dict["service"] is not None:
-            if url_dict["service"] == OGCServiceEnum.WMS:
+    if "version" in query_params and query_params["version"][0] is not None:
+        if "service" in query_params or query_params["service"][0] is not None:
+            if query_params["service"][0] == OGCServiceEnum.WMS:
                 service_type = OGCServiceEnum.WMS.value
                 supported_versions = supported_wms_versions
-            elif url_dict["service"] == OGCServiceEnum.WFS:
+            elif query_params["service"][0] == OGCServiceEnum.WFS:
                 service_type = OGCServiceEnum.WFS.value
                 supported_versions = supported_wfs_versions
-            elif url_dict["service"] == OGCServiceEnum.CSW:
+            elif query_params["service"][0] == OGCServiceEnum.CSW:
                 service_type = OGCServiceEnum.CSW.value
                 supported_versions = supported_csw_versions
             else:
@@ -162,12 +131,12 @@ def _get_request_uri_has_no_version_parameter(value):
 
             is_supported = False
             for version in supported_versions:
-                if url_dict["version"] == version:
+                if query_params["version"][0] == version:
                     is_supported = True
 
             if not is_supported:
                 return ValidationError(
-                    _('The given {} version {} is not supported from Mr. Map.'.format(service_type, url_dict["version"])),
+                    _('The given {} version {} is not supported from Mr. Map.'.format(service_type, query_params["version"][0])),
                 )
 
     else:
@@ -177,10 +146,9 @@ def _get_request_uri_has_no_version_parameter(value):
 
 
 def _get_request_uri_has_no_service_parameter(value):
-    from service.helper import service_helper
-    url_dict = service_helper.split_service_uri(value)
-
-    if "service" not in url_dict or url_dict["service"] is None:
+    parsed_url = urlparse(value)
+    query_params = parse_qs(parsed_url.query)
+    if "service" not in query_params or query_params["service"][0] is None:
         return ValidationError(
             _('The given uri is not valid cause there is no service parameter.')
         )
@@ -200,19 +168,13 @@ def validate_get_capablities_uri(value):
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,
-        check_uri_provides_ogc_capabilities,
         check_uri_is_reachable,
     ]
 
-    skip_check_uri_provides_ogc_capabilities = False
     for func in validate_funcs:
-        if skip_check_uri_provides_ogc_capabilities and func == check_uri_provides_ogc_capabilities:
-            continue
         val = func(value)
         if isinstance(val, ValidationError):
             validation_errors.append(val)
-            if func == check_uri_is_reachable:
-                skip_check_uri_provides_ogc_capabilities = True
 
     if len(validation_errors) > 0:
         raise ValidationError(validation_errors)
@@ -220,10 +182,6 @@ def validate_get_capablities_uri(value):
 
 def validate_document_enum_choices(value):
     return validate_choice(value, DocumentEnum.as_choices())
-
-
-def validate_metadata_enum_choices(value):
-    return validate_choice(value, MetadataEnum.as_choices())
 
 
 def validate_choice(value, choices: list):

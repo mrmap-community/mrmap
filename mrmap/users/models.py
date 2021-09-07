@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 28.05.19
 
 """
+import hashlib
 import uuid
 
 import six
@@ -13,7 +14,6 @@ from guardian.shortcuts import get_objects_for_user
 from django.utils.functional import cached_property
 from acl.models.acl import AccessControlList
 from main.models import CommonInfo
-from service.models import Metadata
 from django.utils.translation import gettext_lazy as _l
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
@@ -25,7 +25,7 @@ from django.utils.translation import gettext_lazy as _
 from django_bootstrap_swt.components import LinkButton, Tag
 from django_bootstrap_swt.enums import ButtonColorEnum, ButtonSizeEnum
 from MrMap.icons import IconEnum, get_icon
-from service.helper.crypto_handler import CryptoHandler
+from resourceNew.models import Service
 from structure.models import Organization
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 from users.settings import default_request_activation_time
@@ -100,9 +100,8 @@ class MrMapUser(AbstractUser):
         user_activation = UserActivation()
         user_activation.user = self
         user_activation.activation_until = timezone.now() + timezone.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
-        sec_handler = CryptoHandler()
         hasher = get_hasher('default')
-        user_activation.activation_hash = sec_handler.sha256(
+        user_activation.activation_hash = hashlib.sha256(
             self.username + hasher.salt() + str(user_activation.activation_until))
         user_activation.save()
 
@@ -133,7 +132,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
 class Subscription(CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
-    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE,
+    metadata = models.ForeignKey(Service, on_delete=models.CASCADE,
                                  verbose_name=_('Service'),
                                  help_text=_("Select the service you want to subscribe. When you edit an existing "
                                              "subscription, you can not change this selection."))

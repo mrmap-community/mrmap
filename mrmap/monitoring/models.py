@@ -13,11 +13,11 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django_bootstrap_swt.components import Tag, LinkButton
 from django_bootstrap_swt.enums import ButtonColorEnum
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
-from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
 
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
@@ -30,7 +30,7 @@ from structure.permissionEnums import PermissionEnum
 
 class MonitoringSetting(UuidPk):
     # FIXME: service app is outdated.. move relation to resource app
-    #metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
+    # metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
     check_time = models.TimeField()
     timeout = models.IntegerField()
     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
@@ -94,6 +94,7 @@ class MonitoringRun(CommonInfo):
                                        related_name='monitoring_runs',
                                        verbose_name=_('Checked resources'))
     """
+
     class Meta:
         ordering = ["-end"]
         verbose_name = _('Monitoring run')
@@ -141,16 +142,17 @@ class MonitoringRun(CommonInfo):
         super().save(*args, **kwargs)
         if adding:
             from monitoring.tasks import run_manual_service_monitoring
-            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.owned_by_org.pk if self.owned_by_org else None,
-                                                                                          self.pk,),
-                                                                                    kwargs={'created_by_user_pk': self.created_by_user.pk},
-                                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(
+                args=(self.owned_by_org.pk if self.owned_by_org else None,
+                      self.pk,),
+                kwargs={'created_by_user_pk': self.created_by_user.pk},
+                countdown=settings.CELERY_DEFAULT_COUNTDOWN))
 
 
 class MonitoringResult(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
     # FIXME: service app is outdated.. move relation to resource app
-    #metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
+    # metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
     timestamp = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(null=True, blank=True)
     status_code = models.IntegerField(null=True, blank=True)
@@ -180,15 +182,16 @@ class MonitoringResultDocument(MonitoringResult):
 
 class HealthState(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
-    monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
+    monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state',
+                                          verbose_name=_('Monitoring Run'))
     # FIXME: service app is outdated.. move relation to resource app
 
-    #metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_states', related_query_name='health_states', verbose_name=_('Resource'))
+    # metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_states', related_query_name='health_states', verbose_name=_('Resource'))
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, verbose_name=_('Health state code'))
     health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
-                                      max_length=512, )     # this is the teaser for tooltips
+                                      max_length=512, )  # this is the teaser for tooltips
     reliability_1w = models.FloatField(default=0,
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
     reliability_1m = models.FloatField(default=0,
@@ -224,8 +227,9 @@ class HealthState(CommonInfo):
         # Get health states of the last 3 months, for statistic calculating
         now = timezone.now()
         health_states_3m = HealthState.objects.filter(metadata=self.metadata,
-                                                      monitoring_run__end__gte=now - timezone.timedelta(days=(3 * 365 / 12)))\
-                                              .order_by('-monitoring_run__end')
+                                                      monitoring_run__end__gte=now - timezone.timedelta(
+                                                          days=(3 * 365 / 12))) \
+            .order_by('-monitoring_run__end')
 
         # get only health states for 1m and 1w calculation to prevent from sql statements
         health_states_1m = list(
@@ -250,7 +254,8 @@ class HealthState(CommonInfo):
                                     health_states_1m=health_states_1m,
                                     health_states_3m=health_states_3m)
 
-    def _calculate_average_response_times(self, monitoring_objects, health_states_1w, health_states_1m, health_states_3m):
+    def _calculate_average_response_times(self, monitoring_objects, health_states_1w, health_states_1m,
+                                          health_states_3m):
         if monitoring_objects:
             average_response_time = None
             for monitoring_result in monitoring_objects:
@@ -351,30 +356,33 @@ class HealthState(CommonInfo):
                 critical = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.CRITICAL.value,
-                                  reason=_(f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                  reason=_(
+                                      f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
             elif self.average_response_time_1w >= timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME):
                 warning = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.WARNING.value,
-                                  reason=_(f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                  reason=_(
+                                      f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
 
             if critical:
                 self.health_state_code = HealthStateEnum.CRITICAL.value
-                self.health_message = _('The state of this resource is <strong class="text-danger">critical</strong>.<br>' +
-                                      self._get_last_check_runs_on_msg(monitoring_result))
+                self.health_message = _(
+                    'The state of this resource is <strong class="text-danger">critical</strong>.<br>' +
+                    self._get_last_check_runs_on_msg(monitoring_result))
             elif warning:
                 self.health_state_code = HealthStateEnum.WARNING.value
                 self.health_message = _('This resource has some <strong class="text-warning">warnings</strong>.<br>' +
-                                      self._get_last_check_runs_on_msg(monitoring_result))
+                                        self._get_last_check_runs_on_msg(monitoring_result))
             else:
                 # We can't found any errors. Health state is ok
                 self.health_state_code = HealthStateEnum.OK.value
                 self.health_message = _(f'Everthing is <strong class="text-success">OK</strong>.<br>' +
-                                      self._get_last_check_runs_on_msg(monitoring_result))
+                                        self._get_last_check_runs_on_msg(monitoring_result))
             self.save()
 
 
@@ -386,5 +394,5 @@ class HealthStateReason(models.Model):
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, )
-    monitoring_result = models.ForeignKey(MonitoringResult, on_delete=models.CASCADE, related_name='health_state_reasons', )
-
+    monitoring_result = models.ForeignKey(MonitoringResult, on_delete=models.CASCADE,
+                                          related_name='health_state_reasons', )

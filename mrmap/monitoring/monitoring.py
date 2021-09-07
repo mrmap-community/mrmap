@@ -6,30 +6,24 @@ Created on: 09.12.2019
 
 """
 
-from django.utils import timezone
-import difflib
-from typing import Union
-from PIL import Image, UnidentifiedImageError
-from io import BytesIO
-
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.utils import timezone
 
-from monitoring.settings import MONITORING_REQUEST_TIMEOUT
-from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, MonitoringSetting, \
-    HealthState
-from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
-from service.helper.crypto_handler import CryptoHandler
-from service.helper.common_connector import CommonConnector
-from service.helper.xml_helper import parse_xml
-from service.models import Metadata, Document, Service, FeatureType
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, DocumentEnum
+from monitoring.helper.wmsHelper import WmsHelper
+from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
+    MonitoringSetting, \
+    HealthState
+from resourceNew.enums.service import OGCServiceVersionEnum, OGCServiceEnum
+from resourceNew.models import Service
 
 
 class Monitoring:
 
-    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting = None, ):
+    # TODO other monitorable resources (layer, feature type, dataset)
+    def __init__(self, metadata: Service, monitoring_run: MonitoringRun,
+                 monitoring_setting: MonitoringSetting = None, ):
         self.metadata = metadata
         self.linked_metadata = None
         self.monitoring_run = monitoring_run
@@ -45,7 +39,9 @@ class Monitoring:
             message (str): The response text of the request.
             duration (timedelta): The duration of the request.
         """
-        def __init__(self, uri: str, success: bool, message: str, status: int = None, duration: timezone.timedelta = None):
+
+        def __init__(self, uri: str, success: bool, message: str, status: int = None,
+                     duration: timezone.timedelta = None):
             self.monitored_uri = uri
             self.success = success
             self.status = status
@@ -71,12 +67,12 @@ class Monitoring:
             elif self.metadata.is_service_type(OGCServiceEnum.WFS):
                 self.check_wfs(check_obj)
 
-        elif self.metadata.is_layer_metadata:
-            self.check_layer(check_obj)
-        elif self.metadata.is_featuretype_metadata:
-            self.check_featuretype(check_obj)
-        elif self.metadata.is_dataset_metadata:
-            self.check_dataset()
+        # elif self.metadata.is_layer_metadata:
+        #     self.check_layer(check_obj)
+        # elif self.metadata.is_featuretype_metadata:
+        #     self.check_featuretype(check_obj)
+        # elif self.metadata.is_dataset_metadata:
+        #     self.check_dataset()
 
         # all checks are done. Calculate the health state for all monitoring results
         health_state = HealthState(monitoring_run=self.monitoring_run,
@@ -168,23 +164,23 @@ class Monitoring:
                 continue
             self.check_service(url[0], check_image=url[1])
 
-    def check_featuretype(self, feature_type: FeatureType):
-        """ Checks the status of a featuretype.
-
-        Args:
-            feature_type (FeatureType): The featuretype to check.
-        Returns:
-            nothing
-        """
-        wfs_helper = WfsHelper(feature_type)
-        urls_to_check = [
-            (wfs_helper.get_describe_featuretype_url(feature_type.metadata.identifier), True),
-            (wfs_helper.get_get_feature_url(feature_type.metadata.identifier), True),
-        ]
-        for url in urls_to_check:
-            if url[0] is None:
-                continue
-            self.check_service(url[0], check_wfs_member=url[1])
+    # def check_featuretype(self, feature_type: FeatureType):
+    #     """ Checks the status of a featuretype.
+    #
+    #     Args:
+    #         feature_type (FeatureType): The featuretype to check.
+    #     Returns:
+    #         nothing
+    #     """
+    #     wfs_helper = WfsHelper(feature_type)
+    #     urls_to_check = [
+    #         (wfs_helper.get_describe_featuretype_url(feature_type.metadata.identifier), True),
+    #         (wfs_helper.get_get_feature_url(feature_type.metadata.identifier), True),
+    #     ]
+    #     for url in urls_to_check:
+    #         if url[0] is None:
+    #             continue
+    #         self.check_service(url[0], check_wfs_member=url[1])
 
     def check_service(self, url: str, check_wfs_member: bool = False, check_image: bool = False):
         """ Checks the status of a service and calls the appropriate handlers.
@@ -202,50 +198,51 @@ class Monitoring:
         else:
             self.handle_service_error(service_status)
 
-    def check_status(self, url: str, check_wfs_member: bool = False, check_image: bool = False) -> ServiceStatus:
-        """ Check status of ogc service.
-
-        Args:
-            url (str): URL to the service that should be checked.
-            check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
-            check_image (bool): True, if the returned content should be checked as image.
-        Returns:
-            ServiceStatus: Status info of service.
-        """
-        success = False
-        duration = None
-        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else MONITORING_REQUEST_TIMEOUT)
-        if self.metadata.has_external_authentication:
-            connector.external_auth = self.metadata.external_authentication
-        try:
-            connector.load()
-        except Exception as e:
-            # handler if server sends no response (e.g. outdated uri)
-            response_text = str(e)
-            return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
-
-        duration = timezone.timedelta(seconds=connector.run_time)
-        response_text = connector.content
-        if connector.status_code == 200:
-            success = True
-            try:
-                xml = parse_xml(response_text)
-                if 'Exception' in xml.getroot().tag:
-                    success = False
-                if check_wfs_member:
-                    if not self.has_wfs_member(xml):
-                        success = False
-            except AttributeError:
-                # handle successful responses that do not return xml
-                response_text = None
-            if check_image:
-                try:
-                    Image.open(BytesIO(connector.content))
-                    success = True
-                except UnidentifiedImageError:
-                    success = False
-        service_status = Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
-        return service_status
+    # def check_status(self, url: str, check_wfs_member: bool = False, check_image: bool = False) -> ServiceStatus:
+    #     """ Check status of ogc service.
+    #
+    #     Args:
+    #         url (str): URL to the service that should be checked.
+    #         check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
+    #         check_image (bool): True, if the returned content should be checked as image.
+    #     Returns:
+    #         ServiceStatus: Status info of service.
+    #     """
+    #     success = False
+    #     duration = None
+    #     connector = CommonConnector(url=url,
+    #                                 timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else MONITORING_REQUEST_TIMEOUT)
+    #     if self.metadata.has_external_authentication:
+    #         connector.external_auth = self.metadata.external_authentication
+    #     try:
+    #         connector.load()
+    #     except Exception as e:
+    #         # handler if server sends no response (e.g. outdated uri)
+    #         response_text = str(e)
+    #         return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+    #
+    #     duration = timezone.timedelta(seconds=connector.run_time)
+    #     response_text = connector.content
+    #     if connector.status_code == 200:
+    #         success = True
+    #         try:
+    #             xml = parse_xml(response_text)
+    #             if 'Exception' in xml.getroot().tag:
+    #                 success = False
+    #             if check_wfs_member:
+    #                 if not self.has_wfs_member(xml):
+    #                     success = False
+    #         except AttributeError:
+    #             # handle successful responses that do not return xml
+    #             response_text = None
+    #         if check_image:
+    #             try:
+    #                 Image.open(BytesIO(connector.content))
+    #                 success = True
+    #             except UnidentifiedImageError:
+    #                 success = False
+    #     service_status = Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+    #     return service_status
 
     def has_wfs_member(self, xml):
         """Checks the existence of a (feature)Member for a wfs feature.
@@ -266,50 +263,50 @@ class Monitoring:
         if version == OGCServiceVersionEnum.V_2_0_2.value:
             return len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1
 
-    def check_get_capabilities(self, url: str):
-        """Handles the GetCapabilities checks.
+    # def check_get_capabilities(self, url: str):
+    #     """Handles the GetCapabilities checks.
+    #
+    #     Handles the monitoring process of the GetCapabilities operation as the workflow differs from other operations.
+    #     If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
+    #     values depend on possible differences in the retrieved capabilities document.
+    #     If the service is not available, a Monitoring model instance will be created as no information on
+    #     differences between capabilities documents is given.
+    #
+    #     Args:
+    #         url (str): The url for the GetCapabilities request.
+    #     Returns:
+    #         nothing
+    #     """
+    #     document = Document.objects.get(
+    #         metadata=self.metadata,
+    #         is_original=True,
+    #         document_type=DocumentEnum.CAPABILITY.value
+    #     )
+    #     original_document = document.content
+    #     self.check_document(url, original_document)
 
-        Handles the monitoring process of the GetCapabilities operation as the workflow differs from other operations.
-        If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
-        values depend on possible differences in the retrieved capabilities document.
-        If the service is not available, a Monitoring model instance will be created as no information on
-        differences between capabilities documents is given.
-
-        Args:
-            url (str): The url for the GetCapabilities request.
-        Returns:
-            nothing
-        """
-        document = Document.objects.get(
-            metadata=self.metadata,
-            is_original=True,
-            document_type=DocumentEnum.CAPABILITY.value
-        )
-        original_document = document.content
-        self.check_document(url, original_document)
-
-    def check_dataset(self):
-        """Handles the dataset checks.
-
-        Handles the monitoring process of the datasets as the workflow differs from other operations.
-        If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
-        values depend on possible differences in the retrieved dataset document.
-        If the service is not available, a Monitoring model instance will be created as no information on
-        differences between datset documents is given.
-
-        Args:
-            none
-        Returns:
-            nothing
-        """
-        url = self.metadata.metadata_url
-        document = Document.objects.get(
-            metadata=self.metadata,
-            document_type=DocumentEnum.METADATA.value,
-            is_original=True,
-        )
-        original_document = document.content
-        self.check_document(url, original_document)
+    # def check_dataset(self):
+    #     """Handles the dataset checks.
+    #
+    #     Handles the monitoring process of the datasets as the workflow differs from other operations.
+    #     If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
+    #     values depend on possible differences in the retrieved dataset document.
+    #     If the service is not available, a Monitoring model instance will be created as no information on
+    #     differences between datset documents is given.
+    #
+    #     Args:
+    #         none
+    #     Returns:
+    #         nothing
+    #     """
+    #     url = self.metadata.metadata_url
+    #     document = Document.objects.get(
+    #         metadata=self.metadata,
+    #         document_type=DocumentEnum.METADATA.value,
+    #         is_original=True,
+    #     )
+    #     original_document = document.content
+    #     self.check_document(url, original_document)
 
     def check_document(self, url, original_document):
         service_status = self.check_status(url)
@@ -338,35 +335,35 @@ class Monitoring:
         else:
             self.handle_service_error(service_status)
 
-    def get_document_diff(self, new_document: str, original_document: str) -> Union[str, None]:
-        """Computes the diff between two documents.
-
-        Compares the currently stored document and compares its hash to the one
-        in the response of the latest check.
-
-        Args:
-            new_document (str): Document of last request.
-            original_document (str): Original document.
-        Returns:
-            str: The diff of the two documents, if hashes have differences
-            None: If the hashes have no differences
-        """
-        crypto_handler = CryptoHandler()
-        try:
-            # check if new_capabilities is bytestring and decode it if so
-            new_document = new_document.decode('UTF-8')
-        except AttributeError:
-            pass
-        new_capabilities_hash = crypto_handler.sha256(new_document)
-        original_document_hash = crypto_handler.sha256(original_document)
-        if new_capabilities_hash == original_document_hash:
-            return
-        else:
-            original_lines = original_document.splitlines(keepends=True)
-            new_lines = new_document.splitlines(keepends=True)
-            # info on the created diff on https://docs.python.org/3.6/library/difflib.html#difflib.unified_diff
-            diff = difflib.unified_diff(original_lines, new_lines)
-            return diff
+    # def get_document_diff(self, new_document: str, original_document: str) -> Union[str, None]:
+    #     """Computes the diff between two documents.
+    #
+    #     Compares the currently stored document and compares its hash to the one
+    #     in the response of the latest check.
+    #
+    #     Args:
+    #         new_document (str): Document of last request.
+    #         original_document (str): Original document.
+    #     Returns:
+    #         str: The diff of the two documents, if hashes have differences
+    #         None: If the hashes have no differences
+    #     """
+    #     crypto_handler = CryptoHandler()
+    #     try:
+    #         # check if new_capabilities is bytestring and decode it if so
+    #         new_document = new_document.decode('UTF-8')
+    #     except AttributeError:
+    #         pass
+    #     new_capabilities_hash = crypto_handler.sha256(new_document)
+    #     original_document_hash = crypto_handler.sha256(original_document)
+    #     if new_capabilities_hash == original_document_hash:
+    #         return
+    #     else:
+    #         original_lines = original_document.splitlines(keepends=True)
+    #         new_lines = new_document.splitlines(keepends=True)
+    #         # info on the created diff on https://docs.python.org/3.6/library/difflib.html#difflib.unified_diff
+    #         diff = difflib.unified_diff(original_lines, new_lines)
+    #         return diff
 
     def handle_service_error(self, service_status: ServiceStatus):
         """ Handles service responses with error statuses.

@@ -5,9 +5,9 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-from service.models import Service, Layer
-from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper
+from resourceNew.enums.service import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
+from resourceNew.models import Service, Layer
 
 
 class WmsHelper:

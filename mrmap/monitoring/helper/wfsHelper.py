@@ -6,9 +6,8 @@ Created on: 26.02.2020
 
 """
 
-from service.models import Service
-from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from monitoring.helper.urlHelper import UrlHelper
+from resourceNew.enums.service import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 
 
 class WfsHelper:

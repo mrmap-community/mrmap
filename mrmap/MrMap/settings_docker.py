@@ -20,9 +20,9 @@ DATABASES['default']['PASSWORD'] = 'mrmap'
 DATABASES['default']['PORT'] = '5432'
 DATABASES['default']['HOST'] = 'mrmap-postgis'
 
-CACHES['default']['LOCATION'] = 'redis://localhost:5556/1'
+CACHES['default']['LOCATION'] = 'redis://mrmap-redis:5556/1'
 
-BROKER_URL = f'redis://mrmap-redis:6379'
+BROKER_URL = f'redis://mrmap-redis:5556'
 # CELERY_RESULT_BACKEND = 'redis://localhost:5556'
 
 CHANNEL_LAYERS['default']['CONFIG']['hosts'] = [('localhost', '5556')]

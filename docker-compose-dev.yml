@@ -2,8 +2,6 @@ version: '3.8'
 services:
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
-    #build:
-      #context: ./docker/postgis
     ports:
       - "5555:5432"
     environment:
@@ -14,8 +12,6 @@ services:
 
   mrmap-redis:
     image: library/redis:6.2-alpine
-    #build:
-      #context: ./docker/redis
     ports:
       - "5556:6379"
     volumes:
@@ -30,8 +26,8 @@ services:
 
   mrmap-nginx:
     build:
-      context: .
-      dockerfile: ./docker/nginx/Dockerfile
+      context: ./docker/nginx
+      #dockerfile: ./docker/nginx/Dockerfile
     ports:
       - "80:80"
       - "443:443"

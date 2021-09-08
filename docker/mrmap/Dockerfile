@@ -10,20 +10,13 @@ ENV MRMAP_REQ $MRMAP_PATH/requirements.txt
 RUN apt-get -qq update && \
     apt-get -y install iputils-ping libcurl4-openssl-dev libssl-dev gdal-bin libpq-dev gcc
 
-# By copying over requirements first, we make sure that Docker will cache
-# our installed requirements rather than reinstall them on every build
-COPY ./requirements.txt $MRMAP_REQ
-
 # copy code base
+#VOLUME . $MRMAP_PATH
 COPY . $MRMAP_PATH
+RUN chmod +x $MRMAP_PATH/start.sh
 
 RUN pip install -r $MRMAP_REQ
-RUN ping db
-RUN python $MANAGE_PY makemigrations
-RUN python $MANAGE_PY setup
 
-# EXPOSE 8000
+RUN python $MANAGE_PY collectstatic -c --noinput
 
-CMD ["$MRMAP_PATH/start.sh"]
-#ENV DJANGO_SETTINGS_MODULE="MrMap.settings_docker"
-#CMD ["python", "/mrmap/manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["/opt/mrmap/start.sh"]

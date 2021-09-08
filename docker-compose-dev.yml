@@ -1,72 +1,56 @@
 version: '3.8'
-networks:
-  internal:
-    driver: "bridge"
-  external:
+
 
 services:
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
-    container_name: db
-    #ports:
-    #  - "5555:5432"
     environment:
       POSTGRES_USER: mrmap
       POSTGRES_PASSWORD: mrmap  # in productive setup you shall change this password
     volumes:
       - ./docker/postgis/postgresql_data:/var/lib/postgresql/data:Z
-    networks:
-      internal:
-        aliases:
-            - db
 
-  mrmap-redis:
-    image: library/redis:6.2-alpine
-    #ports:
-    #  - "5556:6379"
-    volumes:
-      - ./docker/redis/redis_data:/data
-    networks:
-      internal:
-        aliases:
-          - mem-db
+  #mrmap-redis:
+  #  image: library/redis:6.2-alpine
+  #  #ports:
+  #  #  - "5556:6379"
+  #  volumes:
+  #    - ./docker/redis/redis_data:/data
 
-  mrmap-mapserver:
-    image: camptocamp/mapserver:7.6
-    #ports:
-    #  - "5557:80"
-    volumes:
-      - ./docker/mapserver/mapfiles:/etc/mapserver
-    networks:
-      - internal
+  #mrmap-mapserver:
+  #  image: camptocamp/mapserver:7.6
+  #  #ports:
+  #  #  - "5557:80"
+  #  volumes:
+  #    - ./docker/mapserver/mapfiles:/etc/mapserver
 
   mrmap-nginx:
     build:
-      context: ./docker/nginx
-      #dockerfile: ./docker/nginx/Dockerfile
+      context: ./mrmap
+      dockerfile: ../docker/nginx/Dockerfile
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./docker/nginx/mrmap.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./mrmap/static:/opt/mrmap
+      - ./docker/mrmap/static:/opt/mrmap/static
     extra_hosts:
       - host.docker.internal:host-gateway
-    networks:
-      - internal
 
-  mrmap-inspire-validator:
-    build:
-      context: ./docker/inspire-validator
-    ports:
-      - "8092:8080"
+
+  #mrmap-inspire-validator:
+  #  build:
+  #    context: ./docker/inspire-validator
+  #  ports:
+  #    - "8092:8080"
 
   mrmap-app:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    networks:
-      - internal
+    volumes:
+      - ./docker/mrmap/static:/opt/mrmap/static
     depends_on:
       - mrmap-postgis
-      - mrmap-redis
+
+

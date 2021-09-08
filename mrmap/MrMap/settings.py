@@ -261,7 +261,7 @@ DATABASES = {
         'NAME': 'mrmap',
         'USER': 'mrmap',
         'PASSWORD': 'mrmap',
-        'HOST': '127.0.0.1',
+        'HOST': 'db',  # docker container hostname
         'PORT': '5432',
     }
 }
@@ -270,7 +270,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 ################################################################
 # Redis settings
 ################################################################
-REDIS_HOST = 'localhost'
+REDIS_HOST = 'mem-db'  # docker container hostname
 REDIS_PORT = '6379'
 BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
 
@@ -452,8 +452,8 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 ################################################################
 # Mapserver
 ################################################################
-MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/security_mask.map")
+MAPSERVER_LOCAL_PATH = "http://mrmap-mapserver/cgi-bin/mapserv"
+MAPSERVER_SECURITY_MASK_FILE_PATH = "/etc/mapserver/security_mask.map"  # path on the machine which provides the mapserver service
 MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"

@@ -1,28 +1,44 @@
 version: '3.8'
+networks:
+  internal:
+    driver: "bridge"
+  external:
+
 services:
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
-    ports:
-      - "5555:5432"
+    container_name: db
+    #ports:
+    #  - "5555:5432"
     environment:
       POSTGRES_USER: mrmap
-      POSTGRES_PASSWORD: mrmap
+      POSTGRES_PASSWORD: mrmap  # in productive setup you shall change this password
     volumes:
       - ./docker/postgis/postgresql_data:/var/lib/postgresql/data:Z
+    networks:
+      internal:
+        aliases:
+            - db
 
   mrmap-redis:
     image: library/redis:6.2-alpine
-    ports:
-      - "5556:6379"
+    #ports:
+    #  - "5556:6379"
     volumes:
       - ./docker/redis/redis_data:/data
+    networks:
+      internal:
+        aliases:
+          - mem-db
 
   mrmap-mapserver:
     image: camptocamp/mapserver:7.6
-    ports:
-      - "5557:80"
+    #ports:
+    #  - "5557:80"
     volumes:
       - ./docker/mapserver/mapfiles:/etc/mapserver
+    networks:
+      - internal
 
   mrmap-nginx:
     build:
@@ -33,9 +49,11 @@ services:
       - "443:443"
     volumes:
       - ./docker/nginx/mrmap.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./mrmap/static:/opt/mrmap/mrmap
+      - ./mrmap/static:/opt/mrmap
     extra_hosts:
       - host.docker.internal:host-gateway
+    networks:
+      - internal
 
   mrmap-inspire-validator:
     build:
@@ -47,11 +65,8 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      #context: .
-      #dockerfile: ./docker/mrmap/Dockerfile
-    restart: always
-    ports:
-      - "8000:8000"
-    links:
+    networks:
+      - internal
+    depends_on:
       - mrmap-postgis
       - mrmap-redis

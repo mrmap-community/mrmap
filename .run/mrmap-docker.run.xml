@@ -6,8 +6,7 @@
         <option name="removeImagesOnComposeDown" value="ALL" />
         <option name="commandLineOptions" value="--build" />
         <option name="sourceFilePath" value="docker-compose-dev.yml" />
-        <option name="upAlwaysRecreate" value="true" />
-        <option name="upRemoveOrphans" value="true" />
+        <option name="upDetach" value="false" />
       </settings>
     </deployment>
     <method v="2" />

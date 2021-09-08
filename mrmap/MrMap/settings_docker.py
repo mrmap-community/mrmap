@@ -29,6 +29,3 @@ CHANNEL_LAYERS['default']['CONFIG']['hosts'] = [('localhost', '5556')]
 
 MAPSERVER_LOCAL_PATH = "http://127.0.0.1:5557/cgi-bin/mapserv?"
 MAPSERVER_SECURITY_MASK_FILE_PATH = "/etc/mapserver/security_mask.map"
-
-
-pass

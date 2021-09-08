@@ -1,10 +1,10 @@
+import django_filters
 from dal import autocomplete
 from django.db.models import Q
-import django_filters
+from django.utils.translation import gettext_lazy as _
 from django_filters import FilterSet, CharFilter, ModelMultipleChoiceFilter
 
 from monitoring.models import HealthState, MonitoringRun, MonitoringResult
-from django.utils.translation import gettext_lazy as _
 
 
 class MonitoringRunTableFilter(django_filters.FilterSet):
@@ -21,7 +21,7 @@ class MonitoringRunTableFilter(django_filters.FilterSet):
     health_state = django_filters.ModelMultipleChoiceFilter(
         label=_('Health state'),
         queryset=MonitoringResult.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring.healthstate')
+        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_healthstate')
     )
 
     class Meta:
@@ -76,7 +76,7 @@ class HealthStateTableFilter(FilterSet):
     health_state = ModelMultipleChoiceFilter(
         label=_('Health state'),
         queryset=HealthState.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:health_state')
+        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_healthstate')
     )
 
     class Meta:

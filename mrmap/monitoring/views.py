@@ -1,5 +1,6 @@
-from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 from django_filters.views import FilterView
+
 from MrMap.messages import MONITORING_RUN_SCHEDULED
 from main.views import SecuredListMixin, SecuredCreateView, SecuredDetailView
 from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
@@ -7,7 +8,6 @@ from monitoring.forms import MonitoringRunForm
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, HealthStateTable, \
     HealthStateDetailTable
-from django.utils.translation import gettext_lazy as _
 
 
 class MonitoringRunTableView(SecuredListMixin, FilterView):
@@ -21,7 +21,7 @@ class MonitoringRunNewView(SecuredCreateView):
     form_class = MonitoringRunForm
     success_message = MONITORING_RUN_SCHEDULED
     # FIXME: wrong success_url
-    #success_url = reverse_lazy('resource:pending-tasks')
+    # success_url = reverse_lazy('resource:pending-tasks')
 
 
 class MonitoringResultTableView(SecuredListMixin, FilterView):

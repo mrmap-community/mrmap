@@ -1,9 +1,5 @@
 #!/bin/bash
-
 cd /opt/mrmap
-
-#python manage.py makemigrations
-#python manage.py setup
 
 # start gunicorn as wsgi service
 gunicorn MrMap.wsgi:application -b 0.0.0.0:8001 --workers 4

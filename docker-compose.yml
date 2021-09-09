@@ -4,12 +4,10 @@ version: '3.8'
 services:
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
-    environment:
-      POSTGRES_USER: mrmap
-      POSTGRES_PASSWORD: mrmap  # in productive setup you shall change this password
     volumes:
       - ./docker/postgis/postgresql_data:/var/lib/postgresql/data:Z
-
+    env_file:
+      - ./.env.prod.db
   #mrmap-redis:
   #  image: library/redis:6.2-alpine
   #  #ports:
@@ -48,8 +46,12 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
+    command:
+      /opt/mrmap/start.sh
     volumes:
       - ./docker/mrmap/static:/opt/mrmap/static
+    env_file:
+      - ./.env.dev
     depends_on:
       - mrmap-postgis
 

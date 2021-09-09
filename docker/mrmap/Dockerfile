@@ -1,22 +1,31 @@
 # debian 11 image
-FROM python:3-bullseye
-
-ENV MRMAP_PATH /opt/mrmap
-ENV MANAGE_PY $MRMAP_PATH/manage.py
-ENV MRMAP_REQ $MRMAP_PATH/requirements.txt
-#WORKDIR ./app
-
+# todo: check if alpine image is possible
+FROM python:3.9.7-bullseye
 # todo check if all this packages are still needed...
 RUN apt-get -qq update && \
-    apt-get -y install iputils-ping libcurl4-openssl-dev libssl-dev gdal-bin libpq-dev gcc
+    apt-get -y install netcat libcurl4-openssl-dev libssl-dev gdal-bin libpq-dev gcc
 
-# copy code base
-#VOLUME . $MRMAP_PATH
-COPY . $MRMAP_PATH
-RUN chmod +x $MRMAP_PATH/start.sh
+# set work directory
+WORKDIR /opt/mrmap
 
-RUN pip install -r $MRMAP_REQ
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-RUN python $MANAGE_PY collectstatic -c --noinput
+# install python dependencies. Copy is seperated from the full src copy to cache the requirements.txt
+# to avoid reinstalling requirements on every build.
+RUN pip install --upgrade pip
+COPY ./requirements.txt .
+RUN pip install -r requirements.txt
 
-CMD ["/opt/mrmap/start.sh"]
+COPY ./entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
+
+COPY ./start.sh .
+RUN chmod +x ./start.sh
+
+# copy project
+COPY . .
+
+# run entrypoint.sh
+ENTRYPOINT ["/opt/mrmap/entrypoint.sh"]

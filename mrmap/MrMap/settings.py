@@ -15,6 +15,7 @@ from django.contrib import messages
 import logging
 from api.settings import REST_FRAMEWORK # noqa
 from kombu import Queue, Exchange
+from django.utils.translation import gettext_lazy as _
 
 
 # Set the base directory two levels up
@@ -22,11 +23,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MEDIA_ROOT = BASE_DIR + "/media"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = int(os.environ.get("DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
@@ -159,22 +159,14 @@ PER_PAGE_MAX = 2500
 
 METADATA_URL = ["request=GetMetadata&", ]
 
+# TODO: remove HTTP_OR_SSL, HOST_NAME, ROOT_URL settings... this shall be dynamically get from request variable in views!
 # Defines basic server information
 HTTP_OR_SSL = "http://"
 HOST_NAME = "localhost:8000"
-
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
-
-from structure.permissionEnums import PermissionEnum
-from django.utils.translation import gettext_lazy as _
-
-ALLOWED_HOSTS = [
-    HOST_NAME,
-    "127.0.0.1",
-    "localhost",
-]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
@@ -256,13 +248,13 @@ GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 ################################################################
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mrmap',
-        'USER': 'mrmap',
-        'PASSWORD': 'mrmap',
-        'HOST': 'db',  # docker container hostname
-        'PORT': '5432',
+    "default": {
+        "ENGINE": os.environ.get("SQL_ENGINE"),
+        "NAME": os.environ.get("SQL_DATABASE"),
+        "USER": os.environ.get("SQL_USER"),
+        "PASSWORD": os.environ.get("SQL_PASSWORD"),
+        "HOST": os.environ.get("SQL_HOST"),
+        "PORT": os.environ.get("SQL_PORT"),
     }
 }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:

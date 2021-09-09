@@ -12,7 +12,7 @@ else
 fi
 
 # start uvicorn as asgi service
-uvicorn --host 0.0.0.0 --port 8002 --workers 4 --log-level debug --proxy-headers MrMap.asgi:application &
+uvicorn --host 0.0.0.0 --port 8002 --workers 4 --log-level trace --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application &
 status=$?
 if [ $status -ne 0 ]; then
   echo "Failed to start uvicorn: $status"

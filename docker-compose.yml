@@ -2,25 +2,23 @@ version: '3.8'
 
 
 services:
+
   mrmap-postgis:
     image: mdillon/postgis:11-alpine
     volumes:
       - ./docker/postgis/postgresql_data:/var/lib/postgresql/data:Z
     env_file:
       - ./.env.prod.db
-  #mrmap-redis:
-  #  image: library/redis:6.2-alpine
-  #  #ports:
-  #  #  - "5556:6379"
-  #  volumes:
-  #    - ./docker/redis/redis_data:/data
 
-  #mrmap-mapserver:
-  #  image: camptocamp/mapserver:7.6
-  #  #ports:
-  #  #  - "5557:80"
-  #  volumes:
-  #    - ./docker/mapserver/mapfiles:/etc/mapserver
+  mrmap-redis:
+    image: library/redis:6.2-alpine
+    volumes:
+      - ./docker/redis/redis_data:/data
+
+  mrmap-mapserver:
+    image: camptocamp/mapserver:7.6
+    volumes:
+      - ./docker/mapserver/mapfiles:/etc/mapserver
 
   mrmap-nginx:
     build:
@@ -35,12 +33,9 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
-
   #mrmap-inspire-validator:
   #  build:
   #    context: ./docker/inspire-validator
-  #  ports:
-  #    - "8092:8080"
 
   mrmap-app:
     build:
@@ -50,9 +45,11 @@ services:
       /opt/mrmap/start.sh
     volumes:
       - ./docker/mrmap/static:/opt/mrmap/static
+      - ./docker/mrmap/python:/usr/bin/python:ro
     env_file:
       - ./.env.dev
     depends_on:
       - mrmap-postgis
-
-
+      - mrmap-redis
+      - mrmap-mapserver
+      #- mrmap-inspire-validator

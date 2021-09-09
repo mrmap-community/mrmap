@@ -13,7 +13,7 @@ billiard==3.6.4.0
 celery==5.0.5
 certifi==2021.5.30
 cffi==1.14.5
-channels==3.0.3
+channels==3.0.4
 channels-redis==3.2.0
 chardet==4.0.0
 click==7.1.2

@@ -5,9 +5,9 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 06.05.19
 
 """
+import os
 import random
 import string
-from getpass import getpass
 
 from dateutil.parser import parse
 from django.contrib.auth import get_user_model
@@ -25,6 +25,7 @@ from monitoring.models import MonitoringSetting
 
 class Command(BaseCommand):
     help = "Runs an initial setup for creating the superuser on a fresh installation."
+    super_user_exists = get_user_model().objects.filter(username=os.environ.get("MRMAP_USER")).exists()
 
     def add_arguments(self, parser):
         parser.add_argument('--reset', dest='reset', action='store_true', help="calls reset_db command in front of setup routine.")
@@ -67,6 +68,9 @@ class Command(BaseCommand):
             pass
         else:
             call_command('migrate')
+
+        if not self.super_user_exists:
+            call_command("collectstatic", "--clear", "--noinput")
         #call_command('create_roles')
 
     def _run_system_user_default_setup(self):
@@ -82,24 +86,24 @@ class Command(BaseCommand):
         Returns:
              nothing
         """
-        if get_user_model().objects.filter(username="mrmap").exists():
+        if self.super_user_exists:
             return
 
         superuser = get_user_model().objects.create_superuser(
-            username="mrmap",
-            password="mrmap"
+            username=os.environ.get("MRMAP_USER"),
+            password=os.environ.get("MRMAP_PASSWORD")
         )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.save()
-        msg = "Superuser 'mrmap' with password 'mrmap' was created successfully!"
+        msg = f"Superuser {os.environ.get('MRMAP_USER')} with password {os.environ.get('MRMAP_PASSWORD')} was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
         # handle root organization
         orga = self._create_default_organization()
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser 'mrmap' added to organization '" + str(orga.name) + "'!"
+        msg = f"Superuser {os.environ.get('MRMAP_USER')} added to organization '" + str(orga.name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()

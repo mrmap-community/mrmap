@@ -14,7 +14,4 @@ fi
 
 python manage.py setup
 
-#TODO move to setup command
-python ./manage.py collectstatic --clear --noinput
-
 exec "$@"

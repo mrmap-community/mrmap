@@ -45,7 +45,6 @@ services:
       /opt/mrmap/start.sh
     volumes:
       - ./docker/mrmap/static:/opt/mrmap/static
-      - ./docker/mrmap/python:/usr/bin/python:ro
     env_file:
       - ./.env.dev
     depends_on:

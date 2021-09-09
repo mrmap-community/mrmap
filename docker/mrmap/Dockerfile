@@ -1,9 +1,18 @@
 # debian 11 image
-# todo: check if alpine image is possible
-FROM python:3.9.7-bullseye
+FROM python:3.9.7-bullseye as base
 # todo check if all this packages are still needed...
 RUN apt-get -qq update && \
-    apt-get -y install netcat libcurl4-openssl-dev libssl-dev gdal-bin libpq-dev gcc
+    apt-get -y install gcc
+COPY requirements.txt /
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
+
+FROM python:3.9.7-slim-bullseye
+RUN apt-get -qq update && \
+    apt-get -y install netcat procps libssl-dev gdal-bin libpq-dev
+
+COPY --from=base /wheels /wheels
+COPY --from=base requirements.txt .
+RUN pip install --no-cache /wheels/* # flask, gunicorn, pycrypto
 
 # set work directory
 WORKDIR /opt/mrmap
@@ -11,12 +20,6 @@ WORKDIR /opt/mrmap
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-
-# install python dependencies. Copy is seperated from the full src copy to cache the requirements.txt
-# to avoid reinstalling requirements on every build.
-RUN pip install --upgrade pip
-COPY ./requirements.txt .
-RUN pip install -r requirements.txt
 
 COPY ./entrypoint.sh .
 RUN chmod +x ./entrypoint.sh

@@ -44,7 +44,7 @@ services:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
     command:
-      /opt/mrmap/start.sh
+      /opt/mrmap/startup.sh
     volumes:
       - type: bind
         source: ./mrmap
@@ -58,6 +58,7 @@ services:
       - mrmap-postgis
       - mrmap-redis
       - mrmap-mapserver
+      - mrmap-nginx
       #- mrmap-inspire-validator
 volumes:
   app-static:

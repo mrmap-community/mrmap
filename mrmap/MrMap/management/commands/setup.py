@@ -30,9 +30,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--reset', dest='reset', action='store_true', help="calls reset_db command in front of setup routine.")
         parser.add_argument('--reset-force', dest='reset_force', action='store_true', help="calls reset_db command with --noinput arg in front of setup routine.")
+        parser.add_argument('--collect-static', dest='collect_static', action='store_true', help="force to call collectstatic command.")
 
         parser.set_defaults(reset=False)
         parser.set_defaults(reset_force=False)
+        parser.set_defaults(collect_static=False)
 
     def handle(self, *args, **options):
         if options['reset_force']:
@@ -40,7 +42,7 @@ class Command(BaseCommand):
         elif options['reset']:
             call_command('reset_db', '-c')
         with transaction.atomic():
-            self._pre_setup()
+            self._pre_setup(**options)
             # sec run the main setup
             self._run_system_user_default_setup()
             self._run_superuser_default_setup()
@@ -61,7 +63,7 @@ class Command(BaseCommand):
         targets = executor.loader.graph.leaf_nodes()
         return not executor.migration_plan(targets)
 
-    def _pre_setup(self):
+    def _pre_setup(self, **options):
         """ check if there are pending migrations. If so, we migrate them"""
         if self._is_database_synchronized(DEFAULT_DB_ALIAS):
             # All migrations have been applied.
@@ -69,7 +71,7 @@ class Command(BaseCommand):
         else:
             call_command('migrate')
 
-        if not self.super_user_exists:
+        if not self.super_user_exists or options['collect_static']:
             call_command("collectstatic", "--clear", "--noinput")
         #call_command('create_roles')
 

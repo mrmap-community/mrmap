@@ -21,14 +21,5 @@ WORKDIR /opt/mrmap
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-COPY ./entrypoint.sh .
-RUN chmod +x ./entrypoint.sh
-
-COPY ./start.sh .
-RUN chmod +x ./start.sh
-
-# copy project
-COPY . .
-
 # run entrypoint.sh
 ENTRYPOINT ["/opt/mrmap/entrypoint.sh"]

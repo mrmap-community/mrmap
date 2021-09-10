@@ -25,7 +25,6 @@ from monitoring.models import MonitoringSetting
 
 class Command(BaseCommand):
     help = "Runs an initial setup for creating the superuser on a fresh installation."
-    super_user_exists = get_user_model().objects.filter(username=os.environ.get("MRMAP_USER")).exists()
 
     def add_arguments(self, parser):
         parser.add_argument('--reset', dest='reset', action='store_true', help="calls reset_db command in front of setup routine.")
@@ -52,6 +51,10 @@ class Command(BaseCommand):
             # finally load the fixtures
             self._load_fixtures()
 
+    @property
+    def _super_user_exists(self):
+        return get_user_model().objects.filter(username=os.environ.get("MRMAP_USER")).exists()
+
     def _is_database_synchronized(self, database):
         connection = connections[database]
         try:
@@ -71,7 +74,7 @@ class Command(BaseCommand):
         else:
             call_command('migrate')
 
-        if not self.super_user_exists or options['collect_static']:
+        if not self._super_user_exists or options['collect_static']:
             call_command("collectstatic", "--clear", "--noinput")
         #call_command('create_roles')
 
@@ -88,7 +91,7 @@ class Command(BaseCommand):
         Returns:
              nothing
         """
-        if self.super_user_exists:
+        if self._super_user_exists:
             return
 
         superuser = get_user_model().objects.create_superuser(

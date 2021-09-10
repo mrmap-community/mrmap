@@ -26,7 +26,7 @@ MEDIA_ROOT = BASE_DIR + "/media"
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = int(os.environ.get("DEBUG", default=0))
+DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
@@ -188,7 +188,7 @@ LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
 DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
-TIME_ZONE = 'Europe/Berlin'
+TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE')
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -501,3 +501,6 @@ LOGGING = {
         },
     },
 }
+
+
+

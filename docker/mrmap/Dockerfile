@@ -7,8 +7,9 @@ COPY requirements.txt /
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
 
 FROM python:3.9.7-slim-bullseye
+
 RUN apt-get -qq update && \
-    apt-get -y install netcat procps libssl-dev gdal-bin libpq-dev
+    apt-get -y install libssl-dev gdal-bin libpq-dev netcat
 
 COPY --from=base /wheels /wheels
 COPY --from=base requirements.txt .

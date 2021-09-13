@@ -5,6 +5,27 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Docker: mrmap startup",
+            "type": "python",
+            "request": "launch",
+            "program": "${command:python.interpreterPath}/../docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "up", "--build", "--exit-code-from", "app", "--abort-on-container-exit", "app"],
+        },
+        {
+            "name": "Docker: mrmap debug wsgi",
+            "type": "python",
+            "request": "launch",
+            "program": "${command:python.interpreterPath}/../docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose-wsgi.vscode.yml", "up", "--build", "--exit-code-from", "app", "--abort-on-container-exit", "app"],
+        },
+        {
+            "name": "Docker: mrmap debug asgi",
+            "type": "python",
+            "request": "launch",
+            "program": "${command:python.interpreterPath}/../docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose-asgi.vscode.yml", "up", "--build", "--exit-code-from", "app", "--abort-on-container-exit", "app"],
+        },
+        {
             "name": "Python: Remote Attach",
             "type": "python",
             "request": "attach",
@@ -14,8 +35,8 @@
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}",
-                    "remoteRoot": "."
+                    "localRoot": "${workspaceFolder}/mrmap",
+                    "remoteRoot": "/opt/mrmap"
                 }
             ]
         }

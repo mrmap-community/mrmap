@@ -43,8 +43,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    command:
-      /opt/mrmap/startup.sh
+    command: ["while true; do sleep 30; done;"]  # endless loop to hold container running
     volumes:
       - type: bind
         source: ./mrmap

@@ -6,6 +6,7 @@ Created on: 26.02.2020
 
 """
 import uuid
+from itertools import chain
 
 from django.conf import settings
 from django.contrib.gis.db import models
@@ -21,8 +22,8 @@ from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
-from MrMap.utils import signal_last
 from main.models import UuidPk, CommonInfo
+from main.polymorphic_fk import PolymorphicForeignKey
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 from structure.permissionEnums import PermissionEnum
@@ -88,10 +89,18 @@ class MonitoringRun(CommonInfo):
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
-    # TODO other resource types
-    metadatas = models.ManyToManyField('resourceNew.Service',
-                                       related_name='monitoring_runs',
-                                       verbose_name=_('Checked resources'))
+    services = models.ManyToManyField('resourceNew.Service',
+                                      related_name='monitoring_runs', blank=True,
+                                      verbose_name=_('Checked services'))
+    layers = models.ManyToManyField('resourceNew.Layer',
+                                    related_name='monitoring_runs', blank=True,
+                                    verbose_name=_('Checked layers'))
+    feature_types = models.ManyToManyField('resourceNew.FeatureType',
+                                           related_name='monitoring_runs', blank=True,
+                                           verbose_name=_('Checked feature types'))
+    dataset_metadatas = models.ManyToManyField('resourceNew.DatasetMetadata',
+                                               related_name='monitoring_runs', blank=True,
+                                               verbose_name=_('Checked dataset metadatas'))
 
     class Meta:
         ordering = ["-end"]
@@ -105,6 +114,11 @@ class MonitoringRun(CommonInfo):
     def icon(self):
         return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RUN.value]}).render()
 
+    @property
+    def resources_all(self):
+        return list(
+            chain(self.services.all(), self.layers.all(), self.feature_types.all(), self.dataset_metadatas.all()))
+
     @classmethod
     def get_add_action(cls):
         return LinkButton(content=Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}) + _(' New run').__str__(),
@@ -117,17 +131,11 @@ class MonitoringRun(CommonInfo):
 
     @property
     def result_view_uri(self):
-        results = self.monitoring_results.all()
-        if results:
-            querystring = ""
-            for is_last_element, result in signal_last(results):
-                if is_last_element:
-                    querystring += f"monitoring_run_uuid={result.pk}"
-                else:
-                    querystring += f"monitoring_run_uuid={result.pk}&"
-            return f"{reverse('monitoring:result_overview')}?{querystring}"
-        else:
-            return None
+        return f"{reverse('monitoring:result_overview')}?monitoring_run={self.uuid}"
+
+    @property
+    def health_state_view_uri(self):
+        return f"{reverse('monitoring:health_state_overview')}?monitoring_run={self.uuid}"
 
     @property
     def add_view_uri(self):
@@ -149,8 +157,18 @@ class MonitoringRun(CommonInfo):
 
 class MonitoringResult(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
-    # TODO other resource types
-    metadata = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, verbose_name=_('Resource'))
+
+    # polymorphic fk (either service, layer, feature type or dataset metadata)
+    service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, null=True, blank=True,
+                                verbose_name=_('Service'))
+    layer = models.ForeignKey('resourceNew.Layer', on_delete=models.CASCADE, null=True, blank=True,
+                              verbose_name=_('Layer'))
+    feature_type = models.ForeignKey('resourceNew.FeatureType', on_delete=models.CASCADE, null=True, blank=True,
+                                     verbose_name=_('Feature Type'))
+    dataset_metadata = models.ForeignKey('resourceNew.DatasetMetadata', on_delete=models.CASCADE, null=True, blank=True,
+                                         verbose_name=_('Dataset Metadata'))
+    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
+
     timestamp = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(null=True, blank=True)
     status_code = models.IntegerField(null=True, blank=True)
@@ -163,6 +181,14 @@ class MonitoringResult(CommonInfo):
         ordering = ["-timestamp"]
         verbose_name = _('Monitoring result')
         verbose_name_plural = _('Monitoring results')
+
+    @property
+    def resource(self):
+        return self._resource.get_target(self)
+
+    @resource.setter
+    def resource(self, value):
+        self._resource.set_target(self, value)
 
     @property
     def icon(self):
@@ -180,11 +206,23 @@ class MonitoringResultDocument(MonitoringResult):
 
 class HealthState(CommonInfo):
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
-    monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state',
-                                          verbose_name=_('Monitoring Run'))
-    # TODO other resource types
-    metadata = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, related_name='health_states',
-                                 related_query_name='health_states', verbose_name=_('Resource'))
+    monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='health_states',
+                                       verbose_name=_('Monitoring Runs'))
+
+    # polymorphic fk (either service, layer, feature type or dataset metadata)
+    service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, related_name='health_states',
+                                related_query_name='health_states', null=True, blank=True, verbose_name=_('Service'))
+    layer = models.ForeignKey('resourceNew.Layer', on_delete=models.CASCADE, related_name='health_states',
+                              related_query_name='health_states', null=True, blank=True, verbose_name=_('Layer'))
+    feature_type = models.ForeignKey('resourceNew.FeatureType', on_delete=models.CASCADE, related_name='health_states',
+                                     related_query_name='health_states', null=True, blank=True,
+                                     verbose_name=_('Feature Type'))
+    dataset_metadata = models.ForeignKey('resourceNew.DatasetMetadata', on_delete=models.CASCADE,
+                                         related_name='health_states',
+                                         related_query_name='health_states', null=True, blank=True,
+                                         verbose_name=_('Dataset Metadata'))
+    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
+
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, verbose_name=_('Health state code'))
@@ -207,8 +245,20 @@ class HealthState(CommonInfo):
         verbose_name_plural = _('Health states')
 
     @property
+    def resource(self):
+        return self._resource.get_target(self)
+
+    @resource.setter
+    def resource(self, value):
+        self._resource.set_target(self, value)
+
+    @property
     def icon(self):
         return Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value]}).render()
+
+    @property
+    def result_view_uri(self):
+        return f"{reverse('monitoring:result_overview')}?monitoring_run={self.monitoring_run_id}&resource={self.resource.id}"
 
     def get_absolute_url(self):
         return reverse('monitoring:health_state_details', args=[self.pk])
@@ -220,13 +270,17 @@ class HealthState(CommonInfo):
                'Click on this icon to see details.'
 
     def run_health_state(self):
+        resource_field = self._resource.get_target_field(self)
+        resource_value = self._resource.get_target(self)
+
         # Monitoring objects that are related to this run and given metadata
-        monitoring_objects = MonitoringResult.objects.filter(monitoring_run=self.monitoring_run, metadata=self.metadata)
+        monitoring_objects = MonitoringResult.objects.filter(monitoring_run=self.monitoring_run,
+                                                             **{resource_field: resource_value})
         # Get health states of the last 3 months, for statistic calculating
         now = timezone.now()
-        health_states_3m = HealthState.objects.filter(metadata=self.metadata,
-                                                      monitoring_run__end__gte=now - timezone.timedelta(
-                                                          days=(3 * 365 / 12))) \
+        health_states_3m = HealthState.objects.filter(
+            monitoring_run__end__gte=now - timezone.timedelta(days=(3 * 365 / 12)),
+            **{resource_field: resource_value}) \
             .order_by('-monitoring_run__end')
 
         # get only health states for 1m and 1w calculation to prevent from sql statements

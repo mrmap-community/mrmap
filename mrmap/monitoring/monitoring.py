@@ -10,8 +10,8 @@ import hashlib
 from io import BytesIO
 from typing import Union
 
+from PIL import Image
 from PIL import UnidentifiedImageError
-from PIL.Image import Image
 from django.db import transaction
 from django.utils import timezone
 from lxml import etree
@@ -26,15 +26,14 @@ from monitoring.models import MonitoringResult as MonitoringResult, MonitoringRe
     HealthState
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT
 from resourceNew.enums.service import OGCServiceVersionEnum, OGCServiceEnum
-from resourceNew.models import Service
+from resourceNew.models import Service, Layer, FeatureType, DatasetMetadata
 
 
 class Monitoring:
 
-    # TODO handle other resources (layer, feature type, dataset)
-    def __init__(self, metadata: Service, monitoring_run: MonitoringRun,
+    def __init__(self, resource: Union[Service, Layer, FeatureType, DatasetMetadata], monitoring_run: MonitoringRun,
                  monitoring_setting: MonitoringSetting = None, ):
-        self.metadata = metadata
+        self.resource = resource
         self.linked_metadata = None
         self.monitoring_run = monitoring_run
         self.monitoring_settings = monitoring_setting
@@ -66,28 +65,24 @@ class Monitoring:
             nothing
         """
 
-        if isinstance(self.metadata, Service):
-            if self.metadata.is_service_type(OGCServiceEnum.WMS):
-                self.check_wms(self.metadata)
-            elif self.metadata.is_service_type(OGCServiceEnum.WFS):
-                self.check_wfs(self.metadata)
-            pass
+        if isinstance(self.resource, Service):
+            if self.resource.is_service_type(OGCServiceEnum.WMS):
+                self.check_wms(self.resource)
+            elif self.resource.is_service_type(OGCServiceEnum.WFS):
+                self.check_wfs(self.resource)
+        elif isinstance(self.resource, Layer):
+            self.check_layer(self.resource)
+        elif isinstance(self.resource, FeatureType):
+            self.check_featuretype(self.resource)
+        elif isinstance(self.resource, DatasetMetadata):
+            # self.check_layer(self.resource)
+            return
         else:
-            print(f"TODO unsupported resource type {self.metadata.__class__.__name__}")
-            pass
-
-        # if self.metadata.is_service_metadata:
-
-        # elif self.metadata.is_layer_metadata:
-        #     self.check_layer(check_obj)
-        # elif self.metadata.is_featuretype_metadata:
-        #     self.check_featuretype(check_obj)
-        # elif self.metadata.is_dataset_metadata:
-        #     self.check_dataset()
+            raise ValueError(f"Unexpected resource type {self.resource.__class__.__name__}")
 
         # all checks are done. Calculate the health state for all monitoring results
         health_state = HealthState(monitoring_run=self.monitoring_run,
-                                   metadata=self.metadata,
+                                   resource=self.resource,
                                    created_by_user=self.monitoring_run.created_by_user,
                                    owned_by_org=self.monitoring_run.owned_by_org)
         health_state.save()
@@ -155,15 +150,15 @@ class Monitoring:
             if wms_helper.get_styles_url is not None:
                 self.check_service(wms_helper.get_styles_url)
 
-    def check_layer(self, service: Service):
+    def check_layer(self, layer: Layer):
         """" Checks the status of a layer.
 
         Args:
-            service (Service): The service to check.
+            layer (Layer): The service to check.
         Returns:
             nothing
         """
-        wms_helper = WmsHelper(service)
+        wms_helper = WmsHelper(layer.service)
         urls_to_check = [
             (wms_helper.get_get_map_url(), True),
             (wms_helper.get_get_styles_url(), False),
@@ -175,23 +170,23 @@ class Monitoring:
                 continue
             self.check_service(url[0], check_image=url[1])
 
-    # def check_featuretype(self, feature_type: FeatureType):
-    #     """ Checks the status of a featuretype.
-    #
-    #     Args:
-    #         feature_type (FeatureType): The featuretype to check.
-    #     Returns:
-    #         nothing
-    #     """
-    #     wfs_helper = WfsHelper(feature_type)
-    #     urls_to_check = [
-    #         (wfs_helper.get_describe_featuretype_url(feature_type.metadata.identifier), True),
-    #         (wfs_helper.get_get_feature_url(feature_type.metadata.identifier), True),
-    #     ]
-    #     for url in urls_to_check:
-    #         if url[0] is None:
-    #             continue
-    #         self.check_service(url[0], check_wfs_member=url[1])
+    def check_featuretype(self, feature_type: FeatureType):
+        """ Checks the status of a featuretype.
+
+        Args:
+            feature_type (FeatureType): The featuretype to check.
+        Returns:
+            nothing
+        """
+        wfs_helper = WfsHelper(feature_type.service)
+        urls_to_check = [
+            (wfs_helper.get_describe_featuretype_url(feature_type.identifier), True),
+            (wfs_helper.get_get_feature_url(feature_type.identifier), True),
+        ]
+        for url in urls_to_check:
+            if url[0] is None:
+                continue
+            self.check_service(url[0], check_wfs_member=url[1])
 
     def check_service(self, url: str, check_wfs_member: bool = False, check_image: bool = False):
         """ Checks the status of a service and calls the appropriate handlers.
@@ -220,7 +215,8 @@ class Monitoring:
             ServiceStatus: Status info of service.
         """
         success = False
-        session = self.metadata.get_session_for_request()
+        service = self.resource if isinstance(self.resource, Service) else self.resource.service
+        session = service.get_session_for_request()
         # TODO should we always add PROXIES in 'get_session_for_request'?
         session.proxies = PROXIES
         timeout = MONITORING_REQUEST_TIMEOUT if self.monitoring_settings is None else self.monitoring_settings.timeout
@@ -262,7 +258,7 @@ class Monitoring:
         Returns:
             bool: true, if xml has member, false otherwise
         """
-        service = self.metadata
+        service = self.resource
         version = service.service_type.version
         if version == OGCServiceVersionEnum.V_1_0_0.value:
             return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
@@ -287,7 +283,8 @@ class Monitoring:
         Returns:
             nothing
         """
-        original_document = self.metadata.xml_backup_string
+        # TODO layer, feature type, dataset metadata?
+        original_document = self.resource.xml_backup_string
         self.check_document(url, original_document)
 
     # def check_dataset(self):
@@ -321,7 +318,7 @@ class Monitoring:
                 needs_update = True
                 diff = ''.join(diff_obj)
                 monitoring_document = MonitoringResultDocument(
-                    available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                    available=service_status.success, resource=self.resource, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
@@ -330,7 +327,7 @@ class Monitoring:
             else:
                 needs_update = False
                 monitoring_document = MonitoringResultDocument(
-                    available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                    available=service_status.success, resource=self.resource, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
@@ -379,14 +376,14 @@ class Monitoring:
         """
         if service_status.duration is None:
             monitoring_result = MonitoringResult(
-                available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                available=service_status.success, resource=self.resource, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 monitoring_run=self.monitoring_run, created_by_user=self.monitoring_run.created_by_user,
                 owned_by_org=self.monitoring_run.owned_by_org
             )
         else:
             monitoring_result = MonitoringResult(
-                available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                available=service_status.success, resource=self.resource, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 duration=service_status.duration, monitoring_run=self.monitoring_run,
                 created_by_user=self.monitoring_run.created_by_user,
@@ -404,7 +401,7 @@ class Monitoring:
         """
         monitoring_result = MonitoringResult(
             available=service_status.success,
-            metadata=self.metadata,
+            resource=self.resource,
             status_code=service_status.status,
             duration=service_status.duration,
             monitored_uri=service_status.monitored_uri,

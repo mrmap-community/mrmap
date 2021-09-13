@@ -14,7 +14,7 @@ class WfsHelper:
 
     def __init__(self, service):
         self.service = service
-        #self.parent_service = service if service.metadata.is_root() else service.parent_service
+        # self.parent_service = service if service.metadata.is_root() else service.parent_service
         self.parent_service = service
         self.get_capabilities_url = self.get_get_capabilities_url()
         self.list_stored_queries = None
@@ -89,7 +89,7 @@ class WfsHelper:
         uri = None
         try:
             uri = self.parent_service.operation_urls.filter(
-                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE,
+                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
                 method="Get"
             ).first()
         except AttributeError:

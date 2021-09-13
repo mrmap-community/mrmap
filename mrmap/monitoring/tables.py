@@ -14,11 +14,11 @@ from monitoring.models import HealthState, MonitoringResult, MonitoringRun
 class MonitoringRunTable(tables.Table):
     class Meta:
         model = MonitoringRun
-        fields = ('uuid', 'metadatas__all', 'start', 'end', 'duration')
+        fields = ('uuid', 'resources_all', 'start', 'end', 'duration')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
-    health_state = tables.Column(accessor='health_state', verbose_name=_('Related health state'))
+    health_states = tables.Column(accessor='health_states', verbose_name=_('Related health states'))
     results = tables.Column(verbose_name=_('Related results'), empty_values=[])
 
     def before_render(self, request):
@@ -27,39 +27,37 @@ class MonitoringRunTable(tables.Table):
     def render_uuid(self, record, value):
         return Link(url=record.get_absolute_url(), content=value).render(safe=True)
 
-    def render_metadatas__all(self, value):
-        links = []
-        for metadata in value:
-            links.append(Tag(tag='span', attrs={"class": ['mr-1']},
-                             content=Link(url=metadata.get_absolute_url(), content=metadata).render() + ','))
-        return format_html(self.render_helper.render_list_coherent(items=links))
+    def render_resources_all(self, value):
+        elements = []
+        for resource in value:
+            elements.append(Tag(tag='span', attrs={"class": ['mr-1']},
+                                content=Link(url=resource.get_absolute_url(), content=resource).render() + ", "))
+        return format_html(self.render_helper.render_list_coherent(items=elements))
 
     def render_results(self, record):
-        if record.result_view_uri:
-            return Link(url=record.result_view_uri, content=_('results')).render(safe=True)
-        else:
-            return ''
+        return Link(url=record.result_view_uri, content=_('Results')).render(safe=True)
 
-    def render_health_state(self, value):
-        if value.health_state_code == HealthStateEnum.WARNING.value:
-            color = TextColorEnum.WARNING
-        elif value.health_state_code == HealthStateEnum.CRITICAL.value:
-            color = TextColorEnum.DANGER
-        elif value.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
-            color = TextColorEnum.SECONDARY
-        else:
-            color = TextColorEnum.SUCCESS
-        return Link(url=value.get_absolute_url, color=color, content=value.pk).render(safe=True)
+    def render_health_states(self, record):
+        color = TextColorEnum.SUCCESS
+        for health_state in record.health_states.all():
+            if health_state.health_state_code == HealthStateEnum.CRITICAL.value:
+                color = TextColorEnum.DANGER
+                break
+            elif health_state.health_state_code == HealthStateEnum.WARNING.value:
+                color = TextColorEnum.WARNING
+            elif health_state.health_state_code == HealthStateEnum.UNAUTHORIZED.value:
+                color = TextColorEnum.WARNING
+        return Link(url=record.health_state_view_uri, color=color, content=_('Health states')).render(safe=True)
 
 
 class MonitoringResultTable(tables.Table):
-    metadata = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
-                                     accessor="metadata",
+    resource = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
+                                     accessor="resource",
                                      verbose_name=_("Resource"))
 
     class Meta:
         model = MonitoringResult
-        fields = ('uuid', 'monitoring_run', 'metadata', 'timestamp', 'available', 'status_code', 'monitored_uri')
+        fields = ('uuid', 'monitoring_run', 'resource', 'timestamp', 'available', 'status_code', 'monitored_uri')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
@@ -104,8 +102,8 @@ class HealthStateTable(tables.Table):
 
     class Meta:
         model = HealthState
-        fields = ('uuid', 'metadata', 'health_state_code', 'monitoring_run')
-        sequence = ('metadata', 'health_state_code', 'monitoring_run', '...')
+        fields = ('uuid', 'resource', 'health_state_code', 'monitoring_run')
+        sequence = ('resource', 'health_state_code', 'monitoring_run', '...')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'health-state-table'
 
@@ -115,7 +113,7 @@ class HealthStateTable(tables.Table):
     def render_uuid(self, record, value):
         return Link(url=record.get_absolute_url, content=value).render(safe=True)
 
-    def render_metadata(self, value):
+    def render_resource(self, value):
         return Link(url=value.get_absolute_url, content=value).render(safe=True)
 
     def render_monitoring_run(self, value):
@@ -142,8 +140,8 @@ class HealthStateTable(tables.Table):
             string += health_state_reason.reason
         return format_html(string)
 
-    def render_results(self, value):
-        return Link(url=value.result_view_uri, content=_('Results')).render(safe=True)
+    def render_results(self, record):
+        return Link(url=record.result_view_uri, content=_('Results')).render(safe=True)
 
 
 class HealthStateDetailTable(HealthStateTable):

@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  mrmap-postgis:
+  postgis:
     image: mdillon/postgis:11-alpine
     volumes:
       - type: volume
@@ -8,19 +8,19 @@ services:
         target: /var/lib/postgresql/data
     env_file:
       - ./.env.prod.db
-  mrmap-redis:
+  redis:
     image: library/redis:6.2-alpine
     volumes:
       - type: volume
         source: mem-db-data
         target: /data
-  mrmap-mapserver:
+  mapserver:
     image: camptocamp/mapserver:7.6
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles
         target: /etc/mapserver
-  mrmap-nginx:
+  nginx:
     build:
       context: ./mrmap
       dockerfile: ../docker/nginx/Dockerfile
@@ -36,10 +36,10 @@ services:
         target: /opt/mrmap/static
     extra_hosts:
       - host.docker.internal:host-gateway
-  #mrmap-inspire-validator:
+  #inspire-validator:
   #  build:
   #    context: ./docker/inspire-validator
-  mrmap-app:
+  app:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile

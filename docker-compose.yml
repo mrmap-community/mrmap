@@ -55,11 +55,11 @@ services:
     env_file:
       - ./.env.dev
     depends_on:
-      - mrmap-postgis
-      - mrmap-redis
-      - mrmap-mapserver
-      - mrmap-nginx
-      #- mrmap-inspire-validator
+      - postgis
+      - redis
+      - mapserver
+      - nginx
+      #- inspire-validator
 volumes:
   app-static:
   db-data:

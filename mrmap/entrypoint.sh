@@ -19,9 +19,9 @@ if [[ "$START_GUNICORN" != "False" ]];
 then
     if [[ "$DJANGO_DEBUG" == "1" ]];
     then
-        gunicorn -b 0.0.0.0:8001 --workers=2 --reload --log-level='debug' --timeout=0 MrMap.wsgi:application &
+        gunicorn -b 0.0.0.0:8001 --workers=2 --reload --log-level=debug --timeout=0 MrMap.wsgi:application &
     else
-        gunicorn -b 0.0.0.0:8001 --workers=4 --log-level='error' MrMap.wsgi:application &
+        gunicorn -b 0.0.0.0:8001 --workers=4 --log-level=error MrMap.wsgi:application &
     fi
 fi
 
@@ -29,9 +29,9 @@ if [[ "$START_UVICORN" != "False" ]];
 then
     if [[ "$DJANGO_DEBUG" == "1" ]];
     then
-    uvicorn --host 0.0.0.0 --port 8002 --workers 2 --reload --log-level debug --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application &
+    uvicorn --host 0.0.0.0 --port 8002 --workers 2 --reload --log-level 'debug' --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application &
     else
-    uvicorn --host 0.0.0.0 --port 8002 --workers 4 --log-level error --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application &
+    uvicorn --host 0.0.0.0 --port 8002 --workers 4 --log-level 'error' --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application &
     fi
 fi
 

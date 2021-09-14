@@ -58,6 +58,7 @@ services:
       - mapserver
       - nginx
       #- inspire-validator
+    
 volumes:
   app-static:
   db-data:

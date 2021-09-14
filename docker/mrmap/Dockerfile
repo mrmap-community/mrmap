@@ -24,4 +24,3 @@ ENV PYTHONUNBUFFERED 1
 
 # run entrypoint.sh
 ENTRYPOINT ["/opt/mrmap/entrypoint.sh"]
-CMD ["tail", "-f", "/dev/null"]

@@ -19,7 +19,7 @@ services:
       args:
         install_debugpy: "True"
     command: >
-      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn --host 0.0.0.0 --port 8002 --workers 4 --reload --log-level 'debug' --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application"
+      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn --host 0.0.0.0 --port 8002 --workers 4 --reload --log-level debug --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application"
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"

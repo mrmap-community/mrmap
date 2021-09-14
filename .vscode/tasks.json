@@ -7,7 +7,7 @@
             "label": "Docker-Compose: mrmap startup",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "up", "--build"],
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "up", "--build", "--remove-orphans"],
         },
         {
             "label": "Docker-Compose: mrmap wsgi",

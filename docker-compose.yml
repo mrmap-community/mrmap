@@ -70,7 +70,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    command: ["uvicorn", "--host", "0.0.0.0", "--port", "8002", "--workers", "2", "--reload", "--log-level", "'debug'", "--proxy-headers", "--forwarded-allow-ips='*'", "MrMap.asgi:application"]
+    command: ["uvicorn", "--host", "0.0.0.0", "--port", "8002", "--workers", "2", "--reload", "--log-level", "debug", "--proxy-headers", "--forwarded-allow-ips='*'", "MrMap.asgi:application"]
     hostname: "mrmap-asgi"
     volumes:
       - type: bind

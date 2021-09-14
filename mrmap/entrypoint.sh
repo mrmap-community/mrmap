@@ -1,20 +1,13 @@
 #!/bin/bash
 
-if [ "$MRMAP_PRODUCTION" = "False" ]; 
-then 
-    pip install debugpy
-else
-    pip uninstall debugpy
-fi
-
 # wait for database
 if [[ "$DATABASE" = "postgres" ]]
 then
     while ! nc -z $SQL_HOST $SQL_PORT; do
-      echo "Waiting for postgres host..."
+      echo "Waiting for postgres host to finish mrmap setup..."
       sleep 0.1
     done
-    echo "PostgreSQL host is up.. starting application services"
+    echo "PostgreSQL host is up.. running setup..."
 fi
 
 # run mrmap setup command. It will handle everthing we need to pre setup the system.

@@ -23,7 +23,7 @@ click-repl==0.2.0
 constantly==15.1.0
 coverage==5.5
 cryptography==3.4.7
-daphne==3.0.2
+#daphne==3.0.2
 Django==3.2.4
 django-autocomplete-light==3.8.2
 django-bootstrap-swt==2.0.1

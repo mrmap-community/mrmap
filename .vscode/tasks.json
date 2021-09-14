@@ -13,19 +13,19 @@
             "label": "Docker-Compose: mrmap wsgi",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--build", "--exit-code-from", "wsgi", "--abort-on-container-exit", "wsgi"],
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "wsgi", "--abort-on-container-exit", "wsgi"],
         },
         {
             "label": "Docker-Compose: mrmap debug asgi",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--build", "--exit-code-from", "asgi", "--abort-on-container-exit", "asgi"],
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "asgi", "--abort-on-container-exit", "asgi"],
         },
         {
             "label": "Docker-Compose: mrmap debug celery-worker",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--build", "--exit-code-from", "celery-worker", "--abort-on-container-exit", "celery-worker"],
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "celery-worker", "--abort-on-container-exit", "celery-worker"],
         },
         {
             "label": "makemigrations",

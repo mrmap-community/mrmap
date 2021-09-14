@@ -7,7 +7,7 @@ services:
         source: db-data
         target: /var/lib/postgresql/data
     env_file:
-      - ./.env.prod.db
+      - ./.env.db
   redis:
     image: library/redis:6.2-alpine
     volumes:
@@ -43,7 +43,6 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    command: ["while true; do sleep 30; done;"]  # endless loop to hold container running
     volumes:
       - type: bind
         source: ./mrmap
@@ -52,7 +51,7 @@ services:
         source: app-static
         target: /var/www/mrmap/static
     env_file:
-      - ./.env.dev
+      - ./.env.mrmap
     depends_on:
       - postgis
       - redis

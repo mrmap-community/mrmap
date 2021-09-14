@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [ "$MRMAP_PRODUCTION" = "False" ]; 
+then 
+    pip install debugpy
+else
+    pip uninstall debugpy
+fi
+
 # wait for database
 if [[ "$DATABASE" = "postgres" ]]
 then

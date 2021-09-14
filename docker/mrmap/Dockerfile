@@ -7,7 +7,7 @@ COPY requirements.txt /
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
 
 FROM python:3.9.7-slim-bullseye
-
+ARG ENV
 RUN apt-get -qq update && \
     apt-get -y install libssl-dev gdal-bin libpq-dev netcat
 
@@ -24,3 +24,4 @@ ENV PYTHONUNBUFFERED 1
 
 # run entrypoint.sh
 ENTRYPOINT ["/opt/mrmap/entrypoint.sh"]
+CMD ["tail", "-f", "/dev/null"]

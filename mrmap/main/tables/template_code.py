@@ -24,6 +24,12 @@ VALUE_CONCRETE_TABLE_LINK = """
 
 VALUE_ABSOLUTE_LINK_LIST = """
 {% for val in value %}
+<a href="{{val.get_absolute_url}}">{{val}}</a>,
+{% endfor %}
+"""
+
+VALUE_TABLE_LINK_LIST = """
+{% for val in value %}
 <a href="{{val.get_table_url}}">{{val}}</a>,
 {% endfor %}
 """

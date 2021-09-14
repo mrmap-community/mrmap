@@ -12,6 +12,7 @@ from requests import Session
 from requests.auth import HTTPDigestAuth
 
 from MrMap.icons import get_icon, IconEnum
+from MrMap.settings import PROXIES
 from job.models import Job
 from main.models import GenericModelMixin, CommonInfo
 from main.utils import camel_to_snake
@@ -120,7 +121,7 @@ class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceIn
         try:
             return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_view', args=[self.pk, ])
         except NoReverseMatch:
-            return ""
+            return self.get_concrete_table_url()
 
     def get_concrete_table_url(self) -> str:
         try:
@@ -200,6 +201,7 @@ class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceIn
 
     def get_session_for_request(self) -> Session:
         session = Session()
+        session.proxies = PROXIES
         if hasattr(self, "external_authentication"):
             session.auth = self.external_authentication.get_auth_for_request()
         return session

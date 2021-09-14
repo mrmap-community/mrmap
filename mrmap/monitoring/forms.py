@@ -5,7 +5,7 @@ from monitoring.models import MonitoringRun
 class MonitoringRunForm(ModelForm):
     class Meta:
         model = MonitoringRun
-        fields = "__all__"
+        fields = ["services", "layers", "feature_types", "dataset_metadatas"]
         """
         fields = ('metadatas', )
         widgets = {

@@ -5,7 +5,6 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-import uuid
 from itertools import chain
 
 from django.conf import settings
@@ -22,14 +21,14 @@ from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
 from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
-from main.models import UuidPk, CommonInfo
+from main.models import CommonInfo
 from main.polymorphic_fk import PolymorphicForeignKey
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 from structure.permissionEnums import PermissionEnum
 
 
-class MonitoringSetting(UuidPk):
+class MonitoringSetting(models.Model):
     # TODO other resource types
     metadatas = models.ManyToManyField('resourceNew.Service', related_name='monitoring_setting')
     check_time = models.TimeField()
@@ -85,7 +84,6 @@ class MonitoringSetting(UuidPk):
 
 
 class MonitoringRun(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Monitoring run'))
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
@@ -108,7 +106,7 @@ class MonitoringRun(CommonInfo):
         verbose_name_plural = _('Monitoring runs')
 
     def __str__(self):
-        return str(self.uuid)
+        return str(self.id)
 
     @property
     def icon(self):
@@ -127,15 +125,15 @@ class MonitoringRun(CommonInfo):
                           needs_perm=PermissionEnum.CAN_ADD_MONITORING_RUN.value)
 
     def get_absolute_url(self):
-        return f"{reverse('monitoring:run_overview')}?uuid={self.uuid}"
+        return f"{reverse('monitoring:run_overview')}?id={self.id}"
 
     @property
     def result_view_uri(self):
-        return f"{reverse('monitoring:result_overview')}?monitoring_run={self.uuid}"
+        return f"{reverse('monitoring:result_overview')}?monitoring_run={self.id}"
 
     @property
     def health_state_view_uri(self):
-        return f"{reverse('monitoring:health_state_overview')}?monitoring_run={self.uuid}"
+        return f"{reverse('monitoring:health_state_overview')}?monitoring_run={self.id}"
 
     @property
     def add_view_uri(self):
@@ -156,8 +154,6 @@ class MonitoringRun(CommonInfo):
 
 
 class MonitoringResult(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
-
     # polymorphic fk (either service, layer, feature type or dataset metadata)
     service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, null=True, blank=True,
                                 verbose_name=_('Service'))
@@ -195,7 +191,7 @@ class MonitoringResult(CommonInfo):
         return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RESULTS.value]}).render()
 
     def get_absolute_url(self):
-        return reverse('monitoring:result_details', args=[self.uuid, ])
+        return reverse('monitoring:result_details', args=[self.id, ])
 
 
 class MonitoringResultDocument(MonitoringResult):
@@ -205,7 +201,6 @@ class MonitoringResultDocument(MonitoringResult):
 
 
 class HealthState(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
     monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='health_states',
                                        verbose_name=_('Monitoring Runs'))
 

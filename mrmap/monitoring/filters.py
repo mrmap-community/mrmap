@@ -26,7 +26,7 @@ class MonitoringRunTableFilter(django_filters.FilterSet):
 
     class Meta:
         model = MonitoringRun
-        fields = ['uuid']
+        fields = ['id']
 
 
 class MonitoringResultTableFilter(FilterSet):

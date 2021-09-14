@@ -75,8 +75,7 @@ class Monitoring:
         elif isinstance(self.resource, FeatureType):
             self.check_featuretype(self.resource)
         elif isinstance(self.resource, DatasetMetadata):
-            # self.check_layer(self.resource)
-            return
+            self.check_dataset(self.resource)
         else:
             raise ValueError(f"Unexpected resource type {self.resource.__class__.__name__}")
 
@@ -217,8 +216,6 @@ class Monitoring:
         success = False
         service = self.resource if isinstance(self.resource, Service) else self.resource.service
         session = service.get_session_for_request()
-        # TODO should we always add PROXIES in 'get_session_for_request'?
-        session.proxies = PROXIES
         timeout = MONITORING_REQUEST_TIMEOUT if self.monitoring_settings is None else self.monitoring_settings.timeout
         request = Request(method="GET",
                           url=url)
@@ -283,32 +280,27 @@ class Monitoring:
         Returns:
             nothing
         """
-        # TODO layer, feature type, dataset metadata?
         original_document = self.resource.xml_backup_string
         self.check_document(url, original_document)
 
-    # def check_dataset(self):
-    #     """Handles the dataset checks.
-    #
-    #     Handles the monitoring process of the datasets as the workflow differs from other operations.
-    #     If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
-    #     values depend on possible differences in the retrieved dataset document.
-    #     If the service is not available, a Monitoring model instance will be created as no information on
-    #     differences between datset documents is given.
-    #
-    #     Args:
-    #         none
-    #     Returns:
-    #         nothing
-    #     """
-    #     url = self.metadata.metadata_url
-    #     document = Document.objects.get(
-    #         metadata=self.metadata,
-    #         document_type=DocumentEnum.METADATA.value,
-    #         is_original=True,
-    #     )
-    #     original_document = document.content
-    #     self.check_document(url, original_document)
+    def check_dataset(self, dataset: DatasetMetadata):
+        """Handles the dataset checks.
+
+        Handles the monitoring process of the datasets as the workflow differs from other operations.
+        If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
+        values depend on possible differences in the retrieved dataset document.
+        If the service is not available, a Monitoring model instance will be created as no information on
+        differences between datset documents is given.
+
+        Args:
+            none
+        Returns:
+            nothing
+        """
+        # TODO handle None
+        url = dataset.origin_url
+        current_document = dataset.xml
+        self.check_document(url, current_document)
 
     def check_document(self, url, original_document):
         service_status = self.check_status(url)

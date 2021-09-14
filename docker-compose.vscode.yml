@@ -1,0 +1,34 @@
+version: "3.8"
+services:
+  wsgi:
+    command: >
+      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m gunicorn -b 0.0.0.0:8001 --workers=4 --reload --log-level=debug --timeout=0 MrMap.wsgi:application"
+    environment:
+      PYDEVD_LOAD_VALUES_ASYNC: "True"
+      PYTHONUNBUFFERED: "1"
+      START_GUNICORN: "False"
+      IPYTHONENABLE: "True"
+    ports:
+      - "0.0.0.0:3001:5678"
+    working_dir: "/opt/mrmap"
+    stdin_open: true
+  asgi:
+    command: >
+      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn --host 0.0.0.0 --port 8002 --workers 4 --reload --log-level 'debug' --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application"
+    environment:
+      PYDEVD_LOAD_VALUES_ASYNC: "True"
+      PYTHONUNBUFFERED: "1"
+      START_GUNICORN: "False"
+      IPYTHONENABLE: "True"
+    ports:
+      - "0.0.0.0:3002:5678"
+  celery-worker:
+    command: >
+      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m celery -A MrMap worker -E -l DEBUG -n default -Q default"
+    environment:
+      PYDEVD_LOAD_VALUES_ASYNC: "True"
+      PYTHONUNBUFFERED: "1"
+      START_GUNICORN: "False"
+      IPYTHONENABLE: "True"
+    ports:
+      - "0.0.0.0:3003:5678"

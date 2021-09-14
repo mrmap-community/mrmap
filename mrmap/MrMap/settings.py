@@ -10,9 +10,10 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 import os
 import sys
+import logging
+import socket
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
-import logging
 from api.settings import REST_FRAMEWORK # noqa
 from kombu import Queue, Exchange
 from django.utils.translation import gettext_lazy as _
@@ -21,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MEDIA_ROOT = BASE_DIR + "/media"
+MEDIA_ROOT = "/var/mrmap/media"
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
@@ -459,7 +460,7 @@ ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of secur
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')
 
-LOG_DIR = BASE_DIR + '/logs/mrmap/'
+LOG_DIR = f'/var/log/mrmap/{socket.gethostname()}/'
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 

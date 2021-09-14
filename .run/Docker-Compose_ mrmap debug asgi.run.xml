@@ -1,11 +1,11 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Docker-Compose: mrmap debug wsgi" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="Docker-Compose: mrmap debug asgi" type="PythonConfigurationType" factoryName="Python">
     <module name="mrmap" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
-      <env name="START_GUNICORN" value="False" />
+      <env name="START_UVICORN" value="False" />
     </envs>
     <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/mrmap" />
@@ -20,8 +20,8 @@
         </list>
       </option>
     </PathMappingSettings>
-    <option name="SCRIPT_NAME" value="gunicorn" />
-    <option name="PARAMETERS" value="-b 0.0.0.0:8001 --workers=2 --reload --log-level=debug --timeout=0 MrMap.wsgi:application" />
+    <option name="SCRIPT_NAME" value="uvicorn" />
+    <option name="PARAMETERS" value="--host 0.0.0.0 --port 8002 --workers 2 --reload --log-level debug --proxy-headers --forwarded-allow-ips='*' MrMap.asgi:application" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

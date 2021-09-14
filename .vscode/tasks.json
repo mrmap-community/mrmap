@@ -16,10 +16,28 @@
             "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose-wsgi.vscode.yml", "up", "--build", "--exit-code-from", "app", "--abort-on-container-exit", "app"],
         },
         {
-            "label": "Docker: mrmap debug asgi",
+            "label": "Docker-Compose: mrmap debug asgi",
             "type": "shell",
             "command": "docker-compose",
             "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose-asgi.vscode.yml", "up", "--build", "--exit-code-from", "app", "--abort-on-container-exit", "app"],
+        },
+        {
+            "label": "makemigrations",
+            "type": "shell",
+            "command": "docker",
+            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "makemigrations"],
+        },
+        {
+            "label": "migrate",
+            "type": "shell",
+            "command": "docker",
+            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "migrate"],
+        },
+        {
+            "label": "Docker-Compose: setup --reset-force",
+            "type": "shell",
+            "command": "docker",
+            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "setup", "--reset-force"],
         },
     ]
 }

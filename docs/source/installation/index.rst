@@ -34,15 +34,6 @@ Download the project from `github <https://github.com/mrmap-community/mrmap/arch
 
 Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker-compose -f docker-compose.yml up --build``. After that, all services should be started properly.
 
+Environment Variables
+*********************
 
-**Application stack**
-
-Below is a simplified overview of the MrMap application stack for reference:
-
-.. image:: ../images/app_stack.png
-  :width: 800
-  :alt: MrMap application stack
-
-.. toctree::
-   :hidden:
-   :maxdepth: 3

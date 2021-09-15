@@ -40,6 +40,7 @@ jobs:
         run: |
           cd docs/
           export $(grep -v '^#' ../.env.mrmap | xargs)
+          export $(grep -v '^#' ../.env.docs | xargs)
           make linkcheck
           make html
       # ===============================

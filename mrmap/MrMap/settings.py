@@ -460,7 +460,7 @@ ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of secur
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')
 
-LOG_DIR = f'/var/log/mrmap/{socket.gethostname()}/'
+LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f'/var/log/mrmap/{socket.gethostname()}/')
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 

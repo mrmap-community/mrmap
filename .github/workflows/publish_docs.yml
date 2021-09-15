@@ -34,7 +34,7 @@ jobs:
         run: python -m pip install --upgrade pip setuptools wheel
       - name: Install pip dependencies
         run: |
-            pip3 install -r ./mrmap/requirements.txt
+            pip3 install -r ./mrmap/requirements.txt && pip3 install -r ./mrmap/docs/requirements.txt
       # ===============================
       # Build documentation
       # ===============================

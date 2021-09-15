@@ -12,22 +12,18 @@ from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_bootstrap_swt.components import Tag, LinkButton
-from django_bootstrap_swt.enums import ButtonColorEnum
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
-from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
-from main.models import CommonInfo
+from main.models import CommonInfo, GenericModelMixin
 from main.polymorphic_fk import PolymorphicForeignKey
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
-from structure.permissionEnums import PermissionEnum
 
 
+# TODO is this class effectively used for any functionality? Can it be removed?
 class MonitoringSetting(models.Model):
     # TODO other resource types
     metadatas = models.ManyToManyField('resourceNew.Service', related_name='monitoring_setting')
@@ -83,7 +79,7 @@ class MonitoringSetting(models.Model):
         super().save(force_insert, force_update, using, update_fields)
 
 
-class MonitoringRun(CommonInfo):
+class MonitoringRun(CommonInfo, GenericModelMixin):
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
@@ -109,35 +105,17 @@ class MonitoringRun(CommonInfo):
         return str(self.id)
 
     @property
-    def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RUN.value]}).render()
-
-    @property
     def resources_all(self):
         return list(
             chain(self.services.all(), self.layers.all(), self.feature_types.all(), self.dataset_metadatas.all()))
 
-    @classmethod
-    def get_add_action(cls):
-        return LinkButton(content=Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}) + _(' New run').__str__(),
-                          color=ButtonColorEnum.SUCCESS,
-                          url=reverse('monitoring:run_new'),
-                          needs_perm=PermissionEnum.CAN_ADD_MONITORING_RUN.value)
-
-    def get_absolute_url(self):
-        return f"{reverse('monitoring:run_overview')}?id={self.id}"
-
     @property
     def result_view_uri(self):
-        return f"{reverse('monitoring:result_overview')}?monitoring_run={self.id}"
+        return f"{MonitoringResult.get_table_url()}?monitoring_run={self.id}"
 
     @property
     def health_state_view_uri(self):
-        return f"{reverse('monitoring:health_state_overview')}?monitoring_run={self.id}"
-
-    @property
-    def add_view_uri(self):
-        return reverse('monitoring:run_new')
+        return f"{HealthState.get_table_url()}?monitoring_run={self.id}"
 
     def save(self, *args, **kwargs):
         adding = False
@@ -153,7 +131,7 @@ class MonitoringRun(CommonInfo):
                 countdown=settings.CELERY_DEFAULT_COUNTDOWN))
 
 
-class MonitoringResult(CommonInfo):
+class MonitoringResult(CommonInfo, GenericModelMixin):
     # polymorphic fk (either service, layer, feature type or dataset metadata)
     service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, null=True, blank=True,
                                 verbose_name=_('Service'))
@@ -178,20 +156,15 @@ class MonitoringResult(CommonInfo):
         verbose_name = _('Monitoring result')
         verbose_name_plural = _('Monitoring results')
 
+    # TODO consider integrating this into PolymorphicForeignKey
     @property
     def resource(self):
         return self._resource.get_target(self)
 
+    # TODO consider integrating this into PolymorphicForeignKey
     @resource.setter
     def resource(self, value):
         self._resource.set_target(self, value)
-
-    @property
-    def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RESULTS.value]}).render()
-
-    def get_absolute_url(self):
-        return reverse('monitoring:result_details', args=[self.id, ])
 
 
 class MonitoringResultDocument(MonitoringResult):
@@ -200,7 +173,7 @@ class MonitoringResultDocument(MonitoringResult):
     diff = models.TextField(null=True, blank=True)
 
 
-class HealthState(CommonInfo):
+class HealthState(CommonInfo, GenericModelMixin):
     monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='health_states',
                                        verbose_name=_('Monitoring Runs'))
 
@@ -239,24 +212,19 @@ class HealthState(CommonInfo):
         verbose_name = _('Health state')
         verbose_name_plural = _('Health states')
 
+    # TODO consider integrating this into the PolymorphicForeignKey
     @property
     def resource(self):
         return self._resource.get_target(self)
 
+    # TODO consider integrating this into the PolymorphicForeignKey
     @resource.setter
     def resource(self, value):
         self._resource.set_target(self, value)
 
     @property
-    def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value]}).render()
-
-    @property
     def result_view_uri(self):
-        return f"{reverse('monitoring:result_overview')}?monitoring_run={self.monitoring_run_id}&resource={self.resource.id}"
-
-    def get_absolute_url(self):
-        return reverse('monitoring:health_state_details', args=[self.pk])
+        return f"{MonitoringResult.get_table_url()}?monitoring_run={self.monitoring_run_id}&resource={self.resource.id}"
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):

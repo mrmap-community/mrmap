@@ -6,15 +6,14 @@ from monitoring.views import MonitoringRunTableView, MonitoringResultTableView, 
 app_name = 'monitoring'
 urlpatterns = [
     # MonitoringRuns
-    path('runs', MonitoringRunTableView.as_view(), name='run_overview'),
-    path('runs/new', MonitoringRunNewView.as_view(), name='run_new'),
+    path('runs', MonitoringRunTableView.as_view(), name='monitoring_run_list'),
+    path('runs/create', MonitoringRunNewView.as_view(), name='monitoring_run_add'),
 
     # MonitoringResults
-    path('results', MonitoringResultTableView.as_view(), name='result_overview'),
-    path('results/<pk>', MonitoringResultDetailView.as_view(), name='result_details'),
+    path('results', MonitoringResultTableView.as_view(), name='monitoring_result_list'),
+    path('results/<pk>', MonitoringResultDetailView.as_view(), name='monitoring_result_view'),
 
     # HealthStates
-    path('health-states', HealthStateTableView.as_view(), name='health_state_overview'),
-    path('health-states/<pk>', HealthStateDetailView.as_view(), name='health_state_details'),
+    path('health-states', HealthStateTableView.as_view(), name='health_state_list'),
+    path('health-states/<pk>', HealthStateDetailView.as_view(), name='health_state_view'),
 ]
-

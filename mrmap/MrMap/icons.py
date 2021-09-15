@@ -43,6 +43,7 @@ class IconEnum(EnumChoice):
     MONITORING = "fas fa-binoculars"
     MONITORING_RUN = "fas fa-running"
     MONITORING_RESULTS = "fas fa-poll-h"
+    HEALTH_STATE = "fas fa-heartbeat"
     WARNING = 'fas fa-exclamation-triangle'
     CRITICAL = 'fas fa-bolt'
     UPDATE = 'fas fa-spinner'
@@ -98,7 +99,6 @@ class IconEnum(EnumChoice):
     EXTERNAL_AUTHENTICATION = 'fas fa-user-lock'
     ALLOWED_OPERATION = 'fas fa-lock'
     ACCESS_CONTROL_LIST = "fas fa-user-shield"
-    HEALTH_STATE = "fas fa-heartbeat"
     PROXY_SETTING = "fas fa-archway"
 
 

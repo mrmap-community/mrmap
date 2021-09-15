@@ -7,7 +7,7 @@ Created on: 26.02.2020
 """
 from monitoring.helper.urlHelper import UrlHelper
 from resourceNew.enums.service import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
-from resourceNew.models import Service, Layer
+from resourceNew.models import Service
 
 
 class WmsHelper:
@@ -15,15 +15,7 @@ class WmsHelper:
     def __init__(self, service: Service):
         self.service = service
         self.parent_service = service
-        #self.parent_service = service.parent_service if service.metadata.is_layer_metadata else service
 
-        # # Prefetch useful attributes for requests
-        # self.layer = Layer.objects.get(
-        #     metadata=service.metadata
-        # ) if self.service.metadata.is_layer_metadata else Layer.objects.get(
-        #     parent_service=self.service,
-        #     parent=None
-        # )
         self.layer = service.root_layer
         self.crs_srs_identifier = 'CRS' if self.service.service_type.version == OGCServiceVersionEnum.V_1_3_0.value else 'SRS'
         self.bbox = self.layer.bbox_lat_lon if self.layer.bbox_lat_lon.area > 0 else self.parent_service.metadata.find_max_bounding_box()

@@ -18,7 +18,6 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError
 from requests import Request
 
-from MrMap.settings import PROXIES
 from monitoring.helper.wfsHelper import WfsHelper
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \

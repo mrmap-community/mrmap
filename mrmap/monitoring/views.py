@@ -22,8 +22,6 @@ class MonitoringRunNewView(SecuredCreateView):
     model = MonitoringRun
     form_class = MonitoringRunForm
     success_message = MONITORING_RUN_SCHEDULED
-    # FIXME: wrong success_url
-    # success_url = reverse_lazy('resource:pending-tasks')
 
 
 class MonitoringResultTableView(SecuredListMixin, FilterView):

@@ -286,6 +286,7 @@ class CustomSingleTableMixin(SingleTableMixin):
         table.add_url = self.get_add_url()
         model = self.model
         # todo: bad practice --> results in multiple db querys for get_all_permissions()
+        # todo: deprecated
         if hasattr(model, 'get_add_action') and callable(model.get_add_action):
             render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
             table.actions = [render_helper.render_item(item=self.model.get_add_action())]

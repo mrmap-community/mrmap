@@ -1,73 +1,33 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
-  
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
   <title>Installation &mdash; MrMap v0.0.0 documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-    
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-
-    
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Requirements" href="0-requirements.html" />
+    <link rel="next" title="System Architecture" href="../system_architecture/index.html" />
     <link rel="prev" title="Introduction" href="../introduction/index.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../index.html" class="icon icon-home"> MrMap
-          
-
-          
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -75,167 +35,115 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="0-requirements.html">Requirements</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1-postgresql.html">1. PostgreSQL</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2-redis.html">2. Redis</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3-mapserver.html">3. Mapserver</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4-mrmap.html">4. MrMap Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5-application-server.html">5. Application server</a></li>
-<li class="toctree-l2"><a class="reference internal" href="6-http-server.html">6. Nginx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#download-mrmap">1. Download MrMap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#start-mrmap">2. Start MrMap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#environment-variables">Environment Variables</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">MrMap</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-        
       <li>Installation</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="../_sources/installation/index.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
+             
   <div class="section" id="installation">
-<span id="id1"></span><h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
-<p>The installation instructions provided here have been tested to work on Debian 10. The particular commands needed to install dependencies on other distributions may vary significantly. Unfortunately, this is outside the control of the MrMap maintainers. Please consult your distribution’s documentation for assistance with any errors.
-Take a look at the <a class="reference external" href="https://github.com/mrmap-community/mrmap/tree/master/install">instructions</a> in the install folder on how to deploy the project on a production system.</p>
-<p>The following sections detail how to set up a new instance of MrMap:</p>
-<ol class="arabic simple">
-<li><p><a class="reference internal" href="1-postgresql.html#installation-1-postgresql"><span class="std std-ref">PostgreSQL database</span></a></p></li>
-<li><p><a class="reference internal" href="2-redis.html#installation-2-redis"><span class="std std-ref">Redis</span></a></p></li>
-<li><p><a class="reference internal" href="3-mapserver.html#installation-3-mapserver"><span class="std std-ref">Mapserver</span></a></p></li>
-<li><p><a class="reference internal" href="4-mrmap.html#installation-4-mrmap"><span class="std std-ref">MrMap components</span></a></p></li>
-<li><p><a class="reference internal" href="5-application-server.html#installation-5-application-server"><span class="std std-ref">Application server</span></a></p></li>
-<li><p><a class="reference internal" href="6-http-server.html#installation-6-http-server"><span class="std std-ref">HTTP Server</span></a></p></li>
-</ol>
-<p><strong>Application stack</strong></p>
-<p>Below is a simplified overview of the MrMap application stack for reference:</p>
-<a class="reference internal image-reference" href="../_images/app_stack.png"><img alt="MrMap application stack" src="../_images/app_stack.png" style="width: 800px;" /></a>
-<div class="toctree-wrapper compound">
+<span id="id1"></span><h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h1>
+<p>The MrMap project is full dockerized. All dependend services MrMap needs are also provided as docker containers. The only thing you have to install on your system is a docker enginge and docker compose. See the table below to get the right version of docker engine and docker compose.</p>
+<p><strong>Requirements</strong></p>
+<table class="colwidths-given docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Dependency</p></th>
+<th class="head"><p>Minimum Version</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://docs.docker.com/engine/install">docker engine</a></p></td>
+<td><p>20</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://docs.docker.com/compose/install">docker compose</a></p></td>
+<td><p>1.28</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Make sure that the user you running docker-compose from, has managing rights for docker. For linux developers see <a class="reference external" href="https://docs.docker.com/engine/install/linux-postinstall/">Post-installation steps for Linux</a></p>
+</div>
+<div class="section" id="download-mrmap">
+<h2>1. Download MrMap<a class="headerlink" href="#download-mrmap" title="Permalink to this headline"></a></h2>
+<p>Download the project from <a class="reference external" href="https://github.com/mrmap-community/mrmap/archive/refs/heads/develop.zip">github</a> and unzip it to any installation folder you like.</p>
+</div>
+<div class="section" id="start-mrmap">
+<h2>2. Start MrMap<a class="headerlink" href="#start-mrmap" title="Permalink to this headline"></a></h2>
+<p>Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">-f</span> <span class="pre">docker-compose.yml</span> <span class="pre">up</span> <span class="pre">--build</span></code>. After that, all services should be started properly.</p>
+</div>
+<div class="section" id="environment-variables">
+<h2>Environment Variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline"></a></h2>
 </div>
 </div>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="0-requirements.html" class="btn btn-neutral float-right" title="Requirements" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="../introduction/index.html" class="btn btn-neutral float-left" title="Introduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../system_architecture/index.html" class="btn btn-neutral float-right" title="System Architecture" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2021, mrmap-community.
-
-    </p>
+    <p>&#169; Copyright 2021, mrmap-community.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

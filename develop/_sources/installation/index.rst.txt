@@ -5,35 +5,35 @@
 Installation
 ============
 
-The installation instructions provided here have been tested to work on Debian 10. The particular commands needed to install dependencies on other distributions may vary significantly. Unfortunately, this is outside the control of the MrMap maintainers. Please consult your distribution's documentation for assistance with any errors.
-Take a look at the `instructions <https://github.com/mrmap-community/mrmap/tree/master/install>`_ in the install folder on how to deploy the project on a production system.
+The MrMap project is full dockerized. All dependend services MrMap needs are also provided as docker containers. The only thing you have to install on your system is a docker enginge and docker compose. See the table below to get the right version of docker engine and docker compose.
 
-The following sections detail how to set up a new instance of MrMap:
+**Requirements**
 
-#. :ref:`PostgreSQL database <installation-1-postgresql>`
-#. :ref:`Redis <installation-2-redis>`
-#. :ref:`Mapserver <installation-3-mapserver>`
-#. :ref:`MrMap components <installation-4-mrmap>`
-#. :ref:`Application server <installation-5-application-server>`
-#. :ref:`HTTP Server <installation-6-http-server>`
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Dependency
+     - Minimum Version
+   * - `docker engine <https://docs.docker.com/engine/install>`_
+     - 20
+   * - `docker compose <https://docs.docker.com/compose/install>`_
+     - 1.28
+
+.. warning::
+    Make sure that the user you running docker-compose from, has managing rights for docker. For linux developers see `Post-installation steps for Linux <https://docs.docker.com/engine/install/linux-postinstall/>`_
+
+1. Download MrMap
+*****************
+
+Download the project from `github <https://github.com/mrmap-community/mrmap/archive/refs/heads/develop.zip>`_ and unzip it to any installation folder you like.
 
 
-**Application stack**
+2. Start MrMap
+**************
 
-Below is a simplified overview of the MrMap application stack for reference:
+Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker-compose -f docker-compose.yml up --build``. After that, all services should be started properly.
 
-.. image:: ../images/app_stack.png
-  :width: 800
-  :alt: MrMap application stack
+Environment Variables
+*********************
 
-.. toctree::
-   :hidden:
-   :maxdepth: 3
-
-   0-requirements
-   1-postgresql
-   2-redis
-   3-mapserver
-   4-mrmap
-   5-application-server
-   6-http-server

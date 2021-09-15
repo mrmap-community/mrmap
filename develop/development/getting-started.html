@@ -1,73 +1,33 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8" />
-  
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
   <title>Getting Started &mdash; MrMap v0.0.0 documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-    
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-
-    
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Project Structure" href="project-structure.html" />
     <link rel="prev" title="Communication" href="communication.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="../index.html" class="icon icon-home"> MrMap
-          
-
-          
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -75,41 +35,25 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Started</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#setting-up-a-development-environment">Setting up a Development Environment</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#fork-the-repo">Fork the Repo</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#enable-pre-commit-hooks">Enable Pre-Commit Hooks</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#create-a-python-virtual-environment">Create a Python Virtual Environment</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#install-dependencies">Install Dependencies</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#configure-mrmap">Configure MrMap</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#start-the-development-server">Start the Development Server</a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#branch-structure">Branch structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#enable-pre-commit-hooks">Enable Pre-Commit Hooks</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#running-tests">Running Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#test-documentation-builds-properly">Test documentation builds properly</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#submitting-pull-requests">Submitting Pull Requests</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="commands.html">Commands</a></li>
-<li class="toctree-l2"><a class="reference internal" href="docker.html">Docker compose usage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pycharm-configuration.html">Pycharm configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode-configuration.html">Visual Studio Code configuration</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
@@ -117,110 +61,45 @@
 <li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">MrMap</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-        
           <li><a href="index.html">Development</a> &raquo;</li>
-        
       <li>Getting Started</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="../_sources/development/getting-started.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
+             
   <div class="section" id="getting-started">
-<span id="development-getting-started"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="setting-up-a-development-environment">
-<h2>Setting up a Development Environment<a class="headerlink" href="#setting-up-a-development-environment" title="Permalink to this headline">¶</a></h2>
-<p>Getting started with MrMap development is pretty straightforward, and should feel very familiar to anyone with Django development experience. There are two basic things you’ll need:</p>
-<ul class="simple">
-<li><p>A Linux system or environment</p></li>
-<li><p>A supported version of Python</p></li>
-</ul>
-<p>To setup all needed services you can use</p>
-<p><strong>docker compose</strong>:</p>
-<ul class="simple">
-<li><p>use our <a class="reference external" href="https://github.com/mrmap-community/mrmap/blob/master/mrmap/docker/docker-compose-dev.yml">docker-compose configuration</a>. The usage is described in <a class="reference internal" href="docker.html#development-docker-compose-usage"><span class="std std-ref">develop with docker</span></a>.</p></li>
-</ul>
-<p>or</p>
-<p><strong>conventional way</strong>:</p>
-<ul class="simple">
-<li><p>A PostgreSQL server, which can be installed locally <a class="reference internal" href="../installation/1-postgresql.html#installation-1-postgresql"><span class="std std-ref">per the documentation</span></a></p></li>
-<li><p>A Redis server, which can also be <a class="reference internal" href="../installation/2-redis.html#installation-2-redis"><span class="std std-ref">installed locally</span></a></p></li>
-<li><p>A Mapserver, which can also be <a class="reference internal" href="../installation/3-mapserver.html#installation-3-mapserver"><span class="std std-ref">installed locally</span></a></p></li>
-</ul>
-<div class="section" id="fork-the-repo">
-<h3>Fork the Repo<a class="headerlink" href="#fork-the-repo" title="Permalink to this headline">¶</a></h3>
-<p>Assuming you’ll be working on your own fork, your first step will be to fork the <a class="reference external" href="https://github.com/mrmap-community/mrmap">official git repository</a>. (If you’re a maintainer who’s going to be working directly with the official repo, skip this step.) You can then clone your GitHub fork locally for development:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/youruseraccount/mrmap.git
-<span class="go">Cloning into &#39;mrmap&#39;...</span>
-<span class="go">remote: Enumerating objects: 231, done.</span>
-<span class="go">remote: Counting objects: 100% (231/231), done.</span>
-<span class="go">remote: Compressing objects: 100% (147/147), done.</span>
-<span class="go">remote: Total 56705 (delta 134), reused 145 (delta 84), pack-reused 56474</span>
-<span class="go">Receiving objects: 100% (56705/56705), 27.96 MiB | 34.92 MiB/s, done.</span>
-<span class="go">Resolving deltas: 100% (44177/44177), done.</span>
-<span class="gp">$ </span>ls mrmap/
-<span class="go">requirements.txt  docs         mkdocs.yml</span>
-<span class="go">CONTRIBUTING.md           LICENSE.txt  mrmap      README.md</span>
-</pre></div>
+<span id="development-getting-started"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><strong>pre-condition</strong>: run <a class="reference internal" href="../installation/index.html#installation"><span class="std std-ref">installation guide</span></a> first before you start working on this section.</p>
 </div>
+<p>Cause MrMap is full dockerized, the development of it is priciple possible on any operating system. Feel free to use the development ide of your choice.</p>
+<p>We provide configuration files for <a class="reference external" href="https://www.jetbrains.com/de-de/pycharm/">pycharm</a> and <a class="reference external" href="https://code.visualstudio.com/">vscode</a>.</p>
+<ul class="simple">
+<li><p>To configure pycharm see <a class="reference internal" href="pycharm-configuration.html#development-pycharm-cfg"><span class="std std-ref">documentation</span></a></p></li>
+<li><p>To configure vscode see <a class="reference internal" href="vscode-configuration.html#development-vscode-cfg"><span class="std std-ref">documentation</span></a></p></li>
+</ul>
+<div class="section" id="branch-structure">
+<h2>Branch structure<a class="headerlink" href="#branch-structure" title="Permalink to this headline"></a></h2>
 <p>The MrMap project utilizes three persistent git branches to track work:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">master</span></code> - Serves as a snapshot of the current stable release</p></li>
@@ -230,87 +109,43 @@
 <p>Typically, you’ll base pull requests off of the <code class="docutils literal notranslate"><span class="pre">develop</span></code> branch, or off of <code class="docutils literal notranslate"><span class="pre">feature</span></code> if you’re working on a new major release. <strong>Never</strong> merge pull requests into the <code class="docutils literal notranslate"><span class="pre">master</span></code> branch, which receives merged only from the <code class="docutils literal notranslate"><span class="pre">develop</span></code> branch.</p>
 </div>
 <div class="section" id="enable-pre-commit-hooks">
-<h3>Enable Pre-Commit Hooks<a class="headerlink" href="#enable-pre-commit-hooks" title="Permalink to this headline">¶</a></h3>
+<h2>Enable Pre-Commit Hooks<a class="headerlink" href="#enable-pre-commit-hooks" title="Permalink to this headline"></a></h2>
 <p>MrMap ships with a <a class="reference external" href="https://githooks.com/">git pre-commit hook</a> script that automatically checks for style compliance and missing database migrations prior to committing changes. This helps avoid erroneous commits that result in CI test failures. You are encouraged to enable it by creating a link to <code class="docutils literal notranslate"><span class="pre">scripts/git-hooks/pre-commit</span></code>:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> .git/hooks/
-<span class="gp">$ </span>ln -s ../../scripts/git-hooks/pre-commit
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> .git/hooks/
+<span class="gp">$</span> ln -s ../../scripts/git-hooks/pre-commit
 </pre></div>
-</div>
-</div>
-<div class="section" id="create-a-python-virtual-environment">
-<h3>Create a Python Virtual Environment<a class="headerlink" href="#create-a-python-virtual-environment" title="Permalink to this headline">¶</a></h3>
-<p>A <a class="reference external" href="https://docs.python.org/3/tutorial/venv.html">virtual environment</a> is like a container for a set of Python packages. They allow you to build environments suited to specific projects without interfering with system packages or other projects. When installed per the documentation, MrMap uses a virtual environment in production.</p>
-<p>Create a virtual environment using the <code class="docutils literal notranslate"><span class="pre">venv</span></code> Python module:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>mkdir ~/.venv
-<span class="gp">$ </span>python3 -m venv ~/.venv/mrmap
-</pre></div>
-</div>
-<p>This will create a directory named <code class="docutils literal notranslate"><span class="pre">.venv/mrmap</span></code> in your home directory, which houses a virtual copy of the Python executable and its related libraries and tooling. When running MrMap for development, it will be run using the Python binary at <code class="docutils literal notranslate"><span class="pre">~/.venv/mrmap/bin/python</span></code>.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Keeping virtual environments in <code class="docutils literal notranslate"><span class="pre">~/.venv/</span></code> is a common convention but entirely optional: Virtual environments can be created wherever you please.</p>
-</div>
-<p>Once created, activate the virtual environment:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">source</span> ~/.venv/mrmap/bin/activate
-<span class="gp gp-VirtualEnv">(mrmap)</span> <span class="gp">$</span>
-</pre></div>
-</div>
-<p>Notice that the console prompt changes to indicate the active environment. This updates the necessary system environment variables to ensure that any Python scripts are run within the virtual environment.</p>
-</div>
-<div class="section" id="install-dependencies">
-<h3>Install Dependencies<a class="headerlink" href="#install-dependencies" title="Permalink to this headline">¶</a></h3>
-<p>With the virtual environment activated, install the project’s required Python packages using the <code class="docutils literal notranslate"><span class="pre">pip</span></code> module:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp gp-VirtualEnv">(mrmap)</span> <span class="gp">$ </span>python -m pip install -r requirements.txt
-<span class="go">Collecting Django==3.1 (from -r requirements.txt (line 1))</span>
-<span class="go">Cache entry deserialization failed, entry ignored</span>
-<span class="go">Using cached https://files.pythonhosted.org/packages/2b/5a/4bd5624546912082a1bd2709d0edc0685f5c7827a278d806a20cf6adea28/Django-3.1-py3-none-any.whl</span>
-<span class="go">...</span>
-</pre></div>
-</div>
-</div>
-<div class="section" id="configure-mrmap">
-<h3>Configure MrMap<a class="headerlink" href="#configure-mrmap" title="Permalink to this headline">¶</a></h3>
-<p>The configuration of MrMap is setup in the following structure, based on the root <code class="docutils literal notranslate"><span class="pre">settings.py</span></code> file under <code class="docutils literal notranslate"><span class="pre">https://github.com/mrmap-community/mrmap</span></code>:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">settings.py</span></code> general settings to setup MrMap</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sub_settings\db_settings.py</span></code> PostgreSQL database connection parameters</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sub_settings\dev_settings.py</span></code> This settings file contains ONLY development relevant settings.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sub_settings\django_settings.py</span></code> This settings file contains all django framework related settings such as installed apps</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sub_settings\logging_settings.py</span></code> This settings file contains all logging framework related settings</p></li>
-</ul>
-</div>
-<div class="section" id="start-the-development-server">
-<h3>Start the Development Server<a class="headerlink" href="#start-the-development-server" title="Permalink to this headline">¶</a></h3>
-<p>Django provides a lightweight, auto-updating HTTP/WSGI server for development use. MrMap extends this slightly to automatically import models and other utilities. Run the MrMap development server with the command:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python mrmap/manage.py runserver
-<span class="go">Performing system checks...</span>
-
-<span class="go">System check identified no issues (0 silenced).</span>
-<span class="go">November 18, 2020 - 15:52:31</span>
-<span class="go">Django version 3.1, using settings &#39;mrmap.settings&#39;</span>
-<span class="go">Starting development server at http://127.0.0.1:8000/</span>
-<span class="go">Quit the server with CONTROL-C.</span>
-</pre></div>
-</div>
-<p>This ensures that your development environment is now complete and operational. Any changes you make to the code base will be automatically adapted by the development server.</p>
 </div>
 </div>
 <div class="section" id="running-tests">
-<h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline">¶</a></h2>
+<h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline"></a></h2>
 <p>Throughout the course of development, it’s a good idea to occasionally run MrMap’s test suite to catch any potential errors. Tests are run using the <code class="docutils literal notranslate"><span class="pre">test</span></code> management command:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python ./mrmap/manage.py <span class="nb">test</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python ./mrmap/manage.py <span class="nb">test</span>
 </pre></div>
 </div>
 <p>In cases where you haven’t made any changes to the database (which is most of the time), you can append the <code class="docutils literal notranslate"><span class="pre">--keepdb</span></code> argument to this command to reuse the test database between runs. This cuts down on the time it takes to run the test suite since the database doesn’t have to be rebuilt each time. (Note that this argument will cause errors if you’ve modified any model fields since the previous test run.)</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python ./mrmap/manage.py <span class="nb">test</span> --keepdb
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python ./mrmap/manage.py <span class="nb">test</span> --keepdb
+</pre></div>
+</div>
+</div>
+<div class="section" id="test-documentation-builds-properly">
+<h2>Test documentation builds properly<a class="headerlink" href="#test-documentation-builds-properly" title="Permalink to this headline"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Install python dependencies local first. <cite>pip3 install -r ./mrmap/requirements.txt &amp;&amp; pip3 install -r ./mrmap/docs/requirements.txt</cite></p>
+</div>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> docs/
+<span class="gp">$</span>docs/ <span class="nb">export</span> <span class="k">$(</span>grep -v <span class="s1">&#39;^#&#39;</span> ../.env.mrmap <span class="p">|</span> xargs<span class="k">)</span>
+<span class="gp">$</span>docs/ make clean
+<span class="gp">$</span>docs/ make linkcheck
+<span class="gp">$</span>docs/ make html
 </pre></div>
 </div>
 </div>
 <div class="section" id="submitting-pull-requests">
-<h2>Submitting Pull Requests<a class="headerlink" href="#submitting-pull-requests" title="Permalink to this headline">¶</a></h2>
+<h2>Submitting Pull Requests<a class="headerlink" href="#submitting-pull-requests" title="Permalink to this headline"></a></h2>
 <p>Once you’re happy with your work and have verified that all tests pass, commit your changes and push it upstream to your fork. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git commit -m <span class="s2">&quot;Closes #1234: Add wms support&quot;</span>
-<span class="gp">$ </span>git push origin
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> git commit -m <span class="s2">&quot;Closes #1234: Add wms support&quot;</span>
+<span class="gp">$</span> git push origin
 </pre></div>
 </div>
 <p>Once your fork has the new commit, submit a <a class="reference external" href="https://github.com/mrmap-community/mrmap/compare">pull request</a> to the MrMap repo to propose the changes. Be sure to provide a detailed accounting of the changes being made and the reasons for doing so.</p>
@@ -324,50 +159,33 @@
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="project-structure.html" class="btn btn-neutral float-right" title="Project Structure" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="communication.html" class="btn btn-neutral float-left" title="Communication" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="project-structure.html" class="btn btn-neutral float-right" title="Project Structure" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2021, mrmap-community.
-
-    </p>
+    <p>&#169; Copyright 2021, mrmap-community.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

@@ -1,12 +1,15 @@
-from django.db import models
-from django.db.models import Q
-from eulxml import xmlmap
-from django.utils.translation import gettext_lazy as _
-from django.contrib.gis.db.models import MultiPolygonField
+from uuid import uuid4
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.gis.db.models import MultiPolygonField
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
+from eulxml import xmlmap
 from requests import Session, Request
+
 from MrMap.settings import PROXIES
 from main.models import GenericModelMixin, CommonInfo
 from resourceNew.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
@@ -16,8 +19,6 @@ from resourceNew.managers.metadata import LicenceManager, IsoMetadataManager, Da
 from resourceNew.models.document import MetadataDocumentModelMixin
 from resourceNew.models.service import Layer, FeatureType, Service
 from resourceNew.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
-from uuid import uuid4
-
 
 
 class MimeType(models.Model):
@@ -276,7 +277,7 @@ class MetadataTermsOfUse(models.Model):
     use_limitation = models.TextField(null=True,
                                       blank=True)
     license_source_note = models.TextField(null=True,
-                                           blank=True,)
+                                           blank=True, )
     licence = models.ForeignKey(to=Licence,
                                 on_delete=models.RESTRICT,
                                 blank=True,
@@ -435,9 +436,9 @@ class LayerMetadata(AbstractMetadata):
             xml = MdMetadata.from_field_dict(self.__dict__)
             xml_string = xml.serializeDocument()
             # FIXME: documents are created on the fly by resourceNew.models.DocumentModelMixin
-            #Document.objects.create(layer_metadata=self,
-             #                       xml=xml_string,
-              #                      xml_backup=xml_string)
+            # Document.objects.create(layer_metadata=self,
+            #                       xml=xml_string,
+            #                      xml_backup=xml_string)
 
 
 class FeatureTypeMetadata(AbstractMetadata):
@@ -648,7 +649,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                              null=True,
                                              blank=True)
     bounding_geometry = MultiPolygonField(null=True,
-                                          blank=True,)
+                                          blank=True, )
     dataset_id = models.CharField(max_length=4096,
                                   null=True,  # empty dataset_id signals broken dataset metadata records
                                   help_text=_("identifier of the remote data"))

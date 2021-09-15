@@ -5,32 +5,34 @@ Contact: suleiman@terrestris.de
 Created on: 09.12.2019
 
 """
-
-from django.utils import timezone
 import difflib
-from typing import Union
-from PIL import Image, UnidentifiedImageError
+import hashlib
 from io import BytesIO
+from typing import Union
 
-from django.core.exceptions import ObjectDoesNotExist
+from PIL import Image
+from PIL import UnidentifiedImageError
 from django.db import transaction
+from django.utils import timezone
+from lxml import etree
+from lxml.etree import XMLSyntaxError
+from requests import Request
 
-from monitoring.settings import MONITORING_REQUEST_TIMEOUT
-from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, MonitoringSetting, \
-    HealthState
-from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
-from service.helper.crypto_handler import CryptoHandler
-from service.helper.common_connector import CommonConnector
-from service.helper.xml_helper import parse_xml
-from service.models import Metadata, Document, Service, FeatureType
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, DocumentEnum
+from monitoring.helper.wmsHelper import WmsHelper
+from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
+    MonitoringSetting, \
+    HealthState
+from monitoring.settings import MONITORING_REQUEST_TIMEOUT
+from resourceNew.enums.service import OGCServiceVersionEnum, OGCServiceEnum
+from resourceNew.models import Service, Layer, FeatureType, DatasetMetadata
 
 
 class Monitoring:
 
-    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting = None, ):
-        self.metadata = metadata
+    def __init__(self, resource: Union[Service, Layer, FeatureType, DatasetMetadata], monitoring_run: MonitoringRun,
+                 monitoring_setting: MonitoringSetting = None, ):
+        self.resource = resource
         self.linked_metadata = None
         self.monitoring_run = monitoring_run
         self.monitoring_settings = monitoring_setting
@@ -45,7 +47,9 @@ class Monitoring:
             message (str): The response text of the request.
             duration (timedelta): The duration of the request.
         """
-        def __init__(self, uri: str, success: bool, message: str, status: int = None, duration: timezone.timedelta = None):
+
+        def __init__(self, uri: str, success: bool, message: str, status: int = None,
+                     duration: timezone.timedelta = None):
             self.monitored_uri = uri
             self.success = success
             self.status = status
@@ -60,27 +64,23 @@ class Monitoring:
             nothing
         """
 
-        try:
-            check_obj = self.metadata.get_described_element()
-        except ObjectDoesNotExist:
-            pass
-
-        if self.metadata.is_service_metadata:
-            if self.metadata.is_service_type(OGCServiceEnum.WMS):
-                self.check_wms(check_obj)
-            elif self.metadata.is_service_type(OGCServiceEnum.WFS):
-                self.check_wfs(check_obj)
-
-        elif self.metadata.is_layer_metadata:
-            self.check_layer(check_obj)
-        elif self.metadata.is_featuretype_metadata:
-            self.check_featuretype(check_obj)
-        elif self.metadata.is_dataset_metadata:
-            self.check_dataset()
+        if isinstance(self.resource, Service):
+            if self.resource.is_service_type(OGCServiceEnum.WMS):
+                self.check_wms(self.resource)
+            elif self.resource.is_service_type(OGCServiceEnum.WFS):
+                self.check_wfs(self.resource)
+        elif isinstance(self.resource, Layer):
+            self.check_layer(self.resource)
+        elif isinstance(self.resource, FeatureType):
+            self.check_featuretype(self.resource)
+        elif isinstance(self.resource, DatasetMetadata):
+            self.check_dataset(self.resource)
+        else:
+            raise ValueError(f"Unexpected resource type {self.resource.__class__.__name__}")
 
         # all checks are done. Calculate the health state for all monitoring results
         health_state = HealthState(monitoring_run=self.monitoring_run,
-                                   metadata=self.metadata,
+                                   resource=self.resource,
                                    created_by_user=self.monitoring_run.created_by_user,
                                    owned_by_org=self.monitoring_run.owned_by_org)
         health_state.save()
@@ -148,15 +148,15 @@ class Monitoring:
             if wms_helper.get_styles_url is not None:
                 self.check_service(wms_helper.get_styles_url)
 
-    def check_layer(self, service: Service):
+    def check_layer(self, layer: Layer):
         """" Checks the status of a layer.
 
         Args:
-            service (Service): The service to check.
+            layer (Layer): The service to check.
         Returns:
             nothing
         """
-        wms_helper = WmsHelper(service)
+        wms_helper = WmsHelper(layer.service)
         urls_to_check = [
             (wms_helper.get_get_map_url(), True),
             (wms_helper.get_get_styles_url(), False),
@@ -176,10 +176,10 @@ class Monitoring:
         Returns:
             nothing
         """
-        wfs_helper = WfsHelper(feature_type)
+        wfs_helper = WfsHelper(feature_type.service)
         urls_to_check = [
-            (wfs_helper.get_describe_featuretype_url(feature_type.metadata.identifier), True),
-            (wfs_helper.get_get_feature_url(feature_type.metadata.identifier), True),
+            (wfs_helper.get_describe_featuretype_url(feature_type.identifier), True),
+            (wfs_helper.get_get_feature_url(feature_type.identifier), True),
         ]
         for url in urls_to_check:
             if url[0] is None:
@@ -213,38 +213,37 @@ class Monitoring:
             ServiceStatus: Status info of service.
         """
         success = False
-        duration = None
-        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout if self.monitoring_settings is not None else MONITORING_REQUEST_TIMEOUT)
-        if self.metadata.has_external_authentication:
-            connector.external_auth = self.metadata.external_authentication
-        try:
-            connector.load()
-        except Exception as e:
-            # handler if server sends no response (e.g. outdated uri)
-            response_text = str(e)
-            return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+        service = self.resource if isinstance(self.resource, Service) else self.resource.service
+        session = service.get_session_for_request()
+        timeout = MONITORING_REQUEST_TIMEOUT if self.monitoring_settings is None else self.monitoring_settings.timeout
+        request = Request(method="GET",
+                          url=url)
+        response = session.send(request.prepare(), timeout=timeout)
+        duration = response.elapsed
+        response_text = response.content
 
-        duration = timezone.timedelta(seconds=connector.run_time)
-        response_text = connector.content
-        if connector.status_code == 200:
-            success = True
+        if response.status_code != 200:
+            response_text = f"Unexpected HTTP response code: {response.status_code}"
+            return Monitoring.ServiceStatus(url, success, response_text, response.status_code, duration)
+
+        success = True
+        try:
+            xml = self.parse_xml(response.content)
+            if 'Exception' in xml.getroot().tag:
+                success = False
+            if check_wfs_member:
+                if not self.has_wfs_member(xml):
+                    success = False
+        except AttributeError:
+            # handle successful responses that do not return xml
+            response_text = None
+        if check_image:
             try:
-                xml = parse_xml(response_text)
-                if 'Exception' in xml.getroot().tag:
-                    success = False
-                if check_wfs_member:
-                    if not self.has_wfs_member(xml):
-                        success = False
-            except AttributeError:
-                # handle successful responses that do not return xml
-                response_text = None
-            if check_image:
-                try:
-                    Image.open(BytesIO(connector.content))
-                    success = True
-                except UnidentifiedImageError:
-                    success = False
-        service_status = Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+                Image.open(BytesIO(response.content))
+                success = True
+            except UnidentifiedImageError:
+                success = False
+        service_status = Monitoring.ServiceStatus(url, success, response_text, response.status_code, duration)
         return service_status
 
     def has_wfs_member(self, xml):
@@ -255,7 +254,7 @@ class Monitoring:
         Returns:
             bool: true, if xml has member, false otherwise
         """
-        service = self.metadata.service
+        service = self.resource
         version = service.service_type.version
         if version == OGCServiceVersionEnum.V_1_0_0.value:
             return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
@@ -280,15 +279,10 @@ class Monitoring:
         Returns:
             nothing
         """
-        document = Document.objects.get(
-            metadata=self.metadata,
-            is_original=True,
-            document_type=DocumentEnum.CAPABILITY.value
-        )
-        original_document = document.content
+        original_document = self.resource.xml_backup_string
         self.check_document(url, original_document)
 
-    def check_dataset(self):
+    def check_dataset(self, dataset: DatasetMetadata):
         """Handles the dataset checks.
 
         Handles the monitoring process of the datasets as the workflow differs from other operations.
@@ -302,14 +296,10 @@ class Monitoring:
         Returns:
             nothing
         """
-        url = self.metadata.metadata_url
-        document = Document.objects.get(
-            metadata=self.metadata,
-            document_type=DocumentEnum.METADATA.value,
-            is_original=True,
-        )
-        original_document = document.content
-        self.check_document(url, original_document)
+        # TODO handle None
+        url = dataset.origin_url
+        current_document = dataset.xml
+        self.check_document(url, current_document)
 
     def check_document(self, url, original_document):
         service_status = self.check_status(url)
@@ -319,7 +309,7 @@ class Monitoring:
                 needs_update = True
                 diff = ''.join(diff_obj)
                 monitoring_document = MonitoringResultDocument(
-                    available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                    available=service_status.success, resource=self.resource, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
@@ -328,7 +318,7 @@ class Monitoring:
             else:
                 needs_update = False
                 monitoring_document = MonitoringResultDocument(
-                    available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                    available=service_status.success, resource=self.resource, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
@@ -338,7 +328,7 @@ class Monitoring:
         else:
             self.handle_service_error(service_status)
 
-    def get_document_diff(self, new_document: str, original_document: str) -> Union[str, None]:
+    def get_document_diff(self, new_document: str, original_document: bytes) -> Union[str, None]:
         """Computes the diff between two documents.
 
         Compares the currently stored document and compares its hash to the one
@@ -346,23 +336,22 @@ class Monitoring:
 
         Args:
             new_document (str): Document of last request.
-            original_document (str): Original document.
+            original_document (bytes): Original document.
         Returns:
             str: The diff of the two documents, if hashes have differences
             None: If the hashes have no differences
         """
-        crypto_handler = CryptoHandler()
         try:
             # check if new_capabilities is bytestring and decode it if so
             new_document = new_document.decode('UTF-8')
         except AttributeError:
             pass
-        new_capabilities_hash = crypto_handler.sha256(new_document)
-        original_document_hash = crypto_handler.sha256(original_document)
+        new_capabilities_hash = hashlib.sha256(new_document.encode("UTF-8")).hexdigest()
+        original_document_hash = hashlib.sha256(original_document).hexdigest()
         if new_capabilities_hash == original_document_hash:
             return
         else:
-            original_lines = original_document.splitlines(keepends=True)
+            original_lines = original_document.decode('UTF-8').splitlines(keepends=True)
             new_lines = new_document.splitlines(keepends=True)
             # info on the created diff on https://docs.python.org/3.6/library/difflib.html#difflib.unified_diff
             diff = difflib.unified_diff(original_lines, new_lines)
@@ -378,14 +367,14 @@ class Monitoring:
         """
         if service_status.duration is None:
             monitoring_result = MonitoringResult(
-                available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                available=service_status.success, resource=self.resource, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 monitoring_run=self.monitoring_run, created_by_user=self.monitoring_run.created_by_user,
                 owned_by_org=self.monitoring_run.owned_by_org
             )
         else:
             monitoring_result = MonitoringResult(
-                available=service_status.success, metadata=self.metadata, status_code=service_status.status,
+                available=service_status.success, resource=self.resource, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 duration=service_status.duration, monitoring_run=self.monitoring_run,
                 created_by_user=self.monitoring_run.created_by_user,
@@ -403,7 +392,7 @@ class Monitoring:
         """
         monitoring_result = MonitoringResult(
             available=service_status.success,
-            metadata=self.metadata,
+            resource=self.resource,
             status_code=service_status.status,
             duration=service_status.duration,
             monitored_uri=service_status.monitored_uri,
@@ -412,3 +401,31 @@ class Monitoring:
             owned_by_org=self.monitoring_run.owned_by_org
         )
         monitoring_result.save()
+
+    def parse_xml(self, xml: str, encoding=None):
+        """ Returns the xml as iterable object
+        Args:
+            xml(str): The xml as string
+        Returns:
+            nothing
+        """
+        if not isinstance(xml, str) and not isinstance(xml, bytes):
+            raise ValueError
+        default_encoding = "UTF-8"
+        if not isinstance(xml, bytes):
+            if encoding is None:
+                xml_b = xml.encode(default_encoding)
+            else:
+                xml_b = xml.encode(encoding)
+        else:
+            xml_b = xml
+        try:
+            parser = etree.XMLParser(huge_tree=len(xml_b) > 10000000)
+            xml_obj = etree.ElementTree(etree.fromstring(text=xml_b, parser=parser))
+            if encoding != xml_obj.docinfo.encoding:
+                # there might be problems e.g. with german Umlaute ä,ö,ü, ...
+                # try to parse again but with the correct encoding
+                return self.parse_xml(xml, xml_obj.docinfo.encoding)
+        except XMLSyntaxError as e:
+            xml_obj = None
+        return xml_obj

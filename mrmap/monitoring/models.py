@@ -5,32 +5,28 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-import uuid
+from itertools import chain
 
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
-from django.urls import reverse
-from django_bootstrap_swt.components import Tag, LinkButton
-from django_bootstrap_swt.enums import ButtonColorEnum
-from django_celery_beat.models import PeriodicTask, CrontabSchedule
-from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
-from MrMap.icons import IconEnum
 from MrMap.settings import TIME_ZONE
-from MrMap.utils import signal_last
-from main.models import UuidPk, CommonInfo
+from main.models import CommonInfo, GenericModelMixin
+from main.polymorphic_fk import PolymorphicForeignKey
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
-from structure.permissionEnums import PermissionEnum
 
 
-class MonitoringSetting(UuidPk):
-    # FIXME: service app is outdated.. move relation to resource app
-    #metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
+# TODO is this class effectively used for any functionality? Can it be removed?
+class MonitoringSetting(models.Model):
+    # TODO other resource types
+    metadatas = models.ManyToManyField('resourceNew.Service', related_name='monitoring_setting')
     check_time = models.TimeField()
     timeout = models.IntegerField()
     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
@@ -83,56 +79,43 @@ class MonitoringSetting(UuidPk):
         super().save(force_insert, force_update, using, update_fields)
 
 
-class MonitoringRun(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Monitoring run'))
+class MonitoringRun(CommonInfo, GenericModelMixin):
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
-    # FIXME: service app is outdated.. move relation to resource app
-    """
-    metadatas = models.ManyToManyField('service.Metadata',
-                                       related_name='monitoring_runs',
-                                       verbose_name=_('Checked resources'))
-    """
+    services = models.ManyToManyField('resourceNew.Service',
+                                      related_name='monitoring_runs', blank=True,
+                                      verbose_name=_('Checked services'))
+    layers = models.ManyToManyField('resourceNew.Layer',
+                                    related_name='monitoring_runs', blank=True,
+                                    verbose_name=_('Checked layers'))
+    feature_types = models.ManyToManyField('resourceNew.FeatureType',
+                                           related_name='monitoring_runs', blank=True,
+                                           verbose_name=_('Checked feature types'))
+    dataset_metadatas = models.ManyToManyField('resourceNew.DatasetMetadata',
+                                               related_name='monitoring_runs', blank=True,
+                                               verbose_name=_('Checked dataset metadatas'))
+
     class Meta:
         ordering = ["-end"]
         verbose_name = _('Monitoring run')
         verbose_name_plural = _('Monitoring runs')
 
     def __str__(self):
-        return str(self.uuid)
+        return str(self.id)
 
     @property
-    def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RUN.value]}).render()
-
-    @classmethod
-    def get_add_action(cls):
-        return LinkButton(content=Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}) + _(' New run').__str__(),
-                          color=ButtonColorEnum.SUCCESS,
-                          url=reverse('monitoring:run_new'),
-                          needs_perm=PermissionEnum.CAN_ADD_MONITORING_RUN.value)
-
-    def get_absolute_url(self):
-        return f"{reverse('monitoring:run_overview')}?uuid={self.uuid}"
+    def resources_all(self):
+        return list(
+            chain(self.services.all(), self.layers.all(), self.feature_types.all(), self.dataset_metadatas.all()))
 
     @property
     def result_view_uri(self):
-        results = self.monitoring_results.all()
-        if results:
-            querystring = ""
-            for is_last_element, result in signal_last(results):
-                if is_last_element:
-                    querystring += f"monitoring_run_uuid={result.pk}"
-                else:
-                    querystring += f"monitoring_run_uuid={result.pk}&"
-            return f"{reverse('monitoring:result_overview')}?{querystring}"
-        else:
-            return None
+        return f"{MonitoringResult.get_table_url()}?monitoring_run={self.id}"
 
     @property
-    def add_view_uri(self):
-        return reverse('monitoring:run_new')
+    def health_state_view_uri(self):
+        return f"{HealthState.get_table_url()}?monitoring_run={self.id}"
 
     def save(self, *args, **kwargs):
         adding = False
@@ -141,16 +124,25 @@ class MonitoringRun(CommonInfo):
         super().save(*args, **kwargs)
         if adding:
             from monitoring.tasks import run_manual_service_monitoring
-            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(args=(self.owned_by_org.pk if self.owned_by_org else None,
-                                                                                          self.pk,),
-                                                                                    kwargs={'created_by_user_pk': self.created_by_user.pk},
-                                                                                    countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+            transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(
+                args=(self.owned_by_org.pk if self.owned_by_org else None,
+                      self.pk,),
+                kwargs={'created_by_user_pk': self.created_by_user.pk},
+                countdown=settings.CELERY_DEFAULT_COUNTDOWN))
 
 
-class MonitoringResult(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Result'))
-    # FIXME: service app is outdated.. move relation to resource app
-    #metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, verbose_name=_('Resource'))
+class MonitoringResult(CommonInfo, GenericModelMixin):
+    # polymorphic fk (either service, layer, feature type or dataset metadata)
+    service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, null=True, blank=True,
+                                verbose_name=_('Service'))
+    layer = models.ForeignKey('resourceNew.Layer', on_delete=models.CASCADE, null=True, blank=True,
+                              verbose_name=_('Layer'))
+    feature_type = models.ForeignKey('resourceNew.FeatureType', on_delete=models.CASCADE, null=True, blank=True,
+                                     verbose_name=_('Feature Type'))
+    dataset_metadata = models.ForeignKey('resourceNew.DatasetMetadata', on_delete=models.CASCADE, null=True, blank=True,
+                                         verbose_name=_('Dataset Metadata'))
+    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
+
     timestamp = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(null=True, blank=True)
     status_code = models.IntegerField(null=True, blank=True)
@@ -164,12 +156,15 @@ class MonitoringResult(CommonInfo):
         verbose_name = _('Monitoring result')
         verbose_name_plural = _('Monitoring results')
 
+    # TODO consider integrating this into PolymorphicForeignKey
     @property
-    def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.MONITORING_RESULTS.value]}).render()
+    def resource(self):
+        return self._resource.get_target(self)
 
-    def get_absolute_url(self):
-        return reverse('monitoring:result_details', args=[self.uuid, ])
+    # TODO consider integrating this into PolymorphicForeignKey
+    @resource.setter
+    def resource(self, value):
+        self._resource.set_target(self, value)
 
 
 class MonitoringResultDocument(MonitoringResult):
@@ -178,17 +173,29 @@ class MonitoringResultDocument(MonitoringResult):
     diff = models.TextField(null=True, blank=True)
 
 
-class HealthState(CommonInfo):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_('Health state'))
-    monitoring_run = models.OneToOneField(MonitoringRun, on_delete=models.CASCADE, related_name='health_state', verbose_name=_('Monitoring Run'))
-    # FIXME: service app is outdated.. move relation to resource app
+class HealthState(CommonInfo, GenericModelMixin):
+    monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='health_states',
+                                       verbose_name=_('Monitoring Runs'))
 
-    #metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE, related_name='health_states', related_query_name='health_states', verbose_name=_('Resource'))
+    # polymorphic fk (either service, layer, feature type or dataset metadata)
+    service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, related_name='health_states',
+                                related_query_name='health_states', null=True, blank=True, verbose_name=_('Service'))
+    layer = models.ForeignKey('resourceNew.Layer', on_delete=models.CASCADE, related_name='health_states',
+                              related_query_name='health_states', null=True, blank=True, verbose_name=_('Layer'))
+    feature_type = models.ForeignKey('resourceNew.FeatureType', on_delete=models.CASCADE, related_name='health_states',
+                                     related_query_name='health_states', null=True, blank=True,
+                                     verbose_name=_('Feature Type'))
+    dataset_metadata = models.ForeignKey('resourceNew.DatasetMetadata', on_delete=models.CASCADE,
+                                         related_name='health_states',
+                                         related_query_name='health_states', null=True, blank=True,
+                                         verbose_name=_('Dataset Metadata'))
+    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
+
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, verbose_name=_('Health state code'))
     health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
-                                      max_length=512, )     # this is the teaser for tooltips
+                                      max_length=512, )  # this is the teaser for tooltips
     reliability_1w = models.FloatField(default=0,
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
     reliability_1m = models.FloatField(default=0,
@@ -205,12 +212,19 @@ class HealthState(CommonInfo):
         verbose_name = _('Health state')
         verbose_name_plural = _('Health states')
 
+    # TODO consider integrating this into the PolymorphicForeignKey
     @property
-    def icon(self):
-        return Tag(tag='i', attrs={"class": [IconEnum.HEARTBEAT.value]}).render()
+    def resource(self):
+        return self._resource.get_target(self)
 
-    def get_absolute_url(self):
-        return reverse('monitoring:health_state_details', args=[self.pk])
+    # TODO consider integrating this into the PolymorphicForeignKey
+    @resource.setter
+    def resource(self, value):
+        self._resource.set_target(self, value)
+
+    @property
+    def result_view_uri(self):
+        return f"{MonitoringResult.get_table_url()}?monitoring_run={self.monitoring_run_id}&resource={self.resource.id}"
 
     @staticmethod
     def _get_last_check_runs_on_msg(monitoring_result):
@@ -219,13 +233,18 @@ class HealthState(CommonInfo):
                'Click on this icon to see details.'
 
     def run_health_state(self):
+        resource_field = self._resource.get_target_field(self)
+        resource_value = self._resource.get_target(self)
+
         # Monitoring objects that are related to this run and given metadata
-        monitoring_objects = MonitoringResult.objects.filter(monitoring_run=self.monitoring_run, metadata=self.metadata)
+        monitoring_objects = MonitoringResult.objects.filter(monitoring_run=self.monitoring_run,
+                                                             **{resource_field: resource_value})
         # Get health states of the last 3 months, for statistic calculating
         now = timezone.now()
-        health_states_3m = HealthState.objects.filter(metadata=self.metadata,
-                                                      monitoring_run__end__gte=now - timezone.timedelta(days=(3 * 365 / 12)))\
-                                              .order_by('-monitoring_run__end')
+        health_states_3m = HealthState.objects.filter(
+            monitoring_run__end__gte=now - timezone.timedelta(days=(3 * 365 / 12)),
+            **{resource_field: resource_value}) \
+            .order_by('-monitoring_run__end')
 
         # get only health states for 1m and 1w calculation to prevent from sql statements
         health_states_1m = list(
@@ -250,7 +269,8 @@ class HealthState(CommonInfo):
                                     health_states_1m=health_states_1m,
                                     health_states_3m=health_states_3m)
 
-    def _calculate_average_response_times(self, monitoring_objects, health_states_1w, health_states_1m, health_states_3m):
+    def _calculate_average_response_times(self, monitoring_objects, health_states_1w, health_states_1m,
+                                          health_states_3m):
         if monitoring_objects:
             average_response_time = None
             for monitoring_result in monitoring_objects:
@@ -351,30 +371,33 @@ class HealthState(CommonInfo):
                 critical = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.CRITICAL.value,
-                                  reason=_(f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds()*1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
+                                  reason=_(
+                                      f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
             elif self.average_response_time_1w >= timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME):
                 warning = True
                 HealthStateReason(health_state=self,
                                   health_state_code=HealthStateEnum.WARNING.value,
-                                  reason=_(f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
+                                  reason=_(
+                                      f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
                                   monitoring_result=monitoring_result,
                                   ).save()
 
             if critical:
                 self.health_state_code = HealthStateEnum.CRITICAL.value
-                self.health_message = _('The state of this resource is <strong class="text-danger">critical</strong>.<br>' +
-                                      self._get_last_check_runs_on_msg(monitoring_result))
+                self.health_message = _(
+                    'The state of this resource is <strong class="text-danger">critical</strong>.<br>' +
+                    self._get_last_check_runs_on_msg(monitoring_result))
             elif warning:
                 self.health_state_code = HealthStateEnum.WARNING.value
                 self.health_message = _('This resource has some <strong class="text-warning">warnings</strong>.<br>' +
-                                      self._get_last_check_runs_on_msg(monitoring_result))
+                                        self._get_last_check_runs_on_msg(monitoring_result))
             else:
                 # We can't found any errors. Health state is ok
                 self.health_state_code = HealthStateEnum.OK.value
                 self.health_message = _(f'Everthing is <strong class="text-success">OK</strong>.<br>' +
-                                      self._get_last_check_runs_on_msg(monitoring_result))
+                                        self._get_last_check_runs_on_msg(monitoring_result))
             self.save()
 
 
@@ -386,5 +409,5 @@ class HealthStateReason(models.Model):
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, )
-    monitoring_result = models.ForeignKey(MonitoringResult, on_delete=models.CASCADE, related_name='health_state_reasons', )
-
+    monitoring_result = models.ForeignKey(MonitoringResult, on_delete=models.CASCADE,
+                                          related_name='health_state_reasons', )

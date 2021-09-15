@@ -19,6 +19,24 @@ class PolymorphicForeignKey:
             if fk:
                 return getattr(obj, fk_field)
 
+    def get_target_field(self, obj):
+        """
+        Return the name of the used target field (if one is not None).
+        """
+        for fk_field in self.fk_fields:
+            # check for existing id first (avoid DoesNotExist exceptions)
+            fk = getattr(obj, fk_field + "_id")
+            if fk:
+                return fk_field
+
+    def set_target(self, obj, value):
+        # TODO handle None -> set all fk_fields
+        for fk_field_name in self.fk_fields:
+            fk_field = obj._meta.get_field(fk_field_name)
+            if isinstance(value, fk_field.related_model):
+                setattr(obj, fk_field_name, value)
+                break
+
     def validate(self, obj):
         """
         Raise ValidationError if the polymorphic fk constraint (exactly one fk must be not empty) is violated.

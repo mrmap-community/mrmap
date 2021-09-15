@@ -17,14 +17,14 @@ from django.contrib import messages
 from api.settings import REST_FRAMEWORK # noqa
 from kombu import Queue, Exchange
 from django.utils.translation import gettext_lazy as _
-
+from django.core.management.utils import get_random_secret_key  
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MEDIA_ROOT = "/var/mrmap/media"
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
@@ -116,7 +116,8 @@ if DEBUG:
             'debug_toolbar.panels.logging.LoggingPanel',
             'debug_toolbar.panels.redirects.RedirectsPanel',
             'debug_toolbar.panels.profiling.ProfilingPanel',
-        }
+        },
+        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
     }
 
     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
@@ -167,7 +168,7 @@ HOST_NAME = "localhost:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(";")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1]").split(";")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
@@ -463,6 +464,10 @@ ROOT_LOGGER = logging.getLogger('MrMap.root')
 LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f'/var/log/mrmap/{socket.gethostname()}/')
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
+
+# create log dir if it does not exist
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
 LOGGING = {
     'version': 1,

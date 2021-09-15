@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug: wsgi",
+            "name": "Debug: gunicorn",
             "type": "python",
             "request": "attach",
             "connect": {
@@ -20,27 +20,12 @@
             ]
         },
         {
-            "name": "Debug: asgi",
-            "type": "python",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 3002
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}/mrmap",
-                    "remoteRoot": "/opt/mrmap"
-                }
-            ]
-        },
-        {
             "name": "Debug: celery",
             "type": "python",
             "request": "attach",
             "connect": {
                 "host": "localhost",
-                "port": 3003
+                "port": 3002
             },
             "pathMappings": [
                 {

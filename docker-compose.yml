@@ -33,18 +33,20 @@ services:
         target: /etc/nginx/conf.d/default.conf
       - type: volume
         source: mrmap-static
-        target: /opt/mrmap/static
+        target: /var/www/mrmap/static
     extra_hosts:
       - host.docker.internal:host-gateway
   #inspire-validator:
   #  build:
   #    context: ./docker/inspire-validator
-  wsgi:
+  gunicorn:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    command: ["gunicorn", "-b", "0.0.0.0:8001", "--workers=2", "--reload", "--log-level=debug", "--timeout=0", "MrMap.wsgi:application"]
-    hostname: "mrmap-wsgi"
+    entrypoint: /opt/mrmap/entrypoint.sh
+    command: 
+      /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
+    hostname: "mrmap-gunicorn"
     volumes:
       - type: bind
         source: ./mrmap
@@ -66,36 +68,13 @@ services:
       - mapserver
       - nginx
       #- inspire-validator
-  asgi:
-    build:
-      context: ./mrmap
-      dockerfile: ../docker/mrmap/Dockerfile
-    command: ["uvicorn", "--host", "0.0.0.0", "--port", "8002", "--workers", "2", "--reload", "--log-level", "debug", "--proxy-headers", "--forwarded-allow-ips='*'", "MrMap.asgi:application"]
-    hostname: "mrmap-asgi"
-    volumes:
-      - type: bind
-        source: ./mrmap
-        target: /opt/mrmap
-      - type: volume
-        source: mrmap-static
-        target: /var/www/mrmap/static
-      - type: volume
-        source: mrmap-media
-        target: /var/mrmap/media
-      - type: volume
-        source: mrmap-log
-        target: /var/log/mrmap
-    env_file:
-      - ./.env.mrmap
-    depends_on:
-      - postgis
-      - redis
-      - nginx
   celery-worker:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    command: ["celery", "-A", "MrMap", "worker", "-E", "-l", "DEBUG", "-n", "default", "-Q", "default"]
+    command: >
+      /bin/bash -c "celery -A MrMap worker -E -l INFO -n default -Q default"
+    hostname: "mrmap-celery-worker"
     volumes:
       - type: bind
         source: ./mrmap

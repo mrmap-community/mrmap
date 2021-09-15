@@ -29,11 +29,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--reset', dest='reset', action='store_true', help="calls reset_db command in front of setup routine.")
         parser.add_argument('--reset-force', dest='reset_force', action='store_true', help="calls reset_db command with --noinput arg in front of setup routine.")
-        parser.add_argument('--collect-static', dest='collect_static', action='store_true', help="force to call collectstatic command.")
 
         parser.set_defaults(reset=False)
         parser.set_defaults(reset_force=False)
-        parser.set_defaults(collect_static=False)
 
     def handle(self, *args, **options):
         if options['reset_force']:
@@ -74,8 +72,6 @@ class Command(BaseCommand):
         else:
             call_command('migrate')
 
-        if not self._super_user_exists or options['collect_static']:
-            call_command("collectstatic", "--clear", "--noinput")
         #call_command('create_roles')
 
     def _run_system_user_default_setup(self):

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Docker-Compose: mrmap debug wsgi" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="Docker-Compose: mrmap debug gunicorn" type="PythonConfigurationType" factoryName="Python">
     <module name="mrmap" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

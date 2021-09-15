@@ -53,7 +53,7 @@ When given a choice between a relatively simple `80% solution <https://en.wikipe
 Application Stack
 *****************
 
-NetBox is built on the `Django <https://djangoproject.com/>`_ Python framework and utilizes a `PostgreSQL <https://www.postgresql.org/>`_ database. It runs as a WSGI service behind your choice of HTTP server.
+NetBox is built on the `Django <https://djangoproject.com/>`_ Python framework and utilizes a `PostgreSQL <https://www.postgresql.org/>`_ database. It runs as a ASGI service behind your choice of HTTP server.
 
 .. list-table::
    :widths: 50 50

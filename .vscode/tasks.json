@@ -10,16 +10,10 @@
             "args": ["-f", "${workspaceFolder}/docker-compose.yml", "up", "--build", "--remove-orphans"],
         },
         {
-            "label": "Docker-Compose: mrmap wsgi",
+            "label": "Docker-Compose: mrmap gunicorn",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "wsgi", "--abort-on-container-exit", "wsgi"],
-        },
-        {
-            "label": "Docker-Compose: mrmap debug asgi",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "asgi", "--abort-on-container-exit", "asgi"],
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "gunicorn", "--abort-on-container-exit", "gunicorn"],
         },
         {
             "label": "Docker-Compose: mrmap debug celery-worker",

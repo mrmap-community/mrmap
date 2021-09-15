@@ -39,6 +39,7 @@ jobs:
       - name: build documentation
         run: |
           cd docs/
+          export $(grep -v '^#' ../.env.mrmap | xargs)
           make linkcheck
           make html
       # ===============================

@@ -63,6 +63,7 @@ Test documentation builds properly
 .. code-block:: console
 
     $ cd docs/
+    $docs/ export $(grep -v '^#' ../.env.mrmap | xargs)
     $docs/ make clean
     $docs/ make linkcheck
     $docs/ make html

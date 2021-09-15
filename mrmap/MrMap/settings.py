@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'users',
     'structure',
     'job',
-    'django_extensions',
+#    'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',

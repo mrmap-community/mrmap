@@ -16,7 +16,7 @@ RUN apt-get -qq update && \
 
 COPY --from=base /wheels /wheels
 COPY --from=base requirements.txt .
-RUN pip install --no-cache /wheels/* # flask, gunicorn, pycrypto
+RUN pip install --no-cache /wheels/*
 
 # set work directory
 WORKDIR /opt/mrmap

@@ -41,8 +41,8 @@ services:
   #    context: ./docker/inspire-validator
   wsgi:
     build:
-      context: ./mrmap
-      dockerfile: ../docker/mrmap/Dockerfile
+      context: ./
+      dockerfile: ./docker/mrmap/Dockerfile
     command: ["gunicorn", "-b", "0.0.0.0:8001", "--workers=2", "--reload", "--log-level=debug", "--timeout=0", "MrMap.wsgi:application"]
     hostname: "mrmap-wsgi"
     volumes:
@@ -68,8 +68,8 @@ services:
       #- inspire-validator
   asgi:
     build:
-      context: ./mrmap
-      dockerfile: ../docker/mrmap/Dockerfile
+      context: ./
+      dockerfile: ./docker/mrmap/Dockerfile
     command: ["uvicorn", "--host", "0.0.0.0", "--port", "8002", "--workers", "2", "--reload", "--log-level", "debug", "--proxy-headers", "--forwarded-allow-ips='*'", "MrMap.asgi:application"]
     hostname: "mrmap-asgi"
     volumes:
@@ -93,8 +93,8 @@ services:
       - nginx
   celery-worker:
     build:
-      context: ./mrmap
-      dockerfile: ../docker/mrmap/Dockerfile
+      context: ./
+      dockerfile: ./docker/mrmap/Dockerfile
     command: ["celery", "-A", "MrMap", "worker", "-E", "-l", "DEBUG", "-n", "default", "-Q", "default"]
     volumes:
       - type: bind

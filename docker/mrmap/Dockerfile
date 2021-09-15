@@ -4,7 +4,7 @@ ARG install_debugpy
 RUN apt-get -qq update && \
     apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin
     
-COPY ./mrmap/requirements.txt /
+COPY ./requirements.txt /
 RUN if [ "${install_debugpy}" = "True" ] ; then echo "\ndebugpy==1.4.3" >> requirements.txt ; fi && \
     pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
 ################################    
@@ -25,7 +25,3 @@ WORKDIR /opt/mrmap
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-
-
-# run entrypoint.sh
-ENTRYPOINT ["/opt/mrmap/entrypoint.sh"]

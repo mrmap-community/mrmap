@@ -464,6 +464,10 @@ LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f'/var/log/mrmap/{socket.gethostname()
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
+# create log dir if it does not exist
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

@@ -10,23 +10,24 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 import os
 import sys
+import logging
+import socket
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
-import logging
 from api.settings import REST_FRAMEWORK # noqa
 from kombu import Queue, Exchange
+from django.utils.translation import gettext_lazy as _
 
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MEDIA_ROOT = BASE_DIR + "/media"
+MEDIA_ROOT = "/var/mrmap/media"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
@@ -50,7 +51,7 @@ INSTALLED_APPS = [
     'users',
     'structure',
     'job',
-    'django_extensions',
+#    'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
@@ -159,22 +160,14 @@ PER_PAGE_MAX = 2500
 
 METADATA_URL = ["request=GetMetadata&", ]
 
+# TODO: remove HTTP_OR_SSL, HOST_NAME, ROOT_URL settings... this shall be dynamically get from request variable in views!
 # Defines basic server information
 HTTP_OR_SSL = "http://"
 HOST_NAME = "localhost:8000"
-
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
-
-from structure.permissionEnums import PermissionEnum
-from django.utils.translation import gettext_lazy as _
-
-ALLOWED_HOSTS = [
-    HOST_NAME,
-    "127.0.0.1",
-    "localhost",
-]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(";")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
@@ -196,7 +189,7 @@ LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
 DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
-TIME_ZONE = 'Europe/Berlin'
+TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE')
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -256,13 +249,13 @@ GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 ################################################################
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mrmap',
-        'USER': 'mrmap',
-        'PASSWORD': 'mrmap',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+    "default": {
+        "ENGINE": os.environ.get("SQL_ENGINE"),
+        "NAME": os.environ.get("SQL_DATABASE"),
+        "USER": os.environ.get("SQL_USER"),
+        "PASSWORD": os.environ.get("SQL_PASSWORD"),
+        "HOST": os.environ.get("SQL_HOST"),
+        "PORT": os.environ.get("SQL_PORT"),
     }
 }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
@@ -270,8 +263,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 ################################################################
 # Redis settings
 ################################################################
-REDIS_HOST = 'localhost'
-REDIS_PORT = '6379'
+REDIS_HOST = os.environ.get("REDIS_HOST")
+REDIS_PORT = os.environ.get("REDIS_PORT")
 BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
 
 # Cache
@@ -351,7 +344,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR + "/static/"
+STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
@@ -452,8 +445,8 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 ################################################################
 # Mapserver
 ################################################################
-MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/security_mask.map")
+MAPSERVER_URL = os.environ.get('MAPSERVER_URL')
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get("MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
 MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
@@ -467,7 +460,7 @@ ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of secur
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')
 
-LOG_DIR = BASE_DIR + '/logs/mrmap/'
+LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f'/var/log/mrmap/{socket.gethostname()}/')
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
@@ -509,3 +502,6 @@ LOGGING = {
         },
     },
 }
+
+
+

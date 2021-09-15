@@ -1,0 +1,120 @@
+version: '3.8'
+services:
+  postgis:
+    image: mdillon/postgis:11-alpine
+    volumes:
+      - type: volume
+        source: db-data
+        target: /var/lib/postgresql/data
+    env_file:
+      - ./.env.db
+  redis:
+    image: library/redis:6.2-alpine
+    volumes:
+      - type: volume
+        source: mem-db-data
+        target: /data
+  mapserver:
+    image: camptocamp/mapserver:7.6
+    volumes:
+      - type: bind
+        source: ./docker/mapserver/mapfiles
+        target: /etc/mapserver
+  nginx:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/nginx/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - type: bind
+        source: ./docker/nginx/mrmap.conf
+        target: /etc/nginx/conf.d/default.conf
+      - type: volume
+        source: mrmap-static
+        target: /opt/mrmap/static
+    extra_hosts:
+      - host.docker.internal:host-gateway
+  #inspire-validator:
+  #  build:
+  #    context: ./docker/inspire-validator
+  wsgi:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+    command: ["gunicorn", "-b", "0.0.0.0:8001", "--workers=2", "--reload", "--log-level=debug", "--timeout=0", "MrMap.wsgi:application"]
+    hostname: "mrmap-wsgi"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+      - type: volume
+        source: mrmap-static
+        target: /var/www/mrmap/static
+      - type: volume
+        source: mrmap-media
+        target: /var/mrmap/media
+      - type: volume
+        source: mrmap-log
+        target: /var/log/mrmap
+    env_file:
+      - ./.env.mrmap
+    depends_on:
+      - postgis
+      - redis
+      - mapserver
+      - nginx
+      #- inspire-validator
+  asgi:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+    command: ["uvicorn", "--host", "0.0.0.0", "--port", "8002", "--workers", "2", "--reload", "--log-level", "debug", "--proxy-headers", "--forwarded-allow-ips='*'", "MrMap.asgi:application"]
+    hostname: "mrmap-asgi"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+      - type: volume
+        source: mrmap-static
+        target: /var/www/mrmap/static
+      - type: volume
+        source: mrmap-media
+        target: /var/mrmap/media
+      - type: volume
+        source: mrmap-log
+        target: /var/log/mrmap
+    env_file:
+      - ./.env.mrmap
+    depends_on:
+      - postgis
+      - redis
+      - nginx
+  celery-worker:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+    command: ["celery", "-A", "MrMap", "worker", "-E", "-l", "DEBUG", "-n", "default", "-Q", "default"]
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+      - type: volume
+        source: mrmap-media
+        target: /var/mrmap/media
+      - type: volume
+        source: mrmap-log
+        target: /var/log/mrmap
+    env_file:
+      - ./.env.mrmap
+    depends_on:
+      - postgis
+      - redis    
+    
+volumes:
+  mrmap-static:
+  mrmap-media:
+  mrmap-log:
+  db-data:
+  mem-db-data:

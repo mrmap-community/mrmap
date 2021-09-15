@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug: wsgi",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3001
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/mrmap",
+                    "remoteRoot": "/opt/mrmap"
+                }
+            ]
+        },
+        {
+            "name": "Debug: asgi",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3002
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/mrmap",
+                    "remoteRoot": "/opt/mrmap"
+                }
+            ]
+        },
+        {
+            "name": "Debug: celery",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3003
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/mrmap",
+                    "remoteRoot": "/opt/mrmap"
+                }
+            ]
+        },
+    ]
+}

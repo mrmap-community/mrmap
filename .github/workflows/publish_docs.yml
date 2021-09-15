@@ -34,13 +34,15 @@ jobs:
         run: python -m pip install --upgrade pip setuptools wheel
       - name: Install pip dependencies
         run: |
-            pip3 install -r ./mrmap/requirements.txt
+            pip3 install -r ./mrmap/requirements.txt && pip3 install -r ./docs/requirements.txt
       # ===============================
       # Build documentation
       # ===============================
       - name: build documentation
         run: |
           cd docs/
+          export $(grep -v '^#' ../.env.mrmap | xargs)
+          export $(grep -v '^#' ../.env.docs | xargs)
           make linkcheck
           make html
       # ===============================

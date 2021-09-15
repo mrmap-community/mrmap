@@ -22,6 +22,7 @@ Table of content
 
    introduction/index
    installation/index
+   system_architecture/index
    development/index
    models/index
    managers/index

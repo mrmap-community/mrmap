@@ -194,7 +194,7 @@ class GenericOwsServiceOperationFacade(View):
                     "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
                 }
                 request = Request(method="GET",
-                                  url=settings.MAPSERVER_LOCAL_PATH,
+                                  url=settings.MAPSERVER_URL,
                                   params=query_parameters)
                 session = Session()
                 response = session.send(request.prepare())

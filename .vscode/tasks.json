@@ -1,0 +1,49 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Docker-Compose: mrmap startup",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "up", "--build", "--remove-orphans"],
+        },
+        {
+            "label": "Docker-Compose: mrmap wsgi",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "wsgi", "--abort-on-container-exit", "wsgi"],
+        },
+        {
+            "label": "Docker-Compose: mrmap debug asgi",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "asgi", "--abort-on-container-exit", "asgi"],
+        },
+        {
+            "label": "Docker-Compose: mrmap debug celery-worker",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "celery-worker", "--abort-on-container-exit", "celery-worker"],
+        },
+        {
+            "label": "makemigrations",
+            "type": "shell",
+            "command": "docker",
+            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "makemigrations"],
+        },
+        {
+            "label": "migrate",
+            "type": "shell",
+            "command": "docker",
+            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "migrate"],
+        },
+        {
+            "label": "Docker-Compose: setup --reset-force",
+            "type": "shell",
+            "command": "docker",
+            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "setup", "--reset-force"],
+        },
+    ]
+}

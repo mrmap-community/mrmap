@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from acl.models.acl import AccessControlList
 from main.tables.columns import DefaultActionButtonsColumn
 from main.tables.template_code import RECORD_ABSOLUTE_LINK, VALUE_BADGE, VALUE_ABSOLUTE_LINK, VALUE_BADGE_LIST, \
-    VALUE_ABSOLUTE_LINK_LIST
+    VALUE_TABLE_LINK_LIST
 from django.utils.translation import gettext as _
 
 
@@ -35,11 +35,11 @@ class AccessControlListTable(tables.Table):
 
 class AccessControlListDetailTable(tables.Table):
     name = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK)
-    user_set__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Users'))
+    user_set__all = tables.TemplateColumn(template_code=VALUE_TABLE_LINK_LIST, verbose_name=_('Users'))
     permissions__all = tables.TemplateColumn(template_code=VALUE_BADGE_LIST, verbose_name=_('Allowed permissions'))
-    #accessible_metadata__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible resources'))
-    accessible_accesscontrollist__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible access control lists'))
-    accessible_organizations__all = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK_LIST, verbose_name=_('Accessible organizations'))
+    #accessible_metadata__all = tables.TemplateColumn(template_code=VALUE_TABLE_LINK_LIST, verbose_name=_('Accessible resources'))
+    accessible_accesscontrollist__all = tables.TemplateColumn(template_code=VALUE_TABLE_LINK_LIST, verbose_name=_('Accessible access control lists'))
+    accessible_organizations__all = tables.TemplateColumn(template_code=VALUE_TABLE_LINK_LIST, verbose_name=_('Accessible organizations'))
 
     class Meta:
         model = AccessControlList

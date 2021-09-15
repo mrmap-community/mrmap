@@ -7,15 +7,15 @@ Created on: 26.02.2020
 """
 from celery import shared_task, current_task, states
 from celery.signals import beat_init
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from main.tasks import default_task_handler
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.monitoring import Monitoring as Monitor
-from django.utils.translation import gettext_lazy as _
-from django.conf import settings
 
 
 @beat_init.connect
@@ -41,7 +41,7 @@ def run_monitoring(setting_id, *args, **kwargs):
     except (ObjectDoesNotExist, MultipleObjectsReturned):
         print(f'Could not retrieve setting with id {setting_id}')
         return
-    metadatas = setting.metadatas.all()
+    metadatas = setting.services.all()
     monitoring_run = MonitoringRun.objects.create()
     for metadata in metadatas:
         if current_task:
@@ -78,22 +78,22 @@ def run_manual_service_monitoring(owned_by_org: str, monitoring_run, *args, **kw
 
     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
     monitoring_run.start = timezone.now()
-    for metadata in monitoring_run.metadatas.all():
+    for resource in monitoring_run.resources_all:
         if current_task:
             current_task.update_state(
                 state=states.STARTED,
                 meta={
                     'current': 0,
                     'total': 100,
-                    'phase': f'start monitoring checks for {metadata}',
+                    'phase': f'start monitoring checks for {resource}',
                 }
             )
         try:
-            monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
+            monitor = Monitor(resource=resource, monitoring_run=monitoring_run, )
             monitor.run_checks()
-            settings.ROOT_LOGGER.debug(f'Health checks completed for {metadata}')
+            settings.ROOT_LOGGER.debug(f'Health checks completed for {resource}')
         except Exception as e:
-            settings.ROOT_LOGGER.error(msg=_(f'Something went wrong while monitoring {metadata}'))
+            settings.ROOT_LOGGER.error(msg=_(f'Something went wrong while monitoring {resource}'))
             settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True, )
 
     end_time = timezone.now()

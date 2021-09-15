@@ -78,7 +78,7 @@ class GenericModelMixin:
         try:
             return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view', args=[self.pk, ])
         except NoReverseMatch:
-            return ""
+            return self.get_concrete_table_url()
 
     @classmethod
     def get_table_url(cls) -> str:

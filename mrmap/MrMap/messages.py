@@ -136,7 +136,7 @@ MAP_CONTEXT_SUCCESSFULLY_DELETED = _("Map Context <strong>%(title)s</strong> was
 
 GROUP_INVITATION_CREATED = _("%(user)s has been invited to %(group)s")
 
-MONITORING_RUN_SCHEDULED = _("Monitoring run for %(metadatas)s scheduled.")
+MONITORING_RUN_SCHEDULED = _("Monitoring run scheduled.")
 
 ROLE_SUCCESSFULLY_EDITED = _("<strong>%(role)s</strong> successfully edited.")
 HARVEST_RUN_SCHEDULED = _("Harvest run for %(metadata)s scheduled.")

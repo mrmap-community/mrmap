@@ -3,7 +3,7 @@ import urllib3.util
 
 from main.tables.tables import SecuredTable
 from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK, VALUE_TABLE_LINK, \
-    VALUE_ABSOLUTE_LINK_LIST, VALUE_CONCRETE_TABLE_LINK
+    VALUE_TABLE_LINK_LIST, VALUE_CONCRETE_TABLE_LINK
 from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
     ProxySetting
 from django.utils.translation import gettext_lazy as _

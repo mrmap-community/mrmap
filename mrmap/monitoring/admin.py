@@ -6,18 +6,16 @@ Created on: 16.03.2020
 
 """
 from django.contrib import admin
+
 from monitoring.models import *
-from django.utils.safestring import mark_safe
-from django.urls import reverse
-from django.template.defaultfilters import escape
 
 
 class HealthStateReasonAdmin(admin.ModelAdmin):
-    list_display = ('id', 'health_state', 'monitoring_result', 'reason', 'health_state_code', )
+    list_display = ('id', 'health_state', 'monitoring_result', 'reason', 'health_state_code',)
 
 
 class HealthStateAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'health_state_code', 'health_message', )
+    list_display = ('id', 'health_state_code', 'health_message',)
 
 
 class MonitoringSettingAdmin(admin.ModelAdmin):
@@ -25,16 +23,17 @@ class MonitoringSettingAdmin(admin.ModelAdmin):
 
 
 class MonitoringRunAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'start', 'end', 'duration', )
+    list_display = ('id', 'start', 'end', 'duration',)
 
 
 class MonitoringAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run', )
-    list_filter = ('monitoring_run', )
+    list_display = (
+    'id', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run',)
+    list_filter = ('monitoring_run',)
 
 
 class MonitoringCapabilityAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'needs_update', 'diff')
+    list_display = ('id', 'needs_update', 'diff')
 
 
 admin.site.register(HealthStateReason, HealthStateReasonAdmin)

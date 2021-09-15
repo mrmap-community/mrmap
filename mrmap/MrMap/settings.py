@@ -167,7 +167,7 @@ HOST_NAME = "localhost:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(";")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"

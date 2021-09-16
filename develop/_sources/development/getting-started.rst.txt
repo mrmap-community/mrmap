@@ -57,16 +57,17 @@ In cases where you haven't made any changes to the database (which is most of th
 Test documentation builds properly
 ==================================
 
-.. note::
-    Install python dependencies local first. `pip3 install -r ./mrmap/requirements.txt && pip3 install -r ./mrmap/docs/requirements.txt`
+.. warning::
+    You need to have installed all python dependencies locally first. ``pip3 install -r ./mrmap/requirements.txt && pip3 install -r ./mrmap/docs/requirements.txt``
 
 .. code-block:: console
 
     $ cd docs/
-    $docs/ export $(grep -v '^#' ../.env.mrmap | xargs)
-    $docs/ make clean
-    $docs/ make linkcheck
-    $docs/ make html
+    docs$ make clean
+    docs$ make linkcheck
+    docs$ make html
+
+The documentation should be successfully build in the ``docs/build`` folder. Open the ``docs/build/index.html`` to test it.
 
 
 Submitting Pull Requests

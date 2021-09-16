@@ -129,17 +129,17 @@
 </div>
 <div class="section" id="test-documentation-builds-properly">
 <h2>Test documentation builds properly<a class="headerlink" href="#test-documentation-builds-properly" title="Permalink to this headline"></a></h2>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Install python dependencies local first. <cite>pip3 install -r ./mrmap/requirements.txt &amp;&amp; pip3 install -r ./mrmap/docs/requirements.txt</cite></p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>You need to have installed all python dependencies locally first. <code class="docutils literal notranslate"><span class="pre">pip3</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">./mrmap/requirements.txt</span> <span class="pre">&amp;&amp;</span> <span class="pre">pip3</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">./mrmap/docs/requirements.txt</span></code></p>
 </div>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> docs/
-<span class="gp">$</span>docs/ <span class="nb">export</span> <span class="k">$(</span>grep -v <span class="s1">&#39;^#&#39;</span> ../.env.mrmap <span class="p">|</span> xargs<span class="k">)</span>
-<span class="gp">$</span>docs/ make clean
-<span class="gp">$</span>docs/ make linkcheck
-<span class="gp">$</span>docs/ make html
+<span class="go">docs$ make clean</span>
+<span class="go">docs$ make linkcheck</span>
+<span class="go">docs$ make html</span>
 </pre></div>
 </div>
+<p>The documentation should be successfully build in the <code class="docutils literal notranslate"><span class="pre">docs/build</span></code> folder. Open the <code class="docutils literal notranslate"><span class="pre">docs/build/index.html</span></code> to test it.</p>
 </div>
 <div class="section" id="submitting-pull-requests">
 <h2>Submitting Pull Requests<a class="headerlink" href="#submitting-pull-requests" title="Permalink to this headline"></a></h2>

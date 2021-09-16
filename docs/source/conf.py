@@ -75,3 +75,11 @@ html_theme = "sphinx_rtd_theme"
 linkcheck_ignore = [r'http://localhost:\d+/', r'http://127.0.0.1:\d+/', r'https://127.0.0.1:\d+/', r'http://YOUR-IP-ADDRESS:\d+/', ]
 
 master_doc = "index"
+
+from sphinx.builders.html import StandaloneHTMLBuilder
+StandaloneHTMLBuilder.supported_image_types = [
+    'image/svg+xml',
+    'image/gif',
+    'image/png',
+    'image/jpeg'
+]

@@ -7,37 +7,105 @@
             "label": "Docker-Compose: mrmap startup",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "up", "--build", "--remove-orphans"],
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "--build",
+                "--remove-orphans"
+            ]
         },
         {
-            "label": "Docker-Compose: mrmap gunicorn",
+            "label": "Docker-Compose: mrmap debug gunicorn",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "gunicorn", "--abort-on-container-exit", "gunicorn"],
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "gunicorn",
+                "--abort-on-container-exit",
+                "gunicorn"
+            ],
+            "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: mrmap debug celery-worker",
+            "label": "Docker-Compose: mrmap debug celery-default-worker",
             "type": "shell",
             "command": "docker-compose",
-            "args": ["-f", "${workspaceFolder}/docker-compose.yml", "-f", "${workspaceFolder}/docker-compose.vscode.yml", "up", "--remove-orphans", "--build", "--exit-code-from", "celery-worker", "--abort-on-container-exit", "celery-worker"],
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-default-worker",
+                "--abort-on-container-exit",
+                "celery-default-worker"
+            ]
+        },
+        {
+            "label": "Docker-Compose: mrmap debug celery-download-worker",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-download-worker",
+                "--abort-on-container-exit",
+                "celery-download-worker"
+            ]
         },
         {
             "label": "makemigrations",
             "type": "shell",
             "command": "docker",
-            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "makemigrations"],
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_app_1",
+                "/opt/mrmap/manage.py",
+                "makemigrations"
+            ]
         },
         {
             "label": "migrate",
             "type": "shell",
             "command": "docker",
-            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "migrate"],
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_app_1",
+                "/opt/mrmap/manage.py",
+                "migrate"
+            ]
         },
         {
             "label": "Docker-Compose: setup --reset-force",
             "type": "shell",
             "command": "docker",
-            "args": ["exec", "-it", "mrmap_app_1", "/opt/mrmap/manage.py", "setup", "--reset-force"],
-        },
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_app_1",
+                "/opt/mrmap/manage.py",
+                "setup",
+                "--reset-force"
+            ]
+        }
     ]
 }

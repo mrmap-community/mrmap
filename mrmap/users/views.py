@@ -103,6 +103,7 @@ class EditProfileView(SecuredUpdateView):
     form_class = MrMapUserForm
     title = _('Edit profile')
 
+
     # cause this view is callable without primary key. The object will be always the logged in user.
     def get_object(self, queryset=None):
         return get_object_or_404(get_user_model(), username=self.request.user.username)

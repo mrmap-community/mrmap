@@ -39,3 +39,9 @@ class AccessControlListUpdateView(SecuredUpdateView):
     model = AccessControlList
     form_class = AccessControlListChangeForm
     success_message = ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.pop("request")
+        return kwargs
+        

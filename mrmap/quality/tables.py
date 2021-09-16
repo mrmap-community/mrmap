@@ -4,8 +4,6 @@ import django_tables2 as tables
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from django_bootstrap_swt.components import Link
-
 from MrMap.icons import get_icon, IconEnum
 from main.tables.tables import SecuredTable
 from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK

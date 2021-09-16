@@ -44,16 +44,20 @@ SERVICE_TABLE_ACTIONS = """
 {% get_obj_perms request.user for record as "perms" table.perm_checker %}
 <div class="d-inline-flex">
     {% if record|get_validate_url %}
-    <a href="{{record|get_validate_url}}" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
+    <a href="{{record|get_validate_url}}" class="btn btn-sm btn-primary mr-1" data-toggle="tooltip" data-placement="left" title="{% trans 'Validate' %}">{{ ICONS.VALIDATION|safe }}</a>
     {% endif %}
-    {% if "change_service" in perms and record.get_change_url%}
-    <form class="mr-1" action="{{record.get_change_url}}" method="post">
+    {% if "change_service" in perms and record.get_activate_url%}
+    <form class="mr-1" action="{{record.get_activate_url}}" method="post">
       {% csrf_token %}
       <input type="hidden"  name="is_active" {% if not record.is_active %}value="on"{% endif %}>
       <button type="submit" class="btn btn-sm {% if record.is_active %}btn-warning{% else %}btn-success{% endif %}" data-toggle="tooltip" data-placement="left" title="{% if record.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
     </form>
     {% endif %}
-
+    {% if "change_service" in perms and record.get_change_url%}
+    <a class="btn btn-sm btn-warning mr-1" href="{{record.get_change_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit this service' %}">
+      {{ ICONS.EDIT|safe }}
+    </a>
+    {% endif %}
     {% if "delete_service" in perms and record.get_delete_url %}
     <a class="btn btn-sm btn-danger" href="{{record.get_delete_url}}" role="button" data-toggle="tooltip" data-placement="left" title="{% trans 'Remove this resource' %}">
       {{ ICONS.DELETE|safe }}

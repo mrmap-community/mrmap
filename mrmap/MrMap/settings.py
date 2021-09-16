@@ -68,7 +68,6 @@ INSTALLED_APPS = [
     'django_nose',
     'mathfilters',
     'quality',
-    'django_bootstrap_swt',
     'leaflet',
     'breadcrumb',
     'mptt',

@@ -10,9 +10,10 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.forms import HiddenInput
 from users.models import Subscription
+from main.forms import ModelForm
 
 
-class MrMapUserForm(forms.ModelForm):
+class MrMapUserForm(ModelForm):
     class Meta:
         model = get_user_model()
         fields = [
@@ -23,22 +24,13 @@ class MrMapUserForm(forms.ModelForm):
             "confirmed_survey",
             "groups"
         ]
-        widgets = {
-            'groups': autocomplete.ModelSelect2Multiple(
-                url='editor:groups',
-            )
-        }
 
 
-class SubscriptionForm(forms.ModelForm):
+class SubscriptionForm(ModelForm):
     class Meta:
         model = Subscription
         fields = ('metadata', 'user', 'notify_on_update', 'notify_on_metadata_edit', 'notify_on_access_edit')
         widgets = {
-            'metadata': autocomplete.ModelSelect2(
-                            url='editor:service-autocomplete',
-
-                        ),
             'user': HiddenInput(),
         }
 

@@ -6,8 +6,6 @@ from django.utils.translation import gettext_lazy as _
 
 from acl.models.acl import AccessControlList
 from main.models import UuidPk, CommonInfo
-from django_bootstrap_swt.components import LinkButton, Tag
-from django_bootstrap_swt.enums import ButtonColorEnum
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from structure.permissionEnums import PermissionEnum
@@ -186,17 +184,6 @@ class PublishRequest(BaseInternalRequest):
     @property
     def accept_request_uri(self):
         return reverse('structure:publish_request_accept', args=[self.pk])
-
-    @classmethod
-    def get_add_action(cls):
-        icon = Tag(tag='i', attrs={"class": [IconEnum.ADD.value]}).render()
-        st_text = Tag(tag='div', attrs={"class": ['d-lg-none']}, content=icon).render()
-        gt_text = Tag(tag='div', attrs={"class": ['d-none', 'd-lg-block']},
-                      content=icon + _(' new publisher request').__str__()).render()
-        return LinkButton(content=st_text + gt_text,
-                          color=ButtonColorEnum.SUCCESS,
-                          url=reverse('structure:publish_request_new'),
-                          needs_perm=PermissionEnum.CAN_ADD_PUBLISH_REQUEST.value)
 
     def clean(self):
         errors = []

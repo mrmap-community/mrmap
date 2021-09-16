@@ -1,7 +1,6 @@
 from django.utils.translation import gettext as _
 from django.views.generic.base import ContextMixin
-from django_bootstrap_swt.components import Badge
-from django_bootstrap_swt.enums import BadgeColorEnum
+from main.enums.bootstrap import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
 from acl.models.acl import AccessControlList
@@ -21,13 +20,9 @@ class OrganizationDetailContextMixin(ContextMixin):
         tab_nav = [{'url': self.object.get_absolute_url,
                     'title': _('Details')},
                    {'url': self.object.publishers_uri,
-                    'title': _('Publishers ').__str__() +
-                             Badge(content=str(self.object.get_publishers().count()),
-                                   color=BadgeColorEnum.SECONDARY)},
+                    'title': _('Publishers ').__str__() + f'<span class="badge {BadgeColorEnum.SECONDARY.value}">{self.object.get_publishers().count()}</span>'},
                    {'url': self.object.acls_uri,
-                    'title': _('ACLs ').__str__() +
-                             Badge(content=str(self.object.get_acls().count()),
-                                   color=BadgeColorEnum.SECONDARY)},
+                    'title': _('ACLs ').__str__() + f'<span class="badge {BadgeColorEnum.SECONDARY.value}">{self.object.get_acls().count()}</span>'}
                    ]
         context.update({"object": self.object,
                         'actions': [DefaultActionButtons(instance=self.object, request=self.request).render()],

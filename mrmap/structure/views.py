@@ -1,23 +1,19 @@
 from django.contrib.auth import get_user_model
-import json
-from celery import states
-from celery.worker.control import revoke
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
-from django.db.models import Case, When, Q
+from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
-from django.views.generic import DeleteView, DetailView, UpdateView, CreateView
+from django.views.generic import DeleteView, UpdateView, CreateView
 from django.views.generic.base import ContextMixin
-from django_bootstrap_swt.components import Tag, Badge
-from django_bootstrap_swt.enums import BadgeColorEnum
+from main.enums.bootstrap import BadgeColorEnum
 from django_filters.views import FilterView
-from MrMap.icons import IconEnum
+from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PUBLISH_REQUEST_DENIED, \
     PUBLISH_REQUEST_ACCEPTED, \
     ORGANIZATION_SUCCESSFULLY_CREATED, ORGANIZATION_SUCCESSFULLY_DELETED, PUBLISH_REQUEST_SENT, \
@@ -29,7 +25,6 @@ from structure.forms import OrganizationChangeForm
 from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PublishRequest
 from django.urls import reverse_lazy
-
 from structure.tables.tables import OrganizationDetailTable, \
     OrganizationPublishersTable, PublishesRequestTable, MrMapUserTable
 
@@ -42,9 +37,7 @@ class OrganizationDetailContextMixin(ContextMixin):
         tab_nav = [{'url': self.object.get_absolute_url,
                     'title': _('Details')},
                    {'url': self.object.publishers_uri,
-                    'title': _('Publishers ').__str__() +
-                             Badge(content=str(self.object.publishers.count()),
-                                   color=BadgeColorEnum.SECONDARY)},
+                    'title': _('Publishers ').__str__() + f'<span class="badge {BadgeColorEnum.SECONDARY.value}">New</span>'},
                    ]
         context.update({"object": self.object,
                         'actions': self.object.get_actions(),
@@ -127,7 +120,7 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
     filterset_fields = {'name': ['icontains']}
     template_name = 'MrMap/detail_views/table_tab.html'
     object = None
-    title = Tag(tag='i', attrs={"class": [IconEnum.PUBLISHERS.value]}) + _(' Publish for list')
+    title = get_icon(IconEnum.PUBLISHERS) + _(' Publish for list')
 
     def get_queryset(self):
         return self.object.publishers.all()

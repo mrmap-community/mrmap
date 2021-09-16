@@ -21,8 +21,8 @@ RUN npm install --yes
 FROM python:3.9.7-slim-bullseye
 COPY --from=base /wheels /wheels
 COPY --from=base requirements.txt .
-COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css /opt/mrmap/static/css
-COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/popper.min.js /opt/mrmap/static/js/
+COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css /tmp/mrmap/static/css/
+COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/popper.min.js node_modules/jquery/dist/jquery.min.js /tmp/mrmap/static/js/
 
 RUN apt-get -qq update && \
     apt-get -y install --no-install-recommends libssl-dev gdal-bin libpq-dev netcat && \

@@ -19,7 +19,7 @@
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Change password' %}</a>
                 {% url 'edit_profile' as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Edit profile' %}</a>
-                {% url 'manage_subscriptions' as url %}
+                {% url 'subscription_list' as url %}
                 <a href="{{url}}" class="list-group-item list-group-item-action {% if request.path == url %}active{% endif %}" {% if request.path == url %}aria-current="true"{% endif %}>{% trans 'Manage subscriptions' %}</a>
             </div>
         </div>

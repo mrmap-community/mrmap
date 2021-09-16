@@ -5,9 +5,10 @@ from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from structure.models import Organization
+from main.forms import ModelForm
 
 
-class OrganizationChangeForm(forms.ModelForm):
+class OrganizationChangeForm(ModelForm):
     """
     ModelForm that adds handling for reverse relation `publishers` for the given `Organization`.
     """

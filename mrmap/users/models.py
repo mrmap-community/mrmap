@@ -1,10 +1,3 @@
-"""
-Author: Michel Peltriaux
-Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
-Contact: michel.peltriaux@vermkv.rlp.de
-Created on: 28.05.19
-
-"""
 import hashlib
 import uuid
 
@@ -13,7 +6,7 @@ from django.db.models import Q, QuerySet
 from guardian.shortcuts import get_objects_for_user
 from django.utils.functional import cached_property
 from acl.models.acl import AccessControlList
-from main.models import CommonInfo
+from main.models import CommonInfo, GenericModelMixin
 from django.utils.translation import gettext_lazy as _l
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
@@ -22,8 +15,6 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_bootstrap_swt.components import LinkButton, Tag
-from django_bootstrap_swt.enums import ButtonColorEnum, ButtonSizeEnum
 from MrMap.icons import IconEnum, get_icon
 from resourceNew.models import Service
 from structure.models import Organization
@@ -129,9 +120,10 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         )
 
 
-class Subscription(CommonInfo):
+class Subscription(GenericModelMixin, CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
+    # todo: rename field to service
     metadata = models.ForeignKey(Service, on_delete=models.CASCADE,
                                  verbose_name=_('Service'),
                                  help_text=_("Select the service you want to subscribe. When you edit an existing "
@@ -155,34 +147,6 @@ class Subscription(CommonInfo):
         # constraint will also raise an form error if a user trays to add duplicates.
         unique_together = ('metadata', 'user',)
 
-    @property
-    def icon(self):
-        return get_icon(IconEnum.SUBSCRIPTION)
-
-    def get_absolute_url(self):
-        return reverse('manage_subscriptions')
-
-    @classmethod
-    def get_add_view_url(cls):
-        return reverse('add_subscription')
-
-    def get_edit_view_url(self):
-        return reverse('edit_subscription', args=[self.id])
-
-    def get_delete_view_url(self):
-        return reverse('delete_subscription', args=[self.id])
-
-    def get_actions(self):
-        return [LinkButton(url=self.get_edit_view_url(),
-                           content=Tag(tag='i', attrs={"class": [IconEnum.EDIT.value]}).render(),
-                           color=ButtonColorEnum.WARNING,
-                           size=ButtonSizeEnum.SMALL,
-                           tooltip=_l(f"Edit subscription"), ),
-                LinkButton(url=self.get_delete_view_url(),
-                           content=Tag(tag='i', attrs={"class": [IconEnum.DELETE.value]}).render(),
-                           color=ButtonColorEnum.DANGER,
-                           size=ButtonSizeEnum.SMALL,
-                           tooltip=_l(f"Delete subscription"), )]
 
     def inform_subscriptor(self):
         """ Informs subscriptor on changes

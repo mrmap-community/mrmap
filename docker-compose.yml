@@ -68,13 +68,13 @@ services:
       - mapserver
       - nginx
       #- inspire-validator
-  celery-worker:
+  celery-default-worker:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
     command: >
       /bin/bash -c "celery -A MrMap worker -E -l INFO -n default -Q default"
-    hostname: "mrmap-celery-worker"
+    hostname: "mrmap-celery-default-worker"
     volumes:
       - type: bind
         source: ./mrmap
@@ -90,6 +90,28 @@ services:
     depends_on:
       - postgis
       - redis    
+  celery-download-worker:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+    command: >
+      /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q download_iso_metadata,download_described_elements,harvest"
+    hostname: "mrmap-celery-worker"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+      - type: volume
+        source: mrmap-media
+        target: /var/mrmap/media
+      - type: volume
+        source: mrmap-log
+        target: /var/log/mrmap
+    env_file:
+      - ./.env.mrmap
+    depends_on:
+      - postgis
+      - redis
     
 volumes:
   mrmap-static:

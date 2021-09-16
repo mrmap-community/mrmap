@@ -2,7 +2,6 @@ from django import template
 from django.apps import apps
 from main.utils import camel_to_snake as util_camel_to_snake
 from importlib import import_module
-from django_bootstrap_swt.components import BootstrapComponent
 
 from quality.models import ConformityCheckRun
 
@@ -54,11 +53,6 @@ def duration_to_ms(duration):
     seconds = duration.total_seconds()
     milliseconds = seconds * 1000
     return milliseconds
-
-
-@register.filter
-def render_item(item: BootstrapComponent):
-    return item.render(safe=True)
 
 
 @register.filter

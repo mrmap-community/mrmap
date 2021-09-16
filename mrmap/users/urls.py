@@ -32,8 +32,8 @@ urlpatterns = [
     path('accounts/profile/edit', EditProfileView.as_view(), name="edit_profile"),
 
     # user subscriptions
-    path('accounts/profile/subscriptions', SubscriptionTableView.as_view(), name='manage_subscriptions'),
-    path('accounts/profile/subscriptions/add', AddSubscriptionView.as_view(), name='add_subscription'),
-    path('accounts/profile/subscriptions/<pk>/edit', UpdateSubscriptionView.as_view(), name='edit_subscription'),
-    path('accounts/profile/subscriptions/<pk>/delete', DeleteSubscriptionView.as_view(), name='delete_subscription'),
+    path('accounts/profile/subscriptions', SubscriptionTableView.as_view(), name='subscription_list'),
+    path('accounts/profile/subscriptions/add', AddSubscriptionView.as_view(), name='subscription_add'),
+    path('accounts/profile/subscriptions/<pk>/edit', UpdateSubscriptionView.as_view(), name='subscription_change'),
+    path('accounts/profile/subscriptions/<pk>/delete', DeleteSubscriptionView.as_view(), name='subscription_delete'),
 ]

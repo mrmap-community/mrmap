@@ -12,8 +12,13 @@ class PublishRequestNewView(SecuredCreateView):
     model = PublishRequest
     fields = ('from_organization', 'to_organization', 'message')
     template_name = 'MrMap/detail_views/generic_form.html'
-    title = _('Publish request')
     success_message = PUBLISH_REQUEST_SENT
+
+    # FIXME: find a better solution to handle request keword argument with forms.ModelForm classes
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.pop("request")
+        return kwargs
 
 
 class PublishRequestTableView(SecuredListMixin, FilterView):
@@ -25,8 +30,6 @@ class PublishRequestTableView(SecuredListMixin, FilterView):
 
 class PublishRequestUpdateView(SecuredUpdateView):
     model = PublishRequest
-    template_name = "MrMap/detail_views/generic_form.html"
-    success_url = reverse_lazy('structure:publish_request_overview')
     fields = ('is_accepted', )
     success_message = PUBLISH_REQUEST_ACCEPTED
     title = _('Accept request')
@@ -34,10 +37,15 @@ class PublishRequestUpdateView(SecuredUpdateView):
     def get_success_url(self):
         return self.object.to_organization.get_absolute_url()
 
+    # FIXME: find a better solution to handle request keword argument with forms.ModelForm classes
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.pop("request")
+        return kwargs
+
 
 class PublishRequestRemoveView(SecuredDeleteView):
     model = PublishRequest
-    template_name = "MrMap/detail_views/delete.html"
     success_url = reverse_lazy('structure:index')
     success_message = PUBLISH_REQUEST_DENIED
     title = _('Deny request')

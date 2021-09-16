@@ -20,12 +20,27 @@
             ]
         },
         {
-            "name": "Debug: celery",
+            "name": "Debug: celery-default-worker",
             "type": "python",
             "request": "attach",
             "connect": {
                 "host": "localhost",
                 "port": 3002
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/mrmap",
+                    "remoteRoot": "/opt/mrmap"
+                }
+            ]
+        },
+        {
+            "name": "Debug: celery-download-worker",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3003
             },
             "pathMappings": [
                 {

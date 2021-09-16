@@ -1,6 +1,6 @@
 import django_tables2 as tables
 from django.template import Template, Context
-from django_bootstrap_swt.enums import ProgressColorEnum
+from main.enums.bootstrap import ProgressColorEnum
 from django.utils.html import format_html
 from MrMap.icons import IconEnum, get_icon
 from django.utils.translation import gettext_lazy as _

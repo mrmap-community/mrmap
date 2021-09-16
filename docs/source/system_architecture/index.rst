@@ -11,8 +11,8 @@ System Architecture
 
 Below is a simplified overview of the MrMap application stack for reference:
 
-.. image:: ../images/app_stack.png
-  :width: 800
+.. image:: ../images/app_stack.svg
+  :width: 100%
   :alt: MrMap application stack
 
 .. toctree::
@@ -21,3 +21,9 @@ Below is a simplified overview of the MrMap application stack for reference:
 
 2. Docker stack
 ###############
+
+Below is a simplified overview of the MrMap docker compose stack:
+
+.. image:: ../images/docker_stack.svg
+  :width: 100%
+  :alt: Docker stack

@@ -1,16 +1,28 @@
-# debian 11 image
+################################
+# Base build Image
+################################  
 FROM python:3.9.7-bullseye AS base
 ARG install_debugpy
 RUN apt-get -qq update && \
-    apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin
+    apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin npm
     
+# build python dependencies    
 COPY ./requirements.txt /
 RUN if [ "${install_debugpy}" = "True" ] ; then echo "\ndebugpy==1.4.3" >> requirements.txt ; fi && \
     pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
+
+# download front end dependencies
+COPY ./package.json /
+RUN npm install --yes
+
+################################
+# MrMap Image
 ################################    
 FROM python:3.9.7-slim-bullseye
 COPY --from=base /wheels /wheels
 COPY --from=base requirements.txt .
+COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css /opt/mrmap/static/css
+COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/popper.min.js /opt/mrmap/static/js/
 
 RUN apt-get -qq update && \
     apt-get -y install --no-install-recommends libssl-dev gdal-bin libpq-dev netcat && \

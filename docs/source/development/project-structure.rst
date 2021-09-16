@@ -6,9 +6,6 @@ Project Structure
 =================
 
 
-All development of the current MrMap release occurs in the ``develop`` branch; releases are packaged from the ``master`` branch. The ``master`` branch should `always` represent the current stable release in its entirety, such that installing MrMap by either downloading a packaged release or cloning the ``master`` branch provides the same code base.
-
-
 MrMap apps
 **********
 

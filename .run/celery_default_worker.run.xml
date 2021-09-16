@@ -1,13 +1,12 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Docker-Compose: mrmap debug gunicorn" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="Docker-Compose: mrmap debug celery-default-worker" type="PythonConfigurationType" factoryName="Python">
     <module name="mrmap" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
-      <env name="START_GUNICORN" value="False" />
     </envs>
-    <option name="SDK_HOME" value="docker-compose://[$PROJECT_DIR$/docker-compose.yml]:gunicorn/python" />
+    <option name="SDK_HOME" value="docker-compose://[$PROJECT_DIR$/docker-compose.yml]:celery-default-worker/python" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/mrmap" />
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
@@ -20,8 +19,8 @@
         </list>
       </option>
     </PathMappingSettings>
-    <option name="SCRIPT_NAME" value="gunicorn" />
-    <option name="PARAMETERS" value="-b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=debug --timeout=0 MrMap.asgi:application" />
+    <option name="SCRIPT_NAME" value="celery" />
+    <option name="PARAMETERS" value="-A MrMap worker -E -l INFO -n default -Q default" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

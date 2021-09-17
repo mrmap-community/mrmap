@@ -49,7 +49,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#running-echo">Running echo</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#running-makemigrations">Running makemigrations</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#running-migrate">Running migrate</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#running-collectstatic">Running collectstatic</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-makemessages">Running makemessages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-compilemessages">Running compilemessages</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#running-tests">Running Tests</a></li>
@@ -59,7 +60,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="environment.html">Environment Variables</a></li>
-<li class="toctree-l2"><a class="reference internal" href="commands.html">Commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="definition_of_done.html">Definition of Done (DoD)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pycharm-configuration.html">Pycharm configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="vscode-configuration.html">Visual Studio Code configuration</a></li>
 </ul>
@@ -149,26 +150,34 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 </div>
 </div>
 <div class="section" id="running-makemigrations">
-<h3>Running makemigrations<a class="headerlink" href="#running-makemigrations" title="Permalink to this headline"></a></h3>
+<span id="running-management-commands-makemigrations"></span><h3>Running makemigrations<a class="headerlink" href="#running-makemigrations" title="Permalink to this headline"></a></h3>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
 </pre></div>
 </div>
 </div>
 <div class="section" id="running-migrate">
-<h3>Running migrate<a class="headerlink" href="#running-migrate" title="Permalink to this headline"></a></h3>
+<span id="running-management-commands-migrate"></span><h3>Running migrate<a class="headerlink" href="#running-migrate" title="Permalink to this headline"></a></h3>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
 </pre></div>
 </div>
 </div>
-<div class="section" id="running-collectstatic">
-<h3>Running collectstatic<a class="headerlink" href="#running-collectstatic" title="Permalink to this headline"></a></h3>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py collectstatic
+<div class="section" id="running-makemessages">
+<span id="running-management-commands-makemessages"></span><h3>Running makemessages<a class="headerlink" href="#running-makemessages" title="Permalink to this headline"></a></h3>
+<p>Makemessages should run local by calling:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python manage.py makemessages --locale<span class="o">=</span>de
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-compilemessages">
+<span id="running-management-commands-compilemessages"></span><h3>Running compilemessages<a class="headerlink" href="#running-compilemessages" title="Permalink to this headline"></a></h3>
+<p>Compilemessages should run local by calling:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python manage.py compilemessages --locale<span class="o">=</span>de
 </pre></div>
 </div>
 </div>
 </div>
 <div class="section" id="running-tests">
-<h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline"></a></h2>
+<span id="running-management-commands-tests"></span><h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline"></a></h2>
 <p>Throughout the course of development, it’s a good idea to occasionally run MrMap’s test suite to catch any potential errors. Tests are run using the <code class="docutils literal notranslate"><span class="pre">test</span></code> management command:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span>
 </pre></div>
@@ -194,13 +203,13 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 </div>
 <div class="section" id="submitting-pull-requests">
 <h2>Submitting Pull Requests<a class="headerlink" href="#submitting-pull-requests" title="Permalink to this headline"></a></h2>
-<p>Once you’re happy with your work and have verified that all tests pass, commit your changes and push it upstream to your fork. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.</p>
+<p>Once you’re happy with your work and have verified all steps described in <a class="reference internal" href="definition_of_done.html#development-dod"><span class="std std-ref">DoD</span></a> submit a <a class="reference external" href="https://github.com/mrmap-community/mrmap/compare">pull request</a> to the MrMap repo to propose the changes. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> git commit -m <span class="s2">&quot;Closes #1234: Add wms support&quot;</span>
 <span class="gp">$</span> git push origin
 </pre></div>
 </div>
-<p>Once your fork has the new commit, submit a <a class="reference external" href="https://github.com/mrmap-community/mrmap/compare">pull request</a> to the MrMap repo to propose the changes. Be sure to provide a detailed accounting of the changes being made and the reasons for doing so.</p>
-<p>Once submitted, a maintainer will review your pull request and either merge it or request changes. If changes are needed, you can make them via new commits to your fork: The pull request will update automatically.</p>
+<p>Be sure to provide a detailed accounting of the changes being made and the reasons for doing so.</p>
+<p>Once submitted, a maintainer will review your pull request and either merge it or request changes. If changes are needed, you can make them via new commits to your branch: The pull request will update automatically.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Remember, pull requests are entertained only for <strong>accepted</strong> issues. If an issue you want to work on hasn’t been approved by a maintainer yet, it’s best to avoid risking your time and effort on a change that might not be accepted.</p>

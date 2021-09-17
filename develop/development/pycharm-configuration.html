@@ -44,10 +44,14 @@
 <li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting-started.html">Getting Started</a></li>
 <li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment.html">Environment Variables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="commands.html">Commands</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Pycharm configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#configuration-of-pycharm-and-docker">Configuration of Pycharm and Docker</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#runconfigurations">Runconfigurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-of-pycharm-and-docker">1. Configuration of Pycharm and Docker</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configure-project-structure">2. Configure project structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#add-remote-interpreter">3. Add remote interpreter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#runconfigurations">4. Runconfigurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example">Example</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="vscode-configuration.html">Visual Studio Code configuration</a></li>
@@ -90,8 +94,7 @@
 <p>Debugging dockerized projects in pycharm needs a pycharm professional version.</p>
 </div>
 <div class="section" id="configuration-of-pycharm-and-docker">
-<h2>Configuration of Pycharm and Docker<a class="headerlink" href="#configuration-of-pycharm-and-docker" title="Permalink to this headline"></a></h2>
-<p>Configure docker in pycharm:</p>
+<h2>1. Configuration of Pycharm and Docker<a class="headerlink" href="#configuration-of-pycharm-and-docker" title="Permalink to this headline"></a></h2>
 <ul class="simple">
 <li><p>Open Pycharm and point it to the root directory of mrmap, eg. <cite>/opt/mrmap/</cite></p></li>
 <li><p>Goto File-&gt;Settings-&gt;Plugins and search for docker to install it.</p></li>
@@ -99,17 +102,31 @@
 <li><p>Click on the plus sign to add a docker configuation.</p></li>
 <li><p>Use the default settings and click on apply, it should say “Connection successful”.</p></li>
 </ul>
-<a class="reference internal image-reference" href="../_images/docker_pycharm_settings.png"><img alt="docker pycharm settings" src="../_images/docker_pycharm_settings.png" style="width: 800px;" /></a>
+<a class="reference internal image-reference" href="../_images/docker_pycharm_settings.png"><img alt="docker pycharm settings" src="../_images/docker_pycharm_settings.png" style="width: 100%;" /></a>
+</div>
+<div class="section" id="configure-project-structure">
+<h2>2. Configure project structure<a class="headerlink" href="#configure-project-structure" title="Permalink to this headline"></a></h2>
 <p>Next we have to mark the mrmap folder as source folder.</p>
 <ul class="simple">
 <li><p>Right click on the mrmap folder in the pycharm directory tree, eg. /opt/mrmap/mrap
 and select “Mark Directory as -&gt; Source Folder”</p></li>
 </ul>
 </div>
+<div class="section" id="add-remote-interpreter">
+<h2>3. Add remote interpreter<a class="headerlink" href="#add-remote-interpreter" title="Permalink to this headline"></a></h2>
+<p>Add one remote interpreter per container you want to debug.</p>
+<a class="reference internal image-reference" href="../_images/create_remote_interpreter.png"><img alt="create remote interpreter" src="../_images/create_remote_interpreter.png" style="width: 100%;" /></a>
+</div>
 <div class="section" id="runconfigurations">
-<h2>Runconfigurations<a class="headerlink" href="#runconfigurations" title="Permalink to this headline"></a></h2>
+<h2>4. Runconfigurations<a class="headerlink" href="#runconfigurations" title="Permalink to this headline"></a></h2>
 <p>We provide a set of default run configurations for pycharm. Pycharm should find that configurations automatically. See example image below.</p>
-<a class="reference internal image-reference" href="../_images/pycharm_run_cfg_example.png"><img alt="docker pycharm settings" src="../_images/pycharm_run_cfg_example.png" style="width: 800px;" /></a>
+<a class="reference internal image-reference" href="../_images/pycharm_run_cfg_example.png"><img alt="docker pycharm settings" src="../_images/pycharm_run_cfg_example.png" style="width: 100%;" /></a>
+<p>Finally you have to change the remote interpreter to the specific remote interpreter of the docker service which the command runs in to. For example add the remote interpreter for service <code class="docutils literal notranslate"><span class="pre">gunicorn</span></code> to the run configuration <code class="docutils literal notranslate"><span class="pre">Docker-Compose:</span> <span class="pre">mrmap</span> <span class="pre">debug</span> <span class="pre">gunicorn</span></code>.</p>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline"></a></h2>
+<p>See full example of how to start debugging below.</p>
+<a class="reference internal image-reference" href="../_images/full_example.gif"><img alt="full example of debugging with pycharm" src="../_images/full_example.gif" style="width: 100%;" /></a>
 </div>
 </div>
 

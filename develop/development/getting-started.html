@@ -45,12 +45,20 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Started</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#branch-structure">Branch structure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#enable-pre-commit-hooks">Enable Pre-Commit Hooks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-management-commands">Running management commands</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#running-echo">Running echo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-makemigrations">Running makemigrations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-migrate">Running migrate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-collectstatic">Running collectstatic</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#running-tests">Running Tests</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#test-documentation-builds-properly">Test documentation builds properly</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#submitting-pull-requests">Submitting Pull Requests</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment.html">Environment Variables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="commands.html">Commands</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pycharm-configuration.html">Pycharm configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="vscode-configuration.html">Visual Studio Code configuration</a></li>
@@ -98,6 +106,11 @@
 <li><p>To configure pycharm see <a class="reference internal" href="pycharm-configuration.html#development-pycharm-cfg"><span class="std std-ref">documentation</span></a></p></li>
 <li><p>To configure vscode see <a class="reference internal" href="vscode-configuration.html#development-vscode-cfg"><span class="std std-ref">documentation</span></a></p></li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Cause everthing is running with docker, all management commands need to be called inside the corresponding container.
+See <a class="reference internal" href="#running-management-commands"><span class="std std-ref">Running Management Commands</span></a></p>
+</div>
 <div class="section" id="branch-structure">
 <h2>Branch structure<a class="headerlink" href="#branch-structure" title="Permalink to this headline"></a></h2>
 <p>The MrMap project utilizes three persistent git branches to track work:</p>
@@ -116,14 +129,52 @@
 </pre></div>
 </div>
 </div>
+<div class="section" id="running-management-commands">
+<span id="id1"></span><h2>Running management commands<a class="headerlink" href="#running-management-commands" title="Permalink to this headline"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As pre condition MrMap application must be running.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml up --build
+</pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The prefix of started docker container name is always the name of the root folder where the docker-compose file lives in. In examples below, my root folder name is <code class="docutils literal notranslate"><span class="pre">mrmap</span></code>.</p>
+</div>
+<div class="section" id="running-echo">
+<h3>Running echo<a class="headerlink" href="#running-echo" title="Permalink to this headline"></a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 <span class="nb">echo</span> <span class="s2">&quot;I&#39;m inside the container!&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-makemigrations">
+<h3>Running makemigrations<a class="headerlink" href="#running-makemigrations" title="Permalink to this headline"></a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-migrate">
+<h3>Running migrate<a class="headerlink" href="#running-migrate" title="Permalink to this headline"></a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-collectstatic">
+<h3>Running collectstatic<a class="headerlink" href="#running-collectstatic" title="Permalink to this headline"></a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py collectstatic
+</pre></div>
+</div>
+</div>
+</div>
 <div class="section" id="running-tests">
 <h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline"></a></h2>
 <p>Throughout the course of development, it’s a good idea to occasionally run MrMap’s test suite to catch any potential errors. Tests are run using the <code class="docutils literal notranslate"><span class="pre">test</span></code> management command:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python ./mrmap/manage.py <span class="nb">test</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span>
 </pre></div>
 </div>
 <p>In cases where you haven’t made any changes to the database (which is most of the time), you can append the <code class="docutils literal notranslate"><span class="pre">--keepdb</span></code> argument to this command to reuse the test database between runs. This cuts down on the time it takes to run the test suite since the database doesn’t have to be rebuilt each time. (Note that this argument will cause errors if you’ve modified any model fields since the previous test run.)</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python ./mrmap/manage.py <span class="nb">test</span> --keepdb
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span> --keepdb
 </pre></div>
 </div>
 </div>

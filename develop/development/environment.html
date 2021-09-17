@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Environment Variables &mdash; MrMap v0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Commands" href="commands.html" />
+    <link rel="prev" title="Project Structure" href="project-structure.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MrMap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Environment Variables</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mrmap-applications">MrMap applications</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#mrmap-user"><code class="docutils literal notranslate"><span class="pre">MRMAP_USER</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mrmap-password"><code class="docutils literal notranslate"><span class="pre">MRMAP_PASSWORD</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#django-debug"><code class="docutils literal notranslate"><span class="pre">DJANGO_DEBUG</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#django-secret-key"><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#django-allowed-hosts"><code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#django-time-zone"><code class="docutils literal notranslate"><span class="pre">DJANGO_TIME_ZONE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sql-engine"><code class="docutils literal notranslate"><span class="pre">SQL_ENGINE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sql-database"><code class="docutils literal notranslate"><span class="pre">SQL_DATABASE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sql-user"><code class="docutils literal notranslate"><span class="pre">SQL_USER</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sql-password"><code class="docutils literal notranslate"><span class="pre">SQL_PASSWORD</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sql-host"><code class="docutils literal notranslate"><span class="pre">SQL_HOST</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sql-port"><code class="docutils literal notranslate"><span class="pre">SQL_PORT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#redis-host"><code class="docutils literal notranslate"><span class="pre">REDIS_HOST</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#redis-port"><code class="docutils literal notranslate"><span class="pre">REDIS_PORT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mapserver-url"><code class="docutils literal notranslate"><span class="pre">MAPSERVER_URL</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mapserver-security-mask-file-path"><code class="docutils literal notranslate"><span class="pre">MAPSERVER_SECURITY_MASK_FILE_PATH</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html">Commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pycharm-configuration.html">Pycharm configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode-configuration.html">Visual Studio Code configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Development</a> &raquo;</li>
+      <li>Environment Variables</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/development/environment.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="environment-variables">
+<span id="development-environment"></span><h1>Environment Variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline"></a></h1>
+<p>We provide default environment files with the repository. All files starts with <code class="docutils literal notranslate"><span class="pre">.env.{purpose}</span></code></p>
+<div class="section" id="mrmap-applications">
+<h2>MrMap applications<a class="headerlink" href="#mrmap-applications" title="Permalink to this headline"></a></h2>
+<div class="section" id="mrmap-user">
+<h3><code class="docutils literal notranslate"><span class="pre">MRMAP_USER</span></code><a class="headerlink" href="#mrmap-user" title="Permalink to this headline"></a></h3>
+<p>Used by setup command to create initial superuser.</p>
+</div>
+<div class="section" id="mrmap-password">
+<h3><code class="docutils literal notranslate"><span class="pre">MRMAP_PASSWORD</span></code><a class="headerlink" href="#mrmap-password" title="Permalink to this headline"></a></h3>
+<p>Used by setup command while creating superuser to provide initial password.</p>
+</div>
+<div class="section" id="django-debug">
+<h3><code class="docutils literal notranslate"><span class="pre">DJANGO_DEBUG</span></code><a class="headerlink" href="#django-debug" title="Permalink to this headline"></a></h3>
+<p>Used to activate debugging features. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#debug">django docs</a> for details.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>never use DJANGO_DEBUG=1 in pruction environment!</p>
+</div>
+</div>
+<div class="section" id="django-secret-key">
+<h3><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code><a class="headerlink" href="#django-secret-key" title="Permalink to this headline"></a></h3>
+<p>Used to configure the secrete key which is used by django. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#secret-key">django docs</a> for details.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>use a strong secret and never the default from the repository!</p>
+</div>
+</div>
+<div class="section" id="django-allowed-hosts">
+<h3><code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code><a class="headerlink" href="#django-allowed-hosts" title="Permalink to this headline"></a></h3>
+<p>Used to configure the allowed hosts from the origin header. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#allowed-hosts">django docs</a> for details.</p>
+</div>
+<div class="section" id="django-time-zone">
+<h3><code class="docutils literal notranslate"><span class="pre">DJANGO_TIME_ZONE</span></code><a class="headerlink" href="#django-time-zone" title="Permalink to this headline"></a></h3>
+<p>Used to configure the timezone which shall be used in MrMap. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#time-zone">django docs</a> for details.</p>
+</div>
+<div class="section" id="sql-engine">
+<h3><code class="docutils literal notranslate"><span class="pre">SQL_ENGINE</span></code><a class="headerlink" href="#sql-engine" title="Permalink to this headline"></a></h3>
+<p>Used to configure the sql engine which is used. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#engine">django docs</a> for details.</p>
+</div>
+<div class="section" id="sql-database">
+<h3><code class="docutils literal notranslate"><span class="pre">SQL_DATABASE</span></code><a class="headerlink" href="#sql-database" title="Permalink to this headline"></a></h3>
+<p>Used to configure the name of the schema. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#name">django docs</a> for details.</p>
+</div>
+<div class="section" id="sql-user">
+<h3><code class="docutils literal notranslate"><span class="pre">SQL_USER</span></code><a class="headerlink" href="#sql-user" title="Permalink to this headline"></a></h3>
+<p>Used to configure the name of the user which shall be used to connect to the database. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#user">django docs</a> for details.</p>
+</div>
+<div class="section" id="sql-password">
+<h3><code class="docutils literal notranslate"><span class="pre">SQL_PASSWORD</span></code><a class="headerlink" href="#sql-password" title="Permalink to this headline"></a></h3>
+<p>Used to configure the password of the user which shall be used to connect to the database. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#password">django docs</a> for details.</p>
+</div>
+<div class="section" id="sql-host">
+<h3><code class="docutils literal notranslate"><span class="pre">SQL_HOST</span></code><a class="headerlink" href="#sql-host" title="Permalink to this headline"></a></h3>
+<p>Used to configure the ip/dns name of the database host. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#host">django docs</a> for details.</p>
+</div>
+<div class="section" id="sql-port">
+<h3><code class="docutils literal notranslate"><span class="pre">SQL_PORT</span></code><a class="headerlink" href="#sql-port" title="Permalink to this headline"></a></h3>
+<p>Used to configure the port of the database host. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#port">django docs</a> for details.</p>
+</div>
+<div class="section" id="redis-host">
+<h3><code class="docutils literal notranslate"><span class="pre">REDIS_HOST</span></code><a class="headerlink" href="#redis-host" title="Permalink to this headline"></a></h3>
+<p>Used to configure the ip/dns name of the redis host.</p>
+</div>
+<div class="section" id="redis-port">
+<h3><code class="docutils literal notranslate"><span class="pre">REDIS_PORT</span></code><a class="headerlink" href="#redis-port" title="Permalink to this headline"></a></h3>
+<p>Used to configure the port of the redis host.</p>
+</div>
+<div class="section" id="mapserver-url">
+<h3><code class="docutils literal notranslate"><span class="pre">MAPSERVER_URL</span></code><a class="headerlink" href="#mapserver-url" title="Permalink to this headline"></a></h3>
+<p>Used to configure the url of the mapservice instance.</p>
+</div>
+<div class="section" id="mapserver-security-mask-file-path">
+<h3><code class="docutils literal notranslate"><span class="pre">MAPSERVER_SECURITY_MASK_FILE_PATH</span></code><a class="headerlink" href="#mapserver-security-mask-file-path" title="Permalink to this headline"></a></h3>
+<p>Used to configure the map file for security proxy. This file needed to be installed on the used mapserver which is configured by <code class="docutils literal notranslate"><span class="pre">MAPSERVER_URL</span></code>.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="project-structure.html" class="btn btn-neutral float-left" title="Project Structure" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="commands.html" class="btn btn-neutral float-right" title="Commands" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, mrmap-community.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

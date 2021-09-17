@@ -32,8 +32,8 @@ Download the project from `github <https://github.com/mrmap-community/mrmap/arch
 2. Start MrMap
 **************
 
-Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker-compose -f docker-compose.yml up --build``. After that, all services should be started properly.
+Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker-compose -f docker-compose.yml up --build``. After that, all services should be started properly and MrMap should be reachable under https://localhost
 
-Environment Variables
-*********************
+.. note::
+  The initial credentials of MrMap are: username = ``mrmap``, password = ``mrmap``
 

@@ -68,12 +68,16 @@ Running echo
 
     $ docker exec -it mrmap_gunicorn_1 echo "I'm inside the container!"
 
+.. _running_management_commands_makemigrations:
+
 Running makemigrations
 **********************
 
 .. code-block:: console
 
     $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
+
+.. _running_management_commands_migrate:
 
 Running migrate
 ***************
@@ -82,12 +86,29 @@ Running migrate
 
     $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
 
-Running collectstatic
+.. _running_management_commands_makemessages:
+
+Running makemessages
 *********************
+
+Makemessages should run local by calling:
 
 .. code-block:: console
 
-    $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py collectstatic
+    $ python manage.py makemessages --locale=de
+
+.. _running_management_commands_compilemessages:
+
+Running compilemessages
+***********************
+
+Compilemessages should run local by calling:
+
+.. code-block:: console
+
+    $ python manage.py compilemessages --locale=de
+
+.. _running_management_commands_tests:
 
 Running Tests
 =============
@@ -125,17 +146,16 @@ The documentation should be successfully build in the ``docs/build`` folder. Ope
 Submitting Pull Requests
 ========================
 
-Once you're happy with your work and have verified that all tests pass, commit your changes and push it upstream to your fork. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.
+Once you're happy with your work and have verified all steps described in :ref:`DoD <development-dod>` submit a `pull request <https://github.com/mrmap-community/mrmap/compare>`_ to the MrMap repo to propose the changes. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.
 
 .. code-block:: console
 
     $ git commit -m "Closes #1234: Add wms support"
     $ git push origin
 
+Be sure to provide a detailed accounting of the changes being made and the reasons for doing so.
 
-Once your fork has the new commit, submit a `pull request <https://github.com/mrmap-community/mrmap/compare>`_ to the MrMap repo to propose the changes. Be sure to provide a detailed accounting of the changes being made and the reasons for doing so.
-
-Once submitted, a maintainer will review your pull request and either merge it or request changes. If changes are needed, you can make them via new commits to your fork: The pull request will update automatically.
+Once submitted, a maintainer will review your pull request and either merge it or request changes. If changes are needed, you can make them via new commits to your branch: The pull request will update automatically.
 
 .. note::
     Remember, pull requests are entertained only for **accepted** issues. If an issue you want to work on hasn't been approved by a maintainer yet, it's best to avoid risking your time and effort on a change that might not be accepted.

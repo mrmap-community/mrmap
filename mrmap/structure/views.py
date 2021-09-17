@@ -1,32 +1,36 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import HttpResponseRedirect
+from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
-from django.views.generic import DeleteView, UpdateView, CreateView
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import CreateView, DeleteView, UpdateView
 from django.views.generic.base import ContextMixin
-from main.enums.bootstrap import BadgeColorEnum
 from django_filters.views import FilterView
+from main.enums.bootstrap import BadgeColorEnum
+from main.views import (SecuredCreateView, SecuredDependingListMixin,
+                        SecuredDetailView)
 from MrMap.icons import IconEnum, get_icon
-from MrMap.messages import PUBLISH_REQUEST_DENIED, \
-    PUBLISH_REQUEST_ACCEPTED, \
-    ORGANIZATION_SUCCESSFULLY_CREATED, ORGANIZATION_SUCCESSFULLY_DELETED, PUBLISH_REQUEST_SENT, \
-    ORGANIZATION_SUCCESSFULLY_EDITED, NO_PERMISSION
-from MrMap.views import InitFormMixin, GenericViewContextMixin, CustomSingleTableMixin, \
-    SuccessMessageDeleteMixin
-from main.views import SecuredDependingListMixin, SecuredCreateView, SecuredDetailView
+from MrMap.messages import (NO_PERMISSION, ORGANIZATION_SUCCESSFULLY_CREATED,
+                            ORGANIZATION_SUCCESSFULLY_DELETED,
+                            ORGANIZATION_SUCCESSFULLY_EDITED,
+                            PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED,
+                            PUBLISH_REQUEST_SENT)
+from MrMap.views import (CustomSingleTableMixin, GenericViewContextMixin,
+                         InitFormMixin, SuccessMessageDeleteMixin)
+
 from structure.forms import OrganizationChangeForm
-from structure.permissionEnums import PermissionEnum
 from structure.models import Organization, PublishRequest
-from django.urls import reverse_lazy
-from structure.tables.tables import OrganizationDetailTable, \
-    OrganizationPublishersTable, PublishesRequestTable, MrMapUserTable
+from structure.permissionEnums import PermissionEnum
+from structure.tables.tables import (MrMapUserTable, OrganizationDetailTable,
+                                     OrganizationPublishersTable,
+                                     PublishesRequestTable)
 
 
 class OrganizationDetailContextMixin(ContextMixin):
@@ -74,7 +78,8 @@ class OrganizationDetailView(GenericViewContextMixin, OrganizationDetailContextM
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        details_table = OrganizationDetailTable(data=[self.object, ], request=self.request)
+        details_table = OrganizationDetailTable(
+            data=[self.object, ], request=self.request)
         context.update({'table': details_table})
         return context
 
@@ -144,7 +149,8 @@ class PublishRequestNewView(PermissionRequiredMixin, GenericViewContextMixin, In
         group = form.cleaned_data['group']
         organization = form.cleaned_data['organization']
         if group.publish_for_organizations.filter(id=organization.id).exists():
-            form.add_error(None, _(f'{group} can already publish for Organization.'))
+            form.add_error(
+                None, _(f'{group} can already publish for Organization.'))
             return self.form_invalid(form)
         else:
             return super().form_valid(form)

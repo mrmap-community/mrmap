@@ -5,18 +5,14 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
-from django.test import RequestFactory
-from django.urls import reverse_lazy, resolve, reverse
-from django.views.generic import UpdateView, DetailView
+from django.urls import reverse_lazy
+from django.views.generic import DetailView
 from django.views.generic.base import ContextMixin
 from django.views.generic.edit import FormMixin, FormView
 from main.enums.bootstrap import AlertEnum, ButtonColorEnum
 from django_tables2 import SingleTableMixin, LazyPaginator
 from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm
-from MrMap.responses import DefaultContext
-from MrMap.wizards import get_class
 
 
 class ConfirmView(FormMixin, DetailView):

@@ -5,7 +5,6 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from rest_framework.authtoken.models import Token
-from MrMap.responses import DefaultContext
 from api.forms import TokenForm
 from structure.permissionEnums import PermissionEnum
 
@@ -41,8 +40,7 @@ def menu_view(request: HttpRequest):
     params = {
         "form": token_form,
     }
-    default_context = DefaultContext(request, params, user)
-    return render(request, template, default_context.get_context())
+    return render(request, template, )
 
 
 @permission_required(PermissionEnum.CAN_GENERATE_API_TOKEN.value, raise_exception=True)

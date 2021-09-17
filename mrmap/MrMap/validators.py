@@ -11,57 +11,8 @@ from django.utils.translation import gettext_lazy as _
 from resourceNew.enums.document import DocumentEnum
 from resourceNew.enums.service import OGCServiceEnum
 
-password_has_lower_case_letter = RegexValidator(
-    regex='[a-z]',
-    message=_('Password must have at least one lowercase letter'),
-    code='invalid_password'
-)
 
-password_has_upper_case_letter = RegexValidator(
-    regex='[A-Z]',
-    message=_('Password must have at least one Uppercase letter'),
-    code='invalid_password'
-)
-
-password_has_digit = RegexValidator(
-    regex='\d',
-    message=_('Password must have at least one digit'),
-    code='invalid_password'
-)
-
-
-def password_validate_has_lower_case_letter(value):
-    return password_has_lower_case_letter(value)
-
-
-def password_validate_has_upper_case_letter(value):
-    return password_has_upper_case_letter(value)
-
-
-def password_validate_has_digit(value):
-    return password_has_digit(value)
-
-
-PASSWORD_VALIDATORS = [password_validate_has_lower_case_letter,
-                       password_validate_has_upper_case_letter,
-                       password_validate_has_digit]
-
-username_has_special_characters = RegexValidator(
-    regex='[^A-Za-z0-9]',
-    message=_('Special or non printable characters are not allowed'),
-    code='invalid_username',
-    inverse_match=True
-)
-
-
-def validate_username_has_special_characters(value):
-    return username_has_special_characters(value)
-
-
-USERNAME_VALIDATORS = [validate_username_has_special_characters]
-
-
-def check_uri_is_reachable(value) -> (bool, bool, int):
+def check_uri_is_reachable(value):
     """ Performs a check on the URL.
 
     Returns whether it's reachable or not
@@ -178,42 +129,6 @@ def validate_get_capablities_uri(value):
 
     if len(validation_errors) > 0:
         raise ValidationError(validation_errors)
-
-
-def validate_document_enum_choices(value):
-    return validate_choice(value, DocumentEnum.as_choices())
-
-
-def validate_choice(value, choices: list):
-    """ Validates a given value against a choices list of tuples
-
-    Args:
-        value:
-        choices:
-    Returns:
-
-    """
-    choice_values = [choice[0] for choice in choices]
-    if value not in choice_values:
-        raise ValidationError(
-            "Given value '{}' is not matching possible choices!".format(value)
-        )
-
-
-def not_uuid(value):
-    """ Validates a given value to not be a uuid
-
-    Args:
-        value: The value
-    Returns:
-
-    """
-    try:
-        uuid.UUID(value)
-        raise ValidationError("UUID not allowed!")
-    except ValueError:
-        # Could not create a uuid from string - all good!
-        pass
 
 
 def geometry_is_empty(geometry: GEOSGeometry):

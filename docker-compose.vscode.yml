@@ -3,7 +3,7 @@ services:
   gunicorn:
     build:
       args:
-        install_debugpy: "True"
+        MRMAP_PRODUCTION: "False"
     command: >
       /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=debug --timeout=0 MrMap.asgi:application"
     environment:
@@ -18,7 +18,7 @@ services:
   celery-default-worker:
     build:
       args:
-        install_debugpy: "True"
+        MRMAP_PRODUCTION: "False"
     command: >
       /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m celery -A MrMap worker -E -l DEBUG -n default -Q default"
     environment:
@@ -31,7 +31,7 @@ services:
   celery-download-worker:
     build:
       args:
-        install_debugpy: "True"
+        MRMAP_PRODUCTION: "False"
     command: >
       /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
     environment:

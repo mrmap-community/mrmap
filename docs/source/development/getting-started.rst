@@ -15,6 +15,11 @@ We provide configuration files for `pycharm <https://www.jetbrains.com/de-de/pyc
 * To configure pycharm see :ref:`documentation <development-pycharm-cfg>`
 * To configure vscode see :ref:`documentation <development-vscode-cfg>`
 
+
+.. note::
+    Cause everthing is running with docker, all management commands need to be called inside the corresponding container.
+    See :ref:`Running Management Commands <running_management_commands>`
+
  
 Branch structure
 ================
@@ -37,6 +42,53 @@ MrMap ships with a `git pre-commit hook <https://githooks.com/>`_ script that au
     $ cd .git/hooks/
     $ ln -s ../../scripts/git-hooks/pre-commit
 
+
+.. _running_management_commands:
+
+Running management commands
+===========================
+
+
+.. note::
+    As pre condition MrMap application must be running.
+
+    .. code-block:: console
+
+        $ docker-compose -f ./docker-compose.yml up --build
+
+
+.. note::
+    The prefix of started docker container name is always the name of the root folder where the docker-compose file lives in. In examples below, my root folder name is ``mrmap``.
+
+
+Running echo
+************
+
+.. code-block:: console
+
+    $ docker exec -it mrmap_gunicorn_1 echo "I'm inside the container!"
+
+Running makemigrations
+**********************
+
+.. code-block:: console
+
+    $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
+
+Running migrate
+***************
+
+.. code-block:: console
+
+    $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
+
+Running collectstatic
+*********************
+
+.. code-block:: console
+
+    $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py collectstatic
+
 Running Tests
 =============
 
@@ -44,14 +96,14 @@ Throughout the course of development, it's a good idea to occasionally run MrMap
 
 .. code-block:: console
 
-    $ python ./mrmap/manage.py test
+    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build test
 
 
 In cases where you haven't made any changes to the database (which is most of the time), you can append the ``--keepdb`` argument to this command to reuse the test database between runs. This cuts down on the time it takes to run the test suite since the database doesn't have to be rebuilt each time. (Note that this argument will cause errors if you've modified any model fields since the previous test run.)
 
 .. code-block:: console
 
-    $ python ./mrmap/manage.py test --keepdb
+    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build test --keepdb
 
 
 Test documentation builds properly

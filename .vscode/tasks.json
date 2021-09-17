@@ -71,13 +71,27 @@
             ]
         },
         {
+            "label": "Docker-Compose: run tests",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "test"
+            ]
+        },
+        {
             "label": "makemigrations",
             "type": "shell",
             "command": "docker",
             "args": [
                 "exec",
                 "-it",
-                "mrmap_app_1",
+                "mrmap_gunicorn_1",
                 "/opt/mrmap/manage.py",
                 "makemigrations"
             ]
@@ -89,7 +103,7 @@
             "args": [
                 "exec",
                 "-it",
-                "mrmap_app_1",
+                "mrmap_gunicorn_1",
                 "/opt/mrmap/manage.py",
                 "migrate"
             ]
@@ -101,7 +115,7 @@
             "args": [
                 "exec",
                 "-it",
-                "mrmap_app_1",
+                "mrmap_gunicorn_1",
                 "/opt/mrmap/manage.py",
                 "setup",
                 "--reset-force"

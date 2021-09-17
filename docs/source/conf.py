@@ -72,7 +72,7 @@ html_theme = "sphinx_rtd_theme"
 
 #html_static_path = ['_static']
 
-linkcheck_ignore = [r'http://localhost:\d+/', r'http://127.0.0.1:\d+/', r'https://127.0.0.1:\d+/', r'http://YOUR-IP-ADDRESS:\d+/', ]
+linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', ]
 
 master_doc = "index"
 

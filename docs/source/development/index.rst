@@ -16,6 +16,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    communication
    getting-started
    project-structure
+   environment
    commands
    pycharm-configuration
    vscode-configuration

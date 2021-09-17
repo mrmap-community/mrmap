@@ -68,12 +68,16 @@ Running echo
 
     $ docker exec -it mrmap_gunicorn_1 echo "I'm inside the container!"
 
+.. _running_management_commands_makemigrations:
+
 Running makemigrations
 **********************
 
 .. code-block:: console
 
     $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
+
+.. _running_management_commands_migrate:
 
 Running migrate
 ***************
@@ -82,12 +86,29 @@ Running migrate
 
     $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
 
-Running collectstatic
+.. _running_management_commands_makemessages:
+
+Running makemessages
 *********************
+
+Makemessages should run local by calling:
 
 .. code-block:: console
 
-    $ docker exec -it mrmap_gunicorn_1 python /opt/mrmap/manage.py collectstatic
+    $ python manage.py makemessages --locale=de
+
+.. _running_management_commands_compilemessages:
+
+Running compilemessages
+***********************
+
+Compilemessages should run local by calling:
+
+.. code-block:: console
+
+    $ python manage.py compilemessages --locale=de
+
+.. _running_management_commands_tests:
 
 Running Tests
 =============

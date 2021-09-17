@@ -49,10 +49,6 @@ nosecover.xml
 coverage-report.xml
 .hypothesis/
 
-# Translations
-*.mo
-*.pot
-
 # Django stuff:
 *.log
 local_settings.py

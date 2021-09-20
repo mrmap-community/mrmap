@@ -1,7 +1,11 @@
+from users.models import MrMapUser
 from behave import given
 
-# Using Django's testing client
-@given(u'User "{user}" is logged in')
-def user_login(context, url):
-    # save response in context for next step
-    context.response = context.test.client.get(url)
+@given(u'User "{username}" with "{password}" is stored at the database')
+def create_test_user(context, username, password):
+    test_user = MrMapUser.objects.create_user(username=username, password=password)
+
+@given(u'User "{username}" is not logged in')
+def check_user_is_not_logged_in(context, username):
+    print(MrMapUser.objects.get(username=username).is_authenticated)
+    context.test.assertFalse(MrMapUser.objects.get(username=username).is_authenticated, msg=f"User {username} is authenticated but shouldnt")

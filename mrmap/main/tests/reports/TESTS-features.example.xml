@@ -1,0 +1,26 @@
+<testsuite name="features.example.As a User, I want to login so that I can use the MrMap UI." tests="1" errors="0" failures="1" skipped="0" time="0.28792" timestamp="2021-09-20T16:42:36.329856" hostname="mrmap-behave"><testcase classname="features.example.As a User, I want to login so that I can use the MrMap UI." name="Successful login process" status="failed" time="0.28792"><failure type="AssertionError" message="True is not false : User peter is authenticated but shouldnt">
+<![CDATA[
+Failing step: Given User "peter" is not logged in ... failed in 0.006s
+Location: main/tests/acceptance/features/example.feature:6
+Assertion Failed: True is not false : User peter is authenticated but shouldnt
+Captured stdout:
+True]]>
+</failure><system-out>
+<![CDATA[
+@scenario.begin
+  Scenario: Successful login process
+    Given User "peter" with "password" is stored at the database ... passed in 0.282s
+    Given User "peter" is not logged in ... failed in 0.006s
+    Given Browser is opened with "localhost" ... undefined in 0.000s
+    When User "peter" enters username and password ... undefined in 0.000s
+    When The user clicks "xpath_to_login_button" ... undefined in 0.000s
+    Then The browser displays the "url_to_dashboard" page ... undefined in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+
+Captured stdout:
+True
+
+]]>
+</system-out></testcase></testsuite>

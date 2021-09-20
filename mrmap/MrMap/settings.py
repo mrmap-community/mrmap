@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'formtools',
-    'behave_django'
+    'behave_django',
     'users',
     'structure',
     'job',

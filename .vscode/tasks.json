@@ -85,6 +85,20 @@
             ]
         },
         {
+            "label": "Docker-Compose: run behave tests",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "behave"
+            ]
+        },
+        {
             "label": "makemigrations",
             "type": "shell",
             "command": "docker",

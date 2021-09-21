@@ -8,16 +8,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
-import os
-import sys
 import logging
+import os
 import socket
-from django.utils.translation import gettext_lazy as _
+import sys
+
 from django.contrib import messages
-from api.settings import REST_FRAMEWORK # noqa
-from kombu import Queue, Exchange
+from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
-from django.core.management.utils import get_random_secret_key  
+from kombu import Queue, Exchange
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,11 +50,10 @@ INSTALLED_APPS = [
     'users',
     'structure',
     'job',
-#    'django_extensions',
+    #    'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
-    'api',
     'csw',
     'django_celery_beat',
     'django_celery_results',
@@ -194,7 +192,6 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-
 # Defines the semantic web information which will be injected on the resource html views
 SEMANTIC_WEB_HTML_INFORMATION = {
     "legalName": "Zentrale Stelle GDI-RP",
@@ -227,7 +224,6 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # default
     'guardian.backends.ObjectPermissionBackend',
 )
-
 
 GUARDIAN_RAISE_403 = True
 
@@ -299,10 +295,10 @@ CELERY_DEFAULT_EXCHANGE = "default"
 CELERY_QUEUES = (
     Queue('default', Exchange('default'), routing_key='default'),
     Queue('download_iso_metadata', Exchange('download_iso_metadata'), routing_key='download_iso_metadata'),
-    Queue('download_described_elements', Exchange('download_described_elements'), routing_key='download_described_elements'),
-    Queue('harvest', Exchange('harvest'),  routing_key='harvest'),
+    Queue('download_described_elements', Exchange('download_described_elements'),
+          routing_key='download_described_elements'),
+    Queue('harvest', Exchange('harvest'), routing_key='harvest'),
 )
-
 
 ################################################################
 # django channels settings
@@ -317,7 +313,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
 
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
@@ -365,7 +360,6 @@ PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
 PAGE_SIZE_DEFAULT = 5
 PAGE_SIZE_MAX = 100
 PAGE_DEFAULT = 1
-
 
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
@@ -446,13 +440,14 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 # Mapserver
 ################################################################
 MAPSERVER_URL = os.environ.get('MAPSERVER_URL')
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get("MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
+    "MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
 MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
 DEFAULT_SRS = 4326
-FONT_IMG_RATIO = 1/20  # Font to image ratio
+FONT_IMG_RATIO = 1 / 20  # Font to image ratio
 ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
 ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
 ################################################################
@@ -506,6 +501,3 @@ LOGGING = {
         },
     },
 }
-
-
-

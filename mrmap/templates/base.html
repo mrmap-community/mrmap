@@ -175,7 +175,8 @@
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'api:menu' %}" title="{% trans 'API' %}">
+                <!-- TODO link to api -->
+                <a class="nav-link" title="{% trans 'API' %}">
                     {% autoescape off %}{{ICONS.API}}{% endautoescape %} {% trans 'API' %}
                 </a>
             </li>

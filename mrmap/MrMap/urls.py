@@ -31,7 +31,6 @@ urlpatterns = [
     path('monitoring/', include('monitoring.urls')),
     path('captcha/', include('captcha.urls')),
     path("i18n/", include("django.conf.urls.i18n")),
-    path('api/', include('api.urls')),
     path('csw/', include('csw.urls')),
     path('quality/', include('quality.urls')),
     path('job/', include('job.urls')),

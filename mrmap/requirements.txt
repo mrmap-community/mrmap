@@ -98,3 +98,5 @@ gunicorn==20.1.0
 uvicorn==0.15.0
 websockets==9.1
 behave-django==1.4.0
+selenium==3.141.0
+behave-webdriver==0.3.0

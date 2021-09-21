@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import OuterRef
 
-from resourceNew.models import DatasetMetadata
+from registry.models import DatasetMetadata
 
 
 class ConformityCheckConfigurationManager(models.Manager):

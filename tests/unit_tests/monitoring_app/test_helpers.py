@@ -16,7 +16,7 @@ from django.utils import timezone
 from monitoring.helper.urlHelper import UrlHelper
 from monitoring.helper.wfsHelper import WfsHelper
 from monitoring.helper.wmsHelper import WmsHelper
-from resourceNew.enums.service import OGCServiceVersionEnum, OGCServiceEnum
+from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
 from users.models import MrMapUser
 
 

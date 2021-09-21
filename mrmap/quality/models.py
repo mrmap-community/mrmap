@@ -15,8 +15,8 @@ from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum, ReportType
 from quality.managers import ConformityCheckRunManager, ConformityCheckConfigurationManager
-from resourceNew.models import Service, Layer, FeatureType
-from resourceNew.models.metadata import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
+from registry.models import Service, Layer, FeatureType
+from registry.models.metadata import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
 
 
 class ConformityCheckConfiguration(models.Model):

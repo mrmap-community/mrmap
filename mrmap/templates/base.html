@@ -52,47 +52,47 @@
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <h6 class="dropdown-header">{% trans 'Web Map Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:service_wms_list' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span data-bind="text: wmsCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_service" in perms %}
-                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item" href="{% url 'registry:service_wms_list' %}">{% autoescape off %}{{ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %} <span data-bind="text: wmsCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_service" in perms %}
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'registry:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
-                    <a class="dropdown-item" href="{% url 'resourceNew:layer_list' %}">{% autoescape off %}{{ICONS.LAYER}}{% endautoescape %}  {% trans 'Layers' %} <span data-bind="text: layersCount"class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'registry:layer_list' %}">{% autoescape off %}{{ICONS.LAYER}}{% endautoescape %}  {% trans 'Layers' %} <span data-bind="text: layersCount"class="badge badge-secondary"></span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Web Feature Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:service_wfs_list' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span data-bind="text: wfsCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_service" in perms %}
-                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item" href="{% url 'registry:service_wfs_list' %}">{% autoescape off %}{{ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %} <span data-bind="text: wfsCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_service" in perms %}
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'registry:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
-                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature types' %} <span data-bind="text: featureTypesCount" class="badge badge-secondary"></span></a>
-                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_element_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature type elements' %} <span data-bind="text: featureTypeElementsCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'registry:feature_type_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature types' %} <span data-bind="text: featureTypesCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'registry:feature_type_element_list' %}">{% autoescape off %}{{ICONS.FEATURE_TYPE}}{% endautoescape %}  {% trans 'Feature type elements' %} <span data-bind="text: featureTypeElementsCount" class="badge badge-secondary"></span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Catalogue Service' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:service_csw_list' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span data-bind="text: cswCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_service" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item" href="{% url 'registry:service_csw_list' %}">{% autoescape off %}{{ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %} <span data-bind="text: cswCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_service" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'registry:service_add' %}" title="{% trans 'Register new service' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Metadata' %}</h6>
-                    <a class="dropdown-item" href="{% url 'resourceNew:service_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %} <span data-bind="text: serviceMetadataCount" class="badge badge-secondary"></span></a>
-                    <a class="dropdown-item" href="{% url 'resourceNew:layer_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Layer Metadata' %} <span data-bind="text: layerMetadataCount" class="badge badge-secondary"></span></a>
-                    <a class="dropdown-item" href="{% url 'resourceNew:feature_type_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Feature Type Metadata' %} <span data-bind="text: featureTypeMetadataCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'registry:service_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %} <span data-bind="text: serviceMetadataCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'registry:layer_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Layer Metadata' %} <span data-bind="text: layerMetadataCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item" href="{% url 'registry:feature_type_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Feature Type Metadata' %} <span data-bind="text: featureTypeMetadataCount" class="badge badge-secondary"></span></a>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:dataset_metadata_list' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Dataset Metadata' %} <span data-bind="text: datasetMetadataCount" class="badge badge-secondary"></span></a>
+                        <a class="dropdown-item" href="{% url 'registry:dataset_metadata_list' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Dataset Metadata' %} <span data-bind="text: datasetMetadataCount" class="badge badge-secondary"></span></a>
                          <!-- TODO: url -->
-                        {% if "resourceNew.add_dataset_metadata" in perms %}
+                        {% if "registry.add_dataset_metadata" in perms %}
                         <a class="btn btn-sm btn-success mr-1" href="#todo" title="{% trans 'Create new dataset metadata' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Map Contexts' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'resourceNew:map_context_list' %}">{% autoescape off %}{{ICONS.MAP_CONTEXT}}{% endautoescape %} {% trans 'Map Contexts' %} <span class="badge badge-secondary">{{map_context_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:map_context_add' %}" title="{% trans 'Create new map context' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item" href="{% url 'registry:map_context_list' %}">{% autoescape off %}{{ICONS.MAP_CONTEXT}}{% endautoescape %} {% trans 'Map Contexts' %} <span class="badge badge-secondary">{{map_context_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'registry:map_context_add' %}" title="{% trans 'Create new map context' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                 </div>
             </li>
@@ -103,34 +103,34 @@
                 <div class="dropdown-menu" aria-labelledby="navbarSecurityDropdown">
                     <h6 class="dropdown-header">{% trans 'Service authentication' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:external_authentication_list' %}">{% autoescape off %}{{ICONS.EXTERNAL_AUTHENTICATION}}{% endautoescape %} {% trans 'External authentications' %} <span data-bind="text: externalAuthenticationCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_externalauthentication" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:external_authentication_add' %}" title="{% trans 'New external authentication' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item flex-grow-1" href="{% url 'registry:external_authentication_list' %}">{% autoescape off %}{{ICONS.EXTERNAL_AUTHENTICATION}}{% endautoescape %} {% trans 'External authentications' %} <span data-bind="text: externalAuthenticationCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_externalauthentication" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'registry:external_authentication_add' %}" title="{% trans 'New external authentication' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Security Proxy' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:proxy_setting_list' %}">{% trans 'Service proxy settings' %} <span data-bind="text: proxySettingsCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_serviceaccessgroup" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:proxy_setting_add' %}" title="{% trans 'New proxy setting' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item flex-grow-1" href="{% url 'registry:proxy_setting_list' %}">{% trans 'Service proxy settings' %} <span data-bind="text: proxySettingsCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_serviceaccessgroup" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'registry:proxy_setting_add' %}" title="{% trans 'New proxy setting' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:service_access_group_list' %}">{% trans 'Service Access Groups' %} <span data-bind="text: serviceAccessGroupsCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_serviceaccessgroup" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:service_access_group_add' %}" title="{% trans 'New service access group' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item flex-grow-1" href="{% url 'registry:service_access_group_list' %}">{% trans 'Service Access Groups' %} <span data-bind="text: serviceAccessGroupsCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_serviceaccessgroup" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'registry:service_access_group_add' %}" title="{% trans 'New service access group' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="d-flex">
-                        <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:allowed_operation_list' %}">{% autoescape off %}{{ICONS.ALLOWED_OPERATION}}{% endautoescape %} {% trans 'Allowed Operations' %} <span data-bind="text: allowedOperationsCount" class="badge badge-secondary"></span></a>
-                        {% if "resourceNew.add_allowedoperation" in perms %}
-                        <a class="btn btn-sm btn-success mr-1" href="{% url 'resourceNew:allowed_operation_add' %}" title="{% trans 'New allowed operation' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item flex-grow-1" href="{% url 'registry:allowed_operation_list' %}">{% autoescape off %}{{ICONS.ALLOWED_OPERATION}}{% endautoescape %} {% trans 'Allowed Operations' %} <span data-bind="text: allowedOperationsCount" class="badge badge-secondary"></span></a>
+                        {% if "registry.add_allowedoperation" in perms %}
+                        <a class="btn btn-sm btn-success mr-1" href="{% url 'registry:allowed_operation_add' %}" title="{% trans 'New allowed operation' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                         {% endif %}
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Service request logging' %}</h6>
-                    <a class="dropdown-item flex-grow-1" href="{% url 'resourceNew:proxy_log_list' %}">{% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %} <span data-bind="text: proxyLogCount" class="badge badge-secondary"></span></a>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'registry:proxy_log_list' %}">{% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %} <span data-bind="text: proxyLogCount" class="badge badge-secondary"></span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'monitoring' %}active{% endif %}">

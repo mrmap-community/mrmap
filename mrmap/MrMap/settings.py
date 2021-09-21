@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'users',
     'structure',
     'job',
-    #    'django_extensions',
+    'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
@@ -70,7 +70,7 @@ INSTALLED_APPS = [
     'breadcrumb',
     'mptt',
     'autocompletes',
-    'resourceNew',
+    'registry',
     'main',
 ]
 
@@ -343,7 +343,7 @@ STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/resourceNew/static'
+    BASE_DIR + '/registry/static'
 ]
 
 WSGI_APPLICATION = 'MrMap.wsgi.application'
@@ -442,7 +442,7 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 MAPSERVER_URL = os.environ.get('MAPSERVER_URL')
 MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
     "MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
-MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
+MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 

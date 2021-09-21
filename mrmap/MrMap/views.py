@@ -102,7 +102,7 @@ class CustomSingleTableMixin(SingleTableMixin):
     template_extend_base = True
     add_url = None
     # Implement lazy pagination, preventing any count() queries to increase performance.
-    # todo: disabled since refactoring service app to resourceNew app... we need to to test the performance of all
+    # todo: disabled since refactoring service app to registry app... we need to to test the performance of all
     #  table views. If we got performance problems we could activate the LazyPaginator again. But for the user
     #  experience it would be better to dispense LazyPaginator cause with the default pagination we can show total
     #  table count.

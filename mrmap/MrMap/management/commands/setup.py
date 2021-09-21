@@ -17,8 +17,8 @@ from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
-from resourceNew.enums.service import OGCOperationEnum
-from resourceNew.models.security import OGCOperation
+from registry.enums.service import OGCOperationEnum
+from registry.models.security import OGCOperation
 from structure.models import Organization
 from monitoring.models import MonitoringSetting
 

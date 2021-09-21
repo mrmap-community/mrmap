@@ -9,10 +9,10 @@ from guardian.shortcuts import get_objects_for_user
 
 from acl.models.acl import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
-from resourceNew.models import Service, Layer, FeatureType
+from registry.models import Service, Layer, FeatureType
 from structure.models import Organization
-from resourceNew.models.metadata import Keyword, MetadataContact, ReferenceSystem
-from resourceNew.models.security import OGCOperation, ServiceAccessGroup
+from registry.models.metadata import Keyword, MetadataContact, ReferenceSystem
+from registry.models.security import OGCOperation, ServiceAccessGroup
 
 
 class CreateObjectMixin:

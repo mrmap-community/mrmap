@@ -14,7 +14,7 @@ from main.models import CommonInfo
 
 class HarvestResult(CommonInfo):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
-    # FIXME: service.Metadata is no longer available. Move to resourceNew.models.service.CswService
+    # FIXME: service.Metadata is no longer available. Move to registry.models.service.CswService
     #metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='harvest_results')
     timestamp_start = models.DateTimeField(blank=True, null=True)
     timestamp_end = models.DateTimeField(blank=True, null=True)

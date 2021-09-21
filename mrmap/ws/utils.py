@@ -1,10 +1,10 @@
 from celery import states
 from django.db.models import Q
 from job.models import Task, Job
-from resourceNew.enums.service import OGCServiceEnum
-from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
+from registry.enums.service import OGCServiceEnum
+from registry.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
     FeatureTypeMetadata, DatasetMetadata
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
+from registry.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
     ProxySetting
 
 

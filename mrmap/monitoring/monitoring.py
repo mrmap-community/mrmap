@@ -24,8 +24,8 @@ from monitoring.models import MonitoringResult as MonitoringResult, MonitoringRe
     MonitoringSetting, \
     HealthState
 from monitoring.settings import MONITORING_REQUEST_TIMEOUT
-from resourceNew.enums.service import OGCServiceVersionEnum, OGCServiceEnum
-from resourceNew.models import Service, Layer, FeatureType, DatasetMetadata
+from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
+from registry.models import Service, Layer, FeatureType, DatasetMetadata
 
 
 class Monitoring:

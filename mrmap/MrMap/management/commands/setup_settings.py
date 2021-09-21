@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 28.07.20
 
 """
-from resourceNew.enums.metadata import CategoryOriginEnum
+from registry.enums.metadata import CategoryOriginEnum
 
 CATEGORIES = {
     CategoryOriginEnum.INSPIRE.value: "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",

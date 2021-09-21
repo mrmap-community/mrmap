@@ -26,7 +26,7 @@ from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, D
 # TODO is this class effectively used for any functionality? Can it be removed?
 class MonitoringSetting(models.Model):
     # TODO other resource types
-    metadatas = models.ManyToManyField('resourceNew.Service', related_name='monitoring_setting')
+    metadatas = models.ManyToManyField('registry.Service', related_name='monitoring_setting')
     check_time = models.TimeField()
     timeout = models.IntegerField()
     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
@@ -83,16 +83,16 @@ class MonitoringRun(CommonInfo, GenericModelMixin):
     start = models.DateTimeField(null=True, blank=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
-    services = models.ManyToManyField('resourceNew.Service',
+    services = models.ManyToManyField('registry.Service',
                                       related_name='monitoring_runs', blank=True,
                                       verbose_name=_('Checked services'))
-    layers = models.ManyToManyField('resourceNew.Layer',
+    layers = models.ManyToManyField('registry.Layer',
                                     related_name='monitoring_runs', blank=True,
                                     verbose_name=_('Checked layers'))
-    feature_types = models.ManyToManyField('resourceNew.FeatureType',
+    feature_types = models.ManyToManyField('registry.FeatureType',
                                            related_name='monitoring_runs', blank=True,
                                            verbose_name=_('Checked feature types'))
-    dataset_metadatas = models.ManyToManyField('resourceNew.DatasetMetadata',
+    dataset_metadatas = models.ManyToManyField('registry.DatasetMetadata',
                                                related_name='monitoring_runs', blank=True,
                                                verbose_name=_('Checked dataset metadatas'))
 
@@ -133,13 +133,13 @@ class MonitoringRun(CommonInfo, GenericModelMixin):
 
 class MonitoringResult(CommonInfo, GenericModelMixin):
     # polymorphic fk (either service, layer, feature type or dataset metadata)
-    service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, null=True, blank=True,
+    service = models.ForeignKey('registry.Service', on_delete=models.CASCADE, null=True, blank=True,
                                 verbose_name=_('Service'))
-    layer = models.ForeignKey('resourceNew.Layer', on_delete=models.CASCADE, null=True, blank=True,
+    layer = models.ForeignKey('registry.Layer', on_delete=models.CASCADE, null=True, blank=True,
                               verbose_name=_('Layer'))
-    feature_type = models.ForeignKey('resourceNew.FeatureType', on_delete=models.CASCADE, null=True, blank=True,
+    feature_type = models.ForeignKey('registry.FeatureType', on_delete=models.CASCADE, null=True, blank=True,
                                      verbose_name=_('Feature Type'))
-    dataset_metadata = models.ForeignKey('resourceNew.DatasetMetadata', on_delete=models.CASCADE, null=True, blank=True,
+    dataset_metadata = models.ForeignKey('registry.DatasetMetadata', on_delete=models.CASCADE, null=True, blank=True,
                                          verbose_name=_('Dataset Metadata'))
     _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
 
@@ -178,14 +178,14 @@ class HealthState(CommonInfo, GenericModelMixin):
                                        verbose_name=_('Monitoring Runs'))
 
     # polymorphic fk (either service, layer, feature type or dataset metadata)
-    service = models.ForeignKey('resourceNew.Service', on_delete=models.CASCADE, related_name='health_states',
+    service = models.ForeignKey('registry.Service', on_delete=models.CASCADE, related_name='health_states',
                                 related_query_name='health_states', null=True, blank=True, verbose_name=_('Service'))
-    layer = models.ForeignKey('resourceNew.Layer', on_delete=models.CASCADE, related_name='health_states',
+    layer = models.ForeignKey('registry.Layer', on_delete=models.CASCADE, related_name='health_states',
                               related_query_name='health_states', null=True, blank=True, verbose_name=_('Layer'))
-    feature_type = models.ForeignKey('resourceNew.FeatureType', on_delete=models.CASCADE, related_name='health_states',
+    feature_type = models.ForeignKey('registry.FeatureType', on_delete=models.CASCADE, related_name='health_states',
                                      related_query_name='health_states', null=True, blank=True,
                                      verbose_name=_('Feature Type'))
-    dataset_metadata = models.ForeignKey('resourceNew.DatasetMetadata', on_delete=models.CASCADE,
+    dataset_metadata = models.ForeignKey('registry.DatasetMetadata', on_delete=models.CASCADE,
                                          related_name='health_states',
                                          related_query_name='health_states', null=True, blank=True,
                                          verbose_name=_('Dataset Metadata'))

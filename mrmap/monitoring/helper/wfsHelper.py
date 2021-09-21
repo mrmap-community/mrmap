@@ -7,7 +7,7 @@ Created on: 26.02.2020
 """
 
 from monitoring.helper.urlHelper import UrlHelper
-from resourceNew.enums.service import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
+from registry.enums.service import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 
 
 class WfsHelper:

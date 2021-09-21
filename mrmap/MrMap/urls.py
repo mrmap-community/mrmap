@@ -27,7 +27,7 @@ urlpatterns = [
     path('structure/', include('structure.urls')),
     path('acl/', include('acl.urls')),
     path('ac-old/', include('autocompletes.urls')),
-    path('resourceNew/', include('resourceNew.urls')),
+    path('registry/', include('registry.urls')),
     path('monitoring/', include('monitoring.urls')),
     path('captcha/', include('captcha.urls')),
     path("i18n/", include("django.conf.urls.i18n")),
@@ -36,7 +36,7 @@ urlpatterns = [
     path('job/', include('job.urls')),
 
     # Autocompletes
-    path('ac/resourceNew/', include('resourceNew.autocompletes.urls')),
+    path('ac/registry/', include('registry.autocompletes.urls')),
     path('ac/users/', include('users.autocompletes.urls')),
 ]
 

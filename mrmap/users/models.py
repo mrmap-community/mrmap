@@ -16,7 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import IconEnum, get_icon
-from resourceNew.models import Service
+from registry.models import Service
 from structure.models import Organization
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 from users.settings import default_request_activation_time

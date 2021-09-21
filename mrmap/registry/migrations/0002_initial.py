@@ -319,7 +319,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='layer',
             name='service',
-            field=models.ForeignKey(editable=False, help_text='the main service where this element is part of', on_delete=django.db.models.deletion.CASCADE, related_name='layers', related_query_name='layer', to='registry.service', verbose_name='parent service'),
+            field=models.ForeignKey(editable=False, help_text='the extras service where this element is part of', on_delete=django.db.models.deletion.CASCADE, related_name='layers', related_query_name='layer', to='registry.service', verbose_name='parent service'),
         ),
         migrations.AddField(
             model_name='httpresponselog',
@@ -434,7 +434,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='featuretype',
             name='service',
-            field=models.ForeignKey(editable=False, help_text='the main service where this element is part of', on_delete=django.db.models.deletion.CASCADE, related_name='featuretypes', related_query_name='featuretype', to='registry.service', verbose_name='parent service'),
+            field=models.ForeignKey(editable=False, help_text='the extras service where this element is part of', on_delete=django.db.models.deletion.CASCADE, related_name='featuretypes', related_query_name='featuretype', to='registry.service', verbose_name='parent service'),
         ),
         migrations.AddField(
             model_name='externalauthentication',

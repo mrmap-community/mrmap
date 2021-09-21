@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from MrMap.validators import validate_get_capablities_uri
-from main.forms import ModelForm
+from extras.forms import ModelForm
 from registry.enums.service import AuthTypeEnum
 from registry.models import Service, Layer, FeatureType
 from structure.models import Organization

@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
-import main.models
+import extras.models
 import uuid
 
 
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'Access Control List',
                 'verbose_name_plural': 'Access Control Lists',
             },
-            bases=(main.models.GenericModelMixin, 'auth.group', models.Model),
+            bases=(extras.models.GenericModelMixin, 'auth.group', models.Model),
         ),
         migrations.CreateModel(
             name='ServiceGroupObjectPermission',

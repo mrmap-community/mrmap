@@ -17,8 +17,8 @@ from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
 from MrMap.settings import TIME_ZONE
-from main.models import CommonInfo, GenericModelMixin
-from main.polymorphic_fk import PolymorphicForeignKey
+from extras.models import CommonInfo, GenericModelMixin
+from extras.polymorphic_fk import PolymorphicForeignKey
 from monitoring.enums import HealthStateEnum
 from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
 

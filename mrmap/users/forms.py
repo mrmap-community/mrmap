@@ -10,7 +10,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.forms import HiddenInput
 from users.models import Subscription
-from main.forms import ModelForm
+from extras.forms import ModelForm
 
 
 class MrMapUserForm(ModelForm):

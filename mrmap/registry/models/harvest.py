@@ -2,7 +2,7 @@ from django.contrib.gis.db import models
 from eulxml import xmlmap
 
 from job.models import Job
-from main.models import CommonInfo
+from extras.models import CommonInfo
 from registry.models import Service
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 

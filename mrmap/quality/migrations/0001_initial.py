@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
-import main.models
+import extras.models
 
 
 class Migration(migrations.Migration):
@@ -74,6 +74,6 @@ class Migration(migrations.Migration):
                 'ordering': ['-created_at'],
                 'get_latest_by': '-created_at',
             },
-            bases=(models.Model, main.models.GenericModelMixin),
+            bases=(models.Model, extras.models.GenericModelMixin),
         ),
     ]

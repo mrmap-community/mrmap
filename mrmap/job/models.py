@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Avg, Sum, F
 from job.enums import TaskStatusEnum
 from job.managers import TaskManager
-from main.models import CommonInfo
+from extras.models import CommonInfo
 from django.urls import reverse
 
 

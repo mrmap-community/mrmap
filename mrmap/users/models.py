@@ -6,7 +6,7 @@ from django.db.models import Q, QuerySet
 from guardian.shortcuts import get_objects_for_user
 from django.utils.functional import cached_property
 from acl.models.acl import AccessControlList
-from main.models import CommonInfo, GenericModelMixin
+from extras.models import CommonInfo, GenericModelMixin
 from django.utils.translation import gettext_lazy as _l
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser

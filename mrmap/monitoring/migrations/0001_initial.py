@@ -3,7 +3,7 @@
 import django.core.validators
 from django.db import migrations, models
 import django.db.models.deletion
-import main.models
+import extras.models
 
 
 class Migration(migrations.Migration):
@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Health states',
                 'ordering': ['-monitoring_run__start'],
             },
-            bases=(models.Model, main.models.GenericModelMixin),
+            bases=(models.Model, extras.models.GenericModelMixin),
         ),
         migrations.CreateModel(
             name='HealthStateReason',
@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Monitoring results',
                 'ordering': ['-timestamp'],
             },
-            bases=(models.Model, main.models.GenericModelMixin),
+            bases=(models.Model, extras.models.GenericModelMixin),
         ),
         migrations.CreateModel(
             name='MonitoringRun',
@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Monitoring runs',
                 'ordering': ['-end'],
             },
-            bases=(models.Model, main.models.GenericModelMixin),
+            bases=(models.Model, extras.models.GenericModelMixin),
         ),
         migrations.CreateModel(
             name='MonitoringSetting',

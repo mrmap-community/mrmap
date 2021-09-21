@@ -12,7 +12,7 @@ from django.views.generic import DetailView
 from django_filters.views import FilterView
 
 from job.models import Job
-from main.views import SecuredCreateView, SecuredListMixin, SecuredDeleteView
+from extras.views import SecuredCreateView, SecuredListMixin, SecuredDeleteView
 from quality.filtersets import ConformityCheckRunFilterSet
 from quality.forms import ConformityCheckRunModelForm
 from quality.models import ConformityCheckRun

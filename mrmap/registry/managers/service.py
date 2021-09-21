@@ -4,7 +4,7 @@ from django.db.models import Max, Count, F, Q, ExpressionWrapper, BooleanField
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from mptt.managers import TreeManager
-from main.models import get_current_owner
+from extras.models import get_current_owner
 from registry.enums.metadata import MetadataOrigin
 from registry.enums.service import OGCServiceEnum
 from crum import get_current_user

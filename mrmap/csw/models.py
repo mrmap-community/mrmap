@@ -9,7 +9,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models, transaction
-from main.models import CommonInfo
+from extras.models import CommonInfo
 
 
 class HarvestResult(CommonInfo):

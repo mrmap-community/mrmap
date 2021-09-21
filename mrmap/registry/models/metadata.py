@@ -11,7 +11,7 @@ from eulxml import xmlmap
 from requests import Session, Request
 
 from MrMap.settings import PROXIES
-from main.models import GenericModelMixin, CommonInfo
+from extras.models import GenericModelMixin, CommonInfo
 from registry.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
 from registry.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \

@@ -14,8 +14,8 @@ from requests.auth import HTTPDigestAuth
 from MrMap.icons import get_icon, IconEnum
 from MrMap.settings import PROXIES
 from job.models import Job
-from main.models import GenericModelMixin, CommonInfo
-from main.utils import camel_to_snake
+from extras.models import GenericModelMixin, CommonInfo
+from extras.utils import camel_to_snake
 from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
 from registry.managers.security import ServiceSecurityManager, OperationUrlManager
@@ -262,7 +262,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
                                 related_name="%(class)ss",
                                 related_query_name="%(class)s",
                                 verbose_name=_("parent service"),
-                                help_text=_("the main service where this element is part of"))
+                                help_text=_("the extras service where this element is part of"))
     identifier = models.CharField(max_length=500,
                                   null=True,
                                   editable=False,

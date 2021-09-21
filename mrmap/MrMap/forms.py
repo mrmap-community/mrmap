@@ -1,6 +1,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
-from main.forms import Form
+from extras.forms import Form
 
 CURRENT_VIEW_QUERY_PARAM = 'current-view'
 CURRENT_VIEW_ARG_QUERY_PARAM = 'current-view-arg'

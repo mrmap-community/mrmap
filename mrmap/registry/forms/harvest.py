@@ -1,6 +1,6 @@
 from django import forms
 
-from main.forms import Form
+from extras.forms import Form
 from registry.enums.service import OGCServiceEnum
 from registry.models import Service
 

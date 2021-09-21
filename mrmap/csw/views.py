@@ -15,7 +15,7 @@ from csw.forms import HarvestRunForm
 from csw.models import HarvestResult
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
 from csw.utils.parameter import ParameterResolver
-from main.views import SecuredCreateView
+from extras.views import SecuredCreateView
 
 
 @csrf_exempt

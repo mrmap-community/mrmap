@@ -1,5 +1,5 @@
 from django import forms
-from main.forms import ModelForm
+from extras.forms import ModelForm
 from registry.models import ServiceMetadata, Keyword, MetadataContact, DatasetMetadata, ReferenceSystem
 from dal import autocomplete
 

@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from crum import get_current_user
 from MrMap.icons import get_icon, IconEnum
-from main.utils import camel_to_snake
+from extras.utils import camel_to_snake
 
 _thread_locals = threading.local()
 

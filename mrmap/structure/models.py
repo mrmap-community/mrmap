@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from acl.models.acl import AccessControlList
-from main.models import UuidPk, CommonInfo
+from extras.models import UuidPk, CommonInfo
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from structure.permissionEnums import PermissionEnum

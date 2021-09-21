@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from requests.auth import HTTPDigestAuth
 
-from main.models import CommonInfo, GenericModelMixin
+from extras.models import CommonInfo, GenericModelMixin
 from registry.enums.security import EntityUnits
 from registry.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
 from MrMap.validators import geometry_is_empty, validate_get_capablities_uri

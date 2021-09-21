@@ -1,4 +1,4 @@
-from main.tables.columns import GenericButtonsColumn
+from extras.tables.columns import GenericButtonsColumn
 from structure.models import PublishRequest, Organization
 
 

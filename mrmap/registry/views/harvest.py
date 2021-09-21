@@ -1,7 +1,7 @@
 from django.urls import reverse_lazy
 
 from job.models import Job
-from main.views import SecuredFormView
+from extras.views import SecuredFormView
 from registry.forms.harvest import StartHarvest
 from registry.models import Service
 from registry.tasks import harvest as harvest_tasks

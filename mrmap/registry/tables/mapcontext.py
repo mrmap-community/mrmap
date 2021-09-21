@@ -1,8 +1,8 @@
 import django_tables2 as tables
 from django.utils.translation import gettext_lazy as _
 
-from main.tables.tables import SecuredTable
-from main.tables.template_code import DEFAULT_ACTION_BUTTONS
+from extras.tables.tables import SecuredTable
+from extras.tables.template_code import DEFAULT_ACTION_BUTTONS
 from registry.models.mapcontext import MapContext
 
 

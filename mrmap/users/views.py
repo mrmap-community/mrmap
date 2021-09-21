@@ -27,7 +27,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
-from main.views import SecuredUpdateView, SecuredDeleteView, SecuredCreateView, SecuredListMixin
+from extras.views import SecuredUpdateView, SecuredDeleteView, SecuredCreateView, SecuredListMixin
 from structure.forms import RegistrationForm
 from structure.models import Organization, PublishRequest
 from users.forms import SubscriptionForm, MrMapUserForm

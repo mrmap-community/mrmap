@@ -13,7 +13,7 @@ from csw.models import HarvestResult
 from csw.settings import CSW_GENERIC_ERROR_TEMPLATE
 from celery import shared_task
 
-from main.tasks import default_task_handler
+from extras.tasks import default_task_handler
 
 
 @shared_task(name='async_harvest')

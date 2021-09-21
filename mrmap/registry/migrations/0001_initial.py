@@ -6,7 +6,7 @@ import django.contrib.gis.db.models.fields
 from django.db import migrations, models
 import django.db.models.deletion
 import django.db.models.manager
-import main.models
+import extras.models
 import registry.models.document
 import registry.models.harvest
 import registry.models.security
@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='AllowedOperationGroupRelation',
@@ -55,7 +55,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='DatasetMetadata',
@@ -97,7 +97,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'dataset metadata',
                 'verbose_name_plural': 'dataset metadata',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='DatasetMetadataRelation',
@@ -139,7 +139,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='FeatureType',
@@ -158,7 +158,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'feature type',
                 'verbose_name_plural': 'feature types',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='FeatureTypeElement',
@@ -202,7 +202,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'feature type metadata',
                 'verbose_name_plural': 'feature type metadata',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='HarvestResult',
@@ -275,7 +275,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'layer',
                 'verbose_name_plural': 'layers',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='LayerMetadata',
@@ -302,7 +302,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'layer metadata',
                 'verbose_name_plural': 'layer metadata',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='LegendUrl',
@@ -342,7 +342,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='MapContextLayer',
@@ -415,7 +415,7 @@ class Migration(migrations.Migration):
                 ('camouflage', models.BooleanField(default=False, help_text='if true, all related xml documents are secured, by replace all hostname/internet addresses of the related service by the hostname of the current mr. map instance.', verbose_name='camouflage')),
                 ('log_response', models.BooleanField(default=False, help_text='if true, all responses of the related service will be logged.', verbose_name='log response')),
             ],
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='ReferenceSystem',
@@ -457,7 +457,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'service',
                 'verbose_name_plural': 'services',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
         migrations.CreateModel(
             name='ServiceAccessGroup',
@@ -470,7 +470,7 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            bases=(main.models.GenericModelMixin, 'auth.group', models.Model),
+            bases=(extras.models.GenericModelMixin, 'auth.group', models.Model),
             managers=[
                 ('objects', django.contrib.auth.models.GroupManager()),
             ],
@@ -503,7 +503,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'service metadata',
                 'verbose_name_plural': 'service metadata',
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
             managers=[
                 ('iso_metadata', django.db.models.manager.Manager()),
             ],

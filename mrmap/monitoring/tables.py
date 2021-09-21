@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.icons import IconEnum
-from main.tables.template_code import VALUE_ABSOLUTE_LINK, VALUE_ABSOLUTE_LINK_LIST
+from extras.tables.template_code import VALUE_ABSOLUTE_LINK, VALUE_ABSOLUTE_LINK_LIST
 from monitoring.enums import HealthStateEnum
 from monitoring.models import HealthState, MonitoringResult, MonitoringRun
 

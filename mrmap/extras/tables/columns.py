@@ -3,7 +3,7 @@ import django_tables2 as tables
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import get_all_icons
 
-from main.template_codes.template_codes import DefaultActionButtonsTemplate
+from extras.template_codes.template_codes import DefaultActionButtonsTemplate
 
 
 class GenericButtonsColumn(tables.TemplateColumn):

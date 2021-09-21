@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
-from main.forms import ModelForm
+from extras.forms import ModelForm
 from django import forms
-from main.widgets import TreeSelectMultiple
+from extras.widgets import TreeSelectMultiple
 from registry.enums.service import OGCServiceEnum
 from registry.models import Layer, FeatureType, Service
 from registry.models.security import AllowedOperation, ServiceAccessGroup, ProxySetting, ExternalAuthentication, \

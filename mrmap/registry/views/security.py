@@ -1,4 +1,4 @@
-from main.views import SecuredListMixin, SecuredCreateView, SecuredUpdateView, SecuredDeleteView
+from extras.views import SecuredListMixin, SecuredCreateView, SecuredUpdateView, SecuredDeleteView
 from registry.filtersets.security import AllowedOperationFilterSet, ServiceAccessGroupFilterSet, AnalyzedResponseLogFilterSet, \
     ExternalAuthenticationFilterSet
 from registry.forms.security import ServiceAccessGroupModelForm, ProxySettingModelForm, \

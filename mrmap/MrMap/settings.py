@@ -71,11 +71,11 @@ INSTALLED_APPS = [
     'mptt',
     'autocompletes',
     'registry',
-    'main',
+    'extras',
 ]
 
 TEMPLATE_LOADERS = (
-    'django.template.loaders.main.custom_template_filters.py'
+    'django.template.loaders.extras.custom_template_filters.py'
     'django.template.loaders.app_directories.Loader'
 )
 

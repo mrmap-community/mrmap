@@ -13,9 +13,9 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView, DeleteView, UpdateView
 from django.views.generic.base import ContextMixin
 from django_filters.views import FilterView
-from main.enums.bootstrap import BadgeColorEnum
-from main.views import (SecuredCreateView, SecuredDependingListMixin,
-                        SecuredDetailView)
+from extras.enums.bootstrap import BadgeColorEnum
+from extras.views import (SecuredCreateView, SecuredDependingListMixin,
+                          SecuredDetailView)
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import (NO_PERMISSION, ORGANIZATION_SUCCESSFULLY_CREATED,
                             ORGANIZATION_SUCCESSFULLY_DELETED,

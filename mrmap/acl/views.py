@@ -3,7 +3,7 @@ from MrMap.messages import ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED, ACCESS_CONTR
 from acl.forms import AccessControlListChangeForm
 from acl.models.acl import AccessControlList
 from acl.tables import AccessControlListTable, AccessControlListDetailTable
-from main.views import SecuredListMixin, SecuredUpdateView, SecuredCreateView, SecuredDetailView
+from extras.views import SecuredListMixin, SecuredUpdateView, SecuredCreateView, SecuredDetailView
 from django.utils.translation import gettext as _
 
 

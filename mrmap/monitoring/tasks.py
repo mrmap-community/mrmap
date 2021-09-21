@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from main.tasks import default_task_handler
+from extras.tasks import default_task_handler
 from monitoring.models import MonitoringSetting, MonitoringRun
 from monitoring.monitoring import Monitoring as Monitor
 

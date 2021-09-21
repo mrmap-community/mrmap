@@ -5,7 +5,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from structure.models import Organization
-from main.forms import ModelForm
+from extras.forms import ModelForm
 
 
 class OrganizationChangeForm(ModelForm):

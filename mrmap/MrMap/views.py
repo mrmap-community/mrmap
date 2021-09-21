@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 from django.views.generic import DetailView
 from django.views.generic.base import ContextMixin
 from django.views.generic.edit import FormMixin, FormView
-from main.enums.bootstrap import AlertEnum, ButtonColorEnum
+from extras.enums.bootstrap import AlertEnum, ButtonColorEnum
 from django_tables2 import SingleTableMixin, LazyPaginator
 from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm

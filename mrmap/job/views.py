@@ -3,7 +3,7 @@ from django_filters.views import FilterView
 from job.filtersets import JobFilterSet, TaskFilterSet
 from job.models import Job, Task
 from job.tables import JobTable, TaskTable
-from main.views import SecuredListMixin
+from extras.views import SecuredListMixin
 
 
 class JobListView(SecuredListMixin, FilterView):

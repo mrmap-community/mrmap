@@ -752,7 +752,7 @@ msgstr "Einen neuen Zugangstoken generieren und speichern"
 msgid "Generate"
 msgstr "Generieren"
 
-#: autocompletes/autocompletes.py:30 main/autocompletes.py:19
+#: autocompletes/autocompletes.py:30 extras/autocompletes.py:19
 msgid "If you provide add functionality you need to define `add_perm` param"
 msgstr ""
 "Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
@@ -841,53 +841,53 @@ msgstr ""
 msgid "Done at"
 msgstr ""
 
-#: main/models.py:158
+#: extras/models.py:158
 #, fuzzy
 #| msgid "Created on"
 msgid "Created at"
 msgstr "Erstellt am"
 
-#: main/models.py:159
+#: extras/models.py:159
 msgid "The timestamp of the creation date of this object."
 msgstr ""
 
-#: main/models.py:164
+#: extras/models.py:164
 #, fuzzy
 #| msgid "Created on"
 msgid "Created by"
 msgstr "Erstellt am"
 
-#: main/models.py:165
+#: extras/models.py:165
 msgid "The user who has created this object."
 msgstr ""
 
-#: main/models.py:171
+#: extras/models.py:171
 msgid "Owner"
 msgstr ""
 
-#: main/models.py:172
+#: extras/models.py:172
 #, fuzzy
 #| msgid "The organization which provides the resource."
 msgid "The organization which is the owner of this object."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: main/models.py:177
+#: extras/models.py:177
 msgid "Last modified at"
 msgstr ""
 
-#: main/models.py:178
+#: extras/models.py:178
 msgid "The timestamp of the last modification of this object"
 msgstr ""
 
-#: main/models.py:183
+#: extras/models.py:183
 msgid "Last modified by"
 msgstr ""
 
-#: main/models.py:184
+#: extras/models.py:184
 msgid "The last user who has modified this object."
 msgstr ""
 
-#: main/tables/columns.py:32 main/tables/columns.py:53 quality/tables.py:19
+#: extras/tables/columns.py:32 extras/tables/columns.py:53 quality/tables.py:19
 #: registry/tables/mapcontext.py:11 registry/tables/metadata.py:18
 #: registry/tables/metadata.py:59 registry/tables/security.py:18
 #: registry/tables/security.py:39 registry/tables/security.py:57
@@ -896,25 +896,25 @@ msgstr ""
 msgid "Actions"
 msgstr "Aktionen"
 
-#: main/views.py:119
+#: extras/views.py:119
 #, fuzzy, python-format
 #| msgid "Organization {} successfully created."
 msgid "Successfully created %(obj)s"
 msgstr "Organisation {} erstellt."
 
-#: main/views.py:168
+#: extras/views.py:168
 #, fuzzy, python-format
 #| msgid "Successfully logged out!"
 msgid "Successfully deleted %(obj)s"
 msgstr "Erfolgreich ausgeloggt"
 
-#: main/views.py:196
+#: extras/views.py:196
 #, fuzzy
 #| msgid "Edit"
 msgid "Edit "
 msgstr "Bearbeiten"
 
-#: main/views.py:205
+#: extras/views.py:205
 #, fuzzy, python-format
 #| msgid "Successfully logged out!"
 msgid "Successfully updated %(obj)s"
@@ -2073,7 +2073,7 @@ msgid "parent service"
 msgstr "Übergeordneter Dienst"
 
 #: registry/models/service.py:265
-msgid "the main service where this element is part of"
+msgid "the extras service where this element is part of"
 msgstr ""
 
 #: registry/models/service.py:269
@@ -4330,7 +4330,7 @@ msgstr "Aufgabe erledigt"
 #~ msgstr "Sie müssen das Feld `created_by` ausfüllen."
 
 #~ msgid ""
-#~ "Group {} is an important main group and therefore can not be removed."
+#~ "Group {} is an important extras group and therefore can not be removed."
 #~ msgstr ""
 #~ "Gruppe {} ist eine bedeutende Hauptgruppe und kann daher nicht gelöscht "
 #~ "werden."

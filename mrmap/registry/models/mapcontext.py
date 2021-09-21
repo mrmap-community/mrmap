@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
-from main.models import GenericModelMixin, CommonInfo
+from extras.models import GenericModelMixin, CommonInfo
 
 
 class MapContext(GenericModelMixin, CommonInfo):

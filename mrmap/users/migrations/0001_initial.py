@@ -7,7 +7,7 @@ import django.contrib.auth.validators
 from django.db import migrations, models
 import django.db.models.deletion
 import django.utils.timezone
-import main.models
+import extras.models
 import uuid
 
 
@@ -78,6 +78,6 @@ class Migration(migrations.Migration):
             options={
                 'unique_together': {('metadata', 'user')},
             },
-            bases=(main.models.GenericModelMixin, models.Model),
+            bases=(extras.models.GenericModelMixin, models.Model),
         ),
     ]

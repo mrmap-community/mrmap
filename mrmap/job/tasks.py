@@ -4,7 +4,7 @@ from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from job.enums import TaskStatusEnum
-from main.models import set_current_owner
+from extras.models import set_current_owner
 from structure.models import Organization
 from django.utils import timezone
 from job.models import Job as DbJob, Task as DbTask
@@ -93,7 +93,7 @@ class CurrentTask(CommonInfoSetupMixin, ABC):
 
 
 class NewJob(CommonInfoSetupMixin, ABC):
-    """ Abstract class to implement default behaviour for `main` tasks which starts a complex set of subtasks.
+    """ Abstract class to implement default behaviour for `extras` tasks which starts a complex set of subtasks.
 
         It creates a new PendingTask instance if it is None.
     """

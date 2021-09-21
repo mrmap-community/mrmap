@@ -1,4 +1,4 @@
-from main.forms import ModelForm
+from extras.forms import ModelForm
 from monitoring.models import MonitoringRun
 
 

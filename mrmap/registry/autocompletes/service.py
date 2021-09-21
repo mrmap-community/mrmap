@@ -1,7 +1,7 @@
 from dal import autocomplete
 from guardian.mixins import LoginRequiredMixin
 
-from main.autocompletes import SecuredAutocompleteMixin
+from extras.autocompletes import SecuredAutocompleteMixin
 from registry.models import Service
 
 

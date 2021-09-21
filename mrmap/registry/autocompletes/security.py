@@ -1,6 +1,6 @@
 from dal import autocomplete
 from guardian.mixins import LoginRequiredMixin
-from main.autocompletes import SecuredAutocompleteMixin
+from extras.autocompletes import SecuredAutocompleteMixin
 from registry.models.security import OGCOperation, AllowedOperation
 from registry.settings import SECURE_ABLE_WMS_OPERATIONS, SECURE_ABLE_WFS_OPERATIONS
 

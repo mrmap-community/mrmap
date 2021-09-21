@@ -9,8 +9,8 @@ from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from main.models import CommonInfo, GenericModelMixin
-from main.polymorphic_fk import PolymorphicForeignKey
+from extras.models import CommonInfo, GenericModelMixin
+from extras.polymorphic_fk import PolymorphicForeignKey
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
     RuleOperatorEnum, \
     ConformityTypeEnum, ReportType

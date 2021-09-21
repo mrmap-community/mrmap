@@ -2,7 +2,7 @@ from django.urls import reverse_lazy
 from django_filters.views import FilterView
 from extra_views import CreateWithInlinesView, UpdateWithInlinesView
 
-from main.views import SecuredDeleteView, SecuredListMixin
+from extras.views import SecuredDeleteView, SecuredListMixin
 from registry.forms.mapcontext import MapContextForm
 from registry.formsets.mapcontext import MapContextLayerInline
 from registry.models.mapcontext import MapContext

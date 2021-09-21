@@ -2,7 +2,7 @@ from django.urls import reverse_lazy
 from django.utils.translation import gettext as _
 from django_filters.views import FilterView
 from MrMap.messages import *
-from main.views import SecuredCreateView, SecuredListMixin, SecuredUpdateView, SecuredDeleteView
+from extras.views import SecuredCreateView, SecuredListMixin, SecuredUpdateView, SecuredDeleteView
 from structure.models import PublishRequest
 from structure.permissionEnums import PermissionEnum
 from structure.tables.tables import PublishesRequestTable

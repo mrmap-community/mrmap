@@ -7,7 +7,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import get_icon, IconEnum
 from acl.managers import AclManager
-from main.models import CommonInfo, GenericModelMixin
+from extras.models import CommonInfo, GenericModelMixin
 
 
 class AccessControlList(GenericModelMixin, Group, CommonInfo):

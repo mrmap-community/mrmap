@@ -1,5 +1,5 @@
 from django_filters.views import FilterView
-from main.views import SecuredListMixin, SecuredUpdateView, SecuredConfirmView
+from extras.views import SecuredListMixin, SecuredUpdateView, SecuredConfirmView
 from registry.filtersets.metadata import DatasetMetadataFilterSet, LayerMetadataFilterSet, ServiceMetadataFilterSet, \
     FeatureTypeMetadataFilterSet
 from registry.forms.metadata import ServiceMetadataModelForm, DatasetMetadataModelForm

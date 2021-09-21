@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 from django_filters.views import FilterView
 
 from MrMap.messages import MONITORING_RUN_SCHEDULED
-from main.views import SecuredListMixin, SecuredCreateView, SecuredDetailView
+from extras.views import SecuredListMixin, SecuredCreateView, SecuredDetailView
 from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
 from monitoring.forms import MonitoringRunForm
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState

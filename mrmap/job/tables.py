@@ -1,13 +1,13 @@
 import django_tables2 as tables
 from django.template import Template, Context
-from main.enums.bootstrap import ProgressColorEnum
+from extras.enums.bootstrap import ProgressColorEnum
 from django.utils.html import format_html
 from MrMap.icons import IconEnum, get_icon
 from django.utils.translation import gettext_lazy as _
 from MrMap.templatecodes import PROGRESS_BAR, TOOLTIP
 from job.models import Job, Task
 from job.enums import TaskStatusEnum
-from main.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT
+from extras.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT
 
 
 class JobTable(tables.Table):

@@ -1,7 +1,7 @@
-from main.tables.columns import DefaultActionButtonsColumn
-from main.tables.template_code import VALUE_ABSOLUTE_LINK
+from extras.tables.columns import DefaultActionButtonsColumn
+from extras.tables.template_code import VALUE_ABSOLUTE_LINK
 import django_tables2 as tables
-from main.tables.tables import SecuredTable
+from extras.tables.tables import SecuredTable
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from users.models import Subscription

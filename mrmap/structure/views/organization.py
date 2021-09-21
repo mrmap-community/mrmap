@@ -1,12 +1,12 @@
 from django.utils.translation import gettext as _
 from django.views.generic.base import ContextMixin
-from main.enums.bootstrap import BadgeColorEnum
+from extras.enums.bootstrap import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
 from acl.models.acl import AccessControlList
 from acl.tables import AccessControlListTable
-from main.buttons import DefaultActionButtons
-from main.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
+from extras.buttons import DefaultActionButtons
+from extras.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm
 from structure.models import Organization, PublishRequest
 from structure.tables.tables import OrganizationTable, OrganizationDetailTable, OrganizationPublishersTable

@@ -5,8 +5,8 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import get_icon, IconEnum
-from main.tables.tables import SecuredTable
-from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK
+from extras.tables.tables import SecuredTable
+from extras.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK
 from quality.models import ConformityCheckRun
 
 # Get an instance of a logger

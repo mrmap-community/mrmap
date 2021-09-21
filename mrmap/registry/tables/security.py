@@ -1,8 +1,8 @@
 import django_tables2 as tables
 import urllib3.util
 
-from main.tables.tables import SecuredTable
-from main.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK, VALUE_TABLE_LINK, \
+from extras.tables.tables import SecuredTable
+from extras.tables.template_code import DEFAULT_ACTION_BUTTONS, VALUE_ABSOLUTE_LINK, VALUE_TABLE_LINK, \
     VALUE_TABLE_LINK_LIST, VALUE_CONCRETE_TABLE_LINK
 from registry.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
     ProxySetting

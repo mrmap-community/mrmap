@@ -1,6 +1,6 @@
 from django import template
 from django.apps import apps
-from main.utils import camel_to_snake as util_camel_to_snake
+from extras.utils import camel_to_snake as util_camel_to_snake
 from importlib import import_module
 
 from quality.models import ConformityCheckRun

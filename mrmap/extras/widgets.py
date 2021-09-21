@@ -3,7 +3,7 @@ import json
 
 
 class TreeSelectMultiple(SelectMultiple):
-    template_name = "main/widgets/tree_select_multiple.html"
+    template_name = "extras/widgets/tree_select_multiple.html"
 
     def __init__(self, tree, *args, **kwargs):
         self.tree = tree

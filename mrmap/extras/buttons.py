@@ -1,7 +1,7 @@
 from django.template import Template, Context
 
 from MrMap.icons import get_all_icons
-from main.template_codes.template_codes import DefaultActionButtonsTemplate
+from extras.template_codes.template_codes import DefaultActionButtonsTemplate
 
 
 class DefaultActionButtons:

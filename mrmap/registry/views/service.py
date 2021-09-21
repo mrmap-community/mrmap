@@ -4,8 +4,8 @@ from extra_views import UpdateWithInlinesView
 from guardian.core import ObjectPermissionChecker
 from MrMap.icons import get_icon, IconEnum
 from job.models import Job
-from main.utils import camel_to_snake
-from main.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
+from extras.utils import camel_to_snake
+from extras.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
 from registry.formsets.service import ExternalAuthenticationInline, ProxySettingInline
 from registry.tasks import service as service_tasks
 from registry.enums.service import OGCServiceEnum

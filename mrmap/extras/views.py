@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from urllib.parse import urlparse, urlunparse
 from django.views.generic import FormView
 from breadcrumb.utils import check_path_exists
-from main.utils import camel_to_snake, handle_protected_error
+from extras.utils import camel_to_snake, handle_protected_error
 
 
 class LastUrlMixin:

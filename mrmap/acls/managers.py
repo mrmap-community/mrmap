@@ -10,11 +10,11 @@ class AppendToAclManager(models.Manager):
         """ overrides the default bulk_create handling cause bulk_create will not call save() and pre_save/post_save
             signal also not. see docs: https://docs.djangoproject.com/en/3.2/ref/models/querysets/#bulk-create
 
-            Since we implement acl app which implements signals to handle appending of created objects to the acl AND
+            Since we implement acls app which implements signals to handle appending of created objects to the acls AND
             we need to use bulk_create to speed up the persisting process in service parser, we need to implement the
-            behaviour of auto adding to acl here.
+            behaviour of auto adding to acls here.
         """
-        from acl.models.acl import AccessControlList  # to prevent from circular import
+        from acls.models.acls import AccessControlList  # to prevent from circular import
         _objs = super().bulk_create(objs=objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts)
         if add_to_acl:
             AccessControlList.objects.append_objects_to_acls(_objs)
@@ -22,12 +22,12 @@ class AppendToAclManager(models.Manager):
 
 
 class AclManager(models.Manager):
-    """Custom manager class to handle default behaviours like appending object to acl"""
+    """Custom manager class to handle default behaviours like appending object to acls"""
     def append_object_to_acls(self, obj):
-        """append the given object to all default acl where the owner is the same
+        """append the given object to all default acls where the owner is the same
 
             Args:
-                obj: the given object instance which shall be secured by an acl.
+                obj: the given object instance which shall be secured by an acls.
         """
         default_acls = super().get_queryset().filter(default_acl=True, owned_by_org=obj.owned_by_org)
         for acl in default_acls:
@@ -39,7 +39,7 @@ class AclManager(models.Manager):
         """Same as `append_object_to_acls`, but with more efficient bulk_add usage.
 
             Args:
-                objects: the given objects instances which shall be secured by an acl.
+                objects: the given objects instances which shall be secured by an acls.
         """
         owners = []
         model_list = []

@@ -1,7 +1,7 @@
 from django.core.management import BaseCommand
 from django.db import transaction
-from acl.models.acl import AccessControlList
-from acl.utils import collect_default_permissions
+from acls.models.acls import AccessControlList
+from acls.utils import collect_default_permissions
 
 
 class Command(BaseCommand):

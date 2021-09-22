@@ -1,9 +1,9 @@
 from django.db.models.signals import post_save
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 
 
 def handle_instance_creation(instance, created, **kwargs):
-    """append the created instance to the default acl's accessible objects list."""
+    """append the created instance to the default acls's accessible objects list."""
     if created:
         AccessControlList.objects.append_object_to_acls(instance)
 

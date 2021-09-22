@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.template import Template, Context
 from django.utils.html import format_html
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 from extras.tables.columns import DefaultActionButtonsColumn
 from extras.tables.template_code import RECORD_ABSOLUTE_LINK, VALUE_BADGE, VALUE_ABSOLUTE_LINK, VALUE_BADGE_LIST, \
     VALUE_TABLE_LINK_LIST
@@ -18,7 +18,7 @@ class AccessControlListTable(tables.Table):
         model = AccessControlList
         fields = ('name', 'description', 'permissions', 'user_set', 'owned_by_org')
         template_name = "skeletons/django_tables2_bootstrap4_custom.html"
-        prefix = 'acl-table'
+        prefix = 'acls-table'
 
     def render_permissions(self, value):
         str = ''
@@ -53,5 +53,5 @@ class AccessControlListDetailTable(tables.Table):
                   'accessible_organizations__all',
                   'default_acl')
         template_name = "skeletons/django_tables2_vertical_table.html"
-        prefix = 'acl-detail-table'
+        prefix = 'acls-detail-table'
         orderable = False

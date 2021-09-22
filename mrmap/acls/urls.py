@@ -1,7 +1,7 @@
 from django.urls import path
-from acl.views import *
+from acls.views import *
 
-app_name = 'acl'
+app_name = 'acls'
 urlpatterns = [
     # acls
     path('acls', AccessControlListTableView.as_view(), name='accesscontrollist_overview'),

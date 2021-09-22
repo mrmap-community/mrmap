@@ -1,8 +1,8 @@
 from django_filters.views import FilterView
 from MrMap.messages import ACCESS_CONTROL_LIST_SUCCESSFULLY_EDITED, ACCESS_CONTROL_LIST_SUCCESSFULLY_CREATED
-from acl.forms import AccessControlListChangeForm
-from acl.models.acl import AccessControlList
-from acl.tables import AccessControlListTable, AccessControlListDetailTable
+from acls.forms import AccessControlListChangeForm
+from acls.models.acls import AccessControlList
+from acls.tables import AccessControlListTable, AccessControlListDetailTable
 from extras.views import SecuredListMixin, SecuredUpdateView, SecuredCreateView, SecuredDetailView
 from django.utils.translation import gettext as _
 

@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from guardian.mixins import LoginRequiredMixin
 from guardian.shortcuts import get_objects_for_user
 
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from registry.models import Service, Layer, FeatureType
 from structure.models import Organization

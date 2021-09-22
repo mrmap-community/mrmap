@@ -3,8 +3,8 @@ from django.views.generic.base import ContextMixin
 from extras.enums.bootstrap import BadgeColorEnum
 from django_filters.views import FilterView
 from MrMap.messages import ORGANIZATION_SUCCESSFULLY_EDITED
-from acl.models.acl import AccessControlList
-from acl.tables import AccessControlListTable
+from acls.models.acls import AccessControlList
+from acls.tables import AccessControlListTable
 from extras.buttons import DefaultActionButtons
 from extras.views import SecuredDependingListMixin, SecuredListMixin, SecuredDetailView, SecuredUpdateView
 from structure.forms import OrganizationChangeForm

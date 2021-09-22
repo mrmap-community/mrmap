@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from acl.models.acl import AccessControlList
-from acl.utils import collect_default_permissions
+from acls.models.acls import AccessControlList
+from acls.utils import collect_default_permissions
 from registry.models import Service
 from structure.models import Organization
 from django.utils.translation import gettext_lazy as _

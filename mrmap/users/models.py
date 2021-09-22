@@ -5,7 +5,7 @@ import six
 from django.db.models import Q, QuerySet
 from guardian.shortcuts import get_objects_for_user
 from django.utils.functional import cached_property
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 from extras.models import CommonInfo, GenericModelMixin
 from django.utils.translation import gettext_lazy as _l
 from django.contrib.auth.hashers import get_hasher
@@ -51,10 +51,10 @@ class MrMapUser(AbstractUser):
 
     @cached_property
     def organizations(self):
-        return Organization.objects.prefetch_related('acl_accesscontrollist_owned_by_org',
-                                                     'acl_accesscontrollist_owned_by_org__user_set',
-                                                     'acl_accesscontrollist_owned_by_org__permissions')\
-            .filter(acl_accesscontrollist_owned_by_org__permissions__codename='view_organization')\
+        return Organization.objects.prefetch_related('acls_accesscontrollist_owned_by_org',
+                                                     'acls_accesscontrollist_owned_by_org__user_set',
+                                                     'acls_accesscontrollist_owned_by_org__permissions')\
+            .filter(acls_accesscontrollist_owned_by_org__permissions__codename='view_organization')\
             .distinct('name')
 
     def get_publishable_organizations(self):
@@ -62,7 +62,7 @@ class MrMapUser(AbstractUser):
             return Organization.objects.all()
         else:
             organizations = Organization.objects.\
-                filter(acl_accesscontrollist_owned_by_org__in=AccessControlList.objects.
+                filter(acls_accesscontrollist_owned_by_org__in=AccessControlList.objects.
                        filter(user=self, permissions__codename='add_resource'))\
                 .prefetch_related('can_publish_for')
             for org in organizations:

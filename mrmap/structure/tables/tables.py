@@ -1,7 +1,7 @@
 import django_tables2 as tables
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 from extras.tables.columns import DefaultActionButtonsColumn
 from extras.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
 from extras.template_codes.template_codes import PERMISSIONS

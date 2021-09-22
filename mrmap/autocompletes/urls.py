@@ -17,7 +17,7 @@ urlpatterns = [
 
     path('orga/', autocompletes.OrganizationAutocomplete.as_view(), name="organizations"),
 
-    path('acl/', autocompletes.AccessControlListAutocomplete.as_view(), name="accesscontrollists"),
+    path('acls/', autocompletes.AccessControlListAutocomplete.as_view(), name="accesscontrollists"),
 
     path('rs/', autocompletes.ReferenceSystemAutocomplete.as_view(), name="reference_system"),
     path('ops/', autocompletes.OperationsAutocomplete.as_view(), name="operations"),

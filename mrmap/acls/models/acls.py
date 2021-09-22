@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import get_icon, IconEnum
-from acl.managers import AclManager
+from acls.managers import AclManager
 from extras.models import CommonInfo, GenericModelMixin
 
 
@@ -23,7 +23,7 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
                                    null=True,
                                    blank=True,
                                    verbose_name=_('Description'),
-                                   help_text=_('Describe what this acl shall allow.'))
+                                   help_text=_('Describe what this acls shall allow.'))
     # todo
     """
     accessible_metadata = models.ManyToManyField(to='service.Metadata',
@@ -40,7 +40,7 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
     accessible_accesscontrollists = models.ManyToManyField(to='self',
                                                            blank=True,
                                                            verbose_name=_('Accessible access control lists'),
-                                                           help_text=_('Select which acl\'s shall be accessible with the configured permissions.'))
+                                                           help_text=_('Select which acls\'s shall be accessible with the configured permissions.'))
     accessible_organizations = models.ManyToManyField(to='structure.Organization',
                                                       blank=True,
                                                       verbose_name=_('Accessible organizations'),
@@ -63,7 +63,7 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
 
     @classmethod
     def get_ownable_models(cls):
-        """helper function to get all model classes which could be linked by a acl"""
+        """helper function to get all model classes which could be linked by a acls"""
         return [field.related_model for field in cls.get_accessible_fields()]
 
     @classmethod

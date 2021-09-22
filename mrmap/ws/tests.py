@@ -7,7 +7,7 @@ from django.test import Client, TransactionTestCase, RequestFactory
 from django_celery_results.models import TaskResult
 from django_tables2 import RequestConfig
 
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 from service.filters import PendingTaskFilter
 from service.tables import PendingTaskTable
 from structure.models import Workflow

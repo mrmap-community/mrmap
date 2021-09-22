@@ -638,78 +638,78 @@ msgstr ""
 msgid "Wizard"
 msgstr "Formular-Assistent"
 
-#: acl/models/acl.py:25
+#: acls/models/acls.py:25
 msgid "Description"
 msgstr "Beschreibung"
 
-#: acl/models/acl.py:26
-msgid "Describe what this acl shall allow."
+#: acls/models/acls.py:26
+msgid "Describe what this aclss shall allow."
 msgstr ""
 
-#: acl/models/acl.py:42 acl/tables.py:41
+#: acls/models/acls.py:42 acls/tables.py:41
 #, fuzzy
 #| msgid "Access constraints"
 msgid "Accessible access control lists"
 msgstr "Zugangsbeschränkungen"
 
-#: acl/models/acl.py:43
-msgid "Select which acl's shall be accessible with the configured permissions."
+#: acls/models/acls.py:43
+msgid "Select which aclss's shall be accessible with the configured permissions."
 msgstr ""
 
-#: acl/models/acl.py:46 acl/tables.py:42
+#: acls/models/acls.py:46 acls/tables.py:42
 #, fuzzy
 #| msgid "Delete organization"
 msgid "Accessible organizations"
 msgstr "Organisation entfernen"
 
-#: acl/models/acl.py:47
+#: acls/models/acls.py:47
 msgid ""
 "Select which organizations shall be accessible with the configured "
 "permissions."
 msgstr ""
 
-#: acl/models/acl.py:56
+#: acls/models/acls.py:56
 #, fuzzy
 #| msgid "Access Constraints"
 msgid "Access Control List"
 msgstr "Zugangsbeschränkungen"
 
-#: acl/models/acl.py:57
+#: acls/models/acls.py:57
 #, fuzzy
 #| msgid "Access Constraints"
 msgid "Access Control Lists"
 msgstr "Zugangsbeschränkungen"
 
-#: acl/signals/organization_handling.py:34
+#: acls/signals/organization_handling.py:34
 msgid ""
 "Organization administrators can administrate all objects which are owned by "
 "the organization it self"
 msgstr ""
 
-#: acl/signals/organization_handling.py:39
+#: acls/signals/organization_handling.py:39
 msgid ""
 "Organization members can view all objects which are owned by the "
 "organization it self"
 msgstr ""
 
-#: acl/signals/organization_handling.py:43
+#: acls/signals/organization_handling.py:43
 msgid ""
 "Service administrators can perform all actions for all resources which are "
 "owned by the organization it self"
 msgstr ""
 
-#: acl/tables.py:13 acl/tables.py:38 templates/base.html:44
+#: acls/tables.py:13 acls/tables.py:38 templates/base.html:44
 #: templates/base.html:45 users/models.py:40
 msgid "Users"
 msgstr "Nutzer"
 
-#: acl/tables.py:39
+#: acls/tables.py:39
 #, fuzzy
 #| msgid "Allowed area"
 msgid "Allowed permissions"
 msgstr "Erlaubte Bereiche"
 
-#: acl/views.py:25 acl/views.py:28 monitoring/views.py:41
+#: acls/views.py:25 acls/views.py:28 monitoring/views.py:41
 #: monitoring/views.py:63 registry/tables/metadata.py:16
 #: registry/tables/metadata.py:57 registry/tables/service.py:36
 #: registry/tables/service.py:91 registry/tables/service.py:139

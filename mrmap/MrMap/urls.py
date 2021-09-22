@@ -25,7 +25,7 @@ urlpatterns = [
     # Apps
     path('', include('users.urls')),
     path('structure/', include('structure.urls')),
-    path('acl/', include('acl.urls')),
+    path('acls/', include('acls.urls')),
     path('ac-old/', include('autocompletes.urls')),
     path('registry/', include('registry.urls')),
     path('monitoring/', include('monitoring.urls')),

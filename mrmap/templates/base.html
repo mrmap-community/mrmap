@@ -171,7 +171,7 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarAclsDropdown">
                     <h6 class="dropdown-header">{% trans 'Acls' %}</h6>
-                    <a class="dropdown-item flex-grow-1" href="{% url 'acl:accesscontrollist_overview' %}">{% autoescape off %}{{ICONS.ACCESS_CONTROL_LIST}}{% endautoescape %} {% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'acls:accesscontrollist_overview' %}">{% autoescape off %}{{ICONS.ACCESS_CONTROL_LIST}}{% endautoescape %} {% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">

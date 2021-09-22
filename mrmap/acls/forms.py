@@ -1,6 +1,6 @@
 from django import forms
 from dal import autocomplete
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 from django.contrib.auth import get_user_model
 
 

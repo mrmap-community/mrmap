@@ -1,5 +1,5 @@
 from django.core.checks import register, Tags, Error
-from acl.models.acl import AccessControlList
+from acls.models.acls import AccessControlList
 
 
 @register(Tags.compatibility)

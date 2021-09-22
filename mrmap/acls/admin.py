@@ -2,8 +2,8 @@ from django.contrib import admin
 
 from guardian.models import UserObjectPermission, GroupObjectPermission
 
-from acl.models.acl import AccessControlList
-from acl.models.object_perms import ServiceUserObjectPermission, ServiceGroupObjectPermission
+from acls.models.acls import AccessControlList
+from acls.models.object_perms import ServiceUserObjectPermission, ServiceGroupObjectPermission
 
 
 class AccessControlListAdmin(admin.ModelAdmin):

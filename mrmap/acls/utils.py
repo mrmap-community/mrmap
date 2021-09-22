@@ -1,12 +1,12 @@
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, QuerySet
-from acl.models.acl import AccessControlList
-from acl.settings import DEFAULT_MEMBER_PERMISSIONS, DEFAULT_ORGANIZATION_ADMIN_PERMISSIONS
+from acls.models.acls import AccessControlList
+from acls.settings import DEFAULT_MEMBER_PERMISSIONS, DEFAULT_ORGANIZATION_ADMIN_PERMISSIONS
 
 
 def collect_default_permissions():
-    # collect configured default permissions for admin acl and member acl
+    # collect configured default permissions for admin acls and member acls
     admin_perms = Permission.objects.none()
     member_perms = []
     for model in AccessControlList.get_ownable_models():

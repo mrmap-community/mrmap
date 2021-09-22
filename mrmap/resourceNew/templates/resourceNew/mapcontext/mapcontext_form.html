@@ -22,6 +22,7 @@
             {{formset.management_form}}
             {% for form in formset.forms %}
             <div class="{{ formset.prefix }}-form" style="display:none">
+                {{form.media}}
                 {% bootstrap_form form %}
             </div>
             {% endfor %}

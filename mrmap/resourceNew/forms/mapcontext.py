@@ -21,7 +21,6 @@ class MapContextLayerForm(ModelForm):
         model = MapContextLayer
         widgets = {
             'parent': HiddenInput(),
-            # TODO: With the widget is not working. Something missing in template???
             'dataset_metadata': autocomplete.ModelSelect2(url='resourceNew.autocomplete:dataset_metadata_ac'),
             # TODO: Layer metadata should only appear and be filtered by the selected dataset metadata
             # 'layer_metadata': autocomplete.ModelSelect2(url='resourceNew.autocomplete:layer_metadata_ac')

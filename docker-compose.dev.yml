@@ -1,8 +1,5 @@
 version: '3.8'
 services:
-  postgis:
-    ports:
-      - 5432:5432
   test:
     build:
       context: ./mrmap

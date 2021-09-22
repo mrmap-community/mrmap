@@ -51,14 +51,17 @@ class MapContextLayer(MPTTModel):
                                          on_delete=models.CASCADE,
                                          null=True,
                                          blank=True)
-    layer_metadata = models.ForeignKey(LayerMetadata,
-                                       on_delete=models.CASCADE,
-                                       null=True,
-                                       blank=True)
-    feature_type_metadata = models.ForeignKey(FeatureTypeMetadata,
-                                              on_delete=models.CASCADE,
-                                              null=True,
-                                              blank=True)
+    # TODO
+    # layer_metadata = models.ForeignKey(LayerMetadata,
+    #                                   on_delete=models.CASCADE,
+    #                                   null=True,
+    #                                   blank=True)
+    # TODO
+    #feature_type_metadata = models.ForeignKey(FeatureTypeMetadata,
+    #                                          on_delete=models.CASCADE,
+    #                                          null=True,
+    #                                          blank=True)
+    preview_image = models.ImageField(null=True, blank=True)
     # zukünftig: kml, gml, ...
 
     def __str__(self):

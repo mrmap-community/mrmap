@@ -7,7 +7,7 @@
     <div class="card-header">
         {{ title }}
     </div>
-    <form action="{{ action_url }}" method="post">
+    <form action="{{ action_url }}" method="post" enctype="multipart/form-data">
         <div class="card-body">
             {% csrf_token %}
             {{form.media}}

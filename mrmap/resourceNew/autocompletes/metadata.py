@@ -10,16 +10,16 @@ class DatasetMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, 
     search_fields = ['title']
 
     # The id
-    def get_result_value(self, item):
-        return item.id
+    #def get_result_value(self, item):
+    #    return item.id
 
     # The text to display
-    def get_result_label(self, item):
-        return item.title
+    #def get_result_label(self, item):
+    #    return item.title
 
     # The text of the selected option
-    def get_selected_result_label(self, item):
-        return item.id
+    #def get_selected_result_label(self, item):
+    #    return item.id
 
 
 class LayerMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):

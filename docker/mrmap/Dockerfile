@@ -25,11 +25,16 @@ COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/
 COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/popper.min.js node_modules/jquery/dist/jquery.min.js /tmp/mrmap/static/js/
 
 RUN apt-get -qq update && \
-    apt-get -y install --no-install-recommends libssl-dev gdal-bin libpq-dev netcat && \
+    apt-get -y install --no-install-recommends wget libssl-dev gdal-bin libpq-dev netcat firefox-esr && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache --no-cache-dir /wheels/* && \
     rm -r /wheels
+
+RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz && \
+    tar -xvzf geckodriver* && \
+    chmod +x geckodriver && \
+    mv geckodriver /usr/local/bin
 
 # set work directory
 WORKDIR /opt/mrmap

@@ -32,4 +32,3 @@ services:
       - ./.env.mrmap
     depends_on:
       - postgis
-      - redis

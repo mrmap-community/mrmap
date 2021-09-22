@@ -4,6 +4,7 @@ from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
 from main.models import GenericModelMixin, CommonInfo
+from resourceNew.models import DatasetMetadata, LayerMetadata, FeatureTypeMetadata
 
 
 class MapContext(GenericModelMixin, CommonInfo):
@@ -46,11 +47,19 @@ class MapContextLayer(MPTTModel):
                              blank=True,
                              verbose_name=_("title"),
                              help_text=_("a short descriptive title for this map context layer"))
-
-    # todo referenz auf Dataset (mit Layer)
-    # todo referenz auf Layer
-    # todo referenz auf FeatureType (zukünftig)
-    # zukünftig: featuretype, kml, gml, ...
+    dataset_metadata = models.ForeignKey(DatasetMetadata,
+                                         on_delete=models.CASCADE,
+                                         null=True,
+                                         blank=True)
+    layer_metadata = models.ForeignKey(LayerMetadata,
+                                       on_delete=models.CASCADE,
+                                       null=True,
+                                       blank=True)
+    feature_type_metadata = models.ForeignKey(FeatureTypeMetadata,
+                                              on_delete=models.CASCADE,
+                                              null=True,
+                                              blank=True)
+    # zukünftig: kml, gml, ...
 
     def __str__(self):
         return f"{self.name}"

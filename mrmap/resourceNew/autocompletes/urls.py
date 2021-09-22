@@ -1,6 +1,7 @@
 from django.urls import path
 from resourceNew.autocompletes import security as security_views
 from resourceNew.autocompletes import service as service_views
+from resourceNew.autocompletes import metadata as metadata_views
 
 app_name = "resourceNew.autocomplete"
 urlpatterns = [
@@ -14,5 +15,8 @@ urlpatterns = [
 
     path('services/', service_views.ServiceAutocomplete.as_view(), name="service_ac"),
 
+    path('dataset-metadata/', metadata_views.DatasetMetadataAutocomplete.as_view(), name='dataset_metadata_ac'),
+
+    path('layer-metadata/', metadata_views.LayerMetadataAutocomplete.as_view(), name='layer_metadata_ac')
 ]
 

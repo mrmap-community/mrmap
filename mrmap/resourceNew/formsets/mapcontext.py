@@ -1,4 +1,4 @@
-from django.forms import BaseInlineFormSet
+from django.forms import BaseInlineFormSet, HiddenInput
 from extra_views import InlineFormSetFactory
 
 from resourceNew.forms.mapcontext import MapContextLayerForm

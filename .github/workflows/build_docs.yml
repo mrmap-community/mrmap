@@ -38,9 +38,6 @@ jobs:
       # ===============================
       - name: build documentation
         run: |
-          cd docs/
-          export $(grep -v '^#' ../.env.mrmap | xargs)
-          export $(grep -v '^#' ../.env.docs | xargs)
-          make linkcheck
-          make html
+          export $(grep -v '^#' .env.docs | xargs)
+          sphinx-multiversion docs/source docs/build/html -b linkcheck
       # ===============================

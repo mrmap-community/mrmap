@@ -49,6 +49,7 @@ release = 'v0.0.0'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx_rtd_theme',
+    'sphinx_multiversion',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -83,3 +84,10 @@ StandaloneHTMLBuilder.supported_image_types = [
     'image/png',
     'image/jpeg'
 ]
+
+smv_tag_whitelist = r'^v\d+\.\d+$'            # Include tags like "v2.1"
+
+smv_branch_whitelist = r'^.*$'                # Include all branches
+smv_branch_whitelist = r'^develop$'           # Include all branches except "master"
+
+smv_remote_whitelist = r'^.*$'                # Use branches from all remotes

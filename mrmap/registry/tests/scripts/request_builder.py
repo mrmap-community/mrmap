@@ -3,7 +3,7 @@ from pathlib import Path
 
 from django.contrib.gis.geos import GEOSGeometry
 
-from epsg_registry_offline.registry import Registry
+from axis_order_cache.registry import Registry
 from registry.ows_client.request_builder import WebService
 from registry.parsers.ogc.feature_collection import FeatureCollection
 

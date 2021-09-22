@@ -4,8 +4,8 @@ from eulxml import xmlmap
 from requests import Request
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.contrib.gis.gdal import SpatialReference
-from epsg_registry_offline.registry import Registry
-from epsg_registry_offline.utils import get_epsg_srid, adjust_axis_order
+from axis_order_cache.registry import Registry
+from axis_order_cache.utils import get_epsg_srid, adjust_axis_order
 from registry.ows_client.exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam, \
     MissingVersionParam
 import urllib.parse as urlparse

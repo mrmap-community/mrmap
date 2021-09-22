@@ -1,6 +1,6 @@
 from django.core.cache import cache
 from requests import Request, Session
-from epsg_registry_offline.models import SpatialReference, Origin
+from axis_order_cache.models import SpatialReference, Origin
 
 
 class Registry(object):
@@ -13,13 +13,13 @@ class Registry(object):
        upgraded to follow the ISO 19111:2019 revisions for dynamic datums, geoid-based vertical datums, datum ensembles
        and derived projected coordinate reference systems. (from https://epsg.org/home.html)
 
-    To get the :class:`epsg_registry_offline.models.SpatialReference` objects the workflow described in
-    :meth:`epsg_registry_offline.registry.Registry.get`` is used.
+    To get the :class:`axis_order_cache.models.SpatialReference` objects the workflow described in
+    :meth:`axis_order_cache.registry.Registry.get`` is used.
 
     **Example usage:**
 
     .. code-block:: python
-       from epsg_registry_offline import Registry
+       from axis_order_cache import Registry
 
        registry = Registry()
        sr = registry.get(srid=4326)
@@ -29,7 +29,7 @@ class Registry(object):
     """
 
     epsg_api_url = "https://apps.epsg.org/api/v1/"
-    cache_prefix = "epsg_registry_offline"
+    cache_prefix = "axis_order_cache"
     ttl = 7
 
     def __init__(self, proxies=None):
@@ -39,7 +39,7 @@ class Registry(object):
         """Fetch the wkt for a given srid from remote epsg api
 
         :return: the spatial reference
-        :rtype: :class:`epsg_registry_offline.models.SpatialReference`
+        :rtype: :class:`axis_order_cache.models.SpatialReference`
         """
         try:
             request = Request(method="GET", url=f"{self.epsg_api_url}CoordRefSystem/{srid}/export/?format=wkt")
@@ -60,7 +60,7 @@ class Registry(object):
         3th: fallback to the local gdal registry
 
         :return: the initialized spatial reference object with the origin information.
-        :rtype: :class:`epsg_registry_offline.models.SpatialReference`
+        :rtype: :class:`axis_order_cache.models.SpatialReference`
 
         """
         cached_crs = cache.get(key=f"{self.cache_prefix}-{srid}")

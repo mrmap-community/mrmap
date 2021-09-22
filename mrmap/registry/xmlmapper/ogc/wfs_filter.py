@@ -5,7 +5,7 @@ from django.template.loader import render_to_string
 from eulxml import xmlmap
 from lxml import etree
 
-from epsg_registry_offline.utils import adjust_axis_order
+from axis_order_cache.utils import adjust_axis_order
 
 
 class Filter(xmlmap.XmlObject):

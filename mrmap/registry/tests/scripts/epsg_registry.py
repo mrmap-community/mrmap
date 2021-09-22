@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from epsg_registry_offline.registry import Registry
+from axis_order_cache.registry import Registry
 from registry.parsers.ogc.feature_collection import FeatureCollection
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MrMap.settings_docker")

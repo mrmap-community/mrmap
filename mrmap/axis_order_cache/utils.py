@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import MultiPolygon, Polygon, Point
 from django.contrib.gis.gdal.geometries import MultiPolygon as GdalMultiPolygon, Polygon as GdalPolygon, \
     Point as GdalPoint
-from epsg_registry_offline.registry import Registry
+from axis_order_cache.registry import Registry
 
 
 def get_epsg_srid(srs_name):

@@ -1,6 +1,6 @@
 from django.contrib.gis.geos import GEOSGeometry
 from eulxml import xmlmap
-from epsg_registry_offline.utils import get_epsg_srid, adjust_axis_order
+from axis_order_cache.utils import get_epsg_srid, adjust_axis_order
 
 
 class Gml(xmlmap.XmlObject):

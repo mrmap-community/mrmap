@@ -1,0 +1,5 @@
+introduction/index.rst:56: [redirected permanently] https://djangoproject.com/ to https://www.djangoproject.com/
+introduction/index.rst:14: [redirected permanently] http://www.opengeospatial.org/ to https://www.ogc.org/
+installation/index.rst:29: [redirected with Found] https://github.com/mrmap-community/mrmap/archive/refs/heads/develop.zip to https://codeload.github.com/mrmap-community/mrmap/zip/refs/heads/develop
+introduction/index.rst:14: [redirected permanently] https://www.opengeospatial.org/standards/wms to https://www.ogc.org/standards/wms
+introduction/index.rst:14: [redirected permanently] https://www.opengeospatial.org/standards/wfs to https://www.ogc.org/standards/wfs

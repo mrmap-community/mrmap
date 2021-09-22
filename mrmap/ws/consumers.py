@@ -4,9 +4,9 @@ from django.test import RequestFactory
 from django_tables2 import RequestConfig
 from django.contrib.contenttypes.models import ContentType
 
-from job.filtersets import JobFilterSet, TaskFilterSet
-from job.tables import JobTable, TaskTable
-from job.models import Job, Task
+from jobs.filtersets import JobFilterSet, TaskFilterSet
+from jobs.tables import JobTable, TaskTable
+from jobs.models import Job, Task
 from ws.auth import NonAnonymousJsonWebsocketConsumer
 from ws.utils import get_app_view_model
 from ws.messages import Toast

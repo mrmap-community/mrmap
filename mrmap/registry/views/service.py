@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from extra_views import UpdateWithInlinesView
 from guardian.core import ObjectPermissionChecker
 from MrMap.icons import get_icon, IconEnum
-from job.models import Job
+from jobs.models import Job
 from extras.utils import camel_to_snake
 from extras.views import SecuredListMixin, SecuredDetailView, SecuredUpdateView, SecuredFormView, SecuredDeleteView
 from registry.formsets.service import ExternalAuthenticationInline, ProxySettingInline

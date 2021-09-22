@@ -1,6 +1,6 @@
 from celery import states
 from django.db.models import Q
-from job.models import Task, Job
+from jobs.models import Task, Job
 from registry.enums.service import OGCServiceEnum
 from registry.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
     FeatureTypeMetadata, DatasetMetadata

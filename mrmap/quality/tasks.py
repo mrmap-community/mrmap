@@ -12,7 +12,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 
-from job.tasks import CurrentTask, NewJob
+from jobs.tasks import CurrentTask, NewJob
 from quality.enums import ConformityTypeEnum, ReportType
 from quality.models import ConformityCheckRun, \
     ConformityCheckConfigurationExternal

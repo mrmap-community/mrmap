@@ -8,7 +8,7 @@ from structure.enums import PendingTaskEnum
 from structure.models import Organization
 from django_celery_results.models import TaskResult
 from django.utils import timezone
-from job.models import Task as DbTask
+from jobs.models import Task as DbTask
 
 
 # todo: deprecated; use classes below

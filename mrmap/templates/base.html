@@ -159,10 +159,10 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarJobDropdown">
                     <h6 class="dropdown-header">{% trans 'Jobs' %}</h6>
-                    <a class="dropdown-item flex-grow-1" href="{% url 'job:job_list' %}">{% trans 'Jobs' %} <span data-bind="text: jobsCount" class="badge {% if job_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
+                    <a class="dropdown-item flex-grow-1" href="{% url 'jobs:job_list' %}">{% trans 'Jobs' %} <span data-bind="text: jobsCount" class="badge {% if job_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Tasks' %}</h6>
-                    <a class="dropdown-item" href="{% url 'job:task_list' %}">{% trans 'Tasks' %} <span data-bind="text: tasksCount" class="badge {% if task_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
+                    <a class="dropdown-item" href="{% url 'jobs:task_list' %}">{% trans 'Tasks' %} <span data-bind="text: tasksCount" class="badge {% if task_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'acls' %}active{% endif %}">
@@ -182,7 +182,7 @@
             </li>
         </ul>
         <div>
-        <a data-bind="visible: jobsCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'job:job_list' %}">
+        <a data-bind="visible: jobsCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'jobs:job_list' %}">
             <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'There are open jobs' %}">
                {{ICONS.PENDING_TASKS}} <span data-bind="text: jobsCount" class="badge badge-pill badge-light fading"></span>
             </span>

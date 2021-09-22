@@ -5,7 +5,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
-from job.tasks import NewJob, CurrentTask
+from jobs.tasks import NewJob, CurrentTask
 from registry.enums.service import OGCOperationEnum, HttpMethodEnum
 from registry.models import DatasetMetadata, Service, OperationUrl
 from registry.models.harvest import HarvestResult

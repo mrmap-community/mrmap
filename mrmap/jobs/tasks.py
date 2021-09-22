@@ -3,11 +3,11 @@ from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
-from job.enums import TaskStatusEnum
+from jobs.enums import TaskStatusEnum
 from extras.models import set_current_owner
 from structure.models import Organization
 from django.utils import timezone
-from job.models import Job as DbJob, Task as DbTask
+from jobs.models import Job as DbJob, Task as DbTask
 
 
 class CommonInfoSetupMixin(Task, ABC):

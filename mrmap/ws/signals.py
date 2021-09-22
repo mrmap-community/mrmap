@@ -5,7 +5,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils.html import format_html
 from django.utils.translation import gettext as _
-from job.models import Job, Task
+from jobs.models import Job, Task
 from django.contrib.contenttypes.models import ContentType
 
 

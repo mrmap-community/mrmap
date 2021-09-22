@@ -11,7 +11,7 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import DetailView
 from django_filters.views import FilterView
 
-from job.models import Job
+from jobs.models import Job
 from extras.views import SecuredCreateView, SecuredListMixin, SecuredDeleteView
 from quality.filtersets import ConformityCheckRunFilterSet
 from quality.forms import ConformityCheckRunModelForm

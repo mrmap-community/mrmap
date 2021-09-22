@@ -758,86 +758,86 @@ msgstr ""
 "Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
 "`add_perm` setzen."
 
-#: job/models.py:14 job/models.py:75 registry/models/mapcontext.py:42
+#: jobs/models.py:14 jobs/models.py:75 registry/models/mapcontext.py:42
 #: registry/models/metadata.py:45 registry/models/metadata.py:743
 #, fuzzy
 #| msgid "Username"
 msgid "name"
 msgstr "Nutzername"
 
-#: job/models.py:15 job/models.py:76
-msgid "Describe what this job does."
+#: jobs/models.py:15 jobs/models.py:76
+msgid "Describe what this jobs does."
 msgstr ""
 
-#: job/models.py:72
+#: jobs/models.py:72
 #, fuzzy
 #| msgid "Health state"
 msgid "task state"
 msgstr "Gesundheitszustand"
 
-#: job/models.py:73
+#: jobs/models.py:73
 msgid "Current state of the task being run"
 msgstr ""
 
-#: job/models.py:89
+#: jobs/models.py:89
 #, fuzzy
 #| msgid "Parent Layer"
 msgid "parent task"
 msgstr "Gehört zu Ebene"
 
-#: job/models.py:90
+#: jobs/models.py:90
 msgid "the parent task of this sub task"
 msgstr ""
 
-#: job/tables.py:14 job/tables.py:87 registry/tables/service.py:39
+#: jobs/tables.py:14 jobs/tables.py:87 registry/tables/service.py:39
 msgid "Status"
 msgstr "Status"
 
-#: job/tables.py:17 ws/signals.py:25
+#: jobs/tables.py:17 ws/signals.py:25
 msgid "details"
 msgstr "Einzelheiten"
 
-#: job/tables.py:21
+#: jobs/tables.py:21
 #, fuzzy
 #| msgid "Date of creation"
 msgid "Date Created"
 msgstr "Erstellt am"
 
-#: job/tables.py:24
+#: jobs/tables.py:24
 msgid "Date Done"
 msgstr ""
 
-#: job/tables.py:27 job/tables.py:97
+#: jobs/tables.py:27 jobs/tables.py:97
 msgid "Execution time"
 msgstr ""
 
-#: job/tables.py:29 job/tables.py:99
+#: jobs/tables.py:29 jobs/tables.py:99
 msgid "Progress"
 msgstr "Fortschritt"
 
-#: job/tables.py:51 job/tables.py:122
+#: jobs/tables.py:51 jobs/tables.py:122
 msgid "Task is pending"
 msgstr "Aufgabe steht aus"
 
-#: job/tables.py:54 job/tables.py:125
+#: jobs/tables.py:54 jobs/tables.py:125
 msgid "Task is running"
 msgstr "Aufgabe wird bearbeitet"
 
-#: job/tables.py:57 job/tables.py:128
+#: jobs/tables.py:57 jobs/tables.py:128
 #, fuzzy
 #| msgid "Dataset successfully deleted."
 msgid "Task successfully done"
 msgstr "Datensatz erfolgreich gelöscht."
 
-#: job/tables.py:60 job/tables.py:131
+#: jobs/tables.py:60 jobs/tables.py:131
 msgid "Task unexpected stopped"
 msgstr "Aufgabe unerwartet beendet"
 
-#: job/tables.py:91
+#: jobs/tables.py:91
 msgid "Started at"
 msgstr ""
 
-#: job/tables.py:94
+#: jobs/tables.py:94
 msgid "Done at"
 msgstr ""
 

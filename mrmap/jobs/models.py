@@ -2,17 +2,17 @@ from django.db import models
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Avg, Sum, F
-from job.enums import TaskStatusEnum
-from job.managers import TaskManager
+from jobs.enums import TaskStatusEnum
+from jobs.managers import TaskManager
 from extras.models import CommonInfo
 from django.urls import reverse
 
 
 class Job(CommonInfo):
-    """ Django model to represent a set of tasks. It gives a summery view of all tasks which are part of this job. """
+    """ Django model to represent a set of tasks. It gives a summery view of all tasks which are part of this jobs. """
     name = models.CharField(max_length=256,
                             verbose_name=_("name"),
-                            help_text=_("Describe what this job does."))
+                            help_text=_("Describe what this jobs does."))
 
     class Meta:
         ordering = ["-id"]
@@ -60,11 +60,11 @@ class Job(CommonInfo):
         return f"{self.pk} | {self.name} | {self.status} | {self.progress}"
 
     def get_absolute_url(self):
-        return f"{reverse('job:task_list')}?job__in={self.pk}"
+        return f"{reverse('jobs:task_list')}?job__in={self.pk}"
 
 
 class Task(CommonInfo):
-    """ Django model store celery task processing. A task is always a part of a job which contains one or more tasks."""
+    """ Django model store celery task processing. A task is always a part of a jobs which contains one or more tasks."""
     status = models.CharField(
         max_length=50,
         default=TaskStatusEnum.PENDING.value,
@@ -73,7 +73,7 @@ class Task(CommonInfo):
         help_text=_('Current state of the task being run'))
     name = models.CharField(max_length=256,
                             verbose_name=_("name"),
-                            help_text=_("Describe what this job does."))
+                            help_text=_("Describe what this jobs does."))
     phase = models.TextField(default="")
     progress = models.FloatField(default=0.0)
     started_at = models.DateTimeField(null=True,

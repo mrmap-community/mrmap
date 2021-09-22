@@ -13,7 +13,7 @@ from requests.auth import HTTPDigestAuth
 
 from MrMap.icons import get_icon, IconEnum
 from MrMap.settings import PROXIES
-from job.models import Job
+from jobs.models import Job
 from extras.models import GenericModelMixin, CommonInfo
 from extras.utils import camel_to_snake
 from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \

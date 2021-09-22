@@ -8,7 +8,7 @@ from registry.enums.service import AuthTypeEnum
 from registry.models import Service as DbService, FeatureType, DatasetMetadata
 from registry.models import RemoteMetadata
 from registry.models.security import ExternalAuthentication
-from job.tasks import NewJob, CurrentTask
+from jobs.tasks import NewJob, CurrentTask
 from registry.xmlmapper.ogc.capabilities import get_parsed_service
 from structure.enums import PendingTaskEnum
 from django.db import transaction

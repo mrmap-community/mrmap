@@ -33,7 +33,7 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path('csw/', include('csw.urls')),
     path('quality/', include('quality.urls')),
-    path('job/', include('job.urls')),
+    path('jobs/', include('jobs.urls')),
 
     # Autocompletes
     path('ac/registry/', include('registry.autocompletes.urls')),

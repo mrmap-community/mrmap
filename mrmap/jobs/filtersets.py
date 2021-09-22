@@ -1,5 +1,5 @@
 import django_filters
-from job.models import Job, Task
+from jobs.models import Job, Task
 
 
 class JobFilterSet(django_filters.FilterSet):

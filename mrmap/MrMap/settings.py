@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'formtools',
     'users',
     'structure',
-    'job',
+    'jobs',
     'django_extensions',
     'captcha',
     'rest_framework',

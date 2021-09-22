@@ -11,6 +11,8 @@ services:
       - type: bind
         source: ./mrmap
         target: /opt/mrmap
+    networks:
+      - backend
     env_file:
       - ./.env.mrmap
     depends_on:

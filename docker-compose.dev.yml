@@ -5,7 +5,7 @@ services:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
     command: >
-      /bin/bash -c "python manage.py test"
+      /bin/bash -c "python manage.py test --noinput"
     hostname: "mrmap-test"
     volumes:
       - type: bind

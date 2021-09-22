@@ -1,0 +1,28 @@
+<testsuite name="features.example.user login" tests="1" errors="1" failures="0" skipped="0" time="0.000326" timestamp="2021-09-21T09:25:54.171104" hostname="mrmap-behave"><testcase classname="features.example.user login" name="Successful user login process" status="failed" time="0.000326"><error type="TypeError" message="create_test_user() missing 1 required positional argument: 'users'">
+<![CDATA[
+Failing step: Given there are set of Users in Database ... failed in 0.000s
+  | username | password    |
+  | peter    | password123 |
+Location: main/tests/acceptance/features/example.feature:7
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/behave/model.py", line 1329, in run
+    match.run(runner.context)
+  File "/usr/local/lib/python3.9/site-packages/behave/matchers.py", line 98, in run
+    self.func(context, *args, **kwargs)
+TypeError: create_test_user() missing 1 required positional argument: 'users'
+]]>
+</error><system-out>
+<![CDATA[
+@scenario.begin
+  Scenario: Successful user login process
+    Given there are set of Users in Database ... failed in 0.000s
+      | username | password    |
+      | peter    | password123 |
+    Given User "peter" is not logged in ... skipped in 0.000s
+    Given Browser is opened with "/" path ... skipped in 0.000s
+    When User "peter" enters username and password ... skipped in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase></testsuite>

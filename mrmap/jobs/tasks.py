@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from jobs.enums import TaskStatusEnum
 from extras.models import set_current_owner
-from structure.models import Organization
+from users.models.groups import Organization
 from django.utils import timezone
 from jobs.models import Job as DbJob, Task as DbTask
 

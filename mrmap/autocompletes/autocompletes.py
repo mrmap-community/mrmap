@@ -10,7 +10,7 @@ from guardian.shortcuts import get_objects_for_user
 from acls.models.acls import AccessControlList
 from monitoring.models import MonitoringRun, MonitoringResult, HealthState
 from registry.models import Service, Layer, FeatureType
-from structure.models import Organization
+from users.models.groups import Organization
 from registry.models.metadata import Keyword, MetadataContact, ReferenceSystem
 from registry.models.security import OGCOperation, ServiceAccessGroup
 

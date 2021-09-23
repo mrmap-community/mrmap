@@ -4,7 +4,7 @@ from MrMap.validators import validate_get_capablities_uri
 from extras.forms import ModelForm
 from registry.enums.service import AuthTypeEnum
 from registry.models import Service, Layer, FeatureType
-from structure.models import Organization
+from users.models.groups import Organization
 from django.core.exceptions import ValidationError
 
 

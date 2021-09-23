@@ -1,11 +1,11 @@
 from abc import ABC
+from mrmap.jobs.enums import TaskStatusEnum
 from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from extras.models import set_current_owner
-from structure.enums import PendingTaskEnum
-from structure.models import Organization
+from users.models.groups import Organization
 from django_celery_results.models import TaskResult
 from django.utils import timezone
 from jobs.models import Task as DbTask
@@ -77,7 +77,7 @@ class DefaultBehaviourTask(Task, ABC):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         if self.pending_task:
-            self.pending_task.status = PendingTaskEnum.FAILURE.value
+            self.pending_task.status = TaskStatusEnum.FAILURE.value
             self.pending_task.done_at = timezone.now()
             self.pending_task.traceback = einfo
             self.pending_task.save()

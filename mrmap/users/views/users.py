@@ -19,22 +19,22 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
+from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
-from django.utils.decorators import method_decorator
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
 from extras.views import SecuredUpdateView, SecuredDeleteView, SecuredCreateView, SecuredListMixin
-from structure.forms import RegistrationForm
-from structure.models import Organization, PublishRequest
-from users.forms import SubscriptionForm, MrMapUserForm
-from users.models import Subscription, UserActivation
-from users.models import Subscription
-from users.tables import SubscriptionTable
+from users.forms.groups import RegistrationForm
+from users.models.groups import Organization, PublishRequest
+from users.forms.users import SubscriptionForm, MrMapUserForm
+from users.models.users import Subscription, UserActivation
+from users.tables.users import SubscriptionTable, MrMapUserTable
 from django.conf import settings
+from django.contrib.auth import get_user_model
+
 
 
 class MrMapLoginView(SuccessMessageMixin, LoginView):
@@ -198,3 +198,11 @@ class DeleteSubscriptionView(SecuredDeleteView):
     success_url = reverse_lazy('manage_subscriptions')
     success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
     title = _('Delete subscription')
+
+
+
+class UserTableView(SecuredListMixin, FilterView):
+    model = get_user_model()
+    table_class = MrMapUserTable
+    filterset_fields = {'username': ['icontains'],
+                        'groups__name': ['icontains']}

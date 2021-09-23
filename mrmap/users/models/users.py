@@ -17,9 +17,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import IconEnum, get_icon
 from registry.models import Service
-from structure.models import Organization
-from structure.settings import USER_ACTIVATION_TIME_WINDOW
-from users.settings import default_request_activation_time
+from users.models.groups import Organization
+from users.settings import USER_ACTIVATION_TIME_WINDOW
 
 
 class MrMapUser(AbstractUser):
@@ -109,7 +108,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
              update_fields=None):
         if self._state.adding:
             if not self.activation_until:
-                self.activation_until = timezone.now() + timezone.timedelta(days=default_request_activation_time)
+                self.activation_until = timezone.now() + timezone.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
             self.activation_hash = self.make_token(self.user)
         super().save(force_insert, force_update, using, update_fields)
 

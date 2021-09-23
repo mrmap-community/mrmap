@@ -1,9 +1,8 @@
+from django.contrib.auth import get_user_model
 from extras.tables.columns import DefaultActionButtonsColumn
 from extras.tables.template_code import VALUE_ABSOLUTE_LINK
 import django_tables2 as tables
 from extras.tables.tables import SecuredTable
-from django.utils.html import format_html
-from django.utils.translation import gettext_lazy as _
 from users.models import Subscription
 
 
@@ -18,3 +17,10 @@ class SubscriptionTable(SecuredTable):
                   'notify_on_metadata_edit',
                   'notify_on_access_edit')
         prefix = 'subscription-table'
+
+
+class MrMapUserTable(tables.Table):
+    class Meta:
+        model = get_user_model()
+        fields = ('username', 'organization', 'groups', 'is_superuser')
+        template_name = "skeletons/django_tables2_bootstrap4_custom.html"

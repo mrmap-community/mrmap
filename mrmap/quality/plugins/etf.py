@@ -14,7 +14,6 @@ from django.conf import settings
 from quality.enums import ReportType
 from quality.helper.mappingHelper import map_parameters
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
-from structure.celery_helper import runs_as_async_task
 
 
 class EtfClient:
@@ -132,7 +131,7 @@ class QualityEtf:
                     self.run_url):
                 time.sleep(self.polling_interval_seconds)
                 self.increase_polling_interval()
-                if runs_as_async_task():
+                if not current_task and current_task.request.id is None:
                     self.update_progress()
             test_report = self.client.fetch_test_report(self.run_url)
             test_report_html = self.client.fetch_test_report_html(self.run_url)

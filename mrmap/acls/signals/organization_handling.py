@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from acls.models.acls import AccessControlList
 from acls.utils import collect_default_permissions
 from registry.models import Service
-from structure.models import Organization
+from users.models.groups import Organization
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType

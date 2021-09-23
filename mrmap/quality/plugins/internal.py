@@ -14,7 +14,6 @@ from quality.enums import RulePropertyEnum, ReportType
 from quality.models import RuleSet, Rule, \
     ConformityCheckConfigurationInternal, \
     ConformityCheckRun
-from structure.celery_helper import runs_as_async_task
 
 
 class QualityInternal:
@@ -70,7 +69,7 @@ class QualityInternal:
             optional_result["mandatory"] = False
             results["rule_sets"].append(optional_result)
 
-            if runs_as_async_task():
+            if not current_task and current_task.request.id is None:
                 self.update_progress()
 
         self.check_run.passed = results["success"]

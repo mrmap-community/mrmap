@@ -11,7 +11,7 @@ from registry.models import DatasetMetadata, Service, OperationUrl
 from registry.models.harvest import HarvestResult
 from registry.ows_client.request_builder import CatalogueServiceWeb
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
-from structure.enums import PendingTaskEnum
+from users.models.groups import PendingTaskEnum
 from time import sleep
 
 MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]

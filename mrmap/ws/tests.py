@@ -10,7 +10,7 @@ from django_tables2 import RequestConfig
 from acls.models.acls import AccessControlList
 from service.filters import PendingTaskFilter
 from service.tables import PendingTaskTable
-from structure.models import Workflow
+from users.models.groups import Workflow
 from tests.baker_recipes.db_setup import create_superadminuser, create_public_organization
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from channels.testing import WebsocketCommunicator

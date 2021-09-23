@@ -18,7 +18,7 @@ from quality.models import ConformityCheckRun, \
     ConformityCheckConfigurationExternal
 from quality.plugins.etf import QualityEtf, EtfClient
 from quality.plugins.internal import QualityInternal
-from structure.enums import PendingTaskEnum
+from jobs.enums import TaskStatusEnum
 
 logger = get_task_logger(__name__)
 
@@ -48,7 +48,7 @@ def run_conformity_check(self, run_id: int, **kwargs):
              bind=True)
 def run_conformity_check_etf(self, run_id: int, **kwargs):
     if self.task:
-        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = "performing ETF-based conformity check..."
         self.task.started_at = timezone.now()
         self.task.save()
@@ -73,7 +73,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
 
         e = sys.exc_info()[0]
         self.task.progress = 100
-        self.task.status = PendingTaskEnum.FAILURE
+        self.task.status = TaskStatusEnum.FAILURE
         self.task.done_at = timezone.now()
         self.task.phase = f'Failure. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
@@ -81,7 +81,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
 
     if self.task:
         self.task.progress = 100
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
@@ -93,7 +93,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
              bind=True)
 def run_conformity_check_internal(self, run_id: int, **kwargs):
     if self.task:
-        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = "performing internal conformity check..."
         self.task.started_at = timezone.now()
         self.task.save()
@@ -115,7 +115,7 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
 
         e = sys.exc_info()[0]
         self.task.progress = 100
-        self.task.status = PendingTaskEnum.FAILURE
+        self.task.status = TaskStatusEnum.FAILURE
         self.task.done_at = timezone.now()
         self.task.phase = f'Failure. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
@@ -123,7 +123,7 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
 
     if self.task:
         self.task.progress = 100
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()

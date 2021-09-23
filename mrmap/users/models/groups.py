@@ -8,8 +8,7 @@ from acls.models.acls import AccessControlList
 from extras.models import UuidPk, CommonInfo
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
-from structure.permissionEnums import PermissionEnum
-from users.settings import default_request_activation_time
+from users.settings import DEFAULT_REQUEST_ACIVATION_TIME
 from django.utils import timezone
 
 
@@ -144,7 +143,7 @@ class BaseInternalRequest(UuidPk, CommonInfo):
     def save(self, *args, **kwargs):
         if self._state.adding:
             if not self.activation_until:
-                self.activation_until = timezone.now() + timezone.timedelta(days=default_request_activation_time)
+                self.activation_until = timezone.now() + timezone.timedelta(days=DEFAULT_REQUEST_ACIVATION_TIME)
         else:
             if timezone.now() > self.activation_until:
                 self.delete()

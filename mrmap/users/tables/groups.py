@@ -1,23 +1,28 @@
+from mrmap.users.tables.template_codes import PUBLISHES_REQUEST_BUTTON, REMOVE_PUBLISHER_BUTTON
 import django_tables2 as tables
-from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from acls.models.acls import AccessControlList
 from extras.tables.columns import DefaultActionButtonsColumn
 from extras.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
 from extras.template_codes.template_codes import PERMISSIONS
-from structure.models import Organization, PublishRequest
-from structure.tables.columns import PublishesRequestButtonsColumn, RemovePublisherButtonColumn
+from models.groups import Organization, PublishRequest
+from extras.tables.tables import SecuredTable
 
 
-
-class PublishesRequestTable(tables.Table):
+class PublishesRequestTable(SecuredTable):
+    perm_checker = None
     from_organization = tables.TemplateColumn(
         template_code=VALUE_ABSOLUTE_LINK,
     )
     to_organization = tables.TemplateColumn(
         template_code=VALUE_ABSOLUTE_LINK,
     )
-    actions = PublishesRequestButtonsColumn()
+    actions = tables.TemplateColumn(template_code=PUBLISHES_REQUEST_BUTTON,
+                                    verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})
 
     class Meta:
         model = PublishRequest
@@ -56,12 +61,18 @@ class OrganizationTable(tables.Table):
         prefix = 'organizations-table'
 
 
-class OrganizationPublishersTable(tables.Table):
+class OrganizationPublishersTable(SecuredTable):
+    perm_checker = None
     name = tables.TemplateColumn(
         template_code=VALUE_ABSOLUTE_LINK
     )
 
-    actions = RemovePublisherButtonColumn()
+    actions = tables.TemplateColumn(template_code=REMOVE_PUBLISHER_BUTTON,
+                                    verbose_name=_('Actions'),
+                                    empty_values=[],
+                                    orderable=False,
+                                    attrs={"td": {"style": "white-space:nowrap;"}},
+                                    extra_context={'perm_checker': perm_checker})
 
     class Meta:
         model = Organization
@@ -79,10 +90,3 @@ class OrganizationAccessControlListTable(tables.Table):
 
     def render_user_set(self, value):
         return value.count()
-
-
-class MrMapUserTable(tables.Table):
-    class Meta:
-        model = get_user_model()
-        fields = ('username', 'organization', 'groups', 'is_superuser')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"

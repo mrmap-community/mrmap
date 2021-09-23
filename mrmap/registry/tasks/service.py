@@ -10,7 +10,7 @@ from registry.models import RemoteMetadata
 from registry.models.security import ExternalAuthentication
 from jobs.tasks import NewJob, CurrentTask
 from registry.xmlmapper.ogc.capabilities import get_parsed_service
-from structure.enums import PendingTaskEnum
+from users.models.groups import PendingTaskEnum
 from django.db import transaction
 from django.urls import reverse
 from django.conf import settings

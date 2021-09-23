@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     'formtools',
     'users',
-    'structure',
     'jobs',
     'django_extensions',
     'captcha',

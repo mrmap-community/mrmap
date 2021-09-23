@@ -23,7 +23,7 @@ jobs:
         run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build test 
         #run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test 
       - name: docker info
-        run: docker ps && docker container inspect mrmap_postgis_1
+        run: docker ps -a && docker container inspect mrmap_postgis_1
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:

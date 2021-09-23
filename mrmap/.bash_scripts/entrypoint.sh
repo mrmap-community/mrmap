@@ -1,11 +1,6 @@
 #!/bin/bash
 
-# wait for database
-while ! nc -z $SQL_HOST $SQL_PORT; do
-  echo "Waiting for postgres host to finish mrmap setup..."
-  sleep 0.1
-done
-echo "PostgreSQL host is up.. running setup..."
+/opt/mrmap/.bash_scripts/wait_db.sh
 
 
 # run mrmap setup command. It will handle everthing we need to pre setup the system.

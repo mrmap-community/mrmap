@@ -3,9 +3,8 @@
 # wait for database
 echo "checking database host is reachable..."
 while ! nc -z $SQL_HOST $SQL_PORT; do
-  echo "Waiting for database host..."
   sleep 0.1
-  echo "..."
+  echo "Waiting for database host..."
 done
 echo "database host is up... continue"
 

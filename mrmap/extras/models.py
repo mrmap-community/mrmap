@@ -37,16 +37,16 @@ class GenericModelMixin:
 
     :Example:
 
-    - reverse('structure:organization_view', args=[self.pk,]) to get the detail view url of an organization for example.
+    - reverse('users:organization_view', args=[self.pk,]) to get the detail view url of an organization for example.
 
-    - reverse('structure:organization_change', args=[self.pk,]) to get the change view url of an organization for example.
+    - reverse('users:organization_change', args=[self.pk,]) to get the change view url of an organization for example.
 
     .. note::
-        configure the path names in urls.py with the structure `classname_action`.
+        configure the path names in urls.py with the users `classname_action`.
 
         :Example:
 
-        app_name = 'structure'
+        app_name = 'users'
         urlpatterns = [
             ...
             path('organizations/<pk>', OrganizationDetailView.as_view(), name='organization_view'),

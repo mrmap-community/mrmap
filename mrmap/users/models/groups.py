@@ -117,15 +117,15 @@ class Organization(UuidPk, CommonInfo, Contact):
         return AccessControlList.objects.filter(owned_by_org__pk=self.pk)
 
     def get_absolute_url(self) -> str:
-        return reverse('structure:organization_view', args=[self.pk, ])
+        return reverse('users:organization_view', args=[self.pk, ])
 
     @property
     def publishers_uri(self):
-        return reverse('structure:organization_publisher_overview', args=[self.pk, ])
+        return reverse('users:organization_publisher_overview', args=[self.pk, ])
 
     @property
     def acls_uri(self):
-        return reverse('structure:organization_acl_overview', args=[self.pk, ])
+        return reverse('users:organization_acl_overview', args=[self.pk, ])
 
 
 class OrganizationPublishRelation(models.Model):
@@ -178,11 +178,11 @@ class PublishRequest(BaseInternalRequest):
         return f"{self.from_organization} would like to publish for {self.to_organization}"
 
     def get_absolute_url(self):
-        return f"{reverse('structure:publish_request_overview')}?from_organization={self.from_organization.pk}&to_organization={self.to_organization.pk}"
+        return f"{reverse('users:publish_request_overview')}?from_organization={self.from_organization.pk}&to_organization={self.to_organization.pk}"
 
     @property
     def accept_request_uri(self):
-        return reverse('structure:publish_request_accept', args=[self.pk])
+        return reverse('users:publish_request_accept', args=[self.pk])
 
     def clean(self):
         errors = []

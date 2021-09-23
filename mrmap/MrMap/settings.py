@@ -33,7 +33,14 @@ INSTALLED_APPS = [
     'channels',
     'ws',
     'guardian',
+    'users',
     'acls',
+    'jobs',
+    'registry',
+    'csw',
+    'monitoring',
+    'quality',
+    'extras',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
@@ -47,16 +54,12 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'formtools',
-    'users',
-    'jobs',
     'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
-    'csw',
     'django_celery_beat',
     'django_celery_results',
-    'monitoring',
     'bootstrap4',
     'fontawesome_5',
     'django_tables2',
@@ -64,13 +67,10 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
-    'quality',
     'leaflet',
     'breadcrumb',
     'mptt',
     'autocompletes',
-    'registry',
-    'extras',
 ]
 
 TEMPLATE_LOADERS = (
@@ -237,7 +237,7 @@ GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 
 GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
-GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
+GUARDIAN_ROLES_OWNER_MODEL = 'users.Organization'
 
 ################################################################
 # Database settings

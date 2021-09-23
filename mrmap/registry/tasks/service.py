@@ -10,7 +10,7 @@ from registry.models import RemoteMetadata
 from registry.models.security import ExternalAuthentication
 from jobs.tasks import NewJob, CurrentTask
 from registry.xmlmapper.ogc.capabilities import get_parsed_service
-from users.models.groups import PendingTaskEnum
+from jobs.enums import TaskStatusEnum
 from django.db import transaction
 from django.urls import reverse
 from django.conf import settings
@@ -74,7 +74,7 @@ def create_feature_type_elements(self,
             task = cls.objects.select_for_update().get(pk=self.task.pk)
             if not task.started_at:
                 task.started_at = timezone.now()
-            task.status = PendingTaskEnum.STARTED.value
+            task.status = TaskStatusEnum.STARTED.value
             task.progress += progress_step_size
             try:
                 phase = task.phase.split(":")
@@ -96,7 +96,7 @@ def set_task_success(self,
                      **kwargs):
     if self.task:
         self.task.progress = 100
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.save()
 
@@ -137,7 +137,7 @@ def fetch_remote_metadata_xml(self,
             with transaction.atomic():
                 cls = self.task.__class__
                 task = cls.objects.select_for_update().get(pk=self.task.pk)
-                task.status = PendingTaskEnum.STARTED.value
+                task.status = TaskStatusEnum.STARTED.value
                 if not task.started_at:
                     task.started_at = timezone.now()
                 task.progress += progress_step_size
@@ -185,7 +185,7 @@ def parse_remote_metadata_xml_for_service(self,
                 self.task.progress += progress_step_size
                 self.task.save()
     if self.task:
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{reverse("registry:dataset_metadata_list")}?id__in={",".join(str(pk) for pk in dataset_list)}">dataset metadata</a>'
         self.task.save()
@@ -212,7 +212,7 @@ def create_service_from_parsed_service(self,
         db_service_list (list): the id's of the created service object(s)
     """
     if self.task:
-        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = "download capabilities document..."
         self.task.started_at = timezone.now()
         self.task.save()
@@ -237,7 +237,7 @@ def create_service_from_parsed_service(self,
     response = session.send(request.prepare())
 
     if self.task:
-        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = "parse capabilities document..."
         self.task.progress = 1/3
         self.task.save()
@@ -256,7 +256,7 @@ def create_service_from_parsed_service(self,
 
     if self.task:
         self.task.phase = f'Done. <a href="{db_service.get_absolute_url()}">{db_service}</a>'
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.progress = 100
         self.task.done_at = timezone.now()
         self.task.save()

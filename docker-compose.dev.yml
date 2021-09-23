@@ -6,7 +6,7 @@ services:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
     command: >
-      /bin/bash -c "python manage.py makemigrations"
+      /bin/bash -c "python manage.py makemigrations users acls registry quality monitoring jobs csw"
     hostname: "mrmap-test"
     volumes:
       - type: bind

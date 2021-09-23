@@ -17,10 +17,10 @@ def collect_default_permissions():
                 member_perms.append(f'{model._meta.app_label}.{default_perm}_{model.__name__.lower()}')
 
     for default_perm in DEFAULT_ORGANIZATION_ADMIN_PERMISSIONS:
-        admin_perms |= get_perms_for_perm_list(f'structure.{default_perm}_organization')
+        admin_perms |= get_perms_for_perm_list(f'users.{default_perm}_organization')
 
     for default_perm in DEFAULT_MEMBER_PERMISSIONS:
-        member_perms.append(f'structure.{default_perm}_organization')
+        member_perms.append(f'users.{default_perm}_organization')
     return admin_perms, get_perms_for_perm_list(member_perms)
 
 

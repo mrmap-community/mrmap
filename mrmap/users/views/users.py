@@ -11,7 +11,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sites.shortcuts import get_current_site
-from django.db.models import Q
 from django.shortcuts import redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -21,13 +20,12 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
-from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
 from extras.views import SecuredUpdateView, SecuredDeleteView, SecuredCreateView, SecuredListMixin
-from users.forms.groups import RegistrationForm
+from users.forms.users import RegistrationForm
 from users.models.groups import Organization, PublishRequest
 from users.forms.users import SubscriptionForm, MrMapUserForm
 from users.models.users import Subscription, UserActivation

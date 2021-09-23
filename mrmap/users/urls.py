@@ -42,11 +42,10 @@ urlpatterns = [
     path('organizations/<pk>', groups_views.OrganizationDetailView.as_view(), name='organization_view'),
     path('organizations/<pk>/change', groups_views.OrganizationUpdateView.as_view(), name='organization_change'),
     path('organizations/<pk>/publishers', groups_views.OrganizationPublishersTableView.as_view(), name='organization_publisher_list'),
-    path('organizations/<pk>/acls', groups_views.OrganizationAccessControlListTableView.as_view(), name='organization_acl_list'),
 
     # PublishRequests
     path('publish-requests', groups_views.PublishRequestTableView.as_view(), name='publish_request_list'),
-    path('publish-requests/new', groups_views.PublishRequestNewView.as_view(), name='publish_request_add'),
+    path('publish-requests/new', groups_views.PublishRequestCreateView.as_view(), name='publish_request_add'),
     path('publish-requests/<pk>/change', groups_views.PublishRequestUpdateView.as_view(), name='publishrequest_change'),
 
     # users

@@ -11,7 +11,7 @@ from registry.models import DatasetMetadata, Service, OperationUrl
 from registry.models.harvest import HarvestResult
 from registry.ows_client.request_builder import CatalogueServiceWeb
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
-from users.models.groups import PendingTaskEnum
+from jobs.enums import TaskStatusEnum
 from time import sleep
 
 MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]
@@ -98,7 +98,7 @@ def get_response_elapsed(self,
                          test_max_records,
                          **kwargs):
     if self.task:
-        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = f"Start analyzing elapsing time of the request for maxRecords query parameter '{test_max_records}'"
         self.task.save()
     db_service = Service.objects.get(pk=service_id)
@@ -124,7 +124,7 @@ def get_response_elapsed(self,
         elapsed = -1
 
     if self.task:
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.phase = f"Elapsing time for maxRecords query parameter '{test_max_records}': {elapsed}"
         self.task.progress = 100
         self.task.save()
@@ -172,7 +172,7 @@ def get_records(self,
             task = cls.objects.select_for_update().get(pk=self.task.pk)
             if not task.started_at:
                 task.started_at = timezone.now()
-            task.status = PendingTaskEnum.STARTED.value
+            task.status = TaskStatusEnum.STARTED.value
             task.progress += progress_step_size / 2
             try:
                 phase = task.phase.split(":")
@@ -196,7 +196,7 @@ def analyze_results(self,
                     total_records,
                     **kwargs):
     if self.task:
-        self.task.status = PendingTaskEnum.STARTED.value
+        self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = f"Persisting downloaded records: 0 / {total_records}"
         self.task.save()
     service = Service.objects.get(pk=service_id)
@@ -232,7 +232,7 @@ def analyze_results(self,
                 pass
 
     if self.task:
-        self.task.status = PendingTaskEnum.SUCCESS.value
+        self.task.status = TaskStatusEnum.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{DatasetMetadata.get_table_url()}?id__in={",".join(str(pk) for pk in dataset_list)}">dataset metadata</a>'
         self.task.save()

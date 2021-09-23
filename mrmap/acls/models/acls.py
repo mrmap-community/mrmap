@@ -24,24 +24,12 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
                                    blank=True,
                                    verbose_name=_('Description'),
                                    help_text=_('Describe what this acls shall allow.'))
-    # todo
-    """
-    accessible_metadata = models.ManyToManyField(to='service.Metadata',
-                                                 blank=True,
-                                                 verbose_name=_('Accessible resource'),
-                                                 help_text=_('Select which resource shall be accessible with the configured permissions.'))
-    """
-    # todo
-    """accessible_pendingtasks = models.ManyToManyField(to='structure.PendingTask',
-                                                     blank=True,
-                                                     verbose_name=_('Accessible pending tasks'),
-                                                     help_text=_('Select which pending tasks shall be accessible with the configured permissions.'))
-     """
+   
     accessible_accesscontrollists = models.ManyToManyField(to='self',
                                                            blank=True,
                                                            verbose_name=_('Accessible access control lists'),
                                                            help_text=_('Select which acls\'s shall be accessible with the configured permissions.'))
-    accessible_organizations = models.ManyToManyField(to='structure.Organization',
+    accessible_organizations = models.ManyToManyField(to='users.Organization',
                                                       blank=True,
                                                       verbose_name=_('Accessible organizations'),
                                                       help_text=_('Select which organizations shall be accessible with the configured permissions.'))

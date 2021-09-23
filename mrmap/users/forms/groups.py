@@ -1,6 +1,7 @@
 from django import forms
 from django.db.models import Q
-from models.groups import Organization
+from django.utils.translation import gettext_lazy as _
+from users.models.groups import Organization
 from extras.forms import ModelForm
 
 

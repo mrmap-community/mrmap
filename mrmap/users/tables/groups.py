@@ -1,11 +1,10 @@
-from mrmap.users.tables.template_codes import PUBLISHES_REQUEST_BUTTON, REMOVE_PUBLISHER_BUTTON
 import django_tables2 as tables
+from users.tables.template_codes import PUBLISHES_REQUEST_BUTTON, REMOVE_PUBLISHER_BUTTON
 from django.utils.translation import gettext_lazy as _
 from acls.models.acls import AccessControlList
 from extras.tables.columns import DefaultActionButtonsColumn
 from extras.tables.template_code import VALUE_ABSOLUTE_LINK, RECORD_ABSOLUTE_LINK
-from extras.template_codes.template_codes import PERMISSIONS
-from models.groups import Organization, PublishRequest
+from users.models.groups import Organization, PublishRequest
 from extras.tables.tables import SecuredTable
 
 

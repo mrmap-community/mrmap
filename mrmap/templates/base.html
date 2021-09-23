@@ -33,16 +33,16 @@
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
                     <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
-                    <a class="dropdown-item" href="{% url 'structure:organization_overview' %}">{% autoescape off %}{{ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'users:organization_list' %}">{% autoescape off %}{{ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%} <span class="badge badge-secondary">{{mr_map_organization_count}}</span></a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Pending requests' %}</h6>
                     <div class="d-flex">
-                        <a class="dropdown-item" href="{% url 'structure:publish_request_overview' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%} <span class="badge {% if pending_publish_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_publish_requests_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'structure:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="dropdown-item" href="{% url 'users:publish_request_list' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%} <span class="badge {% if pending_publish_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_publish_requests_count}}</span></a>
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'users:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Users' %}</h6>
-                    <a class="dropdown-item" href="{% url 'structure:users_overview' %}">{% autoescape off %}{{ICONS.USER}}{% endautoescape %} {% trans 'Users'%} <span class="badge badge-secondary">{{mr_map_user_count}}</span></a>
+                    <a class="dropdown-item" href="{% url 'users:users_list' %}">{% autoescape off %}{{ICONS.USER}}{% endautoescape %} {% trans 'Users'%} <span class="badge badge-secondary">{{mr_map_user_count}}</span></a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'resource' %}active{% endif %}">

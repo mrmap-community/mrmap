@@ -22,20 +22,24 @@ from django.views.generic.base import RedirectView
 from MrMap.settings import DEBUG
 
 urlpatterns = [
+    # generic redirect if no path is used
     path('', RedirectView.as_view(url='users/dashboard')),
 
-    # Apps
+    # MrMapApps
     path('users/', include('users.urls')),
     path('acls/', include('acls.urls')),
-    path('ac-old/', include('autocompletes.urls')),
     path('registry/', include('registry.urls')),
     path('monitoring/', include('monitoring.urls')),
-    path('captcha/', include('captcha.urls')),
-    path("i18n/", include("django.conf.urls.i18n")),
     path('csw/', include('csw.urls')),
     path('quality/', include('quality.urls')),
     path('jobs/', include('jobs.urls')),
 
+    # captcha support
+    path('captcha/', include('captcha.urls')),
+    
+    # translation support
+    path("i18n/", include("django.conf.urls.i18n")),
+    
     # Autocompletes
     path('ac/registry/', include('registry.autocompletes.urls')),
     path('ac/users/', include('users.autocompletes.urls')),

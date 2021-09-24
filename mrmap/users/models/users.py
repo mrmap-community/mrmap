@@ -42,10 +42,10 @@ class MrMapUser(AbstractUser):
         return get_icon(IconEnum.USER)
 
     def get_absolute_url(self):
-        return reverse('password_change_done')
+        return reverse('users:password_change_done')
 
     def get_edit_view_url(self):
-        return reverse('edit_profile')
+        return reverse('users:edit_profile')
 
     @cached_property
     def organizations(self):

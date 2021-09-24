@@ -16,12 +16,12 @@ class MonitoringRunTableFilter(django_filters.FilterSet):
     monitoring_result = django_filters.ModelMultipleChoiceFilter(
         label=_('Monitoring result'),
         queryset=MonitoringResult.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_result')
+        widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:monitoring_result_ac')
     )
     health_state = django_filters.ModelMultipleChoiceFilter(
         label=_('Health state'),
         queryset=MonitoringResult.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_healthstate')
+        widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:monitoring_healthstate_ac')
     )
 
     class Meta:
@@ -41,12 +41,12 @@ class MonitoringResultTableFilter(FilterSet):
     )"""
     monitoring_run = ModelMultipleChoiceFilter(
         queryset=MonitoringRun.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_run')
+        widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:monitoring_run_ac')
     )
     monitoring_result = ModelMultipleChoiceFilter(
         label=_('Monitoring result'),
         queryset=MonitoringResult.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_result')
+        widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:monitoring_result_ac')
     )
 
     class Meta:
@@ -71,12 +71,12 @@ class HealthStateTableFilter(FilterSet):
     )"""
     monitoring_run = ModelMultipleChoiceFilter(
         queryset=MonitoringRun.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_run')
+        widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:monitoring_run_ac')
     )
     health_state = ModelMultipleChoiceFilter(
         label=_('Health state'),
         queryset=HealthState.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(url='autocompletes:monitoring_healthstate')
+        widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:monitoring_healthstate_ac')
     )
 
     class Meta:

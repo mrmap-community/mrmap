@@ -36,7 +36,7 @@ class ServiceAccessGroupModelForm(ModelForm):
         queryset=get_user_model().objects.all(),
         required=False,
         widget=autocomplete.ModelSelect2Multiple(
-                url='autocompletes:users',
+                url='users.autocomplete:mrmapuser_ac',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -79,7 +79,7 @@ class AllowedOperationPage1ModelForm(ModelForm):
         fields = ("secured_service", )
         widgets = {
             'secured_service': autocomplete.ModelSelect2(
-                url='autocompletes:service',
+                url='registry.autocomplete:service_ac',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -103,7 +103,7 @@ class AllowedOperationPage2ModelForm(ModelForm):
                   "secured_feature_types",)
         widgets = {
             "allowed_groups": autocomplete.ModelSelect2Multiple(
-                url="autocompletes:service_access_group",
+                url="registry.autocomplete:service_access_group_ac",
                 attrs={
                     "data-containerCss": {
                         "height": "3em",
@@ -119,7 +119,7 @@ class AllowedOperationPage2ModelForm(ModelForm):
             }),
             "secured_service": forms.HiddenInput(),
             "secured_feature_types": autocomplete.ModelSelect2Multiple(
-                url="autocompletes:feature_type",
+                url="registry.autocomplete:feature_type_ac",
                 attrs={
                     "data-containerCss": {
                         "height": "3em",

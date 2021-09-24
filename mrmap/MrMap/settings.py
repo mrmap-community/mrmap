@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
-    'autocompletes',
 ]
 
 TEMPLATE_LOADERS = (

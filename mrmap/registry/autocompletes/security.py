@@ -1,7 +1,7 @@
 from dal import autocomplete
 from guardian.mixins import LoginRequiredMixin
 from extras.autocompletes import SecuredAutocompleteMixin
-from registry.models.security import OGCOperation, AllowedOperation
+from registry.models.security import OGCOperation, AllowedOperation, ServiceAccessGroup
 from registry.settings import SECURE_ABLE_WMS_OPERATIONS, SECURE_ABLE_WFS_OPERATIONS
 
 
@@ -32,3 +32,8 @@ class SecureAbleOperationsAutocomplete(LoginRequiredMixin, autocomplete.Select2Q
 class AllowedOperationsAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = AllowedOperation
     search_fields = ['id', ]
+    
+
+class ServiceAccessGroupAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = ServiceAccessGroup
+    search_fields = ['name', 'id']

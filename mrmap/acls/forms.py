@@ -9,7 +9,7 @@ class AccessControlListChangeForm(forms.ModelForm):
         queryset=get_user_model().objects.all(),
         required=False,
         # Use the pretty 'filter_horizontal widget'.
-        widget=autocomplete.ModelSelect2(url='autocompletes:users'),
+        widget=autocomplete.ModelSelect2(url='users.autocomplete:mrmapuser_ac'),
     )
     class Meta:
         model = AccessControlList

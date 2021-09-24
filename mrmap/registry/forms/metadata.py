@@ -12,9 +12,9 @@ class MetadataContactModelForm(ModelForm):
 
 class ServiceMetadataModelForm(ModelForm):
     keywords = forms.ModelMultipleChoiceField(queryset=Keyword.objects.all(),
-                                              widget=autocomplete.ModelSelect2Multiple(url='autocompletes:keyword'),)
+                                              widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:keyword_ac'),)
     metadata_contact = forms.ModelChoiceField(queryset=MetadataContact.objects.all(),
-                                              widget=autocomplete.ModelSelect2(url="autocompletes:metadata_contacts"))
+                                              widget=autocomplete.ModelSelect2(url="registry.autocomplete:metadata_contact_ac"))
 
     class Meta:
         model = ServiceMetadata
@@ -28,9 +28,9 @@ class ServiceMetadataModelForm(ModelForm):
 
 class DatasetMetadataModelForm(ModelForm):
     keywords = forms.ModelMultipleChoiceField(queryset=Keyword.objects.all(),
-                                              widget=autocomplete.ModelSelect2Multiple(url='autocompletes:keyword'),)
+                                              widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:keyword_ac'),)
     reference_systems = forms.ModelMultipleChoiceField(queryset=ReferenceSystem.objects.all(),
-                                                       widget=autocomplete.ModelSelect2Multiple(url='autocompletes:reference_system'), )
+                                                       widget=autocomplete.ModelSelect2Multiple(url='registry.autocomplete:reference_system_ac'), )
 
     class Meta:
         model = DatasetMetadata

@@ -22,14 +22,15 @@
 
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
-            <li class="nav-item {% if PATH == '' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'users:dashboard' %}" title="{% trans 'Dashboard' %}">
+            {% url 'users:dashboard' as dashboard_url %}
+            <li class="nav-item {% if request.path == dashboard_url %}active{% endif %}">
+                <a class="nav-link" href="{{dashboard_url}}" title="{% trans 'Dashboard' %}">
                     {% autoescape off %}{{ICONS.DASHBOARD}}{% endautoescape %} {% trans 'Dashboard' %}
                 </a>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'users' and request.path != dashboard_url %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarStructureDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {% autoescape off %}{{ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Structure' %}
+                  {% autoescape off %}{{ICONS.HIERARCHY}}{% endautoescape %} {% trans 'Users' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
                     <h6 class="dropdown-header">{% trans 'Organizations' %}</h6>
@@ -45,9 +46,9 @@
                     <a class="dropdown-item" href="{% url 'users:users_list' %}">{% autoescape off %}{{ICONS.USER}}{% endautoescape %} {% trans 'Users'%} <span class="badge badge-secondary">{{mr_map_user_count}}</span></a>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'resource' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'registry' and request.path != dashboard_url %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarServicesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {% autoescape off %}{{ICONS.RESOURCE}}{% endautoescape %} {% trans 'Resources' %}
+                  {% autoescape off %}{{ICONS.RESOURCE}}{% endautoescape %} {% trans 'Registry' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <h6 class="dropdown-header">{% trans 'Web Map Service' %}</h6>
@@ -96,7 +97,7 @@
                     </div>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'security' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'security' and request.path != dashboard_url %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarSecurityDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{ICONS.ACCESS}}{% endautoescape %} {% trans 'Security' %}
                 </a>
@@ -133,7 +134,7 @@
                     <a class="dropdown-item flex-grow-1" href="{% url 'registry:proxy_log_list' %}">{% autoescape off %}{{ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %} <span data-bind="text: proxyLogCount" class="badge badge-secondary"></span></a>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'monitoring' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'monitoring' and request.path != dashboard_url %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarMonitoringDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{ICONS.MONITORING}}{% endautoescape %} {% trans 'Monitoring' %}
                 </a>
@@ -153,7 +154,7 @@
                     <a class="dropdown-item" href="{% url 'monitoring:health_state_list' %}">{% trans 'Health states' %}</a>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'job' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'job' and request.path != dashboard_url %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarJobDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{ICONS.PENDING_TASK}}{% endautoescape %} {% trans 'Jobs' %}
                 </a>
@@ -165,7 +166,7 @@
                     <a class="dropdown-item" href="{% url 'jobs:task_list' %}">{% trans 'Tasks' %} <span data-bind="text: tasksCount" class="badge {% if task_count >= 1 %}badge-warning{% else %}badge-secondary{% endif %}"></span></a>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'acls' %}active{% endif %}">
+            <li class="nav-item dropdown {% if PATH == 'acls' and request.path != dashboard_url %}active{% endif %}">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarAclsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{ICONS.ACCESS_CONTROL_LIST}}{% endautoescape %} {% trans 'Acl\'s' %}
                 </a>

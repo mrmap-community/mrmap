@@ -1,5 +1,5 @@
 from abc import ABC
-from mrmap.jobs.enums import TaskStatusEnum
+from jobs.enums import TaskStatusEnum
 from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model

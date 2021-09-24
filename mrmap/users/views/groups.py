@@ -31,9 +31,10 @@ class OrganizationDetailContextMixin(ContextMixin):
                     'title': _('Publishers ').__str__() + f'<span class="badge {BadgeColorEnum.SECONDARY.value}">New</span>'},
                    ]
         context.update({"object": self.object,
-                        'actions': self.object.get_actions(),
+                        # FIXME: use functions from GenericModelMixin instead to provide actions
+                        #'actions': self.object.get_actions(),
                         'tab_nav': tab_nav,
-                        'publisher_requests_count': PublishRequest.objects.filter(organization=self.object).count()})
+                        'publisher_requests_count': PublishRequest.objects.filter(from_organization=self.object).count()})
         return context
 
 
@@ -87,10 +88,10 @@ class OrganizationPublishersTableView(SecuredDependingListMixin, OrganizationDet
     title = get_icon(IconEnum.PUBLISHERS) + __(' Publish for list')
 
     def get_queryset(self):
-        return self.object.publishers.all()
+        return self.object.get_publishers()
 
-    def get_table_kwargs(self):
-        return {'organization': self.object}
+    """def get_table_kwargs(self):
+        return {'organization': self.object}"""
 
 
 class PublishRequestCreateView(SecuredCreateView):

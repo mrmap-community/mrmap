@@ -17,7 +17,7 @@ from MrMap.forms import ConfirmForm
 
 class ConfirmView(FormMixin, DetailView):
     template_name = 'MrMap/detail_views/generic_form.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('users:dashboard')
     form_class = ConfirmForm
     action_url = ""
     action_btn_color = ButtonColorEnum.PRIMARY

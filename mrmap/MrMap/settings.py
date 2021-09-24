@@ -170,10 +170,10 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
 GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "users:dashboard"
+LOGOUT_REDIRECT_URL = "users:login"
 # Defines where to redirect a user, that has to be logged in for a certain route
-LOGIN_URL = "/accounts/login/"
-LOGOUT_REDIRECT_URL = "/"
+LOGIN_URL = "users:login"
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/

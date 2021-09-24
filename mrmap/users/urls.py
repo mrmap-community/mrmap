@@ -10,16 +10,17 @@ from django.urls import path
 from users.views import users as users_views
 from users.views import groups as groups_views
 
+app_name = 'users'
 urlpatterns = [
     # Dashboard
-    path('', users_views.HomeView.as_view(), name="home"),
+    path('dashboard', users_views.HomeView.as_view(), name="dashboard"),
 
-    path('login/', users_views.MrMapLoginView.as_view(), name="login"),
-    path('login/', users_views.MrMapLoginView.as_view(), name="password_reset_done"),
-    path('login/', users_views.MrMapLoginView.as_view(), name="password_reset_complete"),
+    path('login', users_views.MrMapLoginView.as_view(), name="login"),
+    path('login', users_views.MrMapLoginView.as_view(), name="password_reset_done"),
+    path('login', users_views.MrMapLoginView.as_view(), name="password_reset_complete"),
     path('logout', django_views.LogoutView.as_view(), name='logout'),
-    path('password_reset/', users_views.MrMapPasswordResetView.as_view(), name='password_reset'),
-    path('reset/<uidb64>/<token>/',
+    path('password_reset', users_views.MrMapPasswordResetView.as_view(), name='password_reset'),
+    path('reset/<uidb64>/<token>',
          django_views.PasswordResetConfirmView.as_view(template_name='users/views/logged_out/password_reset_or_confirm.html'),
          name='password_reset_confirm'),
     path('signup/', users_views.SignUpView.as_view(), name='signup'),

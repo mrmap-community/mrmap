@@ -23,7 +23,7 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
             <li class="nav-item {% if PATH == '' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
+                <a class="nav-link" href="{% url 'users:dashboard' %}" title="{% trans 'Dashboard' %}">
                     {% autoescape off %}{{ICONS.DASHBOARD}}{% endautoescape %} {% trans 'Dashboard' %}
                 </a>
             </li>
@@ -38,7 +38,7 @@
                     <h6 class="dropdown-header">{% trans 'Pending requests' %}</h6>
                     <div class="d-flex">
                         <a class="dropdown-item" href="{% url 'users:publish_request_list' %}">{% autoescape off %}{{ICONS.PUBLISHER}}{% endautoescape %} {% trans 'Publish requests'%} <span class="badge {% if pending_publish_requests_count >= 1 %}badge-primary{% else %}badge-secondary{% endif %}">{{pending_publish_requests_count}}</span></a>
-                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'users:publish_request_new' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
+                        <a class="btn btn-sm btn-success mr-1 mb-1" href="{% url 'users:publish_request_add' %}" title="{% trans 'New Publish request' %}" role="button">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>
                     </div>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header">{% trans 'Users' %}</h6>
@@ -174,12 +174,6 @@
                     <a class="dropdown-item flex-grow-1" href="{% url 'acls:accesscontrollist_overview' %}">{% autoescape off %}{{ICONS.ACCESS_CONTROL_LIST}}{% endautoescape %} {% trans 'Acl\'s' %} <span class="badge {% if pending_monitoring_count < 1 %}badge-secondary{% else %}badge-warning{% endif %}">{{pending_monitoring_count}}</span></a>
                 </div>
             </li>
-            <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">
-                <!-- TODO link to api -->
-                <a class="nav-link" title="{% trans 'API' %}">
-                    {% autoescape off %}{{ICONS.API}}{% endautoescape %} {% trans 'API' %}
-                </a>
-            </li>
         </ul>
         <div>
         <a data-bind="visible: jobsCount() > 0" class="navbar-text mr-2" type="button" href="{% url 'jobs:job_list' %}">
@@ -187,10 +181,10 @@
                {{ICONS.PENDING_TASKS}} <span data-bind="text: jobsCount" class="badge badge-pill badge-light fading"></span>
             </span>
         </a>
-            <a class="btn btn-outline-light" href="{% url 'password_change_done' %}" title="{% trans 'Account' %}" role="button">
+            <a class="btn btn-outline-light" href="{% url 'users:password_change_done' %}" title="{% trans 'Account' %}" role="button">
                 {% autoescape off %}{{ICONS.USER}}{% endautoescape %} {{ request.user.username }}
             </a>
-            <a class="btn btn-outline-light" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
+            <a class="btn btn-outline-light" href="{% url 'users:logout' %}" title="{% trans 'Logout' %}" role="button">
                 {% autoescape off %}{{ICONS.SIGNOUT}}{% endautoescape %}
             </a>
         </div>

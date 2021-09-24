@@ -24,6 +24,7 @@ class MrMapUserForm(ModelForm):
             "email",
             "confirmed_newsletter",
             "confirmed_survey",
+            # FIXME: this shall only be visible for administrator...
             "groups"
         ]
 
@@ -31,7 +32,7 @@ class MrMapUserForm(ModelForm):
 class SubscriptionForm(ModelForm):
     class Meta:
         model = Subscription
-        fields = ('metadata', 'user', 'notify_on_update', 'notify_on_metadata_edit', 'notify_on_access_edit')
+        fields = ('service', 'user', 'notify_on_update', 'notify_on_metadata_edit', 'notify_on_access_edit')
         widgets = {
             'user': HiddenInput(),
         }

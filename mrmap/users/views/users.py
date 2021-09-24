@@ -110,7 +110,7 @@ class EditProfileView(SecuredUpdateView):
 class ActivateUser(SecuredDeleteView):
     template_name = "views/user_activation.html"
     model = UserActivation
-    success_url = reverse_lazy('login')
+    success_url = reverse_lazy('users:login')
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -134,7 +134,7 @@ class ActivateUser(SecuredDeleteView):
 
 class SignUpView(SecuredCreateView):
     template_name = 'users/views/logged_out/sign_up.html'
-    success_url = reverse_lazy('login')
+    success_url = reverse_lazy('users:login')
     model = get_user_model()
     form_class = RegistrationForm
     success_message = "Your profile was created successfully"

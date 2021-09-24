@@ -120,11 +120,12 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         )
 
 
+# todo: check if subscription should be part of users app?
 class Subscription(GenericModelMixin, CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
     # todo: rename field to service
-    metadata = models.ForeignKey(Service, on_delete=models.CASCADE,
+    service = models.ForeignKey(to='registry.Service', on_delete=models.CASCADE,
                                  verbose_name=_('Service'),
                                  help_text=_("Select the service you want to subscribe. When you edit an existing "
                                              "subscription, you can not change this selection."))
@@ -145,7 +146,7 @@ class Subscription(GenericModelMixin, CommonInfo):
     class Meta:
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
-        unique_together = ('metadata', 'user',)
+        unique_together = ('service', 'user',)
 
 
     def inform_subscriptor(self):

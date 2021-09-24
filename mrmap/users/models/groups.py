@@ -121,7 +121,7 @@ class Organization(UuidPk, CommonInfo, Contact):
 
     @property
     def publishers_uri(self):
-        return reverse('users:organization_publisher_overview', args=[self.pk, ])
+        return reverse('users:organization_publisher_list', args=[self.pk, ])
 
     @property
     def acls_uri(self):

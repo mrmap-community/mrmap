@@ -18,9 +18,9 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError
 from requests import Request
 
+from ows_client.wfs_helper import WfsHelper
+from ows_client.wms_helper import WmsHelper
 from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
-from registry.helper.wfs_helper import WfsHelper
-from registry.helper.wms_helper import WmsHelper
 from registry.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
     MonitoringSetting, \
     HealthState

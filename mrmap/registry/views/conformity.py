@@ -11,13 +11,13 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import DetailView
 from django_filters.views import FilterView
 
-from jobs.models import Job
 from extras.views import SecuredCreateView, SecuredListMixin, SecuredDeleteView
-from quality.filtersets import ConformityCheckRunFilterSet
-from quality.forms import ConformityCheckRunModelForm
-from quality.models import ConformityCheckRun
-from quality.tables import ConformityCheckRunTable
-from quality.tasks import run_conformity_check
+from jobs.models import Job
+from registry.filtersets.conformity import ConformityCheckRunFilterSet
+from registry.forms.conformity import ConformityCheckRunModelForm
+from registry.models.conformity import ConformityCheckRun
+from registry.tables.conformity import ConformityCheckRunTable
+from registry.tasks import run_conformity_check
 
 
 class ConformityCheckRunListView(SecuredListMixin, FilterView):

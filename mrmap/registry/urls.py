@@ -6,6 +6,8 @@ from registry.views import mapcontext as mapcontext_views
 from registry.views import ows as ows_views
 from registry.views import security as security_views
 from registry.views import harvest as harvest_views
+from registry.views.conformity import ConformityCheckRunListView, ConformityCheckRunCreateView, \
+    ConformityCheckRunDeleteView, ConformityCheckRunReportView
 from registry.views.monitoring import MonitoringRunTableView, MonitoringRunNewView, MonitoringResultTableView, \
     MonitoringResultDetailView, HealthStateTableView, HealthStateDetailView
 from registry.wizards import security as security_wizards
@@ -88,12 +90,18 @@ urlpatterns = [
     path("security/proxy-logs", security_views.AnalyzedResponseLogListView.as_view(), name="proxy_log_list"),
 
     # Monitoring views
-    path('runs', MonitoringRunTableView.as_view(), name='monitoring_run_list'),
-    path('runs/create', MonitoringRunNewView.as_view(), name='monitoring_run_add'),
+    path('monitoring/runs', MonitoringRunTableView.as_view(), name='monitoring_run_list'),
+    path('monitoring/runs/create', MonitoringRunNewView.as_view(), name='monitoring_run_add'),
 
-    path('results', MonitoringResultTableView.as_view(), name='monitoring_result_list'),
-    path('results/<pk>', MonitoringResultDetailView.as_view(), name='monitoring_result_view'),
+    path('monitoring/results', MonitoringResultTableView.as_view(), name='monitoring_result_list'),
+    path('monitoring/results/<pk>', MonitoringResultDetailView.as_view(), name='monitoring_result_view'),
 
-    path('health-states', HealthStateTableView.as_view(), name='health_state_list'),
-    path('health-states/<pk>', HealthStateDetailView.as_view(), name='health_state_view'),
+    path('monitoring/health-states', HealthStateTableView.as_view(), name='health_state_list'),
+    path('monitoring/health-states/<pk>', HealthStateDetailView.as_view(), name='health_state_view'),
+
+    # Quality views
+    path("conformity/runs", ConformityCheckRunListView.as_view(), name='conformity_check_run_list'),
+    path('conformity/runs/create', ConformityCheckRunCreateView.as_view(), name='conformity_check_run_add'),
+    path('conformity/runs/<pk>/delete', ConformityCheckRunDeleteView.as_view(), name='conformity_check_run_delete'),
+    path('conformity/runs/<pk>/report', ConformityCheckRunReportView.as_view(), name='conformity_check_run_report'),
 ]

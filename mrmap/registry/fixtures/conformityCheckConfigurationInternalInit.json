@@ -1,6 +1,6 @@
 [
   {
-    "model": "quality.conformitycheckconfigurationinternal",
+    "model": "registry.conformitycheckconfigurationinternal",
     "pk": 4,
     "fields": {
       "mandatory_rule_sets": [

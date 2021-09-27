@@ -10,10 +10,8 @@ import json
 from celery import states, current_task
 from celery.result import AsyncResult
 
-from quality.enums import RulePropertyEnum, ReportType
-from quality.models import RuleSet, Rule, \
-    ConformityCheckConfigurationInternal, \
-    ConformityCheckRun
+from registry.enums.conformity import ReportType, RulePropertyEnum
+from registry.models.conformity import ConformityCheckRun, ConformityCheckConfigurationInternal, RuleSet, Rule
 
 
 class QualityInternal:

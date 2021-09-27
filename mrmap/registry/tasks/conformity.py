@@ -12,13 +12,12 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 
-from jobs.tasks import CurrentTask, NewJob
-from quality.enums import ConformityTypeEnum, ReportType
-from quality.models import ConformityCheckRun, \
-    ConformityCheckConfigurationExternal
-from quality.plugins.etf import QualityEtf, EtfClient
-from quality.plugins.internal import QualityInternal
 from jobs.enums import TaskStatusEnum
+from jobs.tasks import CurrentTask, NewJob
+from registry.helper.plugins.etf import QualityEtf, EtfClient
+from registry.helper.plugins.internal import QualityInternal
+from registry.enums.conformity import ConformityTypeEnum, ReportType
+from registry.models import ConformityCheckRun, ConformityCheckConfigurationExternal
 
 logger = get_task_logger(__name__)
 

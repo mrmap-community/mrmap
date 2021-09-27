@@ -1,6 +1,6 @@
 [
   {
-    "model": "quality.conformitycheckconfiguration",
+    "model": "registry.conformitycheckconfiguration",
     "pk": 3,
     "fields": {
       "name": "Common Requirements for ISO/TC 19139:2007 based INSPIRE metadata records.",
@@ -11,7 +11,7 @@
     }
   },
   {
-    "model": "quality.conformitycheckconfiguration",
+    "model": "registry.conformitycheckconfiguration",
     "pk": 4,
     "fields": {
       "name": "Test configuration For Internal Conformity Check",

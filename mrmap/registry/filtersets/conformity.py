@@ -1,6 +1,6 @@
 import django_filters
 
-from quality.models import ConformityCheckRun
+from registry.models import ConformityCheckRun
 
 
 class ConformityCheckRunFilterSet(django_filters.FilterSet):

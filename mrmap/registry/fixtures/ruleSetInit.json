@@ -1,6 +1,6 @@
 [
   {
-    "model": "quality.ruleset",
+    "model": "registry.ruleset",
     "pk": 1,
     "fields": {
       "name": "Test ruleset",

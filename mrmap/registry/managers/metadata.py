@@ -164,7 +164,7 @@ class AbstractMetadataManager(models.Manager):
 class DatasetManager(AbstractMetadataManager):
 
     def for_table_view(self):
-        from quality.models import ConformityCheckRun
+        from registry.models import ConformityCheckRun
         conformity_checks_qs = ConformityCheckRun.objects.order_by("-created_at")
         return self.get_queryset().annotate(linked_layer_count=Count("self_pointing_layers",
                                                                      distinct=True),

@@ -1,7 +1,6 @@
 from django.db import models
-from django.db.models import OuterRef
 
-from registry.models import DatasetMetadata
+from registry.models.metadata import DatasetMetadata
 
 
 class ConformityCheckConfigurationManager(models.Manager):
@@ -29,14 +28,14 @@ class ConformityCheckRunManager(models.Manager):
         return running_checks != 0
 
     def get_latest_check(self, metadata):
-        from quality.models import ConformityCheckRun
+        from registry.models import ConformityCheckRun
         try:
             return super().get_queryset().filter(metadata=metadata).latest()
         except ConformityCheckRun.DoesNotExist:
             return None
 
     def get_total_check_count(self, metadata):
-        from quality.models import ConformityCheckRun
+        from registry.models import ConformityCheckRun
         try:
             return super().get_queryset().filter(metadata=metadata).count()
         except ConformityCheckRun.DoesNotExist:

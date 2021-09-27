@@ -1,3 +1,4 @@
+from .conformity import *
 # TODO fix circular import
 #from .harvest import *
 from .monitoring import *

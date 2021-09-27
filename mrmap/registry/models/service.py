@@ -1,19 +1,20 @@
-import os
+from uuid import uuid4
 
 from django.conf import settings
-from django.contrib.gis.geos import Polygon
-from django.db import models, transaction
 from django.contrib.gis.db import models as gis_models
-from django.db.models import QuerySet, Q
+from django.contrib.gis.geos import Polygon
+from django.db import models
+from django.db.models import QuerySet
+from django.urls import reverse, NoReverseMatch
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from django.urls import reverse, NoReverseMatch
+from eulxml import xmlmap
+from mptt.models import MPTTModel, TreeForeignKey
 from requests import Session
 from requests.auth import HTTPDigestAuth
 
 from MrMap.icons import get_icon, IconEnum
 from MrMap.settings import PROXIES
-from jobs.models import Job
 from extras.models import GenericModelMixin, CommonInfo
 from extras.utils import camel_to_snake
 from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
@@ -21,14 +22,9 @@ from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMe
 from registry.managers.security import ServiceSecurityManager, OperationUrlManager
 from registry.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
-from mptt.models import MPTTModel, TreeForeignKey
-from uuid import uuid4
-
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.ows_client.request_builder import OgcService
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
-from eulxml import xmlmap
-from django.conf import settings
 
 
 class ServiceType(models.Model):
@@ -60,7 +56,7 @@ class CommonServiceInfo(models.Model):
     hits = models.PositiveIntegerField(default=0,
                                        editable=False,
                                        verbose_name=_("hits"),
-                                       help_text=_("how many times this metadata was requested by a client"),)
+                                       help_text=_("how many times this metadata was requested by a client"), )
     is_active = models.BooleanField(default=False,
                                     verbose_name=_("is active?"),
                                     help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
@@ -119,7 +115,9 @@ class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceIn
 
     def get_absolute_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_view', args=[self.pk, ])
+            return reverse(
+                f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_view',
+                args=[self.pk, ])
         except NoReverseMatch:
             return self.get_concrete_table_url()
 
@@ -132,7 +130,9 @@ class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceIn
 
     def get_tree_view_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_tree_view', args=[self.pk])
+            return reverse(
+                f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_tree_view',
+                args=[self.pk])
         except NoReverseMatch:
             return ""
 
@@ -481,13 +481,13 @@ class FeatureType(ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """ Return the fetched described feature type document and update the content if save is True """
-        base_url = self.service.operation_urls.values_list('url', flat=True)\
-                                              .get(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
-                                                   method=HttpMethodEnum.GET.value)
+        base_url = self.service.operation_urls.values_list('url', flat=True) \
+            .get(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+                 method=HttpMethodEnum.GET.value)
         request = OgcService(base_url=base_url,
                              service_type=self.service.service_type_name,
-                             version=self.service.service_version)\
-                    .get_describe_feature_type_request(type_name_list=self.identifier)
+                             version=self.service.service_version) \
+            .get_describe_feature_type_request(type_name_list=self.identifier)
         if hasattr(self.service, "external_authentication"):
             username, password = self.service.external_authentication.decrypt()
             if self.service.external_authentication.auth_type == AuthTypeEnum.BASIC.value:
@@ -503,7 +503,8 @@ class FeatureType(ServiceElement):
                 self.save()
             return self.describe_feature_type_document
         else:
-            settings.ROOT_LOGGER.error(msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}")
+            settings.ROOT_LOGGER.error(
+                msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}")
 
     def parse(self):
         """ Return the parsed self.remote_content
@@ -532,7 +533,7 @@ class FeatureTypeElement(CommonInfo):
     data_type = models.CharField(max_length=255, null=True, blank=True)
     required = models.BooleanField(default=False)
     feature_type = models.ForeignKey(to=FeatureType,
-                                     #editable=False,
+                                     # editable=False,
                                      related_name="elements",
                                      related_query_name="element",
                                      on_delete=models.CASCADE,

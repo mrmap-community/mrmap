@@ -1,9 +1,9 @@
 [
   {
-    "model": "quality.conformitycheckconfigurationexternal",
+    "model": "registry.conformitycheckconfigurationexternal",
     "pk": 3,
     "fields": {
-      "external_url": "http://localhost:8092/validator/",
+      "external_url": "http://inspire-validator:8080/validator/",
       "parameter_map": {
         "label": "Common Requirements for ISO/TC 19139:2007 based INSPIRE metadata records.",
         "arguments": {

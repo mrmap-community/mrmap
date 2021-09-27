@@ -1,5 +1,5 @@
 from extras.forms import ModelForm
-from quality.models import ConformityCheckRun
+from registry.models import ConformityCheckRun
 
 
 class ConformityCheckRunModelForm(ModelForm):

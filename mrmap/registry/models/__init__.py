@@ -1,3 +1,4 @@
+from .conformity import *
 from .document import *
 from .harvest import *
 from .mapcontext import *

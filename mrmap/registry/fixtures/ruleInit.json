@@ -1,6 +1,6 @@
 [
   {
-    "model": "quality.rule",
+    "model": "registry.rule",
     "pk": 1,
     "fields": {
       "name": "Title must be longer than 5 characters",

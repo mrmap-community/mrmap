@@ -11,9 +11,9 @@ import requests
 from celery import current_task, states
 from django.conf import settings
 
-from quality.enums import ReportType
-from quality.helper.mappingHelper import map_parameters
-from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
+from registry.enums.conformity import ReportType
+from registry.helper.mapping_helper import map_parameters
+from registry.models.conformity import ConformityCheckRun, ConformityCheckConfigurationExternal
 
 
 class EtfClient:

@@ -4,8 +4,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from extras.tables.tables import SecuredTable
 from extras.tables.template_code import DEFAULT_ACTION_BUTTONS
-from quality.tables import ConformityCheckRunExtraFieldsTable
 from registry.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
+from registry.tables.conformity import ConformityCheckRunExtraFieldsTable
 from registry.tables.template_codes import METADATA_DETAIL_ICONS, VALUE_TABLE_VIEW_LINK
 
 

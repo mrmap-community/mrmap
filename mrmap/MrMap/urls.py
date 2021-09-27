@@ -30,7 +30,6 @@ urlpatterns = [
     path('acls/', include('acls.urls')),
     path('registry/', include('registry.urls')),
     path('csw/', include('csw.urls')),
-    path('quality/', include('quality.urls')),
     path('jobs/', include('jobs.urls')),
 
     # captcha support

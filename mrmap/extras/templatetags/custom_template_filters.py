@@ -1,9 +1,9 @@
-from django import template
-from django.apps import apps
-from extras.utils import camel_to_snake as util_camel_to_snake
 from importlib import import_module
 
-from quality.models import ConformityCheckRun
+from django import template
+
+from extras.utils import camel_to_snake as util_camel_to_snake
+from registry.models import ConformityCheckRun
 
 register = template.Library()
 
@@ -39,7 +39,7 @@ def get_item(dictionary, key):
 
 @register.filter
 def get_order_by_alias_from_request(request, order_by_alias):
-    return request.get(order_by_alias,)
+    return request.get(order_by_alias, )
 
 
 @register.filter

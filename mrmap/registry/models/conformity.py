@@ -11,12 +11,11 @@ from django.utils.translation import gettext_lazy as _
 
 from extras.models import CommonInfo, GenericModelMixin
 from extras.polymorphic_fk import PolymorphicForeignKey
-from quality.enums import RuleFieldNameEnum, RulePropertyEnum, \
-    RuleOperatorEnum, \
-    ConformityTypeEnum, ReportType
-from quality.managers import ConformityCheckRunManager, ConformityCheckConfigurationManager
-from registry.models import Service, Layer, FeatureType
+from registry.enums.conformity import ConformityTypeEnum, RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum, \
+    ReportType
+from registry.managers.conformity import ConformityCheckConfigurationManager, ConformityCheckRunManager
 from registry.models.metadata import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
+from registry.models.service import Service, Layer, FeatureType
 
 
 class ConformityCheckConfiguration(models.Model):
@@ -163,7 +162,7 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
         self._resource.validate(self)
 
     def get_report_url(self):
-        return f"{reverse('quality:conformity_check_run_report', kwargs={'pk': self.pk})}"
+        return f"{reverse('registry:conformity_check_run_report', kwargs={'pk': self.pk})}"
 
     def is_running(self):
         return self.passed is None

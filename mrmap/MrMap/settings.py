@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'jobs',
     'registry',
     'csw',
-    'quality',
     'extras',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',

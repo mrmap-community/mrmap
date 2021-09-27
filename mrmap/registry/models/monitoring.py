@@ -21,7 +21,7 @@ from extras.models import CommonInfo, GenericModelMixin
 from extras.polymorphic_fk import PolymorphicForeignKey
 # TODO is this class effectively used for any functionality? Can it be removed?
 from registry.enums.monitoring import HealthStateEnum
-from registry.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RESPONSE_TIME, WARNING_RESPONSE_TIME
+from registry.settings import MONITORING_DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RESPONSE_TIME, WARNING_RESPONSE_TIME
 
 
 class MonitoringSetting(models.Model):
@@ -194,7 +194,7 @@ class HealthState(CommonInfo, GenericModelMixin):
     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
                                          max_length=12, verbose_name=_('Health state code'))
-    health_message = models.CharField(default=DEFAULT_UNKNOWN_MESSAGE,
+    health_message = models.CharField(default=MONITORING_DEFAULT_UNKNOWN_MESSAGE,
                                       max_length=512, )  # this is the teaser for tooltips
     reliability_1w = models.FloatField(default=0,
                                        validators=[MaxValueValidator(100), MinValueValidator(1)])

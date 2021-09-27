@@ -1,18 +1,19 @@
+import urllib.parse as urlparse
 from abc import ABC
+from urllib.parse import parse_qs
+
+from django.contrib.gis.gdal import SpatialReference
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.template.loader import render_to_string
 from eulxml import xmlmap
 from requests import Request
-from django.contrib.gis.geos import Polygon, GEOSGeometry
-from django.contrib.gis.gdal import SpatialReference
+
 from axis_order_cache.registry import Registry
 from axis_order_cache.utils import get_epsg_srid, adjust_axis_order
-from registry.ows_client.exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam, \
-    MissingVersionParam
-import urllib.parse as urlparse
-from urllib.parse import parse_qs
-
 from registry.xmlmapper.ogc.wfs_get_feature import GetFeature
 from registry.xmlmapper.ogc.wfs_transaction import Transaction
+from .exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam, \
+    MissingVersionParam
 
 
 class WebService(ABC):
@@ -146,7 +147,7 @@ class WebMapAndFeatureService(WebService):
                                srid=srid)
             else:
                 return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
-                              srid=srid)
+                               srid=srid)
         except Exception as e:
             pass
         return GEOSGeometry('POLYGON EMPTY')
@@ -583,7 +584,8 @@ class WfsService(WebMapAndFeatureService):
 
         query_params = {self.TYPE_NAME_QP: ",".join(type_names) if len(type_names) > 1 else type_names[0]}
         if property_name:
-            query_params.update({self.PROPERTY_NAME_QP: ",".join(property_name) if len(property_name) > 1 else property_name[0]})
+            query_params.update(
+                {self.PROPERTY_NAME_QP: ",".join(property_name) if len(property_name) > 1 else property_name[0]})
         if bbox:
             query_params.update({self.BBOX_QP: bbox})
         if srs_name:

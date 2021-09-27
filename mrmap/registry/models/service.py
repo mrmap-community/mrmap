@@ -17,13 +17,13 @@ from MrMap.icons import get_icon, IconEnum
 from MrMap.settings import PROXIES
 from extras.models import GenericModelMixin, CommonInfo
 from extras.utils import camel_to_snake
+from ows_client.request_builder import OgcService
 from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
 from registry.managers.security import ServiceSecurityManager, OperationUrlManager
 from registry.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.ows_client.request_builder import OgcService
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 
 

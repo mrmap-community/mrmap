@@ -1,15 +1,17 @@
 from typing import Optional
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models.functions import Coalesce
-from django.db.models import Value as V, QuerySet
-from registry.enums.service import OGCOperationEnum, HttpMethodEnum
-from registry.ows_client.request_builder import WebService, WmsService, WfsService
-from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from django.db import models
 from django.db.models import F, Exists, OuterRef, ExpressionWrapper, BooleanField, Q
+from django.db.models import Value as V, QuerySet
+from django.db.models.functions import Coalesce
+
+from ows_client.request_builder import WebService, WmsService, WfsService
+from registry.enums.service import OGCOperationEnum, HttpMethodEnum
+from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
 class AllowedOperationManager(models.Manager):
@@ -129,8 +131,10 @@ class ServiceSecurityManager(models.Manager):
                           user_is_principle_entitled=AllowedOperation.objects.is_user_entitled(request=request),
                           base_operation_url=OperationUrl.security_objects.get_base_url(request=request),
                           unknown_operation_url=OperationUrl.security_objects.get_fallback_url(),
-                          is_spatial_secured_and_covers=AllowedOperation.objects.is_spatial_secured_and_covers(request=request),
-                          is_spatial_secured_and_intersects=AllowedOperation.objects.is_spatial_secured_and_intersects(request=request),
+                          is_spatial_secured_and_covers=AllowedOperation.objects.is_spatial_secured_and_covers(
+                              request=request),
+                          is_spatial_secured_and_intersects=AllowedOperation.objects.is_spatial_secured_and_intersects(
+                              request=request),
                           allowed_area_united=AllowedOperation.objects.allowed_area_union(request=request))
 
     def construct_service(self, pk, request) -> Optional['Service']:

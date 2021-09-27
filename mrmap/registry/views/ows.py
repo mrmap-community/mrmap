@@ -1,39 +1,41 @@
 import copy
+import io
 import re
 from io import BytesIO
+from queue import Queue
+from threading import Thread
+
+from PIL import Image, ImageFont, ImageDraw
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
+from django.db import connection, transaction
 from django.db.models.functions import datetime
+from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from eulxml import xmlmap
+from requests import Session, Request
+from requests.exceptions import ConnectTimeout as ConnectTimeoutException, ConnectionError as ConnectionErrorException
+
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, \
     SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE, SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE
 from MrMap.settings import PROXIES
+from MrMap.utils import execute_threads
+from ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
+from ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam
+from ows_client.request_builder import WebService
 from registry.enums.service import OGCServiceEnum, OGCOperationEnum
 from registry.models import Service
 from registry.models.security import HttpRequestLog, HttpResponseLog
-from registry.ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
-from registry.ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam
-from registry.ows_client.request_builder import WebService
-from requests import Session, Request
-from requests.exceptions import ConnectTimeout as ConnectTimeoutException, ConnectionError as ConnectionErrorException
-import io
-from queue import Queue
-from threading import Thread
-from PIL import Image, ImageFont, ImageDraw
-from django.db import connection, transaction
-from django.http import HttpResponse
-from MrMap.utils import execute_threads
+from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 from registry.xmlmapper.ogc.wfs_get_feature import GetFeature
 from registry.xmlmapper.ogc.wfs_transaction import Transaction
-from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
-from django.conf import settings
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -217,7 +219,8 @@ class GenericOwsServiceOperationFacade(View):
             # If anything occurs during the mask creation, we have to make sure the response won't contain any
             # information at all.
             # So create an error mask
-            background = Image.new("RGB", (width, height), (settings.ERROR_MASK_VAL, settings.ERROR_MASK_VAL, settings.ERROR_MASK_VAL))
+            background = Image.new("RGB", (width, height),
+                                   (settings.ERROR_MASK_VAL, settings.ERROR_MASK_VAL, settings.ERROR_MASK_VAL))
 
         return background
 
@@ -275,7 +278,8 @@ class GenericOwsServiceOperationFacade(View):
                 if is_error_mask:
                     # Create full-masking mask and create an access_denied_img
                     mask = Image.new("RGB", img.size, (255, 255, 255))
-                    self.access_denied_img = self._create_image_with_text(img.width, img.height, settings.ERROR_MASK_TXT)
+                    self.access_denied_img = self._create_image_with_text(img.width, img.height,
+                                                                          settings.ERROR_MASK_TXT)
 
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))
@@ -527,13 +531,14 @@ class GenericOwsServiceOperationFacade(View):
                 return self.return_http_response(response=NO_FEATURE_TYPES)
             elif len(get_feature_xml.type_names.split(" ")) > 1:
                 return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
-            value_reference = self.service.featuretypes.get(identifier=get_feature_xml.get_type_names())\
+            value_reference = self.service.featuretypes.get(identifier=get_feature_xml.get_type_names()) \
                 .elements.values_list("name", flat=True).get(data_type__in=["gml:GeometryPropertyType",
                                                                             "gml:MultiSurfacePropertyType"])
             get_feature_xml.filter.secure_spatial(value_reference=value_reference,
                                                   polygon=self.service.allowed_area_united)
-            response = self.get_remote_response(self.remote_service.construct_request(data=get_feature_xml.serializeDocument(),
-                                                                                      query_params=self.request.query_parameters, ))
+            response = self.get_remote_response(
+                self.remote_service.construct_request(data=get_feature_xml.serializeDocument(),
+                                                      query_params=self.request.query_parameters, ))
             return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):
@@ -651,7 +656,8 @@ class GenericOwsServiceOperationFacade(View):
                 else:
                     user = self.request.user
                 regex = re.compile('^HTTP_')
-                headers = dict((regex.sub('', header), value) for (header, value) in self.request.META.items() if header.startswith('HTTP_'))
+                headers = dict((regex.sub('', header), value) for (header, value) in self.request.META.items() if
+                               header.startswith('HTTP_'))
                 request_log = HttpRequestLog(timestamp=self.start_time,
                                              elapsed=datetime.datetime.now() - self.start_time,
                                              method=self.request.method,
@@ -694,8 +700,9 @@ class GenericOwsServiceOperationFacade(View):
                         content_type = response.headers.get("content-type")
                         if "/" in content_type:
                             content_type = content_type.split("/")[-1]
-                        response_log.content.save(name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
-                                                  content=ContentFile(response.content))
+                        response_log.content.save(
+                            name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
+                            content=ContentFile(response.content))
                     else:
                         response_log.save()
 

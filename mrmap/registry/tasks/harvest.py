@@ -1,18 +1,19 @@
 import random
+from time import sleep
 
 from celery import shared_task, chain, chord
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
+
+from jobs.enums import TaskStatusEnum
 from jobs.tasks import NewJob, CurrentTask
+from ows_client.request_builder import CatalogueServiceWeb
 from registry.enums.service import OGCOperationEnum, HttpMethodEnum
 from registry.models import DatasetMetadata, Service, OperationUrl
 from registry.models.harvest import HarvestResult
-from registry.ows_client.request_builder import CatalogueServiceWeb
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
-from jobs.enums import TaskStatusEnum
-from time import sleep
 
 MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]
 
@@ -23,8 +24,9 @@ MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]
 def harvest_service(self,
                     service,
                     **kwargs):
-    _calibrate_step_size = chord([get_response_elapsed.s(service, test_max_records, **kwargs) for test_max_records in MAX_RECORDS_TEST_LIST],
-                                 calibrate_step_size.s(**kwargs))
+    _calibrate_step_size = chord(
+        [get_response_elapsed.s(service, test_max_records, **kwargs) for test_max_records in MAX_RECORDS_TEST_LIST],
+        calibrate_step_size.s(**kwargs))
     workflow = chain(_calibrate_step_size,
                      schedule_get_records.s(service, **kwargs))
     workflow.apply_async()
@@ -66,7 +68,8 @@ def schedule_get_records(self,
     get_record_tasks = []
     for round_trip in range(round_trips):
         start_position = round_trip * step_size + 1
-        get_record_tasks.append(get_records.s(service_id, max_records, step_size, start_position, progress_step_size, **kwargs))
+        get_record_tasks.append(
+            get_records.s(service_id, max_records, step_size, start_position, progress_step_size, **kwargs))
     header = get_record_tasks
     callback = analyze_results.s(service_id, max_records, **kwargs)
     chord(header)(callback)
@@ -162,8 +165,9 @@ def get_records(self,
         content_type = content_type.split("/")[-1]
     result = HarvestResult.objects.create(service=Service.objects.get(id=service_id),
                                           job=self.task.job)
-    result.result_file.save(name=f'{start_position}_to_{start_position + step_size - 1}_of_{max_records}.{content_type}',
-                            content=ContentFile(response.text))
+    result.result_file.save(
+        name=f'{start_position}_to_{start_position + step_size - 1}_of_{max_records}.{content_type}',
+        content=ContentFile(response.text))
     if self.task:
         # CAREFULLY!!!: this is a race condition in parallel execution, cause all tasks will waiting for the task
         # which looks the pending task for updating progress and phase.

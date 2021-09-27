@@ -19,11 +19,11 @@ from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from MrMap.settings import TIME_ZONE
 from extras.models import CommonInfo, GenericModelMixin
 from extras.polymorphic_fk import PolymorphicForeignKey
-from monitoring.enums import HealthStateEnum
-from monitoring.settings import WARNING_RESPONSE_TIME, CRITICAL_RESPONSE_TIME, DEFAULT_UNKNOWN_MESSAGE
-
-
 # TODO is this class effectively used for any functionality? Can it be removed?
+from registry.enums.monitoring import HealthStateEnum
+from registry.settings import DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RESPONSE_TIME, WARNING_RESPONSE_TIME
+
+
 class MonitoringSetting(models.Model):
     # TODO other resource types
     metadatas = models.ManyToManyField('registry.Service', related_name='monitoring_setting')
@@ -123,7 +123,7 @@ class MonitoringRun(CommonInfo, GenericModelMixin):
             adding = True
         super().save(*args, **kwargs)
         if adding:
-            from monitoring.tasks import run_manual_service_monitoring
+            from registry.tasks.monitoring import run_manual_service_monitoring
             transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(
                 args=(self.owned_by_org.pk if self.owned_by_org else None,
                       self.pk,),

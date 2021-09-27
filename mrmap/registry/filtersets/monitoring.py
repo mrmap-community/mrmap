@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django_filters import FilterSet, CharFilter, ModelMultipleChoiceFilter
 
-from monitoring.models import HealthState, MonitoringRun, MonitoringResult
+from registry.models.monitoring import MonitoringResult, MonitoringRun, HealthState
 
 
 class MonitoringRunTableFilter(django_filters.FilterSet):

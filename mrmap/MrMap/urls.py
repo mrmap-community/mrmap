@@ -29,7 +29,6 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('acls/', include('acls.urls')),
     path('registry/', include('registry.urls')),
-    path('monitoring/', include('monitoring.urls')),
     path('csw/', include('csw.urls')),
     path('quality/', include('quality.urls')),
     path('jobs/', include('jobs.urls')),

@@ -6,6 +6,8 @@ from registry.views import mapcontext as mapcontext_views
 from registry.views import ows as ows_views
 from registry.views import security as security_views
 from registry.views import harvest as harvest_views
+from registry.views.monitoring import MonitoringRunTableView, MonitoringRunNewView, MonitoringResultTableView, \
+    MonitoringResultDetailView, HealthStateTableView, HealthStateDetailView
 from registry.wizards import security as security_wizards
 from registry.wizards.security import ALLOWED_OPERATION_WIZARD_FORMS
 
@@ -83,5 +85,15 @@ urlpatterns = [
     path("security/proxy-settings/add", security_views.ProxySettingCreateView.as_view(), name="proxy_setting_add"),
     path("security/proxy-settings/<pk>/change", security_views.ProxySettingUpdateView.as_view(), name="proxy_setting_change"),
 
-    path("security/proxy-logs", security_views.AnalyzedResponseLogListView.as_view(), name="proxy_log_list")
+    path("security/proxy-logs", security_views.AnalyzedResponseLogListView.as_view(), name="proxy_log_list"),
+
+    # Monitoring views
+    path('runs', MonitoringRunTableView.as_view(), name='monitoring_run_list'),
+    path('runs/create', MonitoringRunNewView.as_view(), name='monitoring_run_add'),
+
+    path('results', MonitoringResultTableView.as_view(), name='monitoring_result_list'),
+    path('results/<pk>', MonitoringResultDetailView.as_view(), name='monitoring_result_view'),
+
+    path('health-states', HealthStateTableView.as_view(), name='health_state_list'),
+    path('health-states/<pk>', HealthStateDetailView.as_view(), name='health_state_view'),
 ]

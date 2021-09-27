@@ -14,8 +14,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from extras.tasks import default_task_handler
-from monitoring.models import MonitoringSetting, MonitoringRun
-from monitoring.monitoring import Monitoring as Monitor
+from registry.models import MonitoringSetting, MonitoringRun
+from registry.monitoring import Monitor
 
 
 @beat_init.connect

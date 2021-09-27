@@ -3,7 +3,6 @@ from eulxml import xmlmap
 
 from jobs.models import Job
 from extras.models import CommonInfo
-from registry.models import Service
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 
 
@@ -13,7 +12,7 @@ def result_file_path(instance, filename):
 
 
 class HarvestResult(CommonInfo):
-    service = models.ForeignKey(to=Service,
+    service = models.ForeignKey(to="Service",
                                 on_delete=models.CASCADE,
                                 related_name="harvest_results",
                                 related_query_name="harvest_result")

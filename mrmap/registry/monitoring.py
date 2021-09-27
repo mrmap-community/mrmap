@@ -18,17 +18,17 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError
 from requests import Request
 
-from monitoring.helper.wfsHelper import WfsHelper
-from monitoring.helper.wmsHelper import WmsHelper
-from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
+from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
+from registry.helper.wfs_helper import WfsHelper
+from registry.helper.wms_helper import WmsHelper
+from registry.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
     MonitoringSetting, \
     HealthState
-from monitoring.settings import MONITORING_REQUEST_TIMEOUT
-from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
 from registry.models import Service, Layer, FeatureType, DatasetMetadata
+from registry.settings import MONITORING_REQUEST_TIMEOUT
 
 
-class Monitoring:
+class Monitor:
 
     def __init__(self, resource: Union[Service, Layer, FeatureType, DatasetMetadata], monitoring_run: MonitoringRun,
                  monitoring_setting: MonitoringSetting = None, ):
@@ -224,7 +224,7 @@ class Monitoring:
 
         if response.status_code != 200:
             response_text = f"Unexpected HTTP response code: {response.status_code}"
-            return Monitoring.ServiceStatus(url, success, response_text, response.status_code, duration)
+            return Monitor.ServiceStatus(url, success, response_text, response.status_code, duration)
 
         success = True
         try:
@@ -243,7 +243,7 @@ class Monitoring:
                 success = True
             except UnidentifiedImageError:
                 success = False
-        service_status = Monitoring.ServiceStatus(url, success, response_text, response.status_code, duration)
+        service_status = Monitor.ServiceStatus(url, success, response_text, response.status_code, duration)
         return service_status
 
     def has_wfs_member(self, xml):

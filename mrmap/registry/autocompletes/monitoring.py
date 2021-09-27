@@ -1,7 +1,7 @@
 from dal import autocomplete
-from django.utils.translation import gettext_lazy as _
 from guardian.mixins import LoginRequiredMixin
-from monitoring.models import MonitoringRun, MonitoringResult, HealthState
+
+from registry.models import MonitoringRun, MonitoringResult, HealthState
 
 
 class MonitoringRunAutocomplete(LoginRequiredMixin, autocomplete.Select2QuerySetView):

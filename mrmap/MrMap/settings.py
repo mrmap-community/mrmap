@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'jobs',
     'registry',
     'csw',
-    'monitoring',
     'quality',
     'extras',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
@@ -226,11 +225,11 @@ AUTHENTICATION_BACKENDS = (
 GUARDIAN_RAISE_403 = True
 
 # django-guardian-roles
-GUARDIAN_ROLES_OWNABLE_MODELS = ['service.Metadata',
-                                 'monitoring.MonitoringRun',
-                                 'monitoring.MonitoringResult',
-                                 'monitoring.HealthState',
-                                 'service.ProxyLog']
+GUARDIAN_ROLES_OWNABLE_MODELS = ['registry.Metadata',
+                                 'registry.MonitoringRun',
+                                 'registry.MonitoringResult',
+                                 'registry.HealthState',
+                                 'registry.ProxyLog']
 
 GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'

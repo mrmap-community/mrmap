@@ -3,10 +3,11 @@ from django_filters.views import FilterView
 
 from MrMap.messages import MONITORING_RUN_SCHEDULED
 from extras.views import SecuredListMixin, SecuredCreateView, SecuredDetailView
-from monitoring.filters import HealthStateTableFilter, MonitoringResultTableFilter, MonitoringRunTableFilter
-from monitoring.forms import MonitoringRunForm
-from monitoring.models import MonitoringRun, MonitoringResult, HealthState
-from monitoring.tables import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, HealthStateTable, \
+from registry.filtersets.monitoring import MonitoringRunTableFilter, MonitoringResultTableFilter, HealthStateTableFilter
+from registry.forms.monitoring import MonitoringRunForm
+from registry.models import MonitoringRun, MonitoringResult, HealthState
+from registry.tables.monitoring import MonitoringResultTable, MonitoringRunTable, MonitoringResultDetailTable, \
+    HealthStateTable, \
     HealthStateDetailTable
 
 

@@ -4,8 +4,8 @@ from django.utils.translation import gettext_lazy as _
 
 from MrMap.icons import IconEnum
 from extras.tables.template_code import VALUE_ABSOLUTE_LINK, VALUE_ABSOLUTE_LINK_LIST
-from monitoring.enums import HealthStateEnum
-from monitoring.models import HealthState, MonitoringResult, MonitoringRun
+from registry.enums.monitoring import HealthStateEnum
+from registry.models import HealthState, MonitoringResult, MonitoringRun
 
 
 class MonitoringRunTable(tables.Table):

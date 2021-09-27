@@ -16,11 +16,11 @@ from django.db import transaction, connections, DEFAULT_DB_ALIAS, OperationalErr
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
-from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
+from registry.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from registry.enums.service import OGCOperationEnum
 from registry.models.security import OGCOperation
 from users.models.groups import Organization
-from monitoring.models import MonitoringSetting
+from registry.models import MonitoringSetting
 
 
 class Command(BaseCommand):

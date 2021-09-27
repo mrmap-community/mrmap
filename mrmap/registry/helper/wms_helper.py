@@ -5,9 +5,9 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-from monitoring.helper.urlHelper import UrlHelper
 from registry.enums.service import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
 from registry.models import Service
+from .url_helper import UrlHelper
 
 
 class WmsHelper:

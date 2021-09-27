@@ -1,5 +1,5 @@
 from extras.forms import ModelForm
-from monitoring.models import MonitoringRun
+from registry.models.monitoring import MonitoringRun
 
 
 class MonitoringRunForm(ModelForm):

@@ -5,9 +5,11 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
+      args: 
+        MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      /bin/bash -c "python manage.py test --noinput"
+      /bin/bash -c "python manage.py test"
     hostname: "mrmap-test"
     volumes:
       - type: bind
@@ -25,6 +27,8 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
+      args: 
+        MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
       /bin/bash -c "python manage.py behave"

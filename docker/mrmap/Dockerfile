@@ -7,9 +7,9 @@ RUN apt-get -qq update && \
     apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin npm
     
 # build python dependencies    
-COPY ./requirements.txt /
-RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then echo "\ndebugpy==1.4.3\ncoverage==5.5" >> requirements.txt; fi && \
-    pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
+COPY ./requirements.txt ./requirements.dev.txt /
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
+RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.dev.txt; fi
 
 # download front end dependencies
 COPY ./package.json /
@@ -20,7 +20,6 @@ RUN npm install --yes
 ################################    
 FROM python:3.9.7-slim-bullseye
 COPY --from=base /wheels /wheels
-COPY --from=base requirements.txt .
 COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css /tmp/mrmap/static/css/
 COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/mrmap/static/css/jstree
 COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/umd/popper.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js /tmp/mrmap/static/js/

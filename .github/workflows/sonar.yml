@@ -20,8 +20,9 @@ jobs:
         uses: nelonoel/branch-name@v1.0.1
         id: extract_branch
       - name: Run tests
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test 
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave 
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test \
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:

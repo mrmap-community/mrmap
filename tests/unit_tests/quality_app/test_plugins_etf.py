@@ -13,7 +13,7 @@ from django.test import TestCase
 
 from quality.models import ConformityCheckConfigurationExternal, ConformityCheckRun
 from quality.plugins.etf import QualityEtf, EtfClient
-from resourceNew.models import DatasetMetadata, MetadataContact
+from registry.models import DatasetMetadata, MetadataContact
 
 
 class PluginEtfTests(TestCase):

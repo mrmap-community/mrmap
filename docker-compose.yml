@@ -1,3 +1,4 @@
+# docker compose file for productive useage
 version: '3.8'
 services:
   postgis:

@@ -1,0 +1,54 @@
+{% extends 'MrMap/detail_views/base.html' %}
+{% load static i18n %}
+{% load bootstrap4 %}
+{% block content %}
+{% load custom_template_filters %}
+<div class="card bg-light my-3">
+    <div class="card-header">
+        {{ title }}
+    </div>
+    <form action="{{ action_url }}" method="post">
+        <div class="card-body">
+            {% csrf_token %}
+            {{form.media}}
+            {% bootstrap_form form %}
+            {% for formset in inlines %}
+            <hr class="separator">
+            <p>Ebenen und Datenangebote</p>
+            <div id="layer_tree"
+                 style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
+                 class="form-group">
+            </div>
+            {{formset.management_form}}
+            {% for form in formset.forms %}
+            <div class="{{ formset.prefix }}-form" style="display:none">
+                {% bootstrap_form form %}
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+        <div class="card-footer text-muted">
+            <button type="submit" class="btn btn-primary">
+                <span class="submit_btn_txt">{% trans 'Save' %}</span>
+                <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status"
+                                                             aria-hidden="true"></span> {%trans 'Loading...' %}
+                </div>
+            </button>
+        </div>
+    </form>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.11/themes/default/style.min.css"
+      integrity="sha512-P8BwDSUInKMA7I116Z1RFg/Dfk85uFdliEUYO7vQlwtxLVMNvZimfMAQsaf++9EhlAGOVX6yhDQAIY3/70jDUg=="
+      crossorigin="anonymous" referrerpolicy="no-referrer"/>
+<link rel="stylesheet" type="text/css" href="{% static '/registry/mapcontext/css/folder-style.css' %}" media="all"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.11/jstree.min.js"
+        integrity="sha512-bU6dl4fd2XN3Do3aWypPP2DcKywDyR3YlyszV+rOw9OpglrGyBs6TyTsbglf9umgE+sy+dKm1UHhi07Lv+Vtfg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/jstree-actions@0.2.1/jstree-actions.min.js"
+        integrity="sha256-9UEvBZl2CzCWCSvHfT1PKY7xfkJBJmRuNeCaUhS66IE=" crossorigin="anonymous"></script>
+<script type="text/javascript" src="{% static '/js/treeformset-helper.js' %}"></script>
+<script>
+    initJsTreeFormset('#layer_tree', 'layer', 'parent', 'name');
+</script>
+{% endblock %}

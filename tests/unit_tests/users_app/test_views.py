@@ -172,7 +172,7 @@ class LoginLogoutTestCase(TestCase):
         response = client.post(reverse('login',), data={"username": self.user.username, "password": self.user_password})
         self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
-        self.assertEqual(response.url, reverse('home', ), msg=REDIRECT_WRONG)
+        self.assertEqual(response.url, reverse('users:dashboard', ), msg=REDIRECT_WRONG)
 
         # case 1.1: user logged in -> logout successful
         response = client.get(reverse('logout',), data={"user": self.user})
@@ -321,7 +321,7 @@ class HomeViewTestCase(TestCase):
     def test_home_view(self):
 
         response = self.client.get(
-            reverse('home', ),
+            reverse('users:dashboard', ),
         )
         self.assertEqual(response.status_code, 200,)
         self.assertTemplateUsed(response=response, template_name="users/views/home/dashboard.html")

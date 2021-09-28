@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 from django.views.generic import DetailView
 from django.views.generic.base import ContextMixin
 from django.views.generic.edit import FormMixin, FormView
-from main.enums.bootstrap import AlertEnum, ButtonColorEnum
+from extras.enums.bootstrap import AlertEnum, ButtonColorEnum
 from django_tables2 import SingleTableMixin, LazyPaginator
 from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm
@@ -17,7 +17,7 @@ from MrMap.forms import ConfirmForm
 
 class ConfirmView(FormMixin, DetailView):
     template_name = 'MrMap/detail_views/generic_form.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('users:dashboard')
     form_class = ConfirmForm
     action_url = ""
     action_btn_color = ButtonColorEnum.PRIMARY
@@ -102,7 +102,7 @@ class CustomSingleTableMixin(SingleTableMixin):
     template_extend_base = True
     add_url = None
     # Implement lazy pagination, preventing any count() queries to increase performance.
-    # todo: disabled since refactoring service app to resourceNew app... we need to to test the performance of all
+    # todo: disabled since refactoring service app to registry app... we need to to test the performance of all
     #  table views. If we got performance problems we could activate the LazyPaginator again. But for the user
     #  experience it would be better to dispense LazyPaginator cause with the default pagination we can show total
     #  table count.

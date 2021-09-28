@@ -1,3 +1,4 @@
+# docker compose file for development useage
 version: '3.8'
 services:
   test:
@@ -5,7 +6,7 @@ services:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
-    command: >
+    command:
       /bin/bash -c "python manage.py test --noinput"
     hostname: "mrmap-test"
     volumes:

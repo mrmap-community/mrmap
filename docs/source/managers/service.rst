@@ -4,5 +4,5 @@
 Service Managers
 ================
 
-.. automodule:: resourceNew.managers.service
+.. automodule:: registry.managers.service
    :members:

@@ -13,7 +13,7 @@ from django.db import transaction
 from requests import Request, Session
 
 from MrMap.management.commands.setup_settings import CATEGORIES, CATEGORIES_LANG
-from resourceNew.enums.metadata import CategoryOriginEnum
+from registry.enums.metadata import CategoryOriginEnum
 
 
 class Command(BaseCommand):

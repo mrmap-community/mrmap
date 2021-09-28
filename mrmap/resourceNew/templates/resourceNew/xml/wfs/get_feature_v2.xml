@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<wfs:GetFeature xmlns:st="http://www.stations.org/1.0" xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" service="WFS" version="2.0.0">
-    <wfs:Query typeNames="{{type_names}}">
-        {% include "resourceNew/xml/wfs/filter_v2.xml"%}
-    </wfs:Query>
-</wfs:GetFeature>

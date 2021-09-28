@@ -7,5 +7,5 @@ Security Module
 Security Proxy Facade
 #####################
 
-.. automodule:: resourceNew.views.ows
+.. automodule:: registry.views.ows
    :members:

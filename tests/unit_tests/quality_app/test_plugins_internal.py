@@ -12,7 +12,7 @@ from django.test import TestCase
 from quality.enums import RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum
 from quality.models import ConformityCheckConfigurationInternal, Rule, RuleSet, ConformityCheckRun
 from quality.plugins.internal import QualityInternal
-from resourceNew.models import MetadataContact, DatasetMetadata
+from registry.models import MetadataContact, DatasetMetadata
 
 
 class PluginInternalTests(TestCase):

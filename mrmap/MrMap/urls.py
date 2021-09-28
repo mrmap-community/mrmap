@@ -5,39 +5,40 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 Examples:
 Function views
     1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+    2. Add a URL to urlpatterns:  path('', views.home, name='users:dashboard')
 Class-based views
     1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='users:dashboard')
 Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf.urls import url
 from django.contrib import admin
 from django.urls import path, include
+from django.urls.base import reverse
+from django.views.generic.base import RedirectView
 
 from MrMap.settings import DEBUG
 
 urlpatterns = [
-    # Admin
-    path('admin/', admin.site.urls),
+    # generic redirect if no path is used
+    path('', RedirectView.as_view(url='users/dashboard')),
 
-    # Apps
-    path('', include('users.urls')),
-    path('structure/', include('structure.urls')),
-    path('acl/', include('acl.urls')),
-    path('ac-old/', include('autocompletes.urls')),
-    path('resourceNew/', include('resourceNew.urls')),
-    path('monitoring/', include('monitoring.urls')),
+    # MrMapApps
+    path('users/', include('users.urls')),
+    path('acls/', include('acls.urls')),
+    path('registry/', include('registry.urls')),
+    path('jobs/', include('jobs.urls')),
+
+    # captcha support
     path('captcha/', include('captcha.urls')),
+    
+    # translation support
     path("i18n/", include("django.conf.urls.i18n")),
-    path('api/', include('api.urls')),
-    path('csw/', include('csw.urls')),
-    path('quality/', include('quality.urls')),
-    path('job/', include('job.urls')),
-
+    
     # Autocompletes
-    path('ac/resourceNew/', include('resourceNew.autocompletes.urls')),
+    path('ac/registry/', include('registry.autocompletes.urls')),
     path('ac/users/', include('users.autocompletes.urls')),
 ]
 

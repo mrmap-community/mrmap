@@ -24,9 +24,6 @@ jobs:
       - name: Run behave tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
-          cd mrmap/ 
-          coverage xml -i -o behave-coverage-report.xml
-          cd ..
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:

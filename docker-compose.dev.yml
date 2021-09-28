@@ -9,7 +9,7 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      /bin/bash -c "python manage.py test"
+      /bin/bash -c "coverage run manage.py test && coverage xml -i -o behave-coverage-report.xml"
     hostname: "mrmap-test"
     volumes:
       - type: bind

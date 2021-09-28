@@ -7,6 +7,8 @@ services:
       - type: volume
         source: db-data
         target: /var/lib/postgresql/data
+    networks:
+      - backend
     env_file:
       - ./.env.db
   redis:
@@ -15,12 +17,16 @@ services:
       - type: volume
         source: mem-db-data
         target: /data
+    networks:
+      - backend
   mapserver:
     image: camptocamp/mapserver:7.6
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles
         target: /etc/mapserver
+    networks:
+      - backend
   nginx:
     build:
       context: ./mrmap
@@ -35,6 +41,8 @@ services:
       - type: volume
         source: mrmap-static
         target: /var/www/mrmap/static
+    networks:
+      - frontend
     extra_hosts:
       - host.docker.internal:host-gateway
   #inspire-validator:
@@ -44,7 +52,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    entrypoint: /opt/mrmap/entrypoint.sh
+    entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
     command: 
       /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
     hostname: "mrmap-gunicorn"
@@ -61,6 +69,9 @@ services:
       - type: volume
         source: mrmap-log
         target: /var/log/mrmap
+    networks:
+      - backend
+      - frontend
     env_file:
       - ./.env.mrmap
     depends_on:
@@ -86,6 +97,8 @@ services:
       - type: volume
         source: mrmap-log
         target: /var/log/mrmap
+    networks:
+      - backend
     env_file:
       - ./.env.mrmap
     depends_on:
@@ -108,6 +121,8 @@ services:
       - type: volume
         source: mrmap-log
         target: /var/log/mrmap
+    networks:
+      - backend
     env_file:
       - ./.env.mrmap
     depends_on:
@@ -120,3 +135,7 @@ volumes:
   mrmap-log:
   db-data:
   mem-db-data:
+
+networks:
+  frontend:
+  backend:

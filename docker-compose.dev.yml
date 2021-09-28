@@ -5,13 +5,16 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-    command: >
-      /bin/bash -c "python manage.py makemigrations users acls registry quality monitoring jobs csw"
+    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    command:
+      /bin/bash -c "python manage.py test --noinput"
     hostname: "mrmap-test"
     volumes:
       - type: bind
         source: ./mrmap
         target: /opt/mrmap
+    networks:
+      - backend
     env_file:
       - ./.env.mrmap
     depends_on:

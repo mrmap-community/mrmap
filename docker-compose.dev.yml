@@ -9,7 +9,7 @@ services:
     command:
       /bin/bash -c "python manage.py test"
     hostname: "mrmap-test"
-    volum
+    volume:
       - type: bind
         source: ./mrmap
         target: /opt/mrmap
@@ -29,7 +29,7 @@ services:
     command:
       /bin/bash -c "python manage.py behave"
     hostname: "mrmap-behave"
-    volum
+    volume:
       - type: bind
         source: ./mrmap
         target: /opt/mrmap

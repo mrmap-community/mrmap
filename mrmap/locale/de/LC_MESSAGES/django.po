@@ -638,82 +638,82 @@ msgstr ""
 msgid "Wizard"
 msgstr "Formular-Assistent"
 
-#: acl/models/acl.py:25
+#: acls/models/acls.py:25
 msgid "Description"
 msgstr "Beschreibung"
 
-#: acl/models/acl.py:26
-msgid "Describe what this acl shall allow."
+#: acls/models/acls.py:26
+msgid "Describe what this aclss shall allow."
 msgstr ""
 
-#: acl/models/acl.py:42 acl/tables.py:41
+#: acls/models/acls.py:42 acls/tables.py:41
 #, fuzzy
 #| msgid "Access constraints"
 msgid "Accessible access control lists"
 msgstr "Zugangsbeschränkungen"
 
-#: acl/models/acl.py:43
-msgid "Select which acl's shall be accessible with the configured permissions."
+#: acls/models/acls.py:43
+msgid "Select which aclss's shall be accessible with the configured permissions."
 msgstr ""
 
-#: acl/models/acl.py:46 acl/tables.py:42
+#: acls/models/acls.py:46 acls/tables.py:42
 #, fuzzy
 #| msgid "Delete organization"
 msgid "Accessible organizations"
 msgstr "Organisation entfernen"
 
-#: acl/models/acl.py:47
+#: acls/models/acls.py:47
 msgid ""
 "Select which organizations shall be accessible with the configured "
 "permissions."
 msgstr ""
 
-#: acl/models/acl.py:56
+#: acls/models/acls.py:56
 #, fuzzy
 #| msgid "Access Constraints"
 msgid "Access Control List"
 msgstr "Zugangsbeschränkungen"
 
-#: acl/models/acl.py:57
+#: acls/models/acls.py:57
 #, fuzzy
 #| msgid "Access Constraints"
 msgid "Access Control Lists"
 msgstr "Zugangsbeschränkungen"
 
-#: acl/signals/organization_handling.py:34
+#: acls/signals/organization_handling.py:34
 msgid ""
 "Organization administrators can administrate all objects which are owned by "
 "the organization it self"
 msgstr ""
 
-#: acl/signals/organization_handling.py:39
+#: acls/signals/organization_handling.py:39
 msgid ""
 "Organization members can view all objects which are owned by the "
 "organization it self"
 msgstr ""
 
-#: acl/signals/organization_handling.py:43
+#: acls/signals/organization_handling.py:43
 msgid ""
 "Service administrators can perform all actions for all resources which are "
 "owned by the organization it self"
 msgstr ""
 
-#: acl/tables.py:13 acl/tables.py:38 templates/base.html:44
+#: acls/tables.py:13 acls/tables.py:38 templates/base.html:44
 #: templates/base.html:45 users/models.py:40
 msgid "Users"
 msgstr "Nutzer"
 
-#: acl/tables.py:39
+#: acls/tables.py:39
 #, fuzzy
 #| msgid "Allowed area"
 msgid "Allowed permissions"
 msgstr "Erlaubte Bereiche"
 
-#: acl/views.py:25 acl/views.py:28 monitoring/views.py:41
-#: monitoring/views.py:63 resourceNew/tables/metadata.py:16
-#: resourceNew/tables/metadata.py:57 resourceNew/tables/service.py:36
-#: resourceNew/tables/service.py:91 resourceNew/tables/service.py:139
-#: resourceNew/tables/service.py:181 structure/views.py:38
+#: acls/views.py:25 acls/views.py:28 monitoring/views.py:41
+#: monitoring/views.py:63 registry/tables/metadata.py:16
+#: registry/tables/metadata.py:57 registry/tables/service.py:36
+#: registry/tables/service.py:91 registry/tables/service.py:139
+#: registry/tables/service.py:181 structure/views.py:38
 #: structure/views.py:68 structure/views.py:73
 #: structure/views/organization.py:21 structure/views/organization.py:44
 msgid "Details"
@@ -752,169 +752,169 @@ msgstr "Einen neuen Zugangstoken generieren und speichern"
 msgid "Generate"
 msgstr "Generieren"
 
-#: autocompletes/autocompletes.py:30 main/autocompletes.py:19
+#: autocompletes/autocompletes.py:30 extras/autocompletes.py:19
 msgid "If you provide add functionality you need to define `add_perm` param"
 msgstr ""
 "Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
 "`add_perm` setzen."
 
-#: job/models.py:14 job/models.py:75 resourceNew/models/mapcontext.py:42
-#: resourceNew/models/metadata.py:45 resourceNew/models/metadata.py:743
+#: jobs/models.py:14 jobs/models.py:75 registry/models/mapcontext.py:42
+#: registry/models/metadata.py:45 registry/models/metadata.py:743
 #, fuzzy
 #| msgid "Username"
 msgid "name"
 msgstr "Nutzername"
 
-#: job/models.py:15 job/models.py:76
-msgid "Describe what this job does."
+#: jobs/models.py:15 jobs/models.py:76
+msgid "Describe what this jobs does."
 msgstr ""
 
-#: job/models.py:72
+#: jobs/models.py:72
 #, fuzzy
 #| msgid "Health state"
 msgid "task state"
 msgstr "Gesundheitszustand"
 
-#: job/models.py:73
+#: jobs/models.py:73
 msgid "Current state of the task being run"
 msgstr ""
 
-#: job/models.py:89
+#: jobs/models.py:89
 #, fuzzy
 #| msgid "Parent Layer"
 msgid "parent task"
 msgstr "Gehört zu Ebene"
 
-#: job/models.py:90
+#: jobs/models.py:90
 msgid "the parent task of this sub task"
 msgstr ""
 
-#: job/tables.py:14 job/tables.py:87 resourceNew/tables/service.py:39
+#: jobs/tables.py:14 jobs/tables.py:87 registry/tables/service.py:39
 msgid "Status"
 msgstr "Status"
 
-#: job/tables.py:17 ws/signals.py:25
+#: jobs/tables.py:17 ws/signals.py:25
 msgid "details"
 msgstr "Einzelheiten"
 
-#: job/tables.py:21
+#: jobs/tables.py:21
 #, fuzzy
 #| msgid "Date of creation"
 msgid "Date Created"
 msgstr "Erstellt am"
 
-#: job/tables.py:24
+#: jobs/tables.py:24
 msgid "Date Done"
 msgstr ""
 
-#: job/tables.py:27 job/tables.py:97
+#: jobs/tables.py:27 jobs/tables.py:97
 msgid "Execution time"
 msgstr ""
 
-#: job/tables.py:29 job/tables.py:99
+#: jobs/tables.py:29 jobs/tables.py:99
 msgid "Progress"
 msgstr "Fortschritt"
 
-#: job/tables.py:51 job/tables.py:122
+#: jobs/tables.py:51 jobs/tables.py:122
 msgid "Task is pending"
 msgstr "Aufgabe steht aus"
 
-#: job/tables.py:54 job/tables.py:125
+#: jobs/tables.py:54 jobs/tables.py:125
 msgid "Task is running"
 msgstr "Aufgabe wird bearbeitet"
 
-#: job/tables.py:57 job/tables.py:128
+#: jobs/tables.py:57 jobs/tables.py:128
 #, fuzzy
 #| msgid "Dataset successfully deleted."
 msgid "Task successfully done"
 msgstr "Datensatz erfolgreich gelöscht."
 
-#: job/tables.py:60 job/tables.py:131
+#: jobs/tables.py:60 jobs/tables.py:131
 msgid "Task unexpected stopped"
 msgstr "Aufgabe unerwartet beendet"
 
-#: job/tables.py:91
+#: jobs/tables.py:91
 msgid "Started at"
 msgstr ""
 
-#: job/tables.py:94
+#: jobs/tables.py:94
 msgid "Done at"
 msgstr ""
 
-#: main/models.py:158
+#: extras/models.py:158
 #, fuzzy
 #| msgid "Created on"
 msgid "Created at"
 msgstr "Erstellt am"
 
-#: main/models.py:159
+#: extras/models.py:159
 msgid "The timestamp of the creation date of this object."
 msgstr ""
 
-#: main/models.py:164
+#: extras/models.py:164
 #, fuzzy
 #| msgid "Created on"
 msgid "Created by"
 msgstr "Erstellt am"
 
-#: main/models.py:165
+#: extras/models.py:165
 msgid "The user who has created this object."
 msgstr ""
 
-#: main/models.py:171
+#: extras/models.py:171
 msgid "Owner"
 msgstr ""
 
-#: main/models.py:172
+#: extras/models.py:172
 #, fuzzy
 #| msgid "The organization which provides the resource."
 msgid "The organization which is the owner of this object."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: main/models.py:177
+#: extras/models.py:177
 msgid "Last modified at"
 msgstr ""
 
-#: main/models.py:178
+#: extras/models.py:178
 msgid "The timestamp of the last modification of this object"
 msgstr ""
 
-#: main/models.py:183
+#: extras/models.py:183
 msgid "Last modified by"
 msgstr ""
 
-#: main/models.py:184
+#: extras/models.py:184
 msgid "The last user who has modified this object."
 msgstr ""
 
-#: main/tables/columns.py:32 main/tables/columns.py:53 quality/tables.py:19
-#: resourceNew/tables/mapcontext.py:11 resourceNew/tables/metadata.py:18
-#: resourceNew/tables/metadata.py:59 resourceNew/tables/security.py:18
-#: resourceNew/tables/security.py:39 resourceNew/tables/security.py:57
-#: resourceNew/tables/security.py:90 resourceNew/tables/service.py:52
-#: resourceNew/tables/service.py:95 resourceNew/tables/service.py:143
+#: extras/tables/columns.py:32 extras/tables/columns.py:53 quality/tables.py:19
+#: registry/tables/mapcontext.py:11 registry/tables/metadata.py:18
+#: registry/tables/metadata.py:59 registry/tables/security.py:18
+#: registry/tables/security.py:39 registry/tables/security.py:57
+#: registry/tables/security.py:90 registry/tables/service.py:52
+#: registry/tables/service.py:95 registry/tables/service.py:143
 msgid "Actions"
 msgstr "Aktionen"
 
-#: main/views.py:119
+#: extras/views.py:119
 #, fuzzy, python-format
 #| msgid "Organization {} successfully created."
 msgid "Successfully created %(obj)s"
 msgstr "Organisation {} erstellt."
 
-#: main/views.py:168
+#: extras/views.py:168
 #, fuzzy, python-format
 #| msgid "Successfully logged out!"
 msgid "Successfully deleted %(obj)s"
 msgstr "Erfolgreich ausgeloggt"
 
-#: main/views.py:196
+#: extras/views.py:196
 #, fuzzy
 #| msgid "Edit"
 msgid "Edit "
 msgstr "Bearbeiten"
 
-#: main/views.py:205
+#: extras/views.py:205
 #, fuzzy, python-format
 #| msgid "Successfully logged out!"
 msgid "Successfully updated %(obj)s"
@@ -967,7 +967,7 @@ msgid "Monitoring runs"
 msgstr "Letzte Checks"
 
 #: monitoring/models.py:137 monitoring/models.py:182
-#: resourceNew/filtersets/security.py:60 users/models.py:128
+#: registry/filtersets/security.py:60 users/models.py:128
 msgid "Service"
 msgstr "Dienst"
 
@@ -1118,8 +1118,8 @@ msgstr "Grund"
 msgid "Something went wrong while monitoring {resource}"
 msgstr "Etwas ging schief beim überprüfen von {metadata}"
 
-#: quality/models.py:125 resourceNew/models/metadata.py:212
-#: resourceNew/models/service.py:97
+#: quality/models.py:125 registry/models/metadata.py:212
+#: registry/models/service.py:97
 #, fuzzy
 #| msgid "Service"
 msgid "service"
@@ -1129,8 +1129,8 @@ msgstr "Dienst"
 msgid "the service targeted by this check"
 msgstr ""
 
-#: quality/models.py:127 resourceNew/models/metadata.py:757
-#: resourceNew/models/service.py:353
+#: quality/models.py:127 registry/models/metadata.py:757
+#: registry/models/service.py:353
 #, fuzzy
 #| msgid "Layer:"
 msgid "layer"
@@ -1140,8 +1140,8 @@ msgstr "Ebene:"
 msgid "the layer targeted by this check"
 msgstr ""
 
-#: quality/models.py:130 resourceNew/models/metadata.py:765
-#: resourceNew/models/service.py:467 resourceNew/models/service.py:539
+#: quality/models.py:130 registry/models/metadata.py:765
+#: registry/models/service.py:467 registry/models/service.py:539
 #, fuzzy
 #| msgid "Featuretype:"
 msgid "feature type"
@@ -1151,8 +1151,8 @@ msgstr "Featuretype:"
 msgid "the feature type targeted by this check"
 msgstr ""
 
-#: quality/models.py:133 resourceNew/models/metadata.py:693
-#: resourceNew/models/metadata.py:694 resourceNew/models/metadata.py:773
+#: quality/models.py:133 registry/models/metadata.py:693
+#: registry/models/metadata.py:694 registry/models/metadata.py:773
 #, fuzzy
 #| msgid "Dataset Metadata"
 msgid "dataset metadata"
@@ -1164,8 +1164,8 @@ msgstr "Datensatz Metadaten"
 msgid "the dataset metadata targeted by this check"
 msgstr "Datensatz Metadaten bearbeitet"
 
-#: quality/models.py:136 resourceNew/models/metadata.py:407
-#: resourceNew/models/metadata.py:408
+#: quality/models.py:136 registry/models/metadata.py:407
+#: registry/models/metadata.py:408
 #, fuzzy
 #| msgid "Service Metadata"
 msgid "service metadata"
@@ -1177,8 +1177,8 @@ msgstr "Service Metadaten"
 msgid "the service metadata targeted by this check"
 msgstr "Dienst Metadaten zurückgesetzt"
 
-#: quality/models.py:139 resourceNew/models/metadata.py:429
-#: resourceNew/models/metadata.py:430
+#: quality/models.py:139 registry/models/metadata.py:429
+#: registry/models/metadata.py:430
 #, fuzzy
 #| msgid "Restore metadata"
 msgid "layer metadata"
@@ -1188,8 +1188,8 @@ msgstr "Metadaten wiederherstellen"
 msgid "the layer metadata targeted by this check"
 msgstr ""
 
-#: quality/models.py:142 resourceNew/models/metadata.py:454
-#: resourceNew/models/metadata.py:455
+#: quality/models.py:142 registry/models/metadata.py:454
+#: registry/models/metadata.py:455
 #, fuzzy
 #| msgid "Restore metadata"
 msgid "feature type metadata"
@@ -1232,865 +1232,865 @@ msgstr "Kein XML OutputFormat verfügbar"
 msgid "Validation"
 msgstr "Organisation"
 
-#: resourceNew/filtersets/security.py:45
+#: registry/filtersets/security.py:45
 #, fuzzy
 #| msgid "Organization"
 msgid "Operation"
 msgstr "Organisation"
 
-#: resourceNew/filtersets/security.py:50 users/models.py:39
+#: registry/filtersets/security.py:50 users/models.py:39
 msgid "User"
 msgstr "Nutzer"
 
-#: resourceNew/filtersets/service.py:21 resourceNew/filtersets/service.py:53
+#: registry/filtersets/service.py:21 registry/filtersets/service.py:53
 msgid "Time dimension"
 msgstr ""
 
-#: resourceNew/filtersets/service.py:22
+#: registry/filtersets/service.py:22
 msgid "Search for layers with time dimension in given datetime range."
 msgstr ""
 
-#: resourceNew/filtersets/service.py:54
+#: registry/filtersets/service.py:54
 msgid "Search for feature types with time dimension in given datetime range."
 msgstr ""
 
-#: resourceNew/forms/mapcontext.py:9
+#: registry/forms/mapcontext.py:9
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: resourceNew/forms/mapcontext.py:9 resourceNew/models/mapcontext.py:15
+#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:15
 msgid "brief summary of the topic of this map context"
 msgstr ""
 
-#: resourceNew/forms/security.py:47
+#: registry/forms/security.py:47
 msgid ""
 "Select the users which shall be member of this access group. If you select "
 "AnonymousUser, all users are allowed."
 msgstr ""
 
-#: resourceNew/forms/security.py:49
+#: registry/forms/security.py:49
 #, fuzzy
 #| msgid "Users"
 msgid "users"
 msgstr "Nutzer"
 
-#: resourceNew/forms/service.py:13 resourceNew/models/security.py:53
+#: registry/forms/service.py:13 registry/models/security.py:53
 #, fuzzy
 #| msgid "Service"
 msgid "Service url"
 msgstr "Dienst"
 
-#: resourceNew/forms/service.py:14 resourceNew/models/security.py:54
+#: registry/forms/service.py:14 registry/models/security.py:54
 msgid "this shall be the full get capabilities request url."
 msgstr ""
 
-#: resourceNew/forms/service.py:17
+#: registry/forms/service.py:17
 #, fuzzy
 #| msgid "Restore metadata"
 msgid "collect metadata"
 msgstr "Metadaten wiederherstellen"
 
-#: resourceNew/forms/service.py:18
+#: registry/forms/service.py:18
 msgid ""
 "auto start collecting task after successful registering which register all "
 "linked metadata records found in the GetCapabilities document."
 msgstr ""
 
-#: resourceNew/forms/service.py:22
+#: registry/forms/service.py:22
 #, fuzzy
 #| msgid "Registration for other organization"
 msgid "Registration for organization"
 msgstr "Registriere für andere Organisation"
 
-#: resourceNew/forms/service.py:23
+#: registry/forms/service.py:23
 msgid "Select for which organization you'd like to register the service."
 msgstr ""
 
-#: resourceNew/forms/service.py:29 resourceNew/models/security.py:39
+#: registry/forms/service.py:29 registry/models/security.py:39
 #, fuzzy
 #| msgid "Username"
 msgid "username"
 msgstr "Nutzername"
 
-#: resourceNew/forms/service.py:30 resourceNew/models/security.py:40
+#: registry/forms/service.py:30 registry/models/security.py:40
 #, fuzzy
 #| msgid "Service needs authentication"
 msgid "the username used for the authentication."
 msgstr "Dienst benötigt Authentifizierung"
 
-#: resourceNew/forms/service.py:33 resourceNew/models/security.py:43
+#: registry/forms/service.py:33 registry/models/security.py:43
 #, fuzzy
 #| msgid "Password"
 msgid "password"
 msgstr "Passwort"
 
-#: resourceNew/forms/service.py:34 resourceNew/models/security.py:44
+#: registry/forms/service.py:34 registry/models/security.py:44
 msgid "the password used for the authentication."
 msgstr ""
 
-#: resourceNew/forms/service.py:38 resourceNew/models/security.py:48
+#: registry/forms/service.py:38 registry/models/security.py:48
 #, fuzzy
 #| msgid "Authentication type"
 msgid "authentication type"
 msgstr "Authentifizierungstyp"
 
-#: resourceNew/forms/service.py:39 resourceNew/models/security.py:49
+#: registry/forms/service.py:39 registry/models/security.py:49
 msgid "kind of authentication mechanism shall used."
 msgstr ""
 
-#: resourceNew/forms/service.py:52
+#: registry/forms/service.py:52
 msgid "You must provide a username if you joice any authentication method."
 msgstr ""
 
-#: resourceNew/forms/service.py:55
+#: registry/forms/service.py:55
 msgid "You must provide a password if you joice any authentication method."
 msgstr ""
 
-#: resourceNew/managers/metadata.py:41
+#: registry/managers/metadata.py:41
 msgid "Explanations: <br>"
 msgstr ""
 
-#: resourceNew/models/document.py:22
+#: registry/models/document.py:22
 msgid "xml backup"
 msgstr ""
 
-#: resourceNew/models/document.py:23
+#: registry/models/document.py:23
 msgid "the original xml as backup to restore the xml field."
 msgstr ""
 
-#: resourceNew/models/mapcontext.py:11 resourceNew/models/mapcontext.py:47
-#: resourceNew/models/metadata.py:50 resourceNew/models/metadata.py:325
+#: registry/models/mapcontext.py:11 registry/models/mapcontext.py:47
+#: registry/models/metadata.py:50 registry/models/metadata.py:325
 #, fuzzy
 #| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
-#: resourceNew/models/mapcontext.py:12
+#: registry/models/mapcontext.py:12
 msgid "a short descriptive title for this map context"
 msgstr ""
 
-#: resourceNew/models/mapcontext.py:14 resourceNew/models/metadata.py:328
+#: registry/models/mapcontext.py:14 registry/models/metadata.py:328
 #, fuzzy
 #| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: resourceNew/models/mapcontext.py:43
+#: registry/models/mapcontext.py:43
 msgid "an identifying name for this map context layer"
 msgstr ""
 
-#: resourceNew/models/mapcontext.py:48
+#: registry/models/mapcontext.py:48
 msgid "a short descriptive title for this map context layer"
 msgstr ""
 
-#: resourceNew/models/metadata.py:28
+#: registry/models/metadata.py:28
 #, fuzzy
 #| msgid "Mime types:"
 msgid "mime type"
 msgstr "Formattypen:"
 
-#: resourceNew/models/metadata.py:29
+#: registry/models/metadata.py:29
 msgid "The Internet Media Type"
 msgstr ""
 
-#: resourceNew/models/metadata.py:39
+#: registry/models/metadata.py:39
 #, fuzzy
 #| msgid "Created on"
 msgid "related layer"
 msgstr "Erstellt am"
 
-#: resourceNew/models/metadata.py:40
+#: registry/models/metadata.py:40
 msgid "the layer for that this style is for."
 msgstr ""
 
-#: resourceNew/models/metadata.py:46
+#: registry/models/metadata.py:46
 msgid ""
 "The style's Name is used in the Map request STYLES parameter to lookup the "
 "style on server side."
 msgstr ""
 
-#: resourceNew/models/metadata.py:51
+#: registry/models/metadata.py:51
 msgid ""
 "The Title is a human-readable string as an alternative for the name "
 "attribute."
 msgstr ""
 
-#: resourceNew/models/metadata.py:61
+#: registry/models/metadata.py:61
 msgid ""
 "contains the location of an image of a map legend appropriate to the "
 "enclosing Style."
 msgstr ""
 
-#: resourceNew/models/metadata.py:64 resourceNew/models/metadata.py:66
+#: registry/models/metadata.py:64 registry/models/metadata.py:66
 msgid "the size of the image in pixels"
 msgstr ""
 
-#: resourceNew/models/metadata.py:72 resourceNew/models/service.py:234
+#: registry/models/metadata.py:72 registry/models/service.py:234
 #, fuzzy
 #| msgid "Service type"
 msgid "internet mime type"
 msgstr "Diensttyp"
 
-#: resourceNew/models/metadata.py:73
+#: registry/models/metadata.py:73
 msgid "the mime type of the remote legend url"
 msgstr ""
 
-#: resourceNew/models/metadata.py:77
+#: registry/models/metadata.py:77
 #, fuzzy
 #| msgid "Created on"
 msgid "related style"
 msgstr "Erstellt am"
 
-#: resourceNew/models/metadata.py:78
+#: registry/models/metadata.py:78
 msgid "the style entity which is linked to this legend url"
 msgstr ""
 
-#: resourceNew/models/metadata.py:118 structure/models.py:55
+#: registry/models/metadata.py:118 structure/models.py:55
 msgid "Name"
 msgstr ""
 
-#: resourceNew/models/metadata.py:119 structure/models.py:57
+#: registry/models/metadata.py:119 structure/models.py:57
 #, fuzzy
 #| msgid "Delete organization"
 msgid "The name of the organization"
 msgstr "Organisation entfernen"
 
-#: resourceNew/models/metadata.py:122 structure/models.py:21
+#: registry/models/metadata.py:122 structure/models.py:21
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
-#: resourceNew/models/metadata.py:125 structure/models.py:22
+#: registry/models/metadata.py:125 structure/models.py:22
 msgid "E-Mail"
 msgstr "E-Mail"
 
-#: resourceNew/models/metadata.py:128 structure/models.py:23
+#: registry/models/metadata.py:128 structure/models.py:23
 msgid "Phone"
 msgstr "Telefon"
 
-#: resourceNew/models/metadata.py:132 structure/models.py:24
+#: registry/models/metadata.py:132 structure/models.py:24
 msgid "Facsimile"
 msgstr "Fax"
 
-#: resourceNew/models/metadata.py:135 structure/models.py:25
+#: registry/models/metadata.py:135 structure/models.py:25
 msgid "City"
 msgstr "Stadt"
 
-#: resourceNew/models/metadata.py:138 structure/models.py:26
+#: registry/models/metadata.py:138 structure/models.py:26
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: resourceNew/models/metadata.py:141 structure/models.py:27
+#: registry/models/metadata.py:141 structure/models.py:27
 #, fuzzy
 #| msgid "Address"
 msgid "Address type"
 msgstr "Adresse"
 
-#: resourceNew/models/metadata.py:144 structure/models.py:28
+#: registry/models/metadata.py:144 structure/models.py:28
 msgid "Address"
 msgstr "Adresse"
 
-#: resourceNew/models/metadata.py:147 structure/models.py:29
+#: registry/models/metadata.py:147 structure/models.py:29
 msgid "State or province"
 msgstr "Bundesland"
 
-#: resourceNew/models/metadata.py:150 structure/models.py:30
+#: registry/models/metadata.py:150 structure/models.py:30
 msgid "Country"
 msgstr "Land"
 
-#: resourceNew/models/metadata.py:203
+#: registry/models/metadata.py:203
 #, fuzzy
 #| msgid "Download"
 msgid "download link"
 msgstr "Download"
 
-#: resourceNew/models/metadata.py:204
+#: registry/models/metadata.py:204
 msgid "the url where the metadata could be downloaded from."
 msgstr ""
 
-#: resourceNew/models/metadata.py:206
+#: registry/models/metadata.py:206
 msgid "remote content"
 msgstr ""
 
-#: resourceNew/models/metadata.py:207
+#: registry/models/metadata.py:207
 msgid "the fetched content of the download url."
 msgstr ""
 
-#: resourceNew/models/metadata.py:213
+#: registry/models/metadata.py:213
 msgid ""
 "the service where this remote metadata is related to. This remote metadata "
 "was found in the GetCapabilites document of the related service."
 msgstr ""
 
-#: resourceNew/models/metadata.py:217
+#: registry/models/metadata.py:217
 #, fuzzy
 #| msgid "New resource"
 msgid "described resource"
 msgstr "Neue Ressource"
 
-#: resourceNew/models/metadata.py:218
+#: registry/models/metadata.py:218
 msgid "the uuid of the described service, layer or feature type"
 msgstr ""
 
-#: resourceNew/models/metadata.py:271
+#: registry/models/metadata.py:271
 #, fuzzy
 #| msgid "Access constraints"
 msgid "access constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: resourceNew/models/metadata.py:272
+#: registry/models/metadata.py:272
 #, fuzzy
 #| msgid "Select categories for this resource."
 msgid "access constraints for the given resource."
 msgstr "Kategorien auswählen"
 
-#: resourceNew/models/metadata.py:275
+#: registry/models/metadata.py:275
 msgid "fees"
 msgstr ""
 
-#: resourceNew/models/metadata.py:276
+#: registry/models/metadata.py:276
 msgid "Costs and of terms of use for the given resource."
 msgstr ""
 
-#: resourceNew/models/metadata.py:295
+#: registry/models/metadata.py:295
 #, fuzzy
 #| msgid "Timestamp"
 msgid "date stamp"
 msgstr "Zeitpunkt"
 
-#: resourceNew/models/metadata.py:296
+#: registry/models/metadata.py:296
 msgid ""
 "date that the metadata was created. If this is a metadata record which is "
 "parsed from remote iso metadata, the date stamp of the remote iso metadata "
 "will be used."
 msgstr ""
 
-#: resourceNew/models/metadata.py:307
+#: registry/models/metadata.py:307
 msgid "file identifier"
 msgstr ""
 
-#: resourceNew/models/metadata.py:308
+#: registry/models/metadata.py:308
 msgid ""
 "the parsed file identifier from the iso metadata xml (gmd:fileIdentifier) OR "
 "for example if it is a layer/featuretypethe uuid of the described layer/"
 "featuretype shall be used to identify the generated iso metadata xml."
 msgstr ""
 
-#: resourceNew/models/metadata.py:315 resourceNew/models/metadata.py:497
+#: registry/models/metadata.py:315 registry/models/metadata.py:497
 #, fuzzy
 #| msgid "Origins"
 msgid "origin"
 msgstr "Herkunft"
 
-#: resourceNew/models/metadata.py:316
+#: registry/models/metadata.py:316
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "Where the metadata record comes from."
 msgstr "Gesundheitszustand der Ressource"
 
-#: resourceNew/models/metadata.py:321
+#: registry/models/metadata.py:321
 #, fuzzy
 #| msgid "Original"
 msgid "origin url"
 msgstr "Original"
 
-#: resourceNew/models/metadata.py:322
+#: registry/models/metadata.py:322
 msgid ""
 "the url of the document where the information of this metadata record comes "
 "from"
 msgstr ""
 
-#: resourceNew/models/metadata.py:326
+#: registry/models/metadata.py:326
 msgid "a short descriptive title for this metadata"
 msgstr ""
 
-#: resourceNew/models/metadata.py:329
+#: registry/models/metadata.py:329
 msgid "brief summary of the content of this metadata."
 msgstr ""
 
-#: resourceNew/models/metadata.py:332
+#: registry/models/metadata.py:332
 msgid "is broken"
 msgstr ""
 
-#: resourceNew/models/metadata.py:333
+#: registry/models/metadata.py:333
 msgid "TODO"
 msgstr ""
 
-#: resourceNew/models/metadata.py:336
+#: registry/models/metadata.py:336
 msgid "is customized"
 msgstr ""
 
-#: resourceNew/models/metadata.py:337
+#: registry/models/metadata.py:337
 msgid "If the metadata record is customized, this flag is True"
 msgstr ""
 
-#: resourceNew/models/metadata.py:342
+#: registry/models/metadata.py:342
 #, fuzzy
 #| msgid "Show harvested"
 msgid "harvest result"
 msgstr "Zeige Harvests"
 
-#: resourceNew/models/metadata.py:343
+#: registry/models/metadata.py:343
 msgid ""
 "to determine errors while harvesting process. Get linked iso metadata from "
 "parsed capabilities result is also a harvesting process."
 msgstr ""
 
-#: resourceNew/models/metadata.py:348
+#: registry/models/metadata.py:348
 msgid "todo"
 msgstr ""
 
-#: resourceNew/models/metadata.py:350
+#: registry/models/metadata.py:350
 msgid "is searchable"
 msgstr "Durchsuchbar"
 
-#: resourceNew/models/metadata.py:351
+#: registry/models/metadata.py:351
 msgid "only searchable metadata will be returned from the search api"
 msgstr ""
 
-#: resourceNew/models/metadata.py:353 resourceNew/models/service.py:62
+#: registry/models/metadata.py:353 registry/models/service.py:62
 msgid "hits"
 msgstr ""
 
-#: resourceNew/models/metadata.py:354 resourceNew/models/service.py:63
+#: registry/models/metadata.py:354 registry/models/service.py:63
 msgid "how many times this metadata was requested by a client"
 msgstr ""
 
-#: resourceNew/models/metadata.py:359
+#: registry/models/metadata.py:359
 #, fuzzy
 #| msgid "Keywords"
 msgid "keywords"
 msgstr "Schlüsselwörter"
 
-#: resourceNew/models/metadata.py:360
+#: registry/models/metadata.py:360
 msgid "all keywords which are related to the content of this metadata."
 msgstr ""
 
-#: resourceNew/models/metadata.py:390
+#: registry/models/metadata.py:390
 #, fuzzy
 #| msgid "Subscribed services"
 msgid "described service"
 msgstr "Abonnierte Dienste"
 
-#: resourceNew/models/metadata.py:391
+#: registry/models/metadata.py:391
 msgid "choice the service you want to describe with this metadata"
 msgstr ""
 
-#: resourceNew/models/metadata.py:396
+#: registry/models/metadata.py:396
 #, fuzzy
 #| msgid "Service Metadata"
 msgid "service contact"
 msgstr "Service Metadaten"
 
-#: resourceNew/models/metadata.py:397
+#: registry/models/metadata.py:397
 msgid "This is the contact for the service provider."
 msgstr ""
 
-#: resourceNew/models/metadata.py:402
+#: registry/models/metadata.py:402
 #, fuzzy
 #| msgid "Metadata date"
 msgid "metadata contact"
 msgstr "Metadaten Datum"
 
-#: resourceNew/models/metadata.py:403
+#: registry/models/metadata.py:403
 msgid "This is the contact for the metadata information."
 msgstr ""
 
-#: resourceNew/models/metadata.py:424
+#: registry/models/metadata.py:424
 #, fuzzy
 #| msgid "Edit layer"
 msgid "described layer"
 msgstr "Ebene bearbeiten"
 
-#: resourceNew/models/metadata.py:425
+#: registry/models/metadata.py:425
 msgid "choice the layer you want to describe with this metadata"
 msgstr ""
 
-#: resourceNew/models/metadata.py:449
+#: registry/models/metadata.py:449
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "described feature type"
 msgstr "Featuretyp bearbeiten"
 
-#: resourceNew/models/metadata.py:450
+#: registry/models/metadata.py:450
 msgid "choice the feature type you want to describe with this metadata"
 msgstr ""
 
-#: resourceNew/models/metadata.py:492
+#: registry/models/metadata.py:492
 msgid "internal relation?"
 msgstr ""
 
-#: resourceNew/models/metadata.py:493
+#: registry/models/metadata.py:493
 msgid ""
 "true means that this relation is created by a user and the dataset is maybe "
 "not linked in a capabilities document for example."
 msgstr ""
 
-#: resourceNew/models/metadata.py:498
+#: registry/models/metadata.py:498
 msgid "determines where this relation was found or it is added by a user."
 msgstr ""
 
-#: resourceNew/models/metadata.py:605 resourceNew/models/metadata.py:611
+#: registry/models/metadata.py:605 registry/models/metadata.py:611
 #, fuzzy
 #| msgid "Contact"
 msgid "contact"
 msgstr "Kontakt"
 
-#: resourceNew/models/metadata.py:606
+#: registry/models/metadata.py:606
 #, fuzzy
 #| msgid "The organization which provides the resource."
 msgid "this is the contact which provides this dataset."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: resourceNew/models/metadata.py:612
+#: registry/models/metadata.py:612
 msgid ""
 "this is the contact which is responsible for the metadata information of the "
 "dataset."
 msgstr ""
 
-#: resourceNew/models/metadata.py:617
+#: registry/models/metadata.py:617
 msgid "resolution type"
 msgstr ""
 
-#: resourceNew/models/metadata.py:618
+#: registry/models/metadata.py:618
 msgid "Ground resolution in meter or the equivalent scale."
 msgstr ""
 
-#: resourceNew/models/metadata.py:621
+#: registry/models/metadata.py:621
 msgid "resolution value"
 msgstr ""
 
-#: resourceNew/models/metadata.py:622
+#: registry/models/metadata.py:622
 msgid "The value depending on the selected resolution type."
 msgstr ""
 
-#: resourceNew/models/metadata.py:627 resourceNew/models/service.py:285
+#: registry/models/metadata.py:627 registry/models/service.py:285
 #, fuzzy
 #| msgid "Coordinate reference system"
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
-#: resourceNew/models/metadata.py:632
+#: registry/models/metadata.py:632
 msgid "format"
 msgstr ""
 
-#: resourceNew/models/metadata.py:633
+#: registry/models/metadata.py:633
 #, fuzzy
 #| msgid "The organization for which the resource is registered."
 msgid "The format in which the described dataset is stored."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: resourceNew/models/metadata.py:638
+#: registry/models/metadata.py:638
 msgid "charset"
 msgstr ""
 
-#: resourceNew/models/metadata.py:639
+#: registry/models/metadata.py:639
 #, fuzzy
 #| msgid "The group which registered the resource."
 msgid "The charset which is used by the stored data."
 msgstr "Die Gruppe, die diesen Dienst registriert hat"
 
-#: resourceNew/models/metadata.py:641
+#: registry/models/metadata.py:641
 msgid "Flag to signal if the described data has a topologically consistence."
 msgstr ""
 
-#: resourceNew/models/metadata.py:655
+#: registry/models/metadata.py:655
 msgid "identifier of the remote data"
 msgstr ""
 
-#: resourceNew/models/metadata.py:659
+#: registry/models/metadata.py:659
 msgid "code space for the given identifier"
 msgstr ""
 
-#: resourceNew/models/metadata.py:661
+#: registry/models/metadata.py:661
 msgid "flag to signal if this "
 msgstr ""
 
-#: resourceNew/models/metadata.py:668 resourceNew/models/service.py:354
+#: registry/models/metadata.py:668 registry/models/service.py:354
 #, fuzzy
 #| msgid "Layers"
 msgid "layers"
 msgstr "Ebenen"
 
-#: resourceNew/models/metadata.py:669
+#: registry/models/metadata.py:669
 msgid ""
 "all layers which are linking to this dataset metadata in there capabilities."
 msgstr ""
 
-#: resourceNew/models/metadata.py:677 resourceNew/models/service.py:468
+#: registry/models/metadata.py:677 registry/models/service.py:468
 #, fuzzy
 #| msgid "Featuretypes"
 msgid "feature types"
 msgstr "Featuretypen"
 
-#: resourceNew/models/metadata.py:678
+#: registry/models/metadata.py:678
 msgid ""
 "all feature types which are linking to this dataset metadata in there "
 "capabilities."
 msgstr ""
 
-#: resourceNew/models/metadata.py:686 resourceNew/models/service.py:98
+#: registry/models/metadata.py:686 registry/models/service.py:98
 #, fuzzy
 #| msgid "Services"
 msgid "services"
 msgstr "Dienste"
 
-#: resourceNew/models/metadata.py:687
+#: registry/models/metadata.py:687
 #, fuzzy
 #| msgid "Select a group for which this resource shall be registered."
 msgid "all services from which this dataset was harvested."
 msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
 
-#: resourceNew/models/metadata.py:744
+#: registry/models/metadata.py:744
 msgid "the type of the content stored in extent field."
 msgstr ""
 
-#: resourceNew/models/metadata.py:746
+#: registry/models/metadata.py:746
 msgid "units"
 msgstr ""
 
-#: resourceNew/models/metadata.py:747
+#: registry/models/metadata.py:747
 msgid "measurement units specifier"
 msgstr ""
 
-#: resourceNew/models/metadata.py:748
+#: registry/models/metadata.py:748
 #, fuzzy
 #| msgid "Spatial extent"
 msgid "extent"
 msgstr "Räumliche Ausdehnung"
 
-#: resourceNew/models/metadata.py:749
+#: registry/models/metadata.py:749
 msgid ""
 "The extent string declares what value(s) along the Dimension axis are "
 "appropriate for this specific geospatial data object."
 msgstr ""
 
-#: resourceNew/models/metadata.py:758
+#: registry/models/metadata.py:758
 msgid "the related layer of this dimension entity"
 msgstr ""
 
-#: resourceNew/models/metadata.py:766
+#: registry/models/metadata.py:766
 msgid "the related feature type of this dimension entity"
 msgstr ""
 
-#: resourceNew/models/metadata.py:774
+#: registry/models/metadata.py:774
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "the related dataset metadata of this dimension entity"
 msgstr "Gesundheitszustand der Ressource"
 
-#: resourceNew/models/metadata.py:797
+#: registry/models/metadata.py:797
 msgid "related dimension"
 msgstr ""
 
-#: resourceNew/models/metadata.py:798
+#: registry/models/metadata.py:798
 msgid "the related dimension where this interval was found."
 msgstr ""
 
-#: resourceNew/models/security.py:35 resourceNew/models/security.py:234
-#: resourceNew/models/security.py:278
+#: registry/models/security.py:35 registry/models/security.py:234
+#: registry/models/security.py:278
 #, fuzzy
 #| msgid "Subscribed services"
 msgid "secured service"
 msgstr "Abonnierte Dienste"
 
-#: resourceNew/models/security.py:36
+#: registry/models/security.py:36
 msgid "the service which uses this credentials."
 msgstr ""
 
-#: resourceNew/models/security.py:76
+#: registry/models/security.py:76
 msgid "username can't be leave empty."
 msgstr ""
 
-#: resourceNew/models/security.py:78
+#: registry/models/security.py:78
 msgid "password can't be leave empty."
 msgstr ""
 
-#: resourceNew/models/security.py:80
+#: registry/models/security.py:80
 msgid "auth type can't be leave empty."
 msgstr ""
 
-#: resourceNew/models/security.py:186 resourceNew/models/security.py:248
+#: registry/models/security.py:186 registry/models/security.py:248
 #: structure/models.py:62
 #, fuzzy
 #| msgid "Description"
 msgid "description"
 msgstr "Beschreibung"
 
-#: resourceNew/models/security.py:187
+#: registry/models/security.py:187
 msgid "a short description what this group is for."
 msgstr ""
 
-#: resourceNew/models/security.py:235
+#: registry/models/security.py:235
 msgid "the service where some layers or feature types are secured of."
 msgstr ""
 
-#: resourceNew/models/security.py:239
+#: registry/models/security.py:239
 msgid "secured layers"
 msgstr ""
 
-#: resourceNew/models/security.py:240
+#: registry/models/security.py:240
 msgid ""
 "Select one or more layers. Note that all sub layers of a selected layer will "
 "also be secured."
 msgstr ""
 
-#: resourceNew/models/security.py:245
+#: registry/models/security.py:245
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "secured feature types"
 msgstr "Featuretyp bearbeiten"
 
-#: resourceNew/models/security.py:246
+#: registry/models/security.py:246
 msgid "Select one or more feature types."
 msgstr ""
 
-#: resourceNew/models/security.py:249
+#: registry/models/security.py:249
 msgid "a short description what this allowed operation controls."
 msgstr ""
 
-#: resourceNew/models/security.py:279
+#: registry/models/security.py:279
 msgid "the configured service for this proxy settings"
 msgstr ""
 
-#: resourceNew/models/security.py:281
+#: registry/models/security.py:281
 msgid "camouflage"
 msgstr ""
 
-#: resourceNew/models/security.py:282
+#: registry/models/security.py:282
 msgid ""
 "if true, all related xml documents are secured, by replace all hostname/"
 "internet addresses of the related service by the hostname of the current mr. "
 "map instance."
 msgstr ""
 
-#: resourceNew/models/security.py:286
+#: registry/models/security.py:286
 msgid "log response"
 msgstr ""
 
-#: resourceNew/models/security.py:287
+#: registry/models/security.py:287
 msgid "if true, all responses of the related service will be logged."
 msgstr ""
 
-#: resourceNew/models/security.py:301
+#: registry/models/security.py:301
 msgid "log response without active camouflage is not supported."
 msgstr ""
 
-#: resourceNew/models/security.py:310
+#: registry/models/security.py:310
 #, python-format
 msgid ""
 "There are configured allowed operation objects. Camouflage can not be "
 "disabled. See all allowed operations <a href=%(url)s>here</a>"
 msgstr ""
 
-#: resourceNew/models/service.py:39
+#: registry/models/service.py:39
 msgid "type"
 msgstr ""
 
-#: resourceNew/models/service.py:40
+#: registry/models/service.py:40
 msgid "the concrete type name of the service type."
 msgstr ""
 
-#: resourceNew/models/service.py:44
+#: registry/models/service.py:44
 #, fuzzy
 #| msgid "OGC Version"
 msgid "version"
 msgstr "OGC Version"
 
-#: resourceNew/models/service.py:45
+#: registry/models/service.py:45
 msgid "the version of the service type as sem version"
 msgstr ""
 
-#: resourceNew/models/service.py:65
+#: registry/models/service.py:65
 #, fuzzy
 #| msgid "Last activities"
 msgid "is active?"
 msgstr "Letzte Aktivitäten"
 
-#: resourceNew/models/service.py:66
+#: registry/models/service.py:66
 msgid ""
 "Used to activate/deactivate the service. If it is deactivated, you cant "
 "request the service through the Mr. Map proxy."
 msgstr ""
 
-#: resourceNew/models/service.py:83
+#: registry/models/service.py:83
 #, fuzzy
 #| msgid "Service type"
 msgid "service type"
 msgstr "Diensttyp"
 
-#: resourceNew/models/service.py:84
+#: registry/models/service.py:84
 msgid "the concrete type and version of the service."
 msgstr ""
 
-#: resourceNew/models/service.py:87 resourceNew/models/service.py:222
+#: registry/models/service.py:87 registry/models/service.py:222
 msgid "url"
 msgstr ""
 
-#: resourceNew/models/service.py:88
+#: registry/models/service.py:88
 msgid "the base url of the service"
 msgstr ""
 
-#: resourceNew/models/service.py:217
+#: registry/models/service.py:217
 msgid "http method"
 msgstr ""
 
-#: resourceNew/models/service.py:218
+#: registry/models/service.py:218
 msgid "the http method you can perform for this url"
 msgstr ""
 
-#: resourceNew/models/service.py:223
+#: registry/models/service.py:223
 msgid "the url for this operation"
 msgstr ""
 
-#: resourceNew/models/service.py:227 resourceNew/tables/security.py:109
+#: registry/models/service.py:227 registry/tables/security.py:109
 #, fuzzy
 #| msgid "Allowed area"
 msgid "operation"
 msgstr "Erlaubte Bereiche"
 
-#: resourceNew/models/service.py:228
+#: registry/models/service.py:228
 msgid "the operation you can perform with this url."
 msgstr ""
 
-#: resourceNew/models/service.py:235
+#: registry/models/service.py:235
 msgid "all available mime types of the remote url"
 msgstr ""
 
-#: resourceNew/models/service.py:241
+#: registry/models/service.py:241
 #, fuzzy
 #| msgid "Parent service"
 msgid "related service"
 msgstr "Übergeordneter Dienst"
 
-#: resourceNew/models/service.py:242
+#: registry/models/service.py:242
 msgid "the service for that this url can be used for."
 msgstr ""
 
-#: resourceNew/models/service.py:264
+#: registry/models/service.py:264
 #, fuzzy
 #| msgid "Parent service"
 msgid "parent service"
 msgstr "Übergeordneter Dienst"
 
-#: resourceNew/models/service.py:265
-msgid "the main service where this element is part of"
+#: registry/models/service.py:265
+msgid "the extras service where this element is part of"
 msgstr ""
 
-#: resourceNew/models/service.py:269
+#: registry/models/service.py:269
 msgid "identifier"
 msgstr ""
 
-#: resourceNew/models/service.py:270
+#: registry/models/service.py:270
 msgid "this is a string which identifies the element on the remote service."
 msgstr ""
 
-#: resourceNew/models/service.py:274
+#: registry/models/service.py:274
 #, fuzzy
 #| msgid "Bounding box"
 msgid "bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: resourceNew/models/service.py:275
+#: registry/models/service.py:275
 msgid ""
 "bounding box shall be supplied regardless of what CRS the map server may "
 "support, but it may be approximate if the data are not natively in "
@@ -2099,85 +2099,85 @@ msgid ""
 "search engine."
 msgstr ""
 
-#: resourceNew/models/service.py:286
+#: registry/models/service.py:286
 msgid "all reference systems which this element supports"
 msgstr ""
 
-#: resourceNew/models/service.py:320
+#: registry/models/service.py:320
 #, fuzzy
 #| msgid "Parent Layer"
 msgid "parent layer"
 msgstr "Gehört zu Ebene"
 
-#: resourceNew/models/service.py:321
+#: registry/models/service.py:321
 #, fuzzy
 #| msgid "Interfaces of the layer for "
 msgid "the ancestor of this layer."
 msgstr "Schnittstellen des Layers für "
 
-#: resourceNew/models/service.py:324
+#: registry/models/service.py:324
 #, fuzzy
 #| msgid "is Queryable"
 msgid "is queryable"
 msgstr "Abfragbar"
 
-#: resourceNew/models/service.py:325
+#: registry/models/service.py:325
 msgid ""
 "flag to signal if this layer provides factual information or not. Parsed "
 "from capabilities."
 msgstr ""
 
-#: resourceNew/models/service.py:329
+#: registry/models/service.py:329
 #, fuzzy
 #| msgid "Is opaque"
 msgid "is opaque"
 msgstr "Durchsichtig"
 
-#: resourceNew/models/service.py:330
+#: registry/models/service.py:330
 msgid ""
 "flag to signal if this layer support transparency content or not. Parsed "
 "from capabilities."
 msgstr ""
 
-#: resourceNew/models/service.py:334
+#: registry/models/service.py:334
 #, fuzzy
 #| msgid "Is cascaded"
 msgid "is cascaded"
 msgstr "Kaskadiert"
 
-#: resourceNew/models/service.py:335
+#: registry/models/service.py:335
 msgid ""
 "WMS cascading allows to expose layers coming from other WMS servers as if "
 "they were local layers"
 msgstr ""
 
-#: resourceNew/models/service.py:340
+#: registry/models/service.py:340
 msgid "scale minimum value"
 msgstr ""
 
-#: resourceNew/models/service.py:341
+#: registry/models/service.py:341
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
 "None value means no restriction."
 msgstr ""
 
-#: resourceNew/models/service.py:347
+#: registry/models/service.py:347
 msgid "scale maximum value"
 msgstr ""
 
-#: resourceNew/models/service.py:348
+#: registry/models/service.py:348
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
 "None value means no restriction."
 msgstr ""
 
-#: resourceNew/models/service.py:454
+#: registry/models/service.py:454
 msgid "output formats"
 msgstr ""
 
-#: resourceNew/models/service.py:455
+#: registry/models/service.py:455
 msgid ""
 "This is a list of MIME types indicating the output formats that may be "
 "generated for a feature type.  If this optional element is not specified, "
@@ -2185,41 +2185,41 @@ msgid ""
 "to be supported. "
 msgstr ""
 
-#: resourceNew/models/service.py:461
+#: registry/models/service.py:461
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "describe feature type"
 msgstr "Featuretyp bearbeiten"
 
-#: resourceNew/models/service.py:462
+#: registry/models/service.py:462
 msgid "the fetched content of the download describe feature type document."
 msgstr ""
 
-#: resourceNew/models/service.py:540
+#: registry/models/service.py:540
 msgid "related feature type of this element"
 msgstr ""
 
-#: resourceNew/models/service.py:545
+#: registry/models/service.py:545
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type element"
 msgstr "Featuretype Titel enthält"
 
-#: resourceNew/models/service.py:546
+#: registry/models/service.py:546
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type elements"
 msgstr "Featuretype Titel enthält"
 
-#: resourceNew/tables/service.py:14
+#: registry/tables/service.py:14
 msgid "The resource title"
 msgstr "Ressourcentitel"
 
-#: resourceNew/tables/service.py:15
+#: registry/tables/service.py:15
 msgid "Shows whether the resource is active or not."
 msgstr "Zeigt an ob die Ressource aktiv ist oder nicht"
 
-#: resourceNew/tables/service.py:16
+#: registry/tables/service.py:16
 msgid ""
 "Shows whether the resource is only accessible for certain groups and/or in "
 "certain areas."
@@ -2227,37 +2227,37 @@ msgstr ""
 "Zeigt an ob die Ressource nur für ausgewählte Gruppen und/oder in "
 "ausgewählten Bereichen verfügbar ist."
 
-#: resourceNew/tables/service.py:17
+#: registry/tables/service.py:17
 msgid "Shows whether the resource needs authentication to its origin server."
 msgstr ""
 "Zeigt an ob die Ressource eine Nutzerauthentifizierung am Ursprungsserver "
 "benötigt."
 
-#: resourceNew/tables/service.py:18
+#: registry/tables/service.py:18
 msgid "The resource version"
 msgstr "Ressourcenversion"
 
-#: resourceNew/tables/service.py:19
+#: registry/tables/service.py:19
 msgid "The organization which provides the resource."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: resourceNew/tables/service.py:20
+#: registry/tables/service.py:20
 msgid "The group which registered the resource."
 msgstr "Die Gruppe, die diesen Dienst registriert hat"
 
-#: resourceNew/tables/service.py:21
+#: registry/tables/service.py:21
 msgid "The organization for which the resource is registered."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: resourceNew/tables/service.py:22
+#: registry/tables/service.py:22
 msgid "The registration date."
 msgstr "Registrierungsdatum"
 
-#: resourceNew/tables/service.py:23
+#: registry/tables/service.py:23
 msgid "Performable Actions"
 msgstr "Ausführbare Aktionen"
 
-#: resourceNew/tables/service.py:25
+#: registry/tables/service.py:25
 msgid ""
 "Shows the status of the resource. You can see active state, secured access "
 "state and secured externally state."
@@ -2265,21 +2265,21 @@ msgstr ""
 "Zeigt den Status der Ressource an. Sie können den aktiven Status, den "
 "gesicherten Zugriffsstatus und den gesicherten externen Status anzeigen."
 
-#: resourceNew/tables/service.py:26
+#: registry/tables/service.py:26
 msgid "Shows the health status of the resource."
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
-#: resourceNew/tables/service.py:27
+#: registry/tables/service.py:27
 #, fuzzy
 #| msgid "Shows the health status of the resource."
 msgid "Shows the validation status of the resource"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
-#: resourceNew/tables/service.py:34
+#: registry/tables/service.py:34
 msgid "Title"
 msgstr "Titel"
 
-#: resourceNew/templates/resourceNew/mapcontext/mapcontext_form.html:32
+#: registry/templates/registry/mapcontext/mapcontext_form.html:32
 #: templates/generic_views/generic_form.html:25
 #: templates/generic_views/generic_wizard_form.html:104
 #: templates/sceletons/modal-wizard-form.html:98
@@ -2287,7 +2287,7 @@ msgstr "Titel"
 msgid "Save"
 msgstr "Speichern"
 
-#: resourceNew/templates/resourceNew/mapcontext/mapcontext_form.html:34
+#: registry/templates/registry/mapcontext/mapcontext_form.html:34
 #: templates/generic_views/generic_confirm_form.html:16
 #: templates/generic_views/generic_confirm_form.html:20
 #: templates/generic_views/generic_delete.html:15
@@ -2304,115 +2304,115 @@ msgstr "Speichern"
 msgid "Loading..."
 msgstr "Laden..."
 
-#: resourceNew/templates/resourceNew/service/base.html:22
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:26
+#: registry/templates/registry/service/base.html:22
+#: registry/templates/registry/service/views/wms_tree.html:26
 msgid "Capabilities"
 msgstr "Capabilities"
 
-#: resourceNew/templates/resourceNew/service/base.html:28
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:32
+#: registry/templates/registry/service/base.html:28
+#: registry/templates/registry/service/views/wms_tree.html:32
 #, fuzzy
 #| msgid "Metadata restored to original"
 msgid "See current or original:"
 msgstr "Metadaten auf Originalzustand wiederhergestellt"
 
-#: resourceNew/templates/resourceNew/service/base.html:29
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:33
+#: registry/templates/registry/service/base.html:29
+#: registry/templates/registry/service/views/wms_tree.html:33
 msgid "Original"
 msgstr "Original"
 
-#: resourceNew/templates/resourceNew/service/base.html:30
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:34
+#: registry/templates/registry/service/base.html:30
+#: registry/templates/registry/service/views/wms_tree.html:34
 msgid "Current"
 msgstr "Aktuell"
 
-#: resourceNew/templates/resourceNew/service/base.html:34
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:22
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:38
+#: registry/templates/registry/service/base.html:34
+#: registry/templates/registry/service/views/wfs_tree.html:22
+#: registry/templates/registry/service/views/wms_tree.html:38
 #: templates/base.html:80
 msgid "Metadata"
 msgstr "Metadaten"
 
-#: resourceNew/templates/resourceNew/service/base.html:39
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:27
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:43
+#: registry/templates/registry/service/base.html:39
+#: registry/templates/registry/service/views/wfs_tree.html:27
+#: registry/templates/registry/service/views/wms_tree.html:43
 #, fuzzy
 #| msgid "Your metadata datasets"
 msgid "Show metadata as:"
 msgstr "Ihre Metadaten Datensätze"
 
-#: resourceNew/templates/resourceNew/service/base.html:40
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:28
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:44
+#: registry/templates/registry/service/base.html:40
+#: registry/templates/registry/service/views/wfs_tree.html:28
+#: registry/templates/registry/service/views/wms_tree.html:44
 msgid "XML"
 msgstr "XML"
 
-#: resourceNew/templates/resourceNew/service/base.html:41
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:29
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:45
+#: registry/templates/registry/service/base.html:41
+#: registry/templates/registry/service/views/wfs_tree.html:29
+#: registry/templates/registry/service/views/wms_tree.html:45
 msgid "HTML"
 msgstr "HTML"
 
-#: resourceNew/templates/resourceNew/service/base.html:51
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:44
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:60
+#: registry/templates/registry/service/base.html:51
+#: registry/templates/registry/service/views/wfs_tree.html:44
+#: registry/templates/registry/service/views/wms_tree.html:60
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "Deactivate the resource"
 msgstr "Gesundheitszustand der Ressource"
 
-#: resourceNew/templates/resourceNew/service/base.html:51
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:44
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:60
+#: registry/templates/registry/service/base.html:51
+#: registry/templates/registry/service/views/wfs_tree.html:44
+#: registry/templates/registry/service/views/wms_tree.html:60
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "Activate the resource"
 msgstr "Gesundheitszustand der Ressource"
 
-#: resourceNew/templates/resourceNew/service/base.html:55
+#: registry/templates/registry/service/base.html:55
 #, fuzzy
 #| msgid "Name of resource"
 msgid "Update this resource"
 msgstr "Ressourcenname"
 
-#: resourceNew/templates/resourceNew/service/base.html:60
+#: registry/templates/registry/service/base.html:60
 #, fuzzy
 #| msgid "Select categories for this resource."
 msgid "Run monitoring task for this resource"
 msgstr "Kategorien auswählen"
 
-#: resourceNew/templates/resourceNew/service/base.html:65
+#: registry/templates/registry/service/base.html:65
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "Delete the resource"
 msgstr "Gesundheitszustand der Ressource"
 
-#: resourceNew/templates/resourceNew/service/views/featuretype.html:6
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:53
+#: registry/templates/registry/service/views/featuretype.html:6
+#: registry/templates/registry/service/views/wfs_tree.html:53
 #, fuzzy
 #| msgid "Show elements"
 msgid "Elements"
 msgstr "Zeige Elemente"
 
-#: resourceNew/templates/resourceNew/service/views/wfs_tree.html:34
-#: resourceNew/templates/resourceNew/service/views/wms_tree.html:50
+#: registry/templates/registry/service/views/wfs_tree.html:34
+#: registry/templates/registry/service/views/wms_tree.html:50
 #: users/templates/cards/my_services/datasets.html:9
 msgid "Datasets"
 msgstr "Datensätze"
 
-#: resourceNew/views/service.py:26
+#: registry/views/service.py:26
 #, fuzzy
 #| msgid "Your registered Web Map Services"
 msgid " Web Map Services"
 msgstr "Ihre registrierten Web Map Services"
 
-#: resourceNew/views/service.py:39
+#: registry/views/service.py:39
 #, fuzzy
 #| msgid "Your registered Web Feature Services"
 msgid " Web Feature Services"
 msgstr "Ihre registrierten Web Feature Services"
 
-#: resourceNew/views/service.py:203
+#: registry/views/service.py:203
 msgid " Catalogue Web Service"
 msgstr ""
 
@@ -4330,7 +4330,7 @@ msgstr "Aufgabe erledigt"
 #~ msgstr "Sie müssen das Feld `created_by` ausfüllen."
 
 #~ msgid ""
-#~ "Group {} is an important main group and therefore can not be removed."
+#~ "Group {} is an important extras group and therefore can not be removed."
 #~ msgstr ""
 #~ "Gruppe {} ist eine bedeutende Hauptgruppe und kann daher nicht gelöscht "
 #~ "werden."

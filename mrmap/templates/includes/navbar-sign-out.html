@@ -13,17 +13,17 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
             <li class="nav-item {% if PATH == '' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'login' %}">
+                <a class="nav-link" href="{% url 'users:login' %}">
                     {% autoescape off %}{{ICONS.SIGNIN}}{% endautoescape %} {% trans 'Login' %}
                 </a>
             </li>
             <li class="nav-item {% if PATH == 'signup' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'signup' %}">
+                <a class="nav-link" href="{% url 'users:signup' %}">
                     {% autoescape off %}{{ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
                 </a>
             </li>
             <li class="nav-item {% if PATH == 'password_reset' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'password_reset' %}">
+                <a class="nav-link" href="{% url 'users:password_reset' %}">
                     {% autoescape off %}{{ICONS.UNDO}}{% endautoescape %} {% trans 'Reset password' %}
                 </a>
             </li>

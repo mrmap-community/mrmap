@@ -7,11 +7,12 @@
       <env name="PYTHONUNBUFFERED" value="1" />
       <env name="START_GUNICORN" value="False" />
     </envs>
-    <option name="SDK_HOME" value="docker-compose://[$PROJECT_DIR$/docker-compose.yml]:wsgi/python" />
+    <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/mrmap" />
-    <option name="IS_MODULE_SDK" value="false" />
+    <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="DockerComposeSettingsRunConfigurationExtension" commandLine="up --exit-code-from gunicorn" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <PathMappingSettings>
       <option name="pathMappings">

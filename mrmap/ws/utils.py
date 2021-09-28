@@ -1,14 +1,14 @@
 from celery import states
 from django.db.models import Q
-from job.models import Task, Job
-from resourceNew.enums.service import OGCServiceEnum
-from resourceNew.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
+from jobs.models import Task, Job
+from registry.enums.service import OGCServiceEnum
+from registry.models import Service, Layer, FeatureType, FeatureTypeElement, ServiceMetadata, LayerMetadata, \
     FeatureTypeMetadata, DatasetMetadata
-from resourceNew.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
+from registry.models.security import AllowedOperation, ServiceAccessGroup, AnalyzedResponseLog, ExternalAuthentication, \
     ProxySetting
 
 
-def get_app_view_model(user):
+def get_object_counts(user):
     # todo:
     #  jobs_count = user.get_instances(klass=Job).filter(tasks__status__in=[states.STARTED, states.PENDING]).count()
     tasks_count = user.get_instances(klass=Task, filter=Q(status__in=[states.STARTED, states.PENDING])).count()

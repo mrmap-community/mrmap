@@ -2,10 +2,9 @@ name: Sonar
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
+    branches: [master, develop]
   pull_request:
-    branches: [master]
+    branches: [master, develop]
     types: [opened, synchronize, reopened]
   schedule:
     - cron: 0 16 * * *
@@ -13,49 +12,15 @@ jobs:
   sonarcloud:
     name: Sonar
     runs-on: ubuntu-20.04
-    # Service containers to run with `container-job`
-    services:
-      redis:
-        # Docker Hub image
-        image: redis
-        # Set health checks to wait until redis has started
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps port 6379 on service container to the host
-          - 6379:6379
     steps:
-      - uses: huaxk/postgis-action@v1
-        with:
-          postgresql version: '11'  # See https://https://hub.docker.com/r/mdillon/postgis for available versions, if it is not specified, use the default value 'latest'
-          postgresql password: 'mrmap'   # This environment variable sets the superuser password for PostgreSQL, maybe string or secrets, the default superuser is defined by the input environment variable: postgresql user.
-          postgresql user: 'mrmap'  # This optional environment variable is used in conjunction with postgresql password to set a user and its password. This variable will create the specified user with superuser power and a database with the same name. If it is not specified, then the default user of 'postgres' will be used.
-          postgresql db: 'mrmap'
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
       - name: Extract branch name
         uses: nelonoel/branch-name@v1.0.1
         id: extract_branch
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-          libssl-dev \
-          libcurl4-openssl-dev \
-          gdal-bin \
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - name: Install dependencies
-        run: |
-          pip3 install -r ./mrmap/requirements.txt
-      - name: Run unit tests
-        run: |
-          python ./mrmap/manage.py test
+      - name: Run tests
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:

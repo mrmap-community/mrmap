@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block card-body %}
-<a href="{% url 'structure:toggle-user-to-group' request.id %}" title="{{ request.created_by }} {% trans 'invited you to a group.' %}">
+<a href="{% url 'users:toggle-user-to-group' request.id %}" title="{{ request.created_by }} {% trans 'invited you to a group.' %}">
     <h5 class="mb-1 mr-3">
         <strong>{% trans 'Invitation to' %} {{ request.to_group }}</strong>
     </h5>

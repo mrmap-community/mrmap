@@ -1,0 +1,6 @@
+{% extends 'generic_views/generic_list_with_base.html' %}
+{% block below-content %}
+{% with ws_route='/ws/jobs-table/' %}
+{% include 'jobs/includes/websocket_script.html' %}
+{% endwith %}
+{% endblock %}

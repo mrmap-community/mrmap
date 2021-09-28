@@ -8,8 +8,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
-from resourceNew.enums.document import DocumentEnum
-from resourceNew.enums.service import OGCServiceEnum
+from registry.enums.document import DocumentEnum
+from registry.enums.service import OGCServiceEnum
 
 
 def check_uri_is_reachable(value):

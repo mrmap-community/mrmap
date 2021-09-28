@@ -24,7 +24,7 @@ MAP
 
         VALIDATION
             "keys" "(([0-9,])+|^'[-_0-9A-Za-z]+'$)"
-            "table" "(resourceNew_allowedoperation)"
+            "table" "(registry_allowedoperation)"
             "geom_column" "(allowed_area)"
             "key_column" "(id)"
         END

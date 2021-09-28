@@ -8,16 +8,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
-import os
-import sys
 import logging
+import os
 import socket
-from django.utils.translation import gettext_lazy as _
+import sys
+
 from django.contrib import messages
-from api.settings import REST_FRAMEWORK # noqa
-from kombu import Queue, Exchange
+from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
-from django.core.management.utils import get_random_secret_key  
+from kombu import Queue, Exchange
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,7 +33,11 @@ INSTALLED_APPS = [
     'channels',
     'ws',
     'guardian',
-    'acl',
+    'users',
+    'acls',
+    'jobs',
+    'registry',
+    'extras',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
@@ -48,19 +51,12 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'formtools',
-    'behave_django',
-    'users',
-    'structure',
-    'job',
-#    'django_extensions',
+    'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
-    'api',
-    'csw',
     'django_celery_beat',
     'django_celery_results',
-    'monitoring',
     'bootstrap4',
     'fontawesome_5',
     'django_tables2',
@@ -68,17 +64,13 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
-    'quality',
     'leaflet',
     'breadcrumb',
     'mptt',
-    'autocompletes',
-    'resourceNew',
-    'main',
 ]
 
 TEMPLATE_LOADERS = (
-    'django.template.loaders.main.custom_template_filters.py'
+    'django.template.loaders.extras.custom_template_filters.py'
     'django.template.loaders.app_directories.Loader'
 )
 
@@ -174,10 +166,10 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
 GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "users:dashboard"
+LOGOUT_REDIRECT_URL = "users:login"
 # Defines where to redirect a user, that has to be logged in for a certain route
-LOGIN_URL = "/accounts/login/"
-LOGOUT_REDIRECT_URL = "/"
+LOGIN_URL = "users:login"
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -194,7 +186,6 @@ TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE')
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
-
 
 # Defines the semantic web information which will be injected on the resource html views
 SEMANTIC_WEB_HTML_INFORMATION = {
@@ -229,21 +220,20 @@ AUTHENTICATION_BACKENDS = (
     'guardian.backends.ObjectPermissionBackend',
 )
 
-
 GUARDIAN_RAISE_403 = True
 
 # django-guardian-roles
-GUARDIAN_ROLES_OWNABLE_MODELS = ['service.Metadata',
-                                 'monitoring.MonitoringRun',
-                                 'monitoring.MonitoringResult',
-                                 'monitoring.HealthState',
-                                 'service.ProxyLog']
+GUARDIAN_ROLES_OWNABLE_MODELS = ['registry.Metadata',
+                                 'registry.MonitoringRun',
+                                 'registry.MonitoringResult',
+                                 'registry.HealthState',
+                                 'registry.ProxyLog']
 
 GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 
 GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
-GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
+GUARDIAN_ROLES_OWNER_MODEL = 'users.Organization'
 
 ################################################################
 # Database settings
@@ -300,10 +290,10 @@ CELERY_DEFAULT_EXCHANGE = "default"
 CELERY_QUEUES = (
     Queue('default', Exchange('default'), routing_key='default'),
     Queue('download_iso_metadata', Exchange('download_iso_metadata'), routing_key='download_iso_metadata'),
-    Queue('download_described_elements', Exchange('download_described_elements'), routing_key='download_described_elements'),
-    Queue('harvest', Exchange('harvest'),  routing_key='harvest'),
+    Queue('download_described_elements', Exchange('download_described_elements'),
+          routing_key='download_described_elements'),
+    Queue('harvest', Exchange('harvest'), routing_key='harvest'),
 )
-
 
 ################################################################
 # django channels settings
@@ -318,7 +308,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
 
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
@@ -349,7 +338,7 @@ STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/resourceNew/static'
+    BASE_DIR + '/registry/static'
 ]
 
 WSGI_APPLICATION = 'MrMap.wsgi.application'
@@ -366,7 +355,6 @@ PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
 PAGE_SIZE_DEFAULT = 5
 PAGE_SIZE_MAX = 100
 PAGE_DEFAULT = 1
-
 
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
@@ -447,13 +435,14 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 # Mapserver
 ################################################################
 MAPSERVER_URL = os.environ.get('MAPSERVER_URL')
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get("MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
-MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
+    "MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
+MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
 DEFAULT_SRS = 4326
-FONT_IMG_RATIO = 1/20  # Font to image ratio
+FONT_IMG_RATIO = 1 / 20  # Font to image ratio
 ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
 ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
 ################################################################
@@ -507,6 +496,3 @@ LOGGING = {
         },
     },
 }
-
-
-

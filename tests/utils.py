@@ -60,7 +60,7 @@ def check_table_sorting(table: tables.Table, url_path_name: str):
 
     Args:
         table: (tables.Table)
-        url_path_name (str): Identifies the url path name like `structure:groups-index` where the table would be rendered
+        url_path_name (str): Identifies the url path name like `users:groups-index` where the table would be rendered
     Returns:
         sorting_implementation_failed (dict): Contains results if the sorting created an exception
                                               (maybe due to a custom sorting functionality)

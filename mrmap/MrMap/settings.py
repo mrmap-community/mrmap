@@ -31,14 +31,7 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 # Application definition
 INSTALLED_APPS = [
     'channels',
-    'ws',
     'guardian',
-    'users',
-    'acls',
-    'jobs',
-    'registry',
-    'extras',
-    'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
     'django.forms',
@@ -68,6 +61,13 @@ INSTALLED_APPS = [
     'breadcrumb',
     'mptt',
     'behave_django',
+    'MrMap',  # added so we can use general commands in MrMap/management/commands
+    'users',
+    'acls',
+    'jobs',
+    'registry',
+    'extras',
+    'ws',
 ]
 
 TEMPLATE_LOADERS = (
@@ -387,11 +387,11 @@ if 'test' in sys.argv:
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = [
     '--with-xunit',
-    '--xunit-file=xunit-result.xml',
+    f'--xunit-file={BASE_DIR}/xunit-result.xml',
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',
-    f'--cover-xml-file={BASE_DIR}coverage-report.xml',
+    f'--cover-xml-file={BASE_DIR}/coverage-report.xml',
 ]
 
 ################################################################

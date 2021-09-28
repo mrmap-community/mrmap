@@ -1,1 +1,1 @@
-default_app_config = 'registry.apps.ResourceConfig'
+default_app_config = 'registry.apps.RegistryConfig'

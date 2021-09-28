@@ -7,7 +7,7 @@ services:
       dockerfile: ../docker/mrmap/Dockerfile
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      /bin/bash -c "python manage.py test"
+      /bin/bash -c "python manage.py test --noinput"
     hostname: "mrmap-test"
     volumes:
       - type: bind

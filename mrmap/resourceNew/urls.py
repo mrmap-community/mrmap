@@ -53,6 +53,7 @@ urlpatterns = [
     path('mapcontexts/add/', mapcontext_views.MapContextCreateView.as_view(), name='map_context_add'),
     path('mapcontexts/<pk>/change', mapcontext_views.MapContextUpdateView.as_view(), name='map_context_change'),
     path('mapcontexts/<pk>/delete', mapcontext_views.MapContextDeleteView.as_view(), name='map_context_delete'),
+    path('mapcontexts/load-layers', mapcontext_views.map_context_load_layers, name='map_context_load_layers'),
 
     # Xml representation views
     path("services/<pk>/xml", xml_views.ServiceXmlView.as_view(), name="service_xml_view"),

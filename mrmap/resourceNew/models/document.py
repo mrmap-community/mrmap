@@ -13,6 +13,11 @@ def xml_backup_file_path(instance, filename):
     return 'xml_documents/{0}/{1}'.format(instance.pk, filename)
 
 
+def preview_image_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<id>/<filename>
+    return 'preview_images/{0}/{1}'.format(instance.pk, filename)
+
+
 class DocumentModelMixin(models.Model):
     """Abstract model to store documents such as capabilities or ISO MD_Metadata xml for different related objects.
 

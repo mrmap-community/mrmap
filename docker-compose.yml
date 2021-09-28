@@ -8,8 +8,6 @@ services:
         target: /var/lib/postgresql/data
     env_file:
       - ./.env.db
-    ports:
-      - "5555:5432"
   redis:
     image: library/redis:6.2-alpine
     volumes:

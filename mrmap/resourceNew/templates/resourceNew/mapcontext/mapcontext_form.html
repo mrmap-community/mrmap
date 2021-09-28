@@ -3,14 +3,19 @@
 {% load bootstrap4 %}
 {% block content %}
 {% load custom_template_filters %}
+
 <div class="card bg-light my-3">
     <div class="card-header">
         {{ title }}
     </div>
-    <form action="{{ action_url }}" method="post" enctype="multipart/form-data">
+    <form
+        id="mapcontext-form"
+        action="{{ action_url }}"
+        method="post"
+        enctype="multipart/form-data"
+    >
         <div class="card-body">
             {% csrf_token %}
-            {{form.media}}
             {% bootstrap_form form %}
             {% for formset in inlines %}
             <hr class="separator">
@@ -43,6 +48,7 @@
       integrity="sha512-P8BwDSUInKMA7I116Z1RFg/Dfk85uFdliEUYO7vQlwtxLVMNvZimfMAQsaf++9EhlAGOVX6yhDQAIY3/70jDUg=="
       crossorigin="anonymous" referrerpolicy="no-referrer"/>
 <link rel="stylesheet" type="text/css" href="{% static '/resourceNew/mapcontext/css/folder-style.css' %}" media="all"/>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.11/jstree.min.js"
         integrity="sha512-bU6dl4fd2XN3Do3aWypPP2DcKywDyR3YlyszV+rOw9OpglrGyBs6TyTsbglf9umgE+sy+dKm1UHhi07Lv+Vtfg=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -52,4 +58,23 @@
 <script>
     initJsTreeFormset('#layer_tree', 'layer', 'parent', 'name');
 </script>
+<script>
+        $("select[id^=id_layer-][id$=-dataset_metadata]").change(function (e) {
+            e.preventDefault();
+            var datasetMetadataId = $(this).val();
+            var inlineFormId = $(this).attr('id').split('-')[1];
+            var layerSelectId = 'select[id^=id_layer-'+ inlineFormId + '-layer]';
+            $.ajax({
+                type: 'GET',
+                url: '{% url "resourceNew:map_context_load_layers" %}',
+                data: {
+                    'dataset_metadata': datasetMetadataId
+                },
+                success: function (data) {
+                    $(layerSelectId).html(data);
+                }
+            });
+        });
+  </script>
+
 {% endblock %}

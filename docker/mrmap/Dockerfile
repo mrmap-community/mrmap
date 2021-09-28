@@ -19,6 +19,7 @@ RUN npm install --yes
 # MrMap Image
 ################################    
 FROM python:3.9.7-slim-bullseye
+ARG MRMAP_PRODUCTION
 COPY --from=base /wheels /wheels
 COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css /tmp/mrmap/static/css/
 COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/mrmap/static/css/jstree

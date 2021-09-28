@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
+    'behave_django',
 ]
 
 TEMPLATE_LOADERS = (

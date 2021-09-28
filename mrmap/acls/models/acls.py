@@ -5,7 +5,6 @@ from uuid import uuid4
 from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from MrMap.icons import get_icon, IconEnum
 from acls.managers import AclManager
 from extras.models import CommonInfo, GenericModelMixin
 

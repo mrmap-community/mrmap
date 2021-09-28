@@ -60,7 +60,6 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
-    'behave_django',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'users',
     'acls',
@@ -114,6 +113,11 @@ if DEBUG:
     }
 
     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+
+if os.environ.get("MRMAP_PRODUCTION") == 'False':
+    INSTALLED_APPS.append(
+        'behave_django',
+    )
 
 # Password hashes
 PASSWORD_HASHERS = [

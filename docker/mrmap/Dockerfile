@@ -31,10 +31,13 @@ RUN apt-get -qq update && \
     pip install --no-cache --no-cache-dir /wheels/* && \
     rm -r /wheels
 
-RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz && \
-    tar -xvzf geckodriver* && \
-    chmod +x geckodriver && \
-    mv geckodriver /usr/local/bin
+RUN if [ "${MRMAP_PRODUCTION}" = "False" ]; \
+    then \
+        wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz && \
+        tar -xvzf geckodriver* && \
+        chmod +x geckodriver && \
+        mv geckodriver /usr/local/bin; \
+    fi
 
 # set work directory
 WORKDIR /opt/mrmap

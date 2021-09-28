@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     'acls',
     'jobs',
     'registry',
-    'csw',
     'extras',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',

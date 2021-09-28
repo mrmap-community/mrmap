@@ -31,7 +31,7 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      /bin/bash -c "python manage.py behave"
+      /bin/bash -c "coverage run manage.py behave"
     hostname: "mrmap-behave"
     volumes:
       - type: bind

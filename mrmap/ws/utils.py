@@ -8,7 +8,7 @@ from registry.models.security import AllowedOperation, ServiceAccessGroup, Analy
     ProxySetting
 
 
-def get_app_view_model(user):
+def get_object_counts(user):
     # todo:
     #  jobs_count = user.get_instances(klass=Job).filter(tasks__status__in=[states.STARTED, states.PENDING]).count()
     tasks_count = user.get_instances(klass=Task, filter=Q(status__in=[states.STARTED, states.PENDING])).count()

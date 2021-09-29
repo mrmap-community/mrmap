@@ -89,7 +89,7 @@ services:
       args:
         MRMAP_PRODUCTION: "False"
     command: >
-      /bin/bash -c "celery -A MrMap worker -E -l INFO -n default -Q default"
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l INFO -n default -Q default"
     hostname: "mrmap-celery-default-worker"
     volumes:
       - type: bind

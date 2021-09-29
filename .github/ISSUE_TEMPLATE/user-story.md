@@ -1,7 +1,10 @@
 ---
-name: 🗣️ User Story
+name: "\U0001F5E3️ User Story"
 about: Propose a new MrMap feature or enhancement
-labels: 'type: user-story'
+title: ''
+labels: 'type: story'
+assignees: ''
+
 ---
 
 <!--

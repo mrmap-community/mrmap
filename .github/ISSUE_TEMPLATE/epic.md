@@ -1,7 +1,10 @@
 ---
-name: 📑 Epic
+name: "\U0001F4D1 Epic"
 about: A group of issues
-labels: 'Epic'
+title: ''
+labels: Epic
+assignees: ''
+
 ---
 
 <!--

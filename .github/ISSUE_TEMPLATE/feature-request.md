@@ -1,7 +1,9 @@
 ---
-name: ✨ Feature Request
+name: "✨ Feature Request"
 about: Propose a new MrMap feature or enhancement
+title: ''
 labels: 'type: feature'
+assignees: ''
 
 ---
 

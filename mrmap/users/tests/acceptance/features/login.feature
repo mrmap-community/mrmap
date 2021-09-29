@@ -15,6 +15,7 @@ Feature: user login
     When I set "password123" to the inputfield "//*[@id='id_password']"
     When I click on the button "//button[@type='submit']"
     Then I expect that element "//*[text()[contains(.,'Successfully signed in.')]]" does exist
+    Then I expect that cookie "sessionid" exists
     
   Scenario: Failed user login process with wrong password
     When I set "peter" to the inputfield "//*[@id='id_username']"

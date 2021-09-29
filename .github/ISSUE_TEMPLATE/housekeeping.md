@@ -2,7 +2,7 @@
 name: "\U0001F3E1 Housekeeping"
 about: A change pertaining to the codebase itself (developers only)
 title: ''
-labels: ''
+labels: 'type: housekeeping'
 assignees: ''
 
 ---

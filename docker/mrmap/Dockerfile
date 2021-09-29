@@ -26,7 +26,7 @@ COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/mrmap/static/css/
 COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/umd/popper.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js /tmp/mrmap/static/js/
 
 RUN apt-get -qq update && \
-    apt-get -y install --no-install-recommends wget libssl-dev gdal-bin libpq-dev netcat firefox-esr && \
+    apt-get -y install --no-install-recommends libssl-dev gdal-bin libpq-dev netcat libyaml-dev firefox-esr wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache --no-cache-dir /wheels/* && \

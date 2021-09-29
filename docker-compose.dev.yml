@@ -1,6 +1,15 @@
 # docker compose file for development useage
 version: '3.8'
 services:
+
+  celery-default-worker:
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+    
+  celery-download-worker:
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+    
   test:
     build:
       context: ./mrmap

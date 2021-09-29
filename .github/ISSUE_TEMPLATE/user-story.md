@@ -31,4 +31,4 @@ As a [persona], I want [some goal], so that [reason].
     Given I am a [persona] and I [some action], I [some response].
 -->
 ### Acceptance criteria
-Given I am a [persona] and I [some action], I [some response].
+* [ ] Given I am a [persona] and [some other optional precondition(s)], when I [some action(s)], I want to [some desire].

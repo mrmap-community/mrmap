@@ -17,7 +17,7 @@ class TreeSelectMultiple(SelectMultiple):
         for node in self.tree:
             node_dict = {"id": str(node.pk),
                          "parent": str(node.parent_id) if node.parent_id else "#",
-                         "text": node.metadata.title,}
+                         "text": node.metadata.title, }
             if value and node.pk in value:
                 node_dict.update({"state": {"selected": True}})
             data.append(node_dict)

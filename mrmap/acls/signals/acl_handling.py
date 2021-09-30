@@ -86,7 +86,7 @@ def handle_permission_changed(sender, instance, action, reverse, model, pk_set, 
             perform_permission_change(action, perm, acl)
 
 
-#@receiver(m2m_changed, sender=AccessControlList.accessible_metadata.through)
+# @receiver(m2m_changed, sender=AccessControlList.accessible_metadata.through)
 def handle_accessible_objects_changed(sender, instance, action, reverse, model, pk_set, **kwargs):
     """handle the change of permissions on `AccessControlList` instances.
 

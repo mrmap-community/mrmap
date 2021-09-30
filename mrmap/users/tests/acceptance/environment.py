@@ -1,5 +1,4 @@
 import behave_webdriver
-from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.webdriver.firefox.options import Options
 
 

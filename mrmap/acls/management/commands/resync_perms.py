@@ -35,4 +35,3 @@ class Command(BaseCommand):
             acl.permissions.add(*member_permissions)
         self.stdout.write(self.style.SUCCESS(f"Permissions added: {member_permissions}"))
         self.stdout.write(self.style.SUCCESS("Done"))
-

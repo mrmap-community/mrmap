@@ -458,7 +458,7 @@ class GenericOwsServiceOperationFacade(View):
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
                         return self.return_http_response(response=requested_response)
-            except Exception as e:
+            except Exception:
                 pass
         return self.return_http_response(response={"status_code": 403,
                                                    "content": "user has no permissions to access the requested area."})
@@ -557,7 +557,7 @@ class GenericOwsServiceOperationFacade(View):
             # todo: implement configurable threshold instead of fix number
             if len(transaction_xml.operation.feature_types) >= 20:
                 return self.return_http_response(response={"status_code": 400,
-                                                           "content": f"To many feature types at once."})
+                                                           "content": "To many feature types at once."})
             for feature_type in transaction_xml.operation.feature_types:
                 if feature_type.element.geom:
                     geometry = feature_type.element.geom.get_geometry(axis_order_correction=axis_order_correction)

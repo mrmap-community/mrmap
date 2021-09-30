@@ -56,10 +56,7 @@ class MonitoringResultTableFilter(FilterSet):
     def search(self, queryset, name, value):
         if not value.strip():
             return queryset
-        qs_filter = (
-                Q(error_msg__icontains=value) |
-                Q(monitored_uri__icontains=value)
-        )
+        qs_filter = (Q(error_msg__icontains=value) | Q(monitored_uri__icontains=value))
         return queryset.filter(qs_filter)
 
 

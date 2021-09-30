@@ -41,6 +41,3 @@ class OrganizationChangeForm(ModelForm):
             publisher.can_publish_for.add(self.instance)
 
         return saved_object
-
-
-

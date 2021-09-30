@@ -25,9 +25,7 @@ def register_service(self,
                      **kwargs):
     # todo: create task objects here and pass them to the three tasks
     workflow = chain(create_service_from_parsed_service.s(form, quantity, **kwargs) |
-                        group(schedule_collect_feature_type_elements.s(**kwargs) |
-                              schedule_collect_linked_metadata.s(**kwargs))
-                     )
+                     group(schedule_collect_feature_type_elements.s(**kwargs) | schedule_collect_linked_metadata.s(**kwargs)))
     workflow.apply_async()
     return self.job.pk
 
@@ -151,10 +149,9 @@ def fetch_remote_metadata_xml(self,
                     pass
                 task.save()
         return remote_metadata.id
-    except Exception as e:
-        i = 0
+    except Exception:
         # settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
-        # todo: log exception in debug level
+        # TODO: log exception in debug level
         return None
 
 
@@ -239,14 +236,14 @@ def create_service_from_parsed_service(self,
     if self.task:
         self.task.status = TaskStatusEnum.STARTED.value
         self.task.phase = "parse capabilities document..."
-        self.task.progress = 1/3
+        self.task.progress = 1 / 3
         self.task.save()
 
     parsed_service = get_parsed_service(xml=response.content)
 
     if self.task:
         self.task.phase = "persisting service..."
-        self.task.progress = 2/3
+        self.task.progress = 2 / 3
         self.task.save()
 
     db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)

@@ -2,3 +2,4 @@ coverage==5.5
 behave-django==1.4.0
 selenium==3.141.0
 behave-webdriver==0.3.0
+flake8==3.9.2

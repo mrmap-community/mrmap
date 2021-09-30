@@ -1,6 +1,6 @@
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Max, Count, F, Q, ExpressionWrapper, BooleanField
+from django.db.models import Max, Count
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from mptt.managers import TreeManager
@@ -121,7 +121,7 @@ class ServiceXmlManager(models.Manager):
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
         service = super().create(service_type=service_type, *args, **kwargs, **parsed_service.get_field_dict())
-        service.xml_backup_file.save(name=f'capabilities.xml',
+        service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
 
         operation_urls = []
@@ -250,8 +250,7 @@ class ServiceXmlManager(models.Manager):
             # todo: slow get_or_create solution - maybe there is a better way to do this
             if not self.reference_system_cls:
                 self.reference_system_cls = reference_system.get_model_class()
-            db_reference_system, created = self.reference_system_cls.objects.get_or_create(
-                                                                            **reference_system.get_field_dict())
+            db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
             db_sub_element.reference_system_list.append(db_reference_system)
 
     def _construct_layer_tree(self, parsed_service, db_service):

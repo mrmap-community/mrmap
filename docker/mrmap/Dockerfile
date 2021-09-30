@@ -25,8 +25,10 @@ COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/
 COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/mrmap/static/css/jstree
 COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/umd/popper.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js /tmp/mrmap/static/js/
 
+
+# TODO: firefox-esr gettext are only needed for dev environment
 RUN apt-get -qq update && \
-    apt-get -y install --no-install-recommends wget libssl-dev gdal-bin libpq-dev netcat firefox-esr && \
+    apt-get -y install --no-install-recommends wget libssl-dev gdal-bin libpq-dev netcat firefox-esr gettext && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache --no-cache-dir /wheels/* && \

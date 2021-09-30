@@ -9,5 +9,4 @@ class TaskManager(models.Manager):
         self.get_queryset().aggregate(Avg('execution_time'), Max('execution_time'), Min('execution_time'))
 
     def get_queryset(self):
-        return super().get_queryset().annotate(execution_time=F("done_at")-F("started_at"))
-
+        return super().get_queryset().annotate(execution_time=F("done_at") - F("started_at"))

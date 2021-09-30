@@ -426,6 +426,6 @@ class Monitor:
                 # there might be problems e.g. with german Umlaute ä,ö,ü, ...
                 # try to parse again but with the correct encoding
                 return self.parse_xml(xml, xml_obj.docinfo.encoding)
-        except XMLSyntaxError as e:
+        except XMLSyntaxError:
             xml_obj = None
         return xml_obj

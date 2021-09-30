@@ -1,9 +1,3 @@
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
-from django.db.models import Q
-from django.http import HttpResponseRedirect
-from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext as __
 from django.views.generic.base import ContextMixin
@@ -14,7 +8,6 @@ from extras.views import (SecuredCreateView, SecuredDeleteView, SecuredDepending
 from MrMap.icons import IconEnum, get_icon
 from MrMap.messages import PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED
 from MrMap.views import CustomSingleTableMixin
-
 from users.forms.groups import OrganizationChangeForm
 from users.models.groups import Organization, PublishRequest
 from users.tables.groups import OrganizationTable, OrganizationDetailTable, OrganizationPublishersTable, PublishesRequestTable
@@ -32,7 +25,7 @@ class OrganizationDetailContextMixin(ContextMixin):
                    ]
         context.update({"object": self.object,
                         # FIXME: use functions from GenericModelMixin instead to provide actions
-                        #'actions': self.object.get_actions(),
+                        # 'actions': self.object.get_actions(),
                         'tab_nav': tab_nav,
                         'publisher_requests_count': PublishRequest.objects.filter(from_organization=self.object).count()})
         return context
@@ -67,7 +60,7 @@ class OrganizationDetailView(OrganizationDetailContextMixin, SecuredDetailView):
 
 class OrganizationUpdateView(SecuredUpdateView):
     model = Organization
-    form_class = OrganizationChangeForm 
+    form_class = OrganizationChangeForm
 
 
 class OrganizationDeleteView(SecuredDeleteView):

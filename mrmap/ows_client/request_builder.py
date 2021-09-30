@@ -148,7 +148,7 @@ class WebMapAndFeatureService(WebService):
             else:
                 return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
                                srid=srid)
-        except Exception as e:
+        except Exception:
             pass
         return GEOSGeometry('POLYGON EMPTY')
 
@@ -213,7 +213,7 @@ class WebMapAndFeatureService(WebService):
             else:
                 return Polygon(((min_y, min_x), (max_y, min_x), (max_y, max_x), (min_y, max_x), (min_y, min_x)),
                                srid=srid)
-        except Exception as e:
+        except Exception:
             pass
         return GEOSGeometry('POLYGON EMPTY')
 

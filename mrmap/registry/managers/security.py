@@ -1,5 +1,3 @@
-from typing import Optional
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
@@ -8,7 +6,6 @@ from django.db import models
 from django.db.models import F, Exists, OuterRef, ExpressionWrapper, BooleanField, Q
 from django.db.models import Value as V, QuerySet
 from django.db.models.functions import Coalesce
-
 from ows_client.request_builder import WebService, WmsService, WfsService
 from registry.enums.service import OGCOperationEnum, HttpMethodEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
@@ -137,7 +134,7 @@ class ServiceSecurityManager(models.Manager):
                               request=request),
                           allowed_area_united=AllowedOperation.objects.allowed_area_union(request=request))
 
-    def construct_service(self, pk, request) -> Optional['Service']:
+    def construct_service(self, pk, request):
         service = None
         try:
             service_qs = self._collect_data_for_security_facade(request=request)

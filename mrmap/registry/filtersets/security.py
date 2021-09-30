@@ -53,7 +53,7 @@ class AnalyzedResponseLogFilterSet(django_filters.FilterSet):
                                                     widget=autocomplete.ModelSelect2Multiple(url="users.autocomplete:mrmapuser_ac",
                                                                                              attrs={
                                                                                                  "select2-containerCss": {
-                                                                                                     #"height": "3em",
+                                                                                                     # "height": "3em",
                                                                                                      "width": "auto",
                                                                                                  }
                                                                                              }))
@@ -66,9 +66,9 @@ class AnalyzedResponseLogFilterSet(django_filters.FilterSet):
         model = AnalyzedResponseLog
         fields = {
             "id": ["in"],
-            #"response__request__service__id": ["in"],
-            #"response__request__user__id": ["in"],
-            #"operation__operation": ["in"],
+            # "response__request__service__id": ["in"],
+            # "response__request__user__id": ["in"],
+            # "operation__operation": ["in"],
             "response__request__url": ["icontains"],
             "entity_count": ["icontains"],
             "entity_total_count": ["icontains"],

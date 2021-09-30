@@ -1,13 +1,12 @@
 from django.contrib.gis.geos import Polygon
 from eulxml import xmlmap
-
 from registry.xmlmapper.consts import NS_WC
 from registry.xmlmapper.gml.gml import Gml
 from registry.xmlmapper.ogc.wfs_filter import Filter
 
 
 class FeatureTypeElement(xmlmap.XmlObject):
-    geom = xmlmap.NodeField(xpath=f"//gml:*",
+    geom = xmlmap.NodeField(xpath="//gml:*",
                             node_class=Gml)
 
 

@@ -72,7 +72,7 @@ class Command(BaseCommand):
         else:
             call_command('migrate')
 
-        #call_command('create_roles')
+        # call_command('create_roles')
 
     def _run_system_user_default_setup(self):
         if get_user_model().objects.filter(username="system").exists():

@@ -1,9 +1,7 @@
 import django_tables2 as tables
 from django.urls import reverse
 from django.utils.html import format_html
-from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
-
 from extras.tables.tables import SecuredTable
 from extras.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
     SERVICE_STATUS_ICONS, OPERATION_URLS
@@ -64,9 +62,8 @@ class ServiceTable(SecuredTable):
                   "layers_count",
                   "feature_types_count",
                   "service_type__version",
-                  #'service__service_type__version',
-
-                  #'contact',
+                  # 'service__service_type__version',
+                  # 'contact',
                   "operation_urls__all",
                   'created_at',
                   'owner',

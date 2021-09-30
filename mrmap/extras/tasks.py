@@ -98,8 +98,8 @@ class MonitoringTask(DefaultBehaviourTask, ABC):
             try:
                 self.pending_task = DbTask.objects.create()
                 kwargs.update({"pending_task_pk": self.pending_task.pk})
-            except Exception as e:
-                # todo: log instead of print
+            except Exception:
+                # TODO: log instead of print
                 import traceback
                 traceback.print_exc()
         return super().__call__(*args, **kwargs)

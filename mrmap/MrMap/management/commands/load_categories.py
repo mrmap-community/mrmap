@@ -5,15 +5,14 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 12.06.19
 
 """
-import json
-import uuid
+# import json
 from django.conf import settings
 from django.core.management import BaseCommand
 from django.db import transaction
 from requests import Request, Session
 
 from MrMap.management.commands.setup_settings import CATEGORIES, CATEGORIES_LANG
-from registry.enums.metadata import CategoryOriginEnum
+# from registry.enums.metadata import CategoryOriginEnum
 
 
 class Command(BaseCommand):
@@ -62,47 +61,49 @@ class Command(BaseCommand):
         Returns:
              ret_list (list): Contains the category objects with updated languages
         """
-        # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
-        # based on the parsed type of origin
-        if origin == CategoryOriginEnum.ISO.value:
-            label = "label"
-            descr = "definition"
-            text = "text"
-            link = "id"
-        elif origin == CategoryOriginEnum.INSPIRE.value:
-            label = "preferredLabel"
-            descr = "definition"
-            text = "string"
-            link = "uri"
-        else:
-            # For future implementation
-            pass
+        return
+        # FIXME
+        # # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
+        # # based on the parsed type of origin
+        # if origin == CategoryOriginEnum.ISO.value:
+        #     label = "label"
+        #     descr = "definition"
+        #     text = "text"
+        #     link = "id"
+        # elif origin == CategoryOriginEnum.INSPIRE.value:
+        #     label = "preferredLabel"
+        #     descr = "definition"
+        #     text = "string"
+        #     link = "uri"
+        # else:
+        #     # For future implementation
+        #     pass
 
-        ret_list = []
-        # iterate for another language over all categories and set the correct translated attributes
-        items = json.loads(raw_categories.decode("utf-8"))
-        if origin == CategoryOriginEnum.ISO.value:
-            items = items["metadata-codelist"]["containeditems"]
-        for item in items:
-            if origin == CategoryOriginEnum.ISO.value:
-                item = item["value"]
-            # FIXME
-            """
-            category = Category.objects.get(online_link=item[link])
-            if lang_key == "locale_1":
-                # not set yet, we are correct in here
-                category.title_locale_1 = item[label][text]
-                category.description_locale_1 = item[descr][text]
-            elif lang_key == "locale_2":
-                # not set yet, we are correct in here
-                category.title_locale_2 = item[label][text]
-                category.description_locale_2 = item[descr][text]
-            else:
-                pass
-            category.save()
-            ret_list.append(category)"""
-        self.stdout.write(self.style.SUCCESS("Added language '{}' to {} themes.".format(lang_key, origin)))
-        return ret_list
+        # ret_list = []
+        # # iterate for another language over all categories and set the correct translated attributes
+        # items = json.loads(raw_categories.decode("utf-8"))
+        # if origin == CategoryOriginEnum.ISO.value:
+        #     items = items["metadata-codelist"]["containeditems"]
+        # for item in items:
+        #     if origin == CategoryOriginEnum.ISO.value:
+        #         item = item["value"]
+        #     # FIXME
+        #     """
+        #     category = Category.objects.get(online_link=item[link])
+        #     if lang_key == "locale_1":
+        #         # not set yet, we are correct in here
+        #         category.title_locale_1 = item[label][text]
+        #         category.description_locale_1 = item[descr][text]
+        #     elif lang_key == "locale_2":
+        #         # not set yet, we are correct in here
+        #         category.title_locale_2 = item[label][text]
+        #         category.description_locale_2 = item[descr][text]
+        #     else:
+        #         pass
+        #     category.save()
+        #     ret_list.append(category)"""
+        # self.stdout.write(self.style.SUCCESS("Added language '{}' to {} themes.".format(lang_key, origin)))
+        # return ret_list
 
     def create_categories_en(self, raw_categories: str, origin):
         """ Create initial category objects by parsing the english version of inspire theme api
@@ -113,44 +114,46 @@ class Command(BaseCommand):
         Returns:
              ret_list (list): Contains all retrieved category objects in english language
         """
+        return
+        # FIXME:
         # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # based on the parsed type of origin
-        if origin == CategoryOriginEnum.ISO.value:
-            label = "label"
-            descr = "definition"
-            text = "text"
-            link = "id"
-        elif origin == CategoryOriginEnum.INSPIRE.value:
-            label = "preferredLabel"
-            descr = "definition"
-            text = "string"
-            link = "uri"
-        else:
-            # For future implementation
-            pass
+        # if origin == CategoryOriginEnum.ISO.value:
+        #     label = "label"
+        #     descr = "definition"
+        #     text = "text"
+        #     link = "id"
+        # elif origin == CategoryOriginEnum.INSPIRE.value:
+        #     label = "preferredLabel"
+        #     descr = "definition"
+        #     text = "string"
+        #     link = "uri"
+        # else:
+        #     # For future implementation
+        #     pass
 
-        ret_list = []
-        items = json.loads(raw_categories.decode("utf-8"))
-        if origin == CategoryOriginEnum.ISO.value:
-            items = items["metadata-codelist"]["containeditems"]
-        for item in items:
-            if origin == CategoryOriginEnum.ISO.value:
-                item = item["value"]
-                # FIXME
-                """
-            category = Category.objects.get_or_create(
-                type=origin,
-                title_EN=item[label][text],
-                description_EN=item[descr][text],
-                online_link=item[link],
-            )
-            is_new = category[1]
-            category = category[0]
-            if is_new:
-                # had to be created newly
-                category.uuid = uuid.uuid4()
-                category.is_active = True
-                category.save()
-            ret_list.append(category)"""
-        self.stdout.write(self.style.SUCCESS("Created initial english {} themes.".format(origin)))
-        return ret_list
+        # ret_list = []
+        # items = json.loads(raw_categories.decode("utf-8"))
+        # if origin == CategoryOriginEnum.ISO.value:
+        #     items = items["metadata-codelist"]["containeditems"]
+        # for item in items:
+        #     if origin == CategoryOriginEnum.ISO.value:
+        #         item = item["value"]
+        #         # FIXME
+        #         """
+        #     category = Category.objects.get_or_create(
+        #         type=origin,
+        #         title_EN=item[label][text],
+        #         description_EN=item[descr][text],
+        #         online_link=item[link],
+        #     )
+        #     is_new = category[1]
+        #     category = category[0]
+        #     if is_new:
+        #         # had to be created newly
+        #         category.uuid = uuid.uuid4()
+        #         category.is_active = True
+        #         category.save()
+        #     ret_list.append(category)"""
+        # self.stdout.write(self.style.SUCCESS("Created initial english {} themes.".format(origin)))
+        # return ret_list

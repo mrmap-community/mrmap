@@ -30,8 +30,7 @@ class Job(CommonInfo):
             return TaskStatusEnum.FAILURE.value
         elif any(task.status == TaskStatusEnum.STARTED.value for task in self.cached_tasks):
             return TaskStatusEnum.STARTED.value
-        elif any(task.status == TaskStatusEnum.SUCCESS.value for task in self.cached_tasks) and not \
-             any(task.status == TaskStatusEnum.PENDING.value for task in self.cached_tasks):
+        elif any(task.status == TaskStatusEnum.SUCCESS.value for task in self.cached_tasks) and not any(task.status == TaskStatusEnum.PENDING.value for task in self.cached_tasks):
             return TaskStatusEnum.SUCCESS.value
         else:
             return TaskStatusEnum.PENDING.value
@@ -53,7 +52,7 @@ class Job(CommonInfo):
 
     @cached_property
     def execution_time(self):
-        execution_time = self.cached_tasks.aggregate(execution_time=Sum(F("done_at")-F("started_at"))).get("execution_time")
+        execution_time = self.cached_tasks.aggregate(execution_time=Sum(F("done_at") - F("started_at"))).get("execution_time")
         return execution_time
 
     def __str__(self):

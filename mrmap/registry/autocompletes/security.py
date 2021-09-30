@@ -26,13 +26,13 @@ class SecureAbleOperationsAutocomplete(LoginRequiredMixin, autocomplete.Select2Q
     search_fields = ['operation']
 
     def get_queryset(self):
-        return super().get_queryset().filter(operation__in=SECURE_ABLE_WMS_OPERATIONS+SECURE_ABLE_WFS_OPERATIONS)
+        return super().get_queryset().filter(operation__in=SECURE_ABLE_WMS_OPERATIONS + SECURE_ABLE_WFS_OPERATIONS)
 
 
 class AllowedOperationsAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = AllowedOperation
     search_fields = ['id', ]
-    
+
 
 class ServiceAccessGroupAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = ServiceAccessGroup

@@ -10,4 +10,3 @@ class GetRecordsResponse(xmlmap.XmlObject):
 
     records = xmlmap.NodeListField(xpath=f"//{NS_WC}SearchResults']//{NS_WC}MD_Metadata']",
                                    node_class=MdMetadata)
-

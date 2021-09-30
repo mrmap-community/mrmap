@@ -22,8 +22,7 @@ class QualityInternal:
         self.config = ConformityCheckConfigurationInternal.objects.get(pk=base_config.pk)
         self.check_run = run
 
-        count = self.config.mandatory_rule_sets.all().count() + \
-                self.config.optional_rule_sets.all().count()
+        count = self.config.mandatory_rule_sets.all().count() + self.config.optional_rule_sets.all().count()
 
         try:
             self.step_size = 80 / count

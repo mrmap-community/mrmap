@@ -86,4 +86,3 @@ class FeatureTypeElementFilterSet(django_filters.FilterSet):
             "data_type": ["icontains"],
             "feature_type__id": ["in", ]
         }
-

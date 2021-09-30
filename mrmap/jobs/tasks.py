@@ -78,7 +78,7 @@ class CurrentTask(CommonInfoSetupMixin, ABC):
                     self.task = DbTask.objects.create(name=self.name,
                                                       job=self.job)
                     kwargs.update({"task_pk": self.task.pk})
-                except Exception as e:
+                except Exception:
                     # todo: log instead of print
                     import traceback
                     traceback.print_exc()
@@ -108,8 +108,8 @@ class NewJob(CommonInfoSetupMixin, ABC):
             try:
                 self.job = DbJob.objects.create(name=self.name)
                 kwargs.update({"job_pk": self.job.pk})
-            except Exception as e:
-                # todo: log instead of print
+            except Exception:
+                # TODO: log instead of print
                 import traceback
                 traceback.print_exc()
         return super().__call__(*args, **kwargs)

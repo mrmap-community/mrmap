@@ -9,8 +9,8 @@ on:
   schedule:
     - cron: 0 16 * * *
 jobs:
-  sonarcloud:
-    name: Sonar
+  quality-assurance:
+    name: quality-assurance
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -19,12 +19,20 @@ jobs:
       - name: Extract branch name
         uses: nelonoel/branch-name@v1.0.1
         id: extract_branch
+
+      - name: Check pending migrations
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
+      
       - name: Run unit tests
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test 
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test 
+      
       - name: Run behave tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
-      - name: SonarCloud Scan
+      
+      - name: push results to sonarcloud
         uses: SonarSource/sonarcloud-github-action@master
         with:
           args: >

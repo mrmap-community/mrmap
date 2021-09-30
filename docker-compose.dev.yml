@@ -1,6 +1,29 @@
 # docker compose file for development useage
 version: '3.8'
 services:
+
+  pre-commit-check:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+      args: 
+        MRMAP_PRODUCTION: 'False'
+    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    command:
+      /bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
+    hostname: "mrmap-test"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+    networks:
+      - backend
+    env_file:
+      - ./.env.mrmap
+    depends_on:
+      - postgis
+      - redis
+
   test:
     build:
       context: ./mrmap

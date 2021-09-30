@@ -40,4 +40,5 @@ jobs:
         run: |
           export $(grep -v '^#' .env.docs | xargs)
           sphinx-multiversion docs/source docs/build/html -b linkcheck
+          sphinx-multiversion docs/source docs/build/html -b html -E
       # ===============================

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Users Package &mdash; MrMap v0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Mr Map Models" href="../models/index.html" />
+    <link rel="prev" title="Mr Map Features" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MrMap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Mr Map Features</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Users Package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#login">Login</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logout">Logout</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Mr Map Features</a> &raquo;</li>
+      <li>Users Package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/features/users.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="users-package">
+<span id="features-users"></span><h1>Users Package<a class="headerlink" href="#users-package" title="Permalink to this headline"></a></h1>
+<div class="section" id="login">
+<h2>Login<a class="headerlink" href="#login" title="Permalink to this headline"></a></h2>
+<div class="highlight-gherkin notranslate"><div class="highlight"><pre><span></span><span class="k">Feature:</span><span class="nf"> user login</span>
+<span class="nf">  As a User,</span>
+<span class="nf">  I want to login </span>
+<span class="nf">  So that I can use the MrMap UI.</span>
+
+<span class="nf">  </span><span class="k">Background:</span><span class="nf"> setup users and open browser</span>
+<span class="k">    Given </span><span class="nf">there are set of Users in Database</span>
+<span class="k">      |</span><span class="s"> username</span><span class="k"> |</span><span class="s"> password</span><span class="k"> |</span><span class="nf"></span>
+<span class="k">      |</span><span class="s"> peter</span><span class="k"> |</span><span class="s"> password123</span><span class="k"> | </span><span class="nf"></span>
+<span class="nf">    </span><span class="k">Given </span><span class="nf">the base url is &quot;</span><span class="s">https://localhost:8000</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Given </span><span class="nf">I open the site &quot;</span><span class="s">/</span><span class="nf">&quot;</span>
+
+<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Successful user login process </span>
+<span class="k">    When </span><span class="nf">I set &quot;</span><span class="s">peter</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_username&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I set &quot;</span><span class="s">password123</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_password&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I click on the button &quot;</span><span class="s">//button[@type=&#39;submit&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that element &quot;</span><span class="s">//*[text()[contains(.,&#39;Successfully signed in.&#39;)]]</span><span class="nf">&quot; does exist</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that cookie &quot;</span><span class="s">sessionid</span><span class="nf">&quot; exists</span>
+<span class="nf">    </span>
+<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Failed user login process with wrong password</span>
+<span class="k">    When </span><span class="nf">I set &quot;</span><span class="s">peter</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_username&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I set &quot;</span><span class="s">password1234</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_password&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I click on the button &quot;</span><span class="s">//button[@type=&#39;submit&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that element &quot;</span><span class="s">//*[text()[contains(.,&#39;Please enter a correct username and password. Note that both fields may be case-sensitive.&#39;)]]</span><span class="nf">&quot; does exist</span>
+<span class="nf">  </span>
+<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Failed user login process with wrong username</span>
+<span class="k">    When </span><span class="nf">I set &quot;</span><span class="s">peter123</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_username&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I set &quot;</span><span class="s">password123</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_password&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I click on the button &quot;</span><span class="s">//button[@type=&#39;submit&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that element &quot;</span><span class="s">//*[text()[contains(.,&#39;Please enter a correct username and password. Note that both fields may be case-sensitive.&#39;)]]</span><span class="nf">&quot; does exist</span>
+<span class="nf">    </span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="logout">
+<h2>Logout<a class="headerlink" href="#logout" title="Permalink to this headline"></a></h2>
+<div class="highlight-gherkin notranslate"><div class="highlight"><pre><span></span><span class="k">Feature:</span><span class="nf"> user logout</span>
+<span class="nf">  As a user</span>
+<span class="nf">  I want to logout</span>
+<span class="nf">  so that no unintended or malicious person can use my session with my account</span>
+
+<span class="nf">  </span><span class="k">Background:</span><span class="nf"> setup users, log in and open browser</span>
+<span class="k">    Given </span><span class="nf">there are set of Users in Database</span>
+<span class="k">      |</span><span class="s"> username</span><span class="k"> |</span><span class="s"> password</span><span class="k"> |</span><span class="nf"></span>
+<span class="k">      |</span><span class="s"> peter</span><span class="k"> |</span><span class="s"> password123</span><span class="k"> |</span><span class="nf"></span>
+<span class="nf">    </span><span class="k">Given </span><span class="nf">I am logged in</span>
+<span class="nf">    </span><span class="k">Given </span><span class="nf">the base url is &quot;</span><span class="s">https://localhost:8000</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Given </span><span class="nf">I open the site &quot;</span><span class="s">/users/dashboard</span><span class="nf">&quot;</span>
+
+<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> User is redirected to login page after logout</span>
+<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//a[@title=&#39;Logout&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;s</span>
+
+<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Logged out user tries to open dashboard page. Is redirected to Login page</span>
+<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//a[@title=&#39;Logout&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">When </span><span class="nf">I open the site &quot;</span><span class="s">/users/dashboard</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;</span>
+
+<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Session ID is cleared after logout</span>
+<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//a[@title=&#39;Logout&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that cookie &quot;</span><span class="s">sessionid</span><span class="nf">&quot; not exists</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Mr Map Features" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../models/index.html" class="btn btn-neutral float-right" title="Mr Map Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, mrmap-community.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+<div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    <span class="fa fa-book"> Other Versions</span>
+    v: develop
+    <span class="fa fa-caret-down"></span>
+  </span>
+  <div class="rst-other-versions">
+    <dl>
+      <dt>Branches</dt>
+      <dd><a href="users.html">develop</a></dd>
+    </dl>
+  </div>
+</div><script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

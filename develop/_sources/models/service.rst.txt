@@ -4,5 +4,5 @@
 Service Models
 ===============
 
-.. automodule:: resourceNew.models.service
+.. automodule:: registry.models.service
    :members:

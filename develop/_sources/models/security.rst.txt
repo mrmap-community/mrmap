@@ -4,5 +4,5 @@
 Security Models
 ===============
 
-.. automodule:: resourceNew.models.security
+.. automodule:: registry.models.security
    :members:

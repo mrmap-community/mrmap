@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Environment Variables &mdash; MrMap v0.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -102,85 +101,85 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="environment-variables">
+  <div class="section" id="environment-variables">
 <span id="development-environment"></span><h1>Environment Variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline"></a></h1>
 <p>We provide default environment files with the repository. All files starts with <code class="docutils literal notranslate"><span class="pre">.env.{purpose}</span></code></p>
-<section id="mrmap-applications">
+<div class="section" id="mrmap-applications">
 <h2>MrMap applications<a class="headerlink" href="#mrmap-applications" title="Permalink to this headline"></a></h2>
-<section id="mrmap-user">
+<div class="section" id="mrmap-user">
 <h3><code class="docutils literal notranslate"><span class="pre">MRMAP_USER</span></code><a class="headerlink" href="#mrmap-user" title="Permalink to this headline"></a></h3>
 <p>Used by setup command to create initial superuser.</p>
-</section>
-<section id="mrmap-password">
+</div>
+<div class="section" id="mrmap-password">
 <h3><code class="docutils literal notranslate"><span class="pre">MRMAP_PASSWORD</span></code><a class="headerlink" href="#mrmap-password" title="Permalink to this headline"></a></h3>
 <p>Used by setup command while creating superuser to provide initial password.</p>
-</section>
-<section id="django-debug">
+</div>
+<div class="section" id="django-debug">
 <h3><code class="docutils literal notranslate"><span class="pre">DJANGO_DEBUG</span></code><a class="headerlink" href="#django-debug" title="Permalink to this headline"></a></h3>
 <p>Used to activate debugging features. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#debug">django docs</a> for details.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>never use DJANGO_DEBUG=1 in pruction environment!</p>
 </div>
-</section>
-<section id="django-secret-key">
+</div>
+<div class="section" id="django-secret-key">
 <h3><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code><a class="headerlink" href="#django-secret-key" title="Permalink to this headline"></a></h3>
 <p>Used to configure the secrete key which is used by django. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#secret-key">django docs</a> for details.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>use a strong secret and never the default from the repository!</p>
 </div>
-</section>
-<section id="django-allowed-hosts">
+</div>
+<div class="section" id="django-allowed-hosts">
 <h3><code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code><a class="headerlink" href="#django-allowed-hosts" title="Permalink to this headline"></a></h3>
 <p>Used to configure the allowed hosts from the origin header. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#allowed-hosts">django docs</a> for details.</p>
-</section>
-<section id="django-time-zone">
+</div>
+<div class="section" id="django-time-zone">
 <h3><code class="docutils literal notranslate"><span class="pre">DJANGO_TIME_ZONE</span></code><a class="headerlink" href="#django-time-zone" title="Permalink to this headline"></a></h3>
 <p>Used to configure the timezone which shall be used in MrMap. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#time-zone">django docs</a> for details.</p>
-</section>
-<section id="sql-engine">
+</div>
+<div class="section" id="sql-engine">
 <h3><code class="docutils literal notranslate"><span class="pre">SQL_ENGINE</span></code><a class="headerlink" href="#sql-engine" title="Permalink to this headline"></a></h3>
 <p>Used to configure the sql engine which is used. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#engine">django docs</a> for details.</p>
-</section>
-<section id="sql-database">
+</div>
+<div class="section" id="sql-database">
 <h3><code class="docutils literal notranslate"><span class="pre">SQL_DATABASE</span></code><a class="headerlink" href="#sql-database" title="Permalink to this headline"></a></h3>
 <p>Used to configure the name of the schema. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#name">django docs</a> for details.</p>
-</section>
-<section id="sql-user">
+</div>
+<div class="section" id="sql-user">
 <h3><code class="docutils literal notranslate"><span class="pre">SQL_USER</span></code><a class="headerlink" href="#sql-user" title="Permalink to this headline"></a></h3>
 <p>Used to configure the name of the user which shall be used to connect to the database. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#user">django docs</a> for details.</p>
-</section>
-<section id="sql-password">
+</div>
+<div class="section" id="sql-password">
 <h3><code class="docutils literal notranslate"><span class="pre">SQL_PASSWORD</span></code><a class="headerlink" href="#sql-password" title="Permalink to this headline"></a></h3>
 <p>Used to configure the password of the user which shall be used to connect to the database. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#password">django docs</a> for details.</p>
-</section>
-<section id="sql-host">
+</div>
+<div class="section" id="sql-host">
 <h3><code class="docutils literal notranslate"><span class="pre">SQL_HOST</span></code><a class="headerlink" href="#sql-host" title="Permalink to this headline"></a></h3>
 <p>Used to configure the ip/dns name of the database host. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#host">django docs</a> for details.</p>
-</section>
-<section id="sql-port">
+</div>
+<div class="section" id="sql-port">
 <h3><code class="docutils literal notranslate"><span class="pre">SQL_PORT</span></code><a class="headerlink" href="#sql-port" title="Permalink to this headline"></a></h3>
 <p>Used to configure the port of the database host. See <a class="reference external" href="https://docs.djangoproject.com/en/3.2/ref/settings/#port">django docs</a> for details.</p>
-</section>
-<section id="redis-host">
+</div>
+<div class="section" id="redis-host">
 <h3><code class="docutils literal notranslate"><span class="pre">REDIS_HOST</span></code><a class="headerlink" href="#redis-host" title="Permalink to this headline"></a></h3>
 <p>Used to configure the ip/dns name of the redis host.</p>
-</section>
-<section id="redis-port">
+</div>
+<div class="section" id="redis-port">
 <h3><code class="docutils literal notranslate"><span class="pre">REDIS_PORT</span></code><a class="headerlink" href="#redis-port" title="Permalink to this headline"></a></h3>
 <p>Used to configure the port of the redis host.</p>
-</section>
-<section id="mapserver-url">
+</div>
+<div class="section" id="mapserver-url">
 <h3><code class="docutils literal notranslate"><span class="pre">MAPSERVER_URL</span></code><a class="headerlink" href="#mapserver-url" title="Permalink to this headline"></a></h3>
 <p>Used to configure the url of the mapservice instance.</p>
-</section>
-<section id="mapserver-security-mask-file-path">
+</div>
+<div class="section" id="mapserver-security-mask-file-path">
 <h3><code class="docutils literal notranslate"><span class="pre">MAPSERVER_SECURITY_MASK_FILE_PATH</span></code><a class="headerlink" href="#mapserver-security-mask-file-path" title="Permalink to this headline"></a></h3>
 <p>Used to configure the map file for security proxy. This file needed to be installed on the used mapserver which is configured by <code class="docutils literal notranslate"><span class="pre">MAPSERVER_URL</span></code>.</p>
-</section>
-</section>
-</section>
+</div>
+</div>
+</div>
 
 
            </div>

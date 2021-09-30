@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Security Module &mdash; MrMap v0.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -46,7 +45,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Mr Map Modules</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="index.html#module-index">Module Index</a><ul class="current">
 <li class="toctree-l3 current"><a class="current reference internal" href="#">Security Module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#module-resourceNew.views.ows">Security Proxy Facade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#module-registry.views.ows">Security Proxy Facade</a></li>
 </ul>
 </li>
 </ul>
@@ -80,20 +79,20 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="security-module">
+  <div class="section" id="security-module">
 <span id="modules-resource-security"></span><h1>Security Module<a class="headerlink" href="#security-module" title="Permalink to this headline"></a></h1>
-<section id="module-resourceNew.views.ows">
-<span id="security-proxy-facade"></span><h2>Security Proxy Facade<a class="headerlink" href="#module-resourceNew.views.ows" title="Permalink to this headline"></a></h2>
+<div class="section" id="module-registry.views.ows">
+<span id="security-proxy-facade"></span><h2>Security Proxy Facade<a class="headerlink" href="#module-registry.views.ows" title="Permalink to this headline"></a></h2>
 <dl class="py class">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">resourceNew.views.ows.</span></span><span class="sig-name descname"><span class="pre">GenericOwsServiceOperationFacade</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.views.ows.</span></span><span class="sig-name descname"><span class="pre">GenericOwsServiceOperationFacade</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade" title="Permalink to this definition"></a></dt>
 <dd><p>Security proxy facade to secure registered services spatial by there operations and for sets of users.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Attr service</dt>
-<dd class="field-odd"><p><a class="reference internal" href="../models/service.html#resourceNew.models.service.Service" title="resourceNew.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">resourceNew.models.service.Service</span></code></a> the requested service which was found by the pk.</p>
+<dd class="field-odd"><p><a class="reference internal" href="../models/service.html#registry.models.service.Service" title="registry.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></a> the requested service which was found by the pk.</p>
 </dd>
 <dt class="field-even">Attr remote_service</dt>
-<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">resourceNew.ows_client.request_builder.WebService</span></code> the request builder to get
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.ows_client.request_builder.WebService</span></code> the request builder to get
 prepared <code class="xref py py-class docutils literal notranslate"><span class="pre">requests.models.Request</span></code> objects with the correct uri and query params.</p>
 </dd>
 <dt class="field-odd">Attr query_parameters</dt>
@@ -108,8 +107,8 @@ overlay with information about the resources, which can not be accessed</p>
 </dd>
 </dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_and_post">
-<span class="sig-name descname"><span class="pre">get_and_post</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_and_post" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.get_and_post">
+<span class="sig-name descname"><span class="pre">get_and_post</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.get_and_post" title="Permalink to this definition"></a></dt>
 <dd><p>Http get/post method with security case decisioning.</p>
 <dl>
 <dt><strong>Principle constraints</strong>:</dt><dd><ul class="simple">
@@ -129,7 +128,7 @@ overlay with information about the resources, which can not be accessed</p>
 <li><p>service.is_spatial_secured ==True and service.user_is_principle_entitled == True</p></li>
 </ul>
 <p>If the condition matches, return the result from
-<a class="reference internal" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response" title="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_secured_response()</span></code></a></p>
+<a class="reference internal" href="#registry.views.ows.GenericOwsServiceOperationFacade.get_secured_response" title="registry.views.ows.GenericOwsServiceOperationFacade.get_secured_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_secured_response()</span></code></a></p>
 </dd>
 <dt><strong>Default behavior</strong>:</dt><dd><p>return <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">(Forbidden)</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">has</span> <span class="pre">no</span> <span class="pre">permissions</span> <span class="pre">to</span> <span class="pre">request</span> <span class="pre">this</span> <span class="pre">service.</span></code></p>
 </dd>
@@ -137,7 +136,7 @@ overlay with information about the resources, which can not be accessed</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>all error messages will be send as an owsExceptionReport. See
-<a class="reference internal" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response" title="resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">return_http_response()</span></code></a> for details.</p>
+<a class="reference internal" href="#registry.views.ows.GenericOwsServiceOperationFacade.return_http_response" title="registry.views.ows.GenericOwsServiceOperationFacade.return_http_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">return_http_response()</span></code></a> for details.</p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -150,12 +149,12 @@ overlay with information about the resources, which can not be accessed</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_capabilities">
-<span class="sig-name descname"><span class="pre">get_capabilities</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_capabilities" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.get_capabilities">
+<span class="sig-name descname"><span class="pre">get_capabilities</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.get_capabilities" title="Permalink to this definition"></a></dt>
 <dd><p>Return the camouflaged capabilities document of the founded service.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>See <code class="xref py py-meth docutils literal notranslate"><span class="pre">resourceNew.models.document.DocumentModelMixin.xml_secured()</span></code> for details of xml_secured function.</p>
+<p>See <code class="xref py py-meth docutils literal notranslate"><span class="pre">registry.models.document.DocumentModelMixin.xml_secured()</span></code> for details of xml_secured function.</p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -168,8 +167,8 @@ overlay with information about the resources, which can not be accessed</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_remote_response">
-<span class="sig-name descname"><span class="pre">get_remote_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">requests.models.Request</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_remote_response" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.get_remote_response">
+<span class="sig-name descname"><span class="pre">get_remote_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">requests.models.Request</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.get_remote_response" title="Permalink to this definition"></a></dt>
 <dd><p>Perform a request to the <code class="xref py py-attr docutils literal notranslate"><span class="pre">remote_service</span></code> with the given
 query parameters or if <code class="docutils literal notranslate"><span class="pre">request</span></code> is provided this request is performed.</p>
 <dl class="field-list simple">
@@ -188,8 +187,8 @@ error occurs.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response">
-<span class="sig-name descname"><span class="pre">get_secured_response</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.get_secured_response" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.get_secured_response">
+<span class="sig-name descname"><span class="pre">get_secured_response</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.get_secured_response" title="Permalink to this definition"></a></dt>
 <dd><p>Return a filtered response based on the requested bbox</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -207,14 +206,14 @@ entitled! If so we filter the allowed_operations again by with the bbox param.</
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_get_feature_info_with_multithreading">
-<span class="sig-name descname"><span class="pre">handle_get_feature_info_with_multithreading</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_get_feature_info_with_multithreading" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.handle_get_feature_info_with_multithreading">
+<span class="sig-name descname"><span class="pre">handle_get_feature_info_with_multithreading</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.handle_get_feature_info_with_multithreading" title="Permalink to this definition"></a></dt>
 <dd><p>We use multithreading to send two requests at the same time to speed up the response time.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature">
-<span class="sig-name descname"><span class="pre">handle_secured_get_feature</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature">
+<span class="sig-name descname"><span class="pre">handle_secured_get_feature</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature" title="Permalink to this definition"></a></dt>
 <dd><p>Compute the secured get feature request based on the given request.</p>
 <p><strong>HTTP GET</strong>:
 If the client does request with http get method, the bbox will be parsed and converted to a instance of type
@@ -236,8 +235,8 @@ to the remote server as a xml filter query.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature_info">
-<span class="sig-name descname"><span class="pre">handle_secured_get_feature_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature_info" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature_info">
+<span class="sig-name descname"><span class="pre">handle_secured_get_feature_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_feature_info" title="Permalink to this definition"></a></dt>
 <dd><p>Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
 contained in any allowed area.
 IF not we response with a owsExceptionReport in xml format.</p>
@@ -260,38 +259,30 @@ discretion of the service provider, but it shall pertain to the feature(s) neare
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_map">
-<span class="sig-name descname"><span class="pre">handle_secured_get_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_map" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_map">
+<span class="sig-name descname"><span class="pre">handle_secured_get_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_get_map" title="Permalink to this definition"></a></dt>
 <dd><p>Compute the secured get map response if the requested bbox intersects any allowed area.</p>
 <p><strong>Example 1: bbox covers allowed area</strong></p>
 <blockquote>
-<div><figure class="align-default" id="id1">
+<div><div class="figure align-default" id="id1">
 <a class="with-border reference internal image-reference" href="../_images/example_1_request.png"><img alt="Request: bbox covers allowed area" class="with-border" src="../_images/example_1_request.png" style="width: 50%;" /></a>
-<figcaption>
-<p><span class="caption-text">Request: bbox covers allowed area</span><a class="headerlink" href="#id1" title="Permalink to this image"></a></p>
-</figcaption>
-</figure>
-<figure class="align-default" id="id2">
+<p class="caption"><span class="caption-text">Request: bbox covers allowed area</span><a class="headerlink" href="#id1" title="Permalink to this image"></a></p>
+</div>
+<div class="figure align-default" id="id2">
 <a class="reference internal image-reference" href="../_images/example_1_result.png"><img alt="Result: bbox covers allowed area" src="../_images/example_1_result.png" style="width: 50%;" /></a>
-<figcaption>
-<p><span class="caption-text">Result: bbox covers allowed area</span><a class="headerlink" href="#id2" title="Permalink to this image"></a></p>
-</figcaption>
-</figure>
+<p class="caption"><span class="caption-text">Result: bbox covers allowed area</span><a class="headerlink" href="#id2" title="Permalink to this image"></a></p>
+</div>
 </div></blockquote>
 <p><strong>Example 2: bbox intersects allowed area</strong></p>
 <blockquote>
-<div><figure class="align-default" id="id3">
+<div><div class="figure align-default" id="id3">
 <a class="reference internal image-reference" href="../_images/example_2_request.png"><img alt="Request: bbox intersects allowed area" src="../_images/example_2_request.png" style="width: 50%;" /></a>
-<figcaption>
-<p><span class="caption-text">Request: bbox intersects allowed area</span><a class="headerlink" href="#id3" title="Permalink to this image"></a></p>
-</figcaption>
-</figure>
-<figure class="align-default" id="id4">
+<p class="caption"><span class="caption-text">Request: bbox intersects allowed area</span><a class="headerlink" href="#id3" title="Permalink to this image"></a></p>
+</div>
+<div class="figure align-default" id="id4">
 <a class="reference internal image-reference" href="../_images/example_2_result.png"><img alt="Result: bbox intersects allowed area" src="../_images/example_2_result.png" style="width: 50%;" /></a>
-<figcaption>
-<p><span class="caption-text">Result: bbox intersects allowed area</span><a class="headerlink" href="#id4" title="Permalink to this image"></a></p>
-</figcaption>
-</figure>
+<p class="caption"><span class="caption-text">Result: bbox intersects allowed area</span><a class="headerlink" href="#id4" title="Permalink to this image"></a></p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">return</dt>
 <dd class="field-odd"><p>The cropped map image with status code 200 or an error message with status code 403 (Forbidden) if
@@ -305,8 +296,8 @@ the bbox doesn’t intersects any allowed area.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wfs">
-<span class="sig-name descname"><span class="pre">handle_secured_wfs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wfs" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_wfs">
+<span class="sig-name descname"><span class="pre">handle_secured_wfs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_wfs" title="Permalink to this definition"></a></dt>
 <dd><p>Handler to decide which subroutine for the given request param shall run.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -319,8 +310,8 @@ the bbox doesn’t intersects any allowed area.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wms">
-<span class="sig-name descname"><span class="pre">handle_secured_wms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.handle_secured_wms" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_wms">
+<span class="sig-name descname"><span class="pre">handle_secured_wms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.handle_secured_wms" title="Permalink to this definition"></a></dt>
 <dd><p>Handler to decide which subroutine for the given request param shall run.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -333,14 +324,14 @@ the bbox doesn’t intersects any allowed area.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.log_response">
-<span class="sig-name descname"><span class="pre">log_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.log_response" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.log_response">
+<span class="sig-name descname"><span class="pre">log_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.log_response" title="Permalink to this definition"></a></dt>
 <dd><p>Check if response logging is active. If so, the request and response will be logged.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response">
-<span class="sig-name descname"><span class="pre">return_http_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.return_http_response" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.return_http_response">
+<span class="sig-name descname"><span class="pre">return_http_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.return_http_response" title="Permalink to this definition"></a></dt>
 <dd><p>Return the http response for the client.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -358,15 +349,15 @@ the bbox doesn’t intersects any allowed area.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="resourceNew.views.ows.GenericOwsServiceOperationFacade.setup">
-<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#resourceNew.views.ows.GenericOwsServiceOperationFacade.setup" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.views.ows.GenericOwsServiceOperationFacade.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.ows.GenericOwsServiceOperationFacade.setup" title="Permalink to this definition"></a></dt>
 <dd><p>Setup all basically needed attributes of this class.</p>
 </dd></dl>
 
 </dd></dl>
 
-</section>
-</section>
+</div>
+</div>
 
 
            </div>

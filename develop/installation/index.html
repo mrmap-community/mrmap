@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Installation &mdash; MrMap v0.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -75,7 +74,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="installation">
+  <div class="section" id="installation">
 <span id="id1"></span><h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h1>
 <p>The MrMap project is full dockerized. All dependend services MrMap needs are also provided as docker containers. The only thing you have to install on your system is a docker enginge and docker compose. See the table below to get the right version of docker engine and docker compose.</p>
 <p><strong>Requirements</strong></p>
@@ -102,19 +101,19 @@
 <p class="admonition-title">Warning</p>
 <p>Make sure that the user you running docker-compose from, has managing rights for docker. For linux developers see <a class="reference external" href="https://docs.docker.com/engine/install/linux-postinstall/">Post-installation steps for Linux</a></p>
 </div>
-<section id="download-mrmap">
+<div class="section" id="download-mrmap">
 <h2>1. Download MrMap<a class="headerlink" href="#download-mrmap" title="Permalink to this headline"></a></h2>
 <p>Download the project from <a class="reference external" href="https://github.com/mrmap-community/mrmap/archive/refs/heads/develop.zip">github</a> and unzip it to any installation folder you like.</p>
-</section>
-<section id="start-mrmap">
+</div>
+<div class="section" id="start-mrmap">
 <h2>2. Start MrMap<a class="headerlink" href="#start-mrmap" title="Permalink to this headline"></a></h2>
 <p>Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">-f</span> <span class="pre">docker-compose.yml</span> <span class="pre">up</span> <span class="pre">--build</span></code>. After that, all services should be started properly and MrMap should be reachable under <a class="reference external" href="https://localhost">https://localhost</a></p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The initial credentials of MrMap are: username = <code class="docutils literal notranslate"><span class="pre">mrmap</span></code>, password = <code class="docutils literal notranslate"><span class="pre">mrmap</span></code></p>
 </div>
-</section>
-</section>
+</div>
+</div>
 
 
            </div>

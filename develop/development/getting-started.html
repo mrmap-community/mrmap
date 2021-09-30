@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Getting Started &mdash; MrMap v0.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -96,7 +95,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="getting-started">
+  <div class="section" id="getting-started">
 <span id="development-getting-started"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h1>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -113,7 +112,7 @@
 <p>Cause everthing is running with docker, all management commands need to be called inside the corresponding container.
 See <a class="reference internal" href="#running-management-commands"><span class="std std-ref">Running Management Commands</span></a></p>
 </div>
-<section id="branch-structure">
+<div class="section" id="branch-structure">
 <h2>Branch structure<a class="headerlink" href="#branch-structure" title="Permalink to this headline"></a></h2>
 <p>The MrMap project utilizes three persistent git branches to track work:</p>
 <ul class="simple">
@@ -122,21 +121,21 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 <li><p><code class="docutils literal notranslate"><span class="pre">feature</span></code> - Tracks work on an upcoming new feature</p></li>
 </ul>
 <p>Typically, you’ll base pull requests off of the <code class="docutils literal notranslate"><span class="pre">develop</span></code> branch, or off of <code class="docutils literal notranslate"><span class="pre">feature</span></code> if you’re working on a new major release. <strong>Never</strong> merge pull requests into the <code class="docutils literal notranslate"><span class="pre">master</span></code> branch, which receives merged only from the <code class="docutils literal notranslate"><span class="pre">develop</span></code> branch.</p>
-</section>
-<section id="enable-pre-commit-hooks">
+</div>
+<div class="section" id="enable-pre-commit-hooks">
 <h2>Enable Pre-Commit Hooks<a class="headerlink" href="#enable-pre-commit-hooks" title="Permalink to this headline"></a></h2>
 <p>MrMap ships with a <a class="reference external" href="https://githooks.com/">git pre-commit hook</a> script that automatically checks for style compliance and missing database migrations prior to committing changes. This helps avoid erroneous commits that result in CI test failures. You are encouraged to enable it by creating a link to <code class="docutils literal notranslate"><span class="pre">scripts/git-hooks/pre-commit</span></code>:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> .git/hooks/
-<span class="gp">$ </span>ln -s ../../scripts/git-hooks/pre-commit
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> .git/hooks/
+<span class="gp">$</span> ln -s ../../scripts/git-hooks/pre-commit
 </pre></div>
 </div>
-</section>
-<section id="running-management-commands">
+</div>
+<div class="section" id="running-management-commands">
 <span id="id1"></span><h2>Running management commands<a class="headerlink" href="#running-management-commands" title="Permalink to this headline"></a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>As pre condition MrMap application must be running.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker-compose -f ./docker-compose.yml up --build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml up --build
 </pre></div>
 </div>
 </div>
@@ -144,66 +143,66 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 <p class="admonition-title">Note</p>
 <p>The prefix of started docker container name is always the name of the root folder where the docker-compose file lives in. In examples below, my root folder name is <code class="docutils literal notranslate"><span class="pre">mrmap</span></code>.</p>
 </div>
-<section id="running-echo">
+<div class="section" id="running-echo">
 <h3>Running echo<a class="headerlink" href="#running-echo" title="Permalink to this headline"></a></h3>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker <span class="nb">exec</span> -it mrmap_gunicorn_1 <span class="nb">echo</span> <span class="s2">&quot;I&#39;m inside the container!&quot;</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 <span class="nb">echo</span> <span class="s2">&quot;I&#39;m inside the container!&quot;</span>
 </pre></div>
 </div>
-</section>
-<section id="running-makemigrations">
+</div>
+<div class="section" id="running-makemigrations">
 <span id="running-management-commands-makemigrations"></span><h3>Running makemigrations<a class="headerlink" href="#running-makemigrations" title="Permalink to this headline"></a></h3>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py makemigrations
 </pre></div>
 </div>
-</section>
-<section id="running-migrate">
+</div>
+<div class="section" id="running-migrate">
 <span id="running-management-commands-migrate"></span><h3>Running migrate<a class="headerlink" href="#running-migrate" title="Permalink to this headline"></a></h3>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker <span class="nb">exec</span> -it mrmap_gunicorn_1 python /opt/mrmap/manage.py migrate
 </pre></div>
 </div>
-</section>
-<section id="running-makemessages">
+</div>
+<div class="section" id="running-makemessages">
 <span id="running-management-commands-makemessages"></span><h3>Running makemessages<a class="headerlink" href="#running-makemessages" title="Permalink to this headline"></a></h3>
 <p>Makemessages should run local by calling:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python manage.py makemessages --locale<span class="o">=</span>de
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python manage.py makemessages --locale<span class="o">=</span>de
 </pre></div>
 </div>
-</section>
-<section id="running-compilemessages">
+</div>
+<div class="section" id="running-compilemessages">
 <span id="running-management-commands-compilemessages"></span><h3>Running compilemessages<a class="headerlink" href="#running-compilemessages" title="Permalink to this headline"></a></h3>
 <p>Compilemessages should run local by calling:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python manage.py compilemessages --locale<span class="o">=</span>de
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> python manage.py compilemessages --locale<span class="o">=</span>de
 </pre></div>
 </div>
-</section>
-</section>
-<section id="running-tests">
+</div>
+</div>
+<div class="section" id="running-tests">
 <span id="running-management-commands-tests"></span><h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline"></a></h2>
 <p>Throughout the course of development, it’s a good idea to occasionally run MrMap’s test suite to catch any potential errors. Tests are run using the <code class="docutils literal notranslate"><span class="pre">test</span></code> management command:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span>
 </pre></div>
 </div>
 <p>In cases where you haven’t made any changes to the database (which is most of the time), you can append the <code class="docutils literal notranslate"><span class="pre">--keepdb</span></code> argument to this command to reuse the test database between runs. This cuts down on the time it takes to run the test suite since the database doesn’t have to be rebuilt each time. (Note that this argument will cause errors if you’ve modified any model fields since the previous test run.)</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span> --keepdb
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build <span class="nb">test</span> --keepdb
 </pre></div>
 </div>
-</section>
-<section id="test-documentation-builds-properly">
+</div>
+<div class="section" id="test-documentation-builds-properly">
 <h2>Test documentation builds properly<a class="headerlink" href="#test-documentation-builds-properly" title="Permalink to this headline"></a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>You need to have installed all python dependencies locally first. <code class="docutils literal notranslate"><span class="pre">pip3</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">./mrmap/requirements.txt</span> <span class="pre">&amp;&amp;</span> <span class="pre">pip3</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">./mrmap/docs/requirements.txt</span></code></p>
 </div>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>sphinx-multiversion docs/source docs/build/html -b linkcheck
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> sphinx-multiversion docs/source docs/build/html -b linkcheck
 </pre></div>
 </div>
 <p>The documentation should be successfully build in the <code class="docutils literal notranslate"><span class="pre">docs/build</span></code> folder. Open the <code class="docutils literal notranslate"><span class="pre">docs/build/index.html</span></code> to test it.</p>
-</section>
-<section id="submitting-pull-requests">
+</div>
+<div class="section" id="submitting-pull-requests">
 <h2>Submitting Pull Requests<a class="headerlink" href="#submitting-pull-requests" title="Permalink to this headline"></a></h2>
 <p>Once you’re happy with your work and have verified all steps described in <a class="reference internal" href="definition_of_done.html#development-dod"><span class="std std-ref">DoD</span></a> submit a <a class="reference external" href="https://github.com/mrmap-community/mrmap/compare">pull request</a> to the MrMap repo to propose the changes. Always provide descriptive (but not excessively verbose) commit messages. When working on a specific issue, be sure to reference it.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git commit -m <span class="s2">&quot;Closes #1234: Add wms support&quot;</span>
-<span class="gp">$ </span>git push origin
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> git commit -m <span class="s2">&quot;Closes #1234: Add wms support&quot;</span>
+<span class="gp">$</span> git push origin
 </pre></div>
 </div>
 <p>Be sure to provide a detailed accounting of the changes being made and the reasons for doing so.</p>
@@ -212,8 +211,8 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 <p class="admonition-title">Note</p>
 <p>Remember, pull requests are entertained only for <strong>accepted</strong> issues. If an issue you want to work on hasn’t been approved by a maintainer yet, it’s best to avoid risking your time and effort on a change that might not be accepted.</p>
 </div>
-</section>
-</section>
+</div>
+</div>
 
 
            </div>

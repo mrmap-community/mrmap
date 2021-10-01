@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-01 12:00+0200\n"
+"POT-Creation-Date: 2021-10-01 13:33+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2050,10 +2050,15 @@ msgid ""
 "geographic searches without requiring coordinate transformations by the "
 "search engine."
 msgstr ""
+"Bounding Box soll unabhängig davon bereitgestellt werden, welches CRS der "
+"Kartenserver unterstützt, aber es kann ein Näherungswert sein, wenn die "
+"Daten nicht nativ in geografischen Koordinaten vorliegen. Der Zweck der "
+"Begrenzungsbox ist die Erleichterung geografische Suchen, ohne dass "
+"Koordinatentransformationen durch die Suchmaschine erforderlich sind."
 
 #: registry/models/service.py:286
 msgid "all reference systems which this element supports"
-msgstr ""
+msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
 #: registry/models/service.py:320
 #, fuzzy
@@ -2078,6 +2083,8 @@ msgid ""
 "flag to signal if this layer provides factual information or not. Parsed "
 "from capabilities."
 msgstr ""
+"Bit um zu signalisieren, ob die Ebene Sachinformationen liefert oder nicht. "
+"Aus dem Capabilities-XML übernommen."
 
 #: registry/models/service.py:329
 #, fuzzy
@@ -2090,6 +2097,8 @@ msgid ""
 "flag to signal if this layer support transparency content or not. Parsed "
 "from capabilities."
 msgstr ""
+"Bit um zu signalisieren, ob die Ebene transparent geschaltet werden kann "
+"oder nicht. Aus dem Capabilities-XML übernommen."
 
 #: registry/models/service.py:334
 #, fuzzy
@@ -2102,10 +2111,11 @@ msgid ""
 "WMS cascading allows to expose layers coming from other WMS servers as if "
 "they were local layers"
 msgstr ""
+"WMS kaskadieren erlaubt es, Ebenen aus anderen WMS diensten zu beziehen."
 
 #: registry/models/service.py:340
 msgid "scale minimum value"
-msgstr ""
+msgstr "minimaler Maßstabswert"
 
 #: registry/models/service.py:341
 msgid ""
@@ -2113,10 +2123,13 @@ msgid ""
 "the given scope, the service will response with empty transparentimages. "
 "None value means no restriction."
 msgstr ""
+"Minimaler Maßstab für eine mögliche Anfrage an diese Ebene. Wenn die Anfrage "
+"nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
+"transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
 #: registry/models/service.py:347
 msgid "scale maximum value"
-msgstr ""
+msgstr "maximaler Maßstabswert"
 
 #: registry/models/service.py:348
 msgid ""
@@ -2124,10 +2137,13 @@ msgid ""
 "the given scope, the service will response with empty transparentimages. "
 "None value means no restriction."
 msgstr ""
+"Maximaler Maßstab für eine mögliche Anfrage an diese Ebene. Wenn die Anfrage "
+"nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
+"transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
 #: registry/models/service.py:454
 msgid "output formats"
-msgstr ""
+msgstr "Ausgabeformate"
 
 #: registry/models/service.py:455
 msgid ""
@@ -2136,6 +2152,10 @@ msgid ""
 "then all the result formats listed for the GetFeature operation are assumed "
 "to be supported. "
 msgstr ""
+"Dies ist eine Liste von MIME-Typen, die die Ausgabeformate angibt, die für "
+"einen Feature-Typ nutzbar sind. Wenn dieses optionale Element nicht "
+"angegeben ist, dann werden alle für die GetFeature-Operation aufgelisteten "
+"Ergebnisformate angenommen die unterstützt werden."
 
 #: registry/models/service.py:461
 #, fuzzy
@@ -2145,11 +2165,11 @@ msgstr "Featuretyp bearbeiten"
 
 #: registry/models/service.py:462
 msgid "the fetched content of the download describe feature type document."
-msgstr ""
+msgstr "Der geladene Inhalt des heruntergeladenen Merkmaltypen."
 
 #: registry/models/service.py:541
 msgid "related feature type of this element"
-msgstr ""
+msgstr "Verknüpfte Merkmaltypen des Element"
 
 #: registry/models/service.py:546
 #, fuzzy
@@ -2188,7 +2208,7 @@ msgstr "Diese Ressource ist deaktiviert."
 
 #: registry/tables/conformity.py:39 registry/tables/conformity.py:43
 msgid "Latest check"
-msgstr ""
+msgstr "Letzte Überprüfung"
 
 #: registry/tables/conformity.py:41 registry/tables/conformity.py:45
 #: registry/tables/conformity.py:67 registry/tables/conformity.py:76
@@ -2428,7 +2448,7 @@ msgstr "Ihre registrierten Web Feature Services"
 
 #: registry/views/service.py:203
 msgid " Catalogue Web Service"
-msgstr ""
+msgstr " Katalogdienst"
 
 #: templates/403.html:13
 msgid "Forbidden"
@@ -2535,7 +2555,7 @@ msgstr "Veröffentlichungsanfragen"
 
 #: templates/base.html:51
 msgid "Registry"
-msgstr ""
+msgstr "Registrierung"
 
 #: templates/base.html:54
 #, fuzzy
@@ -2614,7 +2634,7 @@ msgstr "Zugehörige Datensatz Metadaten"
 #: templates/base.html:93 templates/base.html:95
 #: users/templates/cards/my_services/map_contexts.html:9
 msgid "Map Contexts"
-msgstr ""
+msgstr "MapContexts"
 
 #: templates/base.html:96
 #, fuzzy
@@ -2624,7 +2644,7 @@ msgstr "Zugehörige Datensatz Metadaten"
 
 #: templates/base.html:102
 msgid "Security"
-msgstr ""
+msgstr "Absicherung"
 
 #: templates/base.html:105
 #, fuzzy
@@ -2646,7 +2666,7 @@ msgstr "Dienst benötigt Authentifizierung"
 
 #: templates/base.html:113
 msgid "Security Proxy"
-msgstr ""
+msgstr "Sicherheitsproxy"
 
 #: templates/base.html:115
 #, fuzzy
@@ -2662,7 +2682,7 @@ msgstr "Allgemeine Einstellungen"
 
 #: templates/base.html:121
 msgid "Service Access Groups"
-msgstr ""
+msgstr "Dienstzugriffsgruppen"
 
 #: templates/base.html:123
 #, fuzzy
@@ -2714,19 +2734,19 @@ msgstr "Ergebnisse"
 
 #: templates/base.html:159 templates/base.html:162 templates/base.html:163
 msgid "Jobs"
-msgstr ""
+msgstr "Aufträge"
 
 #: templates/base.html:165 templates/base.html:166
 msgid "Tasks"
-msgstr ""
+msgstr "Aufgaben"
 
 #: templates/base.html:171 templates/base.html:175
 msgid "Acl\\"
-msgstr ""
+msgstr "Acl\\"
 
 #: templates/base.html:174
 msgid "Acls"
-msgstr ""
+msgstr "Acls"
 
 #: templates/base.html:181
 #, fuzzy
@@ -2774,7 +2794,7 @@ msgstr "Löschen"
 
 #: templates/generic_views/generic_filter.html:6
 msgid "Search"
-msgstr ""
+msgstr "Suchen"
 
 #: templates/generic_views/generic_filter.html:15
 #: templates/sceletons/django_tables2_bootstrap4_custom.html:36
@@ -2919,7 +2939,7 @@ msgstr "Zeige Link"
 
 #: templates/skeletons/django_tables2_bootstrap4_custom.html:135
 msgid "of"
-msgstr ""
+msgstr "von"
 
 #: templates/widgets/bootstrap_datepicker.html:6
 msgid "Choice a date with the calender"

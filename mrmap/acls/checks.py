@@ -17,9 +17,3 @@ def check_settings(app_configs, **kwargs):
             msg = f"'{model}' need to implement 'owned_by_org' attribute."
             errors.append(Error(msg))
     return errors
-
-
-
-
-
-

@@ -23,7 +23,7 @@ class AccessControlList(GenericModelMixin, Group, CommonInfo):
                                    blank=True,
                                    verbose_name=_('Description'),
                                    help_text=_('Describe what this acls shall allow.'))
-   
+
     accessible_accesscontrollists = models.ManyToManyField(to='self',
                                                            blank=True,
                                                            verbose_name=_('Accessible access control lists'),

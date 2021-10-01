@@ -1,2 +1,2 @@
-from .groups import *
-from .users import *
+from .groups import *  # noqa
+from .users import *  # noqa

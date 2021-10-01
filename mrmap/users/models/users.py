@@ -1,12 +1,10 @@
 import hashlib
 import uuid
-
 import six
 from django.db.models import Q, QuerySet
 from django.utils.functional import cached_property
 from acls.models.acls import AccessControlList
 from extras.models import CommonInfo, GenericModelMixin
-from django.utils.translation import gettext_lazy as _l
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -15,7 +13,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from MrMap.icons import IconEnum, get_icon
-from registry.models import Service
 from users.models.groups import Organization
 from users.settings import USER_ACTIVATION_TIME_WINDOW
 
@@ -67,7 +64,6 @@ class MrMapUser(AbstractUser):
                 organizations |= org.can_publish_for.all()
             return organizations.distinct('name', 'pk')
 
-    
     def get_instances(self, klass, filter: Q = None, perms: str = None, accept_global_perms: bool = False) -> QuerySet:
         from guardian.shortcuts import get_objects_for_user
         if not perms:
@@ -114,10 +110,8 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         super().save(force_insert, force_update, using, update_fields)
 
     def _make_hash_value(self, user, timestamp):
-        return (
-                six.text_type(user.pk) + six.text_type(timestamp) +
-                six.text_type(user.email)
-        )
+        return (six.text_type(user.pk) + six.text_type(timestamp) +
+                six.text_type(user.email))
 
 
 # todo: check if subscription should be part of users app?
@@ -126,9 +120,9 @@ class Subscription(GenericModelMixin, CommonInfo):
                           default=uuid.uuid4)
     # todo: rename field to service
     service = models.ForeignKey(to='registry.Service', on_delete=models.CASCADE,
-                                 verbose_name=_('Service'),
-                                 help_text=_("Select the service you want to subscribe. When you edit an existing "
-                                             "subscription, you can not change this selection."))
+                                verbose_name=_('Service'),
+                                help_text=_("Select the service you want to subscribe. When you edit an existing "
+                                            "subscription, you can not change this selection."))
     user = models.ForeignKey(MrMapUser,
                              on_delete=models.CASCADE)
     notify_on_update = models.BooleanField(default=True,
@@ -147,7 +141,6 @@ class Subscription(GenericModelMixin, CommonInfo):
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
         unique_together = ('service', 'user',)
-
 
     def inform_subscriptor(self):
         """ Informs subscriptor on changes

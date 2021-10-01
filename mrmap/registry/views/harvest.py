@@ -1,5 +1,3 @@
-from django.urls import reverse_lazy
-
 from jobs.models import Job
 from extras.views import SecuredFormView
 from registry.forms.harvest import StartHarvest
@@ -15,13 +13,13 @@ class HarvestServiceFormView(SecuredFormView):
     success_message = 'Async task was created to create new resource.'
     # FIXME: wrong success_url
 
-    #success_url = reverse_lazy('resource:pending-tasks')
+    # success_url = reverse_lazy('resource:pending-tasks')
 
     def form_valid(self, form):
         job_pk = harvest_tasks.harvest_service(
-                        str(form.cleaned_data.get("service").pk),
-                        **{"created_by_user_pk": self.request.user.pk,
-                           "owned_by_org_pk": form.cleaned_data.get("service").owned_by_org_id})
+            str(form.cleaned_data.get("service").pk),
+            **{"created_by_user_pk": self.request.user.pk,
+               "owned_by_org_pk": form.cleaned_data.get("service").owned_by_org_id})
         try:
             job = Job.objects.get(pk=job_pk)
             self.success_url = job.get_absolute_url()

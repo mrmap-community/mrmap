@@ -61,7 +61,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
         client = EtfClient(config_ext.external_url)
         checker = QualityEtf(run, config_ext, client)
         run = checker.run()
-    except:
+    except Exception:
         logger.exception('ETF conformity check failure', exc_info=sys.exc_info()[0])
         run.passed = False
         run.report = json.dumps({
@@ -70,7 +70,6 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
         run.report_type = ReportType.JSON.value
         run.save()
 
-        e = sys.exc_info()[0]
         self.task.progress = 100
         self.task.status = TaskStatusEnum.FAILURE
         self.task.done_at = timezone.now()
@@ -103,7 +102,7 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
             raise Exception(f'No conformity check run with id {run_id}')
         checker = QualityInternal(run)
         run = checker.run()
-    except:
+    except Exception:
         logger.exception('Internal conformity check failure', exc_info=sys.exc_info()[0])
         run.passed = False
         run.report = json.dumps({
@@ -112,7 +111,6 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
         run.report_type = ReportType.JSON.value
         run.save()
 
-        e = sys.exc_info()[0]
         self.task.progress = 100
         self.task.status = TaskStatusEnum.FAILURE
         self.task.done_at = timezone.now()

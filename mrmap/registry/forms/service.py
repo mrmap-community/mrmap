@@ -1,17 +1,16 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
-from MrMap.validators import validate_get_capablities_uri
 from extras.forms import ModelForm
 from registry.enums.service import AuthTypeEnum
 from registry.models import Service, Layer, FeatureType
 from users.models.groups import Organization
-from django.core.exceptions import ValidationError
 
 
 class RegisterServiceForm(forms.Form):
-    test_url = forms.URLField(#validators=[validate_get_capablities_uri],
-                              label=_("Service url"),
-                              help_text=_("this shall be the full get capabilities request url."))
+    test_url = forms.URLField(label=_("Service url"),
+                              help_text=_("this shall be the full get capabilities request url."),
+                              # validators=[validate_get_capablities_uri],
+                              )
     collect_linked_metadata = forms.BooleanField(initial=True,
                                                  required=False,
                                                  label=_("collect metadata"),

@@ -290,9 +290,7 @@ class ProxySetting(GenericModelMixin, CommonInfo):
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_log_response_without_camouflage",
-                check=Q(camouflage=True, log_response=True) |
-                      Q(camouflage=True, log_response=False) |
-                      Q(camouflage=False, log_response=False)
+                check=Q(camouflage=True, log_response=True) | Q(camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
             ),
         ]
 
@@ -421,11 +419,11 @@ class AnalyzedResponseLog(GenericModelMixin, CommonInfo):
         self.entity_total_count = round((img.height * img.width) / 1000000, 4)
         self.entity_unit = EntityUnits.MEGA_PIXEL.value
 
-        # todo: implement GetFeatureInfo analyzing
+        # TODO: implement GetFeatureInfo analyzing
 
     def _analyze_wfs_response(self):
-        # todo: implement csv analyzing
-        # todo: implement kml analyzing
-        # todo: implement geojson analyzing
-        # todo: implement xml/gml analyzing
+        # TODO: implement csv analyzing
+        # TODO: implement kml analyzing
+        # TODO: implement geojson analyzing
+        # TODO: implement xml/gml analyzing
         pass

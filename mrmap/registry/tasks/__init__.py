@@ -1,7 +1,5 @@
-from .conformity import *
+from .conformity import *  # noqa
 # TODO fix circular import
-#from .harvest import *
-from .monitoring import *
-from .security import *
-# TODO fix circular import
-#from .service import *
+# from .harvest import *  # noqa
+from .monitoring import *  # noqa
+from .security import *  # noqa

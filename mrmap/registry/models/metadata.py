@@ -429,16 +429,16 @@ class LayerMetadata(AbstractMetadata):
         verbose_name = _("layer metadata")
         verbose_name_plural = _("layer metadata")
 
-    def save(self, *args, **kwargs):
-        adding = self._state.adding
-        super().save()
-        if adding:
-            xml = MdMetadata.from_field_dict(self.__dict__)
-            xml_string = xml.serializeDocument()
-            # FIXME: documents are created on the fly by registry.models.DocumentModelMixin
-            # Document.objects.create(layer_metadata=self,
-            #                       xml=xml_string,
-            #                      xml_backup=xml_string)
+    # def save(self, *args, **kwargs):
+    #    adding = self._state.adding
+    #    super().save()
+    #    if adding:
+    #        xml = MdMetadata.from_field_dict(self.__dict__)
+    #        xml_string = xml.serializeDocument()
+    #        # FIXME: documents are created on the fly by registry.models.DocumentModelMixin
+    #        Document.objects.create(layer_metadata=self,
+    #                               xml=xml_string,
+    #                              xml_backup=xml_string)
 
 
 class FeatureTypeMetadata(AbstractMetadata):
@@ -505,10 +505,10 @@ class DatasetMetadataRelation(CommonInfo):
                 name="%(app_label)s_%(class)s_one_related_object_selected",
                 check=Q((Q(layer=True, feature_type=False, service=False) |
                          Q(layer=False, feature_type=True, service=False) |
-                         Q(layer=False, feature_type=False, service=True))
-                        and ~Q(Q(layer=True) and Q(feature_type=True) and Q(service=True))
-                        and ~Q(Q(layer=False) and Q(feature_type=False) and Q(service=False)))
-                # todo: some more cases are possible
+                         Q(layer=False, feature_type=False, service=True)) and
+                        ~Q(Q(layer=True) and Q(feature_type=True) and Q(service=True)) and
+                        ~Q(Q(layer=False) and Q(feature_type=False) and Q(service=False)))
+                # TODO: some more cases are possible
             )
         ]
 

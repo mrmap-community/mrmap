@@ -1,4 +1,3 @@
-import re
 import threading
 
 from uuid import uuid4

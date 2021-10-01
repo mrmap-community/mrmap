@@ -1,5 +1,5 @@
 from users.models import MrMapUser
-from behave import step
+from behave import step, given
 from behave_webdriver.steps import *  # noqa: to get pre defined step definitions
 
 
@@ -24,4 +24,3 @@ def impl(context):
         'secure': False,
         'path': '/',
     })
-

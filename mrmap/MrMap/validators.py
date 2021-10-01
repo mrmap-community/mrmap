@@ -1,14 +1,9 @@
-import uuid
 from requests import Request, Session
-
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-
-from registry.enums.document import DocumentEnum
 from registry.enums.service import OGCServiceEnum
 
 

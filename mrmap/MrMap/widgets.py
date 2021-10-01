@@ -1,5 +1,4 @@
-from django.contrib.gis.geos import MultiPolygon, GEOSGeometry
-from django.forms import DateTimeInput, DateInput, Textarea
+from django.forms import DateTimeInput
 from MrMap.settings import DEFAULT_DATE_TIME_FORMAT
 from django_filters.widgets import SuffixedMultiWidget
 

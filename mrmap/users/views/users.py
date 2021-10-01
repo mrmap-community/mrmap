@@ -20,7 +20,6 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, ListView, TemplateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
-from django.views.generic import DetailView, ListView, TemplateView
 from MrMap.messages import ACTIVATION_LINK_EXPIRED, \
     SUBSCRIPTION_SUCCESSFULLY_DELETED, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_SUCCESSFULLY_CREATED, \
     PASSWORD_CHANGE_SUCCESS, PASSWORD_SENT
@@ -31,8 +30,6 @@ from users.forms.users import SubscriptionForm, MrMapUserForm
 from users.models.users import Subscription, UserActivation
 from users.tables.users import SubscriptionTable, MrMapUserTable
 from django.conf import settings
-from django.contrib.auth import get_user_model
-
 
 
 class MrMapLoginView(SuccessMessageMixin, LoginView):
@@ -43,7 +40,7 @@ class MrMapLoginView(SuccessMessageMixin, LoginView):
     # Add logging if form is invalid to check logs against security policy
     def form_invalid(self, form):
         settings.ROOT_LOGGER.info(f'User {form.cleaned_data["username"]} trial to login, but the following error occurs. '
-                          f'{form.errors}')
+                                  f'{form.errors}')
         return super().form_invalid(form=form)
 
     def get_context_data(self, **kwargs):
@@ -100,7 +97,6 @@ class EditProfileView(SecuredUpdateView):
     model = get_user_model()
     form_class = MrMapUserForm
     title = _('Edit profile')
-
 
     # cause this view is callable without primary key. The object will be always the logged in user.
     def get_object(self, queryset=None):
@@ -196,7 +192,6 @@ class DeleteSubscriptionView(SecuredDeleteView):
     success_url = reverse_lazy('manage_subscriptions')
     success_message = SUBSCRIPTION_SUCCESSFULLY_DELETED
     title = _('Delete subscription')
-
 
 
 class UserTableView(SecuredListMixin, FilterView):

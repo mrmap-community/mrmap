@@ -93,7 +93,7 @@ SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check you
 SERVICE_LAYER_NOT_FOUND = _("The requested layer could not be found.")
 SERVICE_NOT_FOUND = _("The requested service could not be found.")
 SERVICE_DISABLED = _("423 - The requested resource is currently disabled.")
-SERVICE_CAPABILITIES_UNAVAILABLE =_("The requested capabilities are currently unavailable. Add 'fallback=true' to your query if you want a cached document.")
+SERVICE_CAPABILITIES_UNAVAILABLE = _("The requested capabilities are currently unavailable. Add 'fallback=true' to your query if you want a cached document.")
 SERVICE_NO_ROOT_LAYER = _("No root layer could be found for this service!")
 
 SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS = _("There are multiple secured operations for one metadata. Please contact an administator.")

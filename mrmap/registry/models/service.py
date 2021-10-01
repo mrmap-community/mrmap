@@ -293,14 +293,14 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
     def __str__(self):
         try:
             return f"{self.metadata.title} ({self.pk})"
-        except:
+        except Exception:
             return str(self.pk)
 
     def get_dataset_table_url(self) -> str:
         if self.dataset_metadata.exists():
             try:
                 return reverse(f'{self._meta.app_label}:dataset_metadata_list') + \
-                       f'?id__in={",".join([str(dataset.pk) for dataset in self.dataset_metadata.all()])}'
+                    f'?id__in={",".join([str(dataset.pk) for dataset in self.dataset_metadata.all()])}'
             except NoReverseMatch:
                 pass
         return ""

@@ -9,4 +9,3 @@ class AclConfig(AppConfig):
         import acls.signals.acl_handling  # noqa
         import acls.signals.organization_handling  # noqa
         import acls.signals.ownable_models_handling  # noqa
-

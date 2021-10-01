@@ -7,4 +7,3 @@ urlpatterns = [
     # security models
     path('users/', user_views.MrMapUserAutocomplete.as_view(), name="mrmapuser_ac"),
 ]
-

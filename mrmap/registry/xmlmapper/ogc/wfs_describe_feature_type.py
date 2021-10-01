@@ -1,17 +1,16 @@
 from eulxml import xmlmap
-
 from registry.xmlmapper.consts import NS_WC
 from registry.xmlmapper.mixins import DBModelConverterMixin
 
 
 class FeatureTypeElement(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.FeatureTypeElement'
-    max_occurs = xmlmap.IntegerField(xpath=f"@maxOccurs")
-    min_occurs = xmlmap.IntegerField(xpath=f"@minOccurs")
-    name = xmlmap.StringField(xpath=f"@name")
-    data_type = xmlmap.StringField(xpath=f"@type")
-    required = xmlmap.SimpleBooleanField(xpath=f"@nillable", true="true", false="false")
-    # todo:
+    max_occurs = xmlmap.IntegerField(xpath="@maxOccurs")
+    min_occurs = xmlmap.IntegerField(xpath="@minOccurs")
+    name = xmlmap.StringField(xpath="@name")
+    data_type = xmlmap.StringField(xpath="@type")
+    required = xmlmap.SimpleBooleanField(xpath="@nillable", true="true", false="false")
+    # TODO:
     targetNamespace = None
 
 

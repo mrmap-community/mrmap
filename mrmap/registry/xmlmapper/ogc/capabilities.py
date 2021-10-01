@@ -26,14 +26,13 @@ class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
 
 class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.OperationUrl'
-    url = xmlmap.StringField(xpath=f"@xlink:href")
+    url = xmlmap.StringField(xpath="@xlink:href")
 
     def get_field_dict(self):
         dic = super().get_field_dict()
         method = dic.get("method", None)
         if method and ":" in method:
             dic.update({"method": method.rsplit(":", 1)[-1]})
-        url = dic.get("url", None)
         # This removes the (non-standard) map-Parameter required by MapServer, e.g.
         # https://gis.mffjiv.rlp.de/cgi-bin/mapserv?map=/data/mapserver/mapfiles/institutions_0601.map&amp;
         # *** This would break all requests to the mapserver instance! ***
@@ -59,7 +58,7 @@ class WfsCswOperationUrl(OperationUrl):
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.Keyword'
 
-    keyword = xmlmap.StringField(xpath=f"text()")
+    keyword = xmlmap.StringField(xpath="text()")
 
 
 class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):

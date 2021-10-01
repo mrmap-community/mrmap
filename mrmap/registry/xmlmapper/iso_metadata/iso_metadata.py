@@ -1,4 +1,4 @@
-from django.contrib.gis.geos import Polygon as GeosPolygon, GEOSGeometry
+from django.contrib.gis.geos import Polygon as GeosPolygon
 from django.contrib.gis.geos import MultiPolygon
 from eulxml import xmlmap
 
@@ -322,4 +322,4 @@ class WrappedIsoMetadata(xmlmap.XmlObject):
     """
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE)])
 
-    iso_metadata = xmlmap.NodeListField(xpath=f"//gmd:MD_Metadata", node_class=MdMetadata)
+    iso_metadata = xmlmap.NodeListField(xpath="//gmd:MD_Metadata", node_class=MdMetadata)

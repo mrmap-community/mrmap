@@ -11,6 +11,7 @@ class AccessControlListChangeForm(forms.ModelForm):
         # Use the pretty 'filter_horizontal widget'.
         widget=autocomplete.ModelSelect2(url='users.autocomplete:mrmapuser_ac'),
     )
+
     class Meta:
         model = AccessControlList
         fields = ('name', 'description', )

@@ -36,14 +36,13 @@ class ServiceAccessGroupModelForm(ModelForm):
         queryset=get_user_model().objects.all(),
         required=False,
         widget=autocomplete.ModelSelect2Multiple(
-                url='users.autocomplete:mrmapuser_ac',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
+            url='users.autocomplete:mrmapuser_ac',
+            attrs={
+                "data-containerCss": {
+                    "height": "3em",
+                    "width": "3em",
+                }
+            },),
         help_text=_("Select the users which shall be member of this access group. If you select AnonymousUser, "
                     "all users are allowed."),
         label=_("users")
@@ -114,7 +113,7 @@ class AllowedOperationPage2ModelForm(ModelForm):
             "allowed_area": LeafletWidget(attrs={
                 'map_height': '500px',
                 'map_width': '100%',
-                #'display_raw': 'true',
+                # 'display_raw': 'true',
                 'map_srid': 4326,
             }),
             "secured_service": forms.HiddenInput(),
@@ -133,7 +132,6 @@ class AllowedOperationPage2ModelForm(ModelForm):
         super().__init__(*args, **kwargs)
         if "secured_service" in self.initial:
             secured_service = Service.objects.select_related("service_type").get(pk=self.initial.get("secured_service"))
-            ogc_operation_ac_url = None
             if secured_service.service_type_name == OGCServiceEnum.WMS.value:
                 self.fields.pop("secured_feature_types")
                 self.fields["secured_layers"].queryset = Layer.objects.filter(service=secured_service)
@@ -163,8 +161,8 @@ class AllowedOperationPage2ModelForm(ModelForm):
                 self.fields["operations"].queryset = OGCOperation.objects.filter(operation__in=SECURE_ABLE_WFS_OPERATIONS)
 
         else:
-            # todo
-            raise NotImplemented
+            # TODO
+            raise NotImplementedError
 
 
 class ProxySettingModelForm(ModelForm):

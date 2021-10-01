@@ -129,7 +129,7 @@ class RegisterServiceFormView(SecuredFormView):
     success_message = 'Async task was created to create new resource.'
     # FIXME: wrong success_url
 
-    #success_url = reverse_lazy('resource:pending-tasks')
+    # success_url = reverse_lazy('resource:pending-tasks')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -140,9 +140,9 @@ class RegisterServiceFormView(SecuredFormView):
         cleaned_data = form.cleaned_data
         cleaned_data.update({"registering_for_organization": cleaned_data["registering_for_organization"].pk})
         job_pk = service_tasks.register_service(
-                        form.cleaned_data,
-                        **{"created_by_user_pk": self.request.user.pk,
-                           "owned_by_org_pk": form.cleaned_data["registering_for_organization"]})
+            form.cleaned_data,
+            **{"created_by_user_pk": self.request.user.pk,
+               "owned_by_org_pk": form.cleaned_data["registering_for_organization"]})
         try:
             job = Job.objects.get(pk=job_pk)
             self.success_url = job.get_absolute_url()
@@ -157,12 +157,12 @@ class ServiceActivateView(SecuredUpdateView):
     update_query_string = True
 
 
-# todo: implement a secured UpdateWithInlinesView version
+# TODO: implement a secured UpdateWithInlinesView version
 class ServiceUpdateView(UpdateWithInlinesView):
     model = Service
     inlines = [ExternalAuthenticationInline, ProxySettingInline]
     form_class = ServiceModelForm
-    #update_query_string = True
+    # update_query_string = True
     template_name = "MrMap/detail_views/generic_form.html"
 
     def get_form_kwargs(self):

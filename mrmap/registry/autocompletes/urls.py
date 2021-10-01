@@ -17,7 +17,7 @@ urlpatterns = [
     # service
     path('services', service_views.ServiceAutocomplete.as_view(), name="service_ac"),
     path('feature-type', service_views.FeatureTypeAutocomplete.as_view(), name="feature_type_ac"),
-    
+
     # metadata
     path('keywords', metadata_views.KeywordAutocomplete.as_view(), name="keyword_ac"),
     path('md-c', metadata_views.MetadataContactAutocomplete.as_view(), name="metadata_contact_ac"),
@@ -28,4 +28,3 @@ urlpatterns = [
     path('monitoring-result', monitoring_views.MonitoringResultAutocomplete.as_view(), name="monitoring_result_ac"),
     path('monitoring-health-state', monitoring_views.HealthStateAutocomplete.as_view(), name="monitoring_health_state_ac"),
 ]
-

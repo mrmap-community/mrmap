@@ -59,7 +59,7 @@ class MonitoringSetting(models.Model):
                 task.crontab = schedule
                 task.save()
                 self.periodic_task = task
-            except ValidationError as e:
+            except ValidationError:
                 pass
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
@@ -396,7 +396,7 @@ class HealthState(CommonInfo, GenericModelMixin):
             else:
                 # We can't found any errors. Health state is ok
                 self.health_state_code = HealthStateEnum.OK.value
-                self.health_message = _(f'Everthing is <strong class="text-success">OK</strong>.<br>' +
+                self.health_message = _('Everthing is <strong class="text-success">OK</strong>.<br>' +
                                         self._get_last_check_runs_on_msg(monitoring_result))
             self.save()
 

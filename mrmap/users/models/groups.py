@@ -187,7 +187,7 @@ class PublishRequest(BaseInternalRequest):
     def clean(self):
         errors = []
         if self.from_organization.can_publish_for.filter(id=self.to_organization.id).exists():
-            errors.append(self.from_organization.__str__() + _(f' can already publish for ').__str__() + self.to_organization.__str__())
+            errors.append(self.from_organization.__str__() + _(' can already publish for ').__str__() + self.to_organization.__str__())
         if self.from_organization == self.to_organization:
             errors.append("You can not request publishing rights for two equal organizations.")
         if errors:
@@ -200,4 +200,3 @@ class PublishRequest(BaseInternalRequest):
                 self.delete()
         else:
             super().save(*args, **kwargs)
-

@@ -1,16 +1,14 @@
-import uuid
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import DetailView
 from django.views.generic.base import ContextMixin
-from django.views.generic.edit import FormMixin, FormView
-from extras.enums.bootstrap import AlertEnum, ButtonColorEnum
-from django_tables2 import SingleTableMixin, LazyPaginator
+from django.views.generic.edit import FormMixin
+from extras.enums.bootstrap import ButtonColorEnum
+from django_tables2 import SingleTableMixin
 from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm
 
@@ -36,7 +34,7 @@ class ConfirmView(FormMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update({"action_url": self.action_url,
-                        "action_btn_color": self.action_btn_color,})
+                        "action_btn_color": self.action_btn_color, })
         return context
 
     def get_success_url(self):

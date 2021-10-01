@@ -123,7 +123,7 @@ def get_response_elapsed(self,
         if isinstance(get_records_xml.total_records, int) and isinstance(get_records_xml.returned_records, int):
             pass
         elapsed = response.elapsed.total_seconds()
-    except:
+    except Exception:
         elapsed = -1
 
     if self.task:
@@ -231,8 +231,8 @@ def analyze_results(self,
                                                                                        related_object=service,
                                                                                        origin_url=None)
                     dataset_list.append(dataset.pk)
-            except Exception as e:
-                # todo: log the exception
+            except Exception:
+                # TODO: log the exception
                 pass
 
     if self.task:

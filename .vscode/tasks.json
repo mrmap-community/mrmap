@@ -71,6 +71,20 @@
             ]
         },
         {
+            "label": "Docker-Compose: run pre commit checks",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "pre-commit-check"
+            ]
+        },
+        {
             "label": "Docker-Compose: run tests",
             "type": "shell",
             "command": "docker-compose",

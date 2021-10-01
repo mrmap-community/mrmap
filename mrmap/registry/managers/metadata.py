@@ -1,9 +1,7 @@
 from django.core.files.base import ContentFile
 from django.db import models, transaction, OperationalError
-from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q, OuterRef, Subquery, Value, CharField
-from django.db.models.functions import Concat
+from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q, Subquery
 from django.utils.translation import gettext_lazy as _
-
 from registry.enums.metadata import MetadataOrigin
 from django.utils import timezone
 from datetime import datetime, date
@@ -116,12 +114,12 @@ class IsoMetadataManager(models.Manager):
 
                 db_metadata.add_dataset_metadata_relation(related_object=related_object)
                 if not exists:
-                    db_metadata.xml_backup_file.save(name=f'md_metadata.xml',
+                    db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(str(parsed_metadata.serializeDocument(), "UTF-8")))
                 elif update:
                     # todo: on update we need to check custom metadata
                     # todo: delete old file
-                    db_metadata.xml_backup_file.save(name=f'md_metadata.xml',
+                    db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(
                                                          str(parsed_metadata.serializeDocument(), "UTF-8")))
             if update:

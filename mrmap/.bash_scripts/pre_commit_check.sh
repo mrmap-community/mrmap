@@ -36,6 +36,7 @@ else
 fi
 
 echo "Validating for empty translations..."
+cp /opt/mrmap/locale/de/LC_MESSAGES/django.po /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak
 python /opt/mrmap/manage.py makemessages --locale=de
 
 if [ $? != 0 ]; 
@@ -56,13 +57,17 @@ else
   printf "${GREEN}no empty translations where found${NOCOLOR}\n"
 fi
 
-echo "Validating if compiled message file is not up to date..."
-if [[ /opt/mrmap/locale/de/LC_MESSAGES/django.po -nt /opt/mrmap/locale/de/LC_MESSAGES/django.mo ]]; 
+echo "Validating if compiled messages are outdated..."
+cmp /opt/mrmap/locale/de/LC_MESSAGES/django.po /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak --ignore-initial=323
+
+if [[ $? != 0 ]]; 
 then
-  EXIT=1;
+	EXIT=1
   printf "${RED}django.mo translation file is not up to date${NOCOLOR}\n"
 else
   printf "${GREEN}django.mo translation file is up to date${NOCOLOR}\n"
 fi
+
+rm /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak
 
 exit $EXIT

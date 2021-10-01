@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-01 13:33+0200\n"
+"POT-Creation-Date: 2021-10-01 19:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1474,7 +1474,7 @@ msgstr "Dies ist der Kontakt für die Metadateninformationen."
 #, fuzzy
 #| msgid "Edit layer"
 msgid "described layer"
-msgstr "Ebene bearbeiten"
+msgstr "beschriebene Ebene"
 
 #: registry/models/metadata.py:425
 msgid "choice the layer you want to describe with this metadata"

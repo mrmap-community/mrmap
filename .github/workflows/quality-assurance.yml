@@ -20,7 +20,7 @@ jobs:
         uses: nelonoel/branch-name@v1.0.1
         id: extract_branch
 
-      - name: Check pending migrations
+      - name: Run pre commit checks
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
       

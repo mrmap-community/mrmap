@@ -17,6 +17,8 @@ class IconEnum(EnumChoice):
     WFS = "bi bi-bounding-box-circles"
     FEATURETYPE = "bi bi-bounding-box-circles"
 
+    CSW = "bi bi-journal-code"
+
     CAPABILITIES = "bi bi-file-earmark-code"
     PASSWORD = "bi bi-lock"
     ACCESS = "bi bi-key"
@@ -30,6 +32,22 @@ class IconEnum(EnumChoice):
     METADATA = "bi bi-file-text-fill"
     VALIDATION = 'bi bi-ui-checks'
 
+    PENDING_TASKS = "bi bi-list-task"
+
+    PUBLISHER = "bi bi-person-badge-fill"
+    PUBLISHERS = PUBLISHER
+
+    ALLOWED_OPERATION = 'bi bi-shield-fill-check'
+    ACCESS_CONTROL_LIST = "bi bi-shield-lock-fill"
+    EXTERNAL_AUTHENTICATION = 'bi bi-file-lock2'
+    PROXY_SETTING = "bi bi-gear-fill"
+    HEARTBEAT = "bi bi-heart-half"
+    DATASET = "bi bi-file-earmark-text"
+    LOGS = "bi bi-file-earmark-medical-fill"
+    LOGGING = "bi bi-chat-text"
+
+    MAP_CONTEXT = "bi bi-pin-map-fill"
+    PROXY = "bi bi-distribute-vertical"
 
     # actions
     ADD = "bi bi-plus-circle"
@@ -42,13 +60,14 @@ class IconEnum(EnumChoice):
     USER_ADD = "bi bi-person-plus"
     USER_REMOVE = "bi bi-person-x"
 
-    SIGIN = "bi bi-box-arrow-in-right"
+    SIGNIN = "bi bi-box-arrow-in-right"
     SIGNOUT = "bi bi-box-arrow-right"
     SIGNUP = "bi bi-person-plus"
     DOWNLOAD = "bi bi-download"
     PLAY = "bi bi-play-fill"
 
     UPDATE = 'bi bi-gear-wide-connected'
+    HARVEST = 'bi bi-cloud-download'
 
     SORT_ASC = "bi bi-sort-alpha-down"
     SORT_DESC = "bi bi-sort-alpha-up"
@@ -61,11 +80,7 @@ class IconEnum(EnumChoice):
     WARNING = 'bi bi-exclamation-triangle-fill'
     CRITICAL = 'bi bi-lightning-fill'
     ERROR = "bi bi-bug-fill"
-
-    BOOK_OPEN = 'bi bi-book-fill'
-
-
-    NONE = ''
+    PENDING = 'bi bi-hourglass'
 
     # wizard
     FIRST = 'bi bi-chevron-bar-left'
@@ -76,45 +91,13 @@ class IconEnum(EnumChoice):
     # etc
     NEWSPAPER = "bi bi-newspaper"
     CODE = "bi bi-code-square"
-    PENDING = 'bi bi-three-dots'
     LINK = 'bi bi-link'
     HISTORY = 'bi bi-clock-history'
     GLOBE = 'bi bi-globe'
     HOME = 'bi bi-house-fill'
-
-
-    # TODO: change to boostrap icons
-
-
-    PROXY = "fas fa-archway"
-    LOGGING = "fas fa-file-signature"
-    
-    CSW = "fas fa-book"
-    DATASET = "fas fa-clipboard-list"
-    MAP_CONTEXT = "fas fa-map-marked-alt"
-    HEARTBEAT = "fas fa-heartbeat"
-    PENDING_TASKS = "fas fa-tasks"
-    INFO = "fas fa-info"
-
-
-    LOGS = "fas fa-stethoscope"
-    
-    PUBLISHERS = "fas fa-address-card"
-    
-    
-    MONITORING_RUN = "fas fa-running"
-    MONITORING_RESULTS = "fas fa-poll-h"
-    HEALTH_STATE = "fas fa-heartbeat"
-
-    HARVEST = 'fas fa-level-down-alt'
-
-    PUBLISHER = 'fas fa-address-card'
-        
-    EXTERNAL_AUTHENTICATION = 'fas fa-user-lock'
-    ALLOWED_OPERATION = 'fas fa-lock'
-    ACCESS_CONTROL_LIST = "fas fa-user-shield"
-    PROXY_SETTING = "fas fa-archway"
-
+    BOOK_OPEN = 'bi bi-book-fill'
+    NONE = ''
+   
 
 def get_icon(enum: IconEnum, color=None) -> SafeString:
     icon = f"<i class=\"{enum.value} {color}\"></i>" if color else f"<i class=\"{enum.value}\"></i>"

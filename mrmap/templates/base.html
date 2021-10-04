@@ -30,54 +30,7 @@
     </div>
 
 </body>
-<footer class="footer bg-light fixed-bottom">
-    <div class="container-fluid">
-        <div class="row align-items-center mt-1">
-            <div class="col text-start"></div>
-            <div class="col text-center">
-                <div class="dropdown">
-                    <div class="btn-group dropup">
-                        <button type="button" class="btn btn-light dropdown-toggle" data-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false" title="{% trans 'Change language' %}">
-                            {{ LANGUAGE_CODE|upper }}
-                        </button>
-                        <div class="dropdown-menu" name="language">
-                            {% get_current_language as LANGUAGE_CODE %}
-                            {% get_available_languages as LANGUAGES %}
-                            {% get_language_info_list for LANGUAGES as languages %}
-                            {% for language in languages %}
-                            <form class="form-group d-none" id="form_{{ language.code }}"
-                                action="{% url 'set_language' %}" method="post">
-                                {% csrf_token %}
-                                <input name="next" value="{{ redirect_to }}" />
-                                <input name="language" value="{{ language.code }}" />
-                            </form>
-                            <button class="dropdown-item" type="submit" form="form_{{ language.code }}" value="Submit"
-                                title="{{ language.name_local }}">
-                                {{ language.code|upper }}
-                            </button>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col text-end">
-                <div class="col-sm">
-                    <div class="row-auto">
-                        <a href="{{ GIT_REPO_URI }}" target="_blank">
-                            <div id="ee-trggr" class="d-inline-flex">Mr. Map</div>
-                        </a>
-                    </div>
-                    <a href="https://mrmap-community.github.io/mrmap/" target="_blank"
-                        class="row-auto text-primary mr-1">{{ICONS.BOOK_OPEN}} {% trans 'Docs' %}</a> <span
-                        class="mr-1">&#8226;</span>
-                    <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto text-primary"
-                        mr-1>{{ICONS.CODE}} {% trans 'Code' %}</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</footer>
+{% include 'MrMap/includes/footer.html' %}
 <script>
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {

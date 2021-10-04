@@ -1,6 +1,7 @@
-from django.forms import SelectMultiple
 import json
-
+from django.conf import settings
+from django.forms import SelectMultiple, DateTimeInput
+from django_filters.widgets import SuffixedMultiWidget
 
 class TreeSelectMultiple(SelectMultiple):
     template_name = "extras/widgets/tree_select_multiple.html"

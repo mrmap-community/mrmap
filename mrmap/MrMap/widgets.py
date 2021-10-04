@@ -4,7 +4,7 @@ from django_filters.widgets import SuffixedMultiWidget
 
 
 class BootstrapDateTimePickerInput(DateTimeInput):
-    template_name = 'widgets/bootstrap_datepicker.html'
+    template_name = 'MrMap/widgets/bootstrap_datepicker.html'
 
     def get_context(self, name, value, attrs):
         datetimepicker_id = 'datetimepicker_{name}'.format(name=name)

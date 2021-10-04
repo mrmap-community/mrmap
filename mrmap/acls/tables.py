@@ -17,7 +17,7 @@ class AccessControlListTable(tables.Table):
     class Meta:
         model = AccessControlList
         fields = ('name', 'description', 'permissions', 'user_set', 'owned_by_org')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'acls-table'
 
     def render_permissions(self, value):

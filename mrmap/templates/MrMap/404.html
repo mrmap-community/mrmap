@@ -6,19 +6,20 @@
 </head>
 <body class="bg-light bg-img">
     {% include 'MrMap/includes/messages.html' %}
-    {% include 'includes/ee-overlay.html' %}
+    {% include 'MrMap/includes/ee-overlay.html' %}
     <div class="container">
         <div class="card bg-light mt-3">
             <div class="card-header">
-                <h1 class="card-title text-center">403 - {% trans 'Forbidden' %}</h1>
+                <h1 class="card-title text-center">404 - {% trans 'Not Found' %}</h1>
             </div><!--</card-header-->
             <div class="card-body">
                 <div class="media ">
-                        <img class="align-self-start w-25 mr-3" src="{% static 'images/mr_map_404.png' %}" title="{% trans 'Mr. Map can\'t let you in' %}" alt="{% trans 'Irritated Mr. Map' %}">
+                        <img class="align-self-start w-25 mr-3" src="{% static 'images/mr_map_404.png' %}" title="{% trans 'Mr. Map can`t find the page you are looking for' %}" alt="{% trans 'Irritated Mr. Map' %}">
                         <div class="media-body w-75">
                             <article class="article-txt">
-                            <h1>{% trans 'Mr. Map can\'t let you in' %}</h1>
+                            <h1>{% trans 'Oh no!' %}</h1>
                             <div>{{exception}}</div>
+                            <div>{% trans 'Mr. Map can`t find it!' %}</div>
                         </article>
                         </div>
                     </div>
@@ -28,6 +29,6 @@
             </div>
         </div> <!-- card-body.// -->
     </div>
-{% include 'includes/footer.html' %}
+{% include 'MrMap/includes/footer.html' %}
 </body>
 </html>

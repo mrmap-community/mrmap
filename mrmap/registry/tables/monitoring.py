@@ -17,7 +17,7 @@ class MonitoringRunTable(tables.Table):
     class Meta:
         model = MonitoringRun
         fields = ('id', 'resources_all', 'start', 'end', 'duration', 'health_states', 'results')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
     @staticmethod
@@ -43,7 +43,7 @@ class MonitoringResultTable(tables.Table):
     class Meta:
         model = MonitoringResult
         fields = ('id', 'monitoring_run', 'resource', 'timestamp', 'available', 'status_code', 'monitored_uri')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
     @staticmethod
@@ -94,7 +94,7 @@ class HealthStateTable(tables.Table):
         model = HealthState
         fields = ('id', 'resource', 'health_state_code', 'monitoring_run')
         sequence = ('resource', 'health_state_code', 'monitoring_run', '...')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'health-state-table'
 
     @staticmethod

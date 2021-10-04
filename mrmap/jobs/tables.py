@@ -39,7 +39,7 @@ class JobTable(tables.Table):
                   'done_at',
                   'execution_time',
                   'progress')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
 
@@ -110,7 +110,7 @@ class TaskTable(tables.Table):
                   'done_at',
                   'execution_time',
                   'progress')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'pending-task-table'
         orderable = False
 

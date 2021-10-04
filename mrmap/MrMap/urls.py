@@ -42,6 +42,12 @@ urlpatterns = [
 
 if DEBUG:
     import debug_toolbar
+    from django.conf import settings
+    from django.conf.urls.static import static
+
     urlpatterns.append(
         path('__debug__/', include(debug_toolbar.urls))
     )
+    # to enable possibility to open media files during development (images, documents, etc)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

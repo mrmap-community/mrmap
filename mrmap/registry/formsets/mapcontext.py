@@ -30,8 +30,15 @@ class MapContextLayerFormSet(BaseInlineFormSet):
                 form.instance.parent = None
             model_instance = form.save(commit=False)
             # ensure there are no left-over values for MPTT-specific fields (lft, rght, tree_id, level)
-            clean_model_instance = MapContextLayer(parent=model_instance.parent, map_context=model_instance.map_context,
-                                                   name=model_instance.name, title=model_instance.title)
+            clean_model_instance = MapContextLayer(
+                parent=model_instance.parent,
+                map_context=model_instance.map_context,
+                name=model_instance.name,
+                title=model_instance.title,
+                dataset_metadata=model_instance.dataset_metadata,
+                layer=model_instance.layer,
+                preview_image=model_instance.preview_image
+            )
             clean_model_instance.save()
             new_objects.append(clean_model_instance)
             print(f"Saved {clean_model_instance}")

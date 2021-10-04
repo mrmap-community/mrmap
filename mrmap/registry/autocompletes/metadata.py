@@ -2,6 +2,7 @@ from dal import autocomplete
 from guardian.mixins import LoginRequiredMixin
 from registry.models.metadata import Keyword, MetadataContact, ReferenceSystem
 from extras.autocompletes import CreateObjectMixin, SecuredAutocompleteMixin
+from registry.models import DatasetMetadata
 
 
 class KeywordAutocomplete(LoginRequiredMixin, CreateObjectMixin, autocomplete.Select2QuerySetView):
@@ -25,3 +26,8 @@ class ReferenceSystemAutocomplete(LoginRequiredMixin, autocomplete.Select2QueryS
             so the user can differentiate the results where title is equal.
         """
         return f'{result.prefix}{result.code}'
+
+
+class DatasetMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = DatasetMetadata
+    search_fields = ['title']

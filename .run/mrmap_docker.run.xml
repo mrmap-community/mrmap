@@ -8,8 +8,10 @@
         <option name="sourceFilePath" value="docker-compose.yml" />
         <option name="upAlwaysRecreate" value="true" />
         <option name="upDetach" value="false" />
+        <option name="upExitCodeFromService" value="" />
         <option name="upForceRecreate" value="true" />
         <option name="upRemoveOrphans" value="true" />
+        <option name="upTimeout" value="" />
       </settings>
     </deployment>
     <method v="2" />

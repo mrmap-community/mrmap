@@ -20,9 +20,9 @@
             {% endfor %}
           {% endfor %}
       </div>
-      <div class="card-footer text-muted">
-        <button type="submit" class="btn btn-primary">
-            <span class="submit_btn_txt">{% trans 'Save' %}</span>
+      <div class="card-footer text-muted text-end">
+        <button type="submit" class="btn btn-success">
+            <span class="submit_btn_txt">{{ICONS.SAVE}} {% trans 'Save' %}</span>
             <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
         </button>
       </div>

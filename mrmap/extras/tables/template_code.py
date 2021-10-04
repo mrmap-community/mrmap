@@ -107,7 +107,7 @@ DEFAULT_ACTION_BUTTONS = """
     <a href="{{record.get_change_url}}" class="btn btn-sm btn-warning mr-1" data-toggle="tooltip" data-placement="left" title="{% trans 'Edit' %}">{{ ICONS.EDIT|safe }}</a>
     {% endif %}
     {% if "change_"|add:model_name in perms and record.get_restore_url and record.is_customized %}
-    <a href="{{record.get_restore_url}}" class="btn btn-sm btn-danger mr-1" data-toggle="tooltip" data-placement="left" title="{% trans 'Restore' %}">{{ ICONS.RESTORE|safe }}</a>
+    <a href="{{record.get_restore_url}}" class="btn btn-sm btn-danger mr-1" data-toggle="tooltip" data-placement="left" title="{% trans 'Restore' %}">{{ ICONS.UNDO|safe }}</a>
     {% endif %}
     {% if "delete_"|add:model_name in perms and record.get_delete_url %}
     <a href="{{record.get_delete_url}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" title="{% trans 'Delete' %}">{{ ICONS.DELETE|safe }}</a>

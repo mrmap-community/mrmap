@@ -44,7 +44,7 @@
                         {% if wizard.form.can_delete %}
                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Delete this '%}{{ form.accordion_title }}">
                             <button class="btn btn-sm btn-danger delete-form" data-target="#id_{{form.prefix}}-DELETE" data-parent="#id-accordion-{{ forloop.counter0 }}" type="button" onclick="markFormAsDelete(this)">
-                                {% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %}
+                                {% autoescape off %}{{ICONS.DELETE}}{% endautoescape %}
                             </button>
                         </span>
                         {% endif %}
@@ -73,8 +73,8 @@
       <div class="card-footer text-muted">
         <div class="container-fluid">
         <div class="row">
-            <div class="col-sm">
-                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
+            <div class="col-sm text-start">
+                <button type="button" class="btn btn-warning" data-dismiss="modal">{% autoescape off %}{{ICONS.DELETE}}{% endautoescape %} {% trans 'Dismiss' %}</button>
             </div>
             <div class="col-sm">
                 <div class="mx-auto text-center">
@@ -82,7 +82,7 @@
                 </div>
             </div>
             <div class="col-sm">
-                <div class="float-right">
+                <div class="float-end">
                     {% if wizard.steps.prev %}
                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
                             <button id="id_{{id_modal}}_btn_wizard_goto_first" name="wizard_goto_step" type="submit" class="btn btn-secondary" value="{{ wizard.steps.first }}">
@@ -100,7 +100,7 @@
                         {% endif %}
                     {% endif %}
                     {% if wizard.ignore_uncomitted_forms or wizard.steps.last == wizard.steps.current %}
-                        <button id="id_{{id_modal}}_btn_save" name="wizard_save" value="True" type="submit" class="btn btn-primary">
+                        <button id="id_{{id_modal}}_btn_save" name="wizard_save" value="True" type="submit" class="btn btn-success">
                             <span class="submit_btn_txt">{% autoescape off %}{{ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</span>
                             <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> {%trans 'Loading...' %}</div>
                         </button>

@@ -20,7 +20,7 @@ class DefaultActionButtonsTemplate:
     {{% url '{app_label}:{model_name}_remove' {pk_field}={instance_context_var}.{pk_field} as remove_url %}}
     {{% if "remove" in buttons and remove_url and "remove_{model_name}" in obj_perms %}}
     <a href="{{{{remove_url}}}}" class="btn btn-sm btn-danger" data-toggle="tooltip" data-placement="left" data-html="true" title="{{% trans 'Remove ' %}}<strong>{{{{{instance_context_var}}}}}</strong>">
-        {{{{ ICONS.REMOVE|safe }}}}
+        {{{{ ICONS.DELETE|safe }}}}
     </a>
     {{% endif %}}
     """

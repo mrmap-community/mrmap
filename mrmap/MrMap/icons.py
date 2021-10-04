@@ -26,6 +26,10 @@ class IconEnum(EnumChoice):
     HIERARCHY = 'bi bi-diagram-3-fill'
 
     DASHBOARD = 'bi bi-speedometer2'
+    RESOURCE = 'bi bi-hdd-stack'
+    METADATA = "bi bi-file-text-fill"
+    VALIDATION = 'bi bi-ui-checks'
+
 
     # actions
     ADD = "bi bi-plus-circle"
@@ -44,6 +48,8 @@ class IconEnum(EnumChoice):
     DOWNLOAD = "bi bi-download"
     PLAY = "bi bi-play-fill"
 
+    UPDATE = 'bi bi-gear-wide-connected'
+
     SORT_ASC = "bi bi-sort-alpha-down"
     SORT_DESC = "bi bi-sort-alpha-up"
 
@@ -61,6 +67,21 @@ class IconEnum(EnumChoice):
 
     NONE = ''
 
+    # wizard
+    FIRST = 'bi bi-chevron-bar-left'
+    BACK = 'bi bi-chevron-compact-left'
+    NEXT = 'bi bi-chevron-compact-right'
+    LAST = 'bi bi-chevron-bar-right'
+
+    # etc
+    NEWSPAPER = "bi bi-newspaper"
+    CODE = "bi bi-code-square"
+    PENDING = 'bi bi-three-dots'
+    LINK = 'bi bi-link'
+    HISTORY = 'bi bi-clock-history'
+    GLOBE = 'bi bi-globe'
+    HOME = 'bi bi-house-fill'
+
 
     # TODO: change to boostrap icons
 
@@ -74,12 +95,9 @@ class IconEnum(EnumChoice):
     HEARTBEAT = "fas fa-heartbeat"
     PENDING_TASKS = "fas fa-tasks"
     INFO = "fas fa-info"
-    NEWSPAPER = "far fa-newspaper"
-    METADATA = "fas fa-file-alt"
 
 
     LOGS = "fas fa-stethoscope"
-    PUBLIC = "fas fa-globe"
     
     PUBLISHERS = "fas fa-address-card"
     
@@ -88,49 +106,10 @@ class IconEnum(EnumChoice):
     MONITORING_RESULTS = "fas fa-poll-h"
     HEALTH_STATE = "fas fa-heartbeat"
 
-    UPDATE = 'fas fa-spinner'
-    RESTORE = 'fas fa-undo'
     HARVEST = 'fas fa-level-down-alt'
-    WINDOW_CLOSE = 'fas fa-window-close'
-    WMS_SOLID = 'fas fa-map'
-    PENDINGTASKS = 'fas fa-tasks'
-    REMOVE = 'fas fa-trash'
-    RETURN = 'fas fa-arrow-circle-left'
 
-    VALIDATION = 'fas fa-check-circle'
-    VALIDATION_ERROR = 'fas fa-times-circle'
-    VALIDATION_UNKNOWN = 'fas', 'fa-question-circle'
-
-    SORT_ALPHA_UP = 'fas fa-sort-alpha-up'
-    SORT_ALPHA_DOWN = 'fas fa-sort-alpha-down'
-
-
-    ACTIVITY = 'fas fa-snowboarding'
-    HISTORY = 'fas fa-history'
-    UPLOAD = 'fas fa-upload'
-    SEND_EMAIL = 'fas fa-envelope-open-text'
-    GLOBE = 'fas fa-globe'
-    LINK = 'fas fa-link'
-    EXTERNAL_LINK = 'fas fa-external-link-alt'
     PUBLISHER = 'fas fa-address-card'
-    HOME = 'fas fa-home'
-    API = 'fas fa-hashtag'
-    CSV = 'fas fa-file-csv'
-    FILTER = 'fas fa-filter'
-    FIRST = 'fas fa-fast-backward'
-    BACK = 'fas fa-step-backward'
-    NEXT = 'fas fa-step-forward'
-    LAST = 'fas fa-fast-forward'
-    BRAIN = 'fas fa-brain'
-    EYE = 'fas fa-eye'
-    SETTINGS = 'fas fa-cogs'
-    RESOURCE = 'fas fa-database'
-    ON = 'fas fa-toggle-on'
-    OFF = 'fas fa-toggle-off'
-    LIST = 'fas fa-th-list'
-    
-    CODE = "fas fa-code"
-    PENDING = 'fas fa-ellipsis-h'
+        
     EXTERNAL_AUTHENTICATION = 'fas fa-user-lock'
     ALLOWED_OPERATION = 'fas fa-lock'
     ACCESS_CONTROL_LIST = "fas fa-user-shield"

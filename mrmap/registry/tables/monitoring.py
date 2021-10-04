@@ -57,13 +57,13 @@ class MonitoringResultTable(tables.Table):
     @staticmethod
     def render_status_code(value):
         if 200 <= value < 300:
-            color = 'badge-success'
+            color = 'bg-success'
         elif 400 <= value < 500:
-            color = 'badge-warning'
+            color = 'bg-warning'
         elif 500 <= value < 600:
-            color = 'badge-danger'
+            color = 'bg-danger'
         else:
-            color = 'badge-secondary'
+            color = 'bg-secondary'
         return format_html(f'<span class="badge {color}">{value}</span>')
 
     @staticmethod

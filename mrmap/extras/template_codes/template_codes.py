@@ -1,6 +1,6 @@
 PERMISSIONS = """
 {% for perm in value %}
-<span class="badge badge-info">{{perm.name}}</span>
+<span class="badge bg-info">{{perm.name}}</span>
 {% endfor %}
 """
 

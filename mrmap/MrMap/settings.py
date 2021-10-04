@@ -50,8 +50,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_celery_beat',
     'django_celery_results',
-    'bootstrap4',
-    'fontawesome_5',
+    'bootstrap5',
     'django_tables2',
     'django_filters',
     'query_parameters',
@@ -373,7 +372,7 @@ SESSION_COOKIE_AGE = 30 * 60
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
 
-# define the message tags for bootstrap4
+# define the message tags for bootstrap
 MESSAGE_TAGS = {
     messages.DEBUG: 'alert-info',
     messages.INFO: 'alert-info',

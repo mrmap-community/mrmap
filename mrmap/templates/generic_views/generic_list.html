@@ -3,6 +3,8 @@
 {% block card-header-title-left %}
 <h4 class="mb-1 mr-3">{{table.title|safe}}</h4>
 {% endblock %}
+{% block no-card-header-title-center %}
+{% endblock %}
 {% block card-header-title-right %}
 {% if table.add_url %}
 <a class="btn btn-sm btn-success" href="{{table.add_url}}">{% autoescape off %}{{ICONS.ADD}}{% endautoescape %}</a>

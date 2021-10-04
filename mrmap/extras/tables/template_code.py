@@ -44,12 +44,12 @@ RECORD_ABSOLUTE_LINK_VALUE_CONTENT = """
 
 
 VALUE_BADGE = """
-<span class="badge {% if color %}{{color}}{% else %}badge-info{% endif %}">{{value}}</span>
+<span class="badge {% if color %}{{color}}{% else %}bg-info{% endif %}">{{value}}</span>
 """
 
 VALUE_BADGE_LIST = """
 {% for val in value %}
-<span class="badge {% if color %}{{color}}{% else %}badge-info{% endif %}">{{val}}</span>
+<span class="badge {% if color %}{{color}}{% else %}bg-info{% endif %}">{{val}}</span>
 {% endfor %}
 """
 
@@ -88,7 +88,7 @@ SERVICE_HEALTH_ICONS = """
         <a href="health_state.get_absolute_url" class="{% if health_state.health_state_code == 'ok' %}btn-outline-success{% elif health_state.health_state_code == 'warning' %}btn-outline-warning{% elif health_state.health_state_code == 'critical' %}btn-outline-danger{% endif %}">
             {{ICONS.HEARTBEAT}}
         </a>
-        <span class="badge {% if health_state.reliability_1w < CRITICAL_RELIABILITY %}badge-danger{% elif health_state.reliability_1w < WARNING_RELIABILITY %}badge-warning{% endif %}">{{health_state.reliability_1w}} %</span>
+        <span class="badge {% if health_state.reliability_1w < CRITICAL_RELIABILITY %}bg-danger{% elif health_state.reliability_1w < WARNING_RELIABILITY %}bg-warning{% endif %}">{{health_state.reliability_1w}} %</span>
     {% endif %}
 {% else %}
     <span class="text-secondary">{{ICONS.HEARTBEAT}}</span>

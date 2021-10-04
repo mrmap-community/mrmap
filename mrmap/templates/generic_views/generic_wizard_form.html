@@ -1,4 +1,4 @@
-{% load bootstrap4 %}
+{% load bootstrap5 %}
 {% load i18n %}
 
 <div class="card text-center">
@@ -82,7 +82,7 @@
                 </div>
             </div>
             <div class="col-sm">
-                <div class="float-right">
+                <div class="float-end">
                     {% if wizard.steps.prev %}
                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
                             <button id="id_{{id_modal}}_btn_wizard_goto_first" name="wizard_goto_step" type="submit" class="btn btn-secondary" value="{{ wizard.steps.first }}">

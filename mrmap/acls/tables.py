@@ -25,7 +25,7 @@ class AccessControlListTable(tables.Table):
         for perm in value.all():
             context = Context()
             context.update({'value': perm.name,
-                            'color': 'badge-info'})
+                            'color': 'bg-info'})
             str += Template(template_string=VALUE_BADGE).render(context=context)
         return format_html(str)
 

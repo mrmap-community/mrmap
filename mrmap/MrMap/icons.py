@@ -4,74 +4,111 @@ from MrMap.enums import EnumChoice
 
 
 class IconEnum(EnumChoice):
-    POWER_OFF = "fas fa-power-off"
+    POWER_OFF = "bi bi-power"
+    
+    # models
+    USER = 'bi bi-person'
+    GROUP = 'bi bi-people'
+    ORGANIZATION = "bi bi-building"
+
+    WMS = "bi bi-map"
+    LAYER = "bi bi-layers-half"
+
+    WFS = "bi bi-bounding-box-circles"
+    FEATURETYPE = "bi bi-bounding-box-circles"
+
+    CAPABILITIES = "bi bi-file-earmark-code"
+    PASSWORD = "bi bi-lock"
+    ACCESS = "bi bi-key"
+    SUBSCRIPTION = "bi bi-megaphone-fill"
+
+    MONITORING = "bi bi-binoculars-fill"
+    HIERARCHY = 'bi bi-diagram-3-fill'
+
+    DASHBOARD = 'bi bi-speedometer2'
+
+    # actions
+    ADD = "bi bi-plus-circle"
+    DELETE = "bi bi-trash"
+    EDIT = "bi bi-pen"
+    SAVE = 'bi bi-save'
+    SEARCH = 'bi bi-search'
+    UNDO = 'bi bi-arrow-counterclockwise'
+
+    USER_ADD = "bi bi-person-plus"
+    USER_REMOVE = "bi bi-person-x"
+
+    SIGIN = "bi bi-box-arrow-in-right"
+    SIGNOUT = "bi bi-box-arrow-right"
+    SIGNUP = "bi bi-person-plus"
+    DOWNLOAD = "bi bi-download"
+    PLAY = "bi bi-play-fill"
+
+    SORT_ASC = "bi bi-sort-alpha-down"
+    SORT_DESC = "bi bi-sort-alpha-up"
+
+    # states
+    OK = "bi bi-hand-thumbs-up-fill"
+    NOK = "bi bi-hand-thumbs-down-fill"
+    OK_CIRCLE = 'bi bi-check-circle'
+    NOK_CIRCLE = 'bi bi-x-circle'
+    WARNING = 'bi bi-exclamation-triangle-fill'
+    CRITICAL = 'bi bi-lightning-fill'
+    ERROR = "bi bi-bug-fill"
+
+    BOOK_OPEN = 'bi bi-book-fill'
+
+
+    NONE = ''
+
+
+    # TODO: change to boostrap icons
+
+
     PROXY = "fas fa-archway"
     LOGGING = "fas fa-file-signature"
-    WFS = "fas fa-draw-polygon"
-    FEATURETYPE = "fas fa-draw-polygon"
-    WMS = "far fa-map"
-    LAYER = "fas fa-layer-group"
+    
     CSW = "fas fa-book"
     DATASET = "fas fa-clipboard-list"
     MAP_CONTEXT = "fas fa-map-marked-alt"
-    PASSWORD = "fas fa-lock"
     HEARTBEAT = "fas fa-heartbeat"
     PENDING_TASKS = "fas fa-tasks"
     INFO = "fas fa-info"
-    CAPABILITIES = "fas fa-file-code"
     NEWSPAPER = "far fa-newspaper"
     METADATA = "fas fa-file-alt"
-    ERROR = "fas fa-exclamation-circle"
-    PLAY = "fas fa-play"
+
+
     LOGS = "fas fa-stethoscope"
-    DOWNLOAD = "fas fa-download"
     PUBLIC = "fas fa-globe"
-    EDIT = "fas fa-edit"
-    ACCESS = "fas fa-key"
-    SUBSCRIPTION = "fas fa-bullhorn"
-    DELETE = "fas fa-trash"
-    GROUP = "fas fa-users"
-    SIGNOUT = "fas fa-sign-out-alt"
+    
     PUBLISHERS = "fas fa-address-card"
-    ADD = "fas fa-plus-circle"
-    OK = "fas fa-check"
-    NOK = "fas fa-times"
-    ORGANIZATION = "fas fa-building"
-    USER = "fas fa-user"
-    USER_ADD = "fa fa-user-plus"
-    USER_REMOVE = "fa fa-user-times"
-    MONITORING = "fas fa-binoculars"
+    
+    
     MONITORING_RUN = "fas fa-running"
     MONITORING_RESULTS = "fas fa-poll-h"
     HEALTH_STATE = "fas fa-heartbeat"
-    WARNING = 'fas fa-exclamation-triangle'
-    CRITICAL = 'fas fa-bolt'
+
     UPDATE = 'fas fa-spinner'
     RESTORE = 'fas fa-undo'
     HARVEST = 'fas fa-level-down-alt'
     WINDOW_CLOSE = 'fas fa-window-close'
-    DASHBOARD = 'fas fa-tachometer-alt'
     WMS_SOLID = 'fas fa-map'
     PENDINGTASKS = 'fas fa-tasks'
     REMOVE = 'fas fa-trash'
-    SEARCH = 'fas fa-search'
     RETURN = 'fas fa-arrow-circle-left'
-    OK_CIRCLE = 'far fa-check-circle'
-    NOK_CIRCLE = 'far fa-times-circle'
-    SIGNIN = 'fas fa-sign-in-alt'
-    SIGNUP = 'fas fa-user-plus'
-    UNDO = 'fas fa-undo'
+
     VALIDATION = 'fas fa-check-circle'
     VALIDATION_ERROR = 'fas fa-times-circle'
     VALIDATION_UNKNOWN = 'fas', 'fa-question-circle'
+
     SORT_ALPHA_UP = 'fas fa-sort-alpha-up'
     SORT_ALPHA_DOWN = 'fas fa-sort-alpha-down'
+
+
     ACTIVITY = 'fas fa-snowboarding'
     HISTORY = 'fas fa-history'
-    SAVE = 'fas fa-save'
     UPLOAD = 'fas fa-upload'
     SEND_EMAIL = 'fas fa-envelope-open-text'
-    HIERARCHY = 'fas fa-sitemap'
     GLOBE = 'fas fa-globe'
     LINK = 'fas fa-link'
     EXTERNAL_LINK = 'fas fa-external-link-alt'
@@ -91,10 +128,8 @@ class IconEnum(EnumChoice):
     ON = 'fas fa-toggle-on'
     OFF = 'fas fa-toggle-off'
     LIST = 'fas fa-th-list'
-    NONE = ''
-    BOOK = 'fas fa-book'
+    
     CODE = "fas fa-code"
-    BOOK_OPEN = 'fas fa-book-open'
     PENDING = 'fas fa-ellipsis-h'
     EXTERNAL_AUTHENTICATION = 'fas fa-user-lock'
     ALLOWED_OPERATION = 'fas fa-lock'

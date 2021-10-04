@@ -4,8 +4,6 @@ services:
 
   # Extend the existing postgis container with an accessible port for development purposes
   postgis:
-#    command:
-#      psql -U mrmap -c "drop database test_mrmap"
     ports:
       - 5555:5432
 

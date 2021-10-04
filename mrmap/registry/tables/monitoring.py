@@ -76,7 +76,7 @@ class MonitoringResultDetailTable(MonitoringResultTable):
         model = MonitoringResult
         fields = ('error_msg',)
         sequence = ("...", "error_msg")
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'monitoring-result-detail-table'
         orderable = False
 
@@ -133,6 +133,6 @@ class HealthStateDetailTable(HealthStateTable):
                   'average_response_time_1m',
                   'average_response_time_3m')
         sequence = ('health_state_code', '...')
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'health-state-detail-table'
         orderable = False

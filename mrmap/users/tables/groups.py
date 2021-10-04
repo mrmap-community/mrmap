@@ -44,7 +44,7 @@ class OrganizationDetailTable(tables.Table):
                   'address',
                   'state_or_province',
                   'country')
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'organization-detail-table'
         orderable = False
 

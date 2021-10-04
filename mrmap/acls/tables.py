@@ -52,6 +52,6 @@ class AccessControlListDetailTable(tables.Table):
                   'accessible_accesscontrollist__all',
                   'accessible_organizations__all',
                   'default_acl')
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'acls-detail-table'
         orderable = False

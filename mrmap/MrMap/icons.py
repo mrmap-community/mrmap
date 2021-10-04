@@ -5,7 +5,7 @@ from MrMap.enums import EnumChoice
 
 class IconEnum(EnumChoice):
     POWER_OFF = "bi bi-power"
-    
+
     # models
     USER = 'bi bi-person'
     GROUP = 'bi bi-people'
@@ -97,7 +97,7 @@ class IconEnum(EnumChoice):
     HOME = 'bi bi-house-fill'
     BOOK_OPEN = 'bi bi-book-fill'
     NONE = ''
-   
+
 
 def get_icon(enum: IconEnum, color=None) -> SafeString:
     icon = f"<i class=\"{enum.value} {color}\"></i>" if color else f"<i class=\"{enum.value}\"></i>"

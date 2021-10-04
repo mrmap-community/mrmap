@@ -15,16 +15,7 @@
 </header>
 
 <body class="bg-light bg-img">
-    {% if messages %}
-    {% for message in messages %}
-    <div class="alert {{ message.tags }} alert-dismissible fade show message" role="alert">
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-        </button>
-        {{ message|safe }}
-    </div>
-    {% endfor %}
-    {% endif %}
+    {% include 'MrMap/includes/messages.html' %}
 
     <div class="mt-5 mr-5" style="position: fixed; top: 0; right:0; z-index:1; width: 300px;">
         <div id="id_toast_container" style="position: absolute; top: 0; right: 0;">

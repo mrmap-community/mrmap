@@ -7,7 +7,7 @@
 <div id="id_accordion_{{node.pk}}">
   <div class="accordion {% if node.pk|stringformat:'s' == request.GET.collapse %}animate__animated animate__flash{% endif %}">
     <div class="accorion-item">
-      <div class="accordion-header" id="id_accordion_header_{{node.pk}}">
+      <div class="accordion-header card-header" id="id_accordion_header_{{node.pk}}">
         {% get_obj_perms request.user for node as "perms" perm_checker %}
         <div class="row">
           <div class="col-7 col-md text-start">

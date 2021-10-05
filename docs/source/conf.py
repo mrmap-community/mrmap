@@ -86,7 +86,11 @@ StandaloneHTMLBuilder.supported_image_types = [
     'image/jpeg'
 ]
 
-current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+
+try:
+    current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+except:
+    current_branch_name = "develop"
 print(current_branch_name)
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"

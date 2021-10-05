@@ -154,7 +154,7 @@
                     <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{% trans 'There are open jobs' %}">{{ICONS.PENDING_TASKS}} <span data-bind="text: jobsCount" class="badge rounded-pill bg-light fading"></span></span>
                 </a>
                 <a class="btn btn-outline-light" href="{% url 'users:password_change_done' %}" data-bs-toggle="tooltip" title="{% trans 'Account' %}" role="button">{% autoescape off %}{{ICONS.USER}}{% endautoescape %} {{ request.user.username }}</a>
-                <a class="btn btn-outline-light" href="{% url 'users:logout' %}" data-bs-toggle="tooltip" title="{% trans 'Logout' %}" role="button">{% autoescape off %}{{ICONS.SIGNOUT}}{% endautoescape %}</a>
+                <a id="id_sign_out_btn" class="btn btn-outline-light" href="{% url 'users:logout' %}" data-bs-toggle="tooltip" title="{% trans 'Logout' %}" role="button">{% autoescape off %}{{ICONS.SIGNOUT}}{% endautoescape %}</a>
             </div>
         </div>
     </div>

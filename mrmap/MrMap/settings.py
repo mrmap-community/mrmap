@@ -342,7 +342,8 @@ STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/registry/static'
+    BASE_DIR + '/registry/static',
+    "/tmp/static"
 ]
 
 WSGI_APPLICATION = 'MrMap.wsgi.application'

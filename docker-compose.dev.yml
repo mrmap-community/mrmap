@@ -32,7 +32,7 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      /bin/bash -c "coverage run manage.py test && coverage xml -i -o behave-coverage-report.xml"
+      /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i -o behave-coverage-report.xml"
     hostname: "mrmap-test"
     volumes:
       - type: bind
@@ -42,6 +42,7 @@ services:
       - backend
     env_file:
       - ./.env.mrmap
+      - ./.env.mrmap.dev
     depends_on:
       - postgis
       - redis
@@ -54,7 +55,7 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      /bin/bash -c "coverage run manage.py behave"
+      /bin/bash -c "coverage run manage.py behave --noinput"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -64,6 +65,33 @@ services:
       - backend
     env_file:
       - ./.env.mrmap
+      - ./.env.mrmap.dev
+    environment:
+      - DJANGO_DEBUG=0
     depends_on:
       - postgis
       - redis
+
+  gunicorn:
+      build:
+        args:
+          MRMAP_PRODUCTION: "False"
+      env_file:
+        - ./.env.mrmap
+        - ./.env.mrmap.dev
+
+  celery-default-worker:
+      build:
+        args:
+          MRMAP_PRODUCTION: "False"
+      env_file:
+        - ./.env.mrmap
+        - ./.env.mrmap.dev
+
+  celery-download-worker:
+      build:
+        args:
+          MRMAP_PRODUCTION: "False"
+      env_file:
+        - ./.env.mrmap
+        - ./.env.mrmap.dev

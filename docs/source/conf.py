@@ -88,5 +88,5 @@ StandaloneHTMLBuilder.supported_image_types = [
 
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
-#smv_branch_whitelist = r'5_migrate_to_bs5'                  # Include all branches except "master"
+smv_branch_whitelist = r'^develop$'              # Include develop branch
 smv_remote_whitelist = None                       # Use branches from all remotes

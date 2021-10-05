@@ -1,26 +1,22 @@
 {% load django_tables2 %}
 {% load i18n %}
 {% block table-wrapper %}
-{% load bootstrap4 %}
+{% load bootstrap5 %}
 {% load custom_template_filters %}
 {% if table.paginator %}
     <div class="row"><!--<t-head-->
         <div class="col"><!--pagination-->
                 <div class="dropdown d-inline-block">
                     {% trans 'Show' %}
-                        <button class="btn btn-info dropdown-toggle" type="button" id="id_table_per_page_dropdown"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Switch the items per page' %}">
-                                {{ table.paginator.per_page }}
-                            </span>
-
+                        <button class="btn btn-info dropdown-toggle" type="button" id="id_table_per_page_dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Switch the items per page' %}">{{ table.paginator.per_page }}</span>
                         </button>
                     {% trans 'entries' %}
-                    <div class="dropdown-menu" aria-labelledby="id_table_per_page_dropdown">
+                    <ul class="dropdown-menu" aria-labelledby="id_table_per_page_dropdown">
                         {% for n in settings.PER_PAGE_DEFAULTS %}
-                        <a class="dropdown-item" href="{% querystring table.per_page_field=n without table.prefixed_page_field%}">{{n}}</a>
+                        <li><a class="dropdown-item" href="{% querystring table.per_page_field=n without table.prefixed_page_field%}">{{n}}</a></li>
                         {% endfor %}
-                        </div>
+                    </ul>
                 </div>
         </div><!--</pagination-->
     </div><!--</t-head-->
@@ -52,34 +48,34 @@
                                     </div>
                                     <div>
                                         {% if request.GET|get_item:table.order_by_field is None%}
-                                        <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
+                                        <span class="d-inline-block" tabindex="0" data-bs-html="true" data-bs-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} text-success {% endif %}">
-                                                <i class="fas fa-sort-alpha-down"></i>
+                                            {{ICONS.SORT_ASC}}
                                             </a>
                                         </span>
                                         {% elif '-' not in column.order_by_alias.next%}
                                             {% if column.order_by_alias|lower == request.GET|get_item:table.order_by_field|lower %}
-                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
-                                                    <a href="{% querystring table.order_by_field='' %}"><i class="fas fa-undo"></i></a>
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a href="{% querystring table.order_by_field='' %}">{{ICONS.UNDO}}</a>
                                                 </span>
                                             {% endif %}
-                                        <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
+                                        <span class="d-inline-block" tabindex="0" data-bs-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} text-success {% endif %}">
-                                                <i class="fas fa-sort-alpha-up"></i>
+                                                {{ICONS.SORT_DESC}}
                                             </a>
                                         </span>
                                         {% else %}
                                             {% if column.order_by_alias|lower == request.GET|get_item:table.order_by_field|lower %}
-                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
-                                                    <a href="{% querystring table.order_by_field='' %}"><i class="fas fa-undo"></i></a>
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a href="{% querystring table.order_by_field='' %}">{{ICONS.UNDO}}</a>
                                                 </span>
                                             {% endif %}
-                                        <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
+                                        <span class="d-inline-block" tabindex="0" data-bs-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_item:table.order_by_field|lower %} text-success {% endif %}">
-                                                <i class="fas fa-sort-alpha-down"></i>
+                                                {{ICONS.SORT_ASC}}
                                             </a>
                                         </span>
                                         {% endif %}
@@ -132,7 +128,7 @@
                     {% endblock table.tfoot %}
                 </table>
             {% endblock table %}
-            <p class="text-right">{% trans 'Showing' %} {{ table.page.start_index }}-{{ table.page.end_index }} {% trans 'of' %} {{ table.page.paginator.count }}</p>
+            <p class="text-end">{% trans 'Showing' %} {{ table.page.start_index }}-{{ table.page.end_index }} {% trans 'of' %} {{ table.page.paginator.count }}</p>
             {% block pagination %}
                 {% if table.page and table.paginator.num_pages > 1 %}
                 <nav aria-label="Table navigation">

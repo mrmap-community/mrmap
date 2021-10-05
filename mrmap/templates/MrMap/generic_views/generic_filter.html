@@ -1,6 +1,6 @@
-{% extends 'skeletons/card.html'%}
+{% extends 'MrMap/skeletons/card.html'%}
 {% load i18n %}
-{% load bootstrap4 %}
+{% load bootstrap5 %}
 {% block card-header-title-left %}
 <form action="" method="get" class="form">
 <h4 class="mb-1 mr-3">{{ICONS.SEARCH}} {% trans 'Search' %}</h4>
@@ -13,10 +13,10 @@
 {{filter.form.media}}
 {% bootstrap_form filter.form %}
 <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Filter the table' %}">
-    <button type="submit" class="btn btn-info"><i class="fas fa-search"></i></button>
+    <button type="submit" class="btn btn-info">{{ICONS.SEARCH}}</button>
 </span>
 </form>
 <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Dismiss all filters' %}">
-    <a class="btn btn-info" href="{{ request.path }}"><i class="fas fa-undo"></i></a>
+    <a class="btn btn-info" href="{{ request.path }}">{{ICONS.UNDO}}</a>
 </span>
 {% endblock %}

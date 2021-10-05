@@ -18,6 +18,7 @@
 import os
 import sys
 import django
+from subprocess import check_output
 
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
@@ -85,9 +86,14 @@ StandaloneHTMLBuilder.supported_image_types = [
     'image/jpeg'
 ]
 
-smv_tag_whitelist = r'^v\d+\.\d+$'            # Include tags like "v2.1"
 
-smv_branch_whitelist = r'^.*$'                # Include all branches
-smv_branch_whitelist = r'^develop$'           # Include all branches except "master"
+try:
+    current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+except:
+    # needed cause sphinx-multiversion clones the configured branches by smv_branch_whitelist setting and read the configuration again. 
+    # On the second runs this command will fail, cause the clone is not a real git repo.
+    current_branch_name = ""
 
-smv_remote_whitelist = r'^.*$'                # Use branches from all remotes
+smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
+smv_branch_whitelist = current_branch_name        # Include all branches except "master"
+smv_remote_whitelist = None                       # Use branches from all remotes

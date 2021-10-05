@@ -2,14 +2,14 @@
     <div class="row">
         {% if filter %}
         <div class="col-lg-12 col-xl-2 order-xl-last">
-            {% include "generic_views/generic_filter.html" %}
+            {% include "MrMap/generic_views/generic_filter.html" %}
         </div>
         <div class="col-lg-12 col-xl-10 order-xl-first">
-            {% include "generic_views/generic_list.html" %}
+            {% include "MrMap/generic_views/generic_list.html" %}
         </div>
         {% else %}
         <div class="col">
-            {% include "generic_views/generic_list.html" %}
+            {% include "MrMap/generic_views/generic_list.html" %}
         </div>
         {% endif %}
     </div>

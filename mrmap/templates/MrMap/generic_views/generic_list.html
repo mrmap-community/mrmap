@@ -1,7 +1,9 @@
-{% extends 'skeletons/card.html'%}
+{% extends 'MrMap/skeletons/card.html'%}
 {% load render_table from django_tables2 %}
 {% block card-header-title-left %}
 <h4 class="mb-1 mr-3">{{table.title|safe}}</h4>
+{% endblock %}
+{% block no-card-header-title-center %}
 {% endblock %}
 {% block card-header-title-right %}
 {% if table.add_url %}

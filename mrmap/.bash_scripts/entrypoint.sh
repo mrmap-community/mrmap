@@ -2,15 +2,11 @@
 
 /opt/mrmap/.bash_scripts/wait_db.sh
 
-
 # run mrmap setup command. It will handle everthing we need to pre setup the system.
 python manage.py setup
 
-cp -rf /tmp/mrmap/static/* /var/www/mrmap/static
-
 # run collectstatic
 python manage.py collectstatic --noinput
-
 
 echo '
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM

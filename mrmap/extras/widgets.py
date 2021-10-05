@@ -1,5 +1,5 @@
-from django.forms import SelectMultiple
 import json
+from django.forms import SelectMultiple
 
 
 class TreeSelectMultiple(SelectMultiple):

@@ -23,4 +23,4 @@ class MrMapUserTable(tables.Table):
     class Meta:
         model = get_user_model()
         fields = ('username', 'organization', 'groups', 'is_superuser')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'MrMap/base.html' %}
 {% load i18n %}
 
 {% block head %}
@@ -20,7 +20,7 @@
         </div>
         {% if actions %}
         <div class="col">
-            <div class="float-right">
+            <div class="float-end">
                 {% for action in actions %}
                 {{ action|safe }}
                 {% endfor %}

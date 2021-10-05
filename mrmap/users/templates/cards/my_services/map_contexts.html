@@ -1,4 +1,4 @@
-{% extends 'sceletons/card.html' %}
+{% extends 'MrMap/skeletons/card.html' %}
 {% load i18n %}
 
 {% block card-header-title-left %}
@@ -10,7 +10,7 @@
 {% endblock%}
 
 {% block card-header-title-right %}
-<h5><span class="badge badge-pill badge-light">{{ map_context_count }}</span></h5>
+<h5><span class="badge rounded-pill bg-light">{{ map_context_count }}</span></h5>
 {% endblock %}
 
 {% block card-body %}

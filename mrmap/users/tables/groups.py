@@ -26,7 +26,7 @@ class PublishesRequestTable(SecuredTable):
     class Meta:
         model = PublishRequest
         fields = ('from_organization', 'to_organization', 'message', 'actions')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-for-table'
 
 
@@ -44,7 +44,7 @@ class OrganizationDetailTable(tables.Table):
                   'address',
                   'state_or_province',
                   'country')
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'organization-detail-table'
         orderable = False
 
@@ -56,7 +56,7 @@ class OrganizationTable(tables.Table):
     class Meta:
         model = Organization
         fields = ('name', 'description')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'organizations-table'
 
 
@@ -76,7 +76,7 @@ class OrganizationPublishersTable(SecuredTable):
     class Meta:
         model = Organization
         fields = ('name', )
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'publishers-table'
 
 
@@ -84,7 +84,7 @@ class OrganizationAccessControlListTable(tables.Table):
     class Meta:
         model = AccessControlList
         fields = ('name', 'user_set')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/>"
         prefix = 'publishers-table'
 
     def render_user_set(self, value):

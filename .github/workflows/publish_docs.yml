@@ -12,9 +12,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Extract branch name
-        uses: nelonoel/branch-name@v1.0.1
-        id: extract_branch
+          ref: 'develop'
       # Install all system dependencies for the MrMap project
       # ===============================
       - name: Install System Dependencies for MrMap project

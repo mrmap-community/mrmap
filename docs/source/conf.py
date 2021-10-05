@@ -87,9 +87,13 @@ StandaloneHTMLBuilder.supported_image_types = [
     'image/jpeg'
 ]
 
-current_branch_name = Repository('.').head.shorthand
+current_branch = Repository('.').head.shorthand
+print(current_branch)
+from subprocess import check_output
+current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+
 print(f"current branch name: {current_branch_name}")
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                      # Include tags like "v2.1"
-smv_branch_whitelist = current_branch_name              # Include only the current branch
-smv_remote_whitelist = r'^.*$'                          # Use branches from all remotes
+#smv_branch_whitelist = current_branch              # Include only the current branch
+smv_remote_whitelist = None                         # Only use local branches

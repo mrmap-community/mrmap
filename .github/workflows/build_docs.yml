@@ -10,11 +10,12 @@ jobs:
     name: build docs
     runs-on: ubuntu-20.04
     steps:
+      - name: source branch name
+        run: echo ${{ github.head_ref }}
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: branch name
-        run: echo ${{ github.head_ref }}
+          ref: ${{ github.head_ref }}
       # Install all system dependencies for the MrMap project
       # ===============================
       - name: Install System Dependencies for MrMap project

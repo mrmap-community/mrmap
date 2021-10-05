@@ -86,8 +86,9 @@ StandaloneHTMLBuilder.supported_image_types = [
     'image/jpeg'
 ]
 
-#current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+print(current_branch_name)
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
-#smv_branch_whitelist = current_branch_name        # Include all branches except "master"
+smv_branch_whitelist = current_branch_name        # Include all branches except "master"
 smv_remote_whitelist = None                       # Use branches from all remotes

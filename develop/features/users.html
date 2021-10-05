@@ -133,16 +133,16 @@
 <span class="nf">    </span><span class="k">Given </span><span class="nf">I open the site &quot;</span><span class="s">/users/dashboard</span><span class="nf">&quot;</span>
 
 <span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> User is redirected to login page after logout</span>
-<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//a[@title=&#39;Logout&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;s</span>
+<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//*[@id=&#39;id_sign_out_btn&#39;]</span><span class="nf">&quot;</span>
+<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;</span>
 
 <span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Logged out user tries to open dashboard page. Is redirected to Login page</span>
-<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//a[@title=&#39;Logout&#39;]</span><span class="nf">&quot;</span>
+<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//*[@id=&#39;id_sign_out_btn&#39;]</span><span class="nf">&quot;</span>
 <span class="nf">    </span><span class="k">When </span><span class="nf">I open the site &quot;</span><span class="s">/users/dashboard</span><span class="nf">&quot;</span>
 <span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;</span>
 
 <span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Session ID is cleared after logout</span>
-<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//a[@title=&#39;Logout&#39;]</span><span class="nf">&quot;</span>
+<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//*[@id=&#39;id_sign_out_btn&#39;]</span><span class="nf">&quot;</span>
 <span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that cookie &quot;</span><span class="s">sessionid</span><span class="nf">&quot; not exists</span>
 </pre></div>
 </div>

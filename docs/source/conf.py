@@ -88,9 +88,8 @@ StandaloneHTMLBuilder.supported_image_types = [
 
 
 try:
-    from pygit2 import Repository
-    current_branch_name = Repository('.').head.shorthand
-    print(f"detected branch name: {current_branch_name}")
+    current_branch_name = check_output(["git","branch", "--show-current"]).decode("utf8")[0:-1]
+    print(f"detected branch: {current_branch_name}")
 except:
     # needed cause sphinx-multiversion clones the configured branches by smv_branch_whitelist setting and read the configuration again. 
     # On the second runs this command will fail, cause the clone is not a real git repo.

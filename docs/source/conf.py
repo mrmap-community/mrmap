@@ -88,6 +88,7 @@ StandaloneHTMLBuilder.supported_image_types = [
 ]
 
 current_branch_name = Repository('.').head.shorthand
+print(f"current branch name: {current_branch_name}")
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                      # Include tags like "v2.1"
 smv_branch_whitelist = current_branch_name              # Include only the current branch

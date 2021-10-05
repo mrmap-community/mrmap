@@ -18,7 +18,6 @@
 import os
 import sys
 import django
-from pygit2 import Repository
 
 
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
@@ -87,13 +86,8 @@ StandaloneHTMLBuilder.supported_image_types = [
     'image/jpeg'
 ]
 
-current_branch = Repository('.').head.shorthand
-print(current_branch)
-from subprocess import check_output
-current_branch_name = check_output(["git","symbolic-ref", "--short", "HEAD"]).decode("utf8")[0:-1]
+#current_branch_name = Repository('.').head.shorthand
 
-print(f"current branch name: {current_branch_name}")
-
-smv_tag_whitelist = r'^v\d+\.\d+$'                      # Include tags like "v2.1"
-#smv_branch_whitelist = current_branch              # Include only the current branch
-smv_remote_whitelist = None                         # Only use local branches
+smv_tag_whitelist = r'^v\d+\.\d+$'                   # Include tags like "v2.1"
+smv_branch_whitelist = "5_migrate_to_bs5"      # Include all branches except "master"
+smv_remote_whitelist = None                       # Use branches from all remotes

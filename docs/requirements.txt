@@ -7,3 +7,4 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 sphinx-multiversion==0.2.4
+pygit2==0.16.2

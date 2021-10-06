@@ -2,6 +2,11 @@
 version: '3.8'
 services:
 
+  # Extend the existing postgis container with an accessible port for development purposes
+  postgis:
+    ports:
+      - 5555:5432
+
   pre-commit-check:
     build:
       context: ./mrmap
@@ -23,6 +28,14 @@ services:
     depends_on:
       - postgis
       - redis
+
+  celery-default-worker:
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+
+  celery-download-worker:
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 
   test:
     build:

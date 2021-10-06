@@ -10,9 +10,12 @@ jobs:
     name: build docs
     runs-on: ubuntu-20.04
     steps:
+      - name: source branch name
+        run: echo ${{ github.head_ref }}
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref }}
       # Install all system dependencies for the MrMap project
       # ===============================
       - name: Install System Dependencies for MrMap project
@@ -39,6 +42,6 @@ jobs:
       - name: build documentation
         run: |
           export $(grep -v '^#' .env.docs | xargs)
-          sphinx-multiversion docs/source docs/build/html -b linkcheck
-          sphinx-multiversion docs/source docs/build/html -b html -E
+          sphinx-multiversion docs/source docs/build/html -b linkcheck -D smv_branch_whitelist='${{ github.head_ref }}'
+          sphinx-multiversion docs/source docs/build/html -b html -E -D smv_branch_whitelist='${{ github.head_ref }}'
       # ===============================

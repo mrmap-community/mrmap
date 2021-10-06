@@ -21,10 +21,10 @@ RUN npm install --yes
 FROM python:3.9.7-slim-bullseye
 ARG MRMAP_PRODUCTION
 COPY --from=base /wheels /wheels
-COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css /tmp/mrmap/static/css/
-COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/mrmap/static/css/jstree
-COPY --from=base node_modules/bootstrap/dist/js/bootstrap.min.js node_modules/popper.js/dist/umd/popper.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js /tmp/mrmap/static/js/
-
+COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/static/css/jstree
+COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css /tmp/static/css/
+COPY --from=base node_modules/bootstrap-icons/ /tmp/static/css/bootstrap-icons/
+COPY --from=base node_modules/bootstrap/dist/js/bootstrap.bundle.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js /tmp/static/js/
 
 # TODO: firefox-esr gettext are only needed for dev environment
 RUN apt-get -qq update && \

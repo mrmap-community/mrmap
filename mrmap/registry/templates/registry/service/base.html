@@ -11,12 +11,12 @@
 <div class="card bg-light my-3">
   <div class="card-header">
     <div class="row">
-    <div class="col-7 col-md text-left">
+    <div class="col-7 col-md text-start">
       <h5 class="mb-0">
-        {{ object.icon|safe }} {{ object.metadata.title }} <span class="badge badge-secondary">{% if object.service_type_name == "wms" %}{{ object.layers.count }}{% endif %}{% if object.service_type_name == "wfs" %}{{ feature_types.count }}{% endif %}</span>
+        {{ object.icon|safe }} {{ object.metadata.title }} <span class="badge bg-secondary">{% if object.service_type_name == "wms" %}{{ object.layers.count }}{% endif %}{% if object.service_type_name == "wfs" %}{{ feature_types.count }}{% endif %}</span>
       </h5>
     </div>
-    <div class="col-7 col-md text-left text-md-center">
+    <div class="col-7 col-md text-start text-md-center">
       <div class="btn-group mb-1">
         <button type="button" class="btn btn-sm btn-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <div class="d-xl-none">{{ ICONS.CAPABILITIES|safe }}</div><div class="d-none d-xl-block">{{ ICONS.CAPABILITIES|safe }} {% trans 'Capabilities' %}</div>
@@ -42,7 +42,7 @@
         </div>
       </div>
     </div>
-    <div class="col-7 col-md text-left text-md-right">
+    <div class="col-7 col-md text-start text-md-end">
       <div class="d-inline-flex">
         {% if "change_service" in perms and object.get_activate_url %}
         <form class="mr-1" action="{{object.get_activate_url}}?collapse=" method="post">

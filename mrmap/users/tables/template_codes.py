@@ -25,6 +25,6 @@ REMOVE_PUBLISHER_BUTTON = """
 {% load guardian_tags %}
 {% get_obj_perms request.user for record as "perms" %}
 {% if record.get_change_url and "users.change_organization" in perms %}
-<a class="btn btn-sm btn-danger" href="{{record.get_change_url}}" data-toggle="tooltip" data-placement="top" title="{% trans 'remove publisher' %}">{{{{ ICONS.REMOVE|safe }}}}</a>
+<a class="btn btn-sm btn-danger" href="{{record.get_change_url}}" data-toggle="tooltip" data-placement="top" title="{% trans 'remove publisher' %}">{{{{ ICONS.DELETE|safe }}}}</a>
 {% endif %}
 """

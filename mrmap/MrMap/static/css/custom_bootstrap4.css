@@ -55,18 +55,19 @@
 }
 
 
-/* Accordion collapse icon customization
--------------------------------------------------- */
-.accordion .fa:before {
-  content: "\f139";
-}
-
-.accordion.collapsed .fa:before {
-  content: "\f13a";
-}
-
-
-
 .dropdown-toggle {
    white-space: nowrap;
 }
+
+
+/* breadcrumb background
+-------------------------------------------------- */
+.breadcrumb {
+    box-shadow: 1px 1px #d5d4d4;
+    background: #eeeded;
+    border: 1px solid #eeeded;
+    border-radius: 5px;
+    padding: 0 5px 0 10px !important;
+    font-size: 16px;
+    line-height:2em;
+    }

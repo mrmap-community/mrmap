@@ -18,6 +18,6 @@ class MapContextTable(SecuredTable):
     class Meta:
         model = MapContext
         fields = ('title', 'abstract', 'actions')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         # todo: set this prefix dynamic
         prefix = 'map-context-table'

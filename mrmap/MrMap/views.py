@@ -143,9 +143,9 @@ class CustomSingleTableMixin(SingleTableMixin):
         if not self.template_name:
             self.template_extend_base = bool(self.request.GET.get('with-base', self.get_template_extend_base()))
             if self.template_extend_base:
-                self.template_name = 'generic_views/generic_list_with_base.html'
+                self.template_name = 'MrMap/generic_views/generic_list_with_base.html'
             else:
-                self.template_name = 'generic_views/generic_list_without_base.html'
+                self.template_name = 'MrMap/generic_views/generic_list_without_base.html'
         return super().dispatch(request, *args, **kwargs)
 
 

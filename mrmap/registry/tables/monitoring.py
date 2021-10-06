@@ -17,7 +17,7 @@ class MonitoringRunTable(tables.Table):
     class Meta:
         model = MonitoringRun
         fields = ('id', 'resources_all', 'start', 'end', 'duration', 'health_states', 'results')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
     @staticmethod
@@ -43,7 +43,7 @@ class MonitoringResultTable(tables.Table):
     class Meta:
         model = MonitoringResult
         fields = ('id', 'monitoring_run', 'resource', 'timestamp', 'available', 'status_code', 'monitored_uri')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'monitoring-result-table'
 
     @staticmethod
@@ -57,13 +57,13 @@ class MonitoringResultTable(tables.Table):
     @staticmethod
     def render_status_code(value):
         if 200 <= value < 300:
-            color = 'badge-success'
+            color = 'bg-success'
         elif 400 <= value < 500:
-            color = 'badge-warning'
+            color = 'bg-warning'
         elif 500 <= value < 600:
-            color = 'badge-danger'
+            color = 'bg-danger'
         else:
-            color = 'badge-secondary'
+            color = 'bg-secondary'
         return format_html(f'<span class="badge {color}">{value}</span>')
 
     @staticmethod
@@ -76,7 +76,7 @@ class MonitoringResultDetailTable(MonitoringResultTable):
         model = MonitoringResult
         fields = ('error_msg',)
         sequence = ("...", "error_msg")
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'monitoring-result-detail-table'
         orderable = False
 
@@ -94,7 +94,7 @@ class HealthStateTable(tables.Table):
         model = HealthState
         fields = ('id', 'resource', 'health_state_code', 'monitoring_run')
         sequence = ('resource', 'health_state_code', 'monitoring_run', '...')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'health-state-table'
 
     @staticmethod
@@ -133,6 +133,6 @@ class HealthStateDetailTable(HealthStateTable):
                   'average_response_time_1m',
                   'average_response_time_3m')
         sequence = ('health_state_code', '...')
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'health-state-detail-table'
         orderable = False

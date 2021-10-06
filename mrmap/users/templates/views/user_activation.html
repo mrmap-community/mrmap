@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 {% load i18n static %}
-{% load fontawesome_5 %}
 
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <title>MrMap - Registration</title>
 
-    {% fontawesome_5_static %}
     <link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link rel="icon" href="{% static 'images/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" type="text/css" href="{% static '/css/bootstrap.min.css' %}" media="all"/>
@@ -21,17 +19,18 @@
 </head>
 
 <header>
-    {% include 'includes/navbar-sign-out.html' %}
-    {% include 'includes/messages.html' %}
+    {% include 'includes/nav-signed-out.html' %}
 </header>
 
 
 <body class="bg-light bg-img">
+    {% include 'MrMap/includes/messages.html' %}
+
     <div class="container">
     {% include 'includes/user_activation.html' %}
     </div>
 
-{% include 'includes/footer.html' %}
+{% include 'MrMap/includes/footer.html' %}
 
 </body>
 </html>

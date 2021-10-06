@@ -79,6 +79,8 @@ services:
       env_file:
         - ./.env.mrmap
         - ./.env.mrmap.dev
+      command:
+        /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
 
   celery-default-worker:
       build:
@@ -95,3 +97,9 @@ services:
       env_file:
         - ./.env.mrmap
         - ./.env.mrmap.dev
+
+  nginx:
+    volumes:
+      - type: bind
+        source: ./docker/nginx/mrmap.dev.conf
+        target: /etc/nginx/conf.d/default.conf

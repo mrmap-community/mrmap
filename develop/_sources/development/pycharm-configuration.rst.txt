@@ -13,7 +13,7 @@ Pycharm configuration
 
 * Open Pycharm and point it to the root directory of mrmap, eg. `/opt/mrmap/`
 * Goto File->Settings->Plugins and search for docker to install it.
-* Goto File->Settings->Build,Execution,Development->Docker
+* Goto File->Settings->Build,Execution,Deployment->Docker
 * Click on the plus sign to add a docker configuation.
 * Use the default settings and click on apply, it should say "Connection successful".
 
@@ -26,8 +26,8 @@ Pycharm configuration
 
 Next we have to mark the mrmap folder as source folder.
 
-* Right click on the mrmap folder in the pycharm directory tree, eg. /opt/mrmap/mrap
-  and select "Mark Directory as -> Source Folder"
+* Right click on the mrmap folder in the pycharm directory tree, eg. /opt/mrmap/mrmap
+  and select "Mark Directory as -> Sources Root"
 
 3. Add remote interpreter
 *************************

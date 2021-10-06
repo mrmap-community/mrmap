@@ -21,7 +21,10 @@ from kombu import Queue, Exchange
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MEDIA_ROOT = "/var/mrmap/media"
+MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/media")
+# create media dir if it does not exist
+if not os.path.exists(MEDIA_ROOT):
+    os.makedirs(MEDIA_ROOT)
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 

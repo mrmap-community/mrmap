@@ -1,7 +1,6 @@
 from django import forms
 from django.forms import ModelForm, HiddenInput
 from django.utils.translation import gettext_lazy as _
-
 from registry.models.mapcontext import MapContext, MapContextLayer
 
 
@@ -20,5 +19,15 @@ class MapContextLayerForm(ModelForm):
         model = MapContextLayer
         widgets = {
             'parent': HiddenInput()
+            # TODO: add autocomplete Widget to dataset_metadata
         }
-        fields = ['id', 'parent', 'parent_form_idx', 'name', 'title']
+        fields = [
+            'id',
+            'parent',
+            'parent_form_idx',
+            'name',
+            'title',
+            'dataset_metadata',
+            'layer',
+            'preview_image'
+        ]

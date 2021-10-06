@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-06 13:25+0200\n"
+"POT-Creation-Date: 2021-10-06 13:55+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -793,7 +793,7 @@ msgstr "Bearbeiten"
 msgid "Successfully updated %(obj)s"
 msgstr "Erfolgreich ausgeloggt"
 
-#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:42
+#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:48
 #: registry/models/metadata.py:45 registry/models/metadata.py:743
 #, fuzzy
 #| msgid "Username"
@@ -926,11 +926,11 @@ msgstr ""
 "Suche nach Merkmalstypen mit einer Zeit Ebene zwischen dem ausgewählten "
 "Bereich."
 
-#: registry/forms/mapcontext.py:9
+#: registry/forms/mapcontext.py:8
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:15
+#: registry/forms/mapcontext.py:8 registry/models/mapcontext.py:21
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
@@ -1124,29 +1124,41 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/mapcontext.py:11 registry/models/mapcontext.py:47
+#: registry/models/mapcontext.py:17 registry/models/mapcontext.py:53
 #: registry/models/metadata.py:50 registry/models/metadata.py:325
 #, fuzzy
 #| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
-#: registry/models/mapcontext.py:12
+#: registry/models/mapcontext.py:18
 msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
-#: registry/models/mapcontext.py:14 registry/models/metadata.py:328
+#: registry/models/mapcontext.py:20 registry/models/metadata.py:328
 #, fuzzy
 #| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: registry/models/mapcontext.py:43
+#: registry/models/mapcontext.py:49
 msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
-#: registry/models/mapcontext.py:48
+#: registry/models/mapcontext.py:54
 msgid "a short descriptive title for this map context layer"
+msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
+
+#: registry/models/mapcontext.py:66
+#, fuzzy
+#| msgid "Preview"
+msgid "preview image"
+msgstr "Vorschau"
+
+#: registry/models/mapcontext.py:67
+#, fuzzy
+#| msgid "a short descriptive title for this map context layer"
+msgid "A preview image for the Map Context Layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
 #: registry/models/metadata.py:28
@@ -4110,9 +4122,6 @@ msgstr "Neues Abonnement"
 
 #~ msgid "Overview of the layer for "
 #~ msgstr "Überblick Layer für "
-
-#~ msgid "Preview"
-#~ msgstr "Vorschau"
 
 #~ msgid "Child Layers"
 #~ msgstr "Unterebenen"

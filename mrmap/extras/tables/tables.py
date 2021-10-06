@@ -24,4 +24,4 @@ class SecuredTable(tables.Table):
     def __init__(self, *args, **kwargs):
         self.perm_checker = None
         super().__init__(*args, **kwargs)
-        self.template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        self.template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"

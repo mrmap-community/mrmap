@@ -17,7 +17,7 @@ class AccessControlListTable(tables.Table):
     class Meta:
         model = AccessControlList
         fields = ('name', 'description', 'permissions', 'user_set', 'owned_by_org')
-        template_name = "skeletons/django_tables2_bootstrap4_custom.html"
+        template_name = "MrMap/skeletons/django_tables2_bootstrap4_custom.html"
         prefix = 'acls-table'
 
     def render_permissions(self, value):
@@ -25,7 +25,7 @@ class AccessControlListTable(tables.Table):
         for perm in value.all():
             context = Context()
             context.update({'value': perm.name,
-                            'color': 'badge-info'})
+                            'color': 'bg-info'})
             str += Template(template_string=VALUE_BADGE).render(context=context)
         return format_html(str)
 
@@ -52,6 +52,6 @@ class AccessControlListDetailTable(tables.Table):
                   'accessible_accesscontrollist__all',
                   'accessible_organizations__all',
                   'default_acl')
-        template_name = "skeletons/django_tables2_vertical_table.html"
+        template_name = "MrMap/skeletons/django_tables2_vertical_table.html"
         prefix = 'acls-detail-table'
         orderable = False

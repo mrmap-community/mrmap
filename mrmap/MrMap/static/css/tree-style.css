@@ -5,7 +5,7 @@ CONTAINS STYLE INFORMATION WHICH OVERWRITE DEFAULT BOOTSTRAP
 Used for a more tree-like rendering of the service detail view
 */
 
-.card-body{
+.accordion-body{
     padding-right: 0;
     padding-bottom: 0;
 }

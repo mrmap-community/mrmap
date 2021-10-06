@@ -10,7 +10,7 @@ class GenericButtonsColumn(tables.TemplateColumn):
     """
     Render accept and deny buttons for PublishRequest.
     """
-    attrs = {'td': {'class': 'text-right text-nowrap noprint'}}
+    attrs = {'td': {'class': 'text-end text-nowrap noprint'}}
     template_code = None
     model = None
     pk_field = 'pk'

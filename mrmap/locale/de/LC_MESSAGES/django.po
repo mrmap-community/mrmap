@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-01 19:35+0200\n"
+"POT-Creation-Date: 2021-10-06 13:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -568,11 +568,11 @@ msgstr "Organisation {} gelöscht."
 msgid "<strong>%(name)s</strong> successfully created."
 msgstr "Organisation {} gelöscht."
 
-#: MrMap/settings.py:183
+#: MrMap/settings.py:182
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:184
+#: MrMap/settings.py:183
 msgid "German"
 msgstr "Deutsch"
 
@@ -684,8 +684,10 @@ msgstr ""
 "Dienst Administratoren können alle aktionen für die entsprechenden Dienste "
 "einer Organisation ausführen."
 
-#: acls/tables.py:13 acls/tables.py:38 templates/base.html:33
-#: templates/base.html:45 templates/base.html:46 users/models/users.py:35
+#: acls/tables.py:13 acls/tables.py:38
+#: templates/MrMap/includes/nav-signed-in.html:17
+#: templates/MrMap/includes/nav-signed-in.html:28
+#: templates/MrMap/includes/nav-signed-in.html:29 users/models/users.py:35
 msgid "Users"
 msgstr "Nutzer"
 
@@ -1725,7 +1727,7 @@ msgid "Feature Type"
 msgstr "Featuretype:"
 
 #: registry/models/monitoring.py:143 registry/models/monitoring.py:191
-#: templates/base.html:86
+#: templates/MrMap/includes/nav-signed-in.html:68
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
@@ -1747,8 +1749,9 @@ msgstr "Letzte Checks"
 msgid "Health state code"
 msgstr "Gesundheitszustand"
 
-#: registry/models/monitoring.py:213 templates/base.html:153
-#: templates/base.html:154
+#: registry/models/monitoring.py:213
+#: templates/MrMap/includes/nav-signed-in.html:130
+#: templates/MrMap/includes/nav-signed-in.html:131
 #, fuzzy
 #| msgid "Health state"
 msgid "Health states"
@@ -2314,62 +2317,55 @@ msgid "Something went wrong while monitoring {resource}"
 msgstr "Etwas ging schief beim überprüfen von {metadata}"
 
 #: registry/templates/registry/mapcontext/mapcontext_form.html:32
-#: templates/generic_views/generic_form.html:25
-#: templates/generic_views/generic_wizard_form.html:104
-#: templates/sceletons/modal-wizard-form.html:98
-#: templates/skeletons/modal_form.html:31
+#: templates/MrMap/generic_views/generic_form.html:25
+#: templates/MrMap/generic_views/generic_wizard_form.html:104
 msgid "Save"
 msgstr "Speichern"
 
 #: registry/templates/registry/mapcontext/mapcontext_form.html:34
-#: templates/generic_views/generic_confirm_form.html:16
-#: templates/generic_views/generic_confirm_form.html:20
-#: templates/generic_views/generic_delete.html:15
-#: templates/generic_views/generic_form.html:26
-#: templates/generic_views/generic_update.html:19
-#: templates/generic_views/generic_update.html:23
-#: templates/generic_views/generic_wizard_form.html:27
-#: templates/generic_views/generic_wizard_form.html:90
-#: templates/generic_views/generic_wizard_form.html:97
-#: templates/generic_views/generic_wizard_form.html:105
-#: templates/generic_views/generic_wizard_form.html:112
-#: templates/generic_views/generic_wizard_form.html:120
-#: templates/includes/loading_spinner.html:5
+#: templates/MrMap/generic_views/generic_delete.html:15
+#: templates/MrMap/generic_views/generic_form.html:26
+#: templates/MrMap/generic_views/generic_wizard_form.html:27
+#: templates/MrMap/generic_views/generic_wizard_form.html:90
+#: templates/MrMap/generic_views/generic_wizard_form.html:97
+#: templates/MrMap/generic_views/generic_wizard_form.html:105
+#: templates/MrMap/generic_views/generic_wizard_form.html:112
+#: templates/MrMap/generic_views/generic_wizard_form.html:120
 msgid "Loading..."
 msgstr "Laden..."
 
 #: registry/templates/registry/service/base.html:22
-#: registry/templates/registry/service/views/wms_tree.html:26
+#: registry/templates/registry/service/views/wms_tree.html:27
 msgid "Capabilities"
 msgstr "Capabilities"
 
 #: registry/templates/registry/service/base.html:28
-#: registry/templates/registry/service/views/wms_tree.html:32
+#: registry/templates/registry/service/views/wms_tree.html:33
 #, fuzzy
 #| msgid "Metadata restored to original"
 msgid "See current or original:"
 msgstr "Metadaten auf Originalzustand wiederhergestellt"
 
 #: registry/templates/registry/service/base.html:29
-#: registry/templates/registry/service/views/wms_tree.html:33
+#: registry/templates/registry/service/views/wms_tree.html:34
 msgid "Original"
 msgstr "Original"
 
 #: registry/templates/registry/service/base.html:30
-#: registry/templates/registry/service/views/wms_tree.html:34
+#: registry/templates/registry/service/views/wms_tree.html:35
 msgid "Current"
 msgstr "Aktuell"
 
 #: registry/templates/registry/service/base.html:34
 #: registry/templates/registry/service/views/wfs_tree.html:22
-#: registry/templates/registry/service/views/wms_tree.html:38
-#: templates/base.html:81
+#: registry/templates/registry/service/views/wms_tree.html:39
+#: templates/MrMap/includes/nav-signed-in.html:63
 msgid "Metadata"
 msgstr "Metadaten"
 
 #: registry/templates/registry/service/base.html:39
 #: registry/templates/registry/service/views/wfs_tree.html:27
-#: registry/templates/registry/service/views/wms_tree.html:43
+#: registry/templates/registry/service/views/wms_tree.html:44
 #, fuzzy
 #| msgid "Your metadata datasets"
 msgid "Show metadata as:"
@@ -2377,19 +2373,19 @@ msgstr "Ihre Metadaten Datensätze"
 
 #: registry/templates/registry/service/base.html:40
 #: registry/templates/registry/service/views/wfs_tree.html:28
-#: registry/templates/registry/service/views/wms_tree.html:44
+#: registry/templates/registry/service/views/wms_tree.html:45
 msgid "XML"
 msgstr "XML"
 
 #: registry/templates/registry/service/base.html:41
 #: registry/templates/registry/service/views/wfs_tree.html:29
-#: registry/templates/registry/service/views/wms_tree.html:45
+#: registry/templates/registry/service/views/wms_tree.html:46
 msgid "HTML"
 msgstr "HTML"
 
 #: registry/templates/registry/service/base.html:51
 #: registry/templates/registry/service/views/wfs_tree.html:44
-#: registry/templates/registry/service/views/wms_tree.html:60
+#: registry/templates/registry/service/views/wms_tree.html:61
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "Deactivate the resource"
@@ -2397,7 +2393,7 @@ msgstr "Gesundheitszustand der Ressource"
 
 #: registry/templates/registry/service/base.html:51
 #: registry/templates/registry/service/views/wfs_tree.html:44
-#: registry/templates/registry/service/views/wms_tree.html:60
+#: registry/templates/registry/service/views/wms_tree.html:61
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "Activate the resource"
@@ -2429,7 +2425,7 @@ msgid "Elements"
 msgstr "Zeige Elemente"
 
 #: registry/templates/registry/service/views/wfs_tree.html:34
-#: registry/templates/registry/service/views/wms_tree.html:50
+#: registry/templates/registry/service/views/wms_tree.html:51
 #: users/templates/cards/my_services/datasets.html:9
 msgid "Datasets"
 msgstr "Datensätze"
@@ -2522,368 +2518,349 @@ msgstr "Erstellt am"
 msgid "on"
 msgstr "Nichts"
 
-#: templates/base.html:16 templates/includes/navbar-sign-out.html:6
-#: users/templates/includes/user_activation.html:5
-msgid "Mr. Map logo"
-msgstr "Mr. Map Logo"
-
-#: templates/base.html:27 templates/base.html:28
-msgid "Dashboard"
-msgstr "Dashboard"
-
-#: templates/base.html:36 templates/base.html:37 users/models/groups.py:78
-#: users/templates/cards/groups_and_organizations.html:6
-#: users/templates/cards/groups_and_organizations/organizations.html:9
-msgid "Organizations"
-msgstr "Organisationen"
-
-#: templates/base.html:39 users/templates/cards/pending_requests.html:8
-msgid "Pending requests"
-msgstr "Ausstehende Anfragen"
-
-#: templates/base.html:41
-#, fuzzy
-#| msgid "Publisher Requests"
-msgid "Publish requests"
-msgstr "Veröffentlichungsanfragen"
-
-#: templates/base.html:42
-#, fuzzy
-#| msgid "Publisher Requests"
-msgid "New Publish request"
-msgstr "Veröffentlichungsanfragen"
-
-#: templates/base.html:51
-msgid "Registry"
-msgstr "Registrierung"
-
-#: templates/base.html:54
-#, fuzzy
-#| msgid "Your registered Web Map Services"
-msgid "Web Map Service"
-msgstr "Ihre registrierten Web Map Services"
-
-#: templates/base.html:56 users/templates/cards/my_services/wms.html:9
-msgid "WMS"
-msgstr "WMS"
-
-#: templates/base.html:58 templates/base.html:67 templates/base.html:77
-#, fuzzy
-#| msgid "Registered for"
-msgid "Register new service"
-msgstr "Registriert für"
-
-#: templates/base.html:61
-msgid "Layers"
-msgstr "Ebenen"
-
-#: templates/base.html:63
-#, fuzzy
-#| msgid "Your registered Web Feature Services"
-msgid "Web Feature Service"
-msgstr "Ihre registrierten Web Feature Services"
-
-#: templates/base.html:65 users/templates/cards/my_services/wfs.html:9
-msgid "WFS"
-msgstr "WFS"
-
-#: templates/base.html:70
-#, fuzzy
-#| msgid "Featuretypes"
-msgid "Feature types"
-msgstr "Featuretypen"
-
-#: templates/base.html:71
-#, fuzzy
-#| msgid "Featuretype tile contains"
-msgid "Feature type elements"
-msgstr "Featuretype Titel enthält"
-
-#: templates/base.html:73
-#, fuzzy
-#| msgid "Parent Service"
-msgid "Catalogue Service"
-msgstr "Zugehöriger Dienst"
-
-#: templates/base.html:75
-msgid "CSW"
-msgstr "CSW"
-
-#: templates/base.html:82
-msgid "Service Metadata"
-msgstr "Service Metadaten"
-
-#: templates/base.html:83
-#, fuzzy
-#| msgid "Metadata"
-msgid "Layer Metadata"
-msgstr "Metadaten"
-
-#: templates/base.html:84
-#, fuzzy
-#| msgid "Service Metadata"
-msgid "Feature Type Metadata"
-msgstr "Service Metadaten"
-
-#: templates/base.html:89
-#, fuzzy
-#| msgid "Coupled dataset metadata"
-msgid "Create new dataset metadata"
-msgstr "Zugehörige Datensatz Metadaten"
-
-#: templates/base.html:93 templates/base.html:95
-#: users/templates/cards/my_services/map_contexts.html:9
-msgid "Map Contexts"
-msgstr "MapContexts"
-
-#: templates/base.html:96
-#, fuzzy
-#| msgid "Coupled dataset metadata"
-msgid "Create new map context"
-msgstr "Zugehörige Datensatz Metadaten"
-
-#: templates/base.html:102
-msgid "Security"
-msgstr "Absicherung"
-
-#: templates/base.html:105
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "Service authentication"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: templates/base.html:107
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "External authentications"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: templates/base.html:109
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "New external authentication"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: templates/base.html:113
-msgid "Security Proxy"
-msgstr "Sicherheitsproxy"
-
-#: templates/base.html:115
-#, fuzzy
-#| msgid "General settings"
-msgid "Service proxy settings"
-msgstr "Allgemeine Einstellungen"
-
-#: templates/base.html:117
-#, fuzzy
-#| msgid "General settings"
-msgid "New proxy setting"
-msgstr "Allgemeine Einstellungen"
-
-#: templates/base.html:121
-msgid "Service Access Groups"
-msgstr "Dienstzugriffsgruppen"
-
-#: templates/base.html:123
-#, fuzzy
-#| msgid "Restrict access"
-msgid "New service access group"
-msgstr "Zugriff beschränken"
-
-#: templates/base.html:127
-#, fuzzy
-#| msgid "Allowed area"
-msgid "Allowed Operations"
-msgstr "Erlaubte Bereiche"
-
-#: templates/base.html:129
-#, fuzzy
-#| msgid "Allowed area"
-msgid "New allowed operation"
-msgstr "Erlaubte Bereiche"
-
-#: templates/base.html:133
-#, fuzzy
-#| msgid "Service type version"
-msgid "Service request logging"
-msgstr "Diensttypversion"
-
-#: templates/base.html:134
-msgid "Logs"
-msgstr "Protokolle"
-
-#: templates/base.html:139
-#, fuzzy
-#| msgid "Last monitoring runs"
-msgid "Monitoring"
-msgstr "Letzte Checks"
-
-#: templates/base.html:142 templates/base.html:144
-msgid "Runs"
-msgstr "Läufe"
-
-#: templates/base.html:146
-#, fuzzy
-#| msgid "New group"
-msgid "New run"
-msgstr "Neue Gruppe"
-
-#: templates/base.html:150 templates/base.html:151
-msgid "Results"
-msgstr "Ergebnisse"
-
-#: templates/base.html:159 templates/base.html:162 templates/base.html:163
-msgid "Jobs"
-msgstr "Aufträge"
-
-#: templates/base.html:165 templates/base.html:166
-msgid "Tasks"
-msgstr "Aufgaben"
-
-#: templates/base.html:171 templates/base.html:175
-msgid "Acl\\"
-msgstr "Acl\\"
-
-#: templates/base.html:174
-msgid "Acls"
-msgstr "Acls"
-
-#: templates/base.html:181
-#, fuzzy
-#| msgid "Pending tasks"
-msgid "There are open jobs"
-msgstr "Laufende Prozesse"
-
-#: templates/base.html:185
-msgid "Account"
-msgstr "Account"
-
-#: templates/base.html:188
-msgid "Logout"
-msgstr "Ausloggen"
-
-#: templates/base.html:234 templates/includes/footer.html:14
-msgid "Change language"
-msgstr "Sprache wechseln"
-
-#: templates/base.html:266 templates/includes/footer.html:46
-msgid "Docs"
-msgstr "Doku"
-
-#: templates/base.html:267 templates/includes/footer.html:47
-msgid "Code"
-msgstr "Code"
-
-#: templates/generic_views/generic_confirm_form.html:15
-#: templates/generic_views/generic_wizard_form.html:77
-#: templates/sceletons/modal-wizard-form.html:67
-#: templates/sceletons/modal-wizard-form.html:71
-#: templates/skeletons/modal_form.html:28
-msgid "Dismiss"
-msgstr "Abbrechen"
-
-#: templates/generic_views/generic_delete.html:10
+#: templates/MrMap/generic_views/generic_delete.html:10
 #, fuzzy
 #| msgid "Do you really want to delete this dataset?"
 msgid "Are you sure you want to delete"
 msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
 
-#: templates/generic_views/generic_delete.html:14
+#: templates/MrMap/generic_views/generic_delete.html:14
 msgid "Delete"
 msgstr "Löschen"
 
-#: templates/generic_views/generic_filter.html:6
+#: templates/MrMap/generic_views/generic_filter.html:6
 msgid "Search"
 msgstr "Suchen"
 
-#: templates/generic_views/generic_filter.html:15
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:36
+#: templates/MrMap/generic_views/generic_filter.html:15
 msgid "Filter the table"
 msgstr "Tabelle filtern"
 
-#: templates/generic_views/generic_filter.html:19
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:41
+#: templates/MrMap/generic_views/generic_filter.html:19
 msgid "Dismiss all filters"
 msgstr "Filter verwerfen"
 
-#: templates/generic_views/generic_update.html:18
-#, fuzzy
-#| msgid "close"
-msgid "Close"
-msgstr "Schließen"
-
-#: templates/generic_views/generic_update.html:22
-#, fuzzy
-#| msgid "Scale range"
-msgid "Save changes"
-msgstr "Zoomstufen"
-
-#: templates/generic_views/generic_wizard_form.html:24
-#: templates/sceletons/modal-wizard-form.html:37
+#: templates/MrMap/generic_views/generic_wizard_form.html:24
 msgid "Go to step "
 msgstr "Gehe zu Schritt "
 
-#: templates/generic_views/generic_wizard_form.html:45
+#: templates/MrMap/generic_views/generic_wizard_form.html:45
 #, fuzzy
 #| msgid "Delete"
 msgid "Delete this "
 msgstr "Löschen"
 
-#: templates/generic_views/generic_wizard_form.html:62
+#: templates/MrMap/generic_views/generic_wizard_form.html:62
 #, fuzzy
 #| msgid "Add new group"
 msgid "Add new "
 msgstr "Neue Gruppe hinzufügen"
 
-#: templates/generic_views/generic_wizard_form.html:81
-#: templates/sceletons/modal-wizard-form.html:77
+#: templates/MrMap/generic_views/generic_wizard_form.html:77
+msgid "Dismiss"
+msgstr "Abbrechen"
+
+#: templates/MrMap/generic_views/generic_wizard_form.html:81
 msgid "Step"
 msgstr "Schritt"
 
-#: templates/generic_views/generic_wizard_form.html:87
-#: templates/sceletons/modal-wizard-form.html:83
+#: templates/MrMap/generic_views/generic_wizard_form.html:87
 msgid "Go to the first step"
 msgstr "Gehe zum ersten Schritt"
 
-#: templates/generic_views/generic_wizard_form.html:94
-#: templates/sceletons/modal-wizard-form.html:89
+#: templates/MrMap/generic_views/generic_wizard_form.html:94
 msgid "Go one step backward"
 msgstr "Gehe einen Schritt zurück"
 
-#: templates/generic_views/generic_wizard_form.html:109
-#: templates/sceletons/modal-wizard-form.html:102
+#: templates/MrMap/generic_views/generic_wizard_form.html:109
 msgid "Go to the next step"
 msgstr "Gehe zum nächsten Schritt"
 
-#: templates/generic_views/generic_wizard_form.html:117
-#: templates/sceletons/modal-wizard-form.html:109
+#: templates/MrMap/generic_views/generic_wizard_form.html:117
 msgid "Go to the last step"
 msgstr "Gehe zum letzten Schritt"
 
-#: templates/includes/navbar-sign-out.html:17
+#: templates/MrMap/includes/footer.html:10
+msgid "Change language"
+msgstr "Sprache wechseln"
+
+#: templates/MrMap/includes/footer.html:41
+msgid "Docs"
+msgstr "Doku"
+
+#: templates/MrMap/includes/footer.html:44
+msgid "Code"
+msgstr "Code"
+
+#: templates/MrMap/includes/nav-signed-in.html:5
+#: templates/MrMap/includes/nav-signed-out.html:6
+#: users/templates/includes/user_activation.html:5
+msgid "Mr. Map logo"
+msgstr "Mr. Map Logo"
+
+#: templates/MrMap/includes/nav-signed-in.html:14
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: templates/MrMap/includes/nav-signed-in.html:19
+#: templates/MrMap/includes/nav-signed-in.html:20 users/models/groups.py:78
+#: users/templates/cards/groups_and_organizations.html:6
+#: users/templates/cards/groups_and_organizations/organizations.html:9
+msgid "Organizations"
+msgstr "Organisationen"
+
+#: templates/MrMap/includes/nav-signed-in.html:22
+#: users/templates/cards/pending_requests.html:8
+msgid "Pending requests"
+msgstr "Ausstehende Anfragen"
+
+#: templates/MrMap/includes/nav-signed-in.html:24
+#, fuzzy
+#| msgid "Publisher Requests"
+msgid "Publish requests"
+msgstr "Veröffentlichungsanfragen"
+
+#: templates/MrMap/includes/nav-signed-in.html:25
+#, fuzzy
+#| msgid "Publisher Requests"
+msgid "New Publish request"
+msgstr "Veröffentlichungsanfragen"
+
+#: templates/MrMap/includes/nav-signed-in.html:34
+msgid "Registry"
+msgstr "Registrierung"
+
+#: templates/MrMap/includes/nav-signed-in.html:36
+#, fuzzy
+#| msgid "Your registered Web Map Services"
+msgid "Web Map Service"
+msgstr "Ihre registrierten Web Map Services"
+
+#: templates/MrMap/includes/nav-signed-in.html:38
+#: users/templates/cards/my_services/wms.html:9
+msgid "WMS"
+msgstr "WMS"
+
+#: templates/MrMap/includes/nav-signed-in.html:40
+#: templates/MrMap/includes/nav-signed-in.html:49
+#: templates/MrMap/includes/nav-signed-in.html:59
+#, fuzzy
+#| msgid "Registered for"
+msgid "Register new service"
+msgstr "Registriert für"
+
+#: templates/MrMap/includes/nav-signed-in.html:43
+msgid "Layers"
+msgstr "Ebenen"
+
+#: templates/MrMap/includes/nav-signed-in.html:45
+#, fuzzy
+#| msgid "Your registered Web Feature Services"
+msgid "Web Feature Service"
+msgstr "Ihre registrierten Web Feature Services"
+
+#: templates/MrMap/includes/nav-signed-in.html:47
+#: users/templates/cards/my_services/wfs.html:9
+msgid "WFS"
+msgstr "WFS"
+
+#: templates/MrMap/includes/nav-signed-in.html:52
+#, fuzzy
+#| msgid "Featuretypes"
+msgid "Feature types"
+msgstr "Featuretypen"
+
+#: templates/MrMap/includes/nav-signed-in.html:53
+#, fuzzy
+#| msgid "Featuretype tile contains"
+msgid "Feature type elements"
+msgstr "Featuretype Titel enthält"
+
+#: templates/MrMap/includes/nav-signed-in.html:55
+#, fuzzy
+#| msgid "Parent Service"
+msgid "Catalogue Service"
+msgstr "Zugehöriger Dienst"
+
+#: templates/MrMap/includes/nav-signed-in.html:57
+msgid "CSW"
+msgstr "CSW"
+
+#: templates/MrMap/includes/nav-signed-in.html:64
+msgid "Service Metadata"
+msgstr "Service Metadaten"
+
+#: templates/MrMap/includes/nav-signed-in.html:65
+#, fuzzy
+#| msgid "Metadata"
+msgid "Layer Metadata"
+msgstr "Metadaten"
+
+#: templates/MrMap/includes/nav-signed-in.html:66
+#, fuzzy
+#| msgid "Service Metadata"
+msgid "Feature Type Metadata"
+msgstr "Service Metadaten"
+
+#: templates/MrMap/includes/nav-signed-in.html:70
+#, fuzzy
+#| msgid "Coupled dataset metadata"
+msgid "Create new dataset metadata"
+msgstr "Zugehörige Datensatz Metadaten"
+
+#: templates/MrMap/includes/nav-signed-in.html:74
+#: templates/MrMap/includes/nav-signed-in.html:76
+#: users/templates/cards/my_services/map_contexts.html:9
+msgid "Map Contexts"
+msgstr "MapContexts"
+
+#: templates/MrMap/includes/nav-signed-in.html:77
+#, fuzzy
+#| msgid "Coupled dataset metadata"
+msgid "Create new map context"
+msgstr "Zugehörige Datensatz Metadaten"
+
+#: templates/MrMap/includes/nav-signed-in.html:82
+msgid "Security"
+msgstr "Absicherung"
+
+#: templates/MrMap/includes/nav-signed-in.html:84
+#, fuzzy
+#| msgid "Service needs authentication"
+msgid "Service authentication"
+msgstr "Dienst benötigt Authentifizierung"
+
+#: templates/MrMap/includes/nav-signed-in.html:86
+#, fuzzy
+#| msgid "Service needs authentication"
+msgid "External authentications"
+msgstr "Dienst benötigt Authentifizierung"
+
+#: templates/MrMap/includes/nav-signed-in.html:88
+#, fuzzy
+#| msgid "Service needs authentication"
+msgid "New external authentication"
+msgstr "Dienst benötigt Authentifizierung"
+
+#: templates/MrMap/includes/nav-signed-in.html:92
+msgid "Security Proxy"
+msgstr "Sicherheitsproxy"
+
+#: templates/MrMap/includes/nav-signed-in.html:94
+#, fuzzy
+#| msgid "General settings"
+msgid "Service proxy settings"
+msgstr "Allgemeine Einstellungen"
+
+#: templates/MrMap/includes/nav-signed-in.html:96
+#, fuzzy
+#| msgid "General settings"
+msgid "New proxy setting"
+msgstr "Allgemeine Einstellungen"
+
+#: templates/MrMap/includes/nav-signed-in.html:100
+msgid "Service Access Groups"
+msgstr "Dienstzugriffsgruppen"
+
+#: templates/MrMap/includes/nav-signed-in.html:102
+#, fuzzy
+#| msgid "Restrict access"
+msgid "New service access group"
+msgstr "Zugriff beschränken"
+
+#: templates/MrMap/includes/nav-signed-in.html:106
+#, fuzzy
+#| msgid "Allowed area"
+msgid "Allowed Operations"
+msgstr "Erlaubte Bereiche"
+
+#: templates/MrMap/includes/nav-signed-in.html:108
+#, fuzzy
+#| msgid "Allowed area"
+msgid "New allowed operation"
+msgstr "Erlaubte Bereiche"
+
+#: templates/MrMap/includes/nav-signed-in.html:112
+#, fuzzy
+#| msgid "Service type version"
+msgid "Service request logging"
+msgstr "Diensttypversion"
+
+#: templates/MrMap/includes/nav-signed-in.html:113
+msgid "Logs"
+msgstr "Protokolle"
+
+#: templates/MrMap/includes/nav-signed-in.html:117
+#, fuzzy
+#| msgid "Last monitoring runs"
+msgid "Monitoring"
+msgstr "Letzte Checks"
+
+#: templates/MrMap/includes/nav-signed-in.html:119
+#: templates/MrMap/includes/nav-signed-in.html:121
+msgid "Runs"
+msgstr "Läufe"
+
+#: templates/MrMap/includes/nav-signed-in.html:123
+#, fuzzy
+#| msgid "New group"
+msgid "New run"
+msgstr "Neue Gruppe"
+
+#: templates/MrMap/includes/nav-signed-in.html:127
+#: templates/MrMap/includes/nav-signed-in.html:128
+msgid "Results"
+msgstr "Ergebnisse"
+
+#: templates/MrMap/includes/nav-signed-in.html:135
+#: templates/MrMap/includes/nav-signed-in.html:137
+#: templates/MrMap/includes/nav-signed-in.html:138
+msgid "Jobs"
+msgstr "Aufträge"
+
+#: templates/MrMap/includes/nav-signed-in.html:140
+#: templates/MrMap/includes/nav-signed-in.html:141
+msgid "Tasks"
+msgstr "Aufgaben"
+
+#: templates/MrMap/includes/nav-signed-in.html:145
+#: templates/MrMap/includes/nav-signed-in.html:148
+msgid "Acl\\"
+msgstr "Acl\\"
+
+#: templates/MrMap/includes/nav-signed-in.html:147
+msgid "Acls"
+msgstr "Acls"
+
+#: templates/MrMap/includes/nav-signed-in.html:154
+#, fuzzy
+#| msgid "Pending tasks"
+msgid "There are open jobs"
+msgstr "Laufende Prozesse"
+
+#: templates/MrMap/includes/nav-signed-in.html:156
+msgid "Account"
+msgstr "Account"
+
+#: templates/MrMap/includes/nav-signed-in.html:157
+msgid "Logout"
+msgstr "Ausloggen"
+
+#: templates/MrMap/includes/nav-signed-out.html:17
 msgid "Login"
 msgstr "Anmelden"
 
-#: templates/includes/navbar-sign-out.html:22
-#: users/templates/users/views/logged_out/login.html:33
+#: templates/MrMap/includes/nav-signed-out.html:22
+#: users/templates/users/views/logged_out/login.html:36
 #: users/templates/users/views/logged_out/sign_up.html:28
 msgid "Sign up"
 msgstr "Registrieren"
 
-#: templates/includes/navbar-sign-out.html:27
+#: templates/MrMap/includes/nav-signed-out.html:27
 msgid "Reset password"
 msgstr "Passwort zurücksetzen"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:13
-msgid "Click to open filter options"
-msgstr "Klicken für Filteroptionen"
-
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:15
-msgid "Filter table"
-msgstr "Tabelle filtern"
-
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:61
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:10
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:10
 #: users/templates/cards/groups_and_organizations/organizations.html:21
 #: users/templates/cards/my_services/datasets.html:22
 #: users/templates/cards/my_services/map_contexts.html:21
@@ -2892,58 +2869,45 @@ msgstr "Tabelle filtern"
 msgid "Show"
 msgstr "Anzeigen"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:64
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:13
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:12
 msgid "Switch the items per page"
 msgstr "Treffer pro Seite ändern"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:69
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:18
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:14
 msgid "entries"
 msgstr "Einträge"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:113
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:137
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:55
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:79
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:51
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:75
 msgid "Sort the table descending by column "
 msgstr "Tabelle absteigend sortieren nach Spalte "
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:121
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:133
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:63
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:75
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:59
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:71
 msgid "Reset current sorting to the default way"
 msgstr "Setze Sortierung zurück"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:125
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:67
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:63
 msgid "Sort the table ascending by column "
 msgstr "Tabelle aufsteigend sortieren nach Spalte "
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:203
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:145
-msgid "previous"
-msgstr "Zurück"
-
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:223
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:165
-msgid "next"
-msgstr "Nächste"
-
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:135
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:131
 #, fuzzy
 #| msgid "Show link"
 msgid "Showing"
 msgstr "Zeige Link"
 
-#: templates/skeletons/django_tables2_bootstrap4_custom.html:135
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:131
 msgid "of"
 msgstr "von"
 
-#: templates/widgets/bootstrap_datepicker.html:6
-msgid "Choice a date with the calender"
-msgstr "Datum auswählen"
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:141
+msgid "previous"
+msgstr "Zurück"
+
+#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:161
+msgid "next"
+msgstr "Nächste"
 
 #: users/forms/groups.py:15
 #, fuzzy
@@ -3158,16 +3122,15 @@ msgstr ""
 "nicht warten wollen klicken Sie einfach auf Mr. Map!\n"
 "        "
 
-#: users/templates/users/views/logged_out/login.html:15
-#: users/templates/users/views/logged_out/login.html:25
+#: users/templates/users/views/logged_out/login.html:26
 msgid "Sign in"
 msgstr "Anmelden"
 
-#: users/templates/users/views/logged_out/login.html:32
+#: users/templates/users/views/logged_out/login.html:35
 msgid "Don`t have an account?"
 msgstr "Kein Account?"
 
-#: users/templates/users/views/logged_out/login.html:34
+#: users/templates/users/views/logged_out/login.html:37
 msgid "Forgot your password?"
 msgstr "Passwort vergessen?"
 
@@ -3295,6 +3258,25 @@ msgstr "Lösche Abonnement für Dienst <strong>{subscription.metadata}</strong>"
 #| msgid "New Subscription"
 msgid "Delete subscription"
 msgstr "Neues Abonnement"
+
+#, fuzzy
+#~| msgid "close"
+#~ msgid "Close"
+#~ msgstr "Schließen"
+
+#, fuzzy
+#~| msgid "Scale range"
+#~ msgid "Save changes"
+#~ msgstr "Zoomstufen"
+
+#~ msgid "Click to open filter options"
+#~ msgstr "Klicken für Filteroptionen"
+
+#~ msgid "Filter table"
+#~ msgstr "Tabelle filtern"
+
+#~ msgid "Choice a date with the calender"
+#~ msgstr "Datum auswählen"
 
 #~ msgid "Form"
 #~ msgstr "Formular"

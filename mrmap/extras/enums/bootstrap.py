@@ -55,14 +55,14 @@ class ProgressColorEnum(Enum):
 
 
 class BadgeColorEnum(Enum):
-    PRIMARY = "badge-primary"
-    SECONDARY = "badge-secondary"
-    SUCCESS = "badge-success"
-    DANGER = "badge-danger"
-    WARNING = "badge-warning"
-    INFO = "badge-info"
-    LIGHT = "badge-light"
-    DARK = "badge-dark"
+    PRIMARY = "bg-primary"
+    SECONDARY = "bg-secondary"
+    SUCCESS = "bg-success"
+    DANGER = "bg-danger"
+    WARNING = "bg-warning"
+    INFO = "bg-info"
+    LIGHT = "bg-light"
+    DARK = "bg-dark"
 
 
 class BackgroundColorEnum(Enum):

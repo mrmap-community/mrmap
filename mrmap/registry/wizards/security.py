@@ -10,7 +10,7 @@ ALLOWED_OPERATION_WIZARD_FORMS = [("secured_service", AllowedOperationPage1Model
 
 
 class AllowedOperationWizard(SessionWizardView, ABC):
-    template_name = "generic_views/base_extended/wizard.html"
+    template_name = "MrMap/detail_views/wizard.html"
 
     def get_form_kwargs(self, step=None):
         return {"request": self.request}

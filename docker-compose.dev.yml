@@ -7,6 +7,16 @@ services:
     ports:
       - 5555:5432
 
+  inspire-validator:
+    build:
+      context: ./docker/inspire-validator
+    ports:
+      - "5556:8080"
+    networks:
+      - backend
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
   pre-commit-check:
     build:
       context: ./mrmap
@@ -28,14 +38,6 @@ services:
     depends_on:
       - postgis
       - redis
-
-  celery-default-worker:
-    command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
-
-  celery-download-worker:
-    command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 
   test:
     build:
@@ -102,6 +104,8 @@ services:
       env_file:
         - ./.env.mrmap
         - ./.env.mrmap.dev
+      command: >
+        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
 
   celery-download-worker:
       build:
@@ -110,6 +114,8 @@ services:
       env_file:
         - ./.env.mrmap
         - ./.env.mrmap.dev
+      command: >
+        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 
   nginx:
     volumes:

@@ -13,6 +13,13 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="DockerComposeSettingsRunConfigurationExtension" commandLine="up --exit-code-from appserver appserver" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <PathMappingSettings>
+      <option name="pathMappings">
+        <list>
+          <mapping local-root="." remote-root="/opt/mrmap" />
+        </list>
+      </option>
+    </PathMappingSettings>
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/mrmap/manage.py" />
     <option name="PARAMETERS" value="runserver 0.0.0.0:8001" />
     <option name="SHOW_COMMAND_LINE" value="false" />

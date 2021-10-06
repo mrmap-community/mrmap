@@ -97,30 +97,32 @@ class ServiceXmlManager(models.Manager):
             db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
             db_object.keyword_list.append(db_keyword)
 
-    def _create_service_metadata_instance(self, parsed_service, db_service):
-        service_contact = parsed_service.service_metadata.service_contact
-        service_contact_cls = service_contact.get_model_class()
-
-        db_service_contact, created = service_contact_cls.objects.get_or_create(**service_contact.get_field_dict())
-        if not self.service_metadata_cls:
-            self.service_metadata_cls = parsed_service.service_metadata.get_model_class()
-        service_metadata = self.service_metadata_cls.objects.create(described_object=db_service,
-                                                                    origin=MetadataOrigin.CAPABILITIES.value,
-                                                                    service_contact=db_service_contact,
-                                                                    metadata_contact=db_service_contact,
-                                                                    **parsed_service.service_metadata.get_field_dict())
-        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
-                                     db_object=service_metadata)
-
-        # m2m objects
-        db_service.metadata.keywords.add(*db_service.metadata.keyword_list)
 
     def _create_service_instance(self, parsed_service, *args, **kwargs):
         """ Creates the service instance and all depending/related objects """
         # create service instance first
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
-        service = super().create(service_type=service_type, *args, **kwargs, **parsed_service.get_field_dict())
+        
+        parsed_service_contact = parsed_service.service_metadata.service_contact
+        service_contact_cls = parsed_service_contact.get_model_class()
+        db_service_contact, created = service_contact_cls.objects.get_or_create(**parsed_service_contact.get_field_dict())
+
+        service = super().create(service_type=service_type, 
+                                 origin=MetadataOrigin.CAPABILITIES.value,
+                                 service_contact=db_service_contact,
+                                 metadata_contact=db_service_contact,
+                                 *args, 
+                                 **kwargs, 
+                                 **parsed_service.get_field_dict(),
+                                 **parsed_service.service_metadata.get_field_dict())
+
+        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
+                                     db_object=service)
+
+        # m2m objects
+        service.metadata.keywords.add(*service.metadata.keyword_list)
+
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
 
@@ -393,7 +395,6 @@ class ServiceXmlManager(models.Manager):
         self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
-            self._create_service_metadata_instance(parsed_service=parsed_service, db_service=db_service)
 
             if db_service.service_type.name == OGCServiceEnum.WMS.value:
                 self._create_wms(parsed_service=parsed_service, db_service=db_service)

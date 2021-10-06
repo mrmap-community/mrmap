@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from django.urls import reverse_lazy
 from django_filters.views import FilterView
 from extra_views import CreateWithInlinesView, UpdateWithInlinesView
@@ -6,7 +5,6 @@ from extra_views import CreateWithInlinesView, UpdateWithInlinesView
 from extras.views import SecuredDeleteView, SecuredListMixin
 from registry.forms.mapcontext import MapContextForm
 from registry.formsets.mapcontext import MapContextLayerInline
-from registry.models import DatasetMetadataRelation, Layer
 from registry.models.mapcontext import MapContext
 from registry.tables.mapcontext import MapContextTable
 

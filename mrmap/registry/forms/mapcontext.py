@@ -1,8 +1,6 @@
 from django import forms
 from django.forms import ModelForm, HiddenInput
 from django.utils.translation import gettext_lazy as _
-
-from registry.models import DatasetMetadataRelation, Layer
 from registry.models.mapcontext import MapContext, MapContextLayer
 
 

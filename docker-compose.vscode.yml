@@ -2,20 +2,20 @@
 version: "3.8"
 services:
 
-  gunicorn:
+  appserver:
     command: >
-      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=debug --timeout=0 MrMap.asgi:application"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
     ports:
       - "0.0.0.0:3001:5678"
   
   celery-default-worker:
     command: >
-      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m celery -A MrMap worker -E -l DEBUG -n default -Q default"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker -E -l DEBUG -n default -Q default"
     ports:
       - "0.0.0.0:3002:5678"
 
   celery-download-worker:
     command: >
-      /bin/bash -c "echo 'waiting for debugging client...' && python -u -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
     ports:
       - "0.0.0.0:3003:5678"

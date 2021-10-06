@@ -72,7 +72,7 @@ services:
       - postgis
       - redis
 
-  gunicorn:
+  appserver:
       build:
         args:
           MRMAP_PRODUCTION: "False"

@@ -16,7 +16,7 @@
             ]
         },
         {
-            "label": "Docker-Compose: mrmap debug gunicorn",
+            "label": "Docker-Compose: mrmap appserver",
             "type": "shell",
             "command": "docker-compose",
             "args": [
@@ -30,14 +30,14 @@
                 "--remove-orphans",
                 "--build",
                 "--exit-code-from",
-                "gunicorn",
+                "appserver",
                 "--abort-on-container-exit",
-                "gunicorn"
+                "appserver"
             ],
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: mrmap debug celery-default-worker",
+            "label": "Docker-Compose: mrmap celery-default-worker",
             "type": "shell",
             "command": "docker-compose",
             "args": [
@@ -57,7 +57,7 @@
             ]
         },
         {
-            "label": "Docker-Compose: mrmap debug celery-download-worker",
+            "label": "Docker-Compose: mrmap celery-download-worker",
             "type": "shell",
             "command": "docker-compose",
             "args": [
@@ -125,7 +125,7 @@
             "args": [
                 "exec",
                 "-it",
-                "mrmap_gunicorn_1",
+                "mrmap_appserver_1",
                 "/opt/mrmap/manage.py",
                 "makemigrations"
             ]
@@ -137,7 +137,7 @@
             "args": [
                 "exec",
                 "-it",
-                "mrmap_gunicorn_1",
+                "mrmap_appserver_1",
                 "/opt/mrmap/manage.py",
                 "migrate"
             ]
@@ -149,7 +149,7 @@
             "args": [
                 "exec",
                 "-it",
-                "mrmap_gunicorn_1",
+                "mrmap_appserver_1",
                 "/opt/mrmap/manage.py",
                 "setup",
                 "--reset-force"

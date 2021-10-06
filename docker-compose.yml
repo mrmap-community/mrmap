@@ -48,7 +48,7 @@ services:
   #inspire-validator:
   #  build:
   #    context: ./docker/inspire-validator
-  gunicorn:
+  appserver:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
@@ -57,7 +57,7 @@ services:
     entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
     command: 
       /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
-    hostname: "mrmap-gunicorn"
+    hostname: "mrmap-appserver"
     volumes:
       - type: bind
         source: ./mrmap

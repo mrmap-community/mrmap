@@ -11,9 +11,10 @@ COPY ./requirements.txt ./requirements.dev.txt /
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
 RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.dev.txt; fi
 
-# download front end dependencies
+# download front end dependencies (and copy them to /static)
 COPY ./package.json /
 RUN npm install --yes
+RUN npm run copy
 
 ################################
 # MrMap Image
@@ -21,10 +22,7 @@ RUN npm install --yes
 FROM python:3.9.7-slim-bullseye
 ARG MRMAP_PRODUCTION
 COPY --from=base /wheels /wheels
-COPY --from=base node_modules/jstree/dist/themes/default/ /tmp/static/css/jstree
-COPY --from=base node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css /tmp/static/css/
-COPY --from=base node_modules/bootstrap-icons/ /tmp/static/css/bootstrap-icons/
-COPY --from=base node_modules/bootstrap/dist/js/bootstrap.bundle.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js /tmp/static/js/
+COPY --from=base /static/ /tmp/static
 
 # TODO: firefox-esr gettext are only needed for dev environment
 RUN apt-get -qq update && \

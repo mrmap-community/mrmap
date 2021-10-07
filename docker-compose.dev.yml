@@ -7,11 +7,25 @@ services:
     ports:
       - 5555:5432
 
+  redis:
+    ports:
+      - 5556:6379
+
+  inspire-validator:
+    build:
+      context: ./docker/inspire-validator
+    ports:
+      - "5557:8080"
+    networks:
+      - backend
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
   pre-commit-check:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      args: 
+      args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
@@ -30,19 +44,11 @@ services:
       - postgis
       - redis
 
-  celery-default-worker:
-    command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
-
-  celery-download-worker:
-    command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
-
   test:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      args: 
+      args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
@@ -65,7 +71,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      args: 
+      args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
@@ -103,6 +109,8 @@ services:
       env_file:
         - ./.env.mrmap
         - ./.env.mrmap.dev
+      command: >
+        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
 
   celery-download-worker:
       build:
@@ -111,6 +119,8 @@ services:
       env_file:
         - ./.env.mrmap
         - ./.env.mrmap.dev
+      command: >
+        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 
   nginx:
     volumes:

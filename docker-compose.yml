@@ -45,9 +45,6 @@ services:
       - frontend
     extra_hosts:
       - host.docker.internal:host-gateway
-  #inspire-validator:
-  #  build:
-  #    context: ./docker/inspire-validator
   appserver:
     build:
       context: ./mrmap
@@ -81,7 +78,6 @@ services:
       - redis
       - mapserver
       - nginx
-      #- inspire-validator
   celery-default-worker:
     build:
       context: ./mrmap

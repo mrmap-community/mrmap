@@ -127,3 +127,8 @@ coverage-report.xml
 
 ext_auth_keys/
 mrmap/media/
+
+# npm-related
+node_modules/
+/mrmap/static/
+package-lock.json

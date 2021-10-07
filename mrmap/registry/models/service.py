@@ -91,7 +91,6 @@ class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata
         verbose_name = _("service")
         verbose_name_plural = _("services")
 
-
     def save(self, *args, **kwargs):
         adding = self._state.adding
         old = None

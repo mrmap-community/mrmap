@@ -167,7 +167,7 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
             return cls.get_add_url() + f"?feature_type={resource.pk}"
         if isinstance(resource, DatasetMetadata):
             return cls.get_add_url() + f"?dataset_metadata={resource.pk}"
-        
+
         # if isinstance(resource, ServiceMetadata):
         #     return cls.get_add_url() + f"?service_metadata={resource.pk}"
         # if isinstance(resource, LayerMetadata):

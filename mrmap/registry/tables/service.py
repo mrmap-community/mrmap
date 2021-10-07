@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from extras.tables.tables import SecuredTable
-from extras.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
+from extras.tables.template_code import VALUE_ABSOLUTE_LINK, \
     SERVICE_STATUS_ICONS, OPERATION_URLS
 from registry.models import Service, Layer, FeatureType, FeatureTypeElement
 from registry.tables.template_codes import SERVICE_DETAIL_ICONS, LAYER_FEATURE_TYPE_DETAIL_ICONS, \

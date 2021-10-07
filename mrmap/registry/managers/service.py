@@ -95,23 +95,22 @@ class ServiceXmlManager(models.Manager):
             db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
             db_object.keyword_list.append(db_keyword)
 
-
     def _create_service_instance(self, parsed_service, *args, **kwargs):
         """ Creates the service instance and all depending/related objects """
         # create service instance first
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
-        
+
         parsed_service_contact = parsed_service.service_metadata.service_contact
         service_contact_cls = parsed_service_contact.get_model_class()
         db_service_contact, created = service_contact_cls.objects.get_or_create(**parsed_service_contact.get_field_dict())
 
-        service = super().create(service_type=service_type, 
+        service = super().create(service_type=service_type,
                                  origin=MetadataOrigin.CAPABILITIES.value,
                                  service_contact=db_service_contact,
                                  metadata_contact=db_service_contact,
-                                 *args, 
-                                 **kwargs, 
+                                 *args,
+                                 **kwargs,
                                  **parsed_service.get_field_dict(),
                                  **parsed_service.service_metadata.get_field_dict())
 
@@ -345,7 +344,7 @@ class ServiceXmlManager(models.Manager):
             db_feature_type_list.append(db_feature_type)
             self._get_or_create_keywords(parsed_keywords=parsed_feature_type.metadata.keywords,
                                          db_object=db_feature_type)
-            
+
             self._construct_remote_metadata_instances(parsed_sub_element=parsed_feature_type,
                                                       db_service=db_service,
                                                       db_sub_element=db_feature_type)
@@ -425,7 +424,6 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter()
         return queryset.filter(service_type__name=service_type__name.value) \
                        .select_related("service_type",
-                                       #"metadata",
                                        "service_contact",
                                        "metadata_contact",
                                        "created_by_user",

@@ -419,7 +419,7 @@ class LayerMetadata(AbstractMetadata):
 
 
 class FeatureTypeMetadata(AbstractMetadata):
-    
+
     class Meta:
         abstract = True
 

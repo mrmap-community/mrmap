@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from extras.tables.tables import SecuredTable
-from extras.tables.template_code import RECORD_ABSOLUTE_LINK_VALUE_CONTENT, VALUE_ABSOLUTE_LINK, \
+from extras.tables.template_code import VALUE_ABSOLUTE_LINK, \
     SERVICE_STATUS_ICONS, OPERATION_URLS
 from registry.models import Service, Layer, FeatureType, FeatureTypeElement
 from registry.tables.template_codes import SERVICE_DETAIL_ICONS, LAYER_FEATURE_TYPE_DETAIL_ICONS, \
@@ -27,9 +27,6 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 class ServiceTable(SecuredTable):
     perm_checker = None
-    title = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
-                                  accessor="metadata",
-                                  verbose_name=_("Title"))
     details = tables.TemplateColumn(template_code=SERVICE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)
@@ -82,8 +79,6 @@ class ServiceTable(SecuredTable):
 
 class LayerTable(SecuredTable):
     perm_checker = None
-    title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
-                                  accessor="metadata")
     details = tables.TemplateColumn(template_code=LAYER_FEATURE_TYPE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)
@@ -130,8 +125,6 @@ class LayerTable(SecuredTable):
 
 class FeatureTypeTable(SecuredTable):
     perm_checker = None
-    title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
-                                  accessor="metadata")
     details = tables.TemplateColumn(template_code=LAYER_FEATURE_TYPE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)

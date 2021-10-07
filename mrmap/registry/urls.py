@@ -42,10 +42,6 @@ urlpatterns = [
     path("service/featuretypes/<pk>/change", service_views.FeatureTypeUpdateView.as_view(), name="feature_type_change"),
 
     # Metadata views
-    path("metadata/services", metadata_views.ServiceMetadataListView.as_view(), name="service_metadata_list"),
-    path("metadata/layers", metadata_views.LayerMetadataListView.as_view(), name="layer_metadata_list"),
-    path("metadata/featuretypes", metadata_views.FeatureTypeMetadataListView.as_view(),
-         name="feature_type_metadata_list"),
     path("metadata/datasets", metadata_views.DatasetMetadataListView.as_view(), name="dataset_metadata_list"),
 
     path("metadata/services/<pk>/change", metadata_views.ServiceMetadataUpdateView.as_view(),

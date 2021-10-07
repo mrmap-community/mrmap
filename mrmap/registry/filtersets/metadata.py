@@ -1,38 +1,5 @@
 import django_filters
-from registry.models import DatasetMetadata, LayerMetadata, ServiceMetadata, FeatureTypeMetadata
-
-
-class ServiceMetadataFilterSet(django_filters.FilterSet):
-
-    class Meta:
-        model = ServiceMetadata
-        fields = {
-            "title": ["icontains", ],
-            "id": ["in", ],
-            "described_object__id": ["in", ],
-        }
-
-
-class LayerMetadataFilterSet(django_filters.FilterSet):
-
-    class Meta:
-        model = LayerMetadata
-        fields = {
-            "title": ["icontains", ],
-            "id": ["in", ],
-            "described_object__id": ["in", ],
-        }
-
-
-class FeatureTypeMetadataFilterSet(django_filters.FilterSet):
-
-    class Meta:
-        model = FeatureTypeMetadata
-        fields = {
-            "title": ["icontains", ],
-            "id": ["in", ],
-            "described_object__id": ["in", ],
-        }
+from registry.models import DatasetMetadata
 
 
 class DatasetMetadataFilterSet(django_filters.FilterSet):

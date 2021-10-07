@@ -11,13 +11,12 @@ from eulxml import xmlmap
 from requests import Session, Request
 
 from MrMap.settings import PROXIES
-from extras.models import GenericModelMixin, CommonInfo
+from extras.models import CommonInfo
 from registry.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
-    MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
+    MetadataRelationEnum, MetadataOriginEnum
 from registry.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
 from registry.models.document import MetadataDocumentModelMixin
-from registry.models.service import Layer, FeatureType, Service
 from registry.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
 
 
@@ -33,7 +32,7 @@ class MimeType(models.Model):
 
 
 class Style(CommonInfo):
-    layer = models.ForeignKey(to=Layer,
+    layer = models.ForeignKey(to="registry.Layer",
                               on_delete=models.CASCADE,
                               editable=False,
                               verbose_name=_("related layer"),
@@ -205,7 +204,7 @@ class RemoteMetadata(CommonInfo):
     remote_content = models.TextField(null=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
-    service = models.ForeignKey(to=Service,
+    service = models.ForeignKey(to="registry.Service",
                                 on_delete=models.CASCADE,
                                 related_name="remote_metadata",
                                 related_query_name="remote_metadata",
@@ -253,6 +252,7 @@ class RemoteMetadata(CommonInfo):
 
     def create_metadata_instance(self):
         """ Return the created metadata record, based on the content_type of the described element. """
+        from registry.models.service import Service
         if isinstance(self.describes, Service):
             metadata_cls = ServiceMetadata
         else:
@@ -287,7 +287,7 @@ class MetadataTermsOfUse(models.Model):
         abstract = True
 
 
-class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo):
+class AbstractMetadata(MetadataDocumentModelMixin):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -335,17 +335,9 @@ class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo
                                         editable=False,
                                         verbose_name=_("is customized"),
                                         help_text=_("If the metadata record is customized, this flag is True"))
-    harvest_result = models.CharField(max_length=50,
-                                      null=True,
-                                      choices=HarvestResultEnum.as_choices(),
-                                      editable=False,
-                                      verbose_name=_("harvest result"),
-                                      help_text=_("to determine errors while harvesting process. Get linked iso "
-                                                  "metadata from parsed capabilities result is also a harvesting "
-                                                  "process."))
     insufficient_quality = models.TextField(null=True,
                                             blank=True,
-                                            help_text=_("todo"))
+                                            help_text=_("TODO"))
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
@@ -367,7 +359,7 @@ class AbstractMetadata(MetadataDocumentModelMixin, GenericModelMixin, CommonInfo
         ordering = ["title"]
 
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.pk})"
 
     def save(self, *args, **kwargs):
         """Custom save function to set `is_customized` on update."""
@@ -382,13 +374,6 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
         OR to store the information of the parsed iso metadata which was linked in the capabilities document.
 
     """
-    described_object = models.OneToOneField(to=Service,
-                                            on_delete=models.CASCADE,
-                                            editable=False,
-                                            related_name="metadata",
-                                            related_query_name="metadata",
-                                            verbose_name=_("described service"),
-                                            help_text=_("choice the service you want to describe with this metadata"))
     service_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="service_contact_service_metadata",
@@ -404,8 +389,7 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
     iso_metadata = IsoMetadataManager()
 
     class Meta:
-        verbose_name = _("service metadata")
-        verbose_name_plural = _("service metadata")
+        abstract = True
 
 
 class LayerMetadata(AbstractMetadata):
@@ -417,17 +401,10 @@ class LayerMetadata(AbstractMetadata):
             * 2. Searching for layer information
 
     """
-    described_object = models.OneToOneField(to=Layer,
-                                            on_delete=models.CASCADE,
-                                            related_name="metadata",
-                                            related_query_name="metadata",
-                                            verbose_name=_("described layer"),
-                                            help_text=_("choice the layer you want to describe with this metadata"))
     preview_image = models.ImageField(null=True, blank=True)
 
     class Meta:
-        verbose_name = _("layer metadata")
-        verbose_name_plural = _("layer metadata")
+        abstract = True
 
     # def save(self, *args, **kwargs):
     #    adding = self._state.adding
@@ -442,17 +419,9 @@ class LayerMetadata(AbstractMetadata):
 
 
 class FeatureTypeMetadata(AbstractMetadata):
-    described_object = models.OneToOneField(to=FeatureType,
-                                            on_delete=models.CASCADE,
-                                            related_name="metadata",
-                                            related_query_name="metadata",
-                                            verbose_name=_("described feature type"),
-                                            help_text=_("choice the feature type you want to describe with this "
-                                                        "metadata"))
 
     class Meta:
-        verbose_name = _("feature type metadata")
-        verbose_name_plural = _("feature type metadata")
+        abstract = True
 
 
 class DatasetMetadataRelation(CommonInfo):
@@ -462,19 +431,19 @@ class DatasetMetadataRelation(CommonInfo):
         Cause dataset metadata records could be added by the user and could harvested from capabilities or csw, we need
         to store additional information such as the origin (capabilities | added by user | csw) etc.
     """
-    layer = models.ForeignKey(to=Layer,
+    layer = models.ForeignKey(to="registry.Layer",
                               on_delete=models.CASCADE,
                               null=True,  # nullable to support polymorph using in DatasetMetadata model
                               blank=True,
                               related_name="dataset_metadata_relations",
                               related_query_name="dataset_metadata_relation")
-    feature_type = models.ForeignKey(to=FeatureType,
+    feature_type = models.ForeignKey(to="registry.FeatureType",
                                      on_delete=models.CASCADE,
                                      null=True,  # nullable to support polymorph using in DatasetMetadata model
                                      blank=True,
                                      related_name="dataset_metadata_relations",
                                      related_query_name="dataset_metadata_relation")
-    service = models.ForeignKey(to=Service,
+    service = models.ForeignKey(to="registry.Service",
                                 on_delete=models.CASCADE,
                                 null=True,  # nullable to support polymorph using in DatasetMetadata model
                                 blank=True,
@@ -531,7 +500,7 @@ class DatasetMetadataRelation(CommonInfo):
         # todo: some more cases are possible
 
 
-class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
+class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata, CommonInfo):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
@@ -659,7 +628,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
-    self_pointing_layers = models.ManyToManyField(to=Layer,
+    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
                                                   through=DatasetMetadataRelation,
                                                   editable=False,
                                                   related_name="dataset_metadata",
@@ -668,7 +637,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                   verbose_name=_("layers"),
                                                   help_text=_("all layers which are linking to this dataset metadata in"
                                                               " there capabilities."))
-    self_pointing_feature_types = models.ManyToManyField(to=FeatureType,
+    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
                                                          through=DatasetMetadataRelation,
                                                          editable=False,
                                                          related_name="dataset_metadata",
@@ -677,7 +646,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                          verbose_name=_("feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
-    self_pointing_services = models.ManyToManyField(to=Service,
+    self_pointing_services = models.ManyToManyField(to="registry.Service",
                                                     through=DatasetMetadataRelation,
                                                     editable=False,
                                                     related_name="dataset_metadata",
@@ -700,6 +669,8 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         ]
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
+        from registry.models.service import Service, Layer, FeatureType
+
         kwargs = {}
         if related_object._meta.model == Layer:
             kwargs.update({"layer": related_object,
@@ -722,6 +693,8 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         return relation
 
     def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
+        from registry.models.service import Service, Layer, FeatureType
+
         kwargs = {}
         if related_object._meta.model == Layer:
             kwargs.update({"layer": related_object})
@@ -748,7 +721,7 @@ class Dimension(CommonInfo):
     parsed_extent = models.TextField(verbose_name=_("extent"),
                                      help_text=_("The extent string declares what value(s) along the Dimension axis are"
                                                  " appropriate for this specific geospatial data object."))
-    layer = models.ForeignKey(to=Layer,
+    layer = models.ForeignKey(to="registry.Layer",
                               on_delete=models.CASCADE,
                               null=True,
                               blank=True,
@@ -756,7 +729,7 @@ class Dimension(CommonInfo):
                               related_query_name="layer_dimension",
                               verbose_name=_("layer"),
                               help_text=_("the related layer of this dimension entity"))
-    feature_type = models.ForeignKey(to=FeatureType,
+    feature_type = models.ForeignKey(to="registry.FeatureType",
                                      on_delete=models.CASCADE,
                                      null=True,
                                      blank=True,

@@ -61,9 +61,6 @@
                           </li>
                           <li><hr class="dropdown-divider"></li>
                           <li><h6 class="dropdown-header">{% trans 'Metadata' %}</h6></li>
-                          <li><a class="dropdown-item" href="{% url 'registry:service_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %} <span data-bind="text: serviceMetadataCount" class="badge bg-secondary"></span></a></li>
-                          <li><a class="dropdown-item" href="{% url 'registry:layer_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Layer Metadata' %} <span data-bind="text: layerMetadataCount" class="badge bg-secondary"></span></a></li>
-                          <li><a class="dropdown-item" href="{% url 'registry:feature_type_metadata_list' %}">{% autoescape off %}{{ICONS.METADATA}}{% endautoescape %} {% trans 'Feature Type Metadata' %} <span data-bind="text: featureTypeMetadataCount" class="badge bg-secondary"></span></a></li>
                           <li class="d-flex">
                               <a class="dropdown-item" href="{% url 'registry:dataset_metadata_list' %}">{% autoescape off %}{{ICONS.DATASET}}{% endautoescape %} {% trans 'Dataset Metadata' %} <span data-bind="text: datasetMetadataCount" class="badge bg-secondary"></span></a>
                               {% if "registry.add_dataset_metadata" in perms %}

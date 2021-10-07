@@ -14,10 +14,10 @@
             <h5 class="mb-0">
               {% if not node.is_leaf_node and node != root_node %}
                   <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#id_accordion_collapse_{{node.pk}}" aria-expanded="true" aria-controls="id_accordion_collapse_{{node.pk}}">
-                    {{ node.icon|safe }} {{ node.metadata.title }} <span class="badge bg-secondary">{{ node.get_descendant_count }}</span>
+                    {{ node.icon|safe }} {{ node.title }} <span class="badge bg-secondary">{{ node.get_descendant_count }}</span>
                   </button>
               {% else %}
-              {{ node.icon|safe }} {{ node.metadata.title }}
+              {{ node.icon|safe }} {{ node.title }}
               {% endif %}
             </h5>
           </div>
@@ -42,8 +42,8 @@
             </button>
             <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{node.pk}}">
               <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-              <a class="dropdown-item" href="{{node.metadata.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
-              <a class="dropdown-item" href="{{node.metadata.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+              <a class="dropdown-item" href="{{node.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+              <a class="dropdown-item" href="{{node.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
             </div>
           </div>
             {% if node.has_dataset_metadata %}

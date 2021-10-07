@@ -20,7 +20,6 @@ class ServiceXmlManager(models.Manager):
     current_parent = None
 
     db_layer_list = []
-    db_sub_element_metadata_list = []
     db_remote_metadata_list = []
     db_style_list = []
     db_legend_url_list = []
@@ -30,7 +29,6 @@ class ServiceXmlManager(models.Manager):
     # stored on the parsed python objects in attribute `model`.
     sub_element_cls = None
     sub_element_content_type = None
-    sub_element_metadata_cls = None
     service_metadata_cls = None
     keyword_cls = None
     remote_metadata_cls = None
@@ -97,30 +95,31 @@ class ServiceXmlManager(models.Manager):
             db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
             db_object.keyword_list.append(db_keyword)
 
-    def _create_service_metadata_instance(self, parsed_service, db_service):
-        service_contact = parsed_service.service_metadata.service_contact
-        service_contact_cls = service_contact.get_model_class()
-
-        db_service_contact, created = service_contact_cls.objects.get_or_create(**service_contact.get_field_dict())
-        if not self.service_metadata_cls:
-            self.service_metadata_cls = parsed_service.service_metadata.get_model_class()
-        service_metadata = self.service_metadata_cls.objects.create(described_object=db_service,
-                                                                    origin=MetadataOrigin.CAPABILITIES.value,
-                                                                    service_contact=db_service_contact,
-                                                                    metadata_contact=db_service_contact,
-                                                                    **parsed_service.service_metadata.get_field_dict())
-        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
-                                     db_object=service_metadata)
-
-        # m2m objects
-        db_service.metadata.keywords.add(*db_service.metadata.keyword_list)
-
     def _create_service_instance(self, parsed_service, *args, **kwargs):
         """ Creates the service instance and all depending/related objects """
         # create service instance first
         service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
             **parsed_service.service_type.get_field_dict())
-        service = super().create(service_type=service_type, *args, **kwargs, **parsed_service.get_field_dict())
+
+        parsed_service_contact = parsed_service.service_metadata.service_contact
+        service_contact_cls = parsed_service_contact.get_model_class()
+        db_service_contact, created = service_contact_cls.objects.get_or_create(**parsed_service_contact.get_field_dict())
+
+        service = super().create(service_type=service_type,
+                                 origin=MetadataOrigin.CAPABILITIES.value,
+                                 service_contact=db_service_contact,
+                                 metadata_contact=db_service_contact,
+                                 *args,
+                                 **kwargs,
+                                 **parsed_service.get_field_dict(),
+                                 **parsed_service.service_metadata.get_field_dict())
+
+        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
+                                     db_object=service)
+
+        # m2m objects
+        service.keywords.add(*service.keyword_list)
+
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
 
@@ -173,18 +172,6 @@ class ServiceXmlManager(models.Manager):
             else:
                 parsed_layer.node_id = "1"
         self.last_node_level = parsed_layer.level
-
-    def _construct_sub_element_metadata_instance(self, parsed_object, db_object):
-        if not self.sub_element_metadata_cls:
-            self.sub_element_metadata_cls = parsed_object.metadata.get_model_class()
-
-        db_sub_element_metadata = self.sub_element_metadata_cls(described_object=db_object,
-                                                                origin=MetadataOrigin.CAPABILITIES.value,
-                                                                **self.common_info,
-                                                                **parsed_object.metadata.get_field_dict())
-        self.db_sub_element_metadata_list.append(db_sub_element_metadata)
-        self._get_or_create_keywords(parsed_keywords=parsed_object.metadata.keywords,
-                                     db_object=db_sub_element_metadata)
 
     def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
         if not self.sub_element_content_type:
@@ -288,13 +275,15 @@ class ServiceXmlManager(models.Manager):
                                             rght=parsed_layer.right,
                                             tree_id=tree_id,
                                             level=parsed_layer.level,
+                                            origin=MetadataOrigin.CAPABILITIES.value,
                                             **self.common_info,
-                                            **parsed_layer.get_field_dict())
+                                            **parsed_layer.get_field_dict(),
+                                            **parsed_layer.metadata.get_field_dict())
             db_layer.node_id = parsed_layer.node_id
             self.db_layer_list.append(db_layer)
+            self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
+                                         db_object=db_layer)
 
-            self._construct_sub_element_metadata_instance(parsed_object=parsed_layer,
-                                                          db_object=db_layer)
             self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
                                                       db_service=db_service,
                                                       db_sub_element=db_layer)
@@ -316,7 +305,6 @@ class ServiceXmlManager(models.Manager):
         self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
 
         # ForeingKey objects
-        db_layer_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
         if self.db_style_list:
             self.style_cls.objects.bulk_create(objs=self.db_style_list)
         if self.db_legend_url_list:
@@ -338,10 +326,8 @@ class ServiceXmlManager(models.Manager):
         if self.db_remote_metadata_list:
             self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
-        for db_layer_metadata in db_layer_metadata_list:
-            db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)
-
         for db_layer in db_layer_list:
+            db_layer.keywords.add(*db_layer.keyword_list)
             db_layer.reference_systems.add(*db_layer.reference_system_list)
 
     def _create_wfs(self, parsed_service, db_service):
@@ -350,12 +336,15 @@ class ServiceXmlManager(models.Manager):
             self.sub_element_cls = parsed_service.feature_types[0].get_model_class()
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = self.sub_element_cls(service=db_service,
+                                                   origin=MetadataOrigin.CAPABILITIES.value,
                                                    **self.common_info,
-                                                   **parsed_feature_type.get_field_dict())
+                                                   **parsed_feature_type.get_field_dict(),
+                                                   **parsed_feature_type.metadata.get_field_dict())
             db_feature_type.db_output_format_list = []
             db_feature_type_list.append(db_feature_type)
-            self._construct_sub_element_metadata_instance(parsed_object=parsed_feature_type,
-                                                          db_object=db_feature_type)
+            self._get_or_create_keywords(parsed_keywords=parsed_feature_type.metadata.keywords,
+                                         db_object=db_feature_type)
+
             self._construct_remote_metadata_instances(parsed_sub_element=parsed_feature_type,
                                                       db_service=db_service,
                                                       db_sub_element=db_feature_type)
@@ -373,11 +362,8 @@ class ServiceXmlManager(models.Manager):
         if self.db_remote_metadata_list:
             self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
-        db_feature_type_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
-        for db_feature_type_metadata in db_feature_type_metadata_list:
-            db_feature_type_metadata.keywords.add(*db_feature_type_metadata.keyword_list)
-
         for db_feature_type in db_feature_type_list:
+            db_feature_type.keywords.add(*db_feature_type.keyword_list)
             db_feature_type.output_formats.add(*db_feature_type.db_output_format_list)
             db_feature_type.reference_systems.add(*db_feature_type.reference_system_list)
 
@@ -393,7 +379,6 @@ class ServiceXmlManager(models.Manager):
         self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
-            self._create_service_metadata_instance(parsed_service=parsed_service, db_service=db_service)
 
             if db_service.service_type.name == OGCServiceEnum.WMS.value:
                 self._create_wms(parsed_service=parsed_service, db_service=db_service)
@@ -439,25 +424,23 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter()
         return queryset.filter(service_type__name=service_type__name.value) \
                        .select_related("service_type",
-                                       "metadata",
-                                       "metadata__service_contact",
-                                       "metadata__metadata_contact",
+                                       "service_contact",
+                                       "metadata_contact",
                                        "created_by_user",
                                        "owned_by_org",
                                        "external_authentication",
                                        "proxy_setting") \
                        .prefetch_related("allowed_operations",
                                          "operation_urls")\
-                       .order_by("-metadata__title")\
+                       .order_by("-title")\
                        .annotate(is_secured=Count("allowed_operation"))
 
     def for_tree_view(self, service_type__name: OGCServiceEnum):
         queryset = self.get_queryset()
         if service_type__name.value == OGCServiceEnum.WFS.value:
             queryset = self.with_feature_types_counter().prefetch_related("featuretypes",
-                                                                          "featuretypes__metadata",
                                                                           "featuretypes__elements")
-        return queryset.select_related("metadata")
+        return queryset
 
     def with_layers_counter(self):
         return self.get_queryset().annotate(layers_count=Count("layer"))
@@ -468,33 +451,24 @@ class ServiceManager(models.Manager):
 
 class LayerManager(TreeManager):
 
-    def get_queryset(self):
-        return super().get_queryset().select_related("metadata")
-
     def for_table_view(self):
         return self.get_queryset()\
             .annotate(children_count=Count("child", distinct=True))\
             .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
             .select_related("service",
                             "service__service_type",
-                            "service__metadata",
                             "parent",
-                            "parent__metadata",
                             "created_by_user",
                             "owned_by_org")
 
 
 class FeatureTypeManager(models.Manager):
 
-    def get_queryset(self):
-        return super().get_queryset().select_related("metadata")
-
     def for_table_view(self):
         return self.get_queryset()\
             .annotate(elements_count=Count("element", distinct=True))\
             .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
             .select_related("service",
-                            "service__metadata",
                             "service__service_type",
                             "created_by_user",
                             "owned_by_org")
@@ -506,9 +480,8 @@ class FeatureTypeElementManager(models.Manager):
         return super().get_queryset().select_related("feature_type")
 
     def for_table_view(self):
-        return self.get_queryset().select_related("feature_type__metadata",
+        return self.get_queryset().select_related("feature_type",
                                                   "feature_type__service",
                                                   "feature_type__service__service_type",
-                                                  "feature_type__service__metadata",
                                                   "created_by_user",
                                                   "owned_by_org")

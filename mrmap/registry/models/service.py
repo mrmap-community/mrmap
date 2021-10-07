@@ -24,7 +24,7 @@ from registry.managers.security import ServiceSecurityManager, OperationUrlManag
 from registry.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import ServiceMetadata
+from registry.models.metadata import LayerMetadata, ServiceMetadata
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 
 
@@ -299,7 +299,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
         return ""
 
 
-class Layer(ServiceElement, MPTTModel):
+class Layer(LayerMetadata, ServiceElement, MPTTModel):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`

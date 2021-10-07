@@ -290,13 +290,15 @@ class ServiceXmlManager(models.Manager):
                                             rght=parsed_layer.right,
                                             tree_id=tree_id,
                                             level=parsed_layer.level,
+                                            origin=MetadataOrigin.CAPABILITIES.value,
                                             **self.common_info,
-                                            **parsed_layer.get_field_dict())
+                                            **parsed_layer.get_field_dict(),
+                                            **parsed_layer.metadata.get_field_dict())
             db_layer.node_id = parsed_layer.node_id
             self.db_layer_list.append(db_layer)
+            self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
+                                         db_object=db_layer)
 
-            self._construct_sub_element_metadata_instance(parsed_object=parsed_layer,
-                                                          db_object=db_layer)
             self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
                                                       db_service=db_service,
                                                       db_sub_element=db_layer)
@@ -318,7 +320,7 @@ class ServiceXmlManager(models.Manager):
         self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
 
         # ForeingKey objects
-        db_layer_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
+        #db_layer_metadata_list = self.sub_element_metadata_cls.objects.bulk_create(objs=self.db_sub_element_metadata_list)
         if self.db_style_list:
             self.style_cls.objects.bulk_create(objs=self.db_style_list)
         if self.db_legend_url_list:
@@ -340,10 +342,8 @@ class ServiceXmlManager(models.Manager):
         if self.db_remote_metadata_list:
             self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
 
-        for db_layer_metadata in db_layer_metadata_list:
-            db_layer_metadata.keywords.add(*db_layer_metadata.keyword_list)
-
         for db_layer in db_layer_list:
+            db_layer.keywords.add(*db_layer.keyword_list)
             db_layer.reference_systems.add(*db_layer.reference_system_list)
 
     def _create_wfs(self, parsed_service, db_service):
@@ -469,18 +469,13 @@ class ServiceManager(models.Manager):
 
 class LayerManager(TreeManager):
 
-    def get_queryset(self):
-        return super().get_queryset().select_related("metadata")
-
     def for_table_view(self):
         return self.get_queryset()\
             .annotate(children_count=Count("child", distinct=True))\
             .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
             .select_related("service",
                             "service__service_type",
-                            "service__metadata",
                             "parent",
-                            "parent__metadata",
                             "created_by_user",
                             "owned_by_org")
 

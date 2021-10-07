@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from extras.tables.tables import SecuredTable
 from extras.tables.template_code import DEFAULT_ACTION_BUTTONS
-from registry.models import DatasetMetadata, LayerMetadata, FeatureTypeMetadata
+from registry.models import DatasetMetadata, FeatureTypeMetadata
 from registry.tables.conformity import ConformityCheckRunExtraFieldsTable
 from registry.tables.template_codes import METADATA_DETAIL_ICONS, VALUE_TABLE_VIEW_LINK
 
@@ -21,15 +21,6 @@ class MetadataTable(SecuredTable):
                                     template_code=DEFAULT_ACTION_BUTTONS,
                                     attrs={"td": {"style": "white-space:nowrap;"}},
                                     extra_context={'perm_checker': perm_checker})
-
-
-# TODO: add ConformityCheckRunExtraFieldsTable after adding the validation check to the other types
-class LayerMetadataTable(MetadataTable):
-    class Meta:
-        model = LayerMetadata
-        fields = ("title",
-                  "details",
-                  "described_object")
 
 
 # TODO: add ConformityCheckRunExtraFieldsTable after adding the validation check to the other types

@@ -1,16 +1,5 @@
 import django_filters
-from registry.models import DatasetMetadata, LayerMetadata, FeatureTypeMetadata
-
-
-class LayerMetadataFilterSet(django_filters.FilterSet):
-
-    class Meta:
-        model = LayerMetadata
-        fields = {
-            "title": ["icontains", ],
-            "id": ["in", ],
-            "described_object__id": ["in", ],
-        }
+from registry.models import DatasetMetadata, FeatureTypeMetadata
 
 
 class FeatureTypeMetadataFilterSet(django_filters.FilterSet):

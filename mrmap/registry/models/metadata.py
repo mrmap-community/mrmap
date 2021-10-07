@@ -392,8 +392,7 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
         abstract = True
 
 
-# TODO: remove CommonInfo after merging into Layer model
-class LayerMetadata(AbstractMetadata, CommonInfo):
+class LayerMetadata(AbstractMetadata):
     """ Concrete model class to store the parsed metadata information from the capabilities document of a given layer.
 
         **Use cases**
@@ -402,17 +401,10 @@ class LayerMetadata(AbstractMetadata, CommonInfo):
             * 2. Searching for layer information
 
     """
-    described_object = models.OneToOneField(to="registry.Layer",
-                                            on_delete=models.CASCADE,
-                                            related_name="metadata",
-                                            related_query_name="metadata",
-                                            verbose_name=_("described layer"),
-                                            help_text=_("choice the layer you want to describe with this metadata"))
     preview_image = models.ImageField(null=True, blank=True)
 
     class Meta:
-        verbose_name = _("layer metadata")
-        verbose_name_plural = _("layer metadata")
+        abstract = True
 
     # def save(self, *args, **kwargs):
     #    adding = self._state.adding

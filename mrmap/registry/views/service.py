@@ -86,7 +86,6 @@ class ServiceWmsTreeView(SecuredDetailView):
 
         collapse = self.request.GET.get("collapse", None)
         nodes = self.object.root_layer.get_descendants(include_self=True)\
-                                      .select_related("metadata")\
                                       .annotate(has_dataset_metadata=Count('dataset_metadata'))\
                                       .prefetch_related("dataset_metadata")
         if collapse:

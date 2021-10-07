@@ -119,6 +119,29 @@
             ]
         },
         {
+            "label": "reset migrations",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "find",
+                "mrmap",
+                "-iname",
+                "migrations",
+                "|",
+                "xargs",  
+                "-i",
+                "find",
+                "{}",
+                "-type",
+                "f",
+                "-name",
+                "'0*.py'",
+                "|",
+                "xargs",
+                "rm"
+            ]
+        },
+        {
             "label": "makemigrations",
             "type": "shell",
             "command": "docker",

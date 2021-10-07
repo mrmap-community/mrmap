@@ -3,7 +3,7 @@ from django.db.models import F, Value
 from django.http import HttpResponse, Http404
 from django.views.generic import DetailView
 
-from registry.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata, Service, Layer, \
+from registry.models import DatasetMetadata, FeatureTypeMetadata, Service, Layer, \
     FeatureType
 
 
@@ -43,8 +43,8 @@ class ServiceMetadataXmlView(GenericXmlRepresentationView):
 
 
 class LayerMetadataXmlView(GenericXmlRepresentationView):
-    model = LayerMetadata
-    queryset = LayerMetadata.objects.all().annotate(do_camouflage=F("described_object__service__proxy_setting__camouflage"))
+    model = Layer
+    queryset = Layer.objects.all().annotate(do_camouflage=F("service__proxy_setting__camouflage"))
 
 
 class FeatureTypeMetadataXmlView(GenericXmlRepresentationView):

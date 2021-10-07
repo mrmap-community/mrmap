@@ -1,19 +1,9 @@
 from django_filters.views import FilterView
 from extras.views import SecuredListMixin, SecuredUpdateView, SecuredConfirmView
-from registry.filtersets.metadata import DatasetMetadataFilterSet, LayerMetadataFilterSet, \
-    FeatureTypeMetadataFilterSet
+from registry.filtersets.metadata import DatasetMetadataFilterSet, FeatureTypeMetadataFilterSet
 from registry.forms.metadata import ServiceMetadataModelForm, DatasetMetadataModelForm
-from registry.models import DatasetMetadata, ServiceMetadata, LayerMetadata, FeatureTypeMetadata
-from registry.tables.metadata import DatasetMetadataTable, LayerMetadataTable, \
-    FeatureTypeMetadataTable
-
-
-class LayerMetadataListView(SecuredListMixin, FilterView):
-    model = LayerMetadata
-    table_class = LayerMetadataTable
-    filterset_class = LayerMetadataFilterSet
-    queryset = model.objects.for_table_view()
-
+from registry.models import DatasetMetadata, ServiceMetadata, FeatureTypeMetadata
+from registry.tables.metadata import DatasetMetadataTable, FeatureTypeMetadataTable
 
 class FeatureTypeMetadataListView(SecuredListMixin, FilterView):
     model = FeatureTypeMetadata

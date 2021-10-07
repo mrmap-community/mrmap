@@ -18,7 +18,6 @@ def get_object_counts(user):
     layers_count = user.get_instances(klass=Layer).count()
     feature_types_count = user.get_instances(klass=FeatureType).count()
     feature_type_elements_count = user.get_instances(klass=FeatureTypeElement).count()
-    service_metadata_count = user.get_instances(klass=ServiceMetadata).count()
     layer_metadata_count = user.get_instances(klass=LayerMetadata).count()
     feature_type_metadata_count = user.get_instances(klass=FeatureTypeMetadata).count()
     dataset_metadata_count = user.get_instances(klass=DatasetMetadata).count()
@@ -37,7 +36,6 @@ def get_object_counts(user):
         "layersCount": layers_count,
         "featureTypesCount": feature_types_count,
         "featureTypeElementsCount": feature_type_elements_count,
-        "serviceMetadataCount": service_metadata_count,
         "layerMetadataCount": layer_metadata_count,
         "featureTypeMetadataCount": feature_type_metadata_count,
         "datasetMetadataCount": dataset_metadata_count,

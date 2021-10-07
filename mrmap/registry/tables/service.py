@@ -28,7 +28,6 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 class ServiceTable(SecuredTable):
     perm_checker = None
     title = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
-                                  accessor="metadata",
                                   verbose_name=_("Title"))
     details = tables.TemplateColumn(template_code=SERVICE_DETAIL_ICONS,
                                     verbose_name=_("Details"),

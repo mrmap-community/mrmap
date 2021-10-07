@@ -38,8 +38,8 @@ class FeatureTypeXmlView(GenericXmlRepresentationView):
 
 
 class ServiceMetadataXmlView(GenericXmlRepresentationView):
-    model = ServiceMetadata
-    queryset = ServiceMetadata.objects.all().annotate(do_camouflage=F('described_object__proxy_setting__camouflage'))
+    model = Service
+    queryset = Service.objects.all().annotate(do_camouflage=F('proxy_setting__camouflage'))
 
 
 class LayerMetadataXmlView(GenericXmlRepresentationView):

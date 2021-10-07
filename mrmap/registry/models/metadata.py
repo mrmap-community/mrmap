@@ -287,7 +287,7 @@ class MetadataTermsOfUse(models.Model):
         abstract = True
 
 
-class AbstractMetadata(MetadataDocumentModelMixin, CommonInfo):
+class AbstractMetadata(MetadataDocumentModelMixin):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -335,17 +335,9 @@ class AbstractMetadata(MetadataDocumentModelMixin, CommonInfo):
                                         editable=False,
                                         verbose_name=_("is customized"),
                                         help_text=_("If the metadata record is customized, this flag is True"))
-    harvest_result = models.CharField(max_length=50,
-                                      null=True,
-                                      choices=HarvestResultEnum.as_choices(),
-                                      editable=False,
-                                      verbose_name=_("harvest result"),
-                                      help_text=_("to determine errors while harvesting process. Get linked iso "
-                                                  "metadata from parsed capabilities result is also a harvesting "
-                                                  "process."))
     insufficient_quality = models.TextField(null=True,
                                             blank=True,
-                                            help_text=_("todo"))
+                                            help_text=_("TODO"))
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
@@ -400,7 +392,8 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
         abstract = True
 
 
-class LayerMetadata(AbstractMetadata):
+# TODO: remove CommonInfo after merging into Layer model
+class LayerMetadata(AbstractMetadata, CommonInfo):
     """ Concrete model class to store the parsed metadata information from the capabilities document of a given layer.
 
         **Use cases**
@@ -433,7 +426,8 @@ class LayerMetadata(AbstractMetadata):
     #                              xml_backup=xml_string)
 
 
-class FeatureTypeMetadata(AbstractMetadata):
+# TODO: remove CommonInfo after merging into Layer model
+class FeatureTypeMetadata(AbstractMetadata, CommonInfo):
     described_object = models.OneToOneField(to="registry.FeatureType",
                                             on_delete=models.CASCADE,
                                             related_name="metadata",
@@ -523,7 +517,7 @@ class DatasetMetadataRelation(CommonInfo):
         # todo: some more cases are possible
 
 
-class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
+class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata, CommonInfo):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """

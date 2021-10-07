@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "scripts": {
     "copy:css": "copyfiles --flat node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css static/css",
+    "copy:icons": "copyfiles -u 2 node_modules/bootstrap-icons/**/**/* node_modules/bootstrap-icons/**/* node_modules/bootstrap-icons/bootstrap-icons.svg static/css/bootstrap-icons",
     "copy:js": "copyfiles --flat node_modules/bootstrap/dist/js/bootstrap.bundle.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js static/js",
     "copy:jstree-theme": "copyfiles --flat 'node_modules/jstree/dist/themes/default/**/*' static/css/jstree",
-    "copy": "npm run copy:css && npm run copy:js && npm run copy:jstree-theme"
+    "copy": "npm run copy:css && npm run copy:icons && npm run copy:js && npm run copy:jstree-theme"
   },
   "dependencies": {
     "animate.css": "4.1.1",

@@ -42,8 +42,8 @@
             </button>
             <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{node.pk}}">
               <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-              <a class="dropdown-item" href="{{node.metadata.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
-              <a class="dropdown-item" href="{{node.metadata.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+              <a class="dropdown-item" href="{{node.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+              <a class="dropdown-item" href="{{node.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
             </div>
           </div>
             {% if node.has_dataset_metadata %}

@@ -13,7 +13,7 @@
     <div class="row">
     <div class="col-7 col-md text-start">
       <h5 class="mb-0">
-        {{ object.icon|safe }} {{ object.metadata.title }} <span class="badge bg-secondary">{% if object.service_type_name == "wms" %}{{ object.layers.count }}{% endif %}{% if object.service_type_name == "wfs" %}{{ feature_types.count }}{% endif %}</span>
+        {{ object.icon|safe }} {{ object.title }} <span class="badge bg-secondary">{% if object.service_type_name == "wms" %}{{ object.layers.count }}{% endif %}{% if object.service_type_name == "wfs" %}{{ feature_types.count }}{% endif %}</span>
       </h5>
     </div>
     <div class="col-7 col-md text-start text-md-center">
@@ -21,7 +21,7 @@
         <button type="button" class="btn btn-sm btn-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <div class="d-xl-none">{{ ICONS.CAPABILITIES|safe }}</div><div class="d-none d-xl-block">{{ ICONS.CAPABILITIES|safe }} {% trans 'Capabilities' %}</div>
         </button>
-        <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <span class="sr-only">Toggle Dropdown</span>
         </button>
         <div class="dropdown-menu" aria-labelledby="id_dropdown_capabilities_{{object.pk}}">
@@ -32,13 +32,13 @@
       </div>
       <div class="btn-group mb-1">
         <button type="button" class="btn btn-sm btn-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><div class="d-xl-none">{{ ICONS.METADATA|safe }}</div><div class="d-none d-xl-block">{{ ICONS.METADATA|safe }} {% trans 'Metadata' %}</div></button>
-        <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <span class="sr-only">Toggle Dropdown</span>
         </button>
         <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{object.pk}}">
           <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
-          <a class="dropdown-item" href="{{object.metadata.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
-          <a class="dropdown-item" href="{{object.metadata.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+          <a class="dropdown-item" href="{{object.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+          <a class="dropdown-item" href="{{object.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
         </div>
       </div>
     </div>

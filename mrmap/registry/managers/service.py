@@ -121,7 +121,7 @@ class ServiceXmlManager(models.Manager):
                                      db_object=service)
 
         # m2m objects
-        service.metadata.keywords.add(*service.metadata.keyword_list)
+        service.keywords.add(*service.keyword_list)
 
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
@@ -440,16 +440,16 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter()
         return queryset.filter(service_type__name=service_type__name.value) \
                        .select_related("service_type",
-                                       "metadata",
-                                       "metadata__service_contact",
-                                       "metadata__metadata_contact",
+                                       #"metadata",
+                                       "service_contact",
+                                       "metadata_contact",
                                        "created_by_user",
                                        "owned_by_org",
                                        "external_authentication",
                                        "proxy_setting") \
                        .prefetch_related("allowed_operations",
                                          "operation_urls")\
-                       .order_by("-metadata__title")\
+                       .order_by("-title")\
                        .annotate(is_secured=Count("allowed_operation"))
 
     def for_tree_view(self, service_type__name: OGCServiceEnum):
@@ -458,7 +458,7 @@ class ServiceManager(models.Manager):
             queryset = self.with_feature_types_counter().prefetch_related("featuretypes",
                                                                           "featuretypes__metadata",
                                                                           "featuretypes__elements")
-        return queryset.select_related("metadata")
+        return queryset
 
     def with_layers_counter(self):
         return self.get_queryset().annotate(layers_count=Count("layer"))

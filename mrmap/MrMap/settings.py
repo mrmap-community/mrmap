@@ -349,8 +349,8 @@ STATICFILES_DIRS = [
 ]
 
 # static is used for localdev + runserver
-if os.path.exists( BASE_DIR + '/static'):
-    STATICFILES_DIRS.append( BASE_DIR + '/static')
+if os.path.exists(BASE_DIR + '/static'):
+    STATICFILES_DIRS.append(BASE_DIR + '/static')
 
 # /tmp/static is used in docker container
 if os.path.exists("/tmp/static"):

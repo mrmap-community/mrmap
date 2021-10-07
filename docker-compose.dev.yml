@@ -7,11 +7,15 @@ services:
     ports:
       - 5555:5432
 
+  redis:
+    ports:
+      - 5556:6379
+
   inspire-validator:
     build:
       context: ./docker/inspire-validator
     ports:
-      - "5556:8080"
+      - "5557:8080"
     networks:
       - backend
     extra_hosts:
@@ -21,7 +25,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      args: 
+      args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
@@ -43,7 +47,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      args: 
+      args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
@@ -66,7 +70,7 @@ services:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
-      args: 
+      args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:

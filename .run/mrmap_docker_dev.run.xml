@@ -7,15 +7,20 @@
         <option name="commandLineOptions" value="--build" />
         <option name="secondarySourceFiles">
           <list>
-            <option value="docker-compose.yml" />
+            <option value="docker-compose.dev.yml" />
           </list>
         </option>
-        <option name="sourceFilePath" value="docker-compose.dev.yml" />
+        <option name="services">
+          <list>
+            <option value="appserver" />
+            <option value="celery-default-worker" />
+            <option value="celery-download-worker" />
+          </list>
+        </option>
+        <option name="sourceFilePath" value="docker-compose.yml" />
         <option name="upAlwaysRecreate" value="true" />
-        <option name="upExitCodeFromService" value="" />
         <option name="upForceRecreate" value="true" />
         <option name="upRemoveOrphans" value="true" />
-        <option name="upTimeout" value="" />
       </settings>
     </deployment>
     <method v="2" />

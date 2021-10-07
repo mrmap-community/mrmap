@@ -37,6 +37,27 @@
             "problemMatcher": []
         },
         {
+            "label": "Docker-Compose: mrmap validator",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "inspire-validator",
+                "--abort-on-container-exit",
+                "inspire-validator"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "Docker-Compose: mrmap celery-default-worker",
             "type": "shell",
             "command": "docker-compose",

@@ -20,5 +20,16 @@
       ],
       "conformity_type": "internal"
     }
+  },
+  {
+    "model": "registry.conformitycheckconfiguration",
+    "pk": 5,
+    "fields": {
+      "name": "Conformance Class: View Service - WMS",
+      "metadata_types": [
+        "Service"
+      ],
+      "conformity_type": "etf"
+    }
   }
 ]

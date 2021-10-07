@@ -160,14 +160,7 @@ PER_PAGE_MAX = 2500
 
 METADATA_URL = ["request=GetMetadata&", ]
 
-# TODO: remove HTTP_OR_SSL, HOST_NAME, ROOT_URL settings... this shall be dynamically get from request variable in views!
-# Defines basic server information
-HTTP_OR_SSL = "http://"
-HOST_NAME = "localhost:8000"
-# DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
-ROOT_URL = HTTP_OR_SSL + HOST_NAME
-
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1]").split(";")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver").split(";")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"

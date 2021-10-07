@@ -112,7 +112,7 @@ class QualityEtf:
                  client: EtfClient):
         self.config = config_ext
         self.resource = run.resource
-        self.resource_url = settings.ROOT_URL + self.resource.get_xml_view_url()
+        self.resource_url = "http://mrmap-appserver:8001" + self.resource.get_xml_view_url()
         self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds

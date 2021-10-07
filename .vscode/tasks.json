@@ -121,8 +121,7 @@
         {
             "label": "reset migrations",
             "type": "shell",
-            "command": "docker",
-            "args": [
+            "command": [
                 "find",
                 "mrmap",
                 "-iname",

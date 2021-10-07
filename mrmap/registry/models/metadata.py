@@ -11,9 +11,9 @@ from eulxml import xmlmap
 from requests import Session, Request
 
 from MrMap.settings import PROXIES
-from extras.models import GenericModelMixin, CommonInfo
+from extras.models import CommonInfo
 from registry.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
-    MetadataRelationEnum, MetadataOriginEnum, HarvestResultEnum
+    MetadataRelationEnum, MetadataOriginEnum
 from registry.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
     DatasetMetadataRelationManager, AbstractMetadataManager
 from registry.models.document import MetadataDocumentModelMixin
@@ -418,19 +418,10 @@ class LayerMetadata(AbstractMetadata):
     #                              xml_backup=xml_string)
 
 
-# TODO: remove CommonInfo after merging into Layer model
-class FeatureTypeMetadata(AbstractMetadata, CommonInfo):
-    described_object = models.OneToOneField(to="registry.FeatureType",
-                                            on_delete=models.CASCADE,
-                                            related_name="metadata",
-                                            related_query_name="metadata",
-                                            verbose_name=_("described feature type"),
-                                            help_text=_("choice the feature type you want to describe with this "
-                                                        "metadata"))
-
+class FeatureTypeMetadata(AbstractMetadata):
+    
     class Meta:
-        verbose_name = _("feature type metadata")
-        verbose_name_plural = _("feature type metadata")
+        abstract = True
 
 
 class DatasetMetadataRelation(CommonInfo):

@@ -24,7 +24,7 @@ from registry.managers.security import ServiceSecurityManager, OperationUrlManag
 from registry.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
     FeatureTypeManager, FeatureTypeElementManager
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import LayerMetadata, ServiceMetadata
+from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
 
 
@@ -434,7 +434,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
-class FeatureType(ServiceElement):
+class FeatureType(FeatureTypeMetadata, ServiceElement):
     """Concrete model class to store parsed FeatureType.
 
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`

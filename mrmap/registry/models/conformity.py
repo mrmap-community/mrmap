@@ -14,7 +14,7 @@ from extras.polymorphic_fk import PolymorphicForeignKey
 from registry.enums.conformity import ConformityTypeEnum, RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum, \
     ReportType
 from registry.managers.conformity import ConformityCheckConfigurationManager, ConformityCheckRunManager
-from registry.models.metadata import DatasetMetadata, FeatureTypeMetadata
+from registry.models.metadata import DatasetMetadata
 from registry.models.service import Service, Layer, FeatureType
 
 
@@ -131,11 +131,7 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True,
                                          verbose_name=_("dataset metadata"),
                                          help_text=_("the dataset metadata targeted by this check"))
-    feature_type_metadata = models.ForeignKey(FeatureTypeMetadata, on_delete=models.CASCADE, null=True, blank=True,
-                                              verbose_name=_("feature type metadata"),
-                                              help_text=_("the feature type metadata targeted by this check"))
-
-    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata', 'feature_type_metadata')
+    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
 
     objects = ConformityCheckRunManager()
 
@@ -176,6 +172,6 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
         #     return cls.get_add_url() + f"?service_metadata={resource.pk}"
         # if isinstance(resource, LayerMetadata):
         #     return cls.get_add_url() + f"?layer_metadata={resource.pk}"
-        if isinstance(resource, FeatureTypeMetadata):
-            return cls.get_add_url() + f"?feature_type_metadata={resource.pk}"
+        # if isinstance(resource, FeatureTypeMetadata):
+        #     return cls.get_add_url() + f"?feature_type_metadata={resource.pk}"
         return None

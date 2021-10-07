@@ -27,8 +27,6 @@ TOOLTIP_VALIDATION = _('Shows the validation status of the resource')
 
 class ServiceTable(SecuredTable):
     perm_checker = None
-    title = tables.TemplateColumn(template_code=VALUE_ABSOLUTE_LINK,
-                                  verbose_name=_("Title"))
     details = tables.TemplateColumn(template_code=SERVICE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)
@@ -81,7 +79,6 @@ class ServiceTable(SecuredTable):
 
 class LayerTable(SecuredTable):
     perm_checker = None
-    title = tables.Column(verbose_name=_("Title"))
     details = tables.TemplateColumn(template_code=LAYER_FEATURE_TYPE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)
@@ -128,8 +125,6 @@ class LayerTable(SecuredTable):
 
 class FeatureTypeTable(SecuredTable):
     perm_checker = None
-    title = tables.TemplateColumn(template_code=RECORD_ABSOLUTE_LINK_VALUE_CONTENT,
-                                  accessor="metadata")
     details = tables.TemplateColumn(template_code=LAYER_FEATURE_TYPE_DETAIL_ICONS,
                                     verbose_name=_("Details"),
                                     orderable=False)

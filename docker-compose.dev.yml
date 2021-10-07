@@ -29,8 +29,7 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
-      #/bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
-      /bin/bash -c "/opt/mrmap/manage.py makemigrations users acls jobs registry"
+      /bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
     hostname: "mrmap-test"
     volumes:
       - type: bind

@@ -160,6 +160,8 @@ PER_PAGE_MAX = 2500
 
 METADATA_URL = ["request=GetMetadata&", ]
 
+BASE_URL_FOR_ETF = os.environ.get("MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001")
+
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver").split(";")
 
 # GIT repo links

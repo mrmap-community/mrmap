@@ -346,8 +346,15 @@ STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
     BASE_DIR + '/registry/static',
-    "/tmp/static"
 ]
+
+# static is used for localdev + runserver
+if os.path.exists(BASE_DIR + '/static'):
+    STATICFILES_DIRS.append(BASE_DIR + '/static')
+
+# /tmp/static is used in docker container
+if os.path.exists("/tmp/static"):
+    STATICFILES_DIRS.append('/tmp/static')
 
 WSGI_APPLICATION = 'MrMap.wsgi.application'
 ASGI_APPLICATION = 'MrMap.asgi.application'

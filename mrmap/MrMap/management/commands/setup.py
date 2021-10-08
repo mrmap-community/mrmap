@@ -159,6 +159,7 @@ class Command(BaseCommand):
         fixture_list = [
             "conformityCheckConfigurationInit.json",
             "conformityCheckConfigurationExternalInit.json",
+            "conformityCheckConfigurationExternalWmsInit.json",
             "ruleInit.json",
             "ruleSetInit.json",
             "conformityCheckConfigurationInternalInit.json"

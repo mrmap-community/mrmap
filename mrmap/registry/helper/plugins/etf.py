@@ -112,7 +112,8 @@ class QualityEtf:
                  client: EtfClient):
         self.config = config_ext
         self.resource = run.resource
-        self.resource_url = settings.ROOT_URL + self.resource.get_xml_view_url()
+        # TODO: check if the baseurl shall be dynamic based on the request
+        self.resource_url = settings.BASE_URL_FOR_ETF + self.resource.get_xml_view_url()
         self.check_run = run
         self.client = client
         self.polling_interval_seconds = self.config.polling_interval_seconds

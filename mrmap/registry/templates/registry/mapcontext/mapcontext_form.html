@@ -10,7 +10,6 @@
     <form action="{{ action_url }}" method="post">
         <div class="card-body">
             {% csrf_token %}
-            {{form.media}}
             {% bootstrap_form form %}
             {% for formset in inlines %}
             <hr class="separator">
@@ -22,6 +21,7 @@
             {{formset.management_form}}
             {% for form in formset.forms %}
             <div class="{{ formset.prefix }}-form" style="display:none">
+                {{form.media}}
                 {% bootstrap_form form %}
             </div>
             {% endfor %}

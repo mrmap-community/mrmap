@@ -80,15 +80,15 @@ $(function () {
     },
     "types": {
       "root": {
-        "icon": "fas fa-folder",
+        "icon": "bi bi-folder-fill",
         "valid_children": ["default", "resource"]
       },
       "default": {
-        "icon": "fas fa-folder",
+        "icon": "bi bi-folder-fill",
         "valid_children": ["default", "resource"]
       },
       "resource": {
-        "icon": "fas fa-map",
+        "icon": "bi bi-map-fill",
         "valid_children": []
       }
     }
@@ -115,7 +115,7 @@ $(function () {
       if (node.type === 'default') {
         layerTree.add_action(node_id, {
           "id": "action_add_layer",
-          "class": "fas fa-map pull-right",
+          "class": "bi bi-map-fill pull-right",
           "title": "Add WMS Layer",
           "after": true,
           "selector": "a",
@@ -145,7 +145,7 @@ $(function () {
         });
         layerTree.add_action(node_id, {
           "id": "action_add_folder",
-          "class": "fas fa-plus-circle pull-right",
+          "class": "bi bi-plus-circle-fill pull-right",
           "title": "Add Folder",
           "after": true,
           "selector": "a",
@@ -164,7 +164,7 @@ $(function () {
         if (node.parent !== '#') {
           layerTree.add_action(node_id, {
             "id": "action_remove",
-            "class": "fas fa-minus-circle pull-right",
+            "class": "bi bi-dash-circle-fill pull-right",
             "title": "Remove Child",
             "after": true,
             "selector": "a",
@@ -177,7 +177,7 @@ $(function () {
         }
         layerTree.add_action(node_id, {
           "id": "action_edit",
-          "class": "fas fa-edit pull-right",
+          "class": "bi bi-pencil-fill pull-right",
           "title": "Edit",
           "after": true,
           "selector": "a",
@@ -190,7 +190,7 @@ $(function () {
       } else if (node.type === 'resource') {
         layerTree.add_action(node_id, {
           "id": "action_remove",
-          "class": "fas fa-minus-circle pull-right",
+          "class": "bi bi-dash-circle-fill pull-right",
           "title": "Remove",
           "after": true,
           "selector": "a",
@@ -202,7 +202,7 @@ $(function () {
         });
         layerTree.add_action(node_id, {
           "id": "action_edit",
-          "class": "fas fa-edit pull-right",
+          "class": "bi bi-pencil-fill pull-right",
           "title": "Edit",
           "after": true,
           "selector": "a",

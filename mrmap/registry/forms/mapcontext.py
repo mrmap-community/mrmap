@@ -1,4 +1,3 @@
-from dal import autocomplete
 from django import forms
 from django.forms import ModelForm, HiddenInput
 from django.utils.translation import gettext_lazy as _

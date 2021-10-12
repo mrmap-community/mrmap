@@ -161,15 +161,15 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     },
     "types": {
       "root": {
-        "icon": "fas fa-folder",
+        "icon": "bi bi-folder-fill",
         "valid_children": ["default", "resource"]
       },
       "default": {
-        "icon": "fas fa-folder",
+        "icon": "bi bi-folder-fill",
         "valid_children": ["default", "resource"]
       },
       "resource": {
-        "icon": "fas fa-map",
+        "icon": "bi bi-map-fill",
         "valid_children": []
       }
     }
@@ -207,7 +207,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
       if (node.type === 'default') {
         jsTree.add_action(nodeId, {
           "id": "action_add_folder",
-          "class": "fas fa-plus-circle pull-right",
+          "class": "bi bi-plus-circle-fill pull-right",
           "title": "Add Folder",
           "after": true,
           "selector": "a",
@@ -225,7 +225,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
         if (node.parent !== '#') {
           jsTree.add_action(nodeId, {
             "id": "action_remove",
-            "class": "fas fa-minus-circle pull-right",
+            "class": "bi bi-dash-circle-fill pull-right",
             "title": "Remove Child",
             "after": true,
             "selector": "a",
@@ -237,7 +237,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
         }
         jsTree.add_action(nodeId, {
           "id": "action_edit",
-          "class": "fas fa-edit pull-right",
+          "class": "bi bi-pencil-fill pull-right",
           "title": "Edit",
           "after": true,
           "selector": "a",
@@ -249,7 +249,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
       } else if (node.type === 'resource') {
         jsTree.add_action(nodeId, {
           "id": "action_remove",
-          "class": "fas fa-minus-circle pull-right",
+          "class": "bi bi-dash-circle-fill pull-right",
           "title": "Remove",
           "after": true,
           "selector": "a",

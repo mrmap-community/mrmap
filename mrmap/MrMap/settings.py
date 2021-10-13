@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'registry',
     'extras',
     'ws',
+    'rest_framework',
 ]
 
 TEMPLATE_LOADERS = (

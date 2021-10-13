@@ -16,8 +16,14 @@ Including another URLconf
 
 from django.urls import path, include
 from django.views.generic.base import RedirectView
-
+from rest_framework.routers import DefaultRouter
 from MrMap.settings import DEBUG
+
+# Define a router for our REST API
+rest_api_router = DefaultRouter()
+# Register REST API routes
+# e.g.
+# rest_api_router.registry.extend(mapcontext_router.registry) -> mapcontext_router imported from mapcontext urls
 
 urlpatterns = [
     # generic redirect if no path is used
@@ -33,11 +39,14 @@ urlpatterns = [
     path('captcha/', include('captcha.urls')),
 
     # translation support
-    path("i18n/", include("django.conf.urls.i18n")),
+    path('i18n/', include("django.conf.urls.i18n")),
 
     # Autocompletes
     path('ac/registry/', include('registry.autocompletes.urls')),
     path('ac/users/', include('users.autocompletes.urls')),
+
+    # REST API
+    path(r'api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
 ]
 
 if DEBUG:

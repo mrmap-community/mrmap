@@ -7,5 +7,5 @@ class MapContextSerializer(ModelSerializer):
 
     class Meta:
         model = MapContext
-        fields = ['id', 'title', 'abstract']
+        fields = ['title', 'abstract']
         extra_kwargs = {}

@@ -46,7 +46,7 @@ urlpatterns = [
     path('ac/users/', include('users.autocompletes.urls')),
 
     # REST API
-    path(r'api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
+    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
 ]
 
 if DEBUG:

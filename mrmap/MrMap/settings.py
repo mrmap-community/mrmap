@@ -69,7 +69,6 @@ INSTALLED_APPS = [
     'registry',
     'extras',
     'ws',
-    'rest_framework',
 ]
 
 TEMPLATE_LOADERS = (
@@ -507,3 +506,7 @@ LOGGING = {
         },
     },
 }
+
+# REST FRAMEWORK
+# TODO: here pagination configs and other should be included, commented for now (defaults are loaded)
+# REST_FRAMEWORK = {}

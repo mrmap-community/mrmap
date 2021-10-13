@@ -9,3 +9,10 @@ class MapContextSerializer(ModelSerializer):
         model = MapContext
         fields = ['title', 'abstract']
         extra_kwargs = {}
+
+
+class MapContextOWSSerializer(ModelSerializer):
+    class Meta:
+        model = MapContext
+        fields = ['id', 'title', 'abstract']
+        extra_kwargs = {}

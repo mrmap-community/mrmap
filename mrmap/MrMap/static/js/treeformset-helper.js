@@ -22,7 +22,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
    */
   function replaceNameAndIdAttributes(el, newFormIdx) {
     function replaceNameOrId(txt) {
-      return txt.replace(RegExp(`${formPrefix}-\\d+-`, 'g'), `${formPrefix}-${newFormIdx}-`);
+      return txt.replace(RegExp(`__prefix__`, 'g'), `${newFormIdx}`);
     }
     if (el.id) {
       el.id = replaceNameOrId(el.id, newFormIdx);
@@ -33,6 +33,8 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     if (el.getAttribute('for')) {
       el.setAttribute("for", replaceNameOrId(el.getAttribute('for'), newFormIdx));
     }
+
+
     Array.from(el.children).forEach(child => {
       replaceNameAndIdAttributes(child, newFormIdx);
     });
@@ -46,17 +48,26 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
    * @returns new number of forms (not counting the template)
    */
   function appendForm() {
-    const forms = document.querySelectorAll(`.${formPrefix}-form`);
+    const forms = document.querySelectorAll(`.${formPrefix}-form`);  // includes all forms, also marked deletion forms
     const formNum = forms.length;
-    // last form was the template form -> becomes the new form
-    const form = forms[formNum - 1];
-    const templateForm = form.cloneNode(true);
-    replaceNameAndIdAttributes(templateForm, formNum);
-    form.after(templateForm);
-    form.removeAttribute('style')
+    const lastForm = forms[formNum - 1];
+
+    // Get the element
+    const emptyForm = document.querySelector(`#id_${formPrefix}_EMPTY-FORM`);
+
+    // Create a copy of it
+    var newForm = emptyForm.cloneNode(true);
+    replaceNameAndIdAttributes(newForm, formNum);
+
+    newForm.setAttribute('class', `${formPrefix}-form`);
+    newForm.removeAttribute('style')
+    newForm.removeAttribute('id')
+
+    lastForm.after(newForm);
+
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
-    document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = formNum + 1;
+    document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value += 1;
     return formNum;
   }
   /**
@@ -104,7 +115,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     });
 
     // update template form and management form
-    replaceNameAndIdAttributes(templateForm, formsInOrder.length);
+    //replaceNameAndIdAttributes(templateForm, formsInOrder.length);
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
     document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = formsInOrder.length + 1;
@@ -125,8 +136,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
         const nodes = [];
         const forms = $(`.${formPrefix}-form`);
         if (forms.length === 1) {
-          // just a template form present -> create root node
-          appendForm();
+          // create root node
           $(`#id_${formPrefix}-0-${nameField}`).val('/');
           nodes.push({
             parent: '#',
@@ -187,7 +197,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     jsTree.select_node(nodes[0].id);
   }).on('create_node.jstree', function (e, data) {
     data.node.data = {
-      formIdx: appendForm() - 1
+      formIdx: appendForm()
     }
     updateFormset();
     jsTree.deselect_node(jsTree.get_selected());

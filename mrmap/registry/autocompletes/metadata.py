@@ -31,3 +31,4 @@ class ReferenceSystemAutocomplete(LoginRequiredMixin, autocomplete.Select2QueryS
 class DatasetMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = DatasetMetadata
     search_fields = ['title']
+

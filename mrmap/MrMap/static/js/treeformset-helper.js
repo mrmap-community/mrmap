@@ -30,6 +30,9 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     if (el.getAttribute('name')) {
       el.setAttribute("name", replaceNameOrId(el.getAttribute('name'), newFormIdx));
     }
+    if (el.getAttribute('for')) {
+      el.setAttribute("for", replaceNameOrId(el.getAttribute('for'), newFormIdx));
+    }
     Array.from(el.children).forEach(child => {
       replaceNameAndIdAttributes(child, newFormIdx);
     });

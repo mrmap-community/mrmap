@@ -18,10 +18,7 @@ class MapContextLayerFormSet(BaseInlineFormSet):
         self.instance.mapcontextlayer_set.all().delete()
 
         new_objects = []
-        # ignore the last form (this is the template form)
-        total_forms = self.management_form.cleaned_data['TOTAL_FORMS'] - 1
-        for i in range(0, total_forms):
-            form = self.forms[i]
+        for form in self.forms:
             parent_form_idx = form.cleaned_data.get("parent_form_idx", None)
             if parent_form_idx:
                 parent = new_objects[int(parent_form_idx)]
@@ -49,4 +46,4 @@ class MapContextLayerInline(InlineFormSetFactory):
     model = MapContextLayer
     form_class = MapContextLayerForm
     prefix = 'layer'
-    factory_kwargs = {'extra': 1, 'can_delete': False, 'formset': MapContextLayerFormSet}
+    factory_kwargs = {'extra': 0, 'can_delete': False, 'formset': MapContextLayerFormSet}

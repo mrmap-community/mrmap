@@ -31,3 +31,13 @@ class ReferenceSystemAutocomplete(LoginRequiredMixin, autocomplete.Select2QueryS
 class DatasetMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = DatasetMetadata
     search_fields = ['title']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        layer_pk = self.forwarded.get('layer', None)
+
+        if layer_pk:
+            qs = qs.filter(self_pointing_layers__pk=layer_pk)
+
+        return qs

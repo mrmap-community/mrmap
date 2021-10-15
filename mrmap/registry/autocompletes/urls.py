@@ -16,7 +16,8 @@ urlpatterns = [
 
     # service
     path('services', service_views.ServiceAutocomplete.as_view(), name="service_ac"),
-    path('feature-type', service_views.FeatureTypeAutocomplete.as_view(), name="feature_type_ac"),
+    path('layers', service_views.LayerAutocomplete.as_view(), name="layer_ac"),
+    path('feature-types', service_views.FeatureTypeAutocomplete.as_view(), name="feature_type_ac"),
 
     # metadata
     path('keywords', metadata_views.KeywordAutocomplete.as_view(), name="keyword_ac"),

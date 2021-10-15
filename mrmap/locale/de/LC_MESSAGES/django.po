@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-08 10:13+0200\n"
+"POT-Creation-Date: 2021-10-15 11:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -926,11 +926,11 @@ msgstr ""
 "Suche nach Merkmalstypen mit einer Zeit Ebene zwischen dem ausgewählten "
 "Bereich."
 
-#: registry/forms/mapcontext.py:8
+#: registry/forms/mapcontext.py:9
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: registry/forms/mapcontext.py:8 registry/models/mapcontext.py:21
+#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:21
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
@@ -1113,13 +1113,34 @@ msgstr "Ein identifizierender Name für diese MapContext Ebene"
 msgid "a short descriptive title for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
+#: registry/models/mapcontext.py:59 registry/models/monitoring.py:143
+#: registry/models/monitoring.py:191
+#: templates/MrMap/includes/nav-signed-in.html:65
+msgid "Dataset Metadata"
+msgstr "Datensatz Metadaten"
+
+#: registry/models/mapcontext.py:60
+msgid "You can use this field to pre filter possible Layer selection."
+msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
+
+#: registry/models/mapcontext.py:65 registry/models/monitoring.py:139
+#: registry/models/monitoring.py:184
+#, fuzzy
+#| msgid "Layer:"
+msgid "Layer"
+msgstr "Ebene:"
+
 #: registry/models/mapcontext.py:66
+msgid "Select a layer as a offering for rendering."
+msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
+
+#: registry/models/mapcontext.py:67
 #, fuzzy
 #| msgid "Preview"
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:67
+#: registry/models/mapcontext.py:68
 #, fuzzy
 #| msgid "a short descriptive title for this map context layer"
 msgid "A preview image for the Map Context Layer"
@@ -1639,22 +1660,11 @@ msgstr "Letzte Checks"
 msgid "Monitoring runs"
 msgstr "Letzte Checks"
 
-#: registry/models/monitoring.py:139 registry/models/monitoring.py:184
-#, fuzzy
-#| msgid "Layer:"
-msgid "Layer"
-msgstr "Ebene:"
-
 #: registry/models/monitoring.py:141 registry/models/monitoring.py:187
 #, fuzzy
 #| msgid "Featuretype:"
 msgid "Feature Type"
 msgstr "Featuretype:"
-
-#: registry/models/monitoring.py:143 registry/models/monitoring.py:191
-#: templates/MrMap/includes/nav-signed-in.html:65
-msgid "Dataset Metadata"
-msgstr "Datensatz Metadaten"
 
 #: registry/models/monitoring.py:157 registry/tables/monitoring.py:91
 #, fuzzy
@@ -2237,13 +2247,13 @@ msgstr "Zeigt den Gesundheitszustand der Ressource."
 msgid "Something went wrong while monitoring {resource}"
 msgstr "Etwas ging schief beim überprüfen von {metadata}"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:32
+#: registry/templates/registry/mapcontext/mapcontext_form.html:39
 #: templates/MrMap/generic_views/generic_form.html:25
 #: templates/MrMap/generic_views/generic_wizard_form.html:104
 msgid "Save"
 msgstr "Speichern"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:34
+#: registry/templates/registry/mapcontext/mapcontext_form.html:41
 #: templates/MrMap/generic_views/generic_delete.html:15
 #: templates/MrMap/generic_views/generic_form.html:26
 #: templates/MrMap/generic_views/generic_wizard_form.html:27

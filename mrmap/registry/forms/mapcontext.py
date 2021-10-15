@@ -33,5 +33,7 @@ class MapContextLayerForm(ModelForm):
             'title',
             'dataset_metadata',
             'layer',
+            'layer_scale_min',
+            'layer_scale_max',
             'preview_image'
         ]

@@ -326,20 +326,20 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                                       verbose_name=_("is cascaded"),
                                       help_text=_("WMS cascading allows to expose layers coming from other WMS servers "
                                                   "as if they were local layers"))
-    scale_min = models.FloatField(null=True,
-                                  blank=True,
-                                  editable=False,
-                                  verbose_name=_("scale minimum value"),
-                                  help_text=_("minimum scale for a possible request to this layer. If the request is "
-                                              "out of the given scope, the service will response with empty transparent"
-                                              "images. None value means no restriction."))
-    scale_max = models.FloatField(null=True,
-                                  blank=True,
-                                  editable=False,
-                                  verbose_name=_("scale maximum value"),
-                                  help_text=_("maximum scale for a possible request to this layer. If the request is "
-                                              "out of the given scope, the service will response with empty transparent"
-                                              "images. None value means no restriction."))
+    scale_min = models.IntegerField(null=True,
+                                    blank=True,
+                                    editable=False,
+                                    verbose_name=_("scale minimum value"),
+                                    help_text=_("minimum scale for a possible request to this layer. If the request is "
+                                                "out of the given scope, the service will response with empty transparent"
+                                                "images. None value means no restriction."))
+    scale_max = models.IntegerField(null=True,
+                                    blank=True,
+                                    editable=False,
+                                    verbose_name=_("scale maximum value"),
+                                    help_text=_("maximum scale for a possible request to this layer. If the request is "
+                                                "out of the given scope, the service will response with empty transparent"
+                                                "images. None value means no restriction."))
 
     class Meta:
         verbose_name = _("layer")

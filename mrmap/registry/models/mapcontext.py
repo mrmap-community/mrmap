@@ -64,6 +64,18 @@ class MapContextLayer(MPTTModel):
                               blank=True,
                               verbose_name=_("Layer"),
                               help_text=_("Select a layer as a offering for rendering."))
+    layer_scale_min = models.IntegerField(null=True,
+                                          blank=True,
+                                          verbose_name=_("scale minimum value"),
+                                          help_text=_("minimum scale for a possible request to this layer. If the request is "
+                                                      "out of the given scope, the service will response with empty transparent"
+                                                      "images. None value means no restriction."))
+    layer_scale_max = models.IntegerField(null=True,
+                                          blank=True,
+                                          verbose_name=_("scale maximum value"),
+                                          help_text=_("maximum scale for a possible request to this layer. If the request is "
+                                                      "out of the given scope, the service will response with empty transparent"
+                                                      "images. None value means no restriction."))
     preview_image = models.ImageField(verbose_name=_("preview image"),
                                       help_text=_("A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,

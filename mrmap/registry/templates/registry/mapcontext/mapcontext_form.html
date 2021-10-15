@@ -20,7 +20,6 @@
                     class="form-group">
                 </div>
                 {{ formset.management_form }}
-                {{ formset.forms.0.media }}
                 <div id="id_layer_EMPTY-FORM" style="display:none">
                     {% with form=formset.empty_form empty=1 %}
                     {% include 'registry/mapcontext/mapcontext_layer_form.html' %}

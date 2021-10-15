@@ -63,7 +63,7 @@ class MapContextLayer(MPTTModel):
                               null=True,
                               blank=True,
                               verbose_name=_("Layer"),
-                              help_text=_("Select a layer as a offering for rendering."))                                                  
+                              help_text=_("Select a layer as a offering for rendering."))
     preview_image = models.ImageField(verbose_name=_("preview image"),
                                       help_text=_("A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,
@@ -72,7 +72,6 @@ class MapContextLayer(MPTTModel):
 
     def __str__(self):
         return f"{self.name}"
-        
 
 
 # TODO: The following models are currently unused. Clarify the new structure for map context before enabling them

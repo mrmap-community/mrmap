@@ -30,4 +30,3 @@ class LayerAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomple
 class FeatureTypeAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
     model = FeatureType
     search_fields = ['title', 'id']
-

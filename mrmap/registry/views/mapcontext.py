@@ -29,6 +29,7 @@ class MapContextUpdateView(UpdateWithInlinesView):
     model = MapContext
     form_class = MapContextForm
     inlines = [MapContextLayerInline]
+
     # TODO check if we can turn this into a generic template
     template_name = 'registry/mapcontext/mapcontext_form.html'
     success_url = reverse_lazy('registry:map_context_list')

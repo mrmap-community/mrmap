@@ -63,11 +63,14 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     newForm.removeAttribute('style')
     newForm.removeAttribute('id')
 
-    lastForm.after(newForm);
-
+    if (lastForm === undefined){
+      emptyForm.after(newForm);
+    } else {
+      lastForm.after(newForm);
+    }
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
-    document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value += 1;
+    document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = parseInt(document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value) + 1;
     return formNum;
   }
   /**
@@ -86,7 +89,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     const formsInOrder = [];
     const nodeIdToFormIdx = {};
     let forms = $(`.${formPrefix}-form`);
-    for (i = 0; i < forms.length - 1; i++) {
+    for (i = 0; i < forms.length; i++) {
       const form = forms[i];
       if (i < nodes.length) {
         const node = nodes[i];
@@ -101,10 +104,10 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     }
 
     // re-add forms to DOM in order
-    const templateForm = $(`.${formPrefix}-form`).last()[0];
+    const templateForm = document.querySelector(`#id_${formPrefix}_EMPTY-FORM`);
     for (i = 0; i < formsInOrder.length; i++) {
       replaceNameAndIdAttributes(formsInOrder[i], i);
-      templateForm.parentElement.insertBefore(formsInOrder[i], templateForm);
+      templateForm.parentNode.insertBefore(formsInOrder[i], templateForm.nextSibling);
     }
 
     // update name and parent form idx
@@ -118,7 +121,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     //replaceNameAndIdAttributes(templateForm, formsInOrder.length);
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
-    document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = formsInOrder.length + 1;
+    document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = formsInOrder.length;
     // TODO instead of removing originally present forms, keep them and mark them as deleted
     document.querySelector(`#id_${formPrefix}-INITIAL_FORMS`).value = 0;
   }
@@ -135,8 +138,9 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
       "data": function (obj, cb) {
         const nodes = [];
         const forms = $(`.${formPrefix}-form`);
-        if (forms.length === 1) {
+        if (forms.length === 0) {
           // create root node
+          appendForm();
           $(`#id_${formPrefix}-0-${nameField}`).val('/');
           nodes.push({
             parent: '#',
@@ -148,7 +152,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
         } else {
           // form nodes have to be in topological order, so a parent does always precede its children)
           const idToFormIdx = {};
-          for (i = 0; i < forms.length - 1; i++) {
+          for (i = 0; i < forms.length; i++) {
             id = $(`#id_${formPrefix}-${i}-id`).val();
             parent = $(`#id_${formPrefix}-${i}-${parentField}`).val();
             nodes.push({

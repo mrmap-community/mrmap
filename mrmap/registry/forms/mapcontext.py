@@ -20,7 +20,8 @@ class MapContextLayerForm(ModelForm):
         model = MapContextLayer
         widgets = {
             'parent': HiddenInput(),
-            'dataset_metadata':  autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac'),
+            'dataset_metadata':  autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac',
+                                                           forward=['layer']),
             'layer':  autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
                                                 forward=['dataset_metadata']),
         }

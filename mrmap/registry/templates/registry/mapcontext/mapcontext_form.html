@@ -14,7 +14,7 @@
             {% bootstrap_form form %}
             {% for formset in inlines %}
                 <hr class="separator">
-                <p>Ebenen und Datenangebote</p>
+                <h5>Ebenen und Datenangebote</h5>
                 <div id="layer_tree"
                     style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
                     class="form-group">
@@ -25,8 +25,24 @@
                 {% bootstrap_form formset.empty_form %}
                 </div>
                 {% for form in formset.forms %}
+                    <hr class="separator">
                     <div class="{{ formset.prefix }}-form" style="display:none">
-                        {% bootstrap_form form %}
+                        <div class="field-group my-5">
+                            <div class="row mb-2">
+                              <h5>Metainformation of MapContextLayer forloop0</h5>
+                            </div>
+                            {% bootstrap_field form.name %}
+                            {% bootstrap_field form.title %}
+                        </div>
+                        <div class="field-group my-5">
+                            <div class="row mb-2">
+                              <h5>Offerings for rendering of MapContextLayer forloop0</h5>
+                            </div>
+                            {% bootstrap_field form.dataset_metadata %}
+                            {% bootstrap_field form.layer %}
+                          </div>
+
+
                     </div>
                 {% endfor %}
             {% endfor %}

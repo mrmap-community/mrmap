@@ -326,20 +326,20 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                                       verbose_name=_("is cascaded"),
                                       help_text=_("WMS cascading allows to expose layers coming from other WMS servers "
                                                   "as if they were local layers"))
-    scale_min = models.IntegerField(null=True,
-                                    blank=True,
-                                    editable=False,
-                                    verbose_name=_("scale minimum value"),
-                                    help_text=_("minimum scale for a possible request to this layer. If the request is "
-                                                "out of the given scope, the service will response with empty transparent"
-                                                "images. None value means no restriction."))
-    scale_max = models.IntegerField(null=True,
-                                    blank=True,
-                                    editable=False,
-                                    verbose_name=_("scale maximum value"),
-                                    help_text=_("maximum scale for a possible request to this layer. If the request is "
-                                                "out of the given scope, the service will response with empty transparent"
-                                                "images. None value means no restriction."))
+    scale_min = models.FloatField(null=True,
+                                  blank=True,
+                                  editable=False,
+                                  verbose_name=_("scale minimum value"),
+                                  help_text=_("minimum scale for a possible request to this layer. If the request is "
+                                              "out of the given scope, the service will response with empty transparent"
+                                              "images. None value means no restriction."))
+    scale_max = models.FloatField(null=True,
+                                  blank=True,
+                                  editable=False,
+                                  verbose_name=_("scale maximum value"),
+                                  help_text=_("maximum scale for a possible request to this layer. If the request is "
+                                              "out of the given scope, the service will response with empty transparent"
+                                              "images. None value means no restriction."))
 
     class Meta:
         verbose_name = _("layer")
@@ -367,6 +367,44 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                 Service.objects.filter(pk=self.service_id).update(is_active=self.is_active)
             else:
                 self.get_descendants().update(is_active=self.is_active)
+
+
+    @cached_property
+    def inherit_scale_min(self) -> float:
+        """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the 
+             any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
+           
+
+        :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
+        :rtype: :class:`django.contrib.gis.geos.polygon`
+        """
+        if self.scale_min:
+            return self.scale_min
+        else:
+            return self.get_ancestors().exclude(scale_min=None).values_list("scale_min", flat=True).first()
+
+    @cached_property
+    def inherit_scale_max(self) -> float:
+        """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the 
+             any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
+           
+
+        :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
+        :rtype: :class:`django.contrib.gis.geos.polygon`
+        """
+        if self.scale_max:
+            return self.scale_max
+        else:
+            return self.get_ancestors().exclude(scale_max=None).values_list("scale_max", flat=True).first()
+
 
     @cached_property
     def bbox(self) -> Polygon:

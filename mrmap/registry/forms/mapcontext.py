@@ -24,6 +24,9 @@ class MapContextLayerForm(ModelForm):
                                                           forward=['layer']),
             'layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
                                                forward=['dataset_metadata']),
+            'layer_scale_min': forms.widgets.NumberInput(attrs={'class': 'form-range', 
+                                                                'type': 'range',
+                                                                'data-bind': 'attr: { min: layer.scale_min }'})
         }
         fields = [
             'id',

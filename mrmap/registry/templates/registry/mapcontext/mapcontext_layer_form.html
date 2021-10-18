@@ -22,3 +22,14 @@
     {% bootstrap_field form.layer_scale_min %}
     {% bootstrap_field form.layer_scale_max %}
 </div>
+<script>
+    function LayerSelection() {
+        var LayerSelection = this;
+        this.layer = ko.observable();  // the selected layer
+
+        // TODO: on new selection ==> request the layer object
+        ko.applyBindings(new LayerSelection());
+
+    }
+
+</script>

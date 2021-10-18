@@ -43,7 +43,7 @@ class MapContextSerializer(ModelSerializer):
     type = CharField(default='FeatureCollection')
     id = SerializerMethodField()
     # properties = MapContextPropertiesSerializer()
-    map_context_layers = MapContextPropertiesSerializer()
+    map_context_layers = SerializerMethodField()
 
     class Meta:
         model = MapContext
@@ -51,7 +51,7 @@ class MapContextSerializer(ModelSerializer):
             'type',
             'id',
             # 'properties',
-            'mSap_context_layers'
+            'map_context_layers'
         ]
 
     @staticmethod

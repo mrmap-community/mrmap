@@ -1,10 +1,9 @@
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from registry.api.serializers.mapcontext import MapContextSerializer
-from registry.models import MapContextLayer, MapContext
+from registry.models import MapContext
 
 
 class MapContextViewSet(ModelViewSet):
@@ -14,8 +13,7 @@ class MapContextViewSet(ModelViewSet):
     # # permission_classes = None # TODO
 
     serializers = {
-        'default': MapContextSerializer,
-        #'retrieve': MapContextSerializer
+        'default': MapContextSerializer
     }
 
     def get_serializer_class(self):

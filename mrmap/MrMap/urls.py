@@ -47,7 +47,6 @@ urlpatterns = [
 
     # REST API
     path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api_root')),
-    #path('api/v1/registry/', include((rest_api_router.urls, 'registry'), namespace='api_registry_root')),
 ]
 
 if DEBUG:

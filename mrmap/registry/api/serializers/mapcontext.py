@@ -1,8 +1,15 @@
 from rest_framework.fields import SerializerMethodField
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, CharField
 
 from registry.api.serializers.service import OperationsUrlSerializer
 from registry.models import MapContext, MapContextLayer, OperationUrl
+
+
+class MapContextPropertiesSerializer(ModelSerializer):
+
+    class Meta:
+        model = MapContext
+        fields = '__all__'
 
 
 class MapContextLayerSerializer(ModelSerializer):
@@ -33,17 +40,23 @@ class MapContextLayerSerializer(ModelSerializer):
 
 
 class MapContextSerializer(ModelSerializer):
-    map_context_layers = SerializerMethodField()
+    type = CharField(default='FeatureCollection')
+    id = SerializerMethodField()
+    # properties = MapContextPropertiesSerializer()
+    map_context_layers = MapContextPropertiesSerializer()
 
     class Meta:
         model = MapContext
         fields = [
+            'type',
             'id',
-            'title',
-            'abstract',
-            # 'map_extent', # TODO
-            'map_context_layers'
+            # 'properties',
+            'mSap_context_layers'
         ]
+
+    @staticmethod
+    def get_id(obj):
+        return obj.get_absolute_url()
 
     @staticmethod
     def get_map_extent(obj):

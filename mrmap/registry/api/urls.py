@@ -5,4 +5,3 @@ app_name = 'registry'
 
 registry_api_router = DefaultRouter()
 registry_api_router.register(app_name + '/mapcontexts', MapContextViewSet, basename='mapcontext_api_router')
-

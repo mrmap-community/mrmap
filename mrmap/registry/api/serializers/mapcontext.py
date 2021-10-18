@@ -1,16 +1,8 @@
-from django.http import JsonResponse
 from rest_framework.fields import SerializerMethodField
-from rest_framework.serializers import ModelSerializer, Serializer
+from rest_framework.serializers import ModelSerializer
 
-from registry.enums.service import OGCOperationEnum, HttpMethodEnum
+from registry.api.serializers.service import OperationsUrlSerializer
 from registry.models import MapContext, MapContextLayer, OperationUrl
-
-
-class OperationsUrlSerializer(ModelSerializer):
-
-    class Meta:
-        model = OperationUrl
-        fields = '__all__'
 
 
 class MapContextLayerSerializer(ModelSerializer):
@@ -22,8 +14,7 @@ class MapContextLayerSerializer(ModelSerializer):
             'id',
             'parent',
             'title',
-            # 'layer',
-            #'max_extent',
+            # 'max_extent', # TODO
             'context_layer_operations'
         ]
 
@@ -50,7 +41,7 @@ class MapContextSerializer(ModelSerializer):
             'id',
             'title',
             'abstract',
-            # 'map_extent',
+            # 'map_extent', # TODO
             'map_context_layers'
         ]
 

@@ -13,6 +13,7 @@ from registry.wizards import security as security_wizards
 from registry.wizards.security import ALLOWED_OPERATION_WIZARD_FORMS
 
 app_name = 'registry'
+
 urlpatterns = [
     # Service views
     path("service/add", service_views.RegisterServiceFormView.as_view(), name="service_add"),

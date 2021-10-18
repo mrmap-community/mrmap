@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-15 11:53+0200\n"
+"POT-Creation-Date: 2021-10-18 14:12+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -793,7 +793,7 @@ msgstr "Bearbeiten"
 msgid "Successfully updated %(obj)s"
 msgstr "Erfolgreich ausgeloggt"
 
-#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:48
+#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:50
 #: registry/models/metadata.py:44 registry/models/metadata.py:716
 #, fuzzy
 #| msgid "Username"
@@ -930,7 +930,7 @@ msgstr ""
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:21
+#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:22
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
@@ -1088,59 +1088,59 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/mapcontext.py:17 registry/models/mapcontext.py:53
+#: registry/models/mapcontext.py:18 registry/models/mapcontext.py:55
 #: registry/models/metadata.py:49 registry/models/metadata.py:325
 #, fuzzy
 #| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
-#: registry/models/mapcontext.py:18
+#: registry/models/mapcontext.py:19
 msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
-#: registry/models/mapcontext.py:20 registry/models/metadata.py:328
+#: registry/models/mapcontext.py:21 registry/models/metadata.py:328
 #, fuzzy
 #| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: registry/models/mapcontext.py:49
+#: registry/models/mapcontext.py:51
 msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
-#: registry/models/mapcontext.py:54
+#: registry/models/mapcontext.py:56
 msgid "a short descriptive title for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
-#: registry/models/mapcontext.py:59 registry/models/monitoring.py:143
+#: registry/models/mapcontext.py:61 registry/models/monitoring.py:143
 #: registry/models/monitoring.py:191
 #: templates/MrMap/includes/nav-signed-in.html:65
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
-#: registry/models/mapcontext.py:60
+#: registry/models/mapcontext.py:62
 msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
-#: registry/models/mapcontext.py:65 registry/models/monitoring.py:139
+#: registry/models/mapcontext.py:67 registry/models/monitoring.py:139
 #: registry/models/monitoring.py:184
 #, fuzzy
 #| msgid "Layer:"
 msgid "Layer"
 msgstr "Ebene:"
 
-#: registry/models/mapcontext.py:66
+#: registry/models/mapcontext.py:68
 msgid "Select a layer as a offering for rendering."
 msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
 
-#: registry/models/mapcontext.py:67
+#: registry/models/mapcontext.py:69
 #, fuzzy
 #| msgid "Preview"
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:68
+#: registry/models/mapcontext.py:70
 #, fuzzy
 #| msgid "a short descriptive title for this map context layer"
 msgid "A preview image for the Map Context Layer"
@@ -2247,13 +2247,13 @@ msgstr "Zeigt den Gesundheitszustand der Ressource."
 msgid "Something went wrong while monitoring {resource}"
 msgstr "Etwas ging schief beim überprüfen von {metadata}"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:39
+#: registry/templates/registry/mapcontext/mapcontext_form.html:38
 #: templates/MrMap/generic_views/generic_form.html:25
 #: templates/MrMap/generic_views/generic_wizard_form.html:104
 msgid "Save"
 msgstr "Speichern"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:41
+#: registry/templates/registry/mapcontext/mapcontext_form.html:40
 #: templates/MrMap/generic_views/generic_delete.html:15
 #: templates/MrMap/generic_views/generic_form.html:26
 #: templates/MrMap/generic_views/generic_wizard_form.html:27

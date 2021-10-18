@@ -4,6 +4,7 @@ from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
 from extras.models import GenericModelMixin, CommonInfo
+from registry.managers.mapcontext import MapContextManager, MapContextLayerManager
 from registry.models import Layer, DatasetMetadata
 
 
@@ -33,6 +34,7 @@ class MapContext(GenericModelMixin, CommonInfo):
     # resource
     # contextMetadata
     # extension
+    objects = MapContextManager()
 
     def __str__(self):
         return self.title
@@ -81,6 +83,8 @@ class MapContextLayer(MPTTModel):
                                       upload_to=preview_image_file_path,
                                       null=True,
                                       blank=True)
+
+    objects = MapContextLayerManager()
 
     def __str__(self):
         return f"{self.name}"

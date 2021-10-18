@@ -54,17 +54,18 @@ class MapContextLayer(MPTTModel):
                              blank=True,
                              verbose_name=_("title"),
                              help_text=_("a short descriptive title for this map context layer"))
-
-    # TODO: Move to ContextLayerMetadataOptions
-    dataset_metadata = models.ForeignKey(DatasetMetadata,
-                                         on_delete=models.CASCADE,
+    dataset_metadata = models.ForeignKey(to=DatasetMetadata,
+                                         on_delete=models.PROTECT,
                                          null=True,
-                                         blank=True)
-    # TODO: Move to ContextLayerSelectOptions
-    layer = models.ForeignKey(Layer,
-                              on_delete=models.CASCADE,
+                                         blank=True,
+                                         verbose_name=_("Dataset Metadata"),
+                                         help_text=_("You can use this field to pre filter possible Layer selection."))
+    layer = models.ForeignKey(to=Layer,
+                              on_delete=models.PROTECT,
                               null=True,
-                              blank=True)
+                              blank=True,
+                              verbose_name=_("Layer"),
+                              help_text=_("Select a layer as a offering for rendering."))
     preview_image = models.ImageField(verbose_name=_("preview image"),
                                       help_text=_("A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,

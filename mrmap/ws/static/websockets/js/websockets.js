@@ -6,7 +6,6 @@ function ws_connect(path, search) {
 
     ws_socket.onopen = function open() {
         // do nothing if the websocket is correctly opened
-        console.log('connected');
     };
 
     ws_socket.onclose = function(e) {

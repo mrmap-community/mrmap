@@ -19,11 +19,11 @@ from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 from MrMap.settings import DEBUG
 
-from registry.api.urls.mapcontext import mapcontext_api_router
+from registry.api.urls import registry_api_router
 
 # Register REST API routes
 rest_api_router = DefaultRouter()
-rest_api_router.registry.extend(mapcontext_api_router.registry)
+rest_api_router.registry.extend(registry_api_router.registry)
 
 urlpatterns = [
     # generic redirect if no path is used
@@ -46,7 +46,8 @@ urlpatterns = [
     path('ac/users/', include('users.autocompletes.urls')),
 
     # REST API
-    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
+    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api_root')),
+    #path('api/v1/registry/', include((rest_api_router.urls, 'registry'), namespace='api_registry_root')),
 ]
 
 if DEBUG:

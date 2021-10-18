@@ -1,22 +1,21 @@
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from registry.api.serializers.mapcontext import MapContextSerializer, MapContextOWSSerializer
-from registry.models import MapContext
+from registry.api.serializers.mapcontext import MapContextSerializer
+from registry.models import MapContextLayer, MapContext
 
 
 class MapContextViewSet(ModelViewSet):
     queryset = MapContext.objects.all()
-    filterset_class = None  # TODO
-    pagination_class = None  # TODO
-    # permission_classes = None # TODO
+    # filterset_class = None  # TODO
+    # pagination_class = None  # TODO
+    # # permission_classes = None # TODO
 
     serializers = {
         'default': MapContextSerializer,
-        # retrieve is the name of the default method to get a MapContextInstance by a given PK.
-        # We only need to replace the way the serializer is structured
-        'retrieve': MapContextOWSSerializer
+        #'retrieve': MapContextSerializer
     }
 
     def get_serializer_class(self):

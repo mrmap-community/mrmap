@@ -1,5 +1,5 @@
 from rest_framework.reverse import reverse
-from rest_framework.fields import SerializerMethodField
+from rest_framework.fields import SerializerMethodField, ModelField
 from rest_framework.serializers import ModelSerializer, CharField, HyperlinkedModelSerializer, HyperlinkedIdentityField
 
 from registry.api.serializers.service import OperationsUrlSerializer
@@ -7,9 +7,61 @@ from registry.models import MapContext, MapContextLayer, OperationUrl, Layer
 
 
 class MapContextPropertiesSerializer(ModelSerializer):
+    lang = CharField(default='de')
+    subtitle = ModelField(model_field=MapContext()._meta.get_field('abstract'))
+    updated = ModelField(model_field=MapContext()._meta.get_field('last_modified_at'))
+    authors = SerializerMethodField()
+    publisher = SerializerMethodField()
+    creator = CharField(default='MrMap')  # format is unclear, see 7.1.1 vs 7.1.1.9
+    links = SerializerMethodField()
+
     class Meta:
         model = MapContext
-        fields = ['title', 'abstract']
+        fields = [
+            'lang',  # 7.1.1.2 language
+            'title',  # 7.1.1.4 title
+            'subtitle',  # 7.1.1.5 abstract
+            'updated',  # 7.1.1.6 updateDate (TODO: get rid of fractional seconds)
+            'authors',  # 7.1.1.7 author
+            'publisher',  # 7.1.1.8 publisher
+            'creator',  # 7.1.1.9 creator
+            # TODO 'rights', # 7.1.1.10 rights
+            # TODO 'categories', # 7.1.1.15 keyword
+            'links',  # 7.1.1.1 specReference + TODO: 7.1.1.14 contextMetadata
+        ]
+
+    @staticmethod
+    def get_authors(obj):
+        if not obj.created_by_user:
+            return
+        name = obj.created_by_user.username
+        if obj.created_by_user.last_name:
+            name = obj.created_by_user.last_name
+            if obj.created_by_user.first_name:
+                name = obj.created_by_user.first_name + " " + name
+        author = {
+            'name': name
+        }
+        if obj.created_by_user.email:
+            author['email'] = obj.created_by_user.email
+        return {
+            'authors': [author]
+        }
+
+    @staticmethod
+    def get_publisher(obj):
+        if not obj.owned_by_org:
+            return
+        return obj.owned_by_org.name
+
+    @staticmethod
+    def get_links(obj):
+        # NOTE: The structure specified in 7.1.1.1 differs from the example in Annex B, but the example seems more
+        # reasonable.
+        return {
+            'profiles': [{'href': 'http://www.opengis.net/spec/owc-geojson/1.0/req/core',
+                          'title': 'This file is compliant with version 1.0 of OGC Context'}]
+        }
 
 
 class MapContextLayerSerializer(ModelSerializer):
@@ -48,36 +100,21 @@ class MapContextLayerSerializer(ModelSerializer):
 
 
 class MapContextSerializer(HyperlinkedModelSerializer):
-    id = HyperlinkedIdentityField(view_name="api:mapcontext-detail")
     type = CharField(default='FeatureCollection')
-    properties = SerializerMethodField()
+    id = HyperlinkedIdentityField(view_name="api:mapcontext-detail")
+    properties = MapContextPropertiesSerializer(source='*')
     features = SerializerMethodField()
 
     class Meta:
         model = MapContext
         fields = [
-            'id',
             'type',
+            'id',  # 7.1.1.3 id
             'properties',
-            'features'
+            # TODO 'bbox',  # 7.1.1.11 areaOfInterest
+            # TODO 'date',  # 7.1.1.12 timeIntervalOfInterest
+            'features'  # 7.1.1.13 resource
         ]
-
-    @staticmethod
-    def get_map_extent(obj):
-        pass
-        # TODO
-
-    def get_properties(self, obj):
-        # TODO use MapContextPropertiesSerializer
-        props = {
-            # Spec: Title for the Context document (String type, not empty), One (mandatory)
-            'title': obj.title
-        }
-        if obj.abstract:
-            # Spec: Description of the Context document purpose or content (String type, not empty)
-            # Zero or one (optional)
-            props['subtitle'] = obj.abstract
-        return props
 
     def get_features(self, obj):
         queryset = MapContextLayer.objects.filter(map_context_id=obj.id)

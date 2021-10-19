@@ -2,8 +2,7 @@ from rest_framework.reverse import reverse
 from rest_framework.fields import SerializerMethodField, ModelField
 from rest_framework.serializers import ModelSerializer, CharField, HyperlinkedModelSerializer, HyperlinkedIdentityField
 
-from registry.api.serializers.service import OperationsUrlSerializer
-from registry.models import MapContext, MapContextLayer, OperationUrl, Layer
+from registry.models import MapContext, MapContextLayer
 
 
 class MapContextPropertiesSerializer(ModelSerializer):
@@ -64,39 +63,60 @@ class MapContextPropertiesSerializer(ModelSerializer):
         }
 
 
-class MapContextLayerSerializer(ModelSerializer):
-    # "http://localhost:8001/api/v1/registry/mapcontexts/1.json"
-    # "http://localhost:8001/api/v1/registry/mapcontexts/1/layer/1"
-    id = SerializerMethodField()
-    type = CharField(default='Feature')
-    context_layer_operations = SerializerMethodField()
+class MapContextLayerPropertiesSerializer(ModelSerializer):
+    title = ModelField(model_field=MapContextLayer()._meta.get_field('name'))
+    abstract = ModelField(model_field=MapContextLayer()._meta.get_field('title'))
+    folder = SerializerMethodField()
 
     class Meta:
         model = MapContextLayer
         fields = [
-            'id',
+            'title',  # 7.1.2.2 title
+            'abstract',  # 7.1.2.3 abstract
+            # TODO 'updated' # 7.1.2.4 updateDate
+            # TODO 'authors' # 7.1.2.5 author
+            # TODO 'publisher' # 7.1.2.6 publisher
+            # TODO 'rights' # 7.1.2.7 rights
+            # TODO 'date' # 7.1.2.9 temporalExtent
+            # TODO 'links' # 7.1.2.10 preview + 7.1.2.11 contentDescription + 7.1.2.12 contentByRef + 7.1.2.15 resourceMetadata
+            # TODO 'offering' # 7.1.2.13 offering
+            # TODO 'active' # 7.1.2.14 active
+            # TODO 'categories' # 7.1.2.16 keyword
+            # TODO 'minScaleDenominator' # 7.1.2.17 minScaleDenominator
+            # TODO 'maxScaleDenominator' # 7.1.2.18 maxScaleDenominator
+            'folder',  # 7.1.2.19 folder
+            # TODO # 7.1.2.20 extension
+        ]
+
+    @staticmethod
+    def get_folder(obj):
+        folder = None
+        while obj.parent and obj.parent.name != "/":
+            obj = obj.parent
+            if folder:
+                folder = obj.name + "/" + folder
+            else:
+                folder = obj.name
+        return folder
+
+
+class MapContextLayerSerializer(ModelSerializer):
+    type = CharField(default='Feature')
+    id = SerializerMethodField()
+    properties = MapContextLayerPropertiesSerializer(source='*')
+
+    class Meta:
+        model = MapContextLayer
+        fields = [
             'type',
-            'parent',
-            'name',
-            # 'max_extent', # TODO
-            'context_layer_operations'
+            'id',  # 7.1.2.1 id
+            'properties',
+            # TODO 'geometry'  # 7.1.2.8 geospatialExtent
         ]
 
     def get_id(self, obj):
         return self.context['request'].build_absolute_uri(
-            reverse('api:mapcontext-detail', args=[obj.map_context_id]) + "layer/" + str(obj.id))
-
-    @staticmethod
-    def get_max_extent(obj):
-        pass
-        # TODO
-
-    @staticmethod
-    def get_context_layer_operations(obj):
-        layer = obj.layer
-        service = layer.service
-        operations = OperationUrl.objects.filter(service__id=service.id)
-        return OperationsUrlSerializer(operations, many=True).data
+            reverse('api:mapcontext-detail', args=[obj.map_context_id]) + "layer/" + str(obj.id) + "/")
 
 
 class MapContextSerializer(HyperlinkedModelSerializer):
@@ -114,6 +134,7 @@ class MapContextSerializer(HyperlinkedModelSerializer):
             # TODO 'bbox',  # 7.1.1.11 areaOfInterest
             # TODO 'date',  # 7.1.1.12 timeIntervalOfInterest
             'features'  # 7.1.1.13 resource
+            # TODO # 7.1.1.16 extension
         ]
 
     def get_features(self, obj):

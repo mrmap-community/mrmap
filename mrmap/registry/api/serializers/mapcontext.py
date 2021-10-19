@@ -39,12 +39,13 @@ class MapContextLayerPropertiesSerializer(ModelSerializer):
                 "code": "GetCapabilities",
                 "method": "GET",
                 "type": "application/xml",
-                "href": wms_layer.service.url + "service=WMS&request=GetCapabilities"
+                "href": f"{wms_layer.service.url}service=WMS&request=GetCapabilities"
             }, {
                 "code": "GetMap",
                 "method": "GET",
                 "type": "image/jpeg",  # TODO
-                "href": wms_layer.service.url + "service=WMS&version=1.3.0&request=GetMap"  # TODO full request url
+                "href": f"{wms_layer.service.url}service=WMS&version=1.3.0&request=GetMap&layer={wms_layer.identifier}"
+                # TODO full request url
             }]
         }
 

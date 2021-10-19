@@ -19,9 +19,7 @@ function fetchObject(path){
 
 function MapContextLayerFormModel() {
   var model = this;
-  this.selectedLayer0 = ko.observable();
-
-  ko.mapping.fromJS(undefined, this.selectedLayer0);
+  this.selectedLayer0 = ko.mapping.fromJS({'scale_min': undefined});
 
 }
 
@@ -41,8 +39,12 @@ function applyFormsetBindings(formset, formNum){
     
     fetchObject(`/api/v1/registry/layers/${selectedLayer.value}/`)
     .then(json => {
-      ko.mapping.fromJS(json, model[selectedLayerVariableName]);
-
+      if(model.hasOwnProperty(selectedLayerVariableName)){
+        ko.mapping.fromJS(json, model[selectedLayerVariableName]);
+      } else {
+        model[selectedLayerVariableName] = ko.mapping.fromJS(json);
+      }
+      console.log(json);
     });
 
     console.log(model)

@@ -42,4 +42,4 @@ class MapContextLayerForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         current_form_index = self.prefix.split("-")[-1]
-        self.fields['layer_scale_min'].widget.attrs['data-bind'] = f'attr: {{ min: selectedLayer{current_form_index}.scale_min }}, enable: Number.isInteger(selectedLayer{current_form_index}.scale_min)'
+        self.fields['layer_scale_min'].widget.attrs['data-bind'] = f'attr: {{ min: selectedLayer{current_form_index}.scale_min }}, enable: Number.isInteger(selectedLayer{current_form_index}.scale_min())'

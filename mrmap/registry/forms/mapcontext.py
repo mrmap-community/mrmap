@@ -23,8 +23,8 @@ class MapContextLayerForm(ModelForm):
             'dataset_metadata': autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac',
                                                           forward=['layer']),
             'layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
-                                               forward=['dataset_metadata']),
-            'layer_scale_min': forms.widgets.NumberInput(attrs={'data-bind': 'attr: { min: selectedLayers.scale_min }'})
+                                               forward=['dataset_metadata'],),
+            'layer_scale_min': forms.widgets.NumberInput()
         }
         fields = [
             'id',
@@ -38,3 +38,8 @@ class MapContextLayerForm(ModelForm):
             'layer_scale_max',
             'preview_image'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current_form_index = self.prefix.split("-")[-1]
+        self.fields['layer_scale_min'].widget.attrs['data-bind'] = f'attr: {{ min: selectedLayer{current_form_index}.scale_min }}, enable: Number.isInteger(selectedLayer{current_form_index}.scale_min) )'

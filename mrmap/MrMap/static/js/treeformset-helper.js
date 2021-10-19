@@ -1,9 +1,28 @@
-function MapContextLayerFormModel(formNum) {
+function fetchObject(path){
+  const scheme = window.location.protocol == "https:" ? "https" : "http";
+  const hostname = window.location.hostname;
+  const port = window.location.port;
+  const endpoint = scheme + '://' + hostname + ':' + port + path;
   
+  return fetch(endpoint, {
+      credentials: 'include',
+      method: 'GET'
+    }).then(response => {
+      if(response.ok) return response.json();
+    }).then(json => {
+         return json
+    }).catch(function(error) {
+      console.log(error);
+    });  
+}
+
+
+function MapContextLayerFormModel() {
   var model = this;
-  this.selectedLayers = ko.observableArray([
-    { scale_min: 1, scale_max: 250 },
-   ])
+  this.selectedLayer0 = ko.observable();
+
+  ko.mapping.fromJS(undefined, this.selectedLayer0);
+
 }
 
 function applyFormsetBindings(formset, formNum){
@@ -13,15 +32,21 @@ function applyFormsetBindings(formset, formNum){
   console.log(formset);
   ko.applyBindings(model, formset);
 
+  var selectedLayerVariableName = `selectedLayer${formNum}`;
+
   selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
   
-
-  selectedLayer.addEventListener("change", function() {
+  selectedLayer.onchange = function(){
     console.log(selectedLayer.value);
-    console.log("retrive layer from rest api...");
+    
+    fetchObject(`/api/v1/registry/layers/${selectedLayer.value}/`)
+    .then(json => {
+      ko.mapping.fromJS(json, model[selectedLayerVariableName]);
 
-  });
+    });
 
+    console.log(model)
+  };
 }
 
 /**
@@ -58,6 +83,9 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     }
     if (el.getAttribute('for')) {
       el.setAttribute("for", replaceNameOrId(el.getAttribute('for'), newFormIdx));
+    }
+    if (el.getAttribute('data-bind')) {
+      el.setAttribute("data-bind", replaceNameOrId(el.getAttribute('data-bind'), newFormIdx));
     }
 
 

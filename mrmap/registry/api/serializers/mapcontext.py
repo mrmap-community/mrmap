@@ -81,6 +81,5 @@ class MapContextSerializer(HyperlinkedModelSerializer):
 
     def get_features(self, obj):
         queryset = MapContextLayer.objects.filter(map_context_id=obj.id)
-        # TODO pass context to MapContextSerializer
-        serializer = MapContextLayerSerializer(queryset, many=True)
+        serializer = MapContextLayerSerializer(queryset, many=True, context=self.context)
         return serializer.data

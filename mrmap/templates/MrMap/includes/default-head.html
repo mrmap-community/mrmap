@@ -24,6 +24,8 @@
 <script type="text/javascript" src="{% static '/js/knockout-latest.js' %}"></script>
 <script type="text/javascript" src="{% static '/js/knockout.mapping.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'websockets/js/websockets.js' %}"></script>
+<script src="{% static 'rest_framework/js/coreapi-0.1.1.js' %}"></script>
+<script src="{% url 'api-docs:schema-js' %}"></script>
 {% leaflet_js plugins="forms" %}
 
 <meta name="viewport" content="width=device-width, initial-scale=1">

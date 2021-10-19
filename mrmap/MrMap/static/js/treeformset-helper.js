@@ -1,21 +1,6 @@
-function fetchObject(path){
-  const scheme = window.location.protocol == "https:" ? "https" : "http";
-  const hostname = window.location.hostname;
-  const port = window.location.port;
-  const endpoint = scheme + '://' + hostname + ':' + port + path;
-  
-  return fetch(endpoint, {
-      credentials: 'include',
-      method: 'GET'
-    }).then(response => {
-      if(response.ok) return response.json();
-    }).then(json => {
-         return json
-    }).catch(function(error) {
-      console.log(error);
-    });  
-}
-
+const coreapi = window.coreapi;
+const schema = window.schema;
+var client = new coreapi.Client();
 
 function MapContextLayerFormModel() {
   var model = this;
@@ -26,8 +11,6 @@ function MapContextLayerFormModel() {
 function applyFormsetBindings(formset, formNum){
  
   model = new MapContextLayerFormModel(formNum);
-  console.log(model);
-  console.log(formset);
   ko.applyBindings(model, formset);
 
   var selectedLayerVariableName = `selectedLayer${formNum}`;
@@ -35,19 +18,17 @@ function applyFormsetBindings(formset, formNum){
   selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
   
   selectedLayer.onchange = function(){
-    console.log(selectedLayer.value);
     
-    fetchObject(`/api/v1/registry/layers/${selectedLayer.value}/`)
-    .then(json => {
+    let action = ["layers", "read"];
+    let params = {id: selectedLayer.value};
+    client.action(schema, action, params).then(function(result) {
       if(model.hasOwnProperty(selectedLayerVariableName)){
-        ko.mapping.fromJS(json, model[selectedLayerVariableName]);
+        ko.mapping.fromJS(result, model[selectedLayerVariableName]);
       } else {
-        model[selectedLayerVariableName] = ko.mapping.fromJS(json);
+        model[selectedLayerVariableName] = ko.mapping.fromJS(result);
       }
-      console.log(json);
-    });
+    })
 
-    console.log(model)
   };
 }
 

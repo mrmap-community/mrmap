@@ -1,19 +1,28 @@
-function MapContextLayerFormModel() {
-  var formset = this;
-  this.selectedLayer = ko.observable();
+function MapContextLayerFormModel(formNum) {
   
-  // ko.when(function () {
-  //     return mapContextLayerFormModel.selectedLayer() == undefined;
-  // }, function (result) {  
-  //     mapContextLayerFormModel.isInitialized(true);  
-  // });
+  var model = this;
+  this.selectedLayers = ko.observableArray([
+    { scale_min: 1, scale_max: 250 },
+   ])
 }
 
-function applyFormsetBindings(formset){
+function applyFormsetBindings(formset, formNum){
+ 
+  model = new MapContextLayerFormModel(formNum);
+  console.log(model);
   console.log(formset);
-  ko.applyBindings(MapContextLayerFormModel, formset);
-}
+  ko.applyBindings(model, formset);
 
+  selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
+  
+
+  selectedLayer.addEventListener("change", function() {
+    console.log(selectedLayer.value);
+    console.log("retrive layer from rest api...");
+
+  });
+
+}
 
 /**
  * Turns a container element into a dynamic jsTree control, binding the tree nodes to a Django
@@ -77,14 +86,18 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     replaceNameAndIdAttributes(newForm, formNum);
 
     newForm.setAttribute('class', `${formPrefix}-form`);
-    newForm.removeAttribute('style')
-    newForm.removeAttribute('id')
+    newForm.removeAttribute('style');
+    newForm.removeAttribute('id');
+
 
     if (lastForm === undefined){
       emptyForm.after(newForm);
     } else {
       lastForm.after(newForm);
     }
+    
+    applyFormsetBindings(newForm, formNum);
+    
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
     document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = parseInt(document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value) + 1;

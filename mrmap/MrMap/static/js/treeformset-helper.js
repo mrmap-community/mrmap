@@ -1,3 +1,20 @@
+function MapContextLayerFormModel() {
+  var formset = this;
+  this.selectedLayer = ko.observable();
+  
+  // ko.when(function () {
+  //     return mapContextLayerFormModel.selectedLayer() == undefined;
+  // }, function (result) {  
+  //     mapContextLayerFormModel.isInitialized(true);  
+  // });
+}
+
+function applyFormsetBindings(formset){
+  console.log(formset);
+  ko.applyBindings(MapContextLayerFormModel, formset);
+}
+
+
 /**
  * Turns a container element into a dynamic jsTree control, binding the tree nodes to a Django
  * FormSet.

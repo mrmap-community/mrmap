@@ -2,6 +2,7 @@ import os
 import behave_restful.app as br_app
 from behave_django.testcase import BehaviorDrivenTestCase
 
+
 # Hook invocations according to https://github.com/behave-restful/behave-restful
 
 def before_all(context):

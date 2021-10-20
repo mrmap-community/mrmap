@@ -1,4 +1,4 @@
-from behave import *
+from behave import then
 from assertpy import fail
 from jsonpath import jsonpath
 

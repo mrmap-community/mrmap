@@ -1,8 +1,6 @@
-from collections import OrderedDict
-
 from rest_framework.reverse import reverse
 from rest_framework.fields import SerializerMethodField, ModelField
-from rest_framework.serializers import ModelSerializer, CharField, HyperlinkedModelSerializer, HyperlinkedIdentityField
+from rest_framework.serializers import CharField, HyperlinkedIdentityField
 
 from extras.api.serializers import NonNullModelSerializer
 from registry.models import MapContext, MapContextLayer

@@ -1,1 +1,1 @@
-from behave_restful.lang import *
+from behave_restful.lang import *  # noqa

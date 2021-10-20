@@ -1,11 +1,14 @@
+from collections import OrderedDict
+
 from rest_framework.reverse import reverse
 from rest_framework.fields import SerializerMethodField, ModelField
 from rest_framework.serializers import ModelSerializer, CharField, HyperlinkedModelSerializer, HyperlinkedIdentityField
 
+from extras.api.serializers import NonNullModelSerializer
 from registry.models import MapContext, MapContextLayer
 
 
-class MapContextLayerPropertiesSerializer(ModelSerializer):
+class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
     title = ModelField(model_field=MapContextLayer()._meta.get_field('name'))
     abstract = ModelField(model_field=MapContextLayer()._meta.get_field('title'))
     offerings = SerializerMethodField()

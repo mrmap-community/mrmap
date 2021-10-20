@@ -55,13 +55,16 @@ class ServiceSerializer(ModelSerializer):
         # OperationsUrl ---> FK service
         # ServiceElement ---> FK service
 
-    def get_layer(self, obj):
+    @staticmethod
+    def get_layer(obj):
         queryset = Layer.objects.filter(service__id=obj.id)
         return LayerSerializer(queryset, many=True).data
 
-    def get_feature_type(self, obj):
+    @staticmethod
+    def get_feature_type(obj):
         queryset = FeatureType.objects.filter(service__id=obj.id)
         return FeatureTypeSerializer(queryset, many=True).data
+
 
 class OperationsUrlSerializer(ModelSerializer):
 

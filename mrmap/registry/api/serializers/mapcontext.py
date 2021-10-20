@@ -69,7 +69,7 @@ class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
         return folder
 
 
-class MapContextLayerSerializer(ModelSerializer):
+class MapContextLayerSerializer(NonNullModelSerializer):
     type = CharField(default='Feature')
     id = SerializerMethodField()
     properties = MapContextLayerPropertiesSerializer(source='*')
@@ -88,7 +88,7 @@ class MapContextLayerSerializer(ModelSerializer):
             reverse('api:mapcontext-detail', args=[obj.map_context_id]) + "layer/" + str(obj.id) + "/")
 
 
-class MapContextPropertiesSerializer(ModelSerializer):
+class MapContextPropertiesSerializer(NonNullModelSerializer):
     lang = CharField(default='de')
     subtitle = ModelField(model_field=MapContext()._meta.get_field('abstract'))
     updated = ModelField(model_field=MapContext()._meta.get_field('last_modified_at'))
@@ -153,7 +153,7 @@ class MapContextPropertiesSerializer(ModelSerializer):
         }
 
 
-class MapContextSerializer(HyperlinkedModelSerializer):
+class MapContextSerializer(NonNullModelSerializer):
     type = CharField(default='FeatureCollection')
     id = HyperlinkedIdentityField(view_name="api:mapcontext-detail")
     properties = MapContextPropertiesSerializer(source='*')

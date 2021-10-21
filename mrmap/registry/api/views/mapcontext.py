@@ -1,4 +1,5 @@
 from rest_framework import status
+from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from django_filters import rest_framework as api_filters
@@ -16,7 +17,7 @@ class MapContextViewSet(ModelViewSet):
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
-    # # permission_classes = None # TODO
+    permission_classes = [DjangoModelPermissions]
 
     serializers = {
         'default': MapContextSerializer

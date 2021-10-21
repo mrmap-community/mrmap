@@ -2,6 +2,7 @@ from django_filters import rest_framework as api_filters
 from rest_framework.filters import OrderingFilter
 
 from rest_framework import status
+from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 
@@ -17,7 +18,7 @@ class ServiceViewSet(ModelViewSet):
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
-    # permission_classes = None # TODO
+    permission_classes = [DjangoModelPermissions]
 
     serializers = {
         'default': ServiceSerializer
@@ -40,7 +41,7 @@ class LayerViewSet(ModelViewSet):
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
-    # permission_classes = None # TODO
+    permission_classes = [DjangoModelPermissions]
 
     serializers = {
         'default': LayerSerializer
@@ -63,7 +64,7 @@ class FeatureTypeViewSet(ModelViewSet):
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
-    # permission_classes = None # TODO
+    permission_classes = [DjangoModelPermissions]
 
     serializers = {
         'default': FeatureTypeSerializer

@@ -1,9 +1,8 @@
-from rest_framework.serializers import ModelSerializer
-
+from extras.api.serializers import ObjectAccessSerializer
 from registry.models import DatasetMetadata
 
 
-class DatasetMetadataSerializer(ModelSerializer):
+class DatasetMetadataSerializer(ObjectAccessSerializer):
 
     class Meta:
         model = DatasetMetadata

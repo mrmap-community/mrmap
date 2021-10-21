@@ -1,5 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 
+from extras.api.serializers import ObjectAccessSerializer
 from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
 from registry.models.metadata import Keyword
 
@@ -11,14 +12,20 @@ class OperationsUrlSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class LayerSerializer(ModelSerializer):
+class LayerSerializer(ObjectAccessSerializer):
 
     class Meta:
         model = Layer
-        fields = ['id', 'scale_min', 'scale_max', 'inherit_scale_min', 'inherit_scale_max']
+        fields = [
+            'id',
+            'scale_min',
+            'scale_max',
+            'inherit_scale_min',
+            'inherit_scale_max'
+        ]
 
 
-class FeatureTypeSerializer(ModelSerializer):
+class FeatureTypeSerializer(ObjectAccessSerializer):
 
     class Meta:
         model = Layer
@@ -39,7 +46,7 @@ class ServiceTypeSerializer(ModelSerializer):
         fields = ['name']
 
 
-class ServiceSerializer(ModelSerializer):
+class ServiceSerializer(ObjectAccessSerializer):
     type = ServiceTypeSerializer(source='service_type')
 
     class Meta:

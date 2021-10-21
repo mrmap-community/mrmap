@@ -4,7 +4,7 @@ var client = new coreapi.Client();
 
 function MapContextLayerFormModel() {
   var model = this;
-  this.selectedLayer0 = ko.mapping.fromJS({'scale_min': undefined});
+  this.selectedLayer0 = ko.mapping.fromJS({'scale_min': undefined, 'scale_max': undefined});
 
 }
 

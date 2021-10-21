@@ -222,6 +222,50 @@ value declared by the parent.</p></li>
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="registry.models.service.Layer.inherit_scale_max">
+<span class="sig-name descname"><span class="pre">inherit_scale_max</span></span><a class="headerlink" href="#registry.models.service.Layer.inherit_scale_max" title="Permalink to this definition"></a></dt>
+<dd><p>Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>excerpt from ogc specs</p>
+<ul class="simple">
+<li><p><strong>ogc wms 1.1.1</strong>: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
+any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)</p></li>
+</ul>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>self.scale_max if not None else scale_max from the first ancestors where scale_max is not None</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.geos.polygon</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="registry.models.service.Layer.inherit_scale_min">
+<span class="sig-name descname"><span class="pre">inherit_scale_min</span></span><a class="headerlink" href="#registry.models.service.Layer.inherit_scale_min" title="Permalink to this definition"></a></dt>
+<dd><p>Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>excerpt from ogc specs</p>
+<ul class="simple">
+<li><p><strong>ogc wms 1.1.1</strong>: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
+any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)</p></li>
+</ul>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>self.scale_min if not None else scale_min from the first ancestors where scale_min is not None</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.geos.polygon</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="registry.models.service.Layer.save">
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.Layer.save" title="Permalink to this definition"></a></dt>

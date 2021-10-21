@@ -17,8 +17,8 @@ Including another URLconf
 from django.urls import path, include
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
+from rest_framework.documentation import include_docs_urls
 from MrMap.settings import DEBUG
-
 from registry.api.urls import registry_api_router
 
 # Register REST API routes
@@ -46,7 +46,8 @@ urlpatterns = [
     path('ac/users/', include('users.autocompletes.urls')),
 
     # REST API
-    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api_root')),
+    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
+    path('api/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
 ]
 
 if DEBUG:

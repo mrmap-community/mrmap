@@ -1,17 +1,17 @@
 from rest_framework.routers import DefaultRouter
-from registry.api.views.mapcontext import MapContextViewSet
-from registry.api.views.metadata import DatasetMetadataViewSet
-from registry.api.views.service import ServiceViewSet, FeatureTypeViewSet, LayerViewSet
+from registry.api.views import mapcontext as mapcontext_views
+from registry.api.views import metadata as metadata_views
+from registry.api.views import service as service_views
 
 app_name = 'registry'
 
 registry_api_router = DefaultRouter(trailing_slash=False)
 
 # Services
-registry_api_router.register(app_name + '/services', ServiceViewSet, basename='services_api_router')
-registry_api_router.register(app_name + '/layers', LayerViewSet, basename='layer_api_router')
-registry_api_router.register(app_name + '/feature_types', FeatureTypeViewSet, basename='feature_types_api_router')
+registry_api_router.register(app_name + '/services', service_views.ServiceViewSet, basename='service')
+registry_api_router.register(app_name + '/layers', service_views.LayerViewSet, basename='layer')
+registry_api_router.register(app_name + '/feature_types', service_views.FeatureTypeViewSet, basename='feature_type')
 # Metadata
-registry_api_router.register(app_name + '/dataset_metadata', DatasetMetadataViewSet, basename='dataset_metadata_api_router')
+registry_api_router.register(app_name + '/dataset_metadata', metadata_views.DatasetMetadataViewSet, basename='dataset_metadata')
 # Map Context
-registry_api_router.register(app_name + '/mapcontexts', MapContextViewSet, basename='mapcontext_api_router')
+registry_api_router.register(app_name + '/mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')

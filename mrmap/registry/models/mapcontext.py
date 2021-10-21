@@ -4,7 +4,6 @@ from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
 from extras.models import GenericModelMixin, CommonInfo
-from registry.managers.mapcontext import MapContextManager, MapContextLayerManager
 from registry.models import Layer, DatasetMetadata
 
 
@@ -34,7 +33,6 @@ class MapContext(GenericModelMixin, CommonInfo):
     # resource
     # contextMetadata
     # extension
-    objects = MapContextManager()
 
     def __str__(self):
         return self.title
@@ -66,17 +64,26 @@ class MapContextLayer(MPTTModel):
                               blank=True,
                               verbose_name=_("Layer"),
                               help_text=_("Select a layer as a offering for rendering."))
+    layer_scale_min = models.FloatField(null=True,
+                                        blank=True,
+                                        verbose_name=_("scale minimum value"),
+                                        help_text=_("minimum scale for a possible request to this layer. If the request is "
+                                                    "out of the given scope, the service will response with empty transparent"
+                                                    "images. None value means no restriction."))
+    layer_scale_max = models.FloatField(null=True,
+                                        blank=True,
+                                        verbose_name=_("scale maximum value"),
+                                        help_text=_("maximum scale for a possible request to this layer. If the request is "
+                                                    "out of the given scope, the service will response with empty transparent"
+                                                    "images. None value means no restriction."))
     preview_image = models.ImageField(verbose_name=_("preview image"),
                                       help_text=_("A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,
                                       null=True,
                                       blank=True)
 
-    objects = MapContextLayerManager()
-
     def __str__(self):
         return f"{self.name}"
-
 
 # TODO: The following models are currently unused. Clarify the new structure for map context before enabling them
 # class ContextLayerOperations(GenericModelMixin, CommonInfo):

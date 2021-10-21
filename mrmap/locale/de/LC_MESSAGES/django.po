@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-18 14:12+0200\n"
+"POT-Creation-Date: 2021-10-21 10:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -793,7 +793,7 @@ msgstr "Bearbeiten"
 msgid "Successfully updated %(obj)s"
 msgstr "Erfolgreich ausgeloggt"
 
-#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:50
+#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:48
 #: registry/models/metadata.py:44 registry/models/metadata.py:716
 #, fuzzy
 #| msgid "Username"
@@ -930,7 +930,7 @@ msgstr ""
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:22
+#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:21
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
@@ -1057,7 +1057,7 @@ msgid "the layer targeted by this check"
 msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
 
 #: registry/models/conformity.py:129 registry/models/metadata.py:738
-#: registry/models/service.py:459 registry/models/service.py:532
+#: registry/models/service.py:495 registry/models/service.py:568
 #, fuzzy
 #| msgid "Featuretype:"
 msgid "feature type"
@@ -1088,59 +1088,87 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/mapcontext.py:18 registry/models/mapcontext.py:55
+#: registry/models/mapcontext.py:17 registry/models/mapcontext.py:53
 #: registry/models/metadata.py:49 registry/models/metadata.py:325
 #, fuzzy
 #| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
-#: registry/models/mapcontext.py:19
+#: registry/models/mapcontext.py:18
 msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
-#: registry/models/mapcontext.py:21 registry/models/metadata.py:328
+#: registry/models/mapcontext.py:20 registry/models/metadata.py:328
 #, fuzzy
 #| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: registry/models/mapcontext.py:51
+#: registry/models/mapcontext.py:49
 msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
-#: registry/models/mapcontext.py:56
+#: registry/models/mapcontext.py:54
 msgid "a short descriptive title for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
-#: registry/models/mapcontext.py:61 registry/models/monitoring.py:143
+#: registry/models/mapcontext.py:59 registry/models/monitoring.py:143
 #: registry/models/monitoring.py:191
 #: templates/MrMap/includes/nav-signed-in.html:65
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
-#: registry/models/mapcontext.py:62
+#: registry/models/mapcontext.py:60
 msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
-#: registry/models/mapcontext.py:67 registry/models/monitoring.py:139
+#: registry/models/mapcontext.py:65 registry/models/monitoring.py:139
 #: registry/models/monitoring.py:184
 #, fuzzy
 #| msgid "Layer:"
 msgid "Layer"
 msgstr "Ebene:"
 
-#: registry/models/mapcontext.py:68
+#: registry/models/mapcontext.py:66
 msgid "Select a layer as a offering for rendering."
 msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
 
-#: registry/models/mapcontext.py:69
+#: registry/models/mapcontext.py:69 registry/models/service.py:332
+msgid "scale minimum value"
+msgstr "minimaler Maßstabswert"
+
+#: registry/models/mapcontext.py:70 registry/models/service.py:333
+msgid ""
+"minimum scale for a possible request to this layer. If the request is out of "
+"the given scope, the service will response with empty transparentimages. "
+"None value means no restriction."
+msgstr ""
+"Minimaler Maßstab für eine mögliche Anfrage an diese Ebene. Wenn die Anfrage "
+"nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
+"transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
+
+#: registry/models/mapcontext.py:75 registry/models/service.py:339
+msgid "scale maximum value"
+msgstr "maximaler Maßstabswert"
+
+#: registry/models/mapcontext.py:76 registry/models/service.py:340
+msgid ""
+"maximum scale for a possible request to this layer. If the request is out of "
+"the given scope, the service will response with empty transparentimages. "
+"None value means no restriction."
+msgstr ""
+"Maximaler Maßstab für eine mögliche Anfrage an diese Ebene. Wenn die Anfrage "
+"nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
+"transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
+
+#: registry/models/mapcontext.py:79
 #, fuzzy
 #| msgid "Preview"
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:70
+#: registry/models/mapcontext.py:80
 #, fuzzy
 #| msgid "a short descriptive title for this map context layer"
 msgid "A preview image for the Map Context Layer"
@@ -1552,7 +1580,7 @@ msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:646 registry/models/service.py:460
+#: registry/models/metadata.py:646 registry/models/service.py:496
 #, fuzzy
 #| msgid "Featuretypes"
 msgid "feature types"
@@ -2051,39 +2079,11 @@ msgid ""
 msgstr ""
 "WMS kaskadieren erlaubt es, Ebenen aus anderen WMS diensten zu beziehen."
 
-#: registry/models/service.py:332
-msgid "scale minimum value"
-msgstr "minimaler Maßstabswert"
-
-#: registry/models/service.py:333
-msgid ""
-"minimum scale for a possible request to this layer. If the request is out of "
-"the given scope, the service will response with empty transparentimages. "
-"None value means no restriction."
-msgstr ""
-"Minimaler Maßstab für eine mögliche Anfrage an diese Ebene. Wenn die Anfrage "
-"nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
-"transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
-
-#: registry/models/service.py:339
-msgid "scale maximum value"
-msgstr "maximaler Maßstabswert"
-
-#: registry/models/service.py:340
-msgid ""
-"maximum scale for a possible request to this layer. If the request is out of "
-"the given scope, the service will response with empty transparentimages. "
-"None value means no restriction."
-msgstr ""
-"Maximaler Maßstab für eine mögliche Anfrage an diese Ebene. Wenn die Anfrage "
-"nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
-"transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
-
-#: registry/models/service.py:446
+#: registry/models/service.py:482
 msgid "output formats"
 msgstr "Ausgabeformate"
 
-#: registry/models/service.py:447
+#: registry/models/service.py:483
 msgid ""
 "This is a list of MIME types indicating the output formats that may be "
 "generated for a feature type.  If this optional element is not specified, "
@@ -2095,27 +2095,27 @@ msgstr ""
 "angegeben ist, dann werden alle für die GetFeature-Operation aufgelisteten "
 "Ergebnisformate angenommen die unterstützt werden."
 
-#: registry/models/service.py:453
+#: registry/models/service.py:489
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "describe feature type"
 msgstr "Featuretyp bearbeiten"
 
-#: registry/models/service.py:454
+#: registry/models/service.py:490
 msgid "the fetched content of the download describe feature type document."
 msgstr "Der geladene Inhalt des heruntergeladenen Merkmaltypen."
 
-#: registry/models/service.py:533
+#: registry/models/service.py:569
 msgid "related feature type of this element"
 msgstr "Verknüpfte Merkmaltypen des Element"
 
-#: registry/models/service.py:538
+#: registry/models/service.py:574
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type element"
 msgstr "Featuretype Titel enthält"
 
-#: registry/models/service.py:539
+#: registry/models/service.py:575
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type elements"

@@ -1,13 +1,20 @@
 from rest_framework.serializers import ModelSerializer
 
-from registry.models import OperationUrl, Service, ServiceType, Keyword, Layer, FeatureType
+from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType, Keyword
+
+
+class OperationsUrlSerializer(ModelSerializer):
+
+    class Meta:
+        model = OperationUrl
+        fields = '__all__'
 
 
 class LayerSerializer(ModelSerializer):
 
     class Meta:
         model = Layer
-        fields = '__all__'
+        fields = ['id', 'scale_min', 'scale_max', 'inherit_scale_min', 'inherit_scale_max']
 
 
 class FeatureTypeSerializer(ModelSerializer):
@@ -56,8 +63,4 @@ class ServiceSerializer(ModelSerializer):
         return FeatureTypeSerializer(queryset, many=True).data
 
 
-class OperationsUrlSerializer(ModelSerializer):
 
-    class Meta:
-        model = OperationUrl
-        fields = '__all__'

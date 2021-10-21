@@ -1,4 +1,6 @@
 from django.contrib.gis.db import models
+from django.core.exceptions import ValidationError
+from django.db.models import constraints
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
@@ -84,6 +86,19 @@ class MapContextLayer(MPTTModel):
 
     def __str__(self):
         return f"{self.name}"
+
+    def clean(self):
+        if self.layer:
+            pass
+            # FIXME: TypeError '<' not supported between instances of 'NoneType' and 'float'
+            # if self.layer_scale_min < self.layer.inherit_scale_min:
+            #     raise ValidationError("configured layer minimum scale can't be smaller than the scale value from the layer.")
+            # if self.layer_scale_max > self.layer.inherit_scale_max:
+            #     raise ValidationError("configured layer maximum scale can't be greater than the scale value from the layer.")
+                    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super(MapContextLayer, self).save(*args, **kwargs)
 
 # TODO: The following models are currently unused. Clarify the new structure for map context before enabling them
 # class ContextLayerOperations(GenericModelMixin, CommonInfo):

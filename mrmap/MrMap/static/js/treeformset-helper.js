@@ -31,7 +31,6 @@ function applyFormsetBindings(formset, formNum){
         model[selectedLayerVariableName] = ko.mapping.fromJS(result);
       }
     })
-
   };
 }
 

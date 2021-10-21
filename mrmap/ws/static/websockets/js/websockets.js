@@ -68,6 +68,6 @@ function ObjectCounts() {
 
 window.addEventListener('load', function () {
   // Activates knockout.js
-  ko.applyBindings(new ObjectCounts());
+  ko.applyBindings(new ObjectCounts(), document.getElementById('id_menu_nav'));
   handle_toast();
 })

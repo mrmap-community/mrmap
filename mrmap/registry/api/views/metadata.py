@@ -3,14 +3,14 @@ from django_filters import rest_framework as api_filters
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from registry.api.filters.metadata import DatasetMetadataFilter
+from registry.api.filters.metadata import DatasetMetadataApiFilter
 from registry.api.serializers.metadata import DatasetMetadataSerializer
 from registry.models import DatasetMetadata
 
 
 class DatasetMetadataViewSet(ModelViewSet):
     queryset = DatasetMetadata.objects.all()
-    filterset_class = DatasetMetadataFilter
+    filterset_class = DatasetMetadataApiFilter
     filter_backends = [api_filters.DjangoFilterBackend]
     # pagination_class = None  # TODO
     # permission_classes = None # TODO

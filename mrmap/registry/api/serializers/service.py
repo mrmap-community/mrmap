@@ -1,22 +1,20 @@
-from rest_framework.fields import SerializerMethodField
-from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.serializers import ModelSerializer
 
-from registry.models import OperationUrl, Service, ServiceType, Keyword, ServiceElement, Layer, FeatureType
+from registry.models import OperationUrl, Service, ServiceType, Keyword, Layer, FeatureType
 
 
 class LayerSerializer(ModelSerializer):
 
     class Meta:
         model = Layer
-        fields = ['id', 'service']
+        fields = '__all__'
 
 
 class FeatureTypeSerializer(ModelSerializer):
 
     class Meta:
         model = Layer
-        fields = ['id', 'service']
+        fields = '__all__'
 
 
 class KeywordSerializer(ModelSerializer):
@@ -35,8 +33,6 @@ class ServiceTypeSerializer(ModelSerializer):
 
 class ServiceSerializer(ModelSerializer):
     type = ServiceTypeSerializer(source='service_type')
-    # layer = SerializerMethodField()
-    # feature_type = SerializerMethodField()
 
     class Meta:
         model = Service
@@ -46,14 +42,8 @@ class ServiceSerializer(ModelSerializer):
             'abstract',
             'created_at',
             'type',
-            # 'layer',
-            # 'feature_type',
             'keywords'
         ]
-        depth = 2
-        # Service ---> FK ServiceType
-        # OperationsUrl ---> FK service
-        # ServiceElement ---> FK service
 
     @staticmethod
     def get_layer(obj):

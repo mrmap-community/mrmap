@@ -7,4 +7,4 @@ class DatasetMetadataSerializer(ModelSerializer):
 
     class Meta:
         model = DatasetMetadata
-        fields = ['id']
+        fields = '__all__'

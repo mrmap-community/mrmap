@@ -1,7 +1,8 @@
 import uuid
 
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.contrib.postgres.forms import SplitArrayField
-from django.forms import IntegerField
+from django.forms import DecimalField
 from django_filters import rest_framework as api_filters, FilterSet, Filter
 from django_filters.widgets import RangeWidget
 
@@ -27,7 +28,7 @@ class BoundingBoxFilter(Filter):
         super().__init__(*args, **kwargs)
 
 
-class MrMapSearchFilter(FilterSet):
+class MrMapApiSearchFilter(FilterSet):
     """
     This filter can be used to filter Services by different values in API views or viewsets.
     See https://django-filter.readthedocs.io/en/stable/guide/rest_framework.html
@@ -52,21 +53,16 @@ class MrMapSearchFilter(FilterSet):
         method='datestamp_range_filter',
         label='Date Stamp'
     )
-    # bbox = BoundingBoxFilter(
-    #   method='bbox_filter',
-    #   label='Bounding Box',
-    #   base_field=IntegerField(required=False),
-    #   delimiter=';'
-    # )
+
     bbox = BoundingBoxFilter(
         method='bbox_filter',
         label='Bounding Box',
-        base_field=IntegerField(required=False),
+        base_field=DecimalField(required=False, decimal_places=3, max_digits=6, max_value=180.000, min_value=-180.000),
         size=4,
-        remove_trailing_nulls=False
+        remove_trailing_nulls=True
     )
 
-    @ staticmethod
+    @staticmethod
     def search_filter(queryset, name, value):
         return queryset
 
@@ -88,17 +84,5 @@ class MrMapSearchFilter(FilterSet):
 
     @staticmethod
     def bbox_filter(queryset, name, bbox_coords):
-        # bbox_polygon = Polygon.from_bbox(bbox_coords)  # [xmin, ymin, xmax, ymax]
-        # unique_services = list()
-        # layer_within_bbox = Layer.objects.filter(bbox_lat_lon__intersects=bbox_polygon)
-        # layers = LayerSerializer(layer_within_bbox, many=True).data
-        # for layer in layers:
-        #     if layer['service'] not in unique_services:
-        #         unique_services.append(layer['service'])
-        # feature_type_within_bbox = FeatureType.objects.filter(bbox_lat_lon__intersects=bbox_polygon)
-        # feature_types = FeatureTypeSerializer(feature_type_within_bbox, many=True).data
-        # for feature_type in feature_types:
-        #     if feature_type['service'] not in unique_services:
-        #         unique_services.append(feature_type['service'])
-        # return queryset.filter(id__in=unique_services)
-        return queryset
+        bbox_polygon = GEOSGeometry(Polygon.from_bbox(bbox_coords), srid=4326)  # [xmin, ymin, xmax, ymax]
+        return queryset.filter(bbox_lat_lon__intersects=bbox_polygon)

@@ -4,14 +4,14 @@ from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 
-from registry.api.filters.service import ServiceFilter, FeatureTypeFilter, LayerFilter
+from registry.api.filters.service import ServiceApiFilter, FeatureTypeApiFilter, LayerApiFilter
 from registry.api.serializers.service import ServiceSerializer, FeatureTypeSerializer, LayerSerializer
 from registry.models import Service, Layer, FeatureType
 
 
 class ServiceViewSet(ModelViewSet):
     queryset = Service.objects.all()
-    filterset_class = ServiceFilter
+    filterset_class = ServiceApiFilter
     filter_backends = [api_filters.DjangoFilterBackend]
     # pagination_class = None  # TODO
     # permission_classes = None # TODO
@@ -33,7 +33,7 @@ class ServiceViewSet(ModelViewSet):
 
 class LayerViewSet(ModelViewSet):
     queryset = Layer.objects.all()
-    filterset_class = LayerFilter
+    filterset_class = LayerApiFilter
     filter_backends = [api_filters.DjangoFilterBackend]
     # pagination_class = None  # TODO
     # permission_classes = None # TODO
@@ -55,7 +55,7 @@ class LayerViewSet(ModelViewSet):
 
 class FeatureTypeViewSet(ModelViewSet):
     queryset = FeatureType.objects.all()
-    filterset_class = FeatureTypeFilter
+    filterset_class = FeatureTypeApiFilter
     filter_backends = [api_filters.DjangoFilterBackend]
     # pagination_class = None  # TODO
     # permission_classes = None # TODO

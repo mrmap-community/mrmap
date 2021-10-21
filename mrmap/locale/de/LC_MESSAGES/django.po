@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-10-21 09:37+0200\n"
+"POT-Creation-Date: 2021-10-21 10:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -793,7 +793,7 @@ msgstr "Bearbeiten"
 msgid "Successfully updated %(obj)s"
 msgstr "Erfolgreich ausgeloggt"
 
-#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:50
+#: jobs/models.py:14 jobs/models.py:74 registry/models/mapcontext.py:48
 #: registry/models/metadata.py:44 registry/models/metadata.py:716
 #, fuzzy
 #| msgid "Username"
@@ -930,7 +930,7 @@ msgstr ""
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:22
+#: registry/forms/mapcontext.py:9 registry/models/mapcontext.py:21
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
@@ -1088,57 +1088,57 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/mapcontext.py:18 registry/models/mapcontext.py:55
+#: registry/models/mapcontext.py:17 registry/models/mapcontext.py:53
 #: registry/models/metadata.py:49 registry/models/metadata.py:325
 #, fuzzy
 #| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
-#: registry/models/mapcontext.py:19
+#: registry/models/mapcontext.py:18
 msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
-#: registry/models/mapcontext.py:21 registry/models/metadata.py:328
+#: registry/models/mapcontext.py:20 registry/models/metadata.py:328
 #, fuzzy
 #| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: registry/models/mapcontext.py:51
+#: registry/models/mapcontext.py:49
 msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
-#: registry/models/mapcontext.py:56
+#: registry/models/mapcontext.py:54
 msgid "a short descriptive title for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
-#: registry/models/mapcontext.py:61 registry/models/monitoring.py:143
+#: registry/models/mapcontext.py:59 registry/models/monitoring.py:143
 #: registry/models/monitoring.py:191
 #: templates/MrMap/includes/nav-signed-in.html:65
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
-#: registry/models/mapcontext.py:62
+#: registry/models/mapcontext.py:60
 msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
-#: registry/models/mapcontext.py:67 registry/models/monitoring.py:139
+#: registry/models/mapcontext.py:65 registry/models/monitoring.py:139
 #: registry/models/monitoring.py:184
 #, fuzzy
 #| msgid "Layer:"
 msgid "Layer"
 msgstr "Ebene:"
 
-#: registry/models/mapcontext.py:68
+#: registry/models/mapcontext.py:66
 msgid "Select a layer as a offering for rendering."
 msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
 
-#: registry/models/mapcontext.py:71 registry/models/service.py:332
+#: registry/models/mapcontext.py:69 registry/models/service.py:332
 msgid "scale minimum value"
 msgstr "minimaler Maßstabswert"
 
-#: registry/models/mapcontext.py:72 registry/models/service.py:333
+#: registry/models/mapcontext.py:70 registry/models/service.py:333
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1148,11 +1148,11 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:77 registry/models/service.py:339
+#: registry/models/mapcontext.py:75 registry/models/service.py:339
 msgid "scale maximum value"
 msgstr "maximaler Maßstabswert"
 
-#: registry/models/mapcontext.py:78 registry/models/service.py:340
+#: registry/models/mapcontext.py:76 registry/models/service.py:340
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1162,13 +1162,13 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:81
+#: registry/models/mapcontext.py:79
 #, fuzzy
 #| msgid "Preview"
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:82
+#: registry/models/mapcontext.py:80
 #, fuzzy
 #| msgid "a short descriptive title for this map context layer"
 msgid "A preview image for the Map Context Layer"

@@ -73,8 +73,9 @@ services:
       args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
-    command:
-      /bin/bash -c "coverage run manage.py behave --noinput"
+    command: >
+      /bin/bash -c "coverage run manage.py behave --noinput users/tests/acceptance
+      && coverage run manage.py behave --noinput registry/tests/acceptance"
     hostname: "mrmap-behave"
     volumes:
       - type: bind

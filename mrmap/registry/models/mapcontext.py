@@ -4,7 +4,6 @@ from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 
 from extras.models import GenericModelMixin, CommonInfo
-from registry.managers.mapcontext import MapContextManager, MapContextLayerManager
 from registry.models import Layer, DatasetMetadata
 
 
@@ -34,7 +33,6 @@ class MapContext(GenericModelMixin, CommonInfo):
     # resource
     # contextMetadata
     # extension
-    objects = MapContextManager()
 
     def __str__(self):
         return self.title
@@ -84,11 +82,8 @@ class MapContextLayer(MPTTModel):
                                       null=True,
                                       blank=True)
 
-    objects = MapContextLayerManager()
-
     def __str__(self):
         return f"{self.name}"
-
 
 # TODO: The following models are currently unused. Clarify the new structure for map context before enabling them
 # class ContextLayerOperations(GenericModelMixin, CommonInfo):

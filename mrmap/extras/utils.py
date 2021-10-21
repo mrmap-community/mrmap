@@ -1,7 +1,8 @@
+import re
+import urllib.parse as urlparse
 from django.contrib import messages
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
-import re
 
 
 def camel_to_snake(name):
@@ -30,3 +31,13 @@ def handle_protected_error(obj_list, request, e):
     err_message += ', '.join(dependent_objects)
 
     messages.error(request, mark_safe(err_message))
+
+
+def update_url_query_params(url, params):
+    url_parse = urlparse.urlparse(url)
+    query = url_parse.query
+    url_dict = dict(urlparse.parse_qsl(query))
+    url_dict.update(params)
+    url_new_query = urlparse.urlencode(url_dict)
+    url_parse = url_parse._replace(query=url_new_query)
+    return urlparse.urlunparse(url_parse)

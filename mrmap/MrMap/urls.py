@@ -46,8 +46,8 @@ urlpatterns = [
     path('ac/users/', include('users.autocompletes.urls')),
 
     # REST API
-    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api_root')),
-    path('api/docs/', include_docs_urls(title='MrMap REST', public=False), name='api-docs'),
+    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
+    path('api/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
 ]
 
 if DEBUG:

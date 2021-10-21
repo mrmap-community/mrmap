@@ -1,12 +1,10 @@
 from django.contrib.gis.db import models
-from django.core.exceptions import ValidationError
-from django.db.models import constraints
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
-
 from extras.models import GenericModelMixin, CommonInfo
 from registry.models import Layer, DatasetMetadata
+from registry.models.metadata import Style
 
 
 def preview_image_file_path(instance, filename):
@@ -78,6 +76,12 @@ class MapContextLayer(MPTTModel):
                                         help_text=_("maximum scale for a possible request to this layer. If the request is "
                                                     "out of the given scope, the service will response with empty transparent"
                                                     "images. None value means no restriction."))
+    layer_style = models.ForeignKey(to=Style,
+                                    on_delete=models.PROTECT,
+                                    null=True,
+                                    blank=True,
+                                    verbose_name=_("Style"),
+                                    help_text=_("Select a style for rendering."))            
     preview_image = models.ImageField(verbose_name=_("preview image"),
                                       help_text=_("A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,

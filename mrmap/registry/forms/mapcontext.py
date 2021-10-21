@@ -15,7 +15,7 @@ class MapContextForm(ModelForm):
 
 class MapContextLayerForm(ModelForm):
     parent_form_idx = forms.CharField(required=False, widget=HiddenInput)
-
+    
     class Meta:
         model = MapContextLayer
         widgets = {
@@ -24,7 +24,9 @@ class MapContextLayerForm(ModelForm):
                                                           forward=['layer']),
             'layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
                                                forward=['dataset_metadata'],),
-            'layer_scale_min': forms.widgets.NumberInput()
+            'layer_style': autocomplete.ModelSelect2(url='registry.autocomplete:style_ac',
+                                                     forward=['layer'],),
+            
         }
         fields = [
             'id',
@@ -36,6 +38,7 @@ class MapContextLayerForm(ModelForm):
             'layer',
             'layer_scale_min',
             'layer_scale_max',
+            'layer_style',
             'preview_image'
         ]
 
@@ -56,3 +59,4 @@ class MapContextLayerForm(ModelForm):
 
         self.fields['layer_scale_min'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in layer_scale_min_data_binds.items())
         self.fields['layer_scale_max'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in layer_scale_max_data_binds.items())
+        self.fields['layer_style'].widget.attrs['data-bind'] = f'enable: selectedLayer{current_form_index}.id() !== undefined'

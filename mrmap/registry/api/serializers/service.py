@@ -14,4 +14,9 @@ class LayerSerializer(ModelSerializer):
 
     class Meta:
         model = Layer
-        fields = ['id', 'scale_min', 'scale_max', 'inherit_scale_min', 'inherit_scale_max']
+        fields = [
+            'id', 
+            'scale_min', 
+            'scale_max', 
+            'inherit_scale_min', 
+            'inherit_scale_max']

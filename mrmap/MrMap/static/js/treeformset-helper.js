@@ -7,7 +7,7 @@ function MapContextLayerFormModel() {
   this.selectedLayer0 = ko.mapping.fromJS({
     'scale_min': undefined, 
     'scale_max': undefined,
-    
+    'id': undefined,    
   });
 }
 

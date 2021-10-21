@@ -1,7 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from registry.models.service import Layer
 from registry.models import OperationUrl
-from rest_framework import serializers
 
 
 class OperationsUrlSerializer(ModelSerializer):

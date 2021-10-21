@@ -368,16 +368,15 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
-
     @cached_property
     def inherit_scale_min(self) -> float:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
 
-           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the 
+           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
              any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
-           
+
 
         :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
@@ -393,9 +392,9 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
 
         .. note:: excerpt from ogc specs
 
-           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the 
+           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
              any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
-           
+
 
         :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
@@ -404,7 +403,6 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             return self.scale_max
         else:
             return self.get_ancestors().exclude(scale_max=None).values_list("scale_max", flat=True).first()
-
 
     @cached_property
     def bbox(self) -> Polygon:

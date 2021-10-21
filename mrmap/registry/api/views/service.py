@@ -1,4 +1,5 @@
 from django_filters import rest_framework as api_filters
+from rest_framework.filters import OrderingFilter
 
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
@@ -12,7 +13,8 @@ from registry.models import Service, Layer, FeatureType
 class ServiceViewSet(ModelViewSet):
     queryset = Service.objects.all()
     filterset_class = ServiceApiFilter
-    filter_backends = [api_filters.DjangoFilterBackend]
+    filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ['title', 'abstract', 'id']
     # pagination_class = None  # TODO
     # permission_classes = None # TODO
 
@@ -34,7 +36,8 @@ class ServiceViewSet(ModelViewSet):
 class LayerViewSet(ModelViewSet):
     queryset = Layer.objects.all()
     filterset_class = LayerApiFilter
-    filter_backends = [api_filters.DjangoFilterBackend]
+    filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ['title', 'abstract', 'id']
     # pagination_class = None  # TODO
     # permission_classes = None # TODO
 
@@ -56,7 +59,8 @@ class LayerViewSet(ModelViewSet):
 class FeatureTypeViewSet(ModelViewSet):
     queryset = FeatureType.objects.all()
     filterset_class = FeatureTypeApiFilter
-    filter_backends = [api_filters.DjangoFilterBackend]
+    filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ['title', 'abstract', 'id']
     # pagination_class = None  # TODO
     # permission_classes = None # TODO
 

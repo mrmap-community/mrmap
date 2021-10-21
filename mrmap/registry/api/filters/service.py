@@ -93,7 +93,7 @@ class FeatureTypeApiFilter(MrMapApiSearchFilter):
         return queryset.filter(
             Q(title__icontains=value) |
             Q(abstract__icontains=value) |
-            Q(eyword__icontains=value) |
+            Q(keywords__keyword__icontains=value) |
             Q(service__service_type__name__icontains=value) |
             Q(owned_by_org__name__icontains=value)
         )

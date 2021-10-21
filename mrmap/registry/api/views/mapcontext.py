@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from django_filters import rest_framework as api_filters
+from rest_framework.filters import OrderingFilter
 
 from registry.api.filters.mapcontext import MapContextApiFilter
 from registry.api.serializers.mapcontext import MapContextSerializer
@@ -11,7 +12,8 @@ from registry.models import MapContext
 class MapContextViewSet(ModelViewSet):
     queryset = MapContext.objects.all()
     filterset_class = MapContextApiFilter
-    filter_backends = [api_filters.DjangoFilterBackend]
+    filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ['title', 'abstract', 'id']
     # pagination_class = None  # TODO
     # # permission_classes = None # TODO
 

@@ -1,3 +1,37 @@
+const coreapi = window.coreapi;
+const schema = window.schema;
+var client = new coreapi.Client();
+
+function MapContextLayerFormModel() {
+  var model = this;
+  this.selectedLayer0 = ko.mapping.fromJS({'scale_min': undefined});
+
+}
+
+function applyFormsetBindings(formset, formNum){
+ 
+  model = new MapContextLayerFormModel(formNum);
+  ko.applyBindings(model, formset);
+
+  var selectedLayerVariableName = `selectedLayer${formNum}`;
+
+  selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
+  
+  selectedLayer.onchange = function(){
+    
+    let action = ["layers", "read"];
+    let params = {id: selectedLayer.value};
+    client.action(schema, action, params).then(function(result) {
+      if(model.hasOwnProperty(selectedLayerVariableName)){
+        ko.mapping.fromJS(result, model[selectedLayerVariableName]);
+      } else {
+        model[selectedLayerVariableName] = ko.mapping.fromJS(result);
+      }
+    })
+
+  };
+}
+
 /**
  * Turns a container element into a dynamic jsTree control, binding the tree nodes to a Django
  * FormSet.
@@ -33,6 +67,9 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     if (el.getAttribute('for')) {
       el.setAttribute("for", replaceNameOrId(el.getAttribute('for'), newFormIdx));
     }
+    if (el.getAttribute('data-bind')) {
+      el.setAttribute("data-bind", replaceNameOrId(el.getAttribute('data-bind'), newFormIdx));
+    }
 
 
     Array.from(el.children).forEach(child => {
@@ -60,14 +97,18 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     replaceNameAndIdAttributes(newForm, formNum);
 
     newForm.setAttribute('class', `${formPrefix}-form`);
-    newForm.removeAttribute('style')
-    newForm.removeAttribute('id')
+    newForm.removeAttribute('style');
+    newForm.removeAttribute('id');
+
 
     if (lastForm === undefined){
       emptyForm.after(newForm);
     } else {
       lastForm.after(newForm);
     }
+    
+    applyFormsetBindings(newForm, formNum);
+    
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
     document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = parseInt(document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value) + 1;

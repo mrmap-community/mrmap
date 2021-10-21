@@ -205,10 +205,9 @@ LAST_ACTIVITY_DATE_RANGE = 7
 
 # configure your proxy like "http://10.0.0.1:8080"
 # or with username and password: "http://username:password@10.0.0.1:8080"
-HTTP_PROXY = ""
 PROXIES = {
-    "http": HTTP_PROXY,
-    "https": HTTP_PROXY,
+    "http": os.getenv("http_proxy", ""),
+    "https": os.getenv("https_proxy", ""),
 }
 
 # configure if you want to validate ssl certificates
@@ -508,5 +507,6 @@ LOGGING = {
 }
 
 # REST FRAMEWORK
-# TODO: here pagination configs and other should be included, commented for now (defaults are loaded)
-# REST_FRAMEWORK = {}
+REST_FRAMEWORK = {'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'}
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

@@ -1,6 +1,7 @@
 from rest_framework.serializers import ModelSerializer
 
-from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType, Keyword
+from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
+from registry.models.metadata import Keyword
 
 
 class OperationsUrlSerializer(ModelSerializer):

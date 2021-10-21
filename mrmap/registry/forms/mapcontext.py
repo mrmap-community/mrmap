@@ -43,10 +43,16 @@ class MapContextLayerForm(ModelForm):
         super().__init__(*args, **kwargs)
         current_form_index = self.prefix.split("-")[-1]
 
-        data_binds = {
+        layer_scale_min_data_binds = {
             'attr': f'{{ min: selectedLayer{current_form_index}.scale_min, max: selectedLayer{current_form_index}.scale_max }}',
             'enable': f'Number.isInteger(selectedLayer{current_form_index}.scale_min()) && Number.isInteger(selectedLayer{current_form_index}.scale_max())',
             'value': f'selectedLayer{current_form_index}.scale_min()'
         }
+        layer_scale_max_data_binds = {
+            'attr': f'{{ min: selectedLayer{current_form_index}.scale_min, max: selectedLayer{current_form_index}.scale_max }}',
+            'enable': f'Number.isInteger(selectedLayer{current_form_index}.scale_min()) && Number.isInteger(selectedLayer{current_form_index}.scale_max())',
+            'value': f'selectedLayer{current_form_index}.scale_max()'
+        }
 
-        self.fields['layer_scale_min'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in data_binds.items())
+        self.fields['layer_scale_min'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in layer_scale_min_data_binds.items())
+        self.fields['layer_scale_max'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in layer_scale_max_data_binds.items())

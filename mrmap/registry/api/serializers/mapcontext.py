@@ -40,13 +40,13 @@ class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
         #  Instead of build urls by hand here, we shall use the actually implemented owc_client.request_builder.WebService to construct correct request urls
         #  for registered services by there version and other attributes.
         #  Note: Maybe it is usefull to have a function on Service model class, which returns the correct url for a given operation.
-        get_capabilities_url = wms_layer.service.operation_urls.values('url').get(operation=OGCOperationEnum.GET_CAPABILITIES.value, 
-                                                                              method=HttpMethodEnum.GET.value)['url']
-        get_capabilities_url = update_url_query_params(get_capabilities_url, 
+        get_capabilities_url = wms_layer.service.operation_urls.values('url').get(operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                                                                                  method=HttpMethodEnum.GET.value)['url']
+        get_capabilities_url = update_url_query_params(get_capabilities_url,
                                                        {"REQUEST": "GetCapabilities"})
-        get_map_url = wms_layer.service.operation_urls.values('url').get(operation=OGCOperationEnum.GET_MAP.value, 
+        get_map_url = wms_layer.service.operation_urls.values('url').get(operation=OGCOperationEnum.GET_MAP.value,
                                                                          method=HttpMethodEnum.GET.value)['url']
-        get_map_url = update_url_query_params(get_map_url, 
+        get_map_url = update_url_query_params(get_map_url,
                                               {"REQUEST": "GetMap", "layer": wms_layer.identifier})
 
         return {

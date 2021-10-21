@@ -4,6 +4,7 @@ from rest_framework.viewsets import ModelViewSet
 from django_filters import rest_framework as api_filters
 from rest_framework.filters import OrderingFilter
 
+from extras.api.pagination import StandardResultsSetPagination
 from registry.api.filters.mapcontext import MapContextApiFilter
 from registry.api.serializers.mapcontext import MapContextSerializer
 from registry.models import MapContext
@@ -14,7 +15,7 @@ class MapContextViewSet(ModelViewSet):
     filterset_class = MapContextApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
-    # pagination_class = None  # TODO
+    pagination_class = StandardResultsSetPagination
     # # permission_classes = None # TODO
 
     serializers = {

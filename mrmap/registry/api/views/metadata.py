@@ -4,6 +4,7 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from extras.api.pagination import StandardResultsSetPagination
 from registry.api.filters.metadata import DatasetMetadataApiFilter
 from registry.api.serializers.metadata import DatasetMetadataSerializer
 from registry.models import DatasetMetadata
@@ -14,7 +15,7 @@ class DatasetMetadataViewSet(ModelViewSet):
     filterset_class = DatasetMetadataApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
-    # pagination_class = None  # TODO
+    pagination_class = StandardResultsSetPagination
     # permission_classes = None # TODO
 
     serializers = {

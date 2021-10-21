@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 
+from extras.api.pagination import StandardResultsSetPagination
 from registry.api.filters.service import ServiceApiFilter, FeatureTypeApiFilter, LayerApiFilter
 from registry.api.serializers.service import ServiceSerializer, FeatureTypeSerializer, LayerSerializer
 from registry.models import Service, Layer, FeatureType
@@ -15,7 +16,7 @@ class ServiceViewSet(ModelViewSet):
     filterset_class = ServiceApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
-    # pagination_class = None  # TODO
+    pagination_class = StandardResultsSetPagination
     # permission_classes = None # TODO
 
     serializers = {
@@ -38,7 +39,7 @@ class LayerViewSet(ModelViewSet):
     filterset_class = LayerApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
-    # pagination_class = None  # TODO
+    pagination_class = StandardResultsSetPagination
     # permission_classes = None # TODO
 
     serializers = {
@@ -61,7 +62,7 @@ class FeatureTypeViewSet(ModelViewSet):
     filterset_class = FeatureTypeApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
-    # pagination_class = None  # TODO
+    pagination_class = StandardResultsSetPagination
     # permission_classes = None # TODO
 
     serializers = {

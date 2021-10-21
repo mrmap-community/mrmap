@@ -62,6 +62,3 @@ class ServiceSerializer(ModelSerializer):
     def get_feature_type(obj):
         queryset = FeatureType.objects.filter(service__id=obj.id)
         return FeatureTypeSerializer(queryset, many=True).data
-
-
-

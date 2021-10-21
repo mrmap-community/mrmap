@@ -24,7 +24,6 @@ class MapContextCreateView(CreateWithInlinesView):
     success_url = reverse_lazy('registry:map_context_list')
 
     def dispatch(self, request, *args, **kwargs):
-        i=0
         return super().dispatch(request, *args, **kwargs)
 
 

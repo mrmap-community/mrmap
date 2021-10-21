@@ -1,9 +1,10 @@
 from rest_framework.reverse import reverse
 from rest_framework.fields import SerializerMethodField, ModelField
 from rest_framework.serializers import CharField, HyperlinkedIdentityField
-
 from extras.api.serializers import NonNullModelSerializer
+from extras.utils import update_url_query_params
 from registry.models import MapContext, MapContextLayer
+from registry.enums.service import OGCOperationEnum, HttpMethodEnum
 
 
 class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
@@ -34,18 +35,32 @@ class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
 
     @staticmethod
     def __get_wms_offering(wms_layer):
+        # FIXME: again we need a request builder for ogc services, cause the url which was parsed from the capabilities
+        #  could has values like http://hostname?SERVICE=WMS&... so this is not enough information to build a correct url for the registed service.
+        #  Instead of build urls by hand here, we shall use the actually implemented owc_client.request_builder.WebService to construct correct request urls
+        #  for registered services by there version and other attributes.
+        #  Note: Maybe it is usefull to have a function on Service model class, which returns the correct url for a given operation.
+        get_capabilities_url = wms_layer.service.operation_urls.values('url').get(operation=OGCOperationEnum.GET_CAPABILITIES.value, 
+                                                                              method=HttpMethodEnum.GET.value)['url']
+        get_capabilities_url = update_url_query_params(get_capabilities_url, 
+                                                       {"REQUEST": "GetCapabilities"})
+        get_map_url = wms_layer.service.operation_urls.values('url').get(operation=OGCOperationEnum.GET_MAP.value, 
+                                                                         method=HttpMethodEnum.GET.value)['url']
+        get_map_url = update_url_query_params(get_map_url, 
+                                              {"REQUEST": "GetMap", "layer": wms_layer.identifier})
+
         return {
             'code': 'http://www.opengis.net/spec/owc-geojson/1.0/req/wms',
             'operations': [{
                 "code": "GetCapabilities",
                 "method": "GET",
                 "type": "application/xml",
-                "href": f"{wms_layer.service.url}service=WMS&request=GetCapabilities"
+                "href": get_capabilities_url,
             }, {
                 "code": "GetMap",
                 "method": "GET",
                 "type": "image/jpeg",  # TODO
-                "href": f"{wms_layer.service.url}service=WMS&version=1.3.0&request=GetMap&layer={wms_layer.identifier}"
+                "href": get_map_url,
                 # TODO full request url
             }]
         }

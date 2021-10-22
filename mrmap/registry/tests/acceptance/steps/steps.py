@@ -1,6 +1,16 @@
-from behave import then
+from behave import then, given
 from assertpy import fail
 from jsonpath import jsonpath
+
+
+@given('an authorized session')
+def step_impl(context):
+    context.session = context.authorized_session
+
+
+@given('an unauthorized session')
+def step_impl(context):
+    context.session = context.default_session
 
 
 @then('the response json at {json_path} is missing')

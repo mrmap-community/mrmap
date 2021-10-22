@@ -2,11 +2,19 @@ import os
 import behave_restful.app as br_app
 from behave_django.testcase import BehaviorDrivenTestCase
 
+from requests import Session
+from requests.auth import HTTPBasicAuth
+
 
 # Hook invocations according to https://github.com/behave-restful/behave-restful
-
 def before_all(context):
     context.fixtures = ['scenario_dwd.json']
+
+    # Authenticate user before all tests
+    # (solution seen here : https://github.com/behave-restful/behave-restful/issues/42)
+    context.authorized_session = Session()
+    context.authorized_session.auth = HTTPBasicAuth('mrmap', 'mrmap')
+
     this_directory = os.path.abspath(os.path.dirname(__file__))
     br_app.BehaveRestfulApp().initialize_context(context, this_directory)
     context.hooks.invoke(br_app.BEFORE_ALL, context)

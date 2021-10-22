@@ -1,34 +1,45 @@
 const coreapi = window.coreapi;
 const schema = window.schema;
 var client = new coreapi.Client();
-var model = this;
+var model = undefined;
 
-function MapContextLayerFormModel() {
-  this.selectedLayer0 = ko.mapping.fromJS({
-    'scale_min': undefined, 
-    'scale_max': undefined,
-    'id': undefined,    
-  });
+function getLayerById(selectedLayerVariableName, id){
+  let action = ["layers", "read"];
+  let params = {id: id};
+  client.action(schema, action, params).then(function(result) {
+    if(model.hasOwnProperty(selectedLayerVariableName)){
+      ko.mapping.fromJS(result, model[selectedLayerVariableName]);
+    } else {
+      model[selectedLayerVariableName] = ko.mapping.fromJS(result);
+    }
+  })
 }
 
 function applyFormsetBindings(formset, formNum){
- 
-  model = new MapContextLayerFormModel();
   var selectedLayerVariableName = `selectedLayer${formNum}`;
 
+  if ( model == undefined ) {
+    model = {};
+  }
+
+  model[selectedLayerVariableName] = this.selectedLayer0 = ko.mapping.fromJS({
+    'scale_min': undefined, 
+    'scale_max': undefined,
+    'id': undefined
+  });
+
   selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
-  
+
+  if ( selectedLayer.value ) {
+    console.log(selectedLayer.value);
+    getLayerById(selectedLayerVariableName, selectedLayer.value);
+  }
+
   selectedLayer.onchange = function(){
-    let action = ["layers", "read"];
-    let params = {id: selectedLayer.value};
-    client.action(schema, action, params).then(function(result) {
-      if(model.hasOwnProperty(selectedLayerVariableName)){
-        ko.mapping.fromJS(result, model[selectedLayerVariableName]);
-      } else {
-        model[selectedLayerVariableName] = ko.mapping.fromJS(result);
-      }
-    })
+    getLayerById(selectedLayerVariableName, selectedLayer.value);
   };
+
+ 
   ko.applyBindings(model, formset);
 }
 
@@ -208,6 +219,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
               $(`#id_${formPrefix}-${i}-${parentField}_form_idx`).val(idToFormIdx[parent]);
             }
             idToFormIdx[id] = i;
+            applyFormsetBindings(forms[i], i);
           }
         }
         cb.call(this, nodes);

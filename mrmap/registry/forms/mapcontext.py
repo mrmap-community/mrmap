@@ -15,7 +15,7 @@ class MapContextForm(ModelForm):
 
 class MapContextLayerForm(ModelForm):
     parent_form_idx = forms.CharField(required=False, widget=HiddenInput)
-    
+
     class Meta:
         model = MapContextLayer
         widgets = {
@@ -26,7 +26,7 @@ class MapContextLayerForm(ModelForm):
                                                forward=['dataset_metadata'],),
             'layer_style': autocomplete.ModelSelect2(url='registry.autocomplete:style_ac',
                                                      forward=['layer'],),
-            
+
         }
         fields = [
             'id',

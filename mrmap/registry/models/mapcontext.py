@@ -81,7 +81,7 @@ class MapContextLayer(MPTTModel):
                                     null=True,
                                     blank=True,
                                     verbose_name=_("Style"),
-                                    help_text=_("Select a style for rendering."))            
+                                    help_text=_("Select a style for rendering."))
     preview_image = models.ImageField(verbose_name=_("preview image"),
                                       help_text=_("A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,
@@ -99,7 +99,7 @@ class MapContextLayer(MPTTModel):
             #     raise ValidationError("configured layer minimum scale can't be smaller than the scale value from the layer.")
             # if self.layer_scale_max > self.layer.inherit_scale_max:
             #     raise ValidationError("configured layer maximum scale can't be greater than the scale value from the layer.")
-                    
+
     def save(self, *args, **kwargs):
         self.full_clean()
         return super(MapContextLayer, self).save(*args, **kwargs)

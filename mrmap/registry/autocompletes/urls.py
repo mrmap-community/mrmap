@@ -24,6 +24,7 @@ urlpatterns = [
     path('md-c', metadata_views.MetadataContactAutocomplete.as_view(), name="metadata_contact_ac"),
     path('crs', metadata_views.ReferenceSystemAutocomplete.as_view(), name="reference_system_ac"),
     path('dataset-metadata/', metadata_views.DatasetMetadataAutocomplete.as_view(), name='dataset_metadata_ac'),
+    path('styles/', metadata_views.StyleAutocomplete.as_view(), name='style_ac'),
 
     # monitoring
     path('monitoring-run', monitoring_views.MonitoringRunAutocomplete.as_view(), name="monitoring_run_ac"),

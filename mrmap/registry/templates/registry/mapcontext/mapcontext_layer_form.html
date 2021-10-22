@@ -1,6 +1,6 @@
 {% load bootstrap5 %}
 <hr class="separator">
-{{ form.media }}
+
 {% bootstrap_form_errors form %}
 {% bootstrap_field form.id %}
 {% bootstrap_field form.parent %}
@@ -21,4 +21,5 @@
     {% bootstrap_field form.layer %}
     {% bootstrap_field form.layer_scale_min %}
     {% bootstrap_field form.layer_scale_max %}
+    {% bootstrap_field form.layer_style %}
 </div>

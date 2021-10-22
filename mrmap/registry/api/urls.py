@@ -10,8 +10,8 @@ registry_api_router = DefaultRouter(trailing_slash=False)
 # Services
 registry_api_router.register(app_name + '/services', service_views.ServiceViewSet, basename='service')
 registry_api_router.register(app_name + '/layers', service_views.LayerViewSet, basename='layer')
-registry_api_router.register(app_name + '/feature_types', service_views.FeatureTypeViewSet, basename='feature_type')
+registry_api_router.register(app_name + '/feature-types', service_views.FeatureTypeViewSet, basename='feature_type')
 # Metadata
-registry_api_router.register(app_name + '/dataset_metadata', metadata_views.DatasetMetadataViewSet, basename='dataset_metadata')
+registry_api_router.register(app_name + '/dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='dataset_metadata')
 # Map Context
 registry_api_router.register(app_name + '/mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')

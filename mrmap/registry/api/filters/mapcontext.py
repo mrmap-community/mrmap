@@ -2,7 +2,7 @@ import uuid
 
 from django.db.models import Q
 
-from MrMap.filters import MrMapApiSearchFilter, validate_uuid
+from extras.api.filters import MrMapApiSearchFilter, validate_uuid
 from registry.models import MapContext
 
 

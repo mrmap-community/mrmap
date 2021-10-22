@@ -2,7 +2,7 @@ import uuid
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
-from MrMap.filters import MrMapApiSearchFilter, validate_uuid
+from extras.api.filters import MrMapApiSearchFilter, validate_uuid
 from registry.api.serializers.service import LayerSerializer, FeatureTypeSerializer
 from registry.models import Service, FeatureType, Layer
 

@@ -1,4 +1,5 @@
 from django.core.exceptions import ImproperlyConfigured
+from guardian.core import ObjectPermissionChecker
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -34,3 +35,14 @@ class StandardViewSet(ModelViewSet):
     def get_queryset(self, *args, **kwargs):
         # TODO: filter objects by object permissions
         return self.model.objects.all()
+
+
+class ModelViewSetWithPermissionCheckerSerializerContext(ModelViewSet):
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+
+        permission_checker = ObjectPermissionChecker(self.request.user)
+        permission_checker.prefetch_perms(self.get_queryset())
+        context.update({'permission_checker': permission_checker})
+
+        return context

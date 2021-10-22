@@ -1,8 +1,9 @@
 from rest_framework.serializers import ModelSerializer
-
+from rest_framework.fields import SerializerMethodField
 from extras.api.serializers import ObjectAccessSerializer
 from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
 from registry.models.metadata import Keyword
+from registry.enums.service import OGCServiceEnum
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -20,8 +21,9 @@ class LayerSerializer(ObjectAccessSerializer):
             'id',
             'scale_min',
             'scale_max',
-            'inherit_scale_min',
-            'inherit_scale_max'
+            # TODO: this is causing too much queries to be made. Find out exactly why
+            # 'inherit_scale_min',
+            # 'inherit_scale_max'
         ]
 
 
@@ -48,6 +50,8 @@ class ServiceTypeSerializer(ModelSerializer):
 
 class ServiceSerializer(ObjectAccessSerializer):
     type = ServiceTypeSerializer(source='service_type')
+    layers = SerializerMethodField()
+    feature_types = SerializerMethodField()
 
     class Meta:
         model = Service
@@ -57,15 +61,21 @@ class ServiceSerializer(ObjectAccessSerializer):
             'abstract',
             'created_at',
             'type',
-            'keywords'
+            'keywords',
+            'layers',
+            'feature_types'
         ]
 
-    @staticmethod
-    def get_layer(obj):
-        queryset = Layer.objects.filter(service__id=obj.id)
-        return LayerSerializer(queryset, many=True).data
+    def get_layers(self, obj):
+        queryset = Layer.objects.none()
 
-    @staticmethod
-    def get_feature_type(obj):
-        queryset = FeatureType.objects.filter(service__id=obj.id)
-        return FeatureTypeSerializer(queryset, many=True).data
+        if obj.is_service_type(OGCServiceEnum.WMS):
+            queryset = obj.layers.all().prefetch_related('keywords')
+        return LayerSerializer(queryset, many=True, context=self.context).data
+
+    def get_feature_types(self, obj):
+        queryset = FeatureType.objects.none()
+
+        if obj.is_service_type(OGCServiceEnum.WFS):
+            queryset = obj.featuretypes.all().prefetch_related('keywords')
+        return FeatureTypeSerializer(queryset, many=True, context=self.context).data

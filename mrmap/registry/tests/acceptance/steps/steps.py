@@ -4,12 +4,12 @@ from jsonpath import jsonpath
 
 
 @given('an authorized session')
-def step_impl(context):
+def step_auth_session(context):
     context.session = context.authorized_session
 
 
 @given('an unauthorized session')
-def step_impl(context):
+def step_unauth_session(context):
     context.session = context.default_session
 
 

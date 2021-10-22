@@ -1,7 +1,7 @@
 const coreapi = window.coreapi;
 const schema = window.schema;
 var client = new coreapi.Client();
-var model = undefined;
+var model = {};
 
 function getLayerById(selectedLayerVariableName, id){
   let action = ["layers", "read"];
@@ -17,29 +17,22 @@ function getLayerById(selectedLayerVariableName, id){
 
 function applyFormsetBindings(formset, formNum){
   var selectedLayerVariableName = `selectedLayer${formNum}`;
-
-  if ( model == undefined ) {
-    model = {};
-  }
-
+  // initialize all attributes which are needed by the knockout lib to initialize data bindings
   model[selectedLayerVariableName] = this.selectedLayer0 = ko.mapping.fromJS({
     'scale_min': undefined, 
     'scale_max': undefined,
     'id': undefined
   });
 
+  // add event listeners to the layer dropdown to update model on changes
   selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
-
   if ( selectedLayer.value ) {
-    console.log(selectedLayer.value);
     getLayerById(selectedLayerVariableName, selectedLayer.value);
   }
-
   selectedLayer.onchange = function(){
     getLayerById(selectedLayerVariableName, selectedLayer.value);
   };
-
- 
+  // apply bindings for the new formset
   ko.applyBindings(model, formset);
 }
 

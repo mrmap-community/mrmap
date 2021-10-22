@@ -1,9 +1,9 @@
 const coreapi = window.coreapi;
 const schema = window.schema;
 var client = new coreapi.Client();
+var model = this;
 
 function MapContextLayerFormModel() {
-  var model = this;
   this.selectedLayer0 = ko.mapping.fromJS({
     'scale_min': undefined, 
     'scale_max': undefined,
@@ -13,15 +13,12 @@ function MapContextLayerFormModel() {
 
 function applyFormsetBindings(formset, formNum){
  
-  model = new MapContextLayerFormModel(formNum);
-  ko.applyBindings(model, formset);
-
+  model = new MapContextLayerFormModel();
   var selectedLayerVariableName = `selectedLayer${formNum}`;
 
   selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
   
   selectedLayer.onchange = function(){
-    
     let action = ["layers", "read"];
     let params = {id: selectedLayer.value};
     client.action(schema, action, params).then(function(result) {
@@ -32,6 +29,7 @@ function applyFormsetBindings(formset, formNum){
       }
     })
   };
+  ko.applyBindings(model, formset);
 }
 
 /**

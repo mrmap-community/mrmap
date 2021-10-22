@@ -47,7 +47,7 @@ urlpatterns = [
 
     # REST API
     path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
-    path('api/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
+    path('api/v1/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
 ]
 
 if DEBUG:

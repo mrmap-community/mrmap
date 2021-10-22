@@ -1162,13 +1162,23 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:79
+#: registry/models/mapcontext.py:83
+msgid "Style"
+msgstr "Style"
+
+#: registry/models/mapcontext.py:84
+#, fuzzy
+#| msgid "Select a layer as a offering for rendering."
+msgid "Select a style for rendering."
+msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
+
+#: registry/models/mapcontext.py:85
 #, fuzzy
 #| msgid "Preview"
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:80
+#: registry/models/mapcontext.py:86
 #, fuzzy
 #| msgid "a short descriptive title for this map context layer"
 msgid "A preview image for the Map Context Layer"
@@ -2247,13 +2257,13 @@ msgstr "Zeigt den Gesundheitszustand der Ressource."
 msgid "Something went wrong while monitoring {resource}"
 msgstr "Etwas ging schief beim überprüfen von {metadata}"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:38
+#: registry/templates/registry/mapcontext/mapcontext_form.html:39
 #: templates/MrMap/generic_views/generic_form.html:25
 #: templates/MrMap/generic_views/generic_wizard_form.html:104
 msgid "Save"
 msgstr "Speichern"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:40
+#: registry/templates/registry/mapcontext/mapcontext_form.html:41
 #: templates/MrMap/generic_views/generic_delete.html:15
 #: templates/MrMap/generic_views/generic_form.html:26
 #: templates/MrMap/generic_views/generic_wizard_form.html:27
@@ -2515,11 +2525,19 @@ msgstr "Gehe zum letzten Schritt"
 msgid "Change language"
 msgstr "Sprache wechseln"
 
-#: templates/MrMap/includes/footer.html:41
+#: templates/MrMap/includes/footer.html:40
 msgid "Docs"
 msgstr "Doku"
 
+#: templates/MrMap/includes/footer.html:42
+msgid "REST"
+msgstr "REST"
+
 #: templates/MrMap/includes/footer.html:44
+msgid "REST DOCS"
+msgstr "REST Dokumentation"
+
+#: templates/MrMap/includes/footer.html:46
 msgid "Code"
 msgstr "Code"
 

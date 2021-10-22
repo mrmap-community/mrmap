@@ -90,12 +90,14 @@ class IconEnum(EnumChoice):
 
     # etc
     NEWSPAPER = "bi bi-newspaper"
-    CODE = "bi bi-code-square"
+    CODE = "bi bi-code-slash"
     LINK = 'bi bi-link'
     HISTORY = 'bi bi-clock-history'
     GLOBE = 'bi bi-globe'
     HOME = 'bi bi-house-fill'
     BOOK_OPEN = 'bi bi-book-fill'
+    REST_API = 'bi bi-hash'
+    REST_API_DOCS = 'bi bi-journal-code'
     NONE = ''
 
 

@@ -31,7 +31,14 @@ class FeatureTypeSerializer(ObjectAccessSerializer):
 
     class Meta:
         model = Layer
-        fields = '__all__'
+        fields = [
+            'id',
+            'scale_min',
+            'scale_max',
+            # TODO: this is causing too much queries to be made. Find out exactly why
+            # 'inherit_scale_min',
+            # 'inherit_scale_max'
+        ]
 
 
 class KeywordSerializer(ModelSerializer):

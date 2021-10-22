@@ -1,6 +1,6 @@
 from dal import autocomplete
 from guardian.mixins import LoginRequiredMixin
-from registry.models.metadata import Keyword, MetadataContact, ReferenceSystem
+from registry.models.metadata import Keyword, MetadataContact, ReferenceSystem, Style
 from extras.autocompletes import CreateObjectMixin, SecuredAutocompleteMixin
 from registry.models import DatasetMetadata
 
@@ -39,5 +39,20 @@ class DatasetMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, 
 
         if layer_pk:
             qs = qs.filter(self_pointing_layers__pk=layer_pk)
+
+        return qs
+
+
+class StyleAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomplete.Select2QuerySetView):
+    model = Style
+    search_fields = ['title', 'name', 'id']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        layer_pk = self.forwarded.get('layer', None)
+
+        if layer_pk:
+            qs = qs.filter(layer__pk=layer_pk)
 
         return qs

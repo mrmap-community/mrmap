@@ -20,7 +20,7 @@ class ServiceApiFilter(MrMapApiSearchFilter):
     @staticmethod
     def search_filter(queryset, name, value):
         if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value)))
+            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
         # __icontains -> case insensitive contains
         return queryset.filter(
             Q(title__icontains=value) |
@@ -28,7 +28,7 @@ class ServiceApiFilter(MrMapApiSearchFilter):
             Q(keywords__keyword__icontains=value) |
             Q(service_type__name__icontains=value) |
             Q(owned_by_org__name__icontains=value)
-        )
+        ).distinct()
 
     @staticmethod
     def bbox_filter(queryset, name, bbox_coords):
@@ -36,19 +36,19 @@ class ServiceApiFilter(MrMapApiSearchFilter):
         unique_services = list()
         layer_within_bbox = Layer\
             .objects\
-            .filter(bbox_lat_lon__intersects=bbox_polygon)
+            .filter(bbox_lat_lon__intersects=bbox_polygon).distinct()
         layers = LayerSerializer(layer_within_bbox, many=True).data
         for layer in layers:
-            if layer['service'] not in unique_services:
+            if layer.get('service') not in unique_services:
                 unique_services.append(layer['service'])
         feature_type_within_bbox = FeatureType\
             .objects\
-            .filter(bbox_lat_lon__intersects=bbox_polygon)
+            .filter(bbox_lat_lon__intersects=bbox_polygon).distinct()
         feature_types = FeatureTypeSerializer(feature_type_within_bbox, many=True).data
         for feature_type in feature_types:
             if feature_type['service'] not in unique_services:
                 unique_services.append(feature_type['service'])
-        return queryset.filter(id__in=unique_services)
+        return queryset.filter(id__in=unique_services).distinct()
 
 
 class LayerApiFilter(MrMapApiSearchFilter):
@@ -64,7 +64,7 @@ class LayerApiFilter(MrMapApiSearchFilter):
     @staticmethod
     def search_filter(queryset, name, value):
         if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value)))
+            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
         # __icontains -> case insensitive contains
         return queryset.filter(
             Q(title__icontains=value) |
@@ -72,7 +72,7 @@ class LayerApiFilter(MrMapApiSearchFilter):
             Q(keywords__keyword__icontains=value) |
             Q(service__service_type__name__icontains=value) |
             Q(owned_by_org__name__icontains=value)
-        )
+        ).distinct()
 
 
 class FeatureTypeApiFilter(MrMapApiSearchFilter):
@@ -88,7 +88,7 @@ class FeatureTypeApiFilter(MrMapApiSearchFilter):
     @staticmethod
     def search_filter(queryset, name, value):
         if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value)))
+            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
         # __icontains -> case insensitive contains
         return queryset.filter(
             Q(title__icontains=value) |
@@ -96,4 +96,4 @@ class FeatureTypeApiFilter(MrMapApiSearchFilter):
             Q(keywords__keyword__icontains=value) |
             Q(service__service_type__name__icontains=value) |
             Q(owned_by_org__name__icontains=value)
-        )
+        ).distinct()

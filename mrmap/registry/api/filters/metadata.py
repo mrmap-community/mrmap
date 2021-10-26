@@ -20,17 +20,17 @@ class DatasetMetadataApiFilter(MrMapApiSearchFilter):
     @staticmethod
     def search_filter(queryset, name, value):
         if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value)))
+            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
         # __icontains -> case insensitive contains
         return queryset.filter(
             Q(title__icontains=value) |
             Q(abstract__icontains=value) |
             Q(keywords__keyword__icontains=value) |
-            Q(self_pointing_layers__layer__service__service_type__name__icontains=value) |
+            Q(self_pointing_layers__service__service_type__name__icontains=value) |
             Q(owned_by_org__name__icontains=value)
-        )
+        ).distinct()
 
     @staticmethod
     def bbox_filter(queryset, name, bbox_coords):
         bbox_polygon = GEOSGeometry(Polygon.from_bbox(bbox_coords), srid=4326)  # [xmin, ymin, xmax, ymax]
-        return queryset.filter(bounding_geometry__intersects=bbox_polygon)
+        return queryset.filter(bounding_geometry__intersects=bbox_polygon).distinct()

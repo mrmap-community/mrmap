@@ -26,4 +26,4 @@ class MapContextApiFilter(MrMapApiSearchFilter):
             Q(abstract__icontains=value) |
             Q(mapcontextlayer__layer__service__service_type__name__icontains=value) |
             Q(owned_by_org__name__icontains=value)
-        )
+        ).distinct()

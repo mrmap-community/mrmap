@@ -12,12 +12,8 @@ from registry.views import service as service_views
 from registry.views import xml as xml_views
 from registry.wizards import security as security_wizards
 from registry.wizards.security import ALLOWED_OPERATION_WIZARD_FORMS
-from registry.api.urls import registry_api_router
 
 app_name = 'registry'
-
-registry_rest_api_router = DefaultRouter(trailing_slash=False)
-registry_rest_api_router.registry.extend(registry_api_router.registry)
 
 urlpatterns = [
     # Service views

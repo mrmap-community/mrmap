@@ -3,13 +3,13 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import DjangoModelPermissions
 
 from extras.api.pagination import StandardResultsSetPagination
-from extras.api.viewsets import ModelViewSetWithPermissionCheckerSerializerContext
+from extras.api.viewsets import ModelViewSetWithPermissionChecker
 from registry.api.filters.metadata import DatasetMetadataApiFilter
 from registry.api.serializers.metadata import DatasetMetadataSerializer
 from registry.models import DatasetMetadata
 
 
-class DatasetMetadataViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
+class DatasetMetadataViewSet(ModelViewSetWithPermissionChecker):
     queryset = DatasetMetadata.objects.all()
     filterset_class = DatasetMetadataApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]

@@ -10,11 +10,6 @@ from requests.auth import HTTPBasicAuth
 def before_all(context):
     context.fixtures = ['scenario_dwd.json']
 
-    # Authenticate user before all tests
-    # (solution seen here : https://github.com/behave-restful/behave-restful/issues/42)
-    context.authorized_session = Session()
-    context.authorized_session.auth = HTTPBasicAuth('mrmap', 'mrmap')
-
     this_directory = os.path.abspath(os.path.dirname(__file__))
     br_app.BehaveRestfulApp().initialize_context(context, this_directory)
     context.hooks.invoke(br_app.BEFORE_ALL, context)

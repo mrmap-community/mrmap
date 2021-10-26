@@ -3,13 +3,13 @@ from django_filters import rest_framework as api_filters
 from rest_framework.filters import OrderingFilter
 
 from extras.api.pagination import StandardResultsSetPagination
-from extras.api.viewsets import ModelViewSetWithPermissionCheckerSerializerContext
+from extras.api.viewsets import ModelViewSetWithPermissionChecker
 from registry.api.filters.mapcontext import MapContextApiFilter
 from registry.api.serializers.mapcontext import MapContextSerializer
 from registry.models import MapContext
 
 
-class MapContextViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
+class MapContextViewSet(ModelViewSetWithPermissionChecker):
     queryset = MapContext.objects.all()
     filterset_class = MapContextApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]

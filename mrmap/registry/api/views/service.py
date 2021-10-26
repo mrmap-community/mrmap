@@ -3,13 +3,13 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import DjangoObjectPermissions
 
 from extras.api.pagination import StandardResultsSetPagination
-from extras.api.viewsets import ModelViewSetWithPermissionCheckerSerializerContext
+from extras.api.viewsets import ModelViewSetWithPermissionChecker
 from registry.api.filters.service import ServiceApiFilter, FeatureTypeApiFilter, LayerApiFilter
 from registry.api.serializers.service import ServiceSerializer, FeatureTypeSerializer, LayerSerializer
 from registry.models import Service, Layer, FeatureType
 
 
-class ServiceViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
+class ServiceViewSet(ModelViewSetWithPermissionChecker):
     queryset = Service.objects.all()
     filterset_class = ServiceApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
@@ -33,7 +33,7 @@ class ServiceViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
         return super().get_queryset().prefetch_related('featuretypes', 'layers', 'keywords').select_related('owned_by_org', 'service_type')
 
 
-class LayerViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
+class LayerViewSet(ModelViewSetWithPermissionChecker):
     queryset = Layer.objects.all()
     filterset_class = LayerApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
@@ -57,7 +57,7 @@ class LayerViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
         return super().get_queryset().prefetch_related('keywords').select_related('owned_by_org', 'service')
 
 
-class FeatureTypeViewSet(ModelViewSetWithPermissionCheckerSerializerContext):
+class FeatureTypeViewSet(ModelViewSetWithPermissionChecker):
     queryset = FeatureType.objects.all()
     filterset_class = FeatureTypeApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]

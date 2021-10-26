@@ -22,7 +22,7 @@ from MrMap.settings import DEBUG
 from registry.api.urls import registry_api_router
 
 # Register REST API routes
-rest_api_router = DefaultRouter(trailing_slash=False)
+rest_api_router = DefaultRouter()
 rest_api_router.registry.extend(registry_api_router.registry)
 
 urlpatterns = [

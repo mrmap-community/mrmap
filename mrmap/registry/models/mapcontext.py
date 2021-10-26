@@ -5,6 +5,7 @@ from mptt.models import MPTTModel
 from extras.models import GenericModelMixin, CommonInfo
 from registry.models import Layer, DatasetMetadata
 from registry.models.metadata import Style
+from django.core.exceptions import ValidationError
 
 
 def preview_image_file_path(instance, filename):
@@ -93,12 +94,23 @@ class MapContextLayer(MPTTModel):
 
     def clean(self):
         if self.layer:
-            pass
-            # FIXME: TypeError '<' not supported between instances of 'NoneType' and 'float'
-            # if self.layer_scale_min < self.layer.inherit_scale_min:
-            #     raise ValidationError("configured layer minimum scale can't be smaller than the scale value from the layer.")
-            # if self.layer_scale_max > self.layer.inherit_scale_max:
-            #     raise ValidationError("configured layer maximum scale can't be greater than the scale value from the layer.")
+            
+            if self.layer:
+                # Check scale min/max values against the possible configureable values.
+                if self.layer_scale_min and self.layer.inherit_scale_min:
+                    if self.layer_scale_min < self.layer.inherit_scale_min:
+                        raise ValidationError("configured layer minimum scale can't be smaller than the scale value of the layer.")
+                    if self.layer_scale_min > self.layer.inherit_scale_max:
+                        raise ValidationError("configured layer minimum scale can't be greater than the maximum scale value of the layer.")  
+                if self.layer_scale_max and self.layer.inherit_scale_max:
+                    if self.layer_scale_max > self.layer.inherit_scale_max:
+                        raise ValidationError("configured layer maximum scale can't be greater than the scale value of the layer.")
+                    if self.layer_scale_max < self.layer.inherit_scale_max:
+                        raise ValidationError("configured layer maximum scale can't be smaller than the minimum scale value of the layer.")
+                
+                # Check style configuration
+                if self.layer_style and not self.layer.styles.filter(pk=self.layer_style.pk).exists():
+                    raise ValidationError("configured style is not a valid style for the selected layer.")
 
     def save(self, *args, **kwargs):
         self.full_clean()

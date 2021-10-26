@@ -19,11 +19,13 @@ class LayerSerializer(ObjectAccessSerializer):
         model = Layer
         fields = [
             'id',
+            'title',
             'scale_min',
             'scale_max',
             # TODO: this is causing too much queries to be made. Find out exactly why
             # 'inherit_scale_min',
             # 'inherit_scale_max'
+            'service'
         ]
 
 
@@ -33,11 +35,13 @@ class FeatureTypeSerializer(ObjectAccessSerializer):
         model = Layer
         fields = [
             'id',
+            'title',
             'scale_min',
             'scale_max',
             # TODO: this is causing too much queries to be made. Find out exactly why
             # 'inherit_scale_min',
             # 'inherit_scale_max'
+            'service'
         ]
 
 

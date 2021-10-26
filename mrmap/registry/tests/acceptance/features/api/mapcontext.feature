@@ -4,6 +4,7 @@ Feature: MapContext
     so that I get all information needed to initialize a map view with a hierarchy of WMS layers.
 
     Scenario: Retrieve some existing map context as GeoJSON.
+        Given an authorized session
         Given a request url http://localhost:8000/api/v1/registry/mapcontexts/1.json
         When the request sends GET
         Then the response status is OK
@@ -21,12 +22,14 @@ Feature: MapContext
                 """
 
     Scenario: Trying to retrieve a non-existing map context.
+        Given an authorized session
         Given a request url http://localhost:8000/api/v1/registry/mapcontexts/2.json
         When the request sends GET
         Then the response status is 404
 
 
     Scenario: Retrieve DWD test map context as GeoJSON and check layer tree structure.
+        Given an authorized session
         Given a request url http://localhost:8000/api/v1/registry/mapcontexts/1.json
         When the request sends GET
         Then the response status is OK

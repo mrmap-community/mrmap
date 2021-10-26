@@ -55,6 +55,44 @@
         integrity="sha256-9UEvBZl2CzCWCSvHfT1PKY7xfkJBJmRuNeCaUhS66IE=" crossorigin="anonymous"></script>
 <script type="text/javascript" src="{% static '/js/treeformset-helper.js' %}"></script>
 <script>
-    initJsTreeFormset('#layer_tree', 'layer', 'parent', 'name');
+    const coreapi = window.coreapi;
+    const schema = window.schema;
+    const client = new coreapi.Client();
+    const model = {};
+
+    function getLayerById(selectedLayerVariableName, id){
+      let action = ["layers", "read"];
+      let params = {id: id};
+      client.action(schema, action, params).then(function(result) {
+        if(model.hasOwnProperty(selectedLayerVariableName)){
+          ko.mapping.fromJS(result, model[selectedLayerVariableName]);
+        } else {
+          model[selectedLayerVariableName] = ko.mapping.fromJS(result);
+        }
+      })
+    }
+
+    function applyFormsetBindings(formset, formNum) {
+      var selectedLayerVariableName = `selectedLayer${formNum}`;
+      // initialize all attributes which are needed by the knockout lib to initialize data bindings
+      model[selectedLayerVariableName] = this.selectedLayer0 = ko.mapping.fromJS({
+        'scale_min': undefined,
+        'scale_max': undefined,
+        'id': undefined
+      });
+
+      // add event listeners to the layer dropdown to update model on changes
+      selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
+      if ( selectedLayer.value ) {
+        getLayerById(selectedLayerVariableName, selectedLayer.value);
+      }
+      selectedLayer.onchange = function(){
+        getLayerById(selectedLayerVariableName, selectedLayer.value);
+      };
+      // apply bindings for the new formset
+      ko.applyBindings(model, formset);
+    }
+
+    initJsTreeFormset('#layer_tree', 'layer', 'parent', 'name', applyFormsetBindings);
 </script>
 {% endblock %}

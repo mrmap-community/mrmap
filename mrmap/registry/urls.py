@@ -1,5 +1,4 @@
 from django.urls import path
-from rest_framework.routers import DefaultRouter
 
 from registry.views import conformity as conformity_views
 from registry.views import harvest as harvest_views

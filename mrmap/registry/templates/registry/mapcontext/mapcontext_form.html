@@ -82,7 +82,7 @@
       });
 
       // add event listeners to the layer dropdown to update model on changes
-      selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
+      selectedLayer = document.getElementById(`id_layer-${formNum}-rendering_layer`);
       if ( selectedLayer.value ) {
         getLayerById(selectedLayerVariableName, selectedLayer.value);
       }

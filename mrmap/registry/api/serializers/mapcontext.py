@@ -67,7 +67,7 @@ class MapContextLayerPropertiesSerializer(NonNullModelSerializer, ObjectAccessSe
 
     @staticmethod
     def get_offerings(obj):
-        offerings = [MapContextLayerPropertiesSerializer.__get_wms_offering(obj.layer)]
+        offerings = [MapContextLayerPropertiesSerializer.__get_wms_offering(obj.rendering_layer)]
         return offerings
 
     @staticmethod

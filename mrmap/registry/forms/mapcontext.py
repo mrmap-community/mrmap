@@ -20,12 +20,13 @@ class MapContextLayerForm(ModelForm):
         model = MapContextLayer
         widgets = {
             'parent': HiddenInput(),
-            'dataset_metadata': autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac',
-                                                          forward=['layer']),
+            'dataset_metadata': autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac'),
             'rendering_layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
                                                          forward=['dataset_metadata'], ),
             'layer_style': autocomplete.ModelSelect2(url='registry.autocomplete:style_ac',
-                                                     forward=['layer'], ),
+                                                     forward=['rendering_layer'], ),
+            'selection_layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
+                                                         forward=['dataset_metadata'], ),
 
         }
         fields = [
@@ -39,7 +40,8 @@ class MapContextLayerForm(ModelForm):
             'layer_scale_min',
             'layer_scale_max',
             'layer_style',
-            'preview_image'
+            'preview_image',
+            'selection_layer'
         ]
 
     def __init__(self, *args, **kwargs):

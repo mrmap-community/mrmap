@@ -15,11 +15,22 @@
 </div>
 <div class="field-group my-5">
     <div class="row mb-2">
-        <h5>Offerings for rendering of MapContextLayer</h5>
+        <h5>Associated metadata record</h5>
     </div>
     {% bootstrap_field form.dataset_metadata %}
+</div>
+<div class="field-group my-5">
+    <div class="row mb-2">
+        <h5>Rendering options</h5>
+    </div>
     {% bootstrap_field form.rendering_layer %}
     {% bootstrap_field form.layer_scale_min %}
     {% bootstrap_field form.layer_scale_max %}
     {% bootstrap_field form.layer_style %}
+</div>
+<div class="field-group my-5">
+    <div class="row mb-2">
+        <h5>Feature selection options</h5>
+    </div>
+    {% bootstrap_field form.selection_layer %}
 </div>

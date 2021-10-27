@@ -63,8 +63,9 @@ class MapContextLayer(MPTTModel):
                                         on_delete=models.PROTECT,
                                         null=True,
                                         blank=True,
+                                        related_name="mapcontextlayers_rendering",
                                         verbose_name=_("Rendering layer"),
-                                        help_text=_("Select a layer as an offering for rendering."))
+                                        help_text=_("Select a layer for rendering."))
     layer_scale_min = models.FloatField(null=True,
                                         blank=True,
                                         verbose_name=_("scale minimum value"),
@@ -90,6 +91,13 @@ class MapContextLayer(MPTTModel):
                                       upload_to=preview_image_file_path,
                                       null=True,
                                       blank=True)
+    selection_layer = models.ForeignKey(to=Layer,
+                                        on_delete=models.PROTECT,
+                                        null=True,
+                                        blank=True,
+                                        related_name="mapcontextlayers_selection",
+                                        verbose_name=_("Selection layer"),
+                                        help_text=_("Select a layer for feature selection."))
 
     def __str__(self):
         return f"{self.name}"

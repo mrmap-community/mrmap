@@ -1123,19 +1123,19 @@ msgstr "Datensatz Metadaten"
 msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
-#: registry/models/mapcontext.py:65
+#: registry/models/mapcontext.py:66
 msgid "Rendering layer"
 msgstr "Darstellungsebene"
 
-#: registry/models/mapcontext.py:66
-msgid "Select a layer as a offering for rendering."
-msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
+#: registry/models/mapcontext.py:67
+msgid "Select a layer for rendering."
+msgstr "Wählen Sie einen Stil für die Darstellung."
 
 #: registry/models/mapcontext.py:70 registry/models/service.py:332
 msgid "scale minimum value"
 msgstr "minimaler Maßstabswert"
 
-#: registry/models/mapcontext.py:71 registry/models/service.py:333
+#: registry/models/mapcontext.py:72 registry/models/service.py:333
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1145,11 +1145,11 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:76 registry/models/service.py:339
+#: registry/models/mapcontext.py:77 registry/models/service.py:339
 msgid "scale maximum value"
 msgstr "maximaler Maßstabswert"
 
-#: registry/models/mapcontext.py:78 registry/models/service.py:340
+#: registry/models/mapcontext.py:79 registry/models/service.py:340
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1159,21 +1159,29 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:85
+#: registry/models/mapcontext.py:86
 msgid "Style"
 msgstr "Style"
 
-#: registry/models/mapcontext.py:86
+#: registry/models/mapcontext.py:87
 msgid "Select a style for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:87
+#: registry/models/mapcontext.py:88
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:88
+#: registry/models/mapcontext.py:89
 msgid "A preview image for the Map Context Layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
+
+#: registry/models/mapcontext.py:98
+msgid "Selection layer"
+msgstr "Selektionsebene"
+
+#: registry/models/mapcontext.py:99
+msgid "Select a layer for feature selection."
+msgstr "Wählen Sie einen Stil für die Darstellung."
 
 #: registry/models/metadata.py:27
 #, fuzzy

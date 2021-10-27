@@ -173,7 +173,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField, 
               $(`#id_${formPrefix}-${i}-${parentField}_form_idx`).val(idToFormIdx[parent]);
             }
             idToFormIdx[id] = i;
-            applyFormsetBindings(forms[i], i);
+            formAdded(forms[i], i);
           }
         }
         cb.call(this, nodes);

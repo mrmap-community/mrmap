@@ -29,10 +29,14 @@ class MonitoringResultTableView(SecuredListMixin, FilterView):
     model = MonitoringResult
     table_class = MonitoringResultTable
     filterset_class = MonitoringResultTableFilter
-    queryset = MonitoringResult.objects.select_related('service', 'service__service_type', 'service__metadata', 'layer',
-                                                       'layer__metadata',
-                                                       'feature_type', 'feature_type__metadata', 'dataset_metadata',
-                                                       'monitoring_run')
+    queryset = MonitoringResult.objects.select_related(
+        'service',
+        'service__service_type',
+        'layer',
+        'feature_type',
+        'dataset_metadata',
+        'monitoring_run'
+    )
 
 
 class MonitoringResultDetailView(SecuredDetailView):
@@ -52,9 +56,14 @@ class HealthStateTableView(SecuredListMixin, FilterView):
     model = HealthState
     table_class = HealthStateTable
     filterset_class = HealthStateTableFilter
-    queryset = HealthState.objects.select_related('service', 'service__service_type', 'service__metadata', 'layer',
-                                                  'layer__metadata', 'feature_type', 'feature_type__metadata',
-                                                  'dataset_metadata', 'monitoring_run').prefetch_related('reasons')
+    queryset = HealthState.objects.select_related(
+        'service',
+        'service__service_type',
+        'layer',
+        'feature_type',
+        'dataset_metadata',
+        'monitoring_run'
+    ).prefetch_related('reasons')
 
 
 class HealthStateDetailView(SecuredDetailView):

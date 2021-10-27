@@ -3,7 +3,7 @@ from behave import then, given
 from assertpy import fail, assert_that
 from jsonpath import jsonpath
 
-from registry.models import Service, Layer, FeatureType, DatasetMetadata, MapContext
+from registry.models import Service, Layer, FeatureType, DatasetMetadata
 
 
 @given('an authorized session')
@@ -26,7 +26,7 @@ def step_impl(context, json_path):
 
 
 @then('all {the_class} objects are returned')
-def set_impl(context, the_class):
+def get_all_resources(context, the_class):
     if the_class == 'services':
         total_number_of_features = Service.objects.count()
     elif the_class == 'layers':
@@ -45,7 +45,7 @@ def set_impl(context, the_class):
     # then len(results['results']) will be 20
     if int(results['count']) > 20:
         assert_that(len(results['results'])).is_equal_to(20)
-        assert_that(int(results['total_pages'])).is_equal_to(math.ceil(int(total_number_of_features)/len(results['results'])))
+        assert_that(int(results['total_pages'])).is_equal_to(math.ceil(int(total_number_of_features) / len(results['results'])))
     else:
         assert_that(len(results['results'])).is_equal_to(int(total_number_of_features))
     assert_that(int(results['count'])).is_equal_to(int(total_number_of_features))
@@ -54,7 +54,7 @@ def set_impl(context, the_class):
 # TODO: refactor to be only one step that makes the call and gives the response, instead of giving the url in a
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, with {search_criteria} as {filter_keyword} criteria')
-def set_impl(context, number_of_resources_returned, search_criteria, filter_keyword):
+def get_some_resources_by_search(context, number_of_resources_returned, search_criteria, filter_keyword):
     response = context.response
     results = response.json()
 
@@ -72,7 +72,7 @@ def set_impl(context, number_of_resources_returned, search_criteria, filter_keyw
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, between {start_date} and {end_date} as'
       '{filter_keyword} range criteria')
-def set_impl(context, number_of_resources_returned, start_date, end_date, filter_keyword):
+def get_some_resources_by_date_interval(context, number_of_resources_returned, start_date, end_date, filter_keyword):
     response = context.response
     results = response.json()
 
@@ -89,7 +89,7 @@ def set_impl(context, number_of_resources_returned, start_date, end_date, filter
 # TODO: refactor to be only one step that makes the call and gives the response, instead of giving the url in a
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, when BoundingBox {bbox_array} intersects with {the_class} features')
-def set_impl(context, number_of_resources_returned, bbox_array, the_class):
+def get_some_resources_ba_bbox_intersection(context, number_of_resources_returned, bbox_array, the_class):
     response = context.response
     results = response.json()
 
@@ -104,7 +104,7 @@ def set_impl(context, number_of_resources_returned, bbox_array, the_class):
 
 
 @then('a paginated response is returned')
-def set_impl(context):
+def get_paginated_response(context):
     response = context.response
     results = response.json()
 
@@ -116,7 +116,7 @@ def set_impl(context):
 
 
 @then('response objects are ordered {order_criteria} by {order_parameter}')
-def set_impl(context, order_criteria, order_parameter):
+def get_ordered_response(context, order_criteria, order_parameter):
     response = context.response
     results = response.json()
 
@@ -131,7 +131,7 @@ def set_impl(context, order_criteria, order_parameter):
 
 
 @then('"accessible" key is part of the response')
-def set_impl(context):
+def get_accessible_in_response(context):
     response = context.response
     results = response.json()
 

@@ -11,4 +11,3 @@ class StandardResultsSetPagination(PageNumberPagination):
         response = super().get_paginated_response(data)
         response.data['total_pages'] = self.page.paginator.num_pages
         return response
-

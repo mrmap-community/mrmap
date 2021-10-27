@@ -1,6 +1,6 @@
-{% extends 'skeletons/card.html' %}
+{% extends 'MrMap/skeletons/card.html' %}
 {% load static i18n %}
-{% load bootstrap4 %}
+{% load bootstrap5 %}
 {% load django_tables2 %}
 
 {% block card-header-title-left %}
@@ -8,7 +8,7 @@
 {% endblock %}
 {% block card-header-title-right %}
 
-<a role="button" class="btn btn-success" href="{% url 'add_subscription'%}">
+<a role="button" class="btn btn-success" href="{% url 'users:subscription_add'%}">
     {% autoescape off %}{{ICONS.ADD}}{% endautoescape %} {% trans 'New Subscription' %}
 </a>
 

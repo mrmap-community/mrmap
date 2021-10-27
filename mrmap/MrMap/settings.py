@@ -8,33 +8,33 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
-import os
-import sys
-from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
 import logging
-from api.settings import REST_FRAMEWORK # noqa
-from kombu import Queue, Exchange
+import os
+import socket
+import sys
 
+from django.contrib import messages
+from django.core.management.utils import get_random_secret_key
+from django.utils.translation import gettext_lazy as _
+from kombu import Queue, Exchange
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MEDIA_ROOT = BASE_DIR + "/media"
+MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/media")
+# create media dir if it does not exist
+if not os.path.exists(MEDIA_ROOT):
+    os.makedirs(MEDIA_ROOT)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
     'channels',
-    'ws',
     'guardian',
-    'acl',
-    'MrMap',  # added so we can use general commands in MrMap/management/commands
     'dal',
     'dal_select2',
     'django.forms',
@@ -47,37 +47,32 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'formtools',
-    'users',
-    'structure',
-    'job',
     'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
-    'api',
-    'csw',
     'django_celery_beat',
     'django_celery_results',
-    'monitoring',
-    'bootstrap4',
-    'fontawesome_5',
+    'bootstrap5',
     'django_tables2',
     'django_filters',
     'query_parameters',
     'django_nose',
     'mathfilters',
-    'quality',
-    'django_bootstrap_swt',
     'leaflet',
     'breadcrumb',
     'mptt',
-    'autocompletes',
-    'resourceNew',
-    'main',
+    'MrMap',  # added so we can use general commands in MrMap/management/commands
+    'users',
+    'acls',
+    'jobs',
+    'registry',
+    'extras',
+    'ws',
 ]
 
 TEMPLATE_LOADERS = (
-    'django.template.loaders.main.custom_template_filters.py'
+    'django.template.loaders.extras.custom_template_filters.py'
     'django.template.loaders.app_directories.Loader'
 )
 
@@ -115,10 +110,16 @@ if DEBUG:
             'debug_toolbar.panels.logging.LoggingPanel',
             'debug_toolbar.panels.redirects.RedirectsPanel',
             'debug_toolbar.panels.profiling.ProfilingPanel',
-        }
+        },
+        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
     }
 
     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+
+if os.environ.get("MRMAP_PRODUCTION") == 'False':
+    INSTALLED_APPS.append(
+        'behave_django',
+    )
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -159,31 +160,18 @@ PER_PAGE_MAX = 2500
 
 METADATA_URL = ["request=GetMetadata&", ]
 
-# Defines basic server information
-HTTP_OR_SSL = "http://"
-HOST_NAME = "localhost:8000"
+BASE_URL_FOR_ETF = os.environ.get("MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001")
 
-# DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
-ROOT_URL = HTTP_OR_SSL + HOST_NAME
-
-
-from structure.permissionEnums import PermissionEnum
-from django.utils.translation import gettext_lazy as _
-
-ALLOWED_HOSTS = [
-    HOST_NAME,
-    "127.0.0.1",
-    "localhost",
-]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver").split(";")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
 GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "users:dashboard"
+LOGOUT_REDIRECT_URL = "users:login"
 # Defines where to redirect a user, that has to be logged in for a certain route
-LOGIN_URL = "/accounts/login/"
-LOGOUT_REDIRECT_URL = "/"
+LOGIN_URL = "users:login"
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -196,11 +184,10 @@ LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
 DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
-TIME_ZONE = 'Europe/Berlin'
+TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE')
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
-
 
 # Defines the semantic web information which will be injected on the resource html views
 SEMANTIC_WEB_HTML_INFORMATION = {
@@ -218,10 +205,9 @@ LAST_ACTIVITY_DATE_RANGE = 7
 
 # configure your proxy like "http://10.0.0.1:8080"
 # or with username and password: "http://username:password@10.0.0.1:8080"
-HTTP_PROXY = ""
 PROXIES = {
-    "http": HTTP_PROXY,
-    "https": HTTP_PROXY,
+    "http": os.getenv("http_proxy", ""),
+    "https": os.getenv("https_proxy", ""),
 }
 
 # configure if you want to validate ssl certificates
@@ -235,34 +221,33 @@ AUTHENTICATION_BACKENDS = (
     'guardian.backends.ObjectPermissionBackend',
 )
 
-
 GUARDIAN_RAISE_403 = True
 
 # django-guardian-roles
-GUARDIAN_ROLES_OWNABLE_MODELS = ['service.Metadata',
-                                 'monitoring.MonitoringRun',
-                                 'monitoring.MonitoringResult',
-                                 'monitoring.HealthState',
-                                 'service.ProxyLog']
+GUARDIAN_ROLES_OWNABLE_MODELS = ['registry.Metadata',
+                                 'registry.MonitoringRun',
+                                 'registry.MonitoringResult',
+                                 'registry.HealthState',
+                                 'registry.ProxyLog']
 
 GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
 GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
 
 GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
-GUARDIAN_ROLES_OWNER_MODEL = 'structure.Organization'
+GUARDIAN_ROLES_OWNER_MODEL = 'users.Organization'
 
 ################################################################
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 ################################################################
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mrmap',
-        'USER': 'mrmap',
-        'PASSWORD': 'mrmap',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+    "default": {
+        "ENGINE": os.environ.get("SQL_ENGINE"),
+        "NAME": os.environ.get("SQL_DATABASE"),
+        "USER": os.environ.get("SQL_USER"),
+        "PASSWORD": os.environ.get("SQL_PASSWORD"),
+        "HOST": os.environ.get("SQL_HOST"),
+        "PORT": os.environ.get("SQL_PORT"),
     }
 }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
@@ -270,8 +255,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 ################################################################
 # Redis settings
 ################################################################
-REDIS_HOST = 'localhost'
-REDIS_PORT = '6379'
+REDIS_HOST = os.environ.get("REDIS_HOST")
+REDIS_PORT = os.environ.get("REDIS_PORT")
 BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
 
 # Cache
@@ -306,10 +291,10 @@ CELERY_DEFAULT_EXCHANGE = "default"
 CELERY_QUEUES = (
     Queue('default', Exchange('default'), routing_key='default'),
     Queue('download_iso_metadata', Exchange('download_iso_metadata'), routing_key='download_iso_metadata'),
-    Queue('download_described_elements', Exchange('download_described_elements'), routing_key='download_described_elements'),
-    Queue('harvest', Exchange('harvest'),  routing_key='harvest'),
+    Queue('download_described_elements', Exchange('download_described_elements'),
+          routing_key='download_described_elements'),
+    Queue('harvest', Exchange('harvest'), routing_key='harvest'),
 )
-
 
 ################################################################
 # django channels settings
@@ -324,7 +309,6 @@ CHANNEL_LAYERS = {
         },
     },
 }
-
 
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
@@ -351,12 +335,20 @@ AUTH_PASSWORD_VALIDATORS = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR + "/static/"
+STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
     # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/resourceNew/static'
+    BASE_DIR + '/registry/static',
 ]
+
+# static is used for localdev + runserver
+if os.path.exists(BASE_DIR + '/static'):
+    STATICFILES_DIRS.append(BASE_DIR + '/static')
+
+# /tmp/static is used in docker container
+if os.path.exists("/tmp/static"):
+    STATICFILES_DIRS.append('/tmp/static')
 
 WSGI_APPLICATION = 'MrMap.wsgi.application'
 ASGI_APPLICATION = 'MrMap.asgi.application'
@@ -373,7 +365,6 @@ PAGE_SIZE_DEFAULT = 5
 PAGE_SIZE_MAX = 100
 PAGE_DEFAULT = 1
 
-
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
@@ -386,7 +377,7 @@ SESSION_COOKIE_AGE = 30 * 60
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
 
-# define the message tags for bootstrap4
+# define the message tags for bootstrap
 MESSAGE_TAGS = {
     messages.DEBUG: 'alert-info',
     messages.INFO: 'alert-info',
@@ -404,11 +395,11 @@ if 'test' in sys.argv:
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = [
     '--with-xunit',
-    '--xunit-file=xunit-result.xml',
+    f'--xunit-file={BASE_DIR}/xunit-result.xml',
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',
-    f'--cover-xml-file={BASE_DIR}coverage-report.xml',
+    f'--cover-xml-file={BASE_DIR}/coverage-report.xml',
 ]
 
 ################################################################
@@ -452,14 +443,15 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 ################################################################
 # Mapserver
 ################################################################
-MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
-MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(BASE_DIR, "install/confs/security_mask.map")
-MAPSERVER_SECURITY_MASK_TABLE = "resourceNew_allowedoperation"
+MAPSERVER_URL = os.environ.get('MAPSERVER_URL')
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
+    "MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
+MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
 DEFAULT_SRS = 4326
-FONT_IMG_RATIO = 1/20  # Font to image ratio
+FONT_IMG_RATIO = 1 / 20  # Font to image ratio
 ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
 ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
 ################################################################
@@ -467,9 +459,13 @@ ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of secur
 ################################################################
 ROOT_LOGGER = logging.getLogger('MrMap.root')
 
-LOG_DIR = BASE_DIR + '/logs/mrmap/'
+LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f'/var/log/mrmap/{socket.gethostname()}/')
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
+
+# create log dir if it does not exist
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
 LOGGING = {
     'version': 1,
@@ -509,3 +505,8 @@ LOGGING = {
         },
     },
 }
+
+# REST FRAMEWORK
+REST_FRAMEWORK = {'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'}
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

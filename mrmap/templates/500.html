@@ -2,11 +2,11 @@
 {% load i18n static %}
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
-    {% include 'includes/default-head.html' %}
+    {% include 'MrMap/includes/default-head.html' %}
 </head>
 <body class="bg-light bg-img">
-    {% include 'includes/messages.html' %}
-    {% include 'includes/ee-overlay.html' %}
+    {% include 'MrMap/includes/messages.html' %}
+    {% include 'MrMap/includes/ee-overlay.html' %}
     <div class="container">
         <div class="card bg-light mt-3">
             <div class="card-header">
@@ -26,10 +26,10 @@
                     </div>
             </div>
             <div class="card-footer text-center">
-                <a href="{% url 'home' %}">{% autoescape off %}{{ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
+                <a href="{% url 'users:dashboard' %}">{% autoescape off %}{{ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
             </div>
         </div> <!-- card-body.// -->
     </div>
-{% include 'includes/footer.html' %}
+{% include 'MrMap/includes/footer.html' %}
 </body>
 </html>

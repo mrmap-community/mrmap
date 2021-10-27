@@ -6,7 +6,6 @@ function ws_connect(path, search) {
 
     ws_socket.onopen = function open() {
         // do nothing if the websocket is correctly opened
-        console.log('connected');
     };
 
     ws_socket.onclose = function(e) {
@@ -38,9 +37,8 @@ function handle_toast(){
     };
 }
 
-
-function AppViewModel() {
-    var appViewModel = this;
+function ObjectCounts() {
+    var objectCounts = this;
     this.jobsCount = ko.observable();
     this.tasksCount = ko.observable();
     this.wmsCount = ko.observable();
@@ -59,21 +57,17 @@ function AppViewModel() {
     this.externalAuthenticationCount = ko.observable();
     this.proxySettingsCount = ko.observable();
 
-    var ws_socket = ws_connect('/ws/app-view-model/', '')
+    var ws_socket = ws_connect('/ws/object-counts/', '')
     ws_socket.onmessage = function message(event) {
         var json_data = JSON.parse(event.data);
-        for (const observable of Object.getOwnPropertyNames(appViewModel)) {
-            appViewModel[observable](json_data[observable]);
+        for (const observable of Object.getOwnPropertyNames(objectCounts)) {
+            objectCounts[observable](json_data[observable]);
         }
     };
 }
 
 window.addEventListener('load', function () {
   // Activates knockout.js
-  var appViewModel = new AppViewModel();
-  ko.applyBindings(appViewModel);
-
+  ko.applyBindings(new ObjectCounts(), document.getElementById('id_menu_nav'));
   handle_toast();
 })
-
-

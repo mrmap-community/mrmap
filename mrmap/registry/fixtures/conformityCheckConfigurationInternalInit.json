@@ -1,0 +1,12 @@
+[
+  {
+    "model": "registry.conformitycheckconfigurationinternal",
+    "pk": 4,
+    "fields": {
+      "mandatory_rule_sets": [
+        1
+      ],
+      "optional_rule_sets": []
+    }
+  }
+]

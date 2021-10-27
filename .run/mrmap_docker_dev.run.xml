@@ -1,0 +1,28 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Docker-Compose: mrmap DEV startup" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+    <deployment type="docker-compose.yml">
+      <settings>
+        <option name="envFilePath" value="" />
+        <option name="removeImagesOnComposeDown" value="ALL" />
+        <option name="commandLineOptions" value="--build" />
+        <option name="secondarySourceFiles">
+          <list>
+            <option value="docker-compose.dev.yml" />
+          </list>
+        </option>
+        <option name="services">
+          <list>
+            <option value="appserver" />
+            <option value="celery-default-worker" />
+            <option value="celery-download-worker" />
+          </list>
+        </option>
+        <option name="sourceFilePath" value="docker-compose.yml" />
+        <option name="upAlwaysRecreate" value="true" />
+        <option name="upForceRecreate" value="true" />
+        <option name="upRemoveOrphans" value="true" />
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>

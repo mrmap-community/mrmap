@@ -1,0 +1,45 @@
+<div class="card my-3" style="overflow: inherit;">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-sm">
+                <div class="float-start">
+                {% block card-header-title-left %}
+                {% endblock %}
+                </div>
+            </div>
+            {% block no-card-header-title-center %}
+            <div class="col-sm">
+                <div class="mx-auto text-center">
+                {% block card-header-title-center %}
+                {% endblock %}
+                </div>
+            </div>
+            {% endblock no-card-header-title-center %}
+            {% block no-card-header-title-right %}
+            <div class="col-sm">
+                <div class="float-end">
+                    {% block card-header-title-right %}
+                    {% endblock %}
+                </div>
+            </div>
+            {% endblock no-card-header-title-right %}
+        </div>
+        {% comment %} TODO: if this section is not filled out by the extending template, this area should not be present; it claimed space at this time  {% endcomment %}
+        <div class="row">
+            <div class="col-sm">
+                {% block card-header-subtitle-left %}
+                {% endblock %}
+            </div>
+            <div class="col-sm">
+                <div class="float-end">
+                    {% block card-header-subtitle-right %}
+                    {% endblock %}
+                </div>
+            </div>
+        </div>
+    </div><!--</card-header-->
+    <div class="card-body">
+        {% block card-body %}
+        {% endblock %}
+    </div><!--</card-body-->
+</div><!--</card-->

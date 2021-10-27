@@ -5,9 +5,9 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 06.05.19
 
 """
+import os
 import random
 import string
-from getpass import getpass
 
 from dateutil.parser import parse
 from django.contrib.auth import get_user_model
@@ -16,11 +16,11 @@ from django.db import transaction, connections, DEFAULT_DB_ALIAS, OperationalErr
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
-from monitoring.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
-from resourceNew.enums.service import OGCOperationEnum
-from resourceNew.models.security import OGCOperation
-from structure.models import Organization
-from monitoring.models import MonitoringSetting
+from registry.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
+from registry.enums.service import OGCOperationEnum
+from registry.models.security import OGCOperation
+from users.models.groups import Organization
+from registry.models import MonitoringSetting
 
 
 class Command(BaseCommand):
@@ -39,8 +39,8 @@ class Command(BaseCommand):
         elif options['reset']:
             call_command('reset_db', '-c')
         with transaction.atomic():
-            self._pre_setup()
-            # sec run the main setup
+            self._pre_setup(**options)
+            # sec run the extras setup
             self._run_system_user_default_setup()
             self._run_superuser_default_setup()
             # then load the default categories
@@ -48,6 +48,10 @@ class Command(BaseCommand):
             call_command('load_licences')
             # finally load the fixtures
             self._load_fixtures()
+
+    @property
+    def _super_user_exists(self):
+        return get_user_model().objects.filter(username=os.environ.get("MRMAP_USER")).exists()
 
     def _is_database_synchronized(self, database):
         connection = connections[database]
@@ -60,14 +64,15 @@ class Command(BaseCommand):
         targets = executor.loader.graph.leaf_nodes()
         return not executor.migration_plan(targets)
 
-    def _pre_setup(self):
+    def _pre_setup(self, **options):
         """ check if there are pending migrations. If so, we migrate them"""
         if self._is_database_synchronized(DEFAULT_DB_ALIAS):
             # All migrations have been applied.
             pass
         else:
             call_command('migrate')
-        #call_command('create_roles')
+
+        # call_command('create_roles')
 
     def _run_system_user_default_setup(self):
         if get_user_model().objects.filter(username="system").exists():
@@ -77,29 +82,29 @@ class Command(BaseCommand):
         get_user_model().objects.create(username="system", password=password, is_active=False)
 
     def _run_superuser_default_setup(self):
-        """ Encapsules the main setup for creating all default objects and the superuser
+        """ Encapsules the extras setup for creating all default objects and the superuser
 
         Returns:
              nothing
         """
-        if get_user_model().objects.filter(username="mrmap").exists():
+        if self._super_user_exists:
             return
 
         superuser = get_user_model().objects.create_superuser(
-            username="mrmap",
-            password="mrmap"
+            username=os.environ.get("MRMAP_USER"),
+            password=os.environ.get("MRMAP_PASSWORD")
         )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.save()
-        msg = "Superuser 'mrmap' with password 'mrmap' was created successfully!"
+        msg = f"Superuser {os.environ.get('MRMAP_USER')} with password {os.environ.get('MRMAP_PASSWORD')} was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
         # handle root organization
         orga = self._create_default_organization()
         superuser.organization = orga
         superuser.save()
-        msg = "Superuser 'mrmap' added to organization '" + str(orga.name) + "'!"
+        msg = f"Superuser {os.environ.get('MRMAP_USER')} added to organization '" + str(orga.name) + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()
@@ -154,6 +159,7 @@ class Command(BaseCommand):
         fixture_list = [
             "conformityCheckConfigurationInit.json",
             "conformityCheckConfigurationExternalInit.json",
+            "conformityCheckConfigurationExternalWmsInit.json",
             "ruleInit.json",
             "ruleSetInit.json",
             "conformityCheckConfigurationInternalInit.json"

@@ -1,0 +1,202 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Docker-Compose: mrmap startup",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "--build",
+                "--remove-orphans"
+            ]
+        },
+        {
+            "label": "Docker-Compose: mrmap appserver",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "appserver",
+                "--abort-on-container-exit",
+                "appserver"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap validator",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "inspire-validator",
+                "--abort-on-container-exit",
+                "inspire-validator"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap celery-default-worker",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-default-worker",
+                "--abort-on-container-exit",
+                "celery-default-worker"
+            ]
+        },
+        {
+            "label": "Docker-Compose: mrmap celery-download-worker",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-download-worker",
+                "--abort-on-container-exit",
+                "celery-download-worker"
+            ]
+        },
+        {
+            "label": "Docker-Compose: run pre commit checks",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "pre-commit-check"
+            ]
+        },
+        {
+            "label": "Docker-Compose: run tests",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "test"
+            ]
+        },
+        {
+            "label": "Docker-Compose: run behave tests",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "behave"
+            ]
+        },
+        {
+            "label": "reset migrations",
+            "type": "shell",
+            "command": [
+                "find",
+                "mrmap",
+                "-iname",
+                "migrations",
+                "|",
+                "xargs",  
+                "-i",
+                "find",
+                "{}",
+                "-type",
+                "f",
+                "-name",
+                "'0*.py'",
+                "|",
+                "xargs",
+                "rm"
+            ]
+        },
+        {
+            "label": "makemigrations",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_appserver_1",
+                "/opt/mrmap/manage.py",
+                "makemigrations"
+            ]
+        },
+        {
+            "label": "migrate",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_appserver_1",
+                "/opt/mrmap/manage.py",
+                "migrate"
+            ]
+        },
+        {
+            "label": "Docker-Compose: setup --reset-force",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_appserver_1",
+                "/opt/mrmap/manage.py",
+                "setup",
+                "--reset-force"
+            ]
+        }
+    ]
+}

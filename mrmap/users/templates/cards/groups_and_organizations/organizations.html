@@ -1,4 +1,4 @@
-{% extends 'sceletons/card.html' %}
+{% extends 'MrMap/skeletons/card.html' %}
 {% load i18n %}
 
 {% block card-header-title-left %}
@@ -10,14 +10,14 @@
 {% endblock%}
 
 {% block card-header-title-right %}
-<h5><span class="badge badge-pill badge-light">{{ organizations.count }}</span></h5>
+<h5><span class="badge rounded-pill bg-light">{{ organizations.count }}</span></h5>
 {% endblock %}
 
 {% block card-body %}
 <p class="card-text">
     {% trans 'All known organizations.' %}
 </p>
-<a class="btn btn-primary" href="{% url 'structure:organization_overview' %}" role="button">
+<a class="btn btn-primary" href="{% url 'users:organization_list' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% endblock %}

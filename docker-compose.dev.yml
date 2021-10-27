@@ -1,0 +1,129 @@
+# docker compose file for development useage
+version: '3.8'
+services:
+
+  # Extend the existing postgis container with an accessible port for development purposes
+  postgis:
+    ports:
+      - 5555:5432
+
+  redis:
+    ports:
+      - 5556:6379
+
+  inspire-validator:
+    build:
+      context: ./docker/inspire-validator
+    ports:
+      - "5557:8080"
+    networks:
+      - backend
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  pre-commit-check:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+      args:
+        MRMAP_PRODUCTION: 'False'
+    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    command:
+      /bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
+    hostname: "mrmap-test"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+    networks:
+      - backend
+    env_file:
+      - ./.env.mrmap
+    depends_on:
+      - postgis
+      - redis
+
+  test:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+      args:
+        MRMAP_PRODUCTION: 'False'
+    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    command:
+      /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i -o behave-coverage-report.xml"
+    hostname: "mrmap-test"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+    networks:
+      - backend
+    env_file:
+      - ./.env.mrmap
+      - ./.env.mrmap.dev
+    depends_on:
+      - postgis
+      - redis
+
+  behave:
+    build:
+      context: ./mrmap
+      dockerfile: ../docker/mrmap/Dockerfile
+      args:
+        MRMAP_PRODUCTION: 'False'
+    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    command: >
+      /bin/bash -c "coverage run manage.py behave --noinput users/tests/acceptance
+      && coverage run manage.py behave --noinput registry/tests/acceptance"
+    hostname: "mrmap-behave"
+    volumes:
+      - type: bind
+        source: ./mrmap
+        target: /opt/mrmap
+    networks:
+      - backend
+    env_file:
+      - ./.env.mrmap
+      - ./.env.mrmap.dev
+    environment:
+      - DJANGO_DEBUG=0
+    depends_on:
+      - postgis
+      - redis
+
+  appserver:
+      build:
+        args:
+          MRMAP_PRODUCTION: "False"
+      env_file:
+        - ./.env.mrmap
+        - ./.env.mrmap.dev
+      command:
+        /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
+
+  celery-default-worker:
+      build:
+        args:
+          MRMAP_PRODUCTION: "False"
+      env_file:
+        - ./.env.mrmap
+        - ./.env.mrmap.dev
+      command: >
+        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+
+  celery-download-worker:
+      build:
+        args:
+          MRMAP_PRODUCTION: "False"
+      env_file:
+        - ./.env.mrmap
+        - ./.env.mrmap.dev
+      command: >
+        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+
+  nginx:
+    volumes:
+      - type: bind
+        source: ./docker/nginx/mrmap.dev.conf
+        target: /etc/nginx/conf.d/default.conf

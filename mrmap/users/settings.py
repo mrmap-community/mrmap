@@ -1,3 +1,5 @@
 # days
-default_activation_time = 30
-default_request_activation_time = 30
+DEFAULT_REQUEST_ACIVATION_TIME = 30
+
+# In hours: how long an activation link is valid for a user
+USER_ACTIVATION_TIME_WINDOW = 24

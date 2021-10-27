@@ -49,10 +49,6 @@ nosecover.xml
 coverage-report.xml
 .hypothesis/
 
-# Translations
-*.mo
-*.pot
-
 # Django stuff:
 *.log
 local_settings.py
@@ -131,3 +127,8 @@ coverage-report.xml
 
 ext_auth_keys/
 mrmap/media/
+
+# npm-related
+node_modules/
+/mrmap/static/
+package-lock.json

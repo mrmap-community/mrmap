@@ -18,6 +18,7 @@
 import os
 import sys
 import django
+from subprocess import check_output
 
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
@@ -49,6 +50,7 @@ release = 'v0.0.0'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx_rtd_theme',
+    'sphinx_multiversion',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -72,6 +74,19 @@ html_theme = "sphinx_rtd_theme"
 
 #html_static_path = ['_static']
 
-linkcheck_ignore = [r'http://localhost:\d+/', r'http://127.0.0.1:\d+/', r'https://127.0.0.1:\d+/', r'http://YOUR-IP-ADDRESS:\d+/', ]
+linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', ]
 
 master_doc = "index"
+
+from sphinx.builders.html import StandaloneHTMLBuilder
+StandaloneHTMLBuilder.supported_image_types = [
+    'image/svg+xml',
+    'image/gif',
+    'image/png',
+    'image/jpeg'
+]
+
+
+smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
+smv_branch_whitelist = r'^develop$'              # Include develop branch
+smv_remote_whitelist = None                       # Use branches from all remotes

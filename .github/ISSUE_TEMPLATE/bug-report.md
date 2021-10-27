@@ -1,7 +1,9 @@
 ---
-name: 🐛 Bug Report
+name: "\U0001F41B Bug Report"
 about: Report a reproducible bug in the current release of MrMap
+title: ''
 labels: 'type: bug'
+assignees: ''
 
 ---
 

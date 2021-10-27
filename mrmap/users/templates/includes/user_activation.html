@@ -2,7 +2,7 @@
 <div class="card bg-light mt-3">
     <div class="card-body">
         <div class="w-25 mx-auto">
-                    <a href="{% url 'login' %}"><img class="img-fluid" src="{% static '/images/mr_map.png' %}" alt="{% trans 'Mr. Map logo' %}"></a>
+                    <a href="{% url 'users:login' %}"><img class="img-fluid" src="{% static '/images/mr_map.png' %}" alt="{% trans 'Mr. Map logo' %}"></a>
         </div>
         <h1 class="card-title text-center">{% trans 'Welcome' %} {{ user.username }}!</h1>
         <article class="text-center">

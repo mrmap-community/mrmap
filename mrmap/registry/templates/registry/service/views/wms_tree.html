@@ -1,0 +1,79 @@
+{% extends 'registry/service/base.html' %}
+{% load mptt_tags %}
+{% load static i18n %}
+{% load guardian_tags %}
+{% block card_body %}
+{% recursetree nodes %}
+<div id="id_accordion_{{node.pk}}">
+  <div class="accordion {% if node.pk|stringformat:'s' == request.GET.collapse %}animate__animated animate__flash{% endif %}">
+    <div class="accorion-item">
+      <div class="accordion-header card-header" id="id_accordion_header_{{node.pk}}">
+        {% get_obj_perms request.user for node as "perms" perm_checker %}
+        <div class="row">
+          <div class="col-7 col-md text-start">
+            <h5 class="mb-0">
+              {% if not node.is_leaf_node and node != root_node %}
+                  <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#id_accordion_collapse_{{node.pk}}" aria-expanded="true" aria-controls="id_accordion_collapse_{{node.pk}}">
+                    {{ node.icon|safe }} {{ node.title }} <span class="badge bg-secondary">{{ node.get_descendant_count }}</span>
+                  </button>
+              {% else %}
+              {{ node.icon|safe }} {{ node.title }}
+              {% endif %}
+            </h5>
+          </div>
+          <div class="col-7 col-md text-start text-md-center">
+            <div class="btn-group mb-1">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <div class="d-xl-none">{{ ICONS.CAPABILITIES|safe }}</div><div class="d-none d-xl-block">{{ ICONS.CAPABILITIES|safe }} {% trans 'Capabilities' %}</div>
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="sr-only">Toggle Dropdown</span>
+            </button>
+            <div class="dropdown-menu" aria-labelledby="id_dropdown_capabilities_{{node.pk}}">
+              <h6 class="dropdown-header">{% trans 'See current or original:' %}</h6>
+              <a class="dropdown-item" href="{{node.capabilities_original_uri}}">{% trans 'Original' %}</a>
+              <a class="dropdown-item" href="{{node.capabilities_uri}}">{% trans 'Current' %}</a>
+            </div>
+          </div>
+            <div class="btn-group mb-1">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><div class="d-xl-none">{{ ICONS.METADATA|safe }}</div><div class="d-none d-xl-block">{{ ICONS.METADATA|safe }} {% trans 'Metadata' %}</div></button>
+            <button type="button" class="btn btn-sm btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="sr-only">Toggle Dropdown</span>
+            </button>
+            <div class="dropdown-menu" aria-labelledby="id_dropdown_metadata_{{node.pk}}">
+              <h6 class="dropdown-header">{% trans 'Show metadata as:' %}</h6>
+              <a class="dropdown-item" href="{{node.get_xml_view_url}}">{{ ICONS.CAPABILITIES|safe }} {% trans 'XML' %}</a>
+              <a class="dropdown-item" href="{{node.get_absolute_url}}">{{ ICONS.NEWSPAPER|safe }} {% trans 'HTML' %}</a>
+            </div>
+          </div>
+            {% if node.has_dataset_metadata %}
+            <a class="btn btn-sm btn-secondary mb-1" href="{{node.get_dataset_table_url}}" role="button">
+              <div class="d-xl-none">{{ ICONS.DATASET|safe }}</div><div class="d-none d-xl-block">{{ ICONS.DATASET|safe }} {% trans 'Datasets' %} <span class="badge bg-info">{{node.has_dataset_metadata}}</span></div>
+            </a>
+            {% endif %}
+          </div>
+          <div class="col-7 col-md text-start text-md-end">
+        <div class="d-inline-flex">
+          {% if "change_layer" in perms and node.get_change_url %}
+          <form class="mr-1" action="{{node.get_change_url}}?collapse={{node.pk}}" method="post">
+            {% csrf_token %}
+            <input type="hidden"  name="is_active" {% if not node.is_active %}value="on"{% endif %}>
+            <button type="submit" class="btn btn-sm {% if node.is_active %}btn-warning{% else %}btn-success{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if node.is_active %}{% trans 'Deactivate the resource' %}{% else %}{% trans 'Activate the resource' %}{% endif %}">{{ ICONS.POWER_OFF|safe }}</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+        </div>
+      </div>
+      {% if not node.is_leaf_node %}
+      <div id="id_accordion_collapse_{{node.pk}}" class="accordion-collapse collapse {% if node.collapse %}show{% endif %}" aria-labelledby="id_accordion_header_{{node.pk}}" data-bs-parent="#id_accordion_{{node.pk}}">
+        <div class="accordion-body">
+          {{ children }}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endrecursetree %}
+{% endblock %}

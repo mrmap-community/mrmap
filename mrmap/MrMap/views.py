@@ -1,158 +1,21 @@
-import uuid
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
-from django.test import RequestFactory
-from django.urls import reverse_lazy, resolve, reverse
-from django.views.generic import UpdateView, DetailView
+from django.urls import reverse_lazy
+from django.views.generic import DetailView
 from django.views.generic.base import ContextMixin
-from django.views.generic.edit import FormMixin, FormView
-from django_bootstrap_swt.components import Alert
-from django_bootstrap_swt.enums import AlertEnum, ButtonColorEnum
-from django_bootstrap_swt.utils import RenderHelper
-from django_tables2 import SingleTableMixin, LazyPaginator
+from django.views.generic.edit import FormMixin
+from extras.enums.bootstrap import ButtonColorEnum
+from django_tables2 import SingleTableMixin
 from django.utils.translation import gettext_lazy as _
 from MrMap.forms import ConfirmForm
-from MrMap.responses import DefaultContext
-from MrMap.wizards import get_class
-
-
-class ModalFormMixin(FormView):
-    template_name = "generic_views/generic_modal.html"
-    fade = True
-    show = True
-    size = 'modal-lg'
-    id = "id_" + str(uuid.uuid4())
-    action_url = ""
-    current_view_arg = None
-    current_view = None
-    # Todo: move this to settings.py
-    current_view_queryparam = 'current-view'
-    current_view_arg_queryparam = 'current-view-arg'
-    current_view_url = ""
-
-    def prepare_query_params(self):
-        query_params = f"?{self.current_view_queryparam}={self.current_view}"
-        if self.current_view_arg:
-            query_params += f"&{self.current_view_arg_queryparam}={self.current_view_arg}"
-        return query_params
-
-    def dispatch(self, request, *args, **kwargs):
-        self.current_view = request.GET.get(self.current_view_queryparam, None)
-        if not self.current_view:
-            raise ImproperlyConfigured(f"query param '{self.current_view_queryparam}' "
-                                       f"was not found in the url query parameters")
-        self.current_view_arg = request.GET.get(self.current_view_arg_queryparam, None)
-
-        if self.current_view_arg:
-            self.current_view_url = reverse(f"{self.current_view}", args=[self.current_view_arg, ])
-        else:
-            self.current_view_url = reverse(f"{self.current_view}", )
-
-        self.action_url += self.prepare_query_params()
-        self.success_url = self.current_view_url
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update(self.__dict__)
-        return context
-
-    def render_to_response(self, context, **response_kwargs):
-        rendered_modal = render_to_string(template_name=self.template_name,
-                                          context=context,
-                                          request=self.request)
-        resolver_match = resolve(self.current_view_url)
-        # todo: catch simple non class based views
-        func = resolver_match.func
-        module = func.__module__
-        view_name = func.__name__
-        clss = get_class('{0}.{1}'.format(module, view_name))
-
-        factory = RequestFactory()
-        request = factory.get(self.current_view_url)
-        request.user = self.request.user
-
-        return clss.as_view(extra_context={'rendered_modal': rendered_modal})(request=request)
-
-
-class GenericUpdateView(UpdateView):
-    template_name = 'generic_views/generic_update.html'
-    action = ""
-    action_url = ""
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({"action": self.action,
-                        "action_url": self.action_url})
-        return context
-
-
-class AsyncUpdateView(GenericUpdateView):
-    alert_msg = ""
-    async_task_func = None
-    async_task_params = {}
-
-    def form_valid(self, form):
-        self.object.save()
-
-        task = self.async_task_func.delay(object_id=self.object.id,
-                                          additional_params=self.async_task_params)
-
-        content = {
-            "data": {
-                "id": task.task_id,
-            },
-            "alert": Alert(msg=self.alert_msg, alert_type=AlertEnum.SUCCESS).render()
-        }
-
-        # cause this is a async task which can take longer we response with 'accept' status
-        return JsonResponse(status=202, data=content)
-
-
-class ModelFormView(FormMixin, DetailView):
-    template_name = 'generic_views/generic_confirm_form.html'
-    success_url = reverse_lazy('home')
-    action = ""
-    action_url = ""
-    action_btn_color = ButtonColorEnum.PRIMARY
-
-    # decorator or some other function could pass *args or **kwargs it to this function
-    # so keep *args and **kwargs here to avoid from
-    # TypeError: post() got an unexpected keyword argument 'pk' for example
-    def post(self, *args, **kwargs):
-        self.object = self.get_object()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({"action": self.action,
-                        "action_url": self.action_url,
-                        "action_btn_color": self.action_btn_color, })
-        context = DefaultContext(request=self.request, context=context).get_context()
-        return context
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({'instance': self.object})
-        return kwargs
-
-    def form_valid(self, form):
-        form.save()
-        return super().form_valid(form=form)
 
 
 class ConfirmView(FormMixin, DetailView):
     template_name = 'MrMap/detail_views/generic_form.html'
-    success_url = reverse_lazy('home')
+    success_url = reverse_lazy('users:dashboard')
     form_class = ConfirmForm
     action_url = ""
     action_btn_color = ButtonColorEnum.PRIMARY
@@ -171,33 +34,11 @@ class ConfirmView(FormMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update({"action_url": self.action_url,
-                        "action_btn_color": self.action_btn_color,})
+                        "action_btn_color": self.action_btn_color, })
         return context
 
     def get_success_url(self):
         return self.object.get_absolute_url()
-
-
-class AsyncConfirmView(ConfirmView):
-    alert_msg = ""
-    async_task_func = None
-    async_task_params = {}
-
-    def form_valid(self, form):
-        self.object.save()
-
-        task = self.async_task_func.delay(object_id=self.object.id,
-                                          additional_params=self.async_task_params)
-
-        content = {
-            "data": {
-                "id": task.task_id,
-            },
-            "alert": Alert(msg=self.alert_msg, alert_type=AlertEnum.SUCCESS).render()
-        }
-
-        # cause this is a async task which can take longer we response with 'accept' status
-        return JsonResponse(status=202, data=content)
 
 
 class InitFormMixin(FormMixin):
@@ -259,7 +100,7 @@ class CustomSingleTableMixin(SingleTableMixin):
     template_extend_base = True
     add_url = None
     # Implement lazy pagination, preventing any count() queries to increase performance.
-    # todo: disabled since refactoring service app to resourceNew app... we need to to test the performance of all
+    # todo: disabled since refactoring service app to registry app... we need to to test the performance of all
     #  table views. If we got performance problems we could activate the LazyPaginator again. But for the user
     #  experience it would be better to dispense LazyPaginator cause with the default pagination we can show total
     #  table count.
@@ -284,12 +125,6 @@ class CustomSingleTableMixin(SingleTableMixin):
         table = super().get_table(**kwargs)
         table.title = self.get_title()
         table.add_url = self.get_add_url()
-        model = self.model
-        # todo: bad practice --> results in multiple db querys for get_all_permissions()
-        # todo: deprecated
-        if hasattr(model, 'get_add_action') and callable(model.get_add_action):
-            render_helper = RenderHelper(user_permissions=list(filter(None, self.request.user.get_all_permissions())))
-            table.actions = [render_helper.render_item(item=self.model.get_add_action())]
         return table
 
     def get_template_extend_base(self):
@@ -308,9 +143,9 @@ class CustomSingleTableMixin(SingleTableMixin):
         if not self.template_name:
             self.template_extend_base = bool(self.request.GET.get('with-base', self.get_template_extend_base()))
             if self.template_extend_base:
-                self.template_name = 'generic_views/generic_list_with_base.html'
+                self.template_name = 'MrMap/generic_views/generic_list_with_base.html'
             else:
-                self.template_name = 'generic_views/generic_list_without_base.html'
+                self.template_name = 'MrMap/generic_views/generic_list_without_base.html'
         return super().dispatch(request, *args, **kwargs)
 
 

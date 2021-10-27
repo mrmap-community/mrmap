@@ -1,0 +1,27 @@
+{
+  "name": "mrmap",
+  "version": "1.0.0",
+  "scripts": {
+    "copy:css": "copyfiles --flat node_modules/bootstrap/dist/css/bootstrap.min.css node_modules/animate.css/animate.min.css static/css",
+    "copy:icons": "copyfiles -u 2 node_modules/bootstrap-icons/**/**/* node_modules/bootstrap-icons/**/* node_modules/bootstrap-icons/bootstrap-icons.svg static/css/bootstrap-icons",
+    "copy:js": "copyfiles --flat node_modules/bootstrap/dist/js/bootstrap.bundle.min.js node_modules/jquery/dist/jquery.min.js node_modules/jstree/dist/jstree.min.js static/js",
+    "copy:jstree-theme": "copyfiles --flat 'node_modules/jstree/dist/themes/default/**/*' static/css/jstree",
+    "copy:knockout": "copyfiles --flat 'node_modules/knockout/build/output/knockout-latest.js' static/js",
+    "copy:knockout-mapping": "copyfiles --flat 'node_modules/knockout-mapping/dist/knockout.mapping.min.js' static/js",
+    "copy": "npm run copy:css && npm run copy:icons && npm run copy:js && npm run copy:jstree-theme && npm run copy:knockout && npm run copy:knockout-mapping"
+  },
+  "dependencies": {
+    "animate.css": "4.1.1",
+    "bootstrap": "5.1.1",
+    "bootstrap-icons": "1.5.0",
+    "copy": "^0.0.1",
+    "jquery": "3.6.0",
+    "jstree": "3.3.12",
+    "knockout": "3.5.1",
+    "knockout-mapping": "2.6.0",
+    "tempusdominus-bootstrap-4": "5.39.0"
+  },
+  "devDependencies": {
+    "copyfiles": "^2.4.1"
+  }
+}

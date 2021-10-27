@@ -5,83 +5,55 @@
 Pycharm configuration
 =====================
 
+.. warning::
+    Debugging dockerized projects in pycharm needs a pycharm professional version.
 
-Install needed software
-************************************
+1. Configuration of Pycharm and Docker
+**************************************
 
- 
-**Pycharm**:
-
-For the installation of Pycharm please use the official documentation.
-
-https://www.jetbrains.com/pycharm/
-
-**Docker**:
-
-You need at least:
-
-* docker > 19
-* docker-compose > 1.20
-
-Docker setup is described in:
-
-`docker setup <https://mrmap-community.github.io/mrmap/development/docker.html>`_
-
-
-Configuration of Pycharm and Docker
-************************************
-
-If not already done, add the user, which is starting pycharm to the docker group
-
-```
-sudo usermod -aG docker <your-user>
-```
-
-Configure docker in pycharm:
-
-* Open Pycharm and point it to the root directory of mrmap, eg. /opt/mrmap/
+* Open Pycharm and point it to the root directory of mrmap, eg. `/opt/mrmap/`
 * Goto File->Settings->Plugins and search for docker to install it.
-* Goto File->Settings->Build,Execution,Development->Docker
+* Goto File->Settings->Build,Execution,Deployment->Docker
 * Click on the plus sign to add a docker configuation.
 * Use the default settings and click on apply, it should say "Connection successful".
 
-.. image:: ../images/docker_pycharm_settings.png
-  :width: 800
+.. image:: ../images/development/pycharm/docker_pycharm_settings.png
+  :width: 100%
   :alt: docker pycharm settings
 
-Next we have to mark the mrmap folder as source folder and
-create service configurations for the project.
+2. Configure project structure
+******************************
 
-* Right click on the mrmap folder in the pycharm directory tree, eg. /opt/mrmap/mrap
-  and select "Mark Directory as -> Source Folder"
+Next we have to mark the mrmap folder as source folder.
 
-* On the upper right of the pycharm interface you should see a button with "Add configuration".
+* Right click on the mrmap folder in the pycharm directory tree, eg. /opt/mrmap/mrmap
+  and select "Mark Directory as -> Sources Root"
 
-.. image:: ../images/add_pycharm_configuration.png
-  :width: 800
-  :alt: add pycharm settings
+3. Add remote interpreter
+*************************
 
-* Create a docker configuration in Pycharm.
+Add one remote interpreter per container you want to debug. 
 
-.. image:: ../images/docker_pycharm_configuration.png
-  :width: 800
-  :alt: add pycharm settings
-
-* Create a runserver configuration in Pycharm.
-
-.. image:: ../images/runserver_pycharm_configuration.png
-  :width: 800
-  :alt: runserver pycharm settings
+.. image:: ../images/development/pycharm/create_remote_interpreter.png
+  :width: 100%
+  :alt: create remote interpreter
 
 
-* Create a celery configuration in Pycharm.
+4. Runconfigurations
+********************
 
-.. image:: ../images/celery_pycharm_configuration.png
-  :width: 800
-  :alt: celery pycharm settings
+We provide a set of default run configurations for pycharm. Pycharm should find that configurations automatically. See example image below.
 
-* Create a compound configuration in Pycharm to bundle all the services.
+.. image:: ../images/development/pycharm/pycharm_run_cfg_example.png
+  :width: 100%
+  :alt: docker pycharm settings
 
-.. image:: ../images/compound_pycharm_configuration.png
-  :width: 800
-  :alt: compound pycharm configuration
+Finally you have to change the remote interpreter to the specific remote interpreter of the docker service which the command runs in to. For example add the remote interpreter for service ``gunicorn`` to the run configuration ``Docker-Compose: mrmap debug gunicorn``.
+
+Example
+*******
+See full example of how to start debugging below.
+
+.. image:: ../images/development/pycharm/full_example.gif
+  :width: 100%
+  :alt: full example of debugging with pycharm

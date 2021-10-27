@@ -1,0 +1,10 @@
+coverage==5.5
+behave-django==1.4.0
+selenium==3.141.0
+behave-webdriver==0.3.0
+flake8==3.9.2
+watchdog[watchmedo]==2.1.5
+PyYAML==5.4.1
+debugpy==1.4.3
+argh==0.26.2
+behave-restful==0.4.1

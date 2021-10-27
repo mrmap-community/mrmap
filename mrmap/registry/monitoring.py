@@ -17,17 +17,13 @@ from django.utils import timezone
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 from requests import Request, Session
+from MrMap.settings import PROXIES
 
 from ows_client.wfs_helper import WfsHelper
 from ows_client.wms_helper import WmsHelper
 from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
 from registry.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
-from MrMap.settings import PROXIES
-from monitoring.helper.wfsHelper import WfsHelper
-from monitoring.helper.wmsHelper import WmsHelper
-from monitoring.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
-    MonitoringSetting, \
-    HealthState
+    MonitoringSetting, HealthState
 from registry.models import Service, Layer, FeatureType, DatasetMetadata
 from registry.settings import MONITORING_REQUEST_TIMEOUT
 

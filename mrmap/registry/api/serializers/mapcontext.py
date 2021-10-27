@@ -185,6 +185,6 @@ class MapContextSerializer(NonNullModelSerializer, ObjectAccessSerializer):
         ]
 
     def get_features(self, obj):
-        queryset = MapContextLayer.objects.filter(map_context_id=obj.id).filter(layer__isnull=False)
+        queryset = MapContextLayer.objects.filter(map_context_id=obj.id).filter(rendering_layer__isnull=False)
         serializer = MapContextLayerSerializer(queryset, many=True, context=self.context)
         return serializer.data

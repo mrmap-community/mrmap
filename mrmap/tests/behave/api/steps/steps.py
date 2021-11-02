@@ -1,6 +1,8 @@
-from behave import then
+from behave_restful.lang import *  # noqa : import all pre defined steps of behave_restful package.
 from assertpy import fail
 from jsonpath import jsonpath
+from users.models import MrMapUser
+from behave import step, given, then
 
 
 @then('the response json at {json_path} is missing')

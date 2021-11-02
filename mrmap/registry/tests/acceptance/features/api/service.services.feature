@@ -1,9 +1,9 @@
 Feature: Services
   As an API client
   I want to control the filtering of resources
-  so that only resources are part of the response that are founded by the given filter.
+  so that only resources are part of the response that are matched by the given filter.
 
-  Scenario: Visiting services API without any search criteria, will return every feature
+  Scenario: Accessing the services API endpoint without any search criteria will return all services
     Given an authorized session
     Given a request url http://localhost:8000/api/v1/registry/service/services/?ordering=title
     When the request sends GET
@@ -23,7 +23,6 @@ Feature: Services
     And response objects are ordered ascending by title
     And "accessible" key is part of the response
 
-
   Scenario: Only resources in the given date range are part of the response.
     Given an authorized session
     Given a request url http://localhost:8000/api/v1/registry/service/services/?registration_min=2021-10-12&registration_max=2021-10-20&ordering=title
@@ -34,7 +33,6 @@ Feature: Services
     And response objects are ordered ascending by title
     And "accessible" key is part of the response
 
-
   Scenario: Only resources in the given datestamp range are part of the response.
     Given an authorized session
     Given a request url http://localhost:8000/api/v1/registry/service/services/?datestamp_min=2021-10-20&datestamp_max=2021-10-23&ordering=title
@@ -44,7 +42,6 @@ Feature: Services
     And a paginated response is returned
     And response objects are ordered ascending by title
     And "accessible" key is part of the response
-
 
   Scenario: Only resources intersecting with a given Bounding Box are part of the response.
     Given an authorized session

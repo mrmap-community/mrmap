@@ -26,7 +26,7 @@ def step_impl(context, json_path):
 
 
 @then('all {the_class} objects are returned')
-def get_all_resources(context, the_class):
+def step_impl(context, the_class):
     if the_class == 'services':
         total_number_of_features = Service.objects.count()
     elif the_class == 'layers':
@@ -54,7 +54,7 @@ def get_all_resources(context, the_class):
 # TODO: refactor to be only one step that makes the call and gives the response, instead of giving the url in a
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, with {search_criteria} as {filter_keyword} criteria')
-def get_some_resources_by_search(context, number_of_resources_returned, search_criteria, filter_keyword):
+def step_impl(context, number_of_resources_returned, search_criteria, filter_keyword):
     response = context.response
     results = response.json()
 
@@ -72,7 +72,7 @@ def get_some_resources_by_search(context, number_of_resources_returned, search_c
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, between {start_date} and {end_date} as'
       '{filter_keyword} range criteria')
-def get_some_resources_by_date_interval(context, number_of_resources_returned, start_date, end_date, filter_keyword):
+def step_impl(context, number_of_resources_returned, start_date, end_date, filter_keyword):
     response = context.response
     results = response.json()
 
@@ -89,7 +89,7 @@ def get_some_resources_by_date_interval(context, number_of_resources_returned, s
 # TODO: refactor to be only one step that makes the call and gives the response, instead of giving the url in a
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, when BoundingBox {bbox_array} intersects with {the_class} features')
-def get_some_resources_ba_bbox_intersection(context, number_of_resources_returned, bbox_array, the_class):
+def step_impl(context, number_of_resources_returned, bbox_array, the_class):
     response = context.response
     results = response.json()
 
@@ -104,7 +104,7 @@ def get_some_resources_ba_bbox_intersection(context, number_of_resources_returne
 
 
 @then('a paginated response is returned')
-def get_paginated_response(context):
+def step_impl(context):
     response = context.response
     results = response.json()
 
@@ -116,7 +116,7 @@ def get_paginated_response(context):
 
 
 @then('response objects are ordered {order_criteria} by {order_parameter}')
-def get_ordered_response(context, order_criteria, order_parameter):
+def step_impl(context, order_criteria, order_parameter):
     response = context.response
     results = response.json()
 
@@ -131,7 +131,7 @@ def get_ordered_response(context, order_criteria, order_parameter):
 
 
 @then('"accessible" key is part of the response')
-def get_accessible_in_response(context):
+def step_impl(context):
     response = context.response
     results = response.json()
 

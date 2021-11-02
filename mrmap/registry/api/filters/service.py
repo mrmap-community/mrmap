@@ -39,15 +39,15 @@ class ServiceApiFilter(MrMapApiSearchFilter):
             .filter(bbox_lat_lon__intersects=bbox_polygon).distinct()
         layers = LayerSerializer(layer_within_bbox, many=True).data
         for layer in layers:
-            if layer['service'] and layer['service'] not in unique_services:
-                unique_services.append(layer['service'])
+            if layer.get('service') and layer.get('service') not in unique_services:
+                unique_services.append(layer.get('service'))
         feature_type_within_bbox = FeatureType\
             .objects\
             .filter(bbox_lat_lon__intersects=bbox_polygon).distinct()
         feature_types = FeatureTypeSerializer(feature_type_within_bbox, many=True).data
         for feature_type in feature_types:
-            if feature_type['service'] and feature_type['service'] not in unique_services:
-                unique_services.append(feature_type['service'])
+            if feature_type.get('service') and feature_type.get('service') not in unique_services:
+                unique_services.append(feature_type.get('service'))
         return queryset.filter(id__in=unique_services).distinct()
 
 

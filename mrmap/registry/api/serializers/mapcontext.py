@@ -1,13 +1,13 @@
 from rest_framework.reverse import reverse
 from rest_framework.fields import SerializerMethodField, ModelField
 from rest_framework.serializers import CharField, HyperlinkedIdentityField
-from extras.api.serializers import NonNullModelSerializer
+from extras.api.serializers import NonNullModelSerializer, ObjectAccessSerializer
 from extras.utils import update_url_query_params
 from registry.models import MapContext, MapContextLayer
 from registry.enums.service import OGCOperationEnum, HttpMethodEnum
 
 
-class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
+class MapContextLayerPropertiesSerializer(NonNullModelSerializer, ObjectAccessSerializer):
     title = ModelField(model_field=MapContextLayer()._meta.get_field('name'))
     abstract = ModelField(model_field=MapContextLayer()._meta.get_field('title'))
     offerings = SerializerMethodField()
@@ -82,7 +82,7 @@ class MapContextLayerPropertiesSerializer(NonNullModelSerializer):
         return folder
 
 
-class MapContextLayerSerializer(NonNullModelSerializer):
+class MapContextLayerSerializer(NonNullModelSerializer, ObjectAccessSerializer):
     type = CharField(default='Feature')
     id = SerializerMethodField()
     properties = MapContextLayerPropertiesSerializer(source='*')
@@ -101,7 +101,7 @@ class MapContextLayerSerializer(NonNullModelSerializer):
             reverse('api:mapcontext-detail', args=[obj.map_context_id]) + "layer/" + str(obj.id) + "/")
 
 
-class MapContextPropertiesSerializer(NonNullModelSerializer):
+class MapContextPropertiesSerializer(NonNullModelSerializer, ObjectAccessSerializer):
     lang = CharField(default='de')
     subtitle = ModelField(model_field=MapContext()._meta.get_field('abstract'))
     updated = ModelField(model_field=MapContext()._meta.get_field('last_modified_at'))
@@ -166,7 +166,7 @@ class MapContextPropertiesSerializer(NonNullModelSerializer):
         }
 
 
-class MapContextSerializer(NonNullModelSerializer):
+class MapContextSerializer(NonNullModelSerializer, ObjectAccessSerializer):
     type = CharField(default='FeatureCollection')
     id = HyperlinkedIdentityField(view_name="api:mapcontext-detail")
     properties = MapContextPropertiesSerializer(source='*')

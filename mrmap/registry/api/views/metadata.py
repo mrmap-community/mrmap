@@ -1,24 +1,24 @@
-from rest_framework.permissions import DjangoModelPermissions
 from django_filters import rest_framework as api_filters
 from rest_framework.filters import OrderingFilter
+from rest_framework.permissions import DjangoModelPermissions
 
 from extras.api.pagination import StandardResultsSetPagination
 from extras.api.viewsets import ModelViewSetWithPermissionChecker
-from registry.api.filters.mapcontext import MapContextApiFilter
-from registry.api.serializers.mapcontext import MapContextSerializer
-from registry.models import MapContext
+from registry.api.filters.metadata import DatasetMetadataApiFilter
+from registry.api.serializers.metadata import DatasetMetadataSerializer
+from registry.models import DatasetMetadata
 
 
-class MapContextViewSet(ModelViewSetWithPermissionChecker):
-    queryset = MapContext.objects.all()
-    filterset_class = MapContextApiFilter
+class DatasetMetadataViewSet(ModelViewSetWithPermissionChecker):
+    queryset = DatasetMetadata.objects.all()
+    filterset_class = DatasetMetadataApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
     permission_classes = [DjangoModelPermissions]
 
     serializers = {
-        'default': MapContextSerializer
+        'default': DatasetMetadataSerializer
     }
 
     def get_serializer_class(self):

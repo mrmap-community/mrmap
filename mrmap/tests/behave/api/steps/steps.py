@@ -1,6 +1,7 @@
-from behave import then, given
+from behave_restful.lang import *  # noqa : import all pre defined steps of behave_restful package.
 from assertpy import fail
 from jsonpath import jsonpath
+from behave import given, then
 
 
 @given('an authorized session')

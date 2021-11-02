@@ -61,7 +61,7 @@
     const model = {};
 
     function getLayerById(selectedLayerVariableName, id) {
-        let action = ["layers", "read"];
+        let action = ["service", "layers", "read"];
         let params = {id: id};
         client.action(schema, action, params).then(function (result) {
             if (model.hasOwnProperty(selectedLayerVariableName)) {

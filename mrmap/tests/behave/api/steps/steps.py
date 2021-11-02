@@ -1,7 +1,10 @@
 import math
+from behave_restful.lang import *  # noqa : import all pre defined steps of behave_restful package.
+from assertpy import fail
 from behave import then, given
 from assertpy import fail, assert_that
 from jsonpath import jsonpath
+from behave import given, then
 
 from registry.models import Service, Layer, FeatureType, DatasetMetadata
 

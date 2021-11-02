@@ -26,7 +26,6 @@
                     {% include 'registry/mapcontext/mapcontext_layer_form.html' %}
                     {% endwith %}
                 </div>
-                {% bootstrap_formset_errors formset %}
                 {% for form in formset.forms %}
                 <div class="{{ formset.prefix }}-form">
                     {% include 'registry/mapcontext/mapcontext_layer_form.html' %}

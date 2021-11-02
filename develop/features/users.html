@@ -83,69 +83,9 @@
 <span id="features-users"></span><h1>Users Package<a class="headerlink" href="#users-package" title="Permalink to this headline"></a></h1>
 <div class="section" id="login">
 <h2>Login<a class="headerlink" href="#login" title="Permalink to this headline"></a></h2>
-<div class="highlight-gherkin notranslate"><div class="highlight"><pre><span></span><span class="k">Feature:</span><span class="nf"> user login</span>
-<span class="nf">  As a User,</span>
-<span class="nf">  I want to login </span>
-<span class="nf">  So that I can use the MrMap UI.</span>
-
-<span class="nf">  </span><span class="k">Background:</span><span class="nf"> setup users and open browser</span>
-<span class="k">    Given </span><span class="nf">there are set of Users in Database</span>
-<span class="k">      |</span><span class="s"> username</span><span class="k"> |</span><span class="s"> password</span><span class="k"> |</span><span class="nf"></span>
-<span class="k">      |</span><span class="s"> peter</span><span class="k"> |</span><span class="s"> password123</span><span class="k"> | </span><span class="nf"></span>
-<span class="nf">    </span><span class="k">Given </span><span class="nf">the base url is &quot;</span><span class="s">https://localhost:8000</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Given </span><span class="nf">I open the site &quot;</span><span class="s">/</span><span class="nf">&quot;</span>
-
-<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Successful user login process </span>
-<span class="k">    When </span><span class="nf">I set &quot;</span><span class="s">peter</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_username&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I set &quot;</span><span class="s">password123</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_password&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I click on the button &quot;</span><span class="s">//button[@type=&#39;submit&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that element &quot;</span><span class="s">//*[text()[contains(.,&#39;Successfully signed in.&#39;)]]</span><span class="nf">&quot; does exist</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that cookie &quot;</span><span class="s">sessionid</span><span class="nf">&quot; exists</span>
-<span class="nf">    </span>
-<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Failed user login process with wrong password</span>
-<span class="k">    When </span><span class="nf">I set &quot;</span><span class="s">peter</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_username&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I set &quot;</span><span class="s">password1234</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_password&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I click on the button &quot;</span><span class="s">//button[@type=&#39;submit&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that element &quot;</span><span class="s">//*[text()[contains(.,&#39;Please enter a correct username and password. Note that both fields may be case-sensitive.&#39;)]]</span><span class="nf">&quot; does exist</span>
-<span class="nf">  </span>
-<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Failed user login process with wrong username</span>
-<span class="k">    When </span><span class="nf">I set &quot;</span><span class="s">peter123</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_username&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I set &quot;</span><span class="s">password123</span><span class="nf">&quot; to the inputfield &quot;</span><span class="s">//*[@id=&#39;id_password&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I click on the button &quot;</span><span class="s">//button[@type=&#39;submit&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that element &quot;</span><span class="s">//*[text()[contains(.,&#39;Please enter a correct username and password. Note that both fields may be case-sensitive.&#39;)]]</span><span class="nf">&quot; does exist</span>
-<span class="nf">    </span>
-</pre></div>
-</div>
 </div>
 <div class="section" id="logout">
 <h2>Logout<a class="headerlink" href="#logout" title="Permalink to this headline"></a></h2>
-<div class="highlight-gherkin notranslate"><div class="highlight"><pre><span></span><span class="k">Feature:</span><span class="nf"> user logout</span>
-<span class="nf">  As a user</span>
-<span class="nf">  I want to logout</span>
-<span class="nf">  so that no unintended or malicious person can use my session with my account</span>
-
-<span class="nf">  </span><span class="k">Background:</span><span class="nf"> setup users, log in and open browser</span>
-<span class="k">    Given </span><span class="nf">there are set of Users in Database</span>
-<span class="k">      |</span><span class="s"> username</span><span class="k"> |</span><span class="s"> password</span><span class="k"> |</span><span class="nf"></span>
-<span class="k">      |</span><span class="s"> peter</span><span class="k"> |</span><span class="s"> password123</span><span class="k"> |</span><span class="nf"></span>
-<span class="nf">    </span><span class="k">Given </span><span class="nf">I am logged in</span>
-<span class="nf">    </span><span class="k">Given </span><span class="nf">the base url is &quot;</span><span class="s">https://localhost:8000</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Given </span><span class="nf">I open the site &quot;</span><span class="s">/users/dashboard</span><span class="nf">&quot;</span>
-
-<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> User is redirected to login page after logout</span>
-<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//*[@id=&#39;id_sign_out_btn&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;</span>
-
-<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Logged out user tries to open dashboard page. Is redirected to Login page</span>
-<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//*[@id=&#39;id_sign_out_btn&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">When </span><span class="nf">I open the site &quot;</span><span class="s">/users/dashboard</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that the path is &quot;</span><span class="s">/users/login</span><span class="nf">&quot;</span>
-
-<span class="nf">  </span><span class="k">Scenario:</span><span class="nf"> Session ID is cleared after logout</span>
-<span class="k">    When </span><span class="nf">I click on the element &quot;</span><span class="s">//*[@id=&#39;id_sign_out_btn&#39;]</span><span class="nf">&quot;</span>
-<span class="nf">    </span><span class="k">Then </span><span class="nf">I expect that cookie &quot;</span><span class="s">sessionid</span><span class="nf">&quot; not exists</span>
-</pre></div>
-</div>
 </div>
 </div>
 

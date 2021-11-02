@@ -1,8 +1,7 @@
 from behave_restful.lang import *  # noqa : import all pre defined steps of behave_restful package.
 from assertpy import fail
 from jsonpath import jsonpath
-from users.models import MrMapUser
-from behave import step, given, then
+from behave import given, then
 
 
 @given('an authorized session')

@@ -95,22 +95,21 @@ class MapContextLayer(MPTTModel):
     def clean(self):
         errors = {}
         if self.layer:
-
             # Check scale min/max values against the possible configureable values.
             if self.layer_scale_min and self.layer.inherit_scale_min:
                 if self.layer_scale_min < self.layer.inherit_scale_min:
-                    errors.update({'layer_scale_min' : ValidationError("configured layer minimum scale can't be smaller than the scale value of the layer.")})
+                    errors.update({'layer_scale_min': ValidationError("configured layer minimum scale can't be smaller than the scale value of the layer.")})
                 if self.layer_scale_min > self.layer.inherit_scale_max:
-                    errors.update({'layer_scale_min' : ValidationError("configured layer minimum scale can't be greater than the maximum scale value of the layer.")})  
+                    errors.update({'layer_scale_min': ValidationError("configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
             if self.layer_scale_max and self.layer.inherit_scale_max:
                 if self.layer_scale_max > self.layer.inherit_scale_max:
-                    errors.update({'layer_scale_max' : ValidationError("configured layer maximum scale can't be greater than the scale value of the layer.")})
+                    errors.update({'layer_scale_max': ValidationError("configured layer maximum scale can't be greater than the scale value of the layer.")})
                 if self.layer_scale_max < self.layer.inherit_scale_max:
-                    errors.update({'layer_scale_max' : ValidationError("configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
-            
+                    errors.update({'layer_scale_max': ValidationError("configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
+
             # Check style configuration
             if self.layer_style and not self.layer.styles.filter(pk=self.layer_style.pk).exists():
-                errors.update({'layer_style' :  ValidationError("configured style is not a valid style for the selected layer.")})
+                errors.update({'layer_style': ValidationError("configured style is not a valid style for the selected layer.")})
 
         if errors:
             raise ValidationError(errors)

@@ -1,8 +1,7 @@
-import time
+from datetime import datetime
 
 import behave_webdriver
 from selenium.webdriver.firefox.options import Options
-from datetime import datetime
 
 
 def before_all(context):

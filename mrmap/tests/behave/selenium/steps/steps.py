@@ -6,7 +6,7 @@ from behave import given
 @given('I am logged in')
 def impl(context):
     client = context.test.client
-    client.login(username='peter', password='password123')
+    client.login(username='mrmap', password='mrmap')
 
     cookie = client.cookies['sessionid']
 

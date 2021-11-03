@@ -10,7 +10,7 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.db
+      - ./.db.env
   redis:
     image: library/redis:6.2-alpine
     volumes:

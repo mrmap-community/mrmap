@@ -3,10 +3,10 @@ from tests.behave.steps.steps import *  # noqa
 from behave import given
 
 
-@given('I am logged in')
-def impl(context):
+@given('I am logged in as "{username}" with password "{password}"')
+def impl(context, username, password):
     client = context.test.client
-    client.login(username='peter', password='password123')
+    client.login(username=username, password=password)
 
     cookie = client.cookies['sessionid']
 

@@ -74,7 +74,7 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip tests/behave/selenium/features"
+      /bin/bash -c "coverage run manage.py behave --noinput --tags=skip --no-skipped tests/behave/api/features && coverage run manage.py behave --keepdb --noinput --tags=skip --no-skipped tests/behave/selenium/features"
     hostname: "mrmap-behave"
     volumes:
       - type: bind

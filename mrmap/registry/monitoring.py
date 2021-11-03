@@ -16,14 +16,14 @@ from django.db import transaction
 from django.utils import timezone
 from lxml import etree
 from lxml.etree import XMLSyntaxError
-from requests import Request
+from requests import Request, Session
+from MrMap.settings import PROXIES
 
 from ows_client.wfs_helper import WfsHelper
 from ows_client.wms_helper import WmsHelper
 from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
 from registry.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
-    MonitoringSetting, \
-    HealthState
+    MonitoringSetting, HealthState
 from registry.models import Service, Layer, FeatureType, DatasetMetadata
 from registry.settings import MONITORING_REQUEST_TIMEOUT
 
@@ -202,6 +202,17 @@ class Monitor:
         else:
             self.handle_service_error(service_status)
 
+    def _get_session_for_request(self):
+        if isinstance(self.resource, Service):
+            return self.resource.get_session_for_request()
+        if isinstance(self.resource, Layer) or isinstance(self.resource, FeatureType):
+            return self.resource.service.get_session_for_request()
+        if isinstance(self.resource, DatasetMetadata):
+            session = Session()
+            session.proxies = PROXIES
+            return session
+        raise ValueError(f"Unexpected resource type {self.resource.__class__.__name__}")
+
     def check_status(self, url: str, check_wfs_member: bool = False, check_image: bool = False) -> ServiceStatus:
         """ Check status of ogc service.
 
@@ -213,8 +224,7 @@ class Monitor:
             ServiceStatus: Status info of service.
         """
         success = False
-        service = self.resource if isinstance(self.resource, Service) else self.resource.service
-        session = service.get_session_for_request()
+        session = self._get_session_for_request()
         timeout = MONITORING_REQUEST_TIMEOUT if self.monitoring_settings is None else self.monitoring_settings.timeout
         request = Request(method="GET",
                           url=url)
@@ -286,20 +296,19 @@ class Monitor:
         """Handles the dataset checks.
 
         Handles the monitoring process of the datasets as the workflow differs from other operations.
-        If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
-        values depend on possible differences in the retrieved dataset document.
-        If the service is not available, a Monitoring model instance will be created as no information on
-        differences between datset documents is given.
+        If the dataset originated from a URL, a MonitoringResultDocument instance will be created and stored in the db.
+        Contents depends on possible differences in the retrieved dataset document.
+        If the dataset was created manually, no checks are performed.
 
         Args:
             none
         Returns:
             nothing
         """
-        # TODO handle None
         url = dataset.origin_url
-        current_document = dataset.xml
-        self.check_document(url, current_document)
+        if url:
+            original_document = dataset.xml_backup_string
+            self.check_document(url, original_document)
 
     def check_document(self, url, original_document):
         service_status = self.check_status(url)

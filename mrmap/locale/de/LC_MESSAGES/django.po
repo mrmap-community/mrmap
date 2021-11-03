@@ -704,7 +704,7 @@ msgstr "Erlaubte Bereiche"
 #: registry/views/monitoring.py:73 users/views/groups.py:22
 #: users/views/groups.py:47 users/views/groups.py:51
 msgid "Details"
-msgstr "Einzelheiten"
+msgstr "Details"
 
 #: extras/autocompletes.py:19
 msgid "If you provide add functionality you need to define `add_perm` param"

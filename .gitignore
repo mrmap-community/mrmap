@@ -135,3 +135,4 @@ package-lock.json
 
 selenium-*.png
 *coverage.xml
+*coverage-report.xml

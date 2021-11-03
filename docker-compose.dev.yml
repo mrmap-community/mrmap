@@ -75,7 +75,7 @@ services:
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip tests/behave/selenium/features"
+      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip tests/behave/selenium/features"
     hostname: "mrmap-behave"
     volumes:
       - type: bind

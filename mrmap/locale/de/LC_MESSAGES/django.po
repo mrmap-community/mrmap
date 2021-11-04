@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-02 15:04+0100\n"
+"POT-Creation-Date: 2021-11-03 22:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -700,8 +700,8 @@ msgstr "Erlaubte Bereiche"
 #: acls/views.py:25 acls/views.py:28 registry/tables/metadata.py:16
 #: registry/tables/metadata.py:29 registry/tables/service.py:31
 #: registry/tables/service.py:83 registry/tables/service.py:129
-#: registry/tables/service.py:171 registry/views/monitoring.py:42
-#: registry/views/monitoring.py:64 users/views/groups.py:22
+#: registry/tables/service.py:171 registry/views/monitoring.py:46
+#: registry/views/monitoring.py:73 users/views/groups.py:22
 #: users/views/groups.py:47 users/views/groups.py:51
 msgid "Details"
 msgstr "Einzelheiten"
@@ -1123,22 +1123,19 @@ msgstr "Datensatz Metadaten"
 msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
-#: registry/models/mapcontext.py:66 registry/models/monitoring.py:139
-#: registry/models/monitoring.py:184
-#, fuzzy
-#| msgid "Layer:"
-msgid "Layer"
-msgstr "Ebene:"
-
 #: registry/models/mapcontext.py:67
-msgid "Select a layer as a offering for rendering."
-msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
+msgid "Rendering layer"
+msgstr "Darstellungsebene"
 
-#: registry/models/mapcontext.py:70 registry/models/service.py:332
+#: registry/models/mapcontext.py:68
+msgid "Select a layer for rendering."
+msgstr "Wählen Sie einen Stil für die Darstellung."
+
+#: registry/models/mapcontext.py:71 registry/models/service.py:332
 msgid "scale minimum value"
 msgstr "minimaler Maßstabswert"
 
-#: registry/models/mapcontext.py:71 registry/models/service.py:333
+#: registry/models/mapcontext.py:73 registry/models/service.py:333
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1148,11 +1145,11 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:76 registry/models/service.py:339
+#: registry/models/mapcontext.py:78 registry/models/service.py:339
 msgid "scale maximum value"
 msgstr "maximaler Maßstabswert"
 
-#: registry/models/mapcontext.py:77 registry/models/service.py:340
+#: registry/models/mapcontext.py:80 registry/models/service.py:340
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -1162,27 +1159,29 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:84
+#: registry/models/mapcontext.py:87
 msgid "Style"
 msgstr "Style"
 
-#: registry/models/mapcontext.py:85
-#, fuzzy
-#| msgid "Select a layer as a offering for rendering."
+#: registry/models/mapcontext.py:88
 msgid "Select a style for rendering."
-msgstr "Wählen Sie eine Ebene als Angebot als Darstellungsdienst."
+msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:86
-#, fuzzy
-#| msgid "Preview"
+#: registry/models/mapcontext.py:89
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:87
-#, fuzzy
-#| msgid "a short descriptive title for this map context layer"
+#: registry/models/mapcontext.py:90
 msgid "A preview image for the Map Context Layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
+
+#: registry/models/mapcontext.py:99
+msgid "Selection layer"
+msgstr "Selektionsebene"
+
+#: registry/models/mapcontext.py:100
+msgid "Select a layer for feature selection."
+msgstr "Wählen Sie einen Stil für die Darstellung."
 
 #: registry/models/metadata.py:27
 #, fuzzy
@@ -1697,6 +1696,10 @@ msgstr "Letzte Checks"
 #| msgid "Last monitoring runs"
 msgid "Monitoring runs"
 msgstr "Letzte Checks"
+
+#: registry/models/monitoring.py:139 registry/models/monitoring.py:184
+msgid "Layer"
+msgstr "Ebene:"
 
 #: registry/models/monitoring.py:141 registry/models/monitoring.py:187
 #, fuzzy
@@ -3241,11 +3244,6 @@ msgstr "Neues Abonnement"
 #~ msgstr ""
 #~ "Wählen Sie den Dienst aus, welcher mit diesem Metadatensatz beschrieben "
 #~ "werden soll."
-
-#, fuzzy
-#~| msgid "Edit layer"
-#~ msgid "described layer"
-#~ msgstr "beschriebene Ebene"
 
 #~ msgid "choice the layer you want to describe with this metadata"
 #~ msgstr ""

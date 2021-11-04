@@ -72,6 +72,7 @@ services:
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
+    shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
       /bin/bash -c "coverage run manage.py behave --noinput --tags=skip --no-skipped tests/behave/selenium/features"

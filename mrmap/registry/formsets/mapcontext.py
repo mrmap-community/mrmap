@@ -33,10 +33,11 @@ class MapContextLayerFormSet(BaseInlineFormSet):
                 name=model_instance.name,
                 title=model_instance.title,
                 dataset_metadata=model_instance.dataset_metadata,
-                layer=model_instance.layer,
+                rendering_layer=model_instance.rendering_layer,
                 layer_scale_min=model_instance.layer_scale_min,
                 layer_scale_max=model_instance.layer_scale_max,
                 layer_style=model_instance.layer_style,
+                selection_layer=model_instance.selection_layer,
                 preview_image=model_instance.preview_image
             )
             clean_model_instance.save()

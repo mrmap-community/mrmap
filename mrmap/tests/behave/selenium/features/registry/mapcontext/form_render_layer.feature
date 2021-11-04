@@ -35,6 +35,16 @@ Feature: MapContext Rendering Layer
     And I set "Relative Feuchte" to the inputfield "//input[@class='select2-search__field']"
     And I pause for 500ms
     And I press "Enter"
-    And I pause for 100ms
     Then I wait on element "//*[@id='id_layer-1-layer_scale_min']" for 3000ms to not be enabled
     And I wait on element "//*[@id='id_layer-1-layer_scale_max']" for 3000ms to not be enabled
+
+  Scenario: Check correct form logic for style selection
+    When I click on the element "//*[@aria-labelledby='select2-id_layer-1-rendering_layer-container']"
+    And I pause for 50ms
+    And I click on the element "//input[@class='select2-search__field']"
+    And I set "Gemeindestrassen 1" to the inputfield "//input[@class='select2-search__field']"
+    And I pause for 500ms
+    And I press "Enter"
+    Then I wait on element "//*[@id='id_layer-1-layer_scale_min']" for 3000ms to not be enabled
+    And I wait on element "//ul[@id='select2-id_layer-1-layer_style-results']/li[1]" for 3000ms to exist
+    And I wait on element "//ul[@id='select2-id_layer-1-layer_style-results']/li[2]" for 3000ms to not exist

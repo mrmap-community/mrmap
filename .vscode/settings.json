@@ -1,4 +1,14 @@
 {
-    "restructuredtext.confPath": "",
-    "restructuredtext.languageServer.disabled": true
+    "cucumberautocomplete.steps": [
+        "mrmap/tests/behave/steps/*.py",
+        "mrmap/tests/behave/api/steps/*.py",
+        "mrmap/tests/behave/selenium/steps/*.py",
+        ".venv/lib/python3.9/site-packages/behave_webdriver/steps/*.py",
+        ".venv/lib/python3.9/site-packages/behave_restful/lang/*.py"
+        
+    ],
+    "cucumberautocomplete.strictGherkinCompletion": true,
+    "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
+    "cucumberautocomplete.smartSnippets": true,
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv"
 }

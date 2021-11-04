@@ -49,6 +49,7 @@ services:
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
+    tty: true  # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
       /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i -o behave-coverage-report.xml"
@@ -73,6 +74,7 @@ services:
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
+    tty: true  # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
       /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"

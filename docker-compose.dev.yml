@@ -76,8 +76,10 @@ services:
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
     tty: true  # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    # command: >
+    #   /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
     command: >
-      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
+        /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features/registry/mapcontext/form_render_layer.feature"
     hostname: "mrmap-behave"
     volumes:
       - type: bind

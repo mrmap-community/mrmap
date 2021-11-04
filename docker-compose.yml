@@ -88,6 +88,7 @@ services:
         MRMAP_PRODUCTION: "True"
     command: >
       /bin/bash -c "celery -A MrMap worker -E -l INFO -n default -Q default"
+    tty: true  # To support colorized log output.
     hostname: "mrmap-celery-default-worker"
     volumes:
       - type: bind
@@ -114,6 +115,7 @@ services:
         MRMAP_PRODUCTION: "True"
     command: >
       /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q download_iso_metadata,download_described_elements,harvest"
+    tty: true  # To support colorized log output.
     hostname: "mrmap-celery-worker"
     volumes:
       - type: bind

@@ -17,7 +17,7 @@ Feature: MapContext Layer Selection options
     When I click on the element "//select[@id='id_layer-0-selection_layer']/following-sibling::span"
     Then I expect that element "//ul[@id='select2-id_layer-0-selection_layer-results']/li[1]" does exist
     Then I expect that element "//ul[@id='select2-id_layer-0-selection_layer-results']/li[2]" does not exist
-    Then I expect that element "//ul[@id='select2-id_layer-0-selection_layer-results']" contains the text "2m Temperatur an RBSN Stationen (6e15cee7-1280-47df-804c-d4c728441b77)"
+    Then I expect that element "//ul[@id='select2-id_layer-0-selection_layer-results']" contains the text "2m Temperatur an RBSN Stationen"
 
   Scenario: Configuring the selection layer and submitting the form stores a MapContext with selection layer.
     Given I open the site "/registry/mapcontexts/add/"

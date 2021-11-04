@@ -7,7 +7,7 @@ from selenium.common.exceptions import NoSuchElementException
 
 
 def before_all(context):
-    context.fixtures = ['scenario_dwd.json']
+    context.fixtures = ['default_scenario.json']
     options = Options()
     options.add_argument("--window-size=1920,1080")
     options.headless = True

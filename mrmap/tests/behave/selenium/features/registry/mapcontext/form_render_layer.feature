@@ -14,26 +14,27 @@ Feature: MapContext Rendering Layer
     And I click on the element "//*[@id='j1_2_anchor']"
     And I set "node1" to the inputfield "//*[@id='id_layer-1-name']"
 
-  # Scenario: Successful configure mapcontext layer tree without offerings
-  #   And I submit the form "//body//form"
-  #   Then I wait on element "//*[contains(text(), 'mapctx')]" for 1000ms
+  Scenario: Successful configure mapcontext layer tree without offerings
+    And I submit the form "//body//form"
+    Then I wait on element "//*[contains(text(), 'mapctx')]" for 3000ms
 
   Scenario: Check correct form logic for scale min max fields if scale min max is a int or float
-    When I scroll to element "//*[@aria-labelledby='select2-id_layer-0-rendering_layer-container']"
-    When I click on the element "//*[@aria-labelledby='select2-id_layer-0-rendering_layer-container']"
-    When I click on the element "//input[@class='select2-search__field']"
-    When I set "Gemeindestrassen 1" to the inputfield "//input[@class='select2-search__field']"
-    When I pause for 500ms
-    When I press "Enter"
-    Then I expect that element "//*[@id='id_layer-0-layer_scale_min']" is enabled
-    And I expect that element "//*[@id='id_layer-0-layer_scale_min']" is enabled
+    When I click on the element "//*[@aria-labelledby='select2-id_layer-1-rendering_layer-container']"
+    And I pause for 50ms
+    And I click on the element "//input[@class='select2-search__field']"
+    And I set "Gemeindestrassen 1" to the inputfield "//input[@class='select2-search__field']"
+    And I pause for 500ms
+    And I press "Enter"
+    Then I wait on element "//*[@id='id_layer-1-layer_scale_min']" for 3000ms to be enabled
+    And I wait on element "//*[@id='id_layer-1-layer_scale_max']" for 3000ms to be enabled
 
-  # Scenario: Check correct form logic for scale min max fields if scale min max is not a int or float
-  #   When I click on the element "//select[@id='id_layer-0-rendering_layer']"
-  #   When I click on the element "//input[@class='select2-search__field']"
-  #   When I set "Relative Feuchte" to the inputfield "//input[@class='select2-search__field']"
-  #   When I pause for 500ms
-  #   When I press "Enter"
-  #   Then I expect that element "//*[@id='id_layer-0-layer_scale_min']" is not enabled
-  #   And I expect that element "//*[@id='id_layer-0-layer_scale_min']" is not enabled
-
+  Scenario: Check correct form logic for scale min max fields if scale min max is not a int or float
+    When I click on the element "//*[@aria-labelledby='select2-id_layer-1-rendering_layer-container']"
+    And I pause for 50ms
+    And I click on the element "//input[@class='select2-search__field']"
+    And I set "Relative Feuchte" to the inputfield "//input[@class='select2-search__field']"
+    And I pause for 500ms
+    And I press "Enter"
+    And I pause for 100ms
+    Then I wait on element "//*[@id='id_layer-1-layer_scale_min']" for 3000ms to not be enabled
+    And I wait on element "//*[@id='id_layer-1-layer_scale_max']" for 3000ms to not be enabled

@@ -1,7 +1,7 @@
 Feature: MapContext Rendering Layer
-    As a User, 
-    I want to configure the rendering behaviour of a layer, 
-    So that the rendering configuration is part of the mapcontext.
+  As a User, 
+  I want to configure the rendering behaviour of a layer, 
+  So that the rendering configuration is part of the mapcontext.
 
   Background: Open mapcontext add page
     Given I am logged in as "mrmap" with password "mrmap"
@@ -45,6 +45,7 @@ Feature: MapContext Rendering Layer
     And I set "Gemeindestrassen 1" to the inputfield "//input[@class='select2-search__field']"
     And I pause for 500ms
     And I press "Enter"
-    Then I wait on element "//*[@id='id_layer-1-layer_scale_min']" for 3000ms to not be enabled
-    And I wait on element "//ul[@id='select2-id_layer-1-layer_style-results']/li[1]" for 3000ms to exist
+    And I pause for 500ms
+    And I click on the element "//*[@aria-labelledby='select2-id_layer-1-layer_style-container']"
+    Then I wait on element "//ul[@id='select2-id_layer-1-layer_style-results']/li[1]" for 3000ms to exist
     And I wait on element "//ul[@id='select2-id_layer-1-layer_style-results']/li[2]" for 3000ms to not exist

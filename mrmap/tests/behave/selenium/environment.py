@@ -1,9 +1,11 @@
+from datetime import datetime
+
 import behave_webdriver
 from selenium.webdriver.firefox.options import Options
-from datetime import datetime
 
 
 def before_all(context):
+    context.fixtures = ['scenario_dwd.json']
     options = Options()
     options.add_argument("--window-size=1920,1080")
     options.headless = True
@@ -14,6 +16,11 @@ def before_all(context):
 def after_all(context):
     # Explicitly quits the browser, otherwise it won't once tests are done
     context.behave_driver.quit()
+
+
+def before_step(context, step):
+    ele = context.behave_driver.find_element("xpath", '//body')
+    context.behave_driver.set_window_size(1920, ele.size["height"] + 1000)  # to get the full page with one screenshot
 
 
 def after_step(context, step):

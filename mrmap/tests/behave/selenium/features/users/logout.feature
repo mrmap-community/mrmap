@@ -7,7 +7,7 @@ Feature: user logout
     Given there are set of Users in Database
       | username | password |
       | peter | password123 |
-    Given I am logged in
+    Given I am logged in as "peter" with password "password123"
     Given the base url is "https://localhost:8000"
     Given I open the site "/users/dashboard"
 

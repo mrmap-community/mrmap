@@ -8,7 +8,6 @@ Feature: MapContext Rendering Layer
     Given the base url is "https://localhost:8000"
     Given I open the site "/registry/mapcontexts/add"
 
-  @skip
   Scenario: Successful configure mapcontext layer tree without offerings
     When I set "mapctx" to the inputfield "//*[@id='id_title']"
     When I set "short example of a mapcontext" to the inputfield "//*[@id='id_abstract']"

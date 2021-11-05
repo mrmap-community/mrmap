@@ -1,7 +1,4 @@
-import copy
-
 from django import forms
-
 from extras.forms import ModelForm
 from registry.models import ConformityCheckRun
 

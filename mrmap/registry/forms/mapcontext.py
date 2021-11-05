@@ -50,12 +50,12 @@ class MapContextLayerForm(ModelForm):
 
         layer_scale_min_data_binds = {
             'attr': f'{{ min: selectedLayer{current_form_index}.scale_min, max: selectedLayer{current_form_index}.scale_max }}',
-            'enable': f'Number.isInteger(selectedLayer{current_form_index}.scale_min()) && Number.isInteger(selectedLayer{current_form_index}.scale_max())',
+            'enable': f'checkNumber(selectedLayer{current_form_index}.scale_min()) && checkNumber(selectedLayer{current_form_index}.scale_max())',
             'value': f'selectedLayer{current_form_index}.scale_min()'
         }
         layer_scale_max_data_binds = {
             'attr': f'{{ min: selectedLayer{current_form_index}.scale_min, max: selectedLayer{current_form_index}.scale_max }}',
-            'enable': f'Number.isInteger(selectedLayer{current_form_index}.scale_min()) && Number.isInteger(selectedLayer{current_form_index}.scale_max())',
+            'enable': f'checkNumber(selectedLayer{current_form_index}.scale_min()) && checkNumber(selectedLayer{current_form_index}.scale_max())',
             'value': f'selectedLayer{current_form_index}.scale_max()'
         }
 

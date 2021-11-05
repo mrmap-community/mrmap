@@ -16,8 +16,13 @@
                 {
                     "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
+                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
                 }
-            ]
+            ],
+            "justMyCode": false
         },
         {
             "name": "Debug: celery-default-worker",
@@ -31,8 +36,13 @@
                 {
                     "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
+                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
                 }
-            ]
+            ],
+            "justMyCode": false
         },
         {
             "name": "Debug: celery-download-worker",
@@ -46,8 +56,33 @@
                 {
                     "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
+                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
                 }
-            ]
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "Debug: behave",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3004
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/mrmap",
+                    "remoteRoot": "/opt/mrmap"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
+                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                }
+            ],
+            "justMyCode": false
         },
     ]
 }

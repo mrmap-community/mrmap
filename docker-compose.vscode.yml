@@ -27,3 +27,9 @@ services:
       IPYTHONENABLE: "True"
     ports:
       - "0.0.0.0:3003:5678"
+
+  behave:
+    command: >
+        /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
+    ports:
+      - "0.0.0.0:3004:5678"

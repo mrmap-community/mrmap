@@ -13,31 +13,30 @@
             {{ form.media }}
             {% bootstrap_form form %}
             {% for formset in inlines %}
-                <hr class="separator">
-                <h5>Ebenen und Datenangebote</h5>
-                <div id="layer_tree"
-                    style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
-                    class="form-group">
-                </div>
-                {{ formset.management_form }}
-                {{ formset.media }}
-                <div id="id_layer_EMPTY-FORM" style="display:none">
-                    {% with form=formset.empty_form empty=1 %}
-                    {% include 'registry/mapcontext/mapcontext_layer_form.html' %}
-                    {% endwith %}
-                </div>
-                {% for form in formset.forms %}
-                <div class="{{ formset.prefix }}-form">
-                    {% include 'registry/mapcontext/mapcontext_layer_form.html' %}
-                </div>
-                {% endfor %}
+            <hr class="separator">
+            <h5>Ebenen und Datenangebote</h5>
+            <div id="layer_tree" style="border: 1px solid #ced4da; border-radius: .25rem; padding: .375rem .75rem"
+                class="form-group">
+            </div>
+            {{ formset.management_form }}
+            {{ formset.media }}
+            <div id="id_layer_EMPTY-FORM" style="display:none">
+                {% with form=formset.empty_form empty=1 %}
+                {% include 'registry/mapcontext/mapcontext_layer_form.html' %}
+                {% endwith %}
+            </div>
+            {% for form in formset.forms %}
+            <div class="{{ formset.prefix }}-form">
+                {% include 'registry/mapcontext/mapcontext_layer_form.html' %}
+            </div>
+            {% endfor %}
             {% endfor %}
         </div>
         <div class="card-footer text-muted">
             <button type="submit" class="btn btn-primary">
                 <span class="submit_btn_txt">{% trans 'Save' %}</span>
                 <div class="submit_btn_spinner d-none"><span class="spinner-border spinner-border-sm" role="status"
-                                                             aria-hidden="true"></span> {%trans 'Loading...' %}
+                        aria-hidden="true"></span> {%trans 'Loading...' %}
                 </div>
             </button>
         </div>
@@ -45,14 +44,14 @@
 </div>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.11/themes/default/style.min.css"
-      integrity="sha512-P8BwDSUInKMA7I116Z1RFg/Dfk85uFdliEUYO7vQlwtxLVMNvZimfMAQsaf++9EhlAGOVX6yhDQAIY3/70jDUg=="
-      crossorigin="anonymous" referrerpolicy="no-referrer"/>
-<link rel="stylesheet" type="text/css" href="{% static '/registry/mapcontext/css/folder-style.css' %}" media="all"/>
+    integrity="sha512-P8BwDSUInKMA7I116Z1RFg/Dfk85uFdliEUYO7vQlwtxLVMNvZimfMAQsaf++9EhlAGOVX6yhDQAIY3/70jDUg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" type="text/css" href="{% static '/registry/mapcontext/css/folder-style.css' %}" media="all" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.11/jstree.min.js"
-        integrity="sha512-bU6dl4fd2XN3Do3aWypPP2DcKywDyR3YlyszV+rOw9OpglrGyBs6TyTsbglf9umgE+sy+dKm1UHhi07Lv+Vtfg=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    integrity="sha512-bU6dl4fd2XN3Do3aWypPP2DcKywDyR3YlyszV+rOw9OpglrGyBs6TyTsbglf9umgE+sy+dKm1UHhi07Lv+Vtfg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/jstree-actions@0.2.1/jstree-actions.min.js"
-        integrity="sha256-9UEvBZl2CzCWCSvHfT1PKY7xfkJBJmRuNeCaUhS66IE=" crossorigin="anonymous"></script>
+    integrity="sha256-9UEvBZl2CzCWCSvHfT1PKY7xfkJBJmRuNeCaUhS66IE=" crossorigin="anonymous"></script>
 <script type="text/javascript" src="{% static '/js/treeformset-helper.js' %}"></script>
 <script>
     const coreapi = window.coreapi;
@@ -60,9 +59,26 @@
     const client = new coreapi.Client();
     const model = {};
 
+    function checkNumber(x) {
+        // check if the passed value is a number
+        if (typeof x == 'number' && !isNaN(x)) {
+
+            // check if it is integer
+            if (Number.isInteger(x)) {
+                return true;
+            }
+            else {
+                return true;
+            }
+
+        } else {
+            return false;
+        }
+    }
+
     function getLayerById(selectedLayerVariableName, id) {
         let action = ["service", "layers", "read"];
-        let params = {id: id};
+        let params = { id: id };
         client.action(schema, action, params).then(function (result) {
             if (model.hasOwnProperty(selectedLayerVariableName)) {
                 ko.mapping.fromJS(result, model[selectedLayerVariableName]);

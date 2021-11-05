@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-03 22:11+0100\n"
+"POT-Creation-Date: 2021-11-05 10:11+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2260,13 +2260,13 @@ msgstr "Zeigt den Gesundheitszustand der Ressource."
 msgid "Something went wrong while monitoring {resource}"
 msgstr "Etwas ging schief beim überprüfen von {metadata}"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:38
+#: registry/templates/registry/mapcontext/mapcontext_form.html:37
 #: templates/MrMap/generic_views/generic_form.html:25
 #: templates/MrMap/generic_views/generic_wizard_form.html:104
 msgid "Save"
 msgstr "Speichern"
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:40
+#: registry/templates/registry/mapcontext/mapcontext_form.html:39
 #: templates/MrMap/generic_views/generic_delete.html:15
 #: templates/MrMap/generic_views/generic_form.html:26
 #: templates/MrMap/generic_views/generic_wizard_form.html:27

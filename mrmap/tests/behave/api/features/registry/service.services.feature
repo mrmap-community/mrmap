@@ -11,7 +11,7 @@ Feature: Services
     And all services objects are returned
     And a paginated response is returned
     And response objects are ordered ascending by title
-    And "accessible" key is part of the response
+    And key "accessible" is part of the response
 
   Scenario: Only resources which has keyword, title, abstract or uuid like "WMS" is part of the response
     Given an authorized session
@@ -21,7 +21,7 @@ Feature: Services
     And 1 result(s) is(are) returned, with WMS as search criteria
     And a paginated response is returned
     And response objects are ordered ascending by title
-    And "accessible" key is part of the response
+    And key "accessible" is part of the response
 
   Scenario: Only resources in the given date range are part of the response.
     Given an authorized session
@@ -31,7 +31,7 @@ Feature: Services
     And 1 result(s) is(are) returned, between 2021-10-12 and 2021-10-20 as registration range criteria
     And a paginated response is returned
     And response objects are ordered ascending by title
-    And "accessible" key is part of the response
+    And key "accessible" is part of the response
 
   Scenario: Only resources in the given datestamp range are part of the response.
     Given an authorized session
@@ -41,7 +41,7 @@ Feature: Services
     And 0 result(s) is(are) returned, between 2021-10-20 and 2021-10-23 as datestamp range criteria
     And a paginated response is returned
     And response objects are ordered ascending by title
-    And "accessible" key is part of the response
+    And key "accessible" is part of the response
 
   Scenario: Only resources intersecting with a given Bounding Box are part of the response.
     Given an authorized session
@@ -51,4 +51,4 @@ Feature: Services
     And 2 result(s) is(are) returned, when BoundingBox [1, 1, 2, 2] intersects with services features
     And a paginated response is returned
     And response objects are ordered ascending by title
-    And "accessible" key is part of the response
+    And key "accessible" is part of the response

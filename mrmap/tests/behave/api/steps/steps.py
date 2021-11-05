@@ -1,11 +1,8 @@
 import math
 from behave_restful.lang import *  # noqa : import all pre defined steps of behave_restful package.
-from assertpy import fail
 from behave import then, given
 from assertpy import fail, assert_that
 from jsonpath import jsonpath
-from behave import given, then
-
 from registry.models import Service, Layer, FeatureType, DatasetMetadata
 
 
@@ -20,7 +17,7 @@ def step_unauth_session(context):
 
 
 @then('the response json at {json_path} is missing')
-def step_impl(context, json_path):
+def missing_json_response(context, json_path):
     json_body = context.response
     json_path = context.vars.resolve(json_path)
     results = jsonpath(json_body, json_path)
@@ -29,7 +26,7 @@ def step_impl(context, json_path):
 
 
 @then('all {the_class} objects are returned')
-def step_impl(context, the_class):
+def all_objects_are_returned(context, the_class):
     if the_class == 'services':
         total_number_of_features = Service.objects.count()
     elif the_class == 'layers':
@@ -57,7 +54,7 @@ def step_impl(context, the_class):
 # TODO: refactor to be only one step that makes the call and gives the response, instead of giving the url in a
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, with {search_criteria} as {filter_keyword} criteria')
-def step_impl(context, number_of_resources_returned, search_criteria, filter_keyword):
+def results_returned_by_filter(context, number_of_resources_returned, search_criteria, filter_keyword):
     response = context.response
     results = response.json()
 
@@ -75,7 +72,7 @@ def step_impl(context, number_of_resources_returned, search_criteria, filter_key
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, between {start_date} and {end_date} as'
       '{filter_keyword} range criteria')
-def step_impl(context, number_of_resources_returned, start_date, end_date, filter_keyword):
+def results_returned_by_beetween_filter(context, number_of_resources_returned, start_date, end_date, filter_keyword):
     response = context.response
     results = response.json()
 
@@ -92,7 +89,7 @@ def step_impl(context, number_of_resources_returned, start_date, end_date, filte
 # TODO: refactor to be only one step that makes the call and gives the response, instead of giving the url in a
 #  previous step. Needs to be implemented. Currently using the method used by Behave-Rest
 @then('{number_of_resources_returned} result(s) is(are) returned, when BoundingBox {bbox_array} intersects with {the_class} features')
-def step_impl(context, number_of_resources_returned, bbox_array, the_class):
+def results_retunred_by_bbox_filter(context, number_of_resources_returned, bbox_array, the_class):
     response = context.response
     results = response.json()
 
@@ -107,7 +104,7 @@ def step_impl(context, number_of_resources_returned, bbox_array, the_class):
 
 
 @then('a paginated response is returned')
-def step_impl(context):
+def paginated_response_returned(context):
     response = context.response
     results = response.json()
 
@@ -119,7 +116,7 @@ def step_impl(context):
 
 
 @then('response objects are ordered {order_criteria} by {order_parameter}')
-def step_impl(context, order_criteria, order_parameter):
+def response_is_ordered(context, order_criteria, order_parameter):
     response = context.response
     results = response.json()
 
@@ -133,9 +130,9 @@ def step_impl(context, order_criteria, order_parameter):
     assert_that(results_list).is_equal_to(sorted_result_list)
 
 
-@then('"accessible" key is part of the response')
-def step_impl(context):
+@then('key "{key}" is part of the response')
+def key_is_part_of_the_response(context, key):
     response = context.response
     results = response.json()
 
-    assert_that('accessible' in result.keys() for result in results['results']).is_true()
+    assert_that(key in result.keys() for result in results['results']).is_true()

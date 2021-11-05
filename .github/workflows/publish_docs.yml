@@ -37,7 +37,7 @@ jobs:
       # ===============================
       - name: build documentation
         run: |
-          export $(grep -v '^#' .env.docs | xargs)
+          export $(grep -v '^#' .docs.env | xargs)
           MRMAP_MEDIA_DIR=./tmp sphinx-multiversion docs/source docs/build/html -b linkcheck
           MRMAP_MEDIA_DIR=./tmp sphinx-multiversion docs/source docs/build/html -b html -E
       # ===============================

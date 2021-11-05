@@ -38,7 +38,7 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.mrmap
+      - ./.mrmap.env
     depends_on:
       - postgis
       - redis
@@ -49,6 +49,7 @@ services:
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
+    tty: true  # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command:
       /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i -o behave-coverage-report.xml"
@@ -60,8 +61,8 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.mrmap
-      - ./.env.mrmap.dev
+      - ./.mrmap.env
+      - ./.mrmap.dev.env
     depends_on:
       - postgis
       - redis
@@ -72,9 +73,11 @@ services:
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
+    shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
+    tty: true  # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip tests/behave/selenium/features"
+         /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -83,8 +86,8 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.mrmap
-      - ./.env.mrmap.dev
+      - ./.mrmap.env
+      - ./.mrmap.dev.env
     environment:
       - DJANGO_DEBUG=0
     depends_on:
@@ -96,8 +99,8 @@ services:
         args:
           MRMAP_PRODUCTION: "False"
       env_file:
-        - ./.env.mrmap
-        - ./.env.mrmap.dev
+        - ./.mrmap.env
+        - ./.mrmap.dev.env
       command:
         /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
 
@@ -106,8 +109,8 @@ services:
         args:
           MRMAP_PRODUCTION: "False"
       env_file:
-        - ./.env.mrmap
-        - ./.env.mrmap.dev
+        - ./.mrmap.env
+        - ./.mrmap.dev.env
       command: >
         /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
 
@@ -116,8 +119,8 @@ services:
         args:
           MRMAP_PRODUCTION: "False"
       env_file:
-        - ./.env.mrmap
-        - ./.env.mrmap.dev
+        - ./.mrmap.env
+        - ./.mrmap.dev.env
       command: >
         /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 

@@ -10,7 +10,7 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.db
+      - ./.db.env
   redis:
     image: library/redis:6.2-alpine
     volumes:
@@ -52,6 +52,7 @@ services:
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
+    tty: true  # To support colorized log output.
     entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
     command: 
       /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
@@ -73,7 +74,7 @@ services:
       - backend
       - frontend
     env_file:
-      - ./.env.mrmap
+      - ./.mrmap.env
     depends_on:
       - postgis
       - redis
@@ -87,6 +88,7 @@ services:
         MRMAP_PRODUCTION: "True"
     command: >
       /bin/bash -c "celery -A MrMap worker -E -l INFO -n default -Q default"
+    tty: true  # To support colorized log output.
     hostname: "mrmap-celery-default-worker"
     volumes:
       - type: bind
@@ -101,7 +103,7 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.mrmap
+      - ./.mrmap.env
     depends_on:
       - postgis
       - redis    
@@ -113,6 +115,7 @@ services:
         MRMAP_PRODUCTION: "True"
     command: >
       /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q download_iso_metadata,download_described_elements,harvest"
+    tty: true  # To support colorized log output.
     hostname: "mrmap-celery-worker"
     volumes:
       - type: bind
@@ -127,7 +130,7 @@ services:
     networks:
       - backend
     env_file:
-      - ./.env.mrmap
+      - ./.mrmap.env
     depends_on:
       - postgis
       - redis

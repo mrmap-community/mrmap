@@ -1,41 +1,3 @@
-const coreapi = window.coreapi;
-const schema = window.schema;
-var client = new coreapi.Client();
-var model = {};
-
-function getLayerById(selectedLayerVariableName, id){
-  let action = ["layers", "read"];
-  let params = {id: id};
-  client.action(schema, action, params).then(function(result) {
-    if(model.hasOwnProperty(selectedLayerVariableName)){
-      ko.mapping.fromJS(result, model[selectedLayerVariableName]);
-    } else {
-      model[selectedLayerVariableName] = ko.mapping.fromJS(result);
-    }
-  })
-}
-
-function applyFormsetBindings(formset, formNum){
-  var selectedLayerVariableName = `selectedLayer${formNum}`;
-  // initialize all attributes which are needed by the knockout lib to initialize data bindings
-  model[selectedLayerVariableName] = this.selectedLayer0 = ko.mapping.fromJS({
-    'scale_min': undefined, 
-    'scale_max': undefined,
-    'id': undefined
-  });
-
-  // add event listeners to the layer dropdown to update model on changes
-  selectedLayer = document.getElementById(`id_layer-${formNum}-layer`);
-  if ( selectedLayer.value ) {
-    getLayerById(selectedLayerVariableName, selectedLayer.value);
-  }
-  selectedLayer.onchange = function(){
-    getLayerById(selectedLayerVariableName, selectedLayer.value);
-  };
-  // apply bindings for the new formset
-  ko.applyBindings(model, formset);
-}
-
 /**
  * Turns a container element into a dynamic jsTree control, binding the tree nodes to a Django
  * FormSet.
@@ -49,8 +11,9 @@ function applyFormsetBindings(formset, formNum){
  * @param {string} formPrefix - prefix of classes and ids of the formsets
  * @param {string} parentField - form field that contains the parent fk
  * @param {string} nameField - form field that contains the node name
+ * @param {function} formAdded - callback that is invoked when a new form has been created
  */
-function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) {
+function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField, formAdded) {
   /**
    * Replaces all Django-generated id (e.g. 'id_layer-1-name') and name attributes (e.g.
    * 'id_layer-1-name') inside the given form element.
@@ -74,15 +37,12 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     if (el.getAttribute('data-bind')) {
       el.setAttribute("data-bind", replaceNameOrId(el.getAttribute('data-bind'), newFormIdx));
     }
-
-
     Array.from(el.children).forEach(child => {
       replaceNameAndIdAttributes(child, newFormIdx);
     });
   }
   /**
-   * Clones the last element of class '.${formPrefix}-form' (which is the spare form / form
-   * template).
+   * Clones the element with id 'id_${formPrefix}_EMPTY-FORM' and appends it as the last form.
    *
    * Also fixes the ids/names of the new template element to reflect the new form id.
    *
@@ -97,22 +57,23 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
     const emptyForm = document.querySelector(`#id_${formPrefix}_EMPTY-FORM`);
 
     // Create a copy of it
-    var newForm = emptyForm.cloneNode(true);
+    const newForm = emptyForm.cloneNode(true);
     replaceNameAndIdAttributes(newForm, formNum);
 
     newForm.setAttribute('class', `${formPrefix}-form`);
     newForm.removeAttribute('style');
     newForm.removeAttribute('id');
 
-
     if (lastForm === undefined){
       emptyForm.after(newForm);
     } else {
       lastForm.after(newForm);
     }
-    
-    applyFormsetBindings(newForm, formNum);
-    
+
+    if (formAdded) {
+      formAdded(newForm, formNum);
+    }
+
     // update number of forms in management form
     // https://docs.djangoproject.com/en/3.2/topics/forms/formsets/#understanding-the-managementform
     document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value = parseInt(document.querySelector(`#id_${formPrefix}-TOTAL_FORMS`).value) + 1;
@@ -212,7 +173,7 @@ function initJsTreeFormset(treeContainerId, formPrefix, parentField, nameField) 
               $(`#id_${formPrefix}-${i}-${parentField}_form_idx`).val(idToFormIdx[parent]);
             }
             idToFormIdx[id] = i;
-            applyFormsetBindings(forms[i], i);
+            formAdded(forms[i], i);
           }
         }
         cb.call(this, nodes);

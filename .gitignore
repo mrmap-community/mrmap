@@ -132,3 +132,7 @@ mrmap/media/
 node_modules/
 /mrmap/static/
 package-lock.json
+
+selenium-*.png
+*coverage.xml
+*coverage-report.xml

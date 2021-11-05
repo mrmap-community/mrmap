@@ -35,7 +35,7 @@ class DatasetMetadataAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, 
     def get_queryset(self):
         qs = super().get_queryset()
 
-        layer_pk = self.forwarded.get('layer', None)
+        layer_pk = self.forwarded.get('rendering_layer', None)
 
         if layer_pk:
             qs = qs.filter(self_pointing_layers__pk=layer_pk)
@@ -50,7 +50,7 @@ class StyleAutocomplete(SecuredAutocompleteMixin, LoginRequiredMixin, autocomple
     def get_queryset(self):
         qs = super().get_queryset()
 
-        layer_pk = self.forwarded.get('layer', None)
+        layer_pk = self.forwarded.get('rendering_layer', None)
 
         if layer_pk:
             qs = qs.filter(layer__pk=layer_pk)

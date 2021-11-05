@@ -10,5 +10,9 @@
     "cucumberautocomplete.strictGherkinCompletion": true,
     "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
     "cucumberautocomplete.smartSnippets": true,
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv"
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--ignore=E501,W504",
+    ],
 }

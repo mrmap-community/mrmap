@@ -20,12 +20,13 @@ class MapContextLayerForm(ModelForm):
         model = MapContextLayer
         widgets = {
             'parent': HiddenInput(),
-            'dataset_metadata': autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac',
-                                                          forward=['layer']),
-            'layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
-                                               forward=['dataset_metadata'],),
+            'dataset_metadata': autocomplete.ModelSelect2(url='registry.autocomplete:dataset_metadata_ac'),
+            'rendering_layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
+                                                         forward=['dataset_metadata'], ),
             'layer_style': autocomplete.ModelSelect2(url='registry.autocomplete:style_ac',
-                                                     forward=['layer'],),
+                                                     forward=['rendering_layer'], ),
+            'selection_layer': autocomplete.ModelSelect2(url='registry.autocomplete:layer_ac',
+                                                         forward=['dataset_metadata'], ),
 
         }
         fields = [
@@ -35,11 +36,12 @@ class MapContextLayerForm(ModelForm):
             'name',
             'title',
             'dataset_metadata',
-            'layer',
+            'rendering_layer',
             'layer_scale_min',
             'layer_scale_max',
             'layer_style',
-            'preview_image'
+            'preview_image',
+            'selection_layer'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -48,15 +50,18 @@ class MapContextLayerForm(ModelForm):
 
         layer_scale_min_data_binds = {
             'attr': f'{{ min: selectedLayer{current_form_index}.scale_min, max: selectedLayer{current_form_index}.scale_max }}',
-            'enable': f'Number.isInteger(selectedLayer{current_form_index}.scale_min()) && Number.isInteger(selectedLayer{current_form_index}.scale_max())',
+            'enable': f'checkNumber(selectedLayer{current_form_index}.scale_min()) && checkNumber(selectedLayer{current_form_index}.scale_max())',
             'value': f'selectedLayer{current_form_index}.scale_min()'
         }
         layer_scale_max_data_binds = {
             'attr': f'{{ min: selectedLayer{current_form_index}.scale_min, max: selectedLayer{current_form_index}.scale_max }}',
-            'enable': f'Number.isInteger(selectedLayer{current_form_index}.scale_min()) && Number.isInteger(selectedLayer{current_form_index}.scale_max())',
+            'enable': f'checkNumber(selectedLayer{current_form_index}.scale_min()) && checkNumber(selectedLayer{current_form_index}.scale_max())',
             'value': f'selectedLayer{current_form_index}.scale_max()'
         }
 
-        self.fields['layer_scale_min'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in layer_scale_min_data_binds.items())
-        self.fields['layer_scale_max'].widget.attrs['data-bind'] = ', '.join(f'{key}: {value}' for key, value in layer_scale_max_data_binds.items())
-        self.fields['layer_style'].widget.attrs['data-bind'] = f'enable: selectedLayer{current_form_index}.id() !== undefined'
+        self.fields['layer_scale_min'].widget.attrs['data-bind'] = ', '.join(
+            f'{key}: {value}' for key, value in layer_scale_min_data_binds.items())
+        self.fields['layer_scale_max'].widget.attrs['data-bind'] = ', '.join(
+            f'{key}: {value}' for key, value in layer_scale_max_data_binds.items())
+        self.fields['layer_style'].widget.attrs[
+            'data-bind'] = f'enable: selectedLayer{current_form_index}.id() !== undefined'

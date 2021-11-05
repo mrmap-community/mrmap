@@ -59,24 +59,27 @@ class MapContextLayer(MPTTModel):
                                          blank=True,
                                          verbose_name=_("Dataset Metadata"),
                                          help_text=_("You can use this field to pre filter possible Layer selection."))
-    layer = models.ForeignKey(to=Layer,
-                              on_delete=models.PROTECT,
-                              null=True,
-                              blank=True,
-                              verbose_name=_("Layer"),
-                              help_text=_("Select a layer as a offering for rendering."))
+    rendering_layer = models.ForeignKey(to=Layer,
+                                        on_delete=models.PROTECT,
+                                        null=True,
+                                        blank=True,
+                                        related_name="mapcontextlayers_rendering",
+                                        verbose_name=_("Rendering layer"),
+                                        help_text=_("Select a layer for rendering."))
     layer_scale_min = models.FloatField(null=True,
                                         blank=True,
                                         verbose_name=_("scale minimum value"),
-                                        help_text=_("minimum scale for a possible request to this layer. If the request is "
-                                                    "out of the given scope, the service will response with empty transparent"
-                                                    "images. None value means no restriction."))
+                                        help_text=_(
+                                            "minimum scale for a possible request to this layer. If the request is "
+                                            "out of the given scope, the service will response with empty transparent"
+                                            "images. None value means no restriction."))
     layer_scale_max = models.FloatField(null=True,
                                         blank=True,
                                         verbose_name=_("scale maximum value"),
-                                        help_text=_("maximum scale for a possible request to this layer. If the request is "
-                                                    "out of the given scope, the service will response with empty transparent"
-                                                    "images. None value means no restriction."))
+                                        help_text=_(
+                                            "maximum scale for a possible request to this layer. If the request is "
+                                            "out of the given scope, the service will response with empty transparent"
+                                            "images. None value means no restriction."))
     layer_style = models.ForeignKey(to=Style,
                                     on_delete=models.PROTECT,
                                     null=True,
@@ -88,13 +91,20 @@ class MapContextLayer(MPTTModel):
                                       upload_to=preview_image_file_path,
                                       null=True,
                                       blank=True)
+    selection_layer = models.ForeignKey(to=Layer,
+                                        on_delete=models.PROTECT,
+                                        null=True,
+                                        blank=True,
+                                        related_name="mapcontextlayers_selection",
+                                        verbose_name=_("Selection layer"),
+                                        help_text=_("Select a layer for feature selection."))
 
     def __str__(self):
         return f"{self.name}"
 
     def clean(self):
         errors = {}
-        if self.layer:
+        if self.rendering_layer:
             # Check scale min/max values against the possible configureable values.
             if self.layer_scale_min and self.layer.inherit_scale_min:
                 if self.layer_scale_min < self.layer.inherit_scale_min:

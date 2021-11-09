@@ -20,6 +20,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.documentation import include_docs_urls
 from MrMap.settings import DEBUG
 from registry.api.urls import registry_api_router
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 # Register REST API routes
 rest_api_router = DefaultRouter()
@@ -48,6 +49,12 @@ urlpatterns = [
     # REST API
     path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
     path('api/v1/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
+
+    # Swagger/OpenAPI
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # Optional UI:
+    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
 if DEBUG:

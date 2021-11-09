@@ -2,6 +2,7 @@ from django_filters import rest_framework as api_filters
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import DjangoObjectPermissions
 
+from extras.api import viewsets
 from extras.api.pagination import StandardResultsSetPagination
 from extras.api.viewsets import ModelViewSetWithPermissionChecker
 from registry.api.filters.service import ServiceApiFilter, FeatureTypeApiFilter, LayerApiFilter
@@ -9,13 +10,13 @@ from registry.api.serializers.service import ServiceSerializer, FeatureTypeSeria
 from registry.models import Service, Layer, FeatureType
 
 
-class ServiceViewSet(ModelViewSetWithPermissionChecker):
+class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     filterset_class = ServiceApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
-    permission_classes = [DjangoObjectPermissions]
+    # permission_classes = [DjangoObjectPermissions]
 
     serializers = {
         'default': ServiceSerializer

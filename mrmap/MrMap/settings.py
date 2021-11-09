@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     'leaflet',
     'breadcrumb',
     'mptt',
+    'corsheaders',
+    'drf_spectacular',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'users',
     'acls',
@@ -77,6 +79,7 @@ TEMPLATE_LOADERS = (
 )
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -507,6 +510,17 @@ LOGGING = {
 }
 
 # REST FRAMEWORK
-REST_FRAMEWORK = {'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'}
+REST_FRAMEWORK = {'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'}
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CORS_ALLOWED_ORIGINS = [
+     'http://localhost:3000'
+]
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MrMap API',
+    'DESCRIPTION': 'Registry API for geospatial data, metadata, services and their describing documents',
+    'VERSION': '1.0.0',
+    # OTHER SETTINGS
+}

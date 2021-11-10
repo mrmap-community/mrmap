@@ -134,7 +134,22 @@ services:
     depends_on:
       - postgis
       - redis
-    
+
+  frontend:
+    image: node:17-alpine
+    hostname: "nodejs"
+    volumes:
+      - type: bind
+        source: ./frontend
+        target: /opt/mrmap
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "3000:3000"
+    entrypoint: /opt/mrmap/entrypoint.sh
+    command: [ "npm", "start"]    
+
 volumes:
   mrmap-static:
   mrmap-media:

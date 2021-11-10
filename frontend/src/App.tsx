@@ -1,4 +1,3 @@
-import React from "react";
 import { ServiceList } from "./Components/Service/ServiceList/ServiceList";
 import { OpenAPIProvider } from "./Util/OpenAPIProvider";
 import './App.css';

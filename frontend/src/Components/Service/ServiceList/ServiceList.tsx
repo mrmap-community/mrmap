@@ -5,21 +5,16 @@ import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
 export const ServiceList = () => {
 
     console.log("*** ServiceList");
-
-    // modified by data fetching
-    const [backendState, setBackendState] = useState({
+    const [fetchState, setFetchState] = useState({
         loading: false,
         dataSource: [],
         total: 0
     });
-
-    // modified by table interaction (page change, page size, sort order change, filter change)
     const [tableState, setTableState] = useState<any>({
         page: 1,
         pageSize: 1,
         ordering: undefined
     });
-
     const [columns] = useState([{
         title: 'ID',
         dataIndex: 'id',
@@ -44,8 +39,8 @@ export const ServiceList = () => {
     useEffect(() => {
         console.log("*** fetching");
         async function fetchTableData() {
-            setBackendState({
-                ...backendState,
+            setFetchState({
+                ...fetchState,
                 loading: true
             });
             const client = await api.getClient();
@@ -54,7 +49,7 @@ export const ServiceList = () => {
                 page_size: tableState.pageSize,
                 ordering: tableState.ordering
             });
-            setBackendState({
+            setFetchState({
                 loading: false,
                 dataSource: res.data.results,
                 total: res.data.count
@@ -76,14 +71,14 @@ export const ServiceList = () => {
         <div className="mrmap-mapcontext-list">
             <Card title="Services" style={{ width: '100%' }}>
                 <Table
-                    dataSource={backendState.dataSource}
+                    dataSource={fetchState.dataSource}
                     rowKey={(record:any) => record.id}
                     columns={columns}
-                    loading={backendState.loading}
+                    loading={fetchState.loading}
                     pagination={{
                         current: tableState.page,
                         pageSize: tableState.pageSize,
-                        total: backendState.total,
+                        total: fetchState.total,
                     }}
                     onChange={handleTableChange}
                 />

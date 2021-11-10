@@ -39,3 +39,4 @@ gunicorn==20.1.0
 uvicorn==0.15.0
 websockets==9.1
 coreapi==2.3.3
+drf_spectacular==0.20.2

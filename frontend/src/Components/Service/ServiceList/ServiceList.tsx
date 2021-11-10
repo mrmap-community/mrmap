@@ -27,7 +27,6 @@ export const ServiceList = () => {
     async function fetchTableData() {
         setLoading(true);
         const client = await api.getClient();
-        debugger;
         const res = await client.v1_registry_service_services_list({
             page: pagination.current,
             page_size: pagination.pageSize

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
-import { Table, Card} from "antd";
+import { Table, Card } from "antd";
 import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
+import { ColumnFilterDropdown } from "./ColumnFilterDropdown";
 
 export const ServiceList = () => {
 
@@ -20,18 +21,21 @@ export const ServiceList = () => {
         dataIndex: 'id',
         key: 'id',
         sorter: true,
+        filterDropdown: <ColumnFilterDropdown />
     },
     {
         title: 'Title',
         dataIndex: 'title',
         key: 'title',
         sorter: true,
+        filterDropdown: <ColumnFilterDropdown />
     },
     {
         title: 'Abstract',
         dataIndex: 'abstract',
         key: 'abstract',
-        sorter: true
+        sorter: true,
+        filterDropdown: <ColumnFilterDropdown />
     },]);
 
     const { api } = useContext(OpenAPIContext);
@@ -72,7 +76,7 @@ export const ServiceList = () => {
             <Card title="Services" style={{ width: '100%' }}>
                 <Table
                     dataSource={fetchState.dataSource}
-                    rowKey={(record:any) => record.id}
+                    rowKey={(record: any) => record.id}
                     columns={columns}
                     loading={fetchState.loading}
                     pagination={{

@@ -17,7 +17,7 @@ services:
     ports:
       - "5557:8080"
     networks:
-      - backend
+      - mrmap-internal
     extra_hosts:
       - host.docker.internal:host-gateway
 
@@ -36,7 +36,7 @@ services:
         source: ./mrmap
         target: /opt/mrmap
     networks:
-      - backend
+      - mrmap-internal
     env_file:
       - ./.mrmap.env
     depends_on:
@@ -59,7 +59,7 @@ services:
         source: ./mrmap
         target: /opt/mrmap
     networks:
-      - backend
+      - mrmap-internal
     env_file:
       - ./.mrmap.env
       - ./.mrmap.dev.env
@@ -84,7 +84,7 @@ services:
         source: ./mrmap
         target: /opt/mrmap
     networks:
-      - backend
+      - mrmap-internal
     env_file:
       - ./.mrmap.env
       - ./.mrmap.dev.env
@@ -94,7 +94,7 @@ services:
       - postgis
       - redis
 
-  appserver:
+  backend:
       build:
         args:
           MRMAP_PRODUCTION: "False"

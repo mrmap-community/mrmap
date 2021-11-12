@@ -16,7 +16,26 @@
             ]
         },
         {
-            "label": "Docker-Compose: mrmap appserver",
+            "label": "Docker-Compose: mrmap nginx",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "nginx",
+                "--abort-on-container-exit",
+                "nginx"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap backend",
             "type": "shell",
             "command": "docker-compose",
             "args": [
@@ -30,9 +49,26 @@
                 "--remove-orphans",
                 "--build",
                 "--exit-code-from",
-                "appserver",
+                "backend",
                 "--abort-on-container-exit",
-                "appserver"
+                "backend"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap frontend",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",                
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "frontend",
+                "--abort-on-container-exit",
+                "frontend"
             ],
             "problemMatcher": []
         },

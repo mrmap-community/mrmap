@@ -8,7 +8,7 @@ services:
         source: db-data
         target: /var/lib/postgresql/data
     networks:
-      - backend
+      - mrmap-internal
     env_file:
       - ./.db.env
   redis:
@@ -18,7 +18,7 @@ services:
         source: mem-db-data
         target: /data
     networks:
-      - backend
+      - mrmap-internal
   mapserver:
     image: camptocamp/mapserver:7.6
     volumes:
@@ -26,7 +26,7 @@ services:
         source: ./docker/mapserver/mapfiles
         target: /etc/mapserver
     networks:
-      - backend
+      - mrmap-internal
   nginx:
     build:
       context: ./mrmap
@@ -43,10 +43,28 @@ services:
         source: mrmap-static
         target: /var/www/mrmap/static
     networks:
-      - frontend
+      - mrmap-internal
     extra_hosts:
       - host.docker.internal:host-gateway
-  appserver:
+    depends_on:
+      - frontend
+      - backend
+  
+  frontend:
+    image: node:16-alpine
+    hostname: "mrmap-frontend"
+    volumes:
+      - type: bind
+        source: ./frontend
+        target: /opt/mrmap
+    networks:
+      - mrmap-internal
+    environment:
+      NODE_ENV: development
+    working_dir: "/opt/mrmap"
+    command: "npm start"
+
+  backend:
     build:
       context: ./mrmap
       dockerfile: ../docker/mrmap/Dockerfile
@@ -56,7 +74,7 @@ services:
     entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
     command: 
       /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
-    hostname: "mrmap-appserver"
+    hostname: "mrmap-backend"
     volumes:
       - type: bind
         source: ./mrmap
@@ -71,15 +89,13 @@ services:
         source: mrmap-log
         target: /var/log/mrmap
     networks:
-      - backend
-      - frontend
+      - mrmap-internal
     env_file:
       - ./.mrmap.env
     depends_on:
       - postgis
       - redis
       - mapserver
-      - nginx
   celery-default-worker:
     build:
       context: ./mrmap
@@ -101,7 +117,7 @@ services:
         source: mrmap-log
         target: /var/log/mrmap
     networks:
-      - backend
+      - mrmap-internal
     env_file:
       - ./.mrmap.env
     depends_on:
@@ -128,27 +144,12 @@ services:
         source: mrmap-log
         target: /var/log/mrmap
     networks:
-      - backend
+      - mrmap-internal
     env_file:
       - ./.mrmap.env
     depends_on:
       - postgis
       - redis
-
-  frontend:
-    image: node:17-alpine
-    hostname: "nodejs"
-    volumes:
-      - type: bind
-        source: ./frontend
-        target: /opt/mrmap
-    networks:
-      - backend
-      - frontend
-    ports:
-      - "3000:3000"
-    entrypoint: /opt/mrmap/entrypoint.sh
-    command: [ "npm", "start"]    
 
 volumes:
   mrmap-static:
@@ -158,5 +159,4 @@ volumes:
   mem-db-data:
 
 networks:
-  frontend:
-  backend:
+  mrmap-internal:

@@ -9,7 +9,7 @@ import { OpenAPIProvider } from "./Hooks/OpenAPIProvider";
 export default function App() {
   return (
     <Router>
-      <OpenAPIProvider definition="http://localhost:8001/api/schema/" axiosConfigDefaults={{ baseURL: "http://localhost:8001" }}>
+      <OpenAPIProvider definition="https://localhost/api/schema/" axiosConfigDefaults={{ baseURL: "https://localhost" }}>
         <NavBar />
         <Routes>
           <Route path="/" element={<Dashboard/>}/>

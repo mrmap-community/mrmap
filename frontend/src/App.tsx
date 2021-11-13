@@ -4,6 +4,7 @@ import { NavBar } from "./Components/NavBar/NavBar";
 import { BrowserRouter as Router, Routes, Route  } from "react-router-dom";
 import './App.css';
 import { OpenAPIProvider } from "./Hooks/OpenAPIProvider";
+import { LoginForm } from "./Components/Users/Auth/Login";
 
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard/>}/>
           <Route path="/registry/services/wms" element={<ServiceList/>}/>
+          <Route path="/users/auth/login" element={<LoginForm/>}/>
         </Routes>
       </OpenAPIProvider>
     </Router>

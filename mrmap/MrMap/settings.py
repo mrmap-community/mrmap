@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
+    'dj_rest_auth',
     'django_celery_beat',
     'django_celery_results',
     'bootstrap5',

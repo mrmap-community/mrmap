@@ -48,6 +48,7 @@ urlpatterns = [
 
     # REST API
     path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
+    path('api/v1/auth/', include('dj_rest_auth.urls')),
     path('api/v1/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
 
     # Swagger/OpenAPI

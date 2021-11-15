@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.reverse import reverse
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, HyperlinkedRelatedField
 from rest_framework.fields import SerializerMethodField
 from extras.api.serializers import ObjectAccessSerializer
 from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
@@ -16,7 +16,12 @@ class OperationsUrlSerializer(ModelSerializer):
 
 
 class LayerSerializer(ObjectAccessSerializer):
-    dataset_metadata = SerializerMethodField()
+    # TODO: extreme slow lookup... Present a link to the dataset_metadata entpoint filtered by the given layer
+    # dataset_metadata = HyperlinkedRelatedField(
+    #     many=True,
+    #     read_only=True,
+    #     view_name='api:dataset_metadata-detail'
+    # )
 
     class Meta:
         model = Layer
@@ -27,22 +32,19 @@ class LayerSerializer(ObjectAccessSerializer):
             # TODO: this is causing too much queries to be made. Find out exactly why
             # 'inherit_scale_min',
             # 'inherit_scale_max',
-            'dataset_metadata'
-        ]
 
-    def get_dataset_metadata(self, obj):
-        try:
-            dataset_metadata = obj.dataset_metadata.get()
-        except ObjectDoesNotExist:
-            dataset_metadata = None
-        if dataset_metadata:
-            return self.context['request'].build_absolute_uri(
-                reverse('api:dataset_metadata-detail', args=[dataset_metadata.id]))
-        return None
+            # TODO: extreme slow lookup... dont do this
+            # 'dataset_metadata'
+        ]
 
 
 class FeatureTypeSerializer(ObjectAccessSerializer):
-    dataset_metadata = SerializerMethodField()
+    # FIXME: extreme slow lookup... Present a link to the dataset_metadata entpoint filtered by the given ft
+    # dataset_metadata = HyperlinkedRelatedField(
+    #     many=True,
+    #     read_only=True,
+    #     view_name='api:dataset_metadata-detail'
+    # )
 
     class Meta:
         model = Layer
@@ -53,18 +55,10 @@ class FeatureTypeSerializer(ObjectAccessSerializer):
             # TODO: this is causing too much queries to be made. Find out exactly why
             # 'inherit_scale_min',
             # 'inherit_scale_max',
-            'dataset_metadata'
+            # TODO: extreme slow lookup... dont do this
+            # 'dataset_metadata'
         ]
 
-    def get_dataset_metadata(self, obj):
-        try:
-            dataset_metadata = obj.dataset_metadata.get()
-        except ObjectDoesNotExist:
-            dataset_metadata = None
-        if dataset_metadata:
-            return self.context['request'].build_absolute_uri(
-                reverse('api:dataset_metadata-detail', args=[dataset_metadata.id]))
-        return None
 
 
 class KeywordSerializer(ModelSerializer):

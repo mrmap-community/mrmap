@@ -46,9 +46,7 @@ services:
       - mrmap-internal
     extra_hosts:
       - host.docker.internal:host-gateway
-    depends_on:
-      - frontend
-      - backend
+
   
   frontend:
     image: node:16-alpine

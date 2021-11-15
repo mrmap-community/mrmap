@@ -15,7 +15,10 @@ class ServiceApiFilter(MrMapApiSearchFilter):
 
     class Meta:
         model = Service
-        fields = {}
+        fields = {
+            "id": ["icontains"],
+            "title": ["icontains"]
+        }
 
     @staticmethod
     def search_filter(queryset, name, value):

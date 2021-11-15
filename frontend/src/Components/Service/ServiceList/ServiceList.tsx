@@ -2,10 +2,53 @@ import { useContext, useEffect, useState } from "react";
 import { Table, Card } from "antd";
 import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
 import { ColumnFilterDropdown } from "./ColumnFilterDropdown";
+import { SearchOutlined } from '@ant-design/icons';
+import Highlighter from 'react-highlight-words';
 
 export const ServiceList = () => {
 
     console.log("*** ServiceList");
+
+    const [searchInputFocused, setSearchInputFocused] = useState(false);
+    const [searchText, setSearchText] = useState("");
+    const [searchedColumn, setSearchedColumn] = useState("");
+
+    const getColumnSearchProps = (dataIndex: any): any => {
+        return {
+            filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: any) => (
+                <ColumnFilterDropdown
+                    setSelectedKeys={setSelectedKeys}
+                    selectedKeys={selectedKeys}
+                    confirm={confirm}
+                    clearFilters={clearFilters}
+                    dataIndex={dataIndex}
+                    searchText={searchText}
+                    setSearchText={setSearchText}
+                    searchedColumn={searchedColumn}
+                    setSearchedColumn={setSearchedColumn}
+                    searchInputFocused={searchInputFocused} />),
+            onFilterDropdownVisibleChange: (visible: any) => {
+                console.log("*** setSearchInputFocused: " + visible);
+                setSearchInputFocused(visible);
+            },
+            filterIcon: (filtered: any) => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+            render: (text: any) => {
+                console.log("**** render " + searchedColumn);
+                // searchedColumn null ????
+                return searchedColumn === dataIndex ? (
+                    <Highlighter
+                        highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+                        searchWords={[searchText]}
+                        autoEscape
+                        textToHighlight={text ? text.toString() : ''}
+                    />
+                ) : (
+                    text
+                )
+            }
+        }
+    };
+
     const [fetchState, setFetchState] = useState({
         loading: false,
         dataSource: [],
@@ -14,28 +57,29 @@ export const ServiceList = () => {
     const [tableState, setTableState] = useState<any>({
         page: 1,
         pageSize: 1,
-        ordering: undefined
+        ordering: undefined,
+        filters: undefined
     });
     const [columns] = useState([{
         title: 'ID',
         dataIndex: 'id',
         key: 'id',
         sorter: true,
-        filterDropdown: <ColumnFilterDropdown />
+        ...getColumnSearchProps('id')
     },
     {
         title: 'Title',
         dataIndex: 'title',
         key: 'title',
         sorter: true,
-        filterDropdown: <ColumnFilterDropdown />
+        ...getColumnSearchProps('title')
     },
     {
         title: 'Abstract',
         dataIndex: 'abstract',
         key: 'abstract',
         sorter: true,
-        filterDropdown: <ColumnFilterDropdown />
+        ...getColumnSearchProps('abstract')
     },]);
 
     const { api } = useContext(OpenAPIContext);
@@ -51,7 +95,8 @@ export const ServiceList = () => {
             const res = await client.v1_registry_service_services_list({
                 page: tableState.page,
                 page_size: tableState.pageSize,
-                ordering: tableState.ordering
+                ordering: tableState.ordering,
+                ...tableState.filters
             });
             setFetchState({
                 loading: false,
@@ -64,10 +109,17 @@ export const ServiceList = () => {
     }, [tableState, api]);
 
     function handleTableChange(pagination: any, filters: any, sorter: any) {
+        const filterParams: any = {};
+        for (const prop in filters) {
+            if (filters[prop] && filters[prop].length > 0) {
+                filterParams[prop + "__icontains"] = filters[prop][0];
+            }
+        }
         setTableState({
             page: pagination.current,
             pageSize: pagination.pageSize,
-            ordering: sorter ? ((sorter.order === 'descend' ? '-' : '') + sorter.field) : undefined
+            ordering: sorter ? ((sorter.order === 'descend' ? '-' : '') + sorter.field) : undefined,
+            filters: filterParams
         });
     };
 
@@ -87,6 +139,7 @@ export const ServiceList = () => {
                     onChange={handleTableChange}
                 />
             </Card>
+            <h1>SearchedColumn: {searchedColumn}</h1>
         </div>
     );
 }

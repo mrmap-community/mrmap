@@ -11,7 +11,7 @@ import { AuthProvider } from "./Hooks/AuthUserProvider";
 export default function App() {
   return (
     <Router>
-      <OpenAPIProvider definition="https://localhost/api/schema/" axiosConfigDefaults={{ baseURL: "https://localhost" }}>
+      <OpenAPIProvider definition="http://localhost:8001/api/schema/" axiosConfigDefaults={{ baseURL: "http://localhost:8001" }}>
         <AuthProvider>
           <NavBar />
           <Routes>

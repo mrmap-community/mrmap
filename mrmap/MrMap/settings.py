@@ -338,7 +338,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-STATIC_URL = '/static/'
+STATIC_URL = '/backend/static/'
 STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
     BASE_DIR + '/MrMap/static',
@@ -525,3 +525,5 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     # OTHER SETTINGS
 }
+USE_X_FORWARDED_HOST = True
+FORCE_SCRIPT_NAME = "/backend"

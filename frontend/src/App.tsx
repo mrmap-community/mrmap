@@ -6,14 +6,20 @@ import './App.css';
 import { OpenAPIProvider } from "./Hooks/OpenAPIProvider";
 import { LoginForm } from "./Components/Users/Auth/Login";
 import { AuthProvider } from "./Hooks/AuthUserProvider";
-
+import { Header } from "antd/lib/layout/layout";
+import { Avatar, Col, Row } from "antd";
+import { UserOutlined } from "@ant-design/icons";
 
 export default function App() {
   return (
     <Router>
       <OpenAPIProvider definition="https://localhost/backend/api/schema/" axiosConfigDefaults={{ baseURL: "https://localhost/backend" }}>
         <AuthProvider>
-          <NavBar />
+        <Header>
+
+            <NavBar />
+           
+        </Header>
           <Routes>
             <Route path="/" element={<Dashboard/>}/>
             <Route path="/registry/services/wms" element={<ServiceList/>}/>

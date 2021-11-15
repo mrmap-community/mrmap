@@ -9,7 +9,7 @@ export const LoginForm = () => {
   
   const onFinish = (values: any) => {
     console.log('Received values of form: ', values);
-    handleAuth({username: values.username, password: values.password});
+    handleAuth({username: values.username, password: values.password}, "loginUser");
   };
 
   return (

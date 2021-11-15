@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
     const [username, setUsername] = useState("guest");
     const { api } = useContext(OpenAPIContext);
 
-    const handleAuth = ({ username, password }) => {
+    const handleAuth = ({ username, password }, action) => {
       // async function checkCurrentAuth() {
       //   const client = await api.getClient();
       //   debugger;
@@ -35,7 +35,23 @@ export const AuthProvider = ({ children }) => {
         }
         console.log(username);
       }
-      loginUser();
+
+      async function logoutUser(){
+        const client = await api.getClient();
+        const res = await client.v1_auth_logout_create();
+        console.log(res);
+      }
+
+      switch (action) {
+        case "loginUser":
+          loginUser();
+          break;
+        case "logoutUser":
+          logoutUser();
+          break;
+        default:
+          break;
+      }
 
     };
     const data = [username, handleAuth];

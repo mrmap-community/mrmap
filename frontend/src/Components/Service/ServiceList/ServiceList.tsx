@@ -1,40 +1,69 @@
-import { useContext, useEffect, useState } from "react";
-import { Table, Card } from "antd";
+import { createRef, useContext, useEffect, useState } from "react";
+import { Table, Card, Input, Space, Button } from "antd";
 import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
-import { ColumnFilterDropdown } from "./ColumnFilterDropdown";
 import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
 
 export const ServiceList = () => {
 
-    console.log("*** ServiceList");
-
-    const [searchInputFocused, setSearchInputFocused] = useState(false);
-    const [searchText, setSearchText] = useState("");
-    const [searchedColumn, setSearchedColumn] = useState("");
-
     const getColumnSearchProps = (dataIndex: any): any => {
+        const searchInput: any = createRef();
+        let searchText = "";
+        let searchedColumn: any = null;
         return {
-            filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: any) => (
-                <ColumnFilterDropdown
-                    setSelectedKeys={setSelectedKeys}
-                    selectedKeys={selectedKeys}
-                    confirm={confirm}
-                    clearFilters={clearFilters}
-                    dataIndex={dataIndex}
-                    searchText={searchText}
-                    setSearchText={setSearchText}
-                    searchedColumn={searchedColumn}
-                    setSearchedColumn={setSearchedColumn}
-                    searchInputFocused={searchInputFocused} />),
+            filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: any) => {
+                const handleSearch = (selectedKeys: any, confirm: any, dataIndex: any) => {
+                    confirm();
+                    searchText = selectedKeys[0];
+                    searchedColumn = dataIndex;
+                };
+                const handleReset = (clearFilters: any) => {
+                    clearFilters();
+                    searchText = '';
+                };
+                return (<div style={{ padding: 8 }}>
+                    <Input
+                        ref={searchInput}
+                        placeholder={`Search ${dataIndex}`}
+                        value={selectedKeys[0]}
+                        onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                        onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                        style={{ marginBottom: 8, display: 'block' }}
+                    />
+                    <Space>
+                        <Button
+                            type="primary"
+                            onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                            icon={<SearchOutlined />}
+                            size="small"
+                            style={{ width: 90 }}
+                        >
+                            Search
+                        </Button>
+                        <Button onClick={() => handleReset(clearFilters)} size="small" style={{ width: 90 }}>
+                            Reset
+                        </Button>
+                        <Button
+                            type="link"
+                            size="small"
+                            onClick={() => {
+                                confirm({ closeDropdown: false });
+                                searchText = selectedKeys[0];
+                                searchedColumn = dataIndex;
+                            }}
+                        >
+                            Filter
+                        </Button>
+                    </Space>
+                </div>);
+            },
             onFilterDropdownVisibleChange: (visible: any) => {
-                console.log("*** setSearchInputFocused: " + visible);
-                setSearchInputFocused(visible);
+                if (visible) {
+                    setTimeout(() => searchInput.current.select(), 100);
+                }
             },
             filterIcon: (filtered: any) => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
             render: (text: any) => {
-                console.log("**** render " + searchedColumn);
-                // searchedColumn null ????
                 return searchedColumn === dataIndex ? (
                     <Highlighter
                         highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
@@ -85,7 +114,6 @@ export const ServiceList = () => {
     const { api } = useContext(OpenAPIContext);
 
     useEffect(() => {
-        console.log("*** fetching");
         async function fetchTableData() {
             setFetchState({
                 ...fetchState,
@@ -139,7 +167,6 @@ export const ServiceList = () => {
                     onChange={handleTableChange}
                 />
             </Card>
-            <h1>SearchedColumn: {searchedColumn}</h1>
         </div>
     );
 }

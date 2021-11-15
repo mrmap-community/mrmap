@@ -2,11 +2,13 @@ import { Menu } from 'antd';
 import { DashboardOutlined, ApartmentOutlined, UserOutlined, DatabaseOutlined, KeyOutlined } from '@ant-design/icons';
 import { Link } from "react-router-dom";
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../Hooks/AuthUserProvider';
 
 const { SubMenu } = Menu;
 
 export const NavBar = () => {
     const location = useLocation();
+    const [username, handleAuth] = useAuth();
     
     return (
           <Menu selectedKeys={[location.pathname]} mode="horizontal">
@@ -57,6 +59,17 @@ export const NavBar = () => {
                 <Menu.Item key="scurity:logs">Logs</Menu.Item>
               </Menu.ItemGroup>
             </SubMenu>
+            <SubMenu style={{float: 'right'}} title={username}>
+              <Menu.ItemGroup title="Item 1">
+                <Menu.Item key="setting:1">Option 1</Menu.Item>
+                <Menu.Item key="setting:2">Option 2</Menu.Item>
+              </Menu.ItemGroup>
+              <Menu.ItemGroup title="Item 2">
+                <Menu.Item key="setting:3">Option 3</Menu.Item>
+                <Menu.Item key="setting:4">Option 4</Menu.Item>
+              </Menu.ItemGroup>
+            </SubMenu>
+
           </Menu>
         );
 }

@@ -1,21 +1,15 @@
 import { Form, Input, Button, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useContext, useEffect, useState } from "react";
-import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
 import { CSRFToken } from '../../CSRF/CSRF';
+import { useAuth } from '../../../Hooks/AuthUserProvider';
 
 
 export const LoginForm = () => {
-  const { api } = useContext(OpenAPIContext);
+  const [username, handleAuth] = useAuth();
   
   const onFinish = (values: any) => {
     console.log('Received values of form: ', values);
-    async function loginUser() {
-        const client = await api.getClient();
-        const res = await client.v1_auth_login_create({},values);
-        console.log(res);
-    }
-    loginUser();
+    handleAuth({username: values.username, password: values.password});
   };
 
   return (

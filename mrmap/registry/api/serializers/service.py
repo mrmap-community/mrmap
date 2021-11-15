@@ -22,11 +22,16 @@ class LayerSerializer(ObjectAccessSerializer):
     #     read_only=True,
     #     view_name='api:dataset_metadata-detail'
     # )
+    service = HyperlinkedRelatedField(
+        read_only=True,
+        view_name='api:service-detail'
+    )
 
     class Meta:
         model = Layer
         fields = [
             'id',
+            'service',
             'scale_min',
             'scale_max',
             # TODO: this is causing too much queries to be made. Find out exactly why
@@ -60,7 +65,6 @@ class FeatureTypeSerializer(ObjectAccessSerializer):
         ]
 
 
-
 class KeywordSerializer(ModelSerializer):
 
     class Meta:
@@ -78,6 +82,7 @@ class ServiceTypeSerializer(ModelSerializer):
 class ServiceSerializer(ObjectAccessSerializer):
     type = ServiceTypeSerializer(source='service_type')
     layers = SerializerMethodField()
+    
     feature_types = SerializerMethodField()
     keywords = SerializerMethodField()
 
@@ -95,11 +100,7 @@ class ServiceSerializer(ObjectAccessSerializer):
         ]
 
     def get_layers(self, obj):
-        queryset = Layer.objects.none()
-
-        if obj.is_service_type(OGCServiceEnum.WMS):
-            queryset = obj.layers.all().prefetch_related('keywords')
-        return LayerSerializer(queryset, many=True, context=self.context).data
+        return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
 
     def get_feature_types(self, obj):
         queryset = FeatureType.objects.none()

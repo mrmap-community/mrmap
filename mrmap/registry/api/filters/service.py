@@ -62,7 +62,7 @@ class LayerApiFilter(MrMapApiSearchFilter):
 
     class Meta:
         model = Layer
-        fields = {}
+        fields = {'service__id': ['exact']}
 
     @staticmethod
     def search_filter(queryset, name, value):

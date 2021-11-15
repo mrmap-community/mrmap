@@ -31,7 +31,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     #    return Response(data=serializer.data, status=_status)
 
     def get_queryset(self, *args, **kwargs):
-        return super().get_queryset().prefetch_related('featuretypes', 'layers', 'keywords').select_related('owned_by_org', 'service_type')
+        return super().get_queryset().prefetch_related('keywords').select_related('owned_by_org', 'service_type')
 
 
 class LayerViewSet(ModelViewSetWithPermissionChecker):
@@ -40,7 +40,7 @@ class LayerViewSet(ModelViewSetWithPermissionChecker):
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
     pagination_class = StandardResultsSetPagination
-    permission_classes = [DjangoObjectPermissions]
+    # permission_classes = [DjangoObjectPermissions]
 
     serializers = {
         'default': LayerSerializer

@@ -62,8 +62,8 @@ services:
         target: /opt/mrmap/public
     networks:
       - mrmap-internal
-    environment:
-      NODE_ENV: development
+    env_file:
+      - docker/frontend/.mrmap.env
     working_dir: "/opt/mrmap"
     command: "npm start"
 

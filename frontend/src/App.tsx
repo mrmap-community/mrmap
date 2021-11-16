@@ -7,13 +7,21 @@ import { OpenAPIProvider } from "./Hooks/OpenAPIProvider";
 import { LoginForm } from "./Components/Users/Auth/Login";
 import { AuthProvider } from "./Hooks/AuthUserProvider";
 import { Header } from "antd/lib/layout/layout";
-import { Avatar, Col, Row } from "antd";
-import { UserOutlined } from "@ant-design/icons";
+
+
 
 export default function App() {
+  
+  if (process.env.REACT_APP_REST_API_SCHEMA_URL === undefined) {
+    throw new Error("Environment variable REACT_APP_REST_API_SCHEMA_URL is undefined.");
+  }
+  if (process.env.REACT_APP_REST_API_BASE_URL === undefined) {
+    throw new Error("Environment variable REACT_APP_REST_API_BASE_URL is undefined.");
+  }
+
   return (
     <Router>
-      <OpenAPIProvider definition="https://localhost/backend/api/schema/" axiosConfigDefaults={{ baseURL: "https://localhost/backend" }}>
+      <OpenAPIProvider definition={process.env.REACT_APP_REST_API_SCHEMA_URL} axiosConfigDefaults={{ baseURL: process.env.REACT_APP_REST_API_BASE_URL }}>
         <AuthProvider>
         <Header>
 

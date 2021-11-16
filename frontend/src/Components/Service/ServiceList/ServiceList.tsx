@@ -89,29 +89,35 @@ export const ServiceList = () => {
         ordering: undefined,
         filters: undefined
     });
-    const [columns] = useState([{
-        title: 'ID',
-        dataIndex: 'id',
-        key: 'id',
-        sorter: true,
-        ...getColumnSearchProps('id')
-    },
-    {
-        title: 'Title',
-        dataIndex: 'title',
-        key: 'title',
-        sorter: true,
-        ...getColumnSearchProps('title')
-    },
-    {
-        title: 'Abstract',
-        dataIndex: 'abstract',
-        key: 'abstract',
-        sorter: true,
-        ...getColumnSearchProps('abstract')
-    },]);
+    const [columns, setColumns] = useState<any>([]);
 
     const { api } = useContext(OpenAPIContext);
+
+    useEffect(() => {
+        async function buildColumns() {
+            const client = await api.getClient();
+            const props = client.api.getOperation("v1_registry_service_services_list").responses[200].content["application/json"].schema.properties.results.items.properties;
+            const columns = [];
+            for (let propName in props) {
+                const prop = props[propName];
+                if (propName === 'keywords') {
+                    // TODO why does keywords as dataIndex not work??
+                    break;
+                }
+                columns.push({
+                    title: prop.title || propName,
+                    dataIndex: propName,
+                    key: propName,
+                    sorter: true,
+                    ...getColumnSearchProps(propName)
+                });
+
+            }
+            setColumns(columns);
+        }
+        buildColumns();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         async function fetchTableData() {

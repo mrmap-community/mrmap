@@ -23,7 +23,7 @@ services:
 
   pre-commit-check:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -33,19 +33,19 @@ services:
     hostname: "mrmap-test"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
     env_file:
-      - ./.mrmap.env
+      - ./docker/backend/.mrmap.env
     depends_on:
       - postgis
       - redis
 
   test:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -56,20 +56,20 @@ services:
     hostname: "mrmap-test"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
     env_file:
-      - ./.mrmap.env
-      - ./.mrmap.dev.env
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
     depends_on:
       - postgis
       - redis
 
   behave:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/mrmap/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -81,13 +81,13 @@ services:
     hostname: "mrmap-behave"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
     env_file:
-      - ./.mrmap.env
-      - ./.mrmap.dev.env
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
     environment:
       - DJANGO_DEBUG=0
     depends_on:
@@ -99,8 +99,8 @@ services:
         args:
           MRMAP_PRODUCTION: "False"
       env_file:
-        - ./.mrmap.env
-        - ./.mrmap.dev.env
+        - docker/backend/.mrmap.env
+        - docker/backend/.mrmap.dev.env
       command:
         /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
 
@@ -109,8 +109,8 @@ services:
         args:
           MRMAP_PRODUCTION: "False"
       env_file:
-        - ./.mrmap.env
-        - ./.mrmap.dev.env
+        - ./docker/backend/.mrmap.env
+        - ./docker/backend/.mrmap.dev.env
       command: >
         /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
 
@@ -119,8 +119,8 @@ services:
         args:
           MRMAP_PRODUCTION: "False"
       env_file:
-        - ./.mrmap.env
-        - ./.mrmap.dev.env
+        - ./docker/backend/.mrmap.env
+        - ./docker/backend/.mrmap.dev.env
       command: >
         /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 

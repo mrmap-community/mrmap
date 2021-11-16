@@ -20,7 +20,7 @@ import sys
 import django
 from subprocess import check_output
 
-sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../backend'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 # Get an instance of a logger
 from MrMap.settings import LOG_DIR

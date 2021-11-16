@@ -1,8 +1,8 @@
 {
     "cucumberautocomplete.steps": [
-        "mrmap/tests/behave/steps/*.py",
-        "mrmap/tests/behave/api/steps/*.py",
-        "mrmap/tests/behave/selenium/steps/*.py",
+        "backend/tests/behave/steps/*.py",
+        "backend/tests/behave/api/steps/*.py",
+        "backend/tests/behave/selenium/steps/*.py",
         ".venv/lib/python3.9/site-packages/behave_webdriver/steps/*.py",
         ".venv/lib/python3.9/site-packages/behave_restful/lang/*.py"
         

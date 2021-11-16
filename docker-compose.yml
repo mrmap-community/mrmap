@@ -49,12 +49,17 @@ services:
 
   
   frontend:
-    image: node:16-alpine
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
     hostname: "mrmap-frontend"
     volumes:
       - type: bind
-        source: ./frontend
-        target: /opt/mrmap
+        source: ./frontend/src
+        target: /opt/mrmap/src
+      - type: bind
+        source: ./frontend/public
+        target: /opt/mrmap/public
     networks:
       - mrmap-internal
     environment:

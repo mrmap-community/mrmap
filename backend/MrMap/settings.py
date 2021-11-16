@@ -515,15 +515,15 @@ REST_FRAMEWORK = {'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'}
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-CORS_ALLOWED_ORIGINS = [
-     'http://localhost:3000'
-]
+if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
+    CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap API',
     'DESCRIPTION': 'Registry API for geospatial data, metadata, services and their describing documents',
     'VERSION': '1.0.0',
-    # OTHER SETTINGS
+    'SCHEMA_PATH_PREFIX_INSERT': 'backend',
+
 }
 USE_X_FORWARDED_HOST = True
 FORCE_SCRIPT_NAME = "/backend"

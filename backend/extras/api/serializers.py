@@ -1,5 +1,5 @@
 from collections import OrderedDict
-
+from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
 
@@ -24,3 +24,17 @@ class ObjectAccessSerializer(ModelSerializer):
         else:
             result['accessible'] = False
         return result
+
+
+class LinksSerializerMixin:
+
+    links_fields = []
+
+    links = SerializerMethodField()
+
+    def get_links(self, obj):
+        for field in self.links_fields:
+            if field in self.__class__._meta.local_many_to_many:
+                # its a local m2m field
+                i = 0
+                pass

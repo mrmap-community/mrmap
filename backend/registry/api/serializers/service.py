@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.reverse import reverse
 from rest_framework.serializers import ModelSerializer, HyperlinkedRelatedField
 from rest_framework.fields import SerializerMethodField
-from extras.api.serializers import ObjectAccessSerializer
+from extras.api.serializers import LinksSerializerMixin, ObjectAccessSerializer
 from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
 from registry.models.metadata import Keyword
 from registry.enums.service import OGCServiceEnum
@@ -79,12 +79,18 @@ class ServiceTypeSerializer(ModelSerializer):
         fields = ['name']
 
 
-class ServiceSerializer(ObjectAccessSerializer):
+class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
+    links_fields = ['layers']
+    
     type = ServiceTypeSerializer(source='service_type')
     layers = SerializerMethodField()
     
     feature_types = SerializerMethodField()
     keywords = SerializerMethodField()
+
+    links_fields = ['layers']
+
+    links = SerializerMethodField('get_links')
 
     class Meta:
         model = Service
@@ -97,9 +103,22 @@ class ServiceSerializer(ObjectAccessSerializer):
             'keywords',
             'layers',
             'feature_types',
+            'links',
         ]
 
+    def get_links(self, obj):
+        from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
+
+        for field in self.links_fields:
+            if isinstance(obj.__class__.layers, ReverseManyToOneDescriptor):
+                # its a reverse relation --> collection
+                # TODO: get filter attribute by relation pk
+                i = 0
+                pass
+
+
     def get_layers(self, obj):
+        
         return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
 
     def get_feature_types(self, obj):

@@ -80,8 +80,7 @@ class ServiceTypeSerializer(ModelSerializer):
 
 
 class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
-    links_fields = ['layers']
-    
+   
     type = ServiceTypeSerializer(source='service_type')
     layers = SerializerMethodField()
     

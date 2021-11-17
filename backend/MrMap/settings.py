@@ -522,7 +522,7 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap API',
     'DESCRIPTION': 'Registry API for geospatial data, metadata, services and their describing documents',
     'VERSION': '1.0.0',
-#    'SCHEMA_PATH_PREFIX_INSERT': 'backend'
+    # 'SCHEMA_PATH_PREFIX_INSERT': 'backend'
 }
 # USE_X_FORWARDED_HOST = True
-FORCE_SCRIPT_NAME = "/backend"
+# FORCE_SCRIPT_NAME = "/backend"

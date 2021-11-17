@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
       //   // 200 if logged in user
       //   // 403 if no authenticated used is present
 
-      // } 
+      // }
 
       // checkCurrentAuth();
 
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
         const client = await api.getClient();
         const res = await client.v1_auth_login_create({},{username: username, password: password});
         console.log(res);
-        if (res.status == 200){
+        if (res.status === 200){
           console.log("HUHU");
           setUsername(username);
         }
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
     const data = [username, handleAuth];
     return <AuthContext.Provider value={data}>{children}</AuthContext.Provider>;
   };
-  
+
 
   export const useAuth = () => {
     const context = useContext(AuthContext);

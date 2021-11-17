@@ -128,7 +128,7 @@ class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
     def get_layers(self, obj):
         return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
 
-    def get_feature_types(self, obj):
+    def get_feature_types(self, obj) -> FeatureTypeSerializer:
         queryset = FeatureType.objects.none()
 
         if obj.is_service_type(OGCServiceEnum.WFS):
@@ -136,7 +136,7 @@ class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
         return FeatureTypeSerializer(queryset, many=True, context=self.context).data
 
     @staticmethod
-    def get_keywords(obj):
+    def get_keywords(obj) -> KeywordSerializer:
         try:
             keywords = obj.keywords
         except ObjectDoesNotExist:

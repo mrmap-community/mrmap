@@ -5,8 +5,8 @@ import { useAuth } from '../../../Hooks/AuthUserProvider';
 
 
 export const LoginForm = () => {
-  const [username, handleAuth] = useAuth();
-  
+  const [, handleAuth] = useAuth();
+
   const onFinish = (values: any) => {
     console.log('Received values of form: ', values);
     handleAuth({username: values.username, password: values.password}, "loginUser");
@@ -19,7 +19,7 @@ export const LoginForm = () => {
       initialValues={{ remember: true }}
       onFinish={onFinish}
     >
-      <CSRFToken /> 
+      <CSRFToken />
       <Form.Item
         name="username"
         rules={[{ required: true, message: 'Please input your Username!' }]}
@@ -41,16 +41,16 @@ export const LoginForm = () => {
           <Checkbox>Remember me</Checkbox>
         </Form.Item>
 
-        <a className="login-form-forgot" href="">
+        <span className="login-form-forgot">
           Forgot password
-        </a>
+        </span>
       </Form.Item>
 
       <Form.Item>
         <Button type="primary" htmlType="submit" className="login-form-button">
           Log in
         </Button>
-        Or <a href="">register now!</a>
+        Or <span>register now!</span>
       </Form.Item>
     </Form>
   );

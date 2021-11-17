@@ -78,8 +78,8 @@ export const ServiceList = () => {
         }
     };
 
-    const [fetchState, setFetchState] = useState({
-        loading: false,
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState({
         dataSource: [],
         total: 0
     });
@@ -90,6 +90,7 @@ export const ServiceList = () => {
         filters: undefined
     });
     const [columns, setColumns] = useState<any>([]);
+    const [columnTypes, setColumnTypes] = useState<any>({});
 
     const { api } = useContext(OpenAPIContext);
 
@@ -98,33 +99,31 @@ export const ServiceList = () => {
             const client = await api.getClient();
             const props = client.api.getOperation("v1_registry_service_services_list").responses[200].content["application/json"].schema.properties.results.items.properties;
             const columns = [];
-            for (let propName in props) {
+            for (const propName in props) {
                 const prop = props[propName];
-                if (propName === 'keywords') {
-                    // TODO why does keywords as dataIndex not work??
-                    break;
-                }
-                columns.push({
+                const column:any = {
                     title: prop.title || propName,
                     dataIndex: propName,
-                    key: propName,
-                    sorter: true,
-                    ...getColumnSearchProps(propName)
-                });
-
+                    key: propName
+                };
+                prop.isFlat = prop.type === 'string';
+                if (prop.isFlat) {
+                    column.sorter = true;
+                    const columnSearchProps = {...getColumnSearchProps(propName)};
+                    Object.assign(column, columnSearchProps);
+                }
+                columns.push(column);
             }
             setColumns(columns);
+            setColumnTypes(props);
         }
         buildColumns();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [api]);
 
     useEffect(() => {
         async function fetchTableData() {
-            setFetchState({
-                ...fetchState,
-                loading: true
-            });
+            console.log("A");
+            setLoading(true);
             const client = await api.getClient();
             const res = await client.v1_registry_service_services_list({
                 page: tableState.page,
@@ -132,15 +131,26 @@ export const ServiceList = () => {
                 ordering: tableState.ordering,
                 ...tableState.filters
             });
-            setFetchState({
-                loading: false,
+            for (const columnName in columnTypes) {
+                const columnType = columnTypes[columnName];
+                if (!columnType.isFlat) {
+                    res.data.results.forEach((result:any) => {
+                        result[columnName] = '[complex value]';
+                    });
+                }
+            }
+            setData({
                 dataSource: res.data.results,
                 total: res.data.count
             });
+            setLoading(false);
+        }
+        // TODO can this skip be avoided somehow -> necessary when columnTypes is not initialized yet
+        if (columnTypes && Object.keys(columnTypes).length === 0 && Object.getPrototypeOf(columnTypes) === Object.prototype) {
+            return;
         }
         fetchTableData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tableState, api]);
+    }, [tableState, api, columnTypes]);
 
     function handleTableChange(pagination: any, filters: any, sorter: any) {
         const filterParams: any = {};
@@ -156,23 +166,20 @@ export const ServiceList = () => {
             filters: filterParams
         });
     };
-
     return (
-        <div className="mrmap-mapcontext-list">
-            <Card title="Services" style={{ width: '100%' }}>
-                <Table
-                    dataSource={fetchState.dataSource}
-                    rowKey={(record: any) => record.id}
-                    columns={columns}
-                    loading={fetchState.loading}
-                    pagination={{
-                        current: tableState.page,
-                        pageSize: tableState.pageSize,
-                        total: fetchState.total,
-                    }}
-                    onChange={handleTableChange}
-                />
-            </Card>
-        </div>
+        <Card title="Services" style={{ width: '100%' }}>
+            <Table
+                dataSource={data.dataSource}
+                rowKey={(record: any) => record.id}
+                columns={columns}
+                loading={loading}
+                pagination={{
+                    current: tableState.page,
+                    pageSize: tableState.pageSize,
+                    total: data.total,
+                }}
+                onChange={handleTableChange}
+            />
+        </Card>
     );
 }

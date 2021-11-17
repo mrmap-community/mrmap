@@ -80,10 +80,9 @@ class ServiceTypeSerializer(ModelSerializer):
 
 
 class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
-   
     type = ServiceTypeSerializer(source='service_type')
     layers = SerializerMethodField()
-    
+
     feature_types = SerializerMethodField()
     keywords = SerializerMethodField()
 
@@ -106,18 +105,27 @@ class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
         ]
 
     def get_links(self, obj):
+        links = []
         from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
 
         for field in self.links_fields:
             if isinstance(obj.__class__.layers, ReverseManyToOneDescriptor):
-                # its a reverse relation --> collection
-                # TODO: get filter attribute by relation pk
-                i = 0
-                pass
+                query_param = f"{obj.__class__.layers.rel.remote_field.name}__{obj.__class__.layers.rel.field_name}"
+                query = f"?{query_param}={getattr(obj, obj.__class__.layers.rel.field_name)}"
+                reverse_name = f"api:{obj.__class__.layers.field.opts.model_name}-list"
+                path = f"{reverse(reverse_name)}"
+                absolute_uri = self.context['request'].build_absolute_uri(path) + query
+                links.append({
+                    "rel": "child",
+                    "kind": "collection",
+                    "name": "keywords",
+                    "count": "TODO",
+                    "href": absolute_uri
 
+                })
+        return links
 
     def get_layers(self, obj):
-        
         return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
 
     def get_feature_types(self, obj):

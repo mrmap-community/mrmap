@@ -1,19 +1,35 @@
+import { ApartmentOutlined, DashboardOutlined, DatabaseOutlined, KeyOutlined, LoginOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Col, Menu, Row, Tag, Tooltip } from 'antd';
-import { LoginOutlined, LogoutOutlined, DashboardOutlined, ApartmentOutlined, UserOutlined, DatabaseOutlined, KeyOutlined } from '@ant-design/icons';
-import { Link } from "react-router-dom";
-import { useLocation } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+
 import { useAuth } from '../../Hooks/AuthUserProvider';
 
 const { SubMenu } = Menu;
 
-
 const AuthButton = (props:any) => {
-  if ( props.username === "guest" ){
-    return <Tooltip title="login"><Button type="primary" icon={<LoginOutlined />} href="/users/auth/login"/></Tooltip>
+  if (props.username === 'guest') {
+    return (
+      <Tooltip title="login">
+        <Button
+          type="primary"
+          icon={<LoginOutlined />}
+          href="/users/auth/login"
+        />
+      </Tooltip>
+    );
   } else {
-    return <Tooltip title="logout"><Button type="primary" icon={<LogoutOutlined />} onClick={() => props.handleAuth({}, "logoutUser")}/></Tooltip>
+    return (
+      <Tooltip title="logout">
+        <Button
+          type="primary"
+          icon={<LogoutOutlined />}
+          onClick={() => props.handleAuth({}, 'logoutUser')}
+        />
+      </Tooltip>
+    );
   }
-}
+};
 
 export const NavBar = () => {
   const location = useLocation();
@@ -79,6 +95,5 @@ export const NavBar = () => {
       </Col>
     </Row>
 
-
   );
-}
+};

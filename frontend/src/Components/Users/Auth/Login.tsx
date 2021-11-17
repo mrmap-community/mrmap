@@ -1,15 +1,16 @@
-import { Form, Input, Button, Checkbox } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { CSRFToken } from '../../CSRF/CSRF';
-import { useAuth } from '../../../Hooks/AuthUserProvider';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Checkbox, Form, Input } from 'antd';
+import React from 'react';
 
+import { useAuth } from '../../../Hooks/AuthUserProvider';
+import { CSRFToken } from '../../CSRF/CSRF';
 
 export const LoginForm = () => {
-  const [username, handleAuth] = useAuth();
-  
+  const [username, handleAuth] = useAuth(); // eslint-disable-line @typescript-eslint/no-unused-vars
+
   const onFinish = (values: any) => {
     console.log('Received values of form: ', values);
-    handleAuth({username: values.username, password: values.password}, "loginUser");
+    handleAuth({ username: values.username, password: values.password }, 'loginUser');
   };
 
   return (
@@ -19,7 +20,7 @@ export const LoginForm = () => {
       initialValues={{ remember: true }}
       onFinish={onFinish}
     >
-      <CSRFToken /> 
+      <CSRFToken />
       <Form.Item
         name="username"
         rules={[{ required: true, message: 'Please input your Username!' }]}

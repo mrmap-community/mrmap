@@ -235,6 +235,30 @@
                 "setup",
                 "--reset-force"
             ]
+        },
+        {
+          "label": "ESLint",
+          "type": "shell",
+          "problemMatcher": "$eslint-stylish",
+          "command": "npm",
+          "args":  [
+            "--prefix",
+            "${workspaceFolder}/frontend/",
+            "run",
+            "lint"
+          ]
+        },
+        {
+          "label": "ESLint:fix",
+          "type": "shell",
+          "problemMatcher": "$eslint-stylish",
+          "command": "npm",
+          "args":  [
+            "--prefix",
+            "${workspaceFolder}/frontend/",
+            "run",
+            "lint:fix"
+          ]
         }
     ]
 }

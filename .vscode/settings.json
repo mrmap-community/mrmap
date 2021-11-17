@@ -15,4 +15,17 @@
     "python.linting.flake8Args": [
         "--ignore=E501,W504",
     ],
+    "javascript.format.enable": false,
+    "typescript.format.enable": false,
+    "eslint.format.enable": true,
+    "eslint.lintTask.enable": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": true
+    },
+    "eslint.workingDirectories": [
+      {
+        "mode": "auto"
+      }
+    ],
+    "eslint.validate": ["javascript", "typescript", "javascriptreact", "typescriptreact"]
 }

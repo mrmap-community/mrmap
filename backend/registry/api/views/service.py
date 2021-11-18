@@ -1,20 +1,19 @@
-from extras.api import viewsets
 from registry.api.serializers.service import ServiceSerializer, FeatureTypeSerializer, LayerSerializer
 from registry.models import Service, Layer, FeatureType
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import RelationshipView
+from rest_framework_json_api.views import RelationshipView, ModelViewSet
 
 
 class ServiceRelationshipView(RelationshipView):
     queryset = Service.objects
 
 
-class ServiceViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+class ServiceViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    
 
-class LayerViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+
+class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Layer.objects.all()
     serializer_class = LayerSerializer
 
@@ -32,7 +31,7 @@ class LayerViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
         return queryset
 
 
-class FeatureTypeViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
 

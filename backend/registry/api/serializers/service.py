@@ -1,7 +1,6 @@
-from rest_framework.serializers import ModelSerializer
-from extras.api.serializers import LinksSerializerMixin, ObjectAccessSerializer
 from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
 from registry.models.metadata import Keyword
+from rest_framework_json_api.serializers import ModelSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 
 
@@ -12,14 +11,14 @@ class OperationsUrlSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class LayerSerializer(ObjectAccessSerializer):
+class LayerSerializer(ModelSerializer):
 
     class Meta:
         model = Layer
         fields = '__all__'
 
 
-class FeatureTypeSerializer(ObjectAccessSerializer):
+class FeatureTypeSerializer(ModelSerializer):
 
     class Meta:
         model = FeatureType
@@ -40,7 +39,7 @@ class ServiceTypeSerializer(ModelSerializer):
         fields = ['name']
 
 
-class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
+class ServiceSerializer(ModelSerializer):
 
     class Meta:
         model = Service

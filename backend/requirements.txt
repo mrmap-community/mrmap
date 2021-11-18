@@ -42,5 +42,6 @@ coreapi==2.3.3
 
 djangorestframework==3.12.4
 djangorestframework-jsonapi==4.2.1
+djangorestframework-jsonapi[django-filter]==4.2.1
 dj-rest-auth==2.1.11
 drf-extensions==0.7.1

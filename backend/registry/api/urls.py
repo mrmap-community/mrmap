@@ -2,7 +2,7 @@ from registry.api.views import mapcontext as mapcontext_views
 from registry.api.views import metadata as metadata_views
 from registry.api.views import service as service_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
-from django.urls import re_path
+from django.urls import path
 
 app_name = 'registry'
 
@@ -16,5 +16,5 @@ nested_api_router = ExtendedSimpleRouter()
 
 urlpatterns = nested_api_router.urls
 urlpatterns.extend([
-    re_path(r'^services/(?P<pk>[^/.]+)/relationships/(?P<related_field>[-/w]+)$', service_views.ServiceRelationshipView, name='service-relationships')
+    path('services/<pk>/relationships/<related_field>', service_views.ServiceRelationshipView.as_view(), name='service-relationships')
 ])

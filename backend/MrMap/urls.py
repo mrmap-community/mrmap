@@ -16,16 +16,11 @@ Including another URLconf
 
 from django.urls import path, include
 from django.views.generic.base import RedirectView
-from rest_framework.routers import DefaultRouter
 from MrMap.settings import DEBUG
-from registry.api.urls import registry_api_router
 from django.views.generic import TemplateView
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
-# Register REST API routes
-rest_api_router = DefaultRouter()
-rest_api_router.registry.extend(registry_api_router.registry)
 
 urlpatterns = [
     # generic redirect if no path is used
@@ -34,7 +29,7 @@ urlpatterns = [
     # MrMapApps
     path('users/', include('users.urls')),
     path('acls/', include('acls.urls')),
-    path('registry/', include('registry.urls')),
+    #path('registry/', include('registry.urls')),
     path('jobs/', include('jobs.urls')),
 
     # captcha support
@@ -48,7 +43,9 @@ urlpatterns = [
     path('ac/users/', include('users.autocompletes.urls')),
 
     # REST API
-    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
+
+    # registry api urls
+    path('api/v1/', include('registry.api.urls', namespace='registry')),
     # path('api/v1/auth/', include('dj_rest_auth.urls')),
 
     path(

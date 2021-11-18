@@ -6,6 +6,7 @@ from extras.api.serializers import LinksSerializerMixin, ObjectAccessSerializer
 from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
 from registry.models.metadata import Keyword
 from registry.enums.service import OGCServiceEnum
+from rest_framework_json_api.relations import ResourceRelatedField
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -22,25 +23,14 @@ class LayerSerializer(ObjectAccessSerializer):
     #     read_only=True,
     #     view_name='api:dataset_metadata-detail'
     # )
-    service = HyperlinkedRelatedField(
-        read_only=True,
-        view_name='api:service-detail'
-    )
+    # service = HyperlinkedRelatedField(
+    #     read_only=True,
+    #     view_name='api:service-detail'
+    # )
 
     class Meta:
         model = Layer
-        fields = [
-            'id',
-            'service',
-            'scale_min',
-            'scale_max',
-            # TODO: this is causing too much queries to be made. Find out exactly why
-            # 'inherit_scale_min',
-            # 'inherit_scale_max',
-
-            # TODO: extreme slow lookup... dont do this
-            # 'dataset_metadata'
-        ]
+        fields = '__all__'
 
 
 class FeatureTypeSerializer(ObjectAccessSerializer):
@@ -52,17 +42,8 @@ class FeatureTypeSerializer(ObjectAccessSerializer):
     # )
 
     class Meta:
-        model = Layer
-        fields = [
-            'id',
-            'scale_min',
-            'scale_max',
-            # TODO: this is causing too much queries to be made. Find out exactly why
-            # 'inherit_scale_min',
-            # 'inherit_scale_max',
-            # TODO: extreme slow lookup... dont do this
-            # 'dataset_metadata'
-        ]
+        model = FeatureType
+        fields = '__all__'
 
 
 class KeywordSerializer(ModelSerializer):
@@ -80,29 +61,20 @@ class ServiceTypeSerializer(ModelSerializer):
 
 
 class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
-    type = ServiceTypeSerializer(source='service_type')
-    #layers = SerializerMethodField()
-
-    #feature_types = SerializerMethodField()
-   # keywords = SerializerMethodField()
-
-    #links_fields = ['layers']
-
-    #links = SerializerMethodField('get_links')
+    #type = ServiceTypeSerializer(source='service_type')
 
     class Meta:
         model = Service
-        fields = [
-            'id',
-            'title',
-            'abstract',
-            'created_at',
-            'type',
-            #'keywords',
-            #'layers',
-            #'feature_types',
-            #'links',
-        ]
+        fields = "__all__"
+
+    layers = ResourceRelatedField(
+        queryset=Layer.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:service-layers-list',
+        related_link_url_kwarg='parent_lookup_service',
+        self_link_view_name='registry:service-relationships',
+    )
+
 
     # def get_links(self, obj):
     #     links = []

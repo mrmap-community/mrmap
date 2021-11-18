@@ -75,6 +75,14 @@ class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
         self_link_view_name='registry:service-relationships',
     )
 
+    featuretypes = ResourceRelatedField(
+        queryset=FeatureType.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:service-featuretypes-list',
+        related_link_url_kwarg='parent_lookup_service',
+        self_link_view_name='registry:service-relationships',
+    )
+
 
     # def get_links(self, obj):
     #     links = []

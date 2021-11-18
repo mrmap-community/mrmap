@@ -9,8 +9,9 @@ app_name = 'registry'
 nested_api_router = ExtendedSimpleRouter()
 (
     nested_api_router.register(r'services', service_views.ServiceViewSet, basename='service')
-                     .register(r'layers', service_views.LayerViewSet, basename='service-layers', parents_query_lookups=['service'])
-                     # .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='services-feature_type', parents_query_lookups=['service']) 
+                     .register(r'layers', service_views.LayerViewSet, basename='service-layers', parents_query_lookups=['service']),
+    nested_api_router.register(r'services', service_views.ServiceViewSet, basename='service')
+                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='service-featuretypes', parents_query_lookups=['service']) 
 
 )
 

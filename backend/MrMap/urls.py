@@ -17,10 +17,11 @@ Including another URLconf
 from django.urls import path, include
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
-from rest_framework.documentation import include_docs_urls
 from MrMap.settings import DEBUG
 from registry.api.urls import registry_api_router
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from django.views.generic import TemplateView
+from rest_framework.schemas import get_schema_view
+from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
 # Register REST API routes
 rest_api_router = DefaultRouter()
@@ -48,14 +49,28 @@ urlpatterns = [
 
     # REST API
     path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
-    path('api/v1/auth/', include('dj_rest_auth.urls')),
-    path('api/v1/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
+    # path('api/v1/auth/', include('dj_rest_auth.urls')),
 
-    # Swagger/OpenAPI
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    # Optional UI:
-    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path(
+        "api/v1/schema/",
+        get_schema_view(
+            title="MrMap API",
+            description="API for all things …",
+            version="1.0.0",
+            generator_class=SchemaGenerator,
+        ),
+        name="openapi-schema",
+    ),
+    path(
+        "api/v1/schema/swagger-ui/",
+        TemplateView.as_view(
+            template_name="extras/swagger-ui.html",
+            extra_context={"schema_url": "openapi-schema"},
+        ),
+        name="swagger-ui",
+    ),
+
+
 ]
 
 if DEBUG:

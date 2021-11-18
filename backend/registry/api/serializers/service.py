@@ -81,14 +81,14 @@ class ServiceTypeSerializer(ModelSerializer):
 
 class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
     type = ServiceTypeSerializer(source='service_type')
-    layers = SerializerMethodField()
+    #layers = SerializerMethodField()
 
-    feature_types = SerializerMethodField()
-    keywords = SerializerMethodField()
+    #feature_types = SerializerMethodField()
+   # keywords = SerializerMethodField()
 
-    links_fields = ['layers']
+    #links_fields = ['layers']
 
-    links = SerializerMethodField('get_links')
+    #links = SerializerMethodField('get_links')
 
     class Meta:
         model = Service
@@ -98,49 +98,49 @@ class ServiceSerializer(LinksSerializerMixin, ObjectAccessSerializer):
             'abstract',
             'created_at',
             'type',
-            'keywords',
-            'layers',
-            'feature_types',
-            'links',
+            #'keywords',
+            #'layers',
+            #'feature_types',
+            #'links',
         ]
 
-    def get_links(self, obj):
-        links = []
-        from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
+    # def get_links(self, obj):
+    #     links = []
+    #     from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
 
-        for field in self.links_fields:
-            if isinstance(obj.__class__.layers, ReverseManyToOneDescriptor):
-                query_param = f"{obj.__class__.layers.rel.remote_field.name}__{obj.__class__.layers.rel.field_name}"
-                query = f"?{query_param}={getattr(obj, obj.__class__.layers.rel.field_name)}"
-                reverse_name = f"api:{obj.__class__.layers.field.opts.model_name}-list"
-                path = f"{reverse(reverse_name)}"
-                absolute_uri = self.context['request'].build_absolute_uri(path) + query
-                links.append({
-                    "rel": "child",
-                    "kind": "collection",
-                    "name": "keywords",
-                    "count": "TODO",
-                    "href": absolute_uri
+    #     for field in self.links_fields:
+    #         if isinstance(obj.__class__.layers, ReverseManyToOneDescriptor):
+    #             query_param = f"{obj.__class__.layers.rel.remote_field.name}__{obj.__class__.layers.rel.field_name}"
+    #             query = f"?{query_param}={getattr(obj, obj.__class__.layers.rel.field_name)}"
+    #             reverse_name = f"api:{obj.__class__.layers.field.opts.model_name}-list"
+    #             path = f"{reverse(reverse_name)}"
+    #             absolute_uri = self.context['request'].build_absolute_uri(path) + query
+    #             links.append({
+    #                 "rel": "child",
+    #                 "kind": "collection",
+    #                 "name": "keywords",
+    #                 "count": "TODO",
+    #                 "href": absolute_uri
 
-                })
-        return links
+    #             })
+    #     return links
 
-    def get_layers(self, obj):
-        return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
+    # def get_layers(self, obj):
+    #     return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
 
-    def get_feature_types(self, obj) -> FeatureTypeSerializer:
-        queryset = FeatureType.objects.none()
+    # def get_feature_types(self, obj) -> FeatureTypeSerializer:
+    #     queryset = FeatureType.objects.none()
 
-        if obj.is_service_type(OGCServiceEnum.WFS):
-            queryset = obj.featuretypes.all().prefetch_related('keywords')
-        return FeatureTypeSerializer(queryset, many=True, context=self.context).data
+    #     if obj.is_service_type(OGCServiceEnum.WFS):
+    #         queryset = obj.featuretypes.all().prefetch_related('keywords')
+    #     return FeatureTypeSerializer(queryset, many=True, context=self.context).data
 
-    @staticmethod
-    def get_keywords(obj) -> KeywordSerializer:
-        try:
-            keywords = obj.keywords
-        except ObjectDoesNotExist:
-            keywords = None
-        if keywords:
-            return KeywordSerializer(keywords, many=True).data
-        return None
+    # @staticmethod
+    # def get_keywords(obj) -> KeywordSerializer:
+    #     try:
+    #         keywords = obj.keywords
+    #     except ObjectDoesNotExist:
+    #         keywords = None
+    #     if keywords:
+    #         return KeywordSerializer(keywords, many=True).data
+    #     return None

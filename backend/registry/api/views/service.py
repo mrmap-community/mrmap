@@ -12,10 +12,10 @@ from registry.models import Service, Layer, FeatureType
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
-    filterset_class = ServiceApiFilter
+    #filterset_class = ServiceApiFilter
     filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
     ordering_fields = ['title', 'abstract', 'id']
-    pagination_class = StandardResultsSetPagination
+    #pagination_class = StandardResultsSetPagination
     # permission_classes = [DjangoObjectPermissions]
 
     serializers = {

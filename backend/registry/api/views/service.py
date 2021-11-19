@@ -11,6 +11,10 @@ class ServiceRelationshipView(RelationshipView):
 class ServiceViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
+    prefetch_for_includes = {
+        '__all__': [],
+        'layers': ['layers']
+    }
 
 
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):

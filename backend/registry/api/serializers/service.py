@@ -41,9 +41,9 @@ class ServiceTypeSerializer(ModelSerializer):
 
 class ServiceSerializer(ModelSerializer):
 
-    class Meta:
-        model = Service
-        fields = "__all__"
+    included_serializers = {
+        'layers': LayerSerializer,
+    }
 
     layers = ResourceRelatedField(
         queryset=Layer.objects,
@@ -60,3 +60,12 @@ class ServiceSerializer(ModelSerializer):
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:service-relationships',
     )
+
+    class Meta:
+        model = Service
+        fields = "__all__"
+
+    class JSONAPIMeta:
+        include_resources = ['layers']
+
+    

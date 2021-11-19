@@ -1,8 +1,11 @@
+from datetime import timedelta
+import time
 import django_rq
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from requests.auth import HTTPDigestAuth
 from requests import Session, Request
+from rq.job import Retry
 from MrMap.validators import validate_get_capablities_uri
 from jobs.models import Job, Task
 from registry.models.security import ServiceAuthentication
@@ -14,6 +17,26 @@ from django.conf import settings
 from registry.models import WebMapService
 from django.db import transaction
 from users.models import Organization
+
+queue = django_rq.get_queue('default')
+
+def print_task(seconds):
+    print("Starting task")
+    for num in range(seconds):
+        print(num, ". Hello World!")
+        time.sleep(1)
+    print("Task completed")
+
+def print_numbers(seconds):
+    print("Starting num task")
+    for num in range(seconds):
+        print(num)
+        time.sleep(1)
+    print("Task to print_numbers completed")
+
+def queue_tasks():
+    queue.enqueue(print_task, 5, retry=Retry(max=2))
+    queue.enqueue_in(timedelta(seconds=10), print_numbers, 5)
 
 
 class RegisterWebMapService(Job):
@@ -58,8 +81,7 @@ class RegisterWebMapService(Job):
         task = BuildWebMapServiceTask.objects.create(job=self)
 
         if adding:
-            queue = django_rq.get_queue('default')
-            transaction.on_commit(lambda: queue.enqueue(task.create_service_from_parsed_service, task_pk=task.pk))
+            transaction.on_commit(lambda: queue_tasks())
 
 
 class BuildWebMapServiceTask(Task):

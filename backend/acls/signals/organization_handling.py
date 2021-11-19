@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from acls.models.acls import AccessControlList
 from acls.utils import collect_default_permissions
-from registry.models import Service
+from registry.models.service import CatalougeService, WebFeatureService, WebMapService
 from users.models.groups import Organization
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import Permission
@@ -42,4 +42,12 @@ def handle_organization_creation(instance, created, **kwargs):
         create_acl(name=f"{organization.name} service administrators",
                    description=_('Service administrators can perform all actions for all resources which are owned by the organization it self'),
                    owned_by_org=organization,
-                   permissions=Permission.objects.filter(content_type=ContentType.objects.get_for_model(Service)))
+                   permissions=Permission.objects.filter(content_type=ContentType.objects.get_for_model(WebMapService)))
+        create_acl(name=f"{organization.name} service administrators",
+                   description=_('Service administrators can perform all actions for all resources which are owned by the organization it self'),
+                   owned_by_org=organization,
+                   permissions=Permission.objects.filter(content_type=ContentType.objects.get_for_model(WebFeatureService)))
+        create_acl(name=f"{organization.name} service administrators",
+                   description=_('Service administrators can perform all actions for all resources which are owned by the organization it self'),
+                   owned_by_org=organization,
+                   permissions=Permission.objects.filter(content_type=ContentType.objects.get_for_model(CatalougeService)))

@@ -1,16 +1,16 @@
-from registry.api.serializers.service import ServiceSerializer, FeatureTypeSerializer, LayerSerializer
-from registry.models import Service, Layer, FeatureType
+from registry.api.serializers.service import WebMapServiceSerializer, WebFeatureServiceSerializer, FeatureTypeSerializer, LayerSerializer
+from registry.models import WebMapService, Layer, WebFeatureService, FeatureType
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import RelationshipView, ModelViewSet
 
 
-class ServiceRelationshipView(RelationshipView):
-    queryset = Service.objects
+class WebMapServiceRelationshipView(RelationshipView):
+    queryset = WebMapService.objects
 
 
-class ServiceViewSet(NestedViewSetMixin, ModelViewSet):
-    queryset = Service.objects.all()
-    serializer_class = ServiceSerializer
+class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = WebMapService.objects.all()
+    serializer_class = WebMapServiceSerializer
     prefetch_for_includes = {
         '__all__': [],
         'layers': ['layers']
@@ -33,6 +33,19 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
             queryset = queryset.filter(service__pk=service_pk)
 
         return queryset
+
+
+class WebFeatureServiceRelationshipView(RelationshipView):
+    queryset = WebFeatureService.objects
+
+
+class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
+    queryset = WebFeatureService.objects.all()
+    serializer_class = WebFeatureServiceSerializer
+    prefetch_for_includes = {
+        '__all__': [],
+        'featuretypes': ['featuretypes']
+    }
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):

@@ -246,7 +246,7 @@ def create_service_from_parsed_service(self,
         self.task.progress = 2 / 3
         self.task.save()
 
-    db_service = DbService.xml_objects.create_from_parsed_service(parsed_service=parsed_service)
+    db_service = DbService.capabilities.create_from_parsed_service(parsed_service=parsed_service)
     if external_auth:
         external_auth.secured_service = db_service
         external_auth.save()

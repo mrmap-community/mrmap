@@ -1,5 +1,5 @@
-from registry.api.views import mapcontext as mapcontext_views
-from registry.api.views import metadata as metadata_views
+# from registry.api.views import mapcontext as mapcontext_views
+# from registry.api.views import metadata as metadata_views
 from registry.api.views import service as service_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 from django.urls import path
@@ -8,14 +8,14 @@ app_name = 'registry'
 
 nested_api_router = ExtendedSimpleRouter()
 (
-    nested_api_router.register(r'services', service_views.ServiceViewSet, basename='service')
-                     .register(r'layers', service_views.LayerViewSet, basename='service-layers', parents_query_lookups=['service']),
-    nested_api_router.register(r'services', service_views.ServiceViewSet, basename='service')
-                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='service-featuretypes', parents_query_lookups=['service']) 
-
+    nested_api_router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
+                     .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['wms']),
+    nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
+                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['wfs']) 
 )
 
 urlpatterns = nested_api_router.urls
 urlpatterns.extend([
-    path('services/<pk>/relationships/<related_field>', service_views.ServiceRelationshipView.as_view(), name='service-relationships')
+    path('wms/<pk>/relationships/<related_field>', service_views.WebMapServiceRelationshipView.as_view(), name='wms-relationships'),
+    path('wfs/<pk>/relationships/<related_field>', service_views.WebFeatureServiceRelationshipView.as_view(), name='wfs-relationships')
 ])

@@ -1,25 +1,25 @@
+import time
 from PIL import Image
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from requests.auth import HTTPDigestAuth
+from registry.models.service import CatalougeService, WebFeatureService, WebMapService, Layer, FeatureType
 
 from extras.models import CommonInfo, GenericModelMixin
 from registry.enums.security import EntityUnits
-from registry.enums.service import OGCOperationEnum, AuthTypeEnum, OGCServiceEnum
-from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
+from registry.enums.service import AuthTypeEnum, OGCOperationEnum, OGCServiceEnum
+from MrMap.validators import geometry_is_empty
 from registry.managers.security import AllowedOperationManager, AnalyzedResponseLogTableManager
-from registry.models import Service, Layer, FeatureType
-from cryptography.fernet import Fernet
-import time
 from registry.tasks.security import async_analyze_log
+from django.core.files.base import ContentFile
+from MrMap.validators import validate_get_capablities_uri
+from cryptography.fernet import Fernet
 
 
 def key_file_path(instance, filename):
@@ -27,13 +27,7 @@ def key_file_path(instance, filename):
     return 'ext_auth_keys/service_{0}/{1}'.format(instance.secured_service_id, filename)
 
 
-class ExternalAuthentication(GenericModelMixin, CommonInfo):
-    secured_service = models.OneToOneField(to=Service,
-                                           on_delete=models.CASCADE,
-                                           related_name="external_authentication",
-                                           related_query_name="external_authentication",
-                                           verbose_name=_("secured service"),
-                                           help_text=_("the service which uses this credentials."))
+class ServiceAuthentication(GenericModelMixin, CommonInfo):
     username = models.CharField(max_length=255,
                                 blank=True,  # to support empty inline formset posting
                                 verbose_name=_("username"),
@@ -55,9 +49,30 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
     key_file = models.FileField(upload_to=key_file_path,
                                 editable=False,
                                 max_length=1024)
-
-    def __str__(self):
-        return f"External authentication for {self.secured_service.__str__()}"
+    wms = models.OneToOneField(to=WebMapService,
+                               null=True,
+                               blank=True,
+                               verbose_name=_("web map service"),
+                               help_text=_("the optional authentication type and credentials to request the service."),
+                               related_query_name="auth",
+                               related_name="auth",
+                               on_delete=models.CASCADE)
+    wfs = models.OneToOneField(to=WebFeatureService,
+                               null=True,
+                               blank=True,
+                               verbose_name=_("web feature service"),
+                               help_text=_("the optional authentication type and credentials to request the service."),
+                               related_query_name="auth",
+                               related_name="auth",
+                               on_delete=models.CASCADE)
+    csw = models.OneToOneField(to=CatalougeService,
+                               null=True,
+                               blank=True,
+                               verbose_name=_("catalouge service"),
+                               help_text=_("the optional authentication type and credentials to request the service."),
+                               related_query_name="auth",
+                               related_name="auth",
+                               on_delete=models.CASCADE)
 
     def clean(self):
         """ Additional clean method. Cause we configured some fields to allow blank posting in model forms, such as used
@@ -81,7 +96,7 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         if errors:
             raise ValidationError(errors)
 
-    def save(self, register_service=False, *args, **kwargs):
+    def save(self, *args, **kwargs):
         if self._state.adding and not self.key_file:
             key = Fernet.generate_key()
             self.key_file.save(name=f'{time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.key',
@@ -91,8 +106,8 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
             super().save(*args, **kwargs)
         else:
             # We check if password has become changed. If not we need to get the old password from the ciphered password
-            # by set the decrypted password to the current ExternalAuthentication object.
-            old_self = ExternalAuthentication.objects.get(pk=self.pk)
+            # by set the decrypted password to the current ServiceAuthentication object.
+            old_self = ServiceAuthentication.objects.get(pk=self.pk)
             if old_self.password == self.password:
                 password = self.decrypt_password()
                 self.password = password
@@ -151,7 +166,7 @@ class ExternalAuthentication(GenericModelMixin, CommonInfo):
         username, password = self.decrypt()
         if self.auth_type == AuthTypeEnum.BASIC.value:
             auth = (username, password)
-        elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
+        elif self.auth_type == AuthTypeEnum.DIGEST.value:
             auth = HTTPDigestAuth(username=username,
                                   password=password)
         else:
@@ -227,12 +242,22 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
     allowed_area = models.MultiPolygonField(null=True,
                                             blank=True,
                                             validators=[geometry_is_empty])
-    secured_service = models.ForeignKey(to=Service,
-                                        on_delete=models.CASCADE,
-                                        related_name="allowed_operations",
-                                        related_query_name="allowed_operation",
-                                        verbose_name=_("secured service"),
-                                        help_text=_("the service where some layers or feature types are secured of."))
+    secured_wms = models.ForeignKey(to=WebMapService,
+                                    null=True,
+                                    blank=True,
+                                    on_delete=models.CASCADE,
+                                    related_name="allowed_operations",
+                                    related_query_name="allowed_operation",
+                                    verbose_name=_("secured service"),
+                                    help_text=_("the service where some layers or feature types are secured of."))
+    secured_wfs = models.ForeignKey(to=WebFeatureService,
+                                    null=True,
+                                    blank=True,
+                                    on_delete=models.CASCADE,
+                                    related_name="allowed_operations",
+                                    related_query_name="allowed_operation",
+                                    verbose_name=_("secured service"),
+                                    help_text=_("the service where some layers or feature types are secured of."))    
     secured_layers = models.ManyToManyField(to=Layer,
                                             related_name="allowed_operations",
                                             related_query_name="allowed_operation",
@@ -251,7 +276,7 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
     objects = AllowedOperationManager()
 
     def __str__(self):
-        return f"AllowedOperation ({self.pk}) for service {self.secured_service}"
+        return f"AllowedOperation ({self.pk}) for service {self.secured_wms|self.secured_wfs}"
 
     def save(self, *args, **kwargs):
         """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
@@ -264,19 +289,19 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
         super().save(*args, **kwargs)
         # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
         # does NOT call save() or triggers signals
-        proxy_setting = ProxySetting.objects.filter(secured_service=self.secured_service).update(camouflage=True)
-        if proxy_setting == 0:
-            ProxySetting.objects.create(secured_service=self.secured_service,
-                                        camouflage=True)
+        if self.secured_wms:
+            proxy_setting = ProxySetting.objects.filter(secured_wms=self.secured_wms).update(camouflage=True)
+            if proxy_setting == 0:
+                ProxySetting.objects.create(secured_wms=self.secured_wms,
+                                            camouflage=True)
+        if self.secured_wfs:
+            proxy_setting = ProxySetting.objects.filter(secured_wfs=self.secured_wfs).update(camouflage=True)
+            if proxy_setting == 0:
+                ProxySetting.objects.create(secured_wfs=self.secured_wfs,
+                                            camouflage=True)
 
 
 class ProxySetting(GenericModelMixin, CommonInfo):
-    secured_service = models.OneToOneField(to=Service,
-                                           on_delete=models.CASCADE,
-                                           related_name="proxy_setting",
-                                           related_query_name="proxy_setting",
-                                           verbose_name=_("secured service"),
-                                           help_text=_("the configured service for this proxy settings"))
     camouflage = models.BooleanField(default=False,
                                      verbose_name=_("camouflage"),
                                      help_text=_("if true, all related xml documents are secured, by replace all "
@@ -285,6 +310,18 @@ class ProxySetting(GenericModelMixin, CommonInfo):
     log_response = models.BooleanField(default=False,
                                        verbose_name=_("log response", ),
                                        help_text=_("if true, all responses of the related service will be logged."))
+    wms = models.OneToOneField(to=WebMapService,
+                               on_delete=models.CASCADE,
+                               related_name="web_map_service",
+                               related_query_name="web_map_service",
+                               verbose_name=_("proxy settings"),
+                               help_text=_("the security proxy settings for this service."))
+    wfs = models.OneToOneField(to=WebFeatureService,
+                               on_delete=models.CASCADE,
+                               related_name="web_feature_service",
+                               related_query_name="web_feature_service",
+                               verbose_name=_("proxy settings"),
+                               help_text=_("the security proxy settings for this service."))
 
     class Meta:
         constraints = [
@@ -326,14 +363,18 @@ class HttpRequestLog(models.Model):
     url = models.URLField(max_length=4096)
     body = models.FileField(upload_to=request_body_path, max_length=1024)
     headers = models.JSONField(default=dict)
-    service = models.ForeignKey(to=Service,
-                                on_delete=models.PROTECT,
-                                related_name="http_request_logs",
-                                related_query_name="http_request_log")
     user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
                              on_delete=models.PROTECT,
                              related_name="http_request_logs",
                              related_query_name="http_request_log")
+    wms = models.ForeignKey(to=WebMapService,
+                            on_delete=models.PROTECT,
+                            related_name="http_request_logs",
+                            related_query_name="http_request_log")
+    wfs = models.ForeignKey(to=WebFeatureService,
+                            on_delete=models.PROTECT,
+                            related_name="http_request_logs",
+                            related_query_name="http_request_log")
 
     def delete(self, *args, **kwargs):
         self.body.delete(save=False)

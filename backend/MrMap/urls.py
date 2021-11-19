@@ -15,7 +15,6 @@ Including another URLconf
 """
 
 from django.urls import path, include
-from django.views.generic.base import RedirectView
 from MrMap.settings import DEBUG
 from django.views.generic import TemplateView
 from rest_framework.schemas import get_schema_view
@@ -23,25 +22,13 @@ from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
 
 urlpatterns = [
-    # generic redirect if no path is used
-    path('', RedirectView.as_view(url='users/dashboard')),
-
-    # MrMapApps
-    path('users/', include('users.urls')),
-    path('acls/', include('acls.urls')),
-    #path('registry/', include('registry.urls')),
-    path('jobs/', include('jobs.urls')),
 
     # captcha support
     path('captcha/', include('captcha.urls')),
 
     # translation support
     path('i18n/', include("django.conf.urls.i18n")),
-
-    # Autocompletes
-    path('ac/registry/', include('registry.autocompletes.urls')),
-    path('ac/users/', include('users.autocompletes.urls')),
-
+    
     # REST API
 
     # registry api urls

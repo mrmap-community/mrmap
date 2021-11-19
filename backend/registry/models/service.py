@@ -3,7 +3,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.db import models
+from django.contrib.gis.db import models
 from django.db.models import QuerySet
 from django.urls import reverse, NoReverseMatch
 from django.utils.functional import cached_property
@@ -12,45 +12,16 @@ from eulxml import xmlmap
 from mptt.models import MPTTModel, TreeForeignKey
 from requests import Session
 from requests.auth import HTTPDigestAuth
-
-from MrMap.icons import get_icon, IconEnum
 from MrMap.settings import PROXIES
 from extras.models import GenericModelMixin, CommonInfo
-from extras.utils import camel_to_snake
-from ows_client.request_builder import OgcService
-from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
+from ows_client.request_builder import OgcService as OgcServiceClient
+from registry.enums.service import OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
 from registry.managers.security import ServiceSecurityManager, OperationUrlManager
-from registry.managers.service import ServiceXmlManager, ServiceManager, LayerManager, FeatureTypeElementXmlManager, \
-    FeatureTypeManager, FeatureTypeElementManager
+from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureServiceCapabilitiesManager, WebMapServiceCapabilitiesManager
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
-
-
-class ServiceType(models.Model):
-    """ Concrete model class to store different service types such as wms 1.1.1, csw 2.0.2... """
-    name = models.CharField(max_length=10,
-                            choices=OGCServiceEnum.as_choices(),
-                            editable=False,
-                            verbose_name=_("type"),
-                            help_text=_("the concrete type name of the service type."))
-    version = models.CharField(max_length=10,
-                               choices=OGCServiceVersionEnum.as_choices(),
-                               editable=False,
-                               verbose_name=_("version"),
-                               help_text=_("the version of the service type as sem version"))
-    specification = models.URLField(null=True,
-                                    editable=False)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['name', 'version'],
-                                    name='%(app_label)s_%(class)s_unique_name_version')
-        ]
-
-    def __str__(self):
-        return self.name
 
 
 class CommonServiceInfo(models.Model):
@@ -67,136 +38,84 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class Service(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo):
-    """ Light polymorph model class to store all registered services. """
-    service_type = models.ForeignKey(to=ServiceType,
-                                     on_delete=models.PROTECT,
-                                     editable=False,
-                                     related_name="services",
-                                     related_query_name="service",
-                                     verbose_name=_("service type"),
-                                     help_text=_("the concrete type and version of the service."))
-    url = models.URLField(max_length=4096,
-                          editable=False,
-                          verbose_name=_("url"),
-                          help_text=_("the base url of the service"))
-    objects = ServiceManager()
+class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo):
+    """ Abstract Service model to store OGC service. """
+    version = models.CharField(max_length=10,
+                               choices=OGCServiceVersionEnum.as_choices(),
+                               editable=False,
+                               verbose_name=_("version"),
+                               help_text=_("the version of the service type as sem version"))
+    service_url = models.URLField(max_length=4096,
+                                  editable=False,
+                                  verbose_name=_("url"),
+                                  help_text=_("the base url of the service"))
+    objects = models.Manager()
     security = ServiceSecurityManager()
-    xml_objects = ServiceXmlManager()
 
     # todo:
     xml_mapper_cls = None
 
     class Meta:
-        verbose_name = _("service")
-        verbose_name_plural = _("services")
+        abstract = True
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
         old = None
         if not adding:
-            old = Service.objects.filter(pk=self.pk).first()
+            if isinstance(WebMapService):
+                old = WebMapService.objects.filter(pk=self.pk).first()
+            elif isinstance(WebFeatureService):
+                old = WebFeatureService.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
         if not adding and old and old.is_active != self.is_active:
             # the active sate of this and all descendant elements shall be changed to the new value. Bulk update
             # is the most efficient way to do it.
-            if self.is_service_type(OGCServiceEnum.WMS):
+            if isinstance(WebMapService):
                 self.layers.update(is_active=self.is_active)
-            elif self.is_service_type(OGCServiceEnum.WFS):
+            elif isinstance(WebFeatureService):
                 self.featuretypes.update(is_active=self.is_active)
 
-    def get_absolute_url(self) -> str:
-        try:
-            return reverse(
-                f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_view',
-                args=[self.pk, ])
-        except NoReverseMatch:
-            return self.get_concrete_table_url()
+    def major_version(self) -> int:
+        return int(self.version.split('.')[0])
 
-    def get_concrete_table_url(self) -> str:
-        try:
-            return reverse(
-                f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_{self.service_type_name}_list') + f'?id__in={self.pk}'
-        except NoReverseMatch:
-            return ""
+    def minor_version(self) -> int:
+        return int(self.version.split('.')[1])
 
-    def get_tree_view_url(self) -> str:
-        try:
-            return reverse(
-                f'{self._meta.app_label}:{self.__class__.__name__.lower()}_{self.service_type_name}_tree_view',
-                args=[self.pk])
-        except NoReverseMatch:
-            return ""
-
-    def get_activate_url(self) -> str:
-        try:
-            return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_activate', args=[self.pk])
-        except NoReverseMatch:
-            return ""
-
-    def get_harvest_url(self) -> str:
-        if self.is_service_type(OGCServiceEnum.CSW):
-            try:
-                return reverse(f'{self._meta.app_label}:{self.__class__.__name__.lower()}_harvest', args=[self.pk])
-            except NoReverseMatch:
-                pass
-        return ""
-
-    @property
-    def icon(self):
-        try:
-            return get_icon(getattr(IconEnum, self.service_type_name.upper()))
-        except AttributeError:
-            return ""
-
-    @cached_property
-    def _service_type(self):
-        return self.service_type
-
-    @cached_property
-    def service_type_name(self) -> str:
-        return self._service_type.name
-
-    @cached_property
-    def service_version(self) -> str:
-        return self._service_type.version
-
-    @cached_property
-    def major_service_version(self) -> int:
-        return int(self.service_version.split('.')[0])
-
-    @cached_property
-    def minor_service_version(self) -> int:
-        return int(self.service_version.split('.')[1])
-
-    @cached_property
-    def fix_service_version(self) -> int:
-        return int(self.service_version.split('.')[2])
-
-    def is_service_type(self, name: OGCServiceEnum):
-        """ Return True if the given service type name matches else return None
-
-            Returns:
-                True|False (boolean)
-        """
-        if self.service_type_name == name.value:
-            return True
-        else:
-            return False
-
-    @cached_property
-    def root_layer(self):
-        if self.is_service_type(OGCServiceEnum.WMS):
-            return self.layers.get(parent=None)
-        else:
-            return None
+    def fix_version(self) -> int:
+        return int(self.version.split('.')[2])
 
     def get_session_for_request(self) -> Session:
         session = Session()
         session.proxies = PROXIES
-        if hasattr(self, "external_authentication"):
-            session.auth = self.external_authentication.get_auth_for_request()
+        if hasattr(self, 'auth'):
+            session.auth = self.auth.get_auth_for_request()
         return session
+
+
+class WebMapService(OgcService):
+    capabilities = WebMapServiceCapabilitiesManager()
+
+    class Meta:
+        verbose_name = _("web map service")
+        verbose_name_plural = _("web map services")
+
+    @cached_property
+    def root_layer(self):
+        return self.layers.get(parent=None)
+
+
+class WebFeatureService(OgcService):
+    capabilities = WebFeatureServiceCapabilitiesManager()
+
+    class Meta:
+        verbose_name = _("web feature service")
+        verbose_name_plural = _("web feature services")
+
+
+class CatalougeService(OgcService):
+    class Meta:
+        verbose_name = _("catalouge service")
+        verbose_name_plural = _("catalouge services")
 
 
 class OperationUrl(CommonInfo):
@@ -225,13 +144,27 @@ class OperationUrl(CommonInfo):
                                         related_query_name="operation_url",
                                         verbose_name=_("internet mime type"),
                                         help_text=_("all available mime types of the remote url"))
-    service = models.ForeignKey(to=Service,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="operation_urls",
-                                related_query_name="operation_url",
-                                verbose_name=_("related service"),
-                                help_text=_("the service for that this url can be used for."))
+    wms_service = models.ForeignKey(to=WebMapService,
+                                    on_delete=models.CASCADE,
+                                    editable=False,
+                                    related_name="operation_urls",
+                                    related_query_name="operation_url",
+                                    verbose_name=_("related web map service"),
+                                    help_text=_("the web map service for that this url can be used for."))
+    wfs_service = models.ForeignKey(to=WebFeatureService,
+                                    on_delete=models.CASCADE,
+                                    editable=False,
+                                    related_name="operation_urls",
+                                    related_query_name="operation_url",
+                                    verbose_name=_("related web feature service"),
+                                    help_text=_("the web feature service for that this url can be used for."))
+    csw_service = models.ForeignKey(to=CatalougeService,
+                                    on_delete=models.CASCADE,
+                                    editable=False,
+                                    related_name="operation_urls",
+                                    related_query_name="operation_url",
+                                    verbose_name=_("related catalouge service"),
+                                    help_text=_("the catalouge service for that this url can be used for."))
     objects = models.Manager()
     security_objects = OperationUrlManager()
 
@@ -248,13 +181,6 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
                           editable=False)
-    service = models.ForeignKey(to=Service,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="%(class)ss",
-                                related_query_name="%(class)s",
-                                verbose_name=_("parent service"),
-                                help_text=_("the extras service where this element is part of"))
     identifier = models.CharField(max_length=500,
                                   null=True,
                                   editable=False,
@@ -303,6 +229,13 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
     """
+    service = models.ForeignKey(to=WebMapService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="service",
+                                related_query_name="service",
+                                verbose_name=_("service"),
+                                help_text=_("the extras service where this element is part of"))
     parent = TreeForeignKey(to="self",
                             on_delete=models.CASCADE,
                             null=True,
@@ -345,8 +278,6 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
 
-    objects = LayerManager()
-
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
            If the given layer shall be active, the complete family (:meth:`mptt.models.MPTTModel.get_family`) of this
@@ -364,7 +295,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             # is the most efficient way to do it.
             if self.is_active:
                 self.get_family().update(is_active=self.is_active)
-                Service.objects.filter(pk=self.service_id).update(is_active=self.is_active)
+                WebMapService.objects.filter(pk=self.service_id).update(is_active=self.is_active)
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
@@ -474,6 +405,13 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
 
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`
     """
+    service = models.ForeignKey(to=WebFeatureService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="service",
+                                related_query_name="service",
+                                verbose_name=_("service"),
+                                help_text=_("the extras service where this element is part of"))
     output_formats = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                             blank=True,
                                             editable=False,
@@ -489,7 +427,6 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                       verbose_name=_("describe feature type"),
                                                       help_text=_("the fetched content of the download describe feature"
                                                                   " type document."))
-    objects = FeatureTypeManager()
 
     class Meta:
         verbose_name = _("feature type")
@@ -505,16 +442,16 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if not adding and self.is_active:
-            Service.objects.filter(pk=self.service_id).update(is_active=self.is_active)
+            WebFeatureService.objects.filter(pk=self.service_id).update(is_active=self.is_active)
 
     def fetch_describe_feature_type_document(self, save=True):
         """ Return the fetched described feature type document and update the content if save is True """
         base_url = self.service.operation_urls.values_list('url', flat=True) \
             .get(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
                  method=HttpMethodEnum.GET.value)
-        request = OgcService(base_url=base_url,
-                             service_type=self.service.service_type_name,
-                             version=self.service.service_version) \
+        request = OgcServiceClient(base_url=base_url,
+                                   service_type=self.service.service_type_name,
+                                   version=self.service.service_version) \
             .get_describe_feature_type_request(type_name_list=self.identifier)
         if hasattr(self.service, "external_authentication"):
             username, password = self.service.external_authentication.decrypt()
@@ -567,7 +504,7 @@ class FeatureTypeElement(CommonInfo):
                                      on_delete=models.CASCADE,
                                      verbose_name=_("feature type"),
                                      help_text=_("related feature type of this element"))
-    objects = FeatureTypeElementManager()
+    objects = models.Manager()
     xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:

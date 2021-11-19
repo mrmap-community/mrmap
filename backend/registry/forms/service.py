@@ -1,8 +1,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
-from extras.forms import ModelForm
 from registry.enums.service import AuthTypeEnum
-from registry.models import Service, Layer, FeatureType
 from users.models.groups import Organization
 
 
@@ -54,21 +52,3 @@ class RegisterServiceForm(forms.Form):
                 self.add_error(field="password", error=_("You must provide a password if you joice any "
                                                          "authentication method."))
         return cleaned_data
-
-
-class ServiceModelForm(ModelForm):
-    class Meta:
-        model = Service
-        fields = "__all__"
-
-
-class LayerModelForm(ModelForm):
-    class Meta:
-        model = Layer
-        fields = "__all__"
-
-
-class FeatureTypeModelForm(ModelForm):
-    class Meta:
-        model = FeatureType
-        fields = "__all__"

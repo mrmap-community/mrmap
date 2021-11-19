@@ -10,7 +10,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MrMap.settings')
 django_asgi_app = get_asgi_application()
 
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa
-import jobs.routing  # noqa
 import ws.routing  # noqa
 from channels.security.websocket import AllowedHostsOriginValidator  # noqa
 from channels.auth import AuthMiddlewareStack  # noqa
@@ -21,7 +20,7 @@ application = ProtocolTypeRouter({
 
     "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(
         URLRouter(
-            jobs.routing.websocket_urlpatterns + ws.routing.websocket_urlpatterns
+            ws.routing.websocket_urlpatterns
         )
     ), ),
 })

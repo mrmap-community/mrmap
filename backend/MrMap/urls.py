@@ -28,17 +28,17 @@ urlpatterns = [
 
     # translation support
     path('i18n/', include("django.conf.urls.i18n")),
-    
+
     # REST API
 
     # registry api urls
-    path('api/v1/', include('registry.api.urls', namespace='registry')),
+    path('api/v1/registry/', include('registry.api.urls', namespace='registry')),
     # path('api/v1/auth/', include('dj_rest_auth.urls')),
 
     path(
         "api/v1/schema/",
         get_schema_view(
-            title="MrMap API",
+            title="MrMap JSON:API",
             description="API for all things …",
             version="1.0.0",
             generator_class=SchemaGenerator,
@@ -53,8 +53,6 @@ urlpatterns = [
         ),
         name="swagger-ui",
     ),
-
-
 ]
 
 if DEBUG:

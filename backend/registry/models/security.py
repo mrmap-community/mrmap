@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from requests.auth import HTTPDigestAuth
 from registry.models.service import CatalougeService, WebFeatureService, WebMapService, Layer, FeatureType
 
 from extras.models import CommonInfo, GenericModelMixin

@@ -35,10 +35,10 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 INSTALLED_APPS = [
     'channels',
     'guardian',
-    'dal',
-    'dal_select2',
-    'django.forms',
-    'django.contrib.admin',
+    #'dal',
+    #'dal_select2',
+    #'django.forms',
+    #'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -46,23 +46,24 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'django.contrib.gis',
-    'formtools',
+    #'formtools',
     'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_json_api',
     'dj_rest_auth',
+    'django_rq',
     'django_celery_beat',
     'django_celery_results',
-    'bootstrap5',
-    'django_tables2',
+    #'bootstrap5',
+    #'django_tables2',
     'django_filters',
-    'query_parameters',
+    #'query_parameters',
     'django_nose',
-    'mathfilters',
-    'leaflet',
-    'breadcrumb',
+    #'mathfilters',
+    #'leaflet',
+    #'breadcrumb',
     'mptt',
     'corsheaders',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
@@ -151,7 +152,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'MrMap.context_processors.default_context',
-                'breadcrumb.context_processors.breadcrumb_renderer',
+                #'breadcrumb.context_processors.breadcrumb_renderer',
             ],
         },
     },
@@ -284,6 +285,19 @@ CACHES = {
         }
     },
 }
+
+RQ_QUEUES = {
+    'default': {
+        'USE_REDIS_CACHE': 'default',
+    },
+    'download': {
+        'USE_REDIS_CACHE': 'default',
+    },
+    'long': {
+        'USE_REDIS_CACHE': 'default',
+    },
+}
+
 
 ################################################################
 # Celery settings

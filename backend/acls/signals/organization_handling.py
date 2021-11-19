@@ -19,7 +19,7 @@ def create_acl(name: str, owned_by_org: Organization, permissions, description: 
     acl.accessible_organizations.add(owned_by_org)
 
 
-@receiver(post_save, sender=Organization)
+#@receiver(post_save, sender=Organization)
 def handle_organization_creation(instance, created, **kwargs):
     """On organization creation, we create also one AccessControlList to allow administration of this Organization"""
     if created:

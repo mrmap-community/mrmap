@@ -11,6 +11,7 @@ from django.urls import reverse
 class Job(CommonInfo):
     """ Django model to represent a set of tasks. It gives a summery view of all tasks which are part of this jobs. """
     name = models.CharField(max_length=256,
+                            editable=False,
                             verbose_name=_("name"),
                             help_text=_("Describe what this jobs does."))
 
@@ -58,6 +59,10 @@ class Job(CommonInfo):
     def __str__(self):
         return f"{self.pk} | {self.name} | {self.status} | {self.progress}"
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     def get_absolute_url(self):
         return f"{reverse('jobs:task_list')}?job__in={self.pk}"
 
@@ -71,6 +76,7 @@ class Task(CommonInfo):
         verbose_name=_('task state'),
         help_text=_('Current state of the task being run'))
     name = models.CharField(max_length=256,
+                            editable=False,
                             verbose_name=_("name"),
                             help_text=_("Describe what this jobs does."))
     phase = models.TextField(default="")
@@ -81,12 +87,6 @@ class Task(CommonInfo):
                                    blank=True)
     traceback = models.TextField(null=True,
                                  blank=True)
-    job = models.ForeignKey(to=Job,
-                            on_delete=models.CASCADE,
-                            related_name="tasks",
-                            related_query_name="task",
-                            verbose_name=_("parent task"),
-                            help_text=_("the parent task of this sub task"))
 
     objects = TaskManager()
 
@@ -95,3 +95,4 @@ class Task(CommonInfo):
 
     def __str__(self):
         return f"{self.pk} | {self.name} | {self.status} | {self.progress}"
+

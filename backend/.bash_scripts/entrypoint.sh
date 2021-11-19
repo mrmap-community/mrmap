@@ -2,9 +2,11 @@
 
 /opt/mrmap/.bash_scripts/wait_db.sh
 
+echo "run mrmap setup"
 # run mrmap setup command. It will handle everthing we need to pre setup the system.
 python manage.py setup
 
+echo "run django collectstatic command"
 # run collectstatic
 python manage.py collectstatic --noinput
 

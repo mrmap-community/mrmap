@@ -9,7 +9,7 @@ app_name = 'registry'
 
 nested_api_router = ExtendedSimpleRouter()
 (
-    nested_api_router.register(r'ogcservice', service_views.OgcServiceViewSet, basename='ogcservice'),
+    nested_api_router.register(r'ogcservices', service_views.OgcServiceViewSet, basename='ogcservice'),
     nested_api_router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
                      .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
     nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')

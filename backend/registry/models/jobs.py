@@ -1,45 +1,68 @@
-from datetime import timedelta
-import time
-import django_rq
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from requests.auth import HTTPDigestAuth
 from requests import Session, Request
-from rq.job import Retry
 from MrMap.validators import validate_get_capablities_uri
-from jobs.models import Job, Task
+from extras.models import CommonInfo
 from registry.models.security import ServiceAuthentication
 from registry.xmlmapper.ogc.capabilities import get_parsed_service
-from registry.enums.service import AuthTypeEnum
-from jobs.enums import TaskStatusEnum
-from django.utils import timezone
-from django.conf import settings
-from registry.models import WebMapService
+from registry.models import WebMapService, WebFeatureService, CatalougeService
 from django.db import transaction
 from users.models import Organization
-
-queue = django_rq.get_queue('default')
-
-def print_task(seconds):
-    print("Starting task")
-    for num in range(seconds):
-        print(num, ". Hello World!")
-        time.sleep(1)
-    print("Task completed")
-
-def print_numbers(seconds):
-    print("Starting num task")
-    for num in range(seconds):
-        print(num)
-        time.sleep(1)
-    print("Task to print_numbers completed")
-
-def queue_tasks():
-    queue.enqueue(print_task, 5, retry=Retry(max=2))
-    queue.enqueue_in(timedelta(seconds=10), print_numbers, 5)
+from celery import shared_task
+from django.conf import settings
 
 
-class RegisterWebMapService(Job):
+@shared_task(name="register_ogc_service")
+def register_ogc_service(job_pk,
+                         **kwargs):
+    # if self.task:
+    #     self.task.status = TaskStatusEnum.STARTED.value
+    #     self.task.phase = "download capabilities document..."
+    #     self.task.started_at = timezone.now()
+    #     self.task.save()
+
+    job = RegisterOgcServiceJob.objects.get(pk=job_pk)
+
+    session = Session()
+    session.proxies = settings.PROXIES
+    request = Request(method="GET",
+                      url=job.get_capabilities_url,
+                      auth=job.auth)
+    response = session.send(request.prepare())
+
+    # if self.task:
+    #     self.task.status = TaskStatusEnum.STARTED.value
+    #     self.task.phase = "parse capabilities document..."
+    #     self.task.progress = 1 / 3
+    #     self.task.save()
+
+    parsed_service = get_parsed_service(xml=response.content)
+
+    # if self.task:
+    #     self.task.phase = "persisting service..."
+    #     self.task.progress = 2 / 3
+    #     self.task.save()
+    if parsed_service.service_type.get_field_dict().get("name").lower() == "wms":
+        db_service = WebMapService.capabilities.create_from_parsed_service(parsed_service=parsed_service)
+    elif parsed_service.service_type.get_field_dict().get("name").lower() == "wfs":
+        db_service = WebFeatureService.capabilities.create_from_parsed_service(parsed_service=parsed_service)
+    elif parsed_service.service_type.get_field_dict().get("name").lower() == "csw":
+        db_service = CatalougeService.capabilities.create_from_parsed_service(parsed_service=parsed_service)
+    if job.auth:
+        job.auth.wms = db_service
+        job.auth.save()
+
+    # if self.task:
+    #     self.task.phase = f'Done. <a href="{db_service.get_absolute_url()}">{db_service}</a>'
+    #     self.task.status = TaskStatusEnum.SUCCESS.value
+    #     self.task.progress = 100
+    #     self.task.done_at = timezone.now()
+    #     self.task.save()
+
+    return db_service.pk
+
+
+class RegisterOgcServiceJob(CommonInfo):
     get_capabilities_url = models.URLField(verbose_name=_("Service url"),
                                            help_text=_("this shall be the full get capabilities request url."),
                                            validators=[validate_get_capablities_uri],)
@@ -52,95 +75,18 @@ class RegisterWebMapService(Job):
                                                      on_delete=models.DO_NOTHING,
                                                      verbose_name=_("Registration for organization"),
                                                      help_text=_("Select for which organization you'd like to register the service."))
-    username = models.CharField(max_length=255,
+    auth = models.OneToOneField(to=ServiceAuthentication,
+                                on_delete=models.DO_NOTHING,
                                 null=True,
                                 blank=True,
-                                verbose_name=_("username"),
-                                help_text=_("the username used for the authentication."))
-    password = models.CharField(max_length=500,
-                                null=True,
-                                blank=True,
-                                verbose_name=_("password"),
-                                help_text=_("the password used for the authentication."))
-    auth_type = models.CharField(max_length=12,
-                                 choices=AuthTypeEnum.as_choices(),
-                                 null=True,
-                                 blank=True,
-                                 verbose_name=_("authentication type"),
-                                 help_text=_("kind of authentication mechanism shall used."))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = "Register Service"
+                                verbose_name=_("service authentication"),
+                                help_text=_("Optional credentials to authenticate against the web service."))
 
     def save(self, *args, **kwargs):
+        self.full_clean()
         adding = False
         if self._state.adding:
             adding = True
         super().save(*args, **kwargs)
-        task = BuildWebMapServiceTask.objects.create(job=self)
-
         if adding:
-            transaction.on_commit(lambda: queue_tasks())
-
-
-class BuildWebMapServiceTask(Task):
-    job = models.OneToOneField(to=RegisterWebMapService,
-                               on_delete=models.CASCADE,
-                               related_name="build_service_task",
-                               related_query_name="build_service_task",)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = "Register Service"
-
-    @classmethod
-    def create_service_from_parsed_service(cls, task_pk):
-        task = BuildWebMapServiceTask.objects.get(pk=task_pk)
-        task.status = TaskStatusEnum.STARTED.value
-        task.phase = "download capabilities document..."
-        task.started_at = timezone.now()
-        task.save()
-
-        auth = None
-        service_auth = None
-        if task.register_service_job.auth_type:
-            service_auth = ServiceAuthentication(username=task.register_service_job.username,
-                                                 password=task.register_service_job.password,
-                                                 auth_type=task.register_service_job.auth_type,
-                                                 test_url=task.register_service_job.test_url)
-            if task.register_service_job.auth_type == AuthTypeEnum.BASIC.value:
-                auth = (task.register_service_job.username, task.register_service_job.password)
-            elif task.register_service_job.auth_type == AuthTypeEnum.DIGEST.value:
-                auth = HTTPDigestAuth(username=task.register_service_job.username,
-                                      password=task.register_service_job.password)
-        session = Session()
-        session.proxies = settings.PROXIES
-        request = Request(method="GET",
-                          url=task.register_service_job.test_url,
-                          auth=auth)
-        response = session.send(request.prepare())
-
-        task.status = TaskStatusEnum.STARTED.value
-        task.phase = "parse capabilities document..."
-        task.progress = 1 / 3
-        task.save()
-
-        parsed_service = get_parsed_service(xml=response.content)
-
-        task.phase = "persisting service..."
-        task.progress = 2 / 3
-        task.save()
-
-        db_service = WebMapService.capabilities.create_from_parsed_service(parsed_service=parsed_service)
-        if service_auth:
-            service_auth.secured_service = db_service
-            service_auth.save()
-
-        task.phase = f'Done. <a href="{db_service.get_absolute_url()}">{db_service}</a>'
-        task.status = TaskStatusEnum.SUCCESS.value
-        task.progress = 100
-        task.done_at = timezone.now()
-        task.save()
-
-        return db_service.pk
+            transaction.on_commit(lambda: register_ogc_service.delay(job_pk=self.pk, **kwargs))

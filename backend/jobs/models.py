@@ -87,7 +87,7 @@ class Task(CommonInfo):
                                    blank=True)
     traceback = models.TextField(null=True,
                                  blank=True)
-
+    
     objects = TaskManager()
 
     class Meta:
@@ -95,4 +95,3 @@ class Task(CommonInfo):
 
     def __str__(self):
         return f"{self.pk} | {self.name} | {self.status} | {self.progress}"
-

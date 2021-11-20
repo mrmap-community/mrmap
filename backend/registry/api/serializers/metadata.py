@@ -1,9 +1,19 @@
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.fields import SerializerMethodField
 from rest_framework.reverse import reverse
+from registry.models.metadata import Keyword
+
 
 from extras.api.serializers import ObjectAccessSerializer
 from registry.models import DatasetMetadata
+from rest_framework_json_api.serializers import ModelSerializer
+
+
+class KeywordSerializer(ModelSerializer):
+
+    class Meta:
+        model = Keyword
+        fields = '__all__'
 
 
 class DatasetMetadataSerializer(ObjectAccessSerializer):

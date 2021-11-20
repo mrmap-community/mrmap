@@ -9,6 +9,7 @@ from django.db.models.functions import Coalesce
 from ows_client.request_builder import WebService, WmsService, WfsService
 from registry.enums.service import OGCOperationEnum, HttpMethodEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
+from polymorphic.managers import PolymorphicManager
 
 
 class AllowedOperationManager(models.Manager):
@@ -101,7 +102,7 @@ class OperationUrlManager(models.Manager):
         ).values_list('url', flat=True)[:1]
 
 
-class ServiceSecurityManager(models.Manager):
+class ServiceSecurityManager(PolymorphicManager):
 
     def _collect_data_for_security_facade(self, request) -> QuerySet:
         from registry.models.service import OperationUrl  # to avoid circular import

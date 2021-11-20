@@ -1,6 +1,5 @@
-from registry.models.service import Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
-from registry.models.metadata import Keyword
-from rest_framework_json_api.serializers import ModelSerializer
+from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
+from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 
 
@@ -18,20 +17,6 @@ class LayerSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class FeatureTypeSerializer(ModelSerializer):
-
-    class Meta:
-        model = FeatureType
-        fields = '__all__'
-
-
-class KeywordSerializer(ModelSerializer):
-
-    class Meta:
-        model = Keyword
-        fields = '__all__'
-
-
 class WebMapServiceSerializer(ModelSerializer):
 
     included_serializers = {
@@ -42,7 +27,7 @@ class WebMapServiceSerializer(ModelSerializer):
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wms-layers-list',
-        related_link_url_kwarg='parent_lookup_wms',
+        related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
     )
 
@@ -54,17 +39,24 @@ class WebMapServiceSerializer(ModelSerializer):
         include_resources = ['layers']
 
 
+class FeatureTypeSerializer(ModelSerializer):
+
+    class Meta:
+        model = FeatureType
+        fields = '__all__'
+
+
 class WebFeatureServiceSerializer(ModelSerializer):
 
     included_serializers = {
-        'featuretypes': FeatureType,
+        'featuretypes': FeatureTypeSerializer,
     }
 
     featuretypes = ResourceRelatedField(
         queryset=FeatureType.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wfs-featuretypes-list',
-        related_link_url_kwarg='parent_lookup_wfs',
+        related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wfs-relationships',
     )
 
@@ -74,3 +66,12 @@ class WebFeatureServiceSerializer(ModelSerializer):
 
     class JSONAPIMeta:
         include_resources = ['featuretypes']
+
+
+class OgcServiceSerializer(PolymorphicModelSerializer):
+    polymorphic_serializers = [WebMapServiceSerializer, WebFeatureServiceSerializer]
+
+
+    class Meta:
+        model = OgcService
+        fields = "__all__"

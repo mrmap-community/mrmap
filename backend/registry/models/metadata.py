@@ -14,8 +14,7 @@ from MrMap.settings import PROXIES
 from extras.models import CommonInfo, GenericModelMixin
 from registry.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum
-from registry.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
-    DatasetMetadataRelationManager, AbstractMetadataManager
+from registry.managers.metadata import LicenceManager, IsoMetadataManager
 from registry.models.document import MetadataDocumentModelMixin
 from registry.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
 
@@ -204,27 +203,13 @@ class RemoteMetadata(CommonInfo):
     remote_content = models.TextField(null=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
-    wms = models.ForeignKey(to="registry.WebMapService",
-                            on_delete=models.CASCADE,
-                            related_name="remote_metadata",
-                            related_query_name="remote_metadata",
-                            verbose_name=_("web map service"),
-                            help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                        " was found in the GetCapabilites document of the related service."))
-    wfs = models.ForeignKey(to="registry.WebFeatureService",
-                            on_delete=models.CASCADE,
-                            related_name="remote_metadata",
-                            related_query_name="remote_metadata",
-                            verbose_name=_("web feature service"),
-                            help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                        " was found in the GetCapabilites document of the related service."))
-    csw = models.ForeignKey(to="registry.CatalougeService",
-                            on_delete=models.CASCADE,
-                            related_name="remote_metadata",
-                            related_query_name="remote_metadata",
-                            verbose_name=_("catalouge service"),
-                            help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                        " was found in the GetCapabilites document of the related service."))
+    service = models.ForeignKey(to="registry.OgcService",
+                                on_delete=models.CASCADE,
+                                related_name="remote_metadata",
+                                related_query_name="remote_metadata",
+                                verbose_name=_("web map service"),
+                                help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                            " was found in the GetCapabilites document of the related service."))
     content_type = models.ForeignKey(to=ContentType,
                                      on_delete=models.CASCADE)
     object_id = models.UUIDField(verbose_name=_("described resource"),
@@ -263,8 +248,8 @@ class RemoteMetadata(CommonInfo):
 
     def create_metadata_instance(self):
         """ Return the created metadata record, based on the content_type of the described element. """
-        from registry.models.service import Service
-        if isinstance(self.describes, Service):
+        from registry.models.service import OgcService
+        if isinstance(self.describes, OgcService):
             metadata_cls = ServiceMetadata
         else:
             metadata_cls = DatasetMetadata
@@ -362,7 +347,6 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
     language = None  # Todo
-    objects = AbstractMetadataManager()
     xml_mapper_cls = MdMetadata
 
     class Meta:
@@ -476,8 +460,6 @@ class DatasetMetadataRelation(CommonInfo):
                               choices=MetadataOriginEnum.as_choices(),
                               verbose_name=_("origin"),
                               help_text=_("determines where this relation was found or it is added by a user."))
-
-    objects = DatasetMetadataRelationManager()
 
     class Meta:
         constraints = [
@@ -666,7 +648,6 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                                              verbose_name=_("services"),
                                                              help_text=_("all services from which this dataset was harvested."))
 
-    objects = DatasetManager()
     iso_metadata = IsoMetadataManager()
 
     class Meta:

@@ -437,8 +437,8 @@ class Service(DBModelConverterMixin, xmlmap.XmlObject):
 
     def get_field_dict(self):
         field_dict = super().get_field_dict()
-        if self.url:
-            field_dict.update({"url": self.url.url})
+        if self.service_url:
+            field_dict.update({"service_url": self.service_url.url})
         return field_dict
 
 
@@ -446,7 +446,7 @@ class WmsService(Service):
     model = 'registry.WebMapService'
 
     all_layers = None
-    # service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
+    service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']"
                                                 f"//{NS_WC}OnlineResource']",
@@ -473,7 +473,7 @@ class Wms130Service(WmsService):
 class Wfs200Service(Service):
     model = 'registry.WebFeatureService'
 
-    # service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
+    service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"

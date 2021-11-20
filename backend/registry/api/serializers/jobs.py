@@ -1,16 +1,9 @@
-from registry.models.jobs import BuildWebMapServiceTask, RegisterWebMapService
+from registry.models.jobs import RegisterOgcServiceJob
 from rest_framework_json_api.serializers import ModelSerializer
 
 
-class RegisterWebMapServiceSerializer(ModelSerializer):
+class RegisterOgcServiceSerializer(ModelSerializer):
 
     class Meta:
-        model = RegisterWebMapService
-        fields = "__all__"
-
-
-class BuildWebMapServiceTaskSerializer(ModelSerializer):
-
-    class Meta:
-        model = BuildWebMapServiceTask
+        model = RegisterOgcServiceJob
         fields = "__all__"

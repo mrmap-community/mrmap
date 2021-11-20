@@ -7,6 +7,7 @@ from django.utils import timezone
 from extras.models import get_current_owner
 from registry.enums.metadata import MetadataOrigin
 from crum import get_current_user
+from random import randrange
 
 
 class ServiceCapabilitiesManager(models.Manager):
@@ -104,6 +105,7 @@ class ServiceCapabilitiesManager(models.Manager):
         for operation_url in parsed_service.operation_urls:
             if not operation_url_model_cls:
                 operation_url_model_cls = operation_url.get_model_class()
+
             db_operation_url = operation_url_model_cls(service=service,
                                                        **self.common_info,
                                                        **operation_url.get_field_dict())
@@ -195,7 +197,7 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
     legend_url_cls = None
 
     def _reset_local_variables(self):
-        super._reset_local_variables()
+        super()._reset_local_variables()
         self.last_node_level = 0
         self.parent_lookup = None
         self.current_parent = None
@@ -208,13 +210,16 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         self.legend_url_cls = None
 
     def _get_next_tree_id(self, layer_cls):
+        
         max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
         tree_id = max_tree_id.get("tree_id__max")
         if isinstance(tree_id, int):
             tree_id += 1
         else:
             tree_id = 0
-        return tree_id
+        # FIXME: not thread safe handling of tree_id... random is only a workaround
+        random = randrange(1, 20)
+        return tree_id + random
 
     def _update_current_parent(self, parsed_layer):
         # todo: maybe we can move node id setting to get_all_layers()

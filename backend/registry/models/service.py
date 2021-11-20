@@ -22,6 +22,8 @@ from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureSe
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
+from polymorphic.models import PolymorphicModel
+from polymorphic.managers import PolymorphicManager
 
 
 class CommonServiceInfo(models.Model):
@@ -38,7 +40,7 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo):
+class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo, PolymorphicModel):
     """ Abstract Service model to store OGC service. """
     version = models.CharField(max_length=10,
                                choices=OGCServiceVersionEnum.as_choices(),
@@ -49,22 +51,19 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
                                   editable=False,
                                   verbose_name=_("url"),
                                   help_text=_("the base url of the service"))
-    objects = models.Manager()
+    objects = PolymorphicManager()
     security = ServiceSecurityManager()
 
     # todo:
     xml_mapper_cls = None
 
-    class Meta:
-        abstract = True
-
     def save(self, *args, **kwargs):
         adding = self._state.adding
         old = None
         if not adding:
-            if isinstance(WebMapService):
+            if isinstance(self, WebMapService):
                 old = WebMapService.objects.filter(pk=self.pk).first()
-            elif isinstance(WebFeatureService):
+            elif isinstance(self, WebFeatureService):
                 old = WebFeatureService.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
         if not adding and old and old.is_active != self.is_active:
@@ -144,27 +143,14 @@ class OperationUrl(CommonInfo):
                                         related_query_name="operation_url",
                                         verbose_name=_("internet mime type"),
                                         help_text=_("all available mime types of the remote url"))
-    wms_service = models.ForeignKey(to=WebMapService,
-                                    on_delete=models.CASCADE,
-                                    editable=False,
-                                    related_name="operation_urls",
-                                    related_query_name="operation_url",
-                                    verbose_name=_("related web map service"),
-                                    help_text=_("the web map service for that this url can be used for."))
-    wfs_service = models.ForeignKey(to=WebFeatureService,
-                                    on_delete=models.CASCADE,
-                                    editable=False,
-                                    related_name="operation_urls",
-                                    related_query_name="operation_url",
-                                    verbose_name=_("related web feature service"),
-                                    help_text=_("the web feature service for that this url can be used for."))
-    csw_service = models.ForeignKey(to=CatalougeService,
-                                    on_delete=models.CASCADE,
-                                    editable=False,
-                                    related_name="operation_urls",
-                                    related_query_name="operation_url",
-                                    verbose_name=_("related catalouge service"),
-                                    help_text=_("the catalouge service for that this url can be used for."))
+    service = models.ForeignKey(to=OgcService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related web map service"),
+                                help_text=_("the web map service for that this url can be used for."))
+
     objects = models.Manager()
     security_objects = OperationUrlManager()
 
@@ -232,8 +218,8 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
     service = models.ForeignKey(to=WebMapService,
                                 on_delete=models.CASCADE,
                                 editable=False,
-                                related_name="service",
-                                related_query_name="service",
+                                related_name="layers",
+                                related_query_name="layer",
                                 verbose_name=_("service"),
                                 help_text=_("the extras service where this element is part of"))
     parent = TreeForeignKey(to="self",
@@ -408,8 +394,8 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
     service = models.ForeignKey(to=WebFeatureService,
                                 on_delete=models.CASCADE,
                                 editable=False,
-                                related_name="service",
-                                related_query_name="service",
+                                related_name="featuretypes",
+                                related_query_name="featuretype",
                                 verbose_name=_("service"),
                                 help_text=_("the extras service where this element is part of"))
     output_formats = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error

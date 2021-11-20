@@ -1,5 +1,5 @@
-from registry.api.serializers.service import WebMapServiceSerializer, WebFeatureServiceSerializer, FeatureTypeSerializer, LayerSerializer
-from registry.models import WebMapService, Layer, WebFeatureService, FeatureType
+from registry.api.serializers.service import OgcServiceSerializer, WebMapServiceSerializer, WebFeatureServiceSerializer, FeatureTypeSerializer, LayerSerializer
+from registry.models import OgcService, WebMapService, Layer, WebFeatureService, FeatureType
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import RelationshipView, ModelViewSet
 
@@ -64,3 +64,8 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
             queryset = queryset.filter(service__pk=service_pk)
 
         return queryset
+
+
+class OgcServiceViewSet(ModelViewSet):
+    queryset = OgcService.objects.all()
+    serializer_class = OgcServiceSerializer

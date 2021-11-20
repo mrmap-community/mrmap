@@ -9,12 +9,12 @@ app_name = 'registry'
 
 nested_api_router = ExtendedSimpleRouter()
 (
+    nested_api_router.register(r'ogcservice', service_views.OgcServiceViewSet, basename='ogcservice'),
     nested_api_router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-                     .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['wms']),
+                     .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
     nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['wfs']),
-    nested_api_router.register(r'jobs/register-wms-jobs', jobs_views.RegisterWebMapServiceViewSet, basename='register-wms-job'),
-    nested_api_router.register(r'jobs/build-wms-tasks', jobs_views.BuildWebMapServiceTaskViewSet, basename='build-wms-task')
+                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
+    nested_api_router.register(r'jobs/register-ogc-service', jobs_views.RegisterOgcServiceViewSet, basename='register-ogc-service-job'),
 )
 
 urlpatterns = nested_api_router.urls

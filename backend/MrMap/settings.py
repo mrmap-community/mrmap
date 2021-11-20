@@ -35,10 +35,11 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 INSTALLED_APPS = [
     'channels',
     'guardian',
-    #'dal',
-    #'dal_select2',
-    #'django.forms',
-    #'django.contrib.admin',
+    'polymorphic',
+    # 'dal',
+    # 'dal_select2',
+    
+    # 'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -46,24 +47,23 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'django.contrib.gis',
-    #'formtools',
+    # 'formtools',
     'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_json_api',
     'dj_rest_auth',
-    'django_rq',
     'django_celery_beat',
     'django_celery_results',
-    #'bootstrap5',
-    #'django_tables2',
+    # 'bootstrap5',
+    # 'django_tables2',
     'django_filters',
-    #'query_parameters',
+    # 'query_parameters',
     'django_nose',
-    #'mathfilters',
-    #'leaflet',
-    #'breadcrumb',
+    # 'mathfilters',
+    # 'leaflet',
+    # 'breadcrumb',
     'mptt',
     'corsheaders',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
@@ -122,9 +122,10 @@ if DEBUG:
     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if os.environ.get("MRMAP_PRODUCTION") == 'False':
-    INSTALLED_APPS.append(
+    INSTALLED_APPS.extend([
         'behave_django',
-    )
+        'django.forms',  # for debug_toolbar and rest api html page
+    ])
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -283,18 +284,6 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
         }
-    },
-}
-
-RQ_QUEUES = {
-    'default': {
-        'USE_REDIS_CACHE': 'default',
-    },
-    'download': {
-        'USE_REDIS_CACHE': 'default',
-    },
-    'long': {
-        'USE_REDIS_CACHE': 'default',
     },
 }
 
@@ -539,8 +528,8 @@ REST_FRAMEWORK = {
         'rest_framework_json_api.pagination.JsonApiPageNumberPagination',
     'DEFAULT_PARSER_CLASSES': (
         'rest_framework_json_api.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser'
+        # 'rest_framework.parsers.FormParser',
+        # 'rest_framework.parsers.MultiPartParser'
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework_json_api.renderers.JSONRenderer',
@@ -549,7 +538,7 @@ REST_FRAMEWORK = {
         # If performance testing, enable:
         # 'example.utils.BrowsableAPIRendererWithoutForms',
         # Otherwise, to play around with the browseable API, enable:
-        'rest_framework_json_api.renderers.BrowsableAPIRenderer'
+        # 'rest_framework_json_api.renderers.BrowsableAPIRenderer'
     ),
     'DEFAULT_METADATA_CLASS': 'rest_framework_json_api.metadata.JSONAPIMetadata',
     'DEFAULT_SCHEMA_CLASS': 'rest_framework_json_api.schemas.openapi.AutoSchema',

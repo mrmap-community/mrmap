@@ -15,6 +15,10 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
         '__all__': [],
         'layers': ['layers']
     }
+    filterset_fields = {
+        'id': ('exact', 'lt', 'gt', 'gte', 'lte', 'in'),
+        'title': ('icontains', 'iexact', 'contains'),
+    }
 
 
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):
@@ -69,3 +73,9 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 class OgcServiceViewSet(ModelViewSet):
     queryset = OgcService.objects.all()
     serializer_class = OgcServiceSerializer
+
+    filterset_fields = {
+        'id': ('exact', 'lt', 'gt', 'gte', 'lte', 'in'),
+        'title': ('icontains', 'iexact', 'contains'),
+    }
+    search_fields = ('id', 'title',)

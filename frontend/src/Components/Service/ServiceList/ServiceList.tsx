@@ -3,6 +3,7 @@ import { Table, Card, Input, Space, Button } from "antd";
 import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
 import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
+import { Link } from "react-router-dom";
 
 export const ServiceList = () => {
 
@@ -101,7 +102,7 @@ export const ServiceList = () => {
             const columns = [];
             for (const propName in props) {
                 const prop = props[propName];
-                const column:any = {
+                const column: any = {
                     title: prop.title || propName,
                     dataIndex: propName,
                     key: propName
@@ -109,11 +110,21 @@ export const ServiceList = () => {
                 prop.isFlat = prop.type === 'string';
                 if (prop.isFlat) {
                     column.sorter = true;
-                    const columnSearchProps = {...getColumnSearchProps(propName)};
+                    const columnSearchProps = { ...getColumnSearchProps(propName) };
                     Object.assign(column, columnSearchProps);
                 }
                 columns.push(column);
             }
+            columns.push({
+                title: 'Actions',
+                key: 'actions',
+                render: (text:any, record:any) => (
+                    <Space size="middle">
+                        <a>Delete</a>
+                        <a>Edit</a>
+                    </Space>
+                )
+            });
             setColumns(columns);
             setColumnTypes(props);
         }
@@ -122,7 +133,6 @@ export const ServiceList = () => {
 
     useEffect(() => {
         async function fetchTableData() {
-            console.log("A");
             setLoading(true);
             const client = await api.getClient();
             const res = await client.v1_registry_service_services_list({
@@ -134,7 +144,7 @@ export const ServiceList = () => {
             for (const columnName in columnTypes) {
                 const columnType = columnTypes[columnName];
                 if (!columnType.isFlat) {
-                    res.data.results.forEach((result:any) => {
+                    res.data.results.forEach((result: any) => {
                         result[columnName] = '[complex value]';
                     });
                 }
@@ -152,7 +162,7 @@ export const ServiceList = () => {
         fetchTableData();
     }, [tableState, api, columnTypes]);
 
-    function handleTableChange(pagination: any, filters: any, sorter: any) {
+    const handleTableChange = (pagination: any, filters: any, sorter: any) => {
         const filterParams: any = {};
         for (const prop in filters) {
             if (filters[prop] && filters[prop].length > 0) {
@@ -167,7 +177,7 @@ export const ServiceList = () => {
         });
     };
     return (
-        <Card title="Services" style={{ width: '100%' }}>
+        <Card title="Services" extra={<Link to="/registry/services/add">Add</Link>} style={{ width: '100%' }}>
             <Table
                 dataSource={data.dataSource}
                 rowKey={(record: any) => record.id}

@@ -85,4 +85,4 @@ class OgcServiceCreateSerializer(ModelSerializer):
 
     class Meta:
         model = OgcService
-        fields = ("get_capabilities_url", )
+        fields = ("get_capabilities_url", "owned_by_org")

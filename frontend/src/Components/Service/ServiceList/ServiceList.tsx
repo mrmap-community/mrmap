@@ -98,7 +98,7 @@ export const ServiceList = () => {
     useEffect(() => {
         async function buildColumns() {
             const client = await api.getClient();
-            const props = client.api.getOperation("v1_registry_service_services_list").responses[200].content["application/json"].schema.properties.results.items.properties;
+            const props = client.api.getOperation("List/api/v1/registry/wms/").responses[200].content["application/vnd.api+json"].schema.properties.data.items.properties.attributes.properties;
             const columns = [];
             for (const propName in props) {
                 const prop = props[propName];
@@ -135,23 +135,28 @@ export const ServiceList = () => {
         async function fetchTableData() {
             setLoading(true);
             const client = await api.getClient();
-            const res = await client.v1_registry_service_services_list({
-                page: tableState.page,
-                page_size: tableState.pageSize,
+            const res = await client["List/api/v1/registry/wms/"]({
+                'page[number]': tableState.page,
+                'page[size]': tableState.pageSize,
                 ordering: tableState.ordering,
                 ...tableState.filters
             });
-            for (const columnName in columnTypes) {
-                const columnType = columnTypes[columnName];
-                if (!columnType.isFlat) {
-                    res.data.results.forEach((result: any) => {
-                        result[columnName] = '[complex value]';
-                    });
-                }
-            }
+            const dataSource:any = [];
+            res.data.data.forEach((result: any) => {
+                result.attributes.id = result.id;
+                dataSource.push(result.attributes);
+            });
+            // for (const columnName in columnTypes) {
+            //     const columnType = columnTypes[columnName];
+            //     if (!columnType.isFlat) {
+            //         res.data.data.forEach((result: any) => {
+            //             result[columnName] = '[complex value]';
+            //         });
+            //     }
+            // }
             setData({
-                dataSource: res.data.results,
-                total: res.data.count
+                dataSource: dataSource,
+                total: res.data.meta.pagination.count
             });
             setLoading(false);
         }

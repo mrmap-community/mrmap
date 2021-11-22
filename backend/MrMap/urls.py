@@ -33,10 +33,11 @@ urlpatterns = [
 
     # registry api urls
     path('api/v1/registry/', include('registry.api.urls', namespace='registry')),
+    path('api/v1/users/', include('users.api.urls', namespace='users')),
     # path('api/v1/auth/', include('dj_rest_auth.urls')),
 
     path(
-        "api/v1/schema/",
+        "api/schema/",
         get_schema_view(
             title="MrMap JSON:API",
             description="API for all things …",
@@ -46,7 +47,7 @@ urlpatterns = [
         name="openapi-schema",
     ),
     path(
-        "api/v1/schema/swagger-ui/",
+        "api/schema/swagger-ui/",
         TemplateView.as_view(
             template_name="extras/swagger-ui.html",
             extra_context={"schema_url": "openapi-schema"},

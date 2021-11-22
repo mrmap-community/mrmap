@@ -1,6 +1,7 @@
 from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
 from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
 from rest_framework_json_api.relations import ResourceRelatedField, HyperlinkedRelatedField
+from rest_framework.relations import HyperlinkedIdentityField
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -19,9 +20,9 @@ class LayerSerializer(ModelSerializer):
 
 class WebMapServiceSerializer(ModelSerializer):
 
-    included_serializers = {
-        'layers': LayerSerializer,
-    }
+    url = HyperlinkedIdentityField(
+        view_name='registry:wms-detail',
+    )
 
     layers = HyperlinkedRelatedField(
         queryset=Layer.objects,
@@ -30,6 +31,10 @@ class WebMapServiceSerializer(ModelSerializer):
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
     )
+
+    included_serializers = {
+        'layers': LayerSerializer,
+    }
 
     class Meta:
         model = WebMapService
@@ -47,6 +52,10 @@ class FeatureTypeSerializer(ModelSerializer):
 
 
 class WebFeatureServiceSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:wfs-detail',
+    )
 
     included_serializers = {
         'featuretypes': FeatureTypeSerializer,

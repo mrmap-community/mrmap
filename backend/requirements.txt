@@ -25,6 +25,7 @@ gunicorn==20.1.0
 uvicorn==0.15.0
 websockets==9.1
 djangorestframework==3.12.4
+djangorestframework-gis==0.17
 djangorestframework-jsonapi==4.2.1
 djangorestframework-jsonapi[django-filter]==4.2.1
 dj-rest-auth==2.1.11

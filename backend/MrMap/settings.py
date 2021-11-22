@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'captcha',
     'rest_framework',
+    'rest_framework_gis',
     'rest_framework.authtoken',
     'rest_framework_json_api',
     'dj_rest_auth',

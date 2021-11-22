@@ -1,3 +1,4 @@
+from rest_framework_gis.fields import GeometryField
 from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
 from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
 from rest_framework_json_api.relations import ResourceRelatedField, HyperlinkedRelatedField
@@ -12,6 +13,8 @@ class OperationsUrlSerializer(ModelSerializer):
 
 
 class LayerSerializer(ModelSerializer):
+
+    bbox_lat_lon = GeometryField()
 
     class Meta:
         model = Layer

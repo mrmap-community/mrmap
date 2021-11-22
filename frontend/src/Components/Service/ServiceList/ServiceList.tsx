@@ -5,79 +5,79 @@ import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
 import { Link } from "react-router-dom";
 
-export const ServiceList = () => {
-
-    const getColumnSearchProps = (dataIndex: any): any => {
-        const searchInput: any = createRef();
-        let searchText = "";
-        let searchedColumn: any = null;
-        return {
-            filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: any) => {
-                const handleSearch = (selectedKeys: any, confirm: any, dataIndex: any) => {
-                    confirm();
-                    searchText = selectedKeys[0];
-                    searchedColumn = dataIndex;
-                };
-                const handleReset = (clearFilters: any) => {
-                    clearFilters();
-                    searchText = '';
-                };
-                return (<div style={{ padding: 8 }}>
-                    <Input
-                        ref={searchInput}
-                        placeholder={`Search ${dataIndex}`}
-                        value={selectedKeys[0]}
-                        onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-                        onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
-                        style={{ marginBottom: 8, display: 'block' }}
-                    />
-                    <Space>
-                        <Button
-                            type="primary"
-                            onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
-                            icon={<SearchOutlined />}
-                            size="small"
-                            style={{ width: 90 }}
-                        >
-                            Search
-                        </Button>
-                        <Button onClick={() => handleReset(clearFilters)} size="small" style={{ width: 90 }}>
-                            Reset
-                        </Button>
-                        <Button
-                            type="link"
-                            size="small"
-                            onClick={() => {
-                                confirm({ closeDropdown: false });
-                                searchText = selectedKeys[0];
-                                searchedColumn = dataIndex;
-                            }}
-                        >
-                            Filter
-                        </Button>
-                    </Space>
-                </div>);
-            },
-            onFilterDropdownVisibleChange: (visible: any) => {
-                if (visible) {
-                    setTimeout(() => searchInput.current.select(), 100);
-                }
-            },
-            filterIcon: (filtered: any) => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
-            render: (text: any) => {
-                return searchedColumn === dataIndex ? (
-                    <Highlighter
-                        highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
-                        searchWords={[searchText]}
-                        autoEscape
-                        textToHighlight={text ? text.toString() : ''}
-                    />
-                ) : (
-                    text
-                )
+const getColumnSearchProps = (dataIndex: any): any => {
+    const searchInput: any = createRef();
+    let searchText = "";
+    let searchedColumn: any = null;
+    return {
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: any) => {
+            const handleSearch = (selectedKeys: any, confirm: any, dataIndex: any) => {
+                confirm();
+                searchText = selectedKeys[0];
+                searchedColumn = dataIndex;
+            };
+            const handleReset = (clearFilters: any) => {
+                clearFilters();
+                searchText = '';
+            };
+            return (<div style={{ padding: 8 }}>
+                <Input
+                    ref={searchInput}
+                    placeholder={`Search ${dataIndex}`}
+                    value={selectedKeys[0]}
+                    onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    style={{ marginBottom: 8, display: 'block' }}
+                />
+                <Space>
+                    <Button
+                        type="primary"
+                        onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                        icon={<SearchOutlined />}
+                        size="small"
+                        style={{ width: 90 }}
+                    >
+                        Search
+                    </Button>
+                    <Button onClick={() => handleReset(clearFilters)} size="small" style={{ width: 90 }}>
+                        Reset
+                    </Button>
+                    <Button
+                        type="link"
+                        size="small"
+                        onClick={() => {
+                            confirm({ closeDropdown: false });
+                            searchText = selectedKeys[0];
+                            searchedColumn = dataIndex;
+                        }}
+                    >
+                        Filter
+                    </Button>
+                </Space>
+            </div>);
+        },
+        onFilterDropdownVisibleChange: (visible: any) => {
+            if (visible) {
+                setTimeout(() => searchInput.current.select(), 100);
             }
+        },
+        filterIcon: (filtered: any) => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+        render: (text: any) => {
+            return searchedColumn === dataIndex ? (
+                <Highlighter
+                    highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+                    searchWords={[searchText]}
+                    autoEscape
+                    textToHighlight={text ? text.toString() : ''}
+                />
+            ) : (
+                text
+            )
         }
-    };
+    }
+};
+
+export const ServiceList = () => {
 
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState({
@@ -118,7 +118,7 @@ export const ServiceList = () => {
             columns.push({
                 title: 'Actions',
                 key: 'actions',
-                render: (text:any, record:any) => (
+                render: (text: any, record: any) => (
                     <Space size="middle">
                         <a>Delete</a>
                         <a>Edit</a>
@@ -135,13 +135,16 @@ export const ServiceList = () => {
         async function fetchTableData() {
             setLoading(true);
             const client = await api.getClient();
-            const res = await client["List/api/v1/registry/wms/"]({
+            const queryParams = {
                 'page[number]': tableState.page,
                 'page[size]': tableState.pageSize,
-                ordering: tableState.ordering,
                 ...tableState.filters
-            });
-            const dataSource:any = [];
+            };
+            if (tableState.ordering && tableState.ordering !== 'undefined') {
+                queryParams.sort = tableState.ordering;
+            }
+            const res = await client["List/api/v1/registry/wms/"](queryParams);
+            const dataSource: any = [];
             res.data.data.forEach((result: any) => {
                 result.attributes.id = result.id;
                 dataSource.push(result.attributes);
@@ -171,7 +174,7 @@ export const ServiceList = () => {
         const filterParams: any = {};
         for (const prop in filters) {
             if (filters[prop] && filters[prop].length > 0) {
-                filterParams[prop + "__icontains"] = filters[prop][0];
+                filterParams[`filter[${prop}.icontains]`] = filters[prop][0];
             }
         }
         setTableState({

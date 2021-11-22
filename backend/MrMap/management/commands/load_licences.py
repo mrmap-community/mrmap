@@ -28,7 +28,7 @@ class Command(BaseCommand):
         ))
 
     @staticmethod
-    def _create_default_licences() -> (int, int, int):
+    def _create_default_licences():
         """ Creates an initial amount of licences
 
         Returns:

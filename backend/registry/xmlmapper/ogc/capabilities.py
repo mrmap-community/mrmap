@@ -430,19 +430,21 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
-    model = 'registry.Service'
     # todo: new field with node_class RemoteMetadata for wms and wfs
     remote_metadata = None
-    url = xmlmap.NodeField(xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
+    service_url = xmlmap.NodeField(xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
+    version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
 
     def get_field_dict(self):
         field_dict = super().get_field_dict()
-        if self.url:
-            field_dict.update({"url": self.url.url})
+        if self.service_url:
+            field_dict.update({"service_url": self.service_url.url})
         return field_dict
 
 
 class WmsService(Service):
+    model = 'registry.WebMapService'
+
     all_layers = None
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
@@ -469,6 +471,8 @@ class Wms130Service(WmsService):
 
 
 class Wfs200Service(Service):
+    model = 'registry.WebFeatureService'
+
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(
@@ -480,7 +484,9 @@ class Wfs200Service(Service):
 
 
 class CswService(Service):
-    service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
+    model = 'registry.CatalougeService'
+
+    # service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
     service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"

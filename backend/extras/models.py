@@ -2,6 +2,8 @@ import threading
 
 from uuid import uuid4
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -196,6 +198,8 @@ class CommonInfo(models.Model):
     def save(self, update_last_modified=True, *args, **kwargs):
         if self._state.adding:
             user = get_current_user()
+            if isinstance(user, AnonymousUser):
+                user = get_user_model().objects.get(username="AnonymousUser")
             self.created_by_user = user
             self.last_modified_by = user
 

@@ -102,7 +102,7 @@ services:
   celery-default-worker:
     build:
       context: ./backend
-      dockerfile: ../docker/mrmap/Dockerfile
+      dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
     command: >

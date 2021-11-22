@@ -35,10 +35,11 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 INSTALLED_APPS = [
     'channels',
     'guardian',
-    'dal',
-    'dal_select2',
-    'django.forms',
-    'django.contrib.admin',
+    'polymorphic',
+    # 'dal',
+    # 'dal_select2',
+    
+    # 'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -46,25 +47,25 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'django.contrib.gis',
-    'formtools',
+    # 'formtools',
     'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_json_api',
     'dj_rest_auth',
     'django_celery_beat',
     'django_celery_results',
-    'bootstrap5',
-    'django_tables2',
+    # 'bootstrap5',
+    # 'django_tables2',
     'django_filters',
-    'query_parameters',
+    # 'query_parameters',
     'django_nose',
-    'mathfilters',
-    'leaflet',
-    'breadcrumb',
+    # 'mathfilters',
+    # 'leaflet',
+    # 'breadcrumb',
     'mptt',
     'corsheaders',
-    'drf_spectacular',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
     'users',
     'acls',
@@ -121,9 +122,10 @@ if DEBUG:
     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if os.environ.get("MRMAP_PRODUCTION") == 'False':
-    INSTALLED_APPS.append(
+    INSTALLED_APPS.extend([
         'behave_django',
-    )
+        'django.forms',  # for debug_toolbar and rest api html page
+    ])
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -151,7 +153,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'MrMap.context_processors.default_context',
-                'breadcrumb.context_processors.breadcrumb_renderer',
+                #'breadcrumb.context_processors.breadcrumb_renderer',
             ],
         },
     },
@@ -167,6 +169,13 @@ METADATA_URL = ["request=GetMetadata&", ]
 BASE_URL_FOR_ETF = os.environ.get("MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001")
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver").split(";")
+
+if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
+    CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
@@ -277,6 +286,7 @@ CACHES = {
         }
     },
 }
+
 
 ################################################################
 # Celery settings
@@ -510,19 +520,37 @@ LOGGING = {
     },
 }
 
-# REST FRAMEWORK
-REST_FRAMEWORK = {'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'}
-USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
-
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'MrMap API',
-    'DESCRIPTION': 'Registry API for geospatial data, metadata, services and their describing documents',
-    'VERSION': '1.0.0',
-    # 'SCHEMA_PATH_PREFIX_INSERT': 'backend'
+REST_FRAMEWORK = {
+    'PAGE_SIZE': 10,
+    'MAX_PAGE_SIZE': 100,
+    'EXCEPTION_HANDLER': 'rest_framework_json_api.exceptions.exception_handler',
+    'DEFAULT_PAGINATION_CLASS':
+        'rest_framework_json_api.pagination.JsonApiPageNumberPagination',
+    'DEFAULT_PARSER_CLASSES': (
+        'rest_framework_json_api.parsers.JSONParser',
+        # 'rest_framework.parsers.FormParser',
+        # 'rest_framework.parsers.MultiPartParser'
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework_json_api.renderers.JSONRenderer',
+        # If you're performance testing, you will want to use the browseable API
+        # without forms, as the forms can generate their own queries.
+        # If performance testing, enable:
+        # 'example.utils.BrowsableAPIRendererWithoutForms',
+        # Otherwise, to play around with the browseable API, enable:
+        # 'rest_framework_json_api.renderers.BrowsableAPIRenderer'
+    ),
+    'DEFAULT_METADATA_CLASS': 'rest_framework_json_api.metadata.JSONAPIMetadata',
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework_json_api.schemas.openapi.AutoSchema',
+    'DEFAULT_FILTER_BACKENDS': (
+        'rest_framework_json_api.filters.QueryParameterValidationFilter',
+        'rest_framework_json_api.filters.OrderingFilter',
+        'rest_framework_json_api.django_filters.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+    ),
+    'SEARCH_PARAM': 'filter[search]',
+    'TEST_REQUEST_RENDERER_CLASSES': (
+        'rest_framework_json_api.renderers.JSONRenderer',
+    ),
+    'TEST_REQUEST_DEFAULT_FORMAT': 'vnd.api+json'
 }
-# USE_X_FORWARDED_HOST = True
-# FORCE_SCRIPT_NAME = "/backend"

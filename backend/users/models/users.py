@@ -118,12 +118,21 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
 class Subscription(GenericModelMixin, CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
-    # todo: rename field to service
-    service = models.ForeignKey(to='registry.Service', on_delete=models.CASCADE,
-                                verbose_name=_('Service'),
-                                help_text=_("Select the service you want to subscribe. When you edit an existing "
-                                            "subscription, you can not change this selection."))
-    user = models.ForeignKey(MrMapUser,
+    web_map_service = models.ForeignKey(to='registry.WebMapService',
+                                        null=True,
+                                        blank=True,
+                                        on_delete=models.CASCADE,
+                                        verbose_name=_('web map service'),
+                                        help_text=_("Select the service you want to subscribe. When you edit an existing "
+                                                    "subscription, you can not change this selection."))
+    web_feature_service = models.ForeignKey(to='registry.WebFeatureService',
+                                            null=True,
+                                            blank=True,
+                                            on_delete=models.CASCADE,
+                                            verbose_name=_('web feature service'),
+                                            help_text=_("Select the service you want to subscribe. When you edit an existing "
+                                                        "subscription, you can not change this selection."))
+    user = models.ForeignKey(to=MrMapUser,
                              on_delete=models.CASCADE)
     notify_on_update = models.BooleanField(default=True,
                                            verbose_name=_('Notify on update'),
@@ -140,7 +149,7 @@ class Subscription(GenericModelMixin, CommonInfo):
     class Meta:
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
-        unique_together = ('service', 'user',)
+        unique_together = ('web_map_service', 'web_feature_service', 'user',)
 
     def inform_subscriptor(self):
         """ Informs subscriptor on changes

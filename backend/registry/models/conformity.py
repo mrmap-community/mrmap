@@ -6,16 +6,14 @@ Created on: 27.10.20
 
 """
 from django.db import models
-from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from extras.models import CommonInfo, GenericModelMixin
-from extras.polymorphic_fk import PolymorphicForeignKey
 from registry.enums.conformity import ConformityTypeEnum, RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum, \
     ReportType
 from registry.managers.conformity import ConformityCheckConfigurationManager, ConformityCheckRunManager
 from registry.models.metadata import DatasetMetadata
-from registry.models.service import Service, Layer, FeatureType
+from registry.models.service import Layer, FeatureType, WebMapService
 
 
 class ConformityCheckConfiguration(models.Model):
@@ -120,58 +118,63 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     report_type = models.TextField(
         choices=ReportType.as_choices(drop_empty_choice=True))
 
-    # polymorphic fk: only one of the following resource references should be used
-    service = models.ForeignKey(Service, on_delete=models.CASCADE, null=True, blank=True, verbose_name=_("service"),
-                                help_text=_("the service targeted by this check"))
-    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, null=True, blank=True, verbose_name=_("layer"),
-                              help_text=_("the layer targeted by this check"))
-    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE, null=True, blank=True,
-                                     verbose_name=_("feature type"),
-                                     help_text=_("the feature type targeted by this check"))
-    dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True,
-                                         verbose_name=_("dataset metadata"),
-                                         help_text=_("the dataset metadata targeted by this check"))
-    _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
-
     objects = ConformityCheckRunManager()
 
     class Meta:
+        abstract = True
         ordering = ["-created_at"]
         get_latest_by = "-created_at"
 
-    @property
-    def resource(self):
-        return self._resource.get_target(self)
-
-    @property
-    def resource_type(self):
-        return self._resource.get_target(self).__class__.__name__
-
     def clean(self):
-        self._resource.validate(self)
-
-    def get_report_url(self):
-        return f"{reverse('registry:conformity_check_run_report', kwargs={'pk': self.pk})}"
+        self.validate(self)
 
     def is_running(self):
         return self.passed is None
 
-    @classmethod
-    def get_validate_url(cls, resource):
-        # FIXME: this gives not the right validate url since we merge the metadata models with concrete resource types
-        if isinstance(resource, Service):
-            return cls.get_add_url() + f"?service={resource.pk}"
-        if isinstance(resource, Layer):
-            return cls.get_add_url() + f"?layer={resource.pk}"
-        if isinstance(resource, FeatureType):
-            return cls.get_add_url() + f"?feature_type={resource.pk}"
-        if isinstance(resource, DatasetMetadata):
-            return cls.get_add_url() + f"?dataset_metadata={resource.pk}"
 
-        # if isinstance(resource, ServiceMetadata):
-        #     return cls.get_add_url() + f"?service_metadata={resource.pk}"
-        # if isinstance(resource, LayerMetadata):
-        #     return cls.get_add_url() + f"?layer_metadata={resource.pk}"
-        # if isinstance(resource, FeatureTypeMetadata):
-        #     return cls.get_add_url() + f"?feature_type_metadata={resource.pk}"
-        return None
+class WmsConformityCheckRun(ConformityCheckRun):
+    """
+    Model holding the relation of a resource to the results of a check.
+    """
+    service = models.ForeignKey(WebMapService,
+                                on_delete=models.CASCADE,
+                                verbose_name=_("service"),
+                                help_text=_("the service targeted by this check"))
+
+    def get_validate_url(self):
+        return self.get_add_url() + f"?service={self.service.pk}"
+
+
+class LayerConformityCheckRun(ConformityCheckRun):
+    """
+    Model holding the relation of a resource to the results of a check.
+    """
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, null=True, blank=True, verbose_name=_("layer"),
+                              help_text=_("the layer targeted by this check"))
+
+    def get_validate_url(self):
+        return self.get_add_url() + f"?layer={self.layer.pk}"
+
+
+class FeatureTypeConformityCheckRun(ConformityCheckRun):
+    """
+    Model holding the relation of a resource to the results of a check.
+    """
+    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE, null=True, blank=True,
+                                     verbose_name=_("feature type"),
+                                     help_text=_("the feature type targeted by this check"))
+
+    def get_validate_url(self):
+        return self.get_add_url() + f"?feature_type={self.feature_type.pk}"
+
+
+class DatasetMetadataConformityCheckRun(ConformityCheckRun):
+    """
+    Model holding the relation of a resource to the results of a check.
+    """
+    dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True,
+                                         verbose_name=_("dataset metadata"),
+                                         help_text=_("the dataset metadata targeted by this check"))
+
+    def get_validate_url(self):
+        return self.get_add_url() + f"?dataset_metadata={self.dataset_metadata.pk}"

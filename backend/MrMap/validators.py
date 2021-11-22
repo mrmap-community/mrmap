@@ -37,6 +37,7 @@ def check_uri_is_reachable(value):
 def _get_request_uri_has_no_request_parameter(value):
     parsed_url = urlparse(value)
     query_params = parse_qs(parsed_url.query)
+    query_params = {k.lower(): v for k, v in query_params.items()}
     if "request" in query_params and query_params["request"][0] is not None:
         if query_params["request"][0].lower() != "getcapabilities":
             # not allowed!
@@ -52,6 +53,7 @@ def _get_request_uri_has_no_request_parameter(value):
 def _get_request_uri_has_no_version_parameter(value):
     parsed_url = urlparse(value)
     query_params = parse_qs(parsed_url.query)
+    query_params = {k.lower(): v for k, v in query_params.items()}
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
     supported_wms_versions = ['1.3.0', '1.1.1', '1.1.0', '1.0.0']
@@ -61,13 +63,13 @@ def _get_request_uri_has_no_version_parameter(value):
 
     if "version" in query_params and query_params["version"][0] is not None:
         if "service" in query_params or query_params["service"][0] is not None:
-            if query_params["service"][0] == OGCServiceEnum.WMS:
+            if query_params["service"][0] in [OGCServiceEnum.WMS.value.lower(), OGCServiceEnum.WMS.value.upper()]:
                 service_type = OGCServiceEnum.WMS.value
                 supported_versions = supported_wms_versions
-            elif query_params["service"][0] == OGCServiceEnum.WFS:
+            elif query_params["service"][0] in [OGCServiceEnum.WFS.value.lower(), OGCServiceEnum.WFS.value.upper()]:
                 service_type = OGCServiceEnum.WFS.value
                 supported_versions = supported_wfs_versions
-            elif query_params["service"][0] == OGCServiceEnum.CSW:
+            elif query_params["service"][0] in [OGCServiceEnum.CSW.value.lower(), OGCServiceEnum.CSW.value.upper()]:
                 service_type = OGCServiceEnum.CSW.value
                 supported_versions = supported_csw_versions
             else:
@@ -94,6 +96,7 @@ def _get_request_uri_has_no_version_parameter(value):
 def _get_request_uri_has_no_service_parameter(value):
     parsed_url = urlparse(value)
     query_params = parse_qs(parsed_url.query)
+    query_params = {k.lower(): v for k, v in query_params.items()}
     if "service" not in query_params or query_params["service"][0] is None:
         return ValidationError(
             _('The given uri is not valid cause there is no service parameter.')
@@ -114,7 +117,6 @@ def validate_get_capablities_uri(value):
         _get_request_uri_has_no_request_parameter,
         _get_request_uri_has_no_service_parameter,
         _get_request_uri_has_no_version_parameter,
-        check_uri_is_reachable,
     ]
 
     for func in validate_funcs:

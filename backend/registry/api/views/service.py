@@ -1,3 +1,5 @@
+from typing import OrderedDict
+from registry.api.views.jobs import TaskResultReadOnlyViewSet
 from registry.api.serializers.jobs import TaskResultSerializer
 from registry.tasks.service import build_ogc_service
 from registry.api.serializers.service import OgcServiceCreateSerializer, OgcServiceSerializer, WebMapServiceSerializer, WebFeatureServiceSerializer, FeatureTypeSerializer, LayerSerializer
@@ -104,10 +106,13 @@ class OgcServiceViewSet(ModelViewSet):
         task_result, created = TaskResult.objects.get_or_create(task_id=task.id)
 
         # TODO: add auth information and other headers we need here
-        #dummy_request = APIRequestFactory().get(request.build_absolute_uri(reverse("registry:task-result-detail", args=[task_result.pk])))
-
-        #serialized_task_result = TaskResultSerializer(task_result, **{'context': {'request': dummy_request}})
-        serialized_task_result = TaskResultSerializer(task_result)
+        dummy_request = APIRequestFactory().get(path=request.build_absolute_uri(reverse("registry:taskresult-detail", args=[task_result.pk])), data={})
+        # view = TaskResultReadOnlyViewSet.as_view({'get': 'detail'})
+        # response = view.view(request=dummy_request)
+        
+        dummy_request.query_params = OrderedDict()
+        serialized_task_result = TaskResultSerializer(task_result, **{'context': {'request': dummy_request}})
+        #serialized_task_result = TaskResultSerializer(task_result)
         serialized_task_result_data = serialized_task_result.data
         # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
         if not serialized_task_result_data.get("meta", None):
@@ -123,3 +128,6 @@ class OgcServiceViewSet(ModelViewSet):
             return {'Content-Location': str(data[api_settings.URL_FIELD_NAME])}
         except (TypeError, KeyError):
             return {}
+
+    def get_serializer_context(self):
+        return super().get_serializer_context()

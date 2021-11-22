@@ -1,6 +1,6 @@
 from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
 from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
-from rest_framework_json_api.relations import ResourceRelatedField
+from rest_framework_json_api.relations import ResourceRelatedField, HyperlinkedRelatedField
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -23,7 +23,7 @@ class WebMapServiceSerializer(ModelSerializer):
         'layers': LayerSerializer,
     }
 
-    layers = ResourceRelatedField(
+    layers = HyperlinkedRelatedField(
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wms-layers-list',

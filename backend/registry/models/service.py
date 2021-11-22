@@ -13,12 +13,13 @@ from mptt.models import MPTTModel, TreeForeignKey
 from requests import Session
 from requests.auth import HTTPDigestAuth
 from MrMap.settings import PROXIES
+from MrMap.validators import validate_get_capablities_uri
 from extras.models import GenericModelMixin, CommonInfo
 from ows_client.request_builder import OgcService as OgcServiceClient
 from registry.enums.service import OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
 from registry.managers.security import ServiceSecurityManager, OperationUrlManager
-from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureServiceCapabilitiesManager, WebMapServiceCapabilitiesManager
+from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureServiceCapabilitiesManager, WebMapServiceCapabilitiesManager, CatalougeServiceCapabilitiesManager
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
@@ -51,6 +52,10 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
                                   editable=False,
                                   verbose_name=_("url"),
                                   help_text=_("the base url of the service"))
+    get_capabilities_url = models.URLField(max_length=4096,
+                                           verbose_name=_("get capabilities url"),
+                                           help_text=_("the capabilities url of the ogc service"),
+                                           validators=[validate_get_capablities_uri])
     objects = PolymorphicManager()
     security = ServiceSecurityManager()
 
@@ -112,6 +117,8 @@ class WebFeatureService(OgcService):
 
 
 class CatalougeService(OgcService):
+    capabilities = CatalougeServiceCapabilitiesManager()
+
     class Meta:
         verbose_name = _("catalouge service")
         verbose_name_plural = _("catalouge services")

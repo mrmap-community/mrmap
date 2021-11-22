@@ -10,7 +10,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from requests.auth import HTTPDigestAuth
-from registry.models.service import CatalougeService, WebFeatureService, WebMapService, Layer, FeatureType
+from registry.models.service import CatalougeService, OgcService, WebFeatureService, WebMapService, Layer, FeatureType
 
 from extras.models import CommonInfo, GenericModelMixin
 from registry.enums.security import EntityUnits
@@ -50,52 +50,13 @@ class ServiceAuthentication(GenericModelMixin, CommonInfo):
     key_file = models.FileField(upload_to=key_file_path,
                                 editable=False,
                                 max_length=1024)
-    wms = models.OneToOneField(to=WebMapService,
-                               null=True,
-                               blank=True,
-                               verbose_name=_("web map service"),
-                               help_text=_("the optional authentication type and credentials to request the service."),
-                               related_query_name="auth",
-                               related_name="auth",
-                               on_delete=models.CASCADE)
-    wfs = models.OneToOneField(to=WebFeatureService,
-                               null=True,
-                               blank=True,
-                               verbose_name=_("web feature service"),
-                               help_text=_("the optional authentication type and credentials to request the service."),
-                               related_query_name="auth",
-                               related_name="auth",
-                               on_delete=models.CASCADE)
-    csw = models.OneToOneField(to=CatalougeService,
-                               null=True,
-                               blank=True,
-                               verbose_name=_("catalouge service"),
-                               help_text=_("the optional authentication type and credentials to request the service."),
-                               related_query_name="auth",
-                               related_name="auth",
-                               on_delete=models.CASCADE)
-
-    def clean(self):
-        """ Additional clean method. Cause we configured some fields to allow blank posting in model forms, such as used
-        in the :class:`registry.views.service.ServiceUpdateView` to support adding optional
-        :class:`registry.models.security.ExternalAuthentication` instances for a given
-        :class:`registry.models.service.Service`, we need to check in this custom clean() if there are empty posted
-        fields.
-
-        :raises: :class:`django.core.exceptions.ValidationError`: If username, password or auth_type where empty.
-        """
-        errors = {}
-        # cause we support blank fields to support empty inline formset posting, we need to validate the blank fields
-        # here
-        if self.username or self.password or self.auth_type:
-            if not self.username:
-                errors.update({"username": _("username can't be leave empty.")})
-            if not self.password:
-                errors.update({"password": _("password can't be leave empty.")})
-            if not self.auth_type:
-                errors.update({"auth_type": _("auth type can't be leave empty.")})
-        if errors:
-            raise ValidationError(errors)
+    service = models.OneToOneField(to=OgcService,
+                                   verbose_name=_("web map service"),
+                                   help_text=_("the optional authentication type and credentials to request the service."),
+                                   related_query_name="auth",
+                                   related_name="auth",
+                                   on_delete=models.CASCADE,
+                                   blank=True)
 
     def save(self, *args, **kwargs):
         if self._state.adding and not self.key_file:

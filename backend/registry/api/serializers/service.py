@@ -71,7 +71,18 @@ class WebFeatureServiceSerializer(ModelSerializer):
 class OgcServiceSerializer(PolymorphicModelSerializer):
     polymorphic_serializers = [WebMapServiceSerializer, WebFeatureServiceSerializer]
 
-
     class Meta:
         model = OgcService
         fields = "__all__"
+
+
+class OgcServiceCreateSerializer(ModelSerializer):
+
+    # TODO: implement included serializer for ServiceAuthentication
+    # included_serializers = {
+    #     'auth': ServiceAuthentication,
+    # }
+
+    class Meta:
+        model = OgcService
+        fields = ("get_capabilities_url", )

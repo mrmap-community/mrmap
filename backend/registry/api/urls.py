@@ -14,7 +14,8 @@ nested_api_router = ExtendedSimpleRouter()
                      .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
     nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
                      .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
-    nested_api_router.register(r'jobs/register-ogc-service', jobs_views.RegisterOgcServiceViewSet, basename='register-ogc-service-job'),
+    #nested_api_router.register(r'jobs/register-ogc-service', jobs_views.RegisterOgcServiceViewSet, basename='register-ogc-service-job'),
+    nested_api_router.register(r'task-results', jobs_views.TaskResultReadOnlyViewSet, basename='task-result')
 )
 
 urlpatterns = nested_api_router.urls

@@ -1,102 +1,83 @@
-import uuid
-
-from django.contrib.gis.geos import GEOSGeometry, Polygon
-from django.db.models import Q
-from extras.api.filters import MrMapApiSearchFilter, validate_uuid
-from registry.api.serializers.service import LayerSerializer, FeatureTypeSerializer
-from registry.models import Service, FeatureType, Layer
+from registry.models.service import OgcService, WebFeatureService, WebMapService, FeatureType, Layer
+from rest_framework_gis.filterset import GeoFilterSet
+from rest_framework_gis.filters import GeometryFilter
 
 
-class ServiceApiFilter(MrMapApiSearchFilter):
-    """
-    This filter can be used to filter Services by different values in API views or viewsets.
-    See https://django-filter.readthedocs.io/en/stable/guide/rest_framework.html
-    """
+class OgcServiceFilterSet(GeoFilterSet):
+    layer__bbox_lat_lon__contains = GeometryFilter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='contains')
+    layer__bbox_lat_lon__covers = GeometryFilter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='covers')
+    layer__bbox_lat_lon__equals = GeometryFilter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='equals')
+    layer__bbox_lat_lon__intersects = GeometryFilter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='intersects')
+
+    featuretype__bbox_lat_lon__contains = GeometryFilter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='contains')
+    featuretype__bbox_lat_lon__covers = GeometryFilter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='covers')
+    featuretype__bbox_lat_lon__equals = GeometryFilter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='equals')
+    featuretype__bbox_lat_lon__intersects = GeometryFilter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
-        model = Service
+        model = OgcService
         fields = {
-            "id": ["icontains"],
-            "title": ["icontains"]
+            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
+            'title': ['exact', 'icontains', 'contains'],
+            'abstract': ['exact', 'icontains', 'contains']
         }
 
-    @staticmethod
-    def search_filter(queryset, name, value):
-        if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
-        # __icontains -> case insensitive contains
-        return queryset.filter(
-            Q(title__icontains=value) |
-            Q(abstract__icontains=value) |
-            Q(keywords__keyword__icontains=value) |
-            Q(service_type__name__icontains=value) |
-            Q(owned_by_org__name__icontains=value)
-        ).distinct()
 
-    @staticmethod
-    def bbox_filter(queryset, name, bbox_coords):
-        bbox_polygon = GEOSGeometry(Polygon.from_bbox(bbox_coords), srid=4326)  # [xmin, ymin, xmax, ymax]
-        unique_services = list()
-        layer_within_bbox = Layer\
-            .objects\
-            .filter(bbox_lat_lon__intersects=bbox_polygon).distinct()
-        layers = LayerSerializer(layer_within_bbox, many=True).data
-        for layer in layers:
-            if layer.get('service') not in unique_services:
-                unique_services.append(layer['service'])
-        feature_type_within_bbox = FeatureType\
-            .objects\
-            .filter(bbox_lat_lon__intersects=bbox_polygon).distinct()
-        feature_types = FeatureTypeSerializer(feature_type_within_bbox, many=True).data
-        for feature_type in feature_types:
-            if feature_type['service'] not in unique_services:
-                unique_services.append(feature_type['service'])
-        return queryset.filter(id__in=unique_services).distinct()
+class WebMapServiceFilterSet(GeoFilterSet):
+    bbox_lat_lon__contains = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='intersects')
+
+    class Meta:
+        model = WebMapService
+        fields = {
+            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
+            'title': ['exact', 'icontains', 'contains'],
+            'abstract': ['exact', 'icontains', 'contains']
+        }
 
 
-class LayerApiFilter(MrMapApiSearchFilter):
-    """
-    This filter can be used to filter Layers by different values in API views or viewsets.
-    See https://django-filter.readthedocs.io/en/stable/guide/rest_framework.html
-    """
+class LayerFilterSet(GeoFilterSet):
+    bbox_lat_lon__contains = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = Layer
-        fields = {'service__id': ['exact']}
-
-    @staticmethod
-    def search_filter(queryset, name, value):
-        if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
-        # __icontains -> case insensitive contains
-        return queryset.filter(
-            Q(title__icontains=value) |
-            Q(abstract__icontains=value) |
-            Q(keywords__keyword__icontains=value) |
-            Q(service__service_type__name__icontains=value) |
-            Q(owned_by_org__name__icontains=value)
-        ).distinct()
+        fields = {
+            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
+            'title': ['exact', 'icontains', 'contains'],
+            'abstract': ['exact', 'icontains', 'contains']
+        }
 
 
-class FeatureTypeApiFilter(MrMapApiSearchFilter):
-    """
-    This filter can be used to filter FeatureTypes by different values in API views or viewsets.
-    See https://django-filter.readthedocs.io/en/stable/guide/rest_framework.html
-    """
+class WebFeatureServiceFilterSet(GeoFilterSet):
+    bbox_lat_lon__contains = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='intersects')
+
+    class Meta:
+        model = WebFeatureService
+        fields = {
+            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
+            'title': ['exact', 'icontains', 'contains'],
+            'abstract': ['exact', 'icontains', 'contains']
+        }
+
+
+class FeatureTypeFilterSet(GeoFilterSet):
+    bbox_lat_lon__contains = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = FeatureType
-        fields = {}
-
-    @staticmethod
-    def search_filter(queryset, name, value):
-        if validate_uuid(value):
-            return queryset.filter(Q(id__contains=uuid.UUID(value))).distinct()
-        # __icontains -> case insensitive contains
-        return queryset.filter(
-            Q(title__icontains=value) |
-            Q(abstract__icontains=value) |
-            Q(keywords__keyword__icontains=value) |
-            Q(service__service_type__name__icontains=value) |
-            Q(owned_by_org__name__icontains=value)
-        ).distinct()
+        fields = {
+            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
+            'title': ['exact', 'icontains', 'contains'],
+            'abstract': ['exact', 'icontains', 'contains']
+        }

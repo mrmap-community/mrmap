@@ -1,5 +1,5 @@
 from typing import OrderedDict
-from registry.api.views.jobs import TaskResultReadOnlyViewSet
+from registry.api.filters.service import OgcServiceFilterSet, WebFeatureServiceFilterSet, WebMapServiceFilterSet, FeatureTypeFilterSet, LayerFilterSet
 from registry.api.serializers.jobs import TaskResultSerializer
 from registry.tasks.service import build_ogc_service
 from registry.api.serializers.service import OgcServiceCreateSerializer, OgcServiceSerializer, WebMapServiceSerializer, WebFeatureServiceSerializer, FeatureTypeSerializer, LayerSerializer
@@ -8,10 +8,8 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import RelationshipView, ModelViewSet
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.request import Request
 from rest_framework.settings import api_settings
 from django_celery_results.models import TaskResult
-from django.test.client import RequestFactory
 from rest_framework.test import APIRequestFactory
 from rest_framework.reverse import reverse
 
@@ -27,27 +25,20 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
         '__all__': [],
         'layers': ['layers']
     }
-    filterset_fields = {
-        'id': ('exact', 'lt', 'gt', 'gte', 'lte', 'in'),
-        'title': ('icontains', 'iexact', 'contains'),
-    }
+    filterset_class = WebMapServiceFilterSet
 
 
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = Layer.objects.all()
     serializer_class = LayerSerializer
+    filterset_class = LayerFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
     def get_queryset(self):
         queryset = super(LayerViewSet, self).get_queryset()
-
-        # if this viewset is accessed via the 'service-layers-list' route,
-        # it wll have been passed the `service_pk` kwarg and the queryset
-        # needs to be filtered accordingly; if it was accessed via the
-        # unnested '/services' route, the queryset should include all layers
         if 'service_pk' in self.kwargs:
             service_pk = self.kwargs['service_pk']
             queryset = queryset.filter(service__pk=service_pk)
-
         return queryset
 
 
@@ -62,23 +53,19 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
         '__all__': [],
         'featuretypes': ['featuretypes']
     }
+    filterset_class = WebFeatureServiceFilterSet
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
+    filterset_class = FeatureTypeFilterSet
 
     def get_queryset(self):
         queryset = super(FeatureTypeViewSet, self).get_queryset()
-
-        # if this viewset is accessed via the 'service-layers-list' route,
-        # it wll have been passed the `service_pk` kwarg and the queryset
-        # needs to be filtered accordingly; if it was accessed via the
-        # unnested '/services' route, the queryset should include all layers
         if 'service_pk' in self.kwargs:
             service_pk = self.kwargs['service_pk']
             queryset = queryset.filter(service__pk=service_pk)
-
         return queryset
 
 
@@ -88,12 +75,8 @@ class OgcServiceViewSet(ModelViewSet):
         'default': OgcServiceSerializer,
         'create': OgcServiceCreateSerializer
     }
-
-    filterset_fields = {
-        'id': ('exact', 'lt', 'gt', 'gte', 'lte', 'in'),
-        'title': ('icontains', 'iexact', 'contains'),
-    }
-    search_fields = ('id', 'title',)
+    filterset_class = OgcServiceFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.serializer_classes['default'])

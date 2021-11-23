@@ -36,10 +36,6 @@ INSTALLED_APPS = [
     'channels',
     'guardian',
     'polymorphic',
-    # 'dal',
-    # 'dal_select2',
-    
-    # 'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -47,24 +43,16 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'django.contrib.gis',
-    # 'formtools',
     'django_extensions',
     'captcha',
     'rest_framework',
     'rest_framework_gis',
-    'rest_framework.authtoken',
     'rest_framework_json_api',
     'dj_rest_auth',
     'django_celery_beat',
     'django_celery_results',
-    # 'bootstrap5',
-    # 'django_tables2',
     'django_filters',
-    # 'query_parameters',
     'django_nose',
-    # 'mathfilters',
-    # 'leaflet',
-    # 'breadcrumb',
     'mptt',
     'corsheaders',
     'MrMap',  # added so we can use general commands in MrMap/management/commands
@@ -73,27 +61,39 @@ INSTALLED_APPS = [
     'jobs',
     'registry',
     'extras',
-    'ws',
 ]
 
-TEMPLATE_LOADERS = (
-    'django.template.loaders.extras.custom_template_filters.py'
-    'django.template.loaders.app_directories.Loader'
-)
-
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    # 'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'django.middleware.gzip.GZipMiddleware',
+    # 'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.RemoteUserMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'django.contrib.auth.middleware.RemoteUserMiddleware',
+    # 'django.contrib.messages.middleware.MessageMiddleware',
+    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'crum.CurrentRequestUserMiddleware',
+]
+
+TEMPLATE_LOADERS = (
+    'django.template.loaders.app_directories.Loader'
+)
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+            ],
+        },
+    },
 ]
 
 if DEBUG:
@@ -140,29 +140,6 @@ ROOT_URLCONF = 'MrMap.urls'
 
 FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [
-            BASE_DIR + "/templates",
-        ],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'MrMap.context_processors.default_context',
-            ],
-        },
-    },
-]
-PER_PAGE_DEFAULT = 25
-PER_PAGE_DEFAULTS = [
-    25, 50, 100, 250, 500, 1000
-]
-PER_PAGE_MAX = 2500
 
 METADATA_URL = ["request=GetMetadata&", ]
 
@@ -176,15 +153,9 @@ if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
 GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
-
-LOGIN_REDIRECT_URL = "users:dashboard"
-LOGOUT_REDIRECT_URL = "users:login"
-# Defines where to redirect a user, that has to be logged in for a certain route
-LOGIN_URL = "users:login"
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -201,20 +172,6 @@ TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE')
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
-
-# Defines the semantic web information which will be injected on the resource html views
-SEMANTIC_WEB_HTML_INFORMATION = {
-    "legalName": "Zentrale Stelle GDI-RP",
-    "email": "kontakt@geoportal.rlp.de",
-    "addressCountry": "DE",
-    "streetAddress": "Von-Kuhl-Straße 49",
-    "addressRegion": "RLP",
-    "postalCode": "56070",
-    "addressLocality": "Koblenz",
-}
-
-# Defines the timespan for fetching the last activities on dashboard
-LAST_ACTIVITY_DATE_RANGE = 7
 
 # configure your proxy like "http://10.0.0.1:8080"
 # or with username and password: "http://username:password@10.0.0.1:8080"
@@ -355,9 +312,7 @@ AUTH_PASSWORD_VALIDATORS = [
 STATIC_URL = '/backend/static/'
 STATIC_ROOT = "/var/www/mrmap/static/"
 STATICFILES_DIRS = [
-    BASE_DIR + '/MrMap/static',
-    # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/registry/static',
+    BASE_DIR + '/MrMap/static'
 ]
 
 # static is used for localdev + runserver

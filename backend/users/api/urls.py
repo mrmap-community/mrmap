@@ -2,6 +2,7 @@ from users.api.views import users as user_views
 from users.api.views import groups as group_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
+
 app_name = 'users'
 
 nested_api_router = ExtendedSimpleRouter()

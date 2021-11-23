@@ -1,10 +1,11 @@
 import './App.css';
 
-import { Header } from 'antd/lib/layout/layout';
+import { Content, Header } from 'antd/lib/layout/layout';
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
 import { Dashboard } from './Components/Dashboard/Dashboard';
+import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import { NavBar } from './Components/NavBar/NavBar';
 import { ServiceList } from './Components/Service/ServiceList/ServiceList';
 import { LoginForm } from './Components/Users/Auth/Login';
@@ -31,11 +32,14 @@ export default function App () {
             <NavBar />
 
         </Header>
-          <Routes>
-            <Route path="/" element={<Dashboard/>}/>
-            <Route path="/registry/services/wms" element={<ServiceList/>}/>
-            <Route path="/users/auth/login" element={<LoginForm/>}/>
-          </Routes>
+          <Content className="site-layout" style={{ padding: '0 50px', marginTop: 64 }}>
+            <Routes>
+              <Route path="/" element={<Dashboard/>}/>
+              <Route path="/registry/services/wms" element={<ServiceList/>}/>
+              <Route path="/users/auth/login" element={<LoginForm/>}/>
+              <Route path="/registry/mapcontext/add" element={<MapContextForm/>}/>
+            </Routes>
+          </Content>
         </AuthProvider>
       </OpenAPIProvider>
     </Router>

@@ -25,7 +25,7 @@ from requests.exceptions import ConnectTimeout as ConnectTimeoutException, Conne
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, \
     SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE, SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE
 from MrMap.settings import PROXIES
-from MrMap.utils import execute_threads
+from extras.utils import execute_threads
 from registry.models.service import WebFeatureService, WebMapService
 from ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
 from ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam

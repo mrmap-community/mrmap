@@ -12,7 +12,6 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from MrMap.icons import IconEnum, get_icon
 from users.models.groups import Organization
 from users.settings import USER_ACTIVATION_TIME_WINDOW
 
@@ -33,10 +32,6 @@ class MrMapUser(AbstractUser):
     class Meta:
         verbose_name = _('User')
         verbose_name_plural = _('Users')
-
-    @property
-    def icon(self):
-        return get_icon(IconEnum.USER)
 
     def get_absolute_url(self):
         return reverse('users:password_change_done')

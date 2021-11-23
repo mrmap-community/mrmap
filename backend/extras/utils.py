@@ -41,3 +41,16 @@ def update_url_query_params(url, params):
     url_new_query = urlparse.urlencode(url_dict)
     url_parse = url_parse._replace(query=url_new_query)
     return urlparse.urlunparse(url_parse)
+
+
+def execute_threads(thread_list):
+    """ Executes a list of threads
+
+    Args:
+        thread_list (list): A list of threads
+    Returns: nothing
+    """
+    for thread in thread_list:
+        thread.start()
+    for thread in thread_list:
+        thread.join()

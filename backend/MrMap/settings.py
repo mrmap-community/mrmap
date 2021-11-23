@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'captcha',
     'rest_framework',
+    'rest_framework.authtoken',
     'rest_framework_gis',
     'rest_framework_json_api',
     'dj_rest_auth',
@@ -512,4 +513,11 @@ REST_FRAMEWORK = {
         'rest_framework_json_api.renderers.JSONRenderer',
     ),
     'TEST_REQUEST_DEFAULT_FORMAT': 'vnd.api+json'
+}
+
+
+# Django rest auth settings
+REST_AUTH_SERIALIZERS = {
+    'LOGIN_SERIALIZER': 'users.api.serializers.auth.LoginSerializer',
+    # 'TOKEN_SERIALIZER': 'path.to.custom.TokenSerializer',
 }

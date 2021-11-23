@@ -7,12 +7,12 @@ import { OpenAPIContext } from '../../Hooks/OpenAPIProvider';
 const { Option } = Select;
 
 const layout = {
-  labelCol: { span: 2 },
+  labelCol: { span: 3 },
   wrapperCol: { span: 8 },
 };
 
 const tailLayout = {
-  wrapperCol: { offset: 2, span: 8 },
+  wrapperCol: { offset: 3, span: 8 },
 };
 
 export const ServiceEdit = (props: any, context: any) => {

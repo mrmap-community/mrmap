@@ -86,7 +86,7 @@ export const ServiceList = () => {
     });
     const [tableState, setTableState] = useState<any>({
         page: 1,
-        pageSize: 1,
+        pageSize: 5,
         ordering: undefined,
         filters: undefined
     });
@@ -196,6 +196,7 @@ export const ServiceList = () => {
                     pageSize: tableState.pageSize,
                     total: data.total,
                 }}
+                scroll={{x: true}}
                 onChange={handleTableChange}
             />
         </Card>

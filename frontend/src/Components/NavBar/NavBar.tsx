@@ -1,11 +1,10 @@
 import { Avatar, Button, Col, Menu, Row, Tag, Tooltip } from 'antd';
-import { LoginOutlined, LogoutOutlined, DashboardOutlined, ApartmentOutlined, UserOutlined, DatabaseOutlined, KeyOutlined } from '@ant-design/icons';
+import { LoginOutlined, LogoutOutlined, DashboardOutlined, UserOutlined, DatabaseOutlined, KeyOutlined, SecurityScanOutlined } from '@ant-design/icons';
 import { Link } from "react-router-dom";
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../Hooks/AuthUserProvider';
 
 const { SubMenu } = Menu;
-
 
 const AuthButton = (props: any) => {
   if (props.username === "guest") {
@@ -38,7 +37,7 @@ export const NavBar = () => {
         <Menu.Item key="registry:metadata">Metadata Records</Menu.Item>
         <Menu.Item key="registry:map-contexts">Map Contexts</Menu.Item>
       </SubMenu>
-      <SubMenu key="security" icon={<KeyOutlined />} title="Security">
+      <SubMenu key="security" icon={<SecurityScanOutlined />} title="Security">
         <Menu.Item key="security:external-auth">External Authentications</Menu.Item>
         <Menu.Item key="security:service-proxy-settings">Service proxy settings</Menu.Item>
         <Menu.Item key="security:service-access-groups">Service Access Groups</Menu.Item>

@@ -7,9 +7,10 @@ import { OpenAPIProvider } from "./Hooks/OpenAPIProvider";
 import { LoginForm } from "./Components/Users/Auth/Login";
 import { AuthProvider } from "./Hooks/AuthUserProvider";
 import { ServiceEdit } from "./Components/Service/ServiceEdit";
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, Space } from 'antd';
 import { useState } from "react";
 import logo from "./logo.png";
+import { ApiOutlined, GithubOutlined } from "@ant-design/icons";
 
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
@@ -22,6 +23,7 @@ export default function App() {
   if (process.env.REACT_APP_REST_API_BASE_URL === undefined) {
     throw new Error("Environment variable REACT_APP_REST_API_BASE_URL is undefined.");
   }
+  const swaggerUiUrl = process.env.REACT_APP_REST_API_SCHEMA_URL + "swagger-ui/";
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -40,26 +42,6 @@ export default function App() {
                 <img src={logo}></img>
               </div>
               <NavBar />
-              {/* <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline">
-                <Menu.Item key="1" icon={<PieChartOutlined />}>
-                  Option 1
-                </Menu.Item>
-                <Menu.Item key="2" icon={<DesktopOutlined />}>
-                  Option 2
-                </Menu.Item>
-                <SubMenu key="sub1" icon={<UserOutlined />} title="User">
-                  <Menu.Item key="3">Tom</Menu.Item>
-                  <Menu.Item key="4">Bill</Menu.Item>
-                  <Menu.Item key="5">Alex</Menu.Item>
-                </SubMenu>
-                <SubMenu key="sub2" icon={<TeamOutlined />} title="Team">
-                  <Menu.Item key="6">Team 1</Menu.Item>
-                  <Menu.Item key="8">Team 2</Menu.Item>
-                </SubMenu>
-                <Menu.Item key="9" icon={<FileOutlined />}>
-                  Files
-                </Menu.Item>
-              </Menu> */}
             </Sider>
             <Layout className="site-layout">
               <Content style={{ margin: '0 16px' }}>
@@ -72,7 +54,12 @@ export default function App() {
                   </Routes>
                 </div>
               </Content>
-              <Footer style={{ textAlign: 'center' }}>Mr. Map 1.0-pre <a href="https://github.com/mrmap-community/mrmap">GitHub</a></Footer>
+              <Footer style={{ textAlign: 'center' }}>
+                <Space>
+                  <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
+                  <a href="https://github.com/mrmap-community/mrmap"><GithubOutlined /> GitHub</a>
+                </Space>
+              </Footer>
             </Layout>
           </Layout>
         </AuthProvider>

@@ -1,10 +1,5 @@
-import { SmileOutlined } from '@ant-design/icons';
-import { Card, Form, Input, Button, Select, notification } from 'antd';
-import { useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { OpenAPIContext } from '../../Hooks/OpenAPIProvider';
-
-const { Option } = Select;
+import { Card, Form, Input, Button, notification } from 'antd';
+import OgcServices from '../../Services/OgcServices';
 
 const layout = {
   labelCol: { span: 3 },
@@ -17,37 +12,12 @@ const tailLayout = {
 
 export const ServiceEdit = (props: any, context: any) => {
 
-  const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { api } = useContext(OpenAPIContext);
 
   const onFinish = (values: any) => {
     async function postData() {
       console.log(values);
-      const client = await api.getClient();
-      const res = await client["create/api/v1/registry/ogcservices/"](null, {
-        "data": {
-          "type": "OgcService",
-          "attributes": {
-            "get_capabilities_url": values.get_capabilities_url
-          },
-          "relationships": {
-            "owned_by_org": {
-              "data": {
-                "type": "OgcService",
-                "id": values.owned_by_org
-              }
-            }
-          }
-        }
-      }, { headers: { 'Content-Type': 'application/vnd.api+json' } });
-
-      // const res = await client["List/api/v1/registry/wms/"]({
-      //   'page[number]': tableState.page,
-      //   'page[size]': tableState.pageSize,
-      //   ordering: tableState.ordering,
-      //   ...tableState.filters
-      // });
+      const res = await new OgcServices().create(values);
       console.log(res);
       if (res.status === 202) {
         notification['info']({

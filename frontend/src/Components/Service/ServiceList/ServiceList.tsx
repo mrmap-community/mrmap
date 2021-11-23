@@ -1,9 +1,16 @@
-import { createRef, useContext, useEffect, useState } from "react";
-import { Table, Card, Input, Space, Button } from "antd";
-import { OpenAPIContext } from "../../../Hooks/OpenAPIProvider";
+import { createRef, useEffect, useState } from "react";
+import { Table, Card, Input, Space, Button, notification, Modal } from "antd";
 import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router";
+import OgcServices, { OgcService } from "../../../Services/OgcServices";
+
+interface TableState {
+    page: number;
+    pageSize: number;
+    ordering: string;
+    filters: any;
+}
 
 const getColumnSearchProps = (dataIndex: any): any => {
     const searchInput: any = createRef();
@@ -84,21 +91,48 @@ export const ServiceList = () => {
         dataSource: [],
         total: 0
     });
-    const [tableState, setTableState] = useState<any>({
+    const [tableState, setTableState] = useState<TableState>({
         page: 1,
         pageSize: 5,
-        ordering: undefined,
-        filters: undefined
+        ordering: "",
+        filters: {}
     });
     const [columns, setColumns] = useState<any>([]);
     const [columnTypes, setColumnTypes] = useState<any>({});
 
-    const { api } = useContext(OpenAPIContext);
+    const navigate = useNavigate();
 
     useEffect(() => {
+        const onDeleteRecord = (record: any) => {
+            async function deleteRecord() {
+                await new OgcServices().delete(record.id);
+                notification['success']({
+                    message: 'Service deleted',
+                    description: `Service with id ${record.id} has been deleted succesfully`
+                });
+                // const newData = {
+                //     dataSource: data.dataSource.filter((row: any) => (row.id !== record.id)),
+                //     total: data.total - 1
+                // };
+                // setData(newData);
+            }
+            const modal = Modal.confirm({
+                title: 'Delete Service',
+                content: `Do you want to delete the service with id ${record.id}?`,
+                onOk: () => {
+                    modal.update(prevConfig => ({
+                        ...prevConfig,
+                        confirmLoading: true
+                    }));
+                    deleteRecord();
+                }
+            });
+        }
+
         async function buildColumns() {
-            const client = await api.getClient();
-            const props = client.api.getOperation("List/api/v1/registry/wms/").responses[200].content["application/vnd.api+json"].schema.properties.data.items.properties.attributes.properties;
+            const ogcServices = new OgcServices();
+            const schema = await ogcServices.getSchema();
+            const props = schema.properties.data.items.properties.attributes.properties;
             const columns = [];
             for (const propName in props) {
                 const prop = props[propName];
@@ -118,36 +152,34 @@ export const ServiceList = () => {
             columns.push({
                 title: 'Actions',
                 key: 'actions',
-                render: (text: any, record: any) => (
-                    <Space size="middle">
-                        <a>Delete</a>
-                        <a>Edit</a>
-                    </Space>
-                )
+                render: (text: any, record: any) => {
+                    const boundOnDeleteRecord = onDeleteRecord.bind(null, record);
+                    return (
+                        <Space size="middle">
+                            <Button danger size="small" onClick={boundOnDeleteRecord}>Delete</Button>
+                        </Space>
+                    );
+                }
             });
             setColumns(columns);
             setColumnTypes(props);
         }
         buildColumns();
-    }, [api]);
+        // eslint-disable-next-line
+    }, []);
 
     useEffect(() => {
         async function fetchTableData() {
             setLoading(true);
-            const client = await api.getClient();
-            const queryParams = {
-                'page[number]': tableState.page,
-                'page[size]': tableState.pageSize,
-                ...tableState.filters
-            };
-            if (tableState.ordering && tableState.ordering !== 'undefined') {
-                queryParams.sort = tableState.ordering;
-            }
-            const res = await client["List/api/v1/registry/wms/"](queryParams);
+            const response = await new OgcServices().findAll(tableState);
+            const ogcServices = response.data as OgcService[];
             const dataSource: any = [];
-            res.data.data.forEach((result: any) => {
-                result.attributes.id = result.id;
-                dataSource.push(result.attributes);
+            ogcServices.forEach((ogcService: any) => {
+                const row = {
+                    id: ogcService.id,
+                    ...ogcService.attributes
+                };
+                dataSource.push(row);
             });
             // for (const columnName in columnTypes) {
             //     const columnType = columnTypes[columnName];
@@ -159,7 +191,7 @@ export const ServiceList = () => {
             // }
             setData({
                 dataSource: dataSource,
-                total: res.data.meta.pagination.count
+                total: response.meta.pagination.count
             });
             setLoading(false);
         }
@@ -168,7 +200,12 @@ export const ServiceList = () => {
             return;
         }
         fetchTableData();
-    }, [tableState, api, columnTypes]);
+    }, [tableState, columnTypes]);
+
+
+    const onAddService = () => {
+        navigate("/registry/services/add");
+    }
 
     const handleTableChange = (pagination: any, filters: any, sorter: any) => {
         const filterParams: any = {};
@@ -180,12 +217,12 @@ export const ServiceList = () => {
         setTableState({
             page: pagination.current,
             pageSize: pagination.pageSize,
-            ordering: sorter ? ((sorter.order === 'descend' ? '-' : '') + sorter.field) : undefined,
+            ordering: sorter ? ((sorter.order === 'descend' ? '-' : '') + sorter.field) : "",
             filters: filterParams
         });
     };
     return (
-        <Card title="Services" extra={<Link to="/registry/services/add">Add</Link>} style={{ width: '100%' }}>
+        <Card title="Services" extra={<Button type="primary" onClick={onAddService}>Add service</Button>} style={{ width: '100%' }}>
             <Table
                 dataSource={data.dataSource}
                 rowKey={(record: any) => record.id}
@@ -196,7 +233,7 @@ export const ServiceList = () => {
                     pageSize: tableState.pageSize,
                     total: data.total,
                 }}
-                scroll={{x: true}}
+                scroll={{ x: true }}
                 onChange={handleTableChange}
             />
         </Card>

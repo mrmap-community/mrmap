@@ -1,12 +1,10 @@
 import React, { useContext, useState } from 'react';
-import { OpenAPIContext } from "./OpenAPIProvider";
-
+import OpenAPIService from "../Services/OpenAPIService";
 
 export const AuthContext = React.createContext();
 
 export const AuthProvider = ({ children }) => {
     const [username, setUsername] = useState("guest");
-    const { api } = useContext(OpenAPIContext);
 
     const handleAuth = ({ username, password }, action) => {
       // async function checkCurrentAuth() {
@@ -26,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
 
       async function loginUser() {
-        const client = await api.getClient();
+        const client = OpenAPIService.getClientInstance();
         const res = await client.v1_auth_login_create({},{username: username, password: password});
         console.log(res);
         if (res.status === 200){
@@ -37,7 +35,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       async function logoutUser(){
-        const client = await api.getClient();
+        const client = OpenAPIService.getClientInstance();
         const res = await client.v1_auth_logout_create();
         console.log(res);
       }

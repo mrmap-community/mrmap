@@ -15,8 +15,8 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
         instance = self.get_object()
 
         if instance.status == states.SUCCESS:
-            # followed the jsonapi recomendation for async processing
-            
+            # followed the jsonapi recommendation for async processing
+
             # https://jsonapi.org/recommendations/#asynchronous-processing
             result = json.loads(instance.result)
             return Response(status=status.HTTP_303_SEE_OTHER, headers={'Location': str(self.request.build_absolute_uri(result.get("api_enpoint")))})

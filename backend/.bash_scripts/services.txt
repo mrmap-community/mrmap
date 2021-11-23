@@ -1,0 +1,9 @@
+https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities
+https://maps.dwd.de/geoserver/wfs?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities
+https://maps.dwd.de/geoproxy_warnungen/service?SERVICE=wms&VERSION=1.3.0&REQUEST=GetCapabilities
+http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities
+https://geo5.service24.rlp.de/wms/liegenschaften_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities
+https://geo5.service24.rlp.de/wfs/bodenschaetzung_rp.fcgi?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities
+https://geo4.service24.rlp.de/wms/hklika.fcgi?REQUEST=GetCapabilities&VERSION=1.1.1&SERVICE=WMS
+https://komserv4gdi.service24.rlp.de/ows/wms/07131007_Bad_Neuenahr-Ahrweiler?REQUEST=GetCapabilities&VERSION=1.3.0&SERVICE=WMS
+http://www.geoproxy.geoportal-th.de/geoproxy/services?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0

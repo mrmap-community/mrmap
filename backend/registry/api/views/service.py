@@ -105,7 +105,7 @@ class OgcServiceViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.serializer_classes['default'])
 
     def create(self, request, *args, **kwargs):
-        # followed the jsonapi recomendation for async processing
+        # followed the jsonapi recommendation for async processing
         # https://jsonapi.org/recommendations/#asynchronous-processing
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

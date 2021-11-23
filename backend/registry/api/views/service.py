@@ -1,4 +1,6 @@
 from typing import OrderedDict
+
+from rest_framework_json_api.schemas.openapi import AutoSchema
 from registry.api.filters.service import OgcServiceFilterSet, WebFeatureServiceFilterSet, WebMapServiceFilterSet, FeatureTypeFilterSet, LayerFilterSet
 from registry.api.serializers.jobs import TaskResultSerializer
 from registry.tasks.service import build_ogc_service
@@ -15,10 +17,16 @@ from rest_framework.reverse import reverse
 
 
 class WebMapServiceRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=['WebMapServices'],
+    )
     queryset = WebMapService.objects
 
 
 class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=['WebMapServices'],
+    )
     queryset = WebMapService.objects.all()
     serializer_class = WebMapServiceSerializer
     prefetch_for_includes = {
@@ -29,6 +37,9 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=['WebMapServices'],
+    )
     queryset = Layer.objects.all()
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
@@ -43,10 +54,16 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class WebFeatureServiceRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=['WebFeatureServices'],
+    )
     queryset = WebFeatureService.objects
 
 
 class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=['WebFeatureServices'],
+    )
     queryset = WebFeatureService.objects.all()
     serializer_class = WebFeatureServiceSerializer
     prefetch_for_includes = {
@@ -57,6 +74,9 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=['WebFeatureServices'],
+    )
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
@@ -70,6 +90,9 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class OgcServiceViewSet(ModelViewSet):
+    schema = AutoSchema(
+        tags=['OgcServices'],
+    )
     queryset = OgcService.objects.all()
     serializer_classes = {
         'default': OgcServiceSerializer,
@@ -111,6 +134,3 @@ class OgcServiceViewSet(ModelViewSet):
             return {'Content-Location': str(data[api_settings.URL_FIELD_NAME])}
         except (TypeError, KeyError):
             return {}
-
-    def get_serializer_context(self):
-        return super().get_serializer_context()

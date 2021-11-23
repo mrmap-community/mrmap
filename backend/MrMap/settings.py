@@ -154,7 +154,6 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'MrMap.context_processors.default_context',
-                #'breadcrumb.context_processors.breadcrumb_renderer',
             ],
         },
     },

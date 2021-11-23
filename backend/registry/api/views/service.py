@@ -113,12 +113,9 @@ class OgcServiceViewSet(ModelViewSet):
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(path=request.build_absolute_uri(reverse("registry:taskresult-detail", args=[task_result.pk])), data={})
-        # view = TaskResultReadOnlyViewSet.as_view({'get': 'detail'})
-        # response = view.view(request=dummy_request)
-        
+
         dummy_request.query_params = OrderedDict()
         serialized_task_result = TaskResultSerializer(task_result, **{'context': {'request': dummy_request}})
-        #serialized_task_result = TaskResultSerializer(task_result)
         serialized_task_result_data = serialized_task_result.data
         # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
         if not serialized_task_result_data.get("meta", None):

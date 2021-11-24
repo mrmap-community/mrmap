@@ -12,7 +12,7 @@ def result_file_path(instance, filename):
 
 
 class HarvestResult(CommonInfo):
-    service = models.ForeignKey(to="Service",
+    service = models.ForeignKey(to="CatalougeService",
                                 on_delete=models.CASCADE,
                                 related_name="harvest_results",
                                 related_query_name="harvest_result")

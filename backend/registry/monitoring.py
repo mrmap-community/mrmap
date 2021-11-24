@@ -18,19 +18,17 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError
 from requests import Request, Session
 from MrMap.settings import PROXIES
-
 from ows_client.wfs_helper import WfsHelper
 from ows_client.wms_helper import WmsHelper
-from registry.enums.service import OGCServiceVersionEnum, OGCServiceEnum
+from registry.enums.service import OGCServiceVersionEnum
 from registry.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
     MonitoringSetting, HealthState
-from registry.models import Service, Layer, FeatureType, DatasetMetadata
+from registry.models import WebMapService, WebFeatureService, Layer, FeatureType, DatasetMetadata
 from registry.settings import MONITORING_REQUEST_TIMEOUT
 
 
 class Monitor:
-
-    def __init__(self, resource: Union[Service, Layer, FeatureType, DatasetMetadata], monitoring_run: MonitoringRun,
+    def __init__(self, resource, monitoring_run: MonitoringRun,
                  monitoring_setting: MonitoringSetting = None, ):
         self.resource = resource
         self.linked_metadata = None
@@ -64,11 +62,10 @@ class Monitor:
             nothing
         """
 
-        if isinstance(self.resource, Service):
-            if self.resource.is_service_type(OGCServiceEnum.WMS):
-                self.check_wms(self.resource)
-            elif self.resource.is_service_type(OGCServiceEnum.WFS):
-                self.check_wfs(self.resource)
+        if isinstance(self.resource, WebMapService):
+            self.check_wms(self.resource)
+        elif isinstance(self.resource, WebFeatureService):
+            self.check_wfs(self.resource)
         elif isinstance(self.resource, Layer):
             self.check_layer(self.resource)
         elif isinstance(self.resource, FeatureType):
@@ -86,7 +83,7 @@ class Monitor:
         health_state.save()
         health_state.run_health_state()
 
-    def check_wfs(self, service: Service):
+    def check_wfs(self, service: WebFeatureService):
         """ Check the availability of wfs operations.
 
         Checks for each read-only wfs operation if that operation is active. Version specific operations will
@@ -114,7 +111,7 @@ class Monitor:
                 if wfs_helper.list_stored_queries is not None:
                     self.check_service(wfs_helper.list_stored_queries)
 
-    def check_wms(self, service: Service, capabilities_only: bool = False):
+    def check_wms(self, service: WebMapService, capabilities_only: bool = False):
         """ Check the availability of wms operations.
 
         Checks for each wms operation if that operation is active. Either only the getCapabilities operation will be
@@ -203,7 +200,7 @@ class Monitor:
             self.handle_service_error(service_status)
 
     def _get_session_for_request(self):
-        if isinstance(self.resource, Service):
+        if isinstance(self.resource, WebMapService) or isinstance(self.resource, WebFeatureService):
             return self.resource.get_session_for_request()
         if isinstance(self.resource, Layer) or isinstance(self.resource, FeatureType):
             return self.resource.service.get_session_for_request()

@@ -25,12 +25,12 @@ from requests.exceptions import ConnectTimeout as ConnectTimeoutException, Conne
 from MrMap.messages import SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, \
     SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE, SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE
 from MrMap.settings import PROXIES
-from MrMap.utils import execute_threads
+from extras.utils import execute_threads
+from registry.models.service import WebFeatureService, WebMapService
 from ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
 from ows_client.exceptions import MissingBboxParam, MissingServiceParam, MissingVersionParam
 from ows_client.request_builder import WebService
 from registry.enums.service import OGCServiceEnum, OGCOperationEnum
-from registry.models import Service
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
@@ -67,7 +67,13 @@ class GenericOwsServiceOperationFacade(View):
         except (MissingBboxParam, MissingServiceParam):
             request.bbox = GEOSGeometry('POLYGON EMPTY')
 
-        self.service = Service.security.construct_service(pk=self.kwargs.get("pk"), request=request)
+        service_cls = None
+        if request.query_parameters.get("service").lower() == OGCServiceEnum.WMS.value:
+            service_cls = WebMapService
+        elif request.query_parameters.get("service").lower() == OGCServiceEnum.WFS.value:
+            service_cls = WebFeatureService
+
+        self.service = service_cls.security.construct_service(pk=self.kwargs.get("pk"), request=request)
 
         if self.service:
             try:

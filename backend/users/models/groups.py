@@ -6,8 +6,6 @@ from django.utils.translation import gettext_lazy as _
 
 from acls.models.acls import AccessControlList
 from extras.models import UuidPk, CommonInfo
-from MrMap.icons import IconEnum, get_icon
-from MrMap.messages import REQUEST_ACTIVATION_TIMEOVER
 from users.settings import DEFAULT_REQUEST_ACIVATION_TIME
 from django.utils import timezone
 
@@ -80,10 +78,6 @@ class Organization(UuidPk, CommonInfo, Contact):
     def __str__(self):
         return self.name
 
-    @property
-    def icon(self):
-        return get_icon(IconEnum.ORGANIZATION)
-
     def add_organization_publish_relation(self, to):
         relation, created = OrganizationPublishRelation.objects.get_or_create(
             from_organization=self,
@@ -147,7 +141,7 @@ class BaseInternalRequest(UuidPk, CommonInfo):
         else:
             if timezone.now() > self.activation_until:
                 self.delete()
-                raise ValidationError(REQUEST_ACTIVATION_TIMEOVER)
+                raise ValidationError("REQUEST_ACTIVATION_TIMEOVER")
 
         super().save(*args, **kwargs)
 
@@ -169,10 +163,6 @@ class PublishRequest(BaseInternalRequest):
         unique_together = ('from_organization', 'to_organization',)
         verbose_name = _('Pending publish request')
         verbose_name_plural = _('Pending publish requests')
-
-    @property
-    def icon(self):
-        return get_icon(IconEnum.PUBLISHERS)
 
     def __str__(self):
         return f"{self.from_organization} would like to publish for {self.to_organization}"

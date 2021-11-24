@@ -1,16 +1,15 @@
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Button, Checkbox, Form, Input } from 'antd';
-import React from 'react';
-
-import { useAuth } from '../../../Hooks/AuthUserProvider';
+import { Form, Input, Button, Checkbox } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { CSRFToken } from '../../CSRF/CSRF';
+import { useAuth } from '../../../Hooks/AuthUserProvider';
+
 
 export const LoginForm = () => {
-  const [username, handleAuth] = useAuth(); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [, handleAuth] = useAuth();
 
   const onFinish = (values: any) => {
     console.log('Received values of form: ', values);
-    handleAuth({ username: values.username, password: values.password }, 'loginUser');
+    handleAuth({username: values.username, password: values.password}, "loginUser");
   };
 
   return (
@@ -42,16 +41,16 @@ export const LoginForm = () => {
           <Checkbox>Remember me</Checkbox>
         </Form.Item>
 
-        <a className="login-form-forgot" href="">
+        <span className="login-form-forgot">
           Forgot password
-        </a>
+        </span>
       </Form.Item>
 
       <Form.Item>
         <Button type="primary" htmlType="submit" className="login-form-button">
           Log in
         </Button>
-        Or <a href="">register now!</a>
+        Or <span>register now!</span>
       </Form.Item>
     </Form>
   );

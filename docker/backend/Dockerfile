@@ -4,17 +4,12 @@
 FROM python:3.9.7-bullseye AS base
 ARG MRMAP_PRODUCTION
 RUN apt-get -qq update && \
-    apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin npm
+    apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin
     
 # build python dependencies    
 COPY ./requirements.txt ./requirements.dev.txt /
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.txt
 RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip wheel --no-cache-dir --no-deps --wheel-dir /wheels -r requirements.dev.txt; fi
-
-# download front end dependencies (and copy them to /static)
-COPY ./package.json /
-RUN npm install --yes
-RUN npm run copy
 
 ################################
 # MrMap Image
@@ -22,7 +17,6 @@ RUN npm run copy
 FROM python:3.9.7-slim-bullseye
 ARG MRMAP_PRODUCTION
 COPY --from=base /wheels /wheels
-COPY --from=base /static/ /tmp/static
 
 # TODO: firefox-esr gettext are only needed for dev environment
 RUN apt-get -qq update && \

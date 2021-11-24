@@ -1,28 +1,21 @@
+from abc import abstractmethod
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Max, Count
+from django.db.models import Max
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
-from mptt.managers import TreeManager
 from extras.models import get_current_owner
 from registry.enums.metadata import MetadataOrigin
-from registry.enums.service import OGCServiceEnum
 from crum import get_current_user
+from random import randrange
 
 
-class ServiceXmlManager(models.Manager):
+class ServiceCapabilitiesManager(models.Manager):
     """
     handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
     instance.
     """
-    last_node_level = 0
-    parent_lookup = None
-    current_parent = None
-
-    db_layer_list = []
     db_remote_metadata_list = []
-    db_style_list = []
-    db_legend_url_list = []
     db_dimension_list = []
 
     # to avoid from circular import problems, we lookup the model from the parsed python objects. The model is
@@ -33,23 +26,20 @@ class ServiceXmlManager(models.Manager):
     keyword_cls = None
     remote_metadata_cls = None
     mime_type_cls = None
-    style_cls = None
-    legend_url_cls = None
+
     dimension_cls = None
     reference_system_cls = None
 
     common_info = {}
 
     def _reset_local_variables(self):
-        self.last_node_level = 0
-        self.parent_lookup = None
-        self.current_parent = None
+        """helper function to reset local variables.
+           It seems to be that a manager in django is a singleton object.
+        """
 
-        self.db_layer_list = []
         self.db_sub_element_metadata_list = []
         self.db_remote_metadata_list = []
-        self.db_style_list = []
-        self.db_legend_url_list = []
+
         self.db_dimension_list = []
         self.db_dimension_extent_list = []
 
@@ -60,8 +50,7 @@ class ServiceXmlManager(models.Manager):
         self.keyword_cls = None
         self.remote_metadata_cls = None
         self.mime_type_cls = None
-        self.style_cls = None
-        self.legend_url_cls = None
+
         self.dimension_cls = None
         self.dimension_extent_cls = None
         self.reference_system_cls = None
@@ -77,15 +66,6 @@ class ServiceXmlManager(models.Manager):
                             "owned_by_org": get_current_owner(),
                             }
 
-    def _get_next_tree_id(self, layer_cls):
-        max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
-        tree_id = max_tree_id.get("tree_id__max")
-        if isinstance(tree_id, int):
-            tree_id += 1
-        else:
-            tree_id = 0
-        return tree_id
-
     def _get_or_create_keywords(self, parsed_keywords, db_object):
         db_object.keyword_list = []
         for keyword in parsed_keywords:
@@ -98,15 +78,12 @@ class ServiceXmlManager(models.Manager):
     def _create_service_instance(self, parsed_service, *args, **kwargs):
         """ Creates the service instance and all depending/related objects """
         # create service instance first
-        service_type, created = parsed_service.service_type.get_model_class().objects.get_or_create(
-            **parsed_service.service_type.get_field_dict())
 
         parsed_service_contact = parsed_service.service_metadata.service_contact
         service_contact_cls = parsed_service_contact.get_model_class()
         db_service_contact, created = service_contact_cls.objects.get_or_create(**parsed_service_contact.get_field_dict())
 
-        service = super().create(service_type=service_type,
-                                 origin=MetadataOrigin.CAPABILITIES.value,
+        service = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                  service_contact=db_service_contact,
                                  metadata_contact=db_service_contact,
                                  *args,
@@ -128,6 +105,7 @@ class ServiceXmlManager(models.Manager):
         for operation_url in parsed_service.operation_urls:
             if not operation_url_model_cls:
                 operation_url_model_cls = operation_url.get_model_class()
+
             db_operation_url = operation_url_model_cls(service=service,
                                                        **self.common_info,
                                                        **operation_url.get_field_dict())
@@ -148,31 +126,6 @@ class ServiceXmlManager(models.Manager):
 
         return service
 
-    def _update_current_parent(self, parsed_layer):
-        # todo: maybe we can move node id setting to get_all_layers()
-        if self.last_node_level < parsed_layer.level:
-            # Climb down the tree. In this case the last node is always the a parent node. (preorder traversal)
-            # We store it in our parent_lookup dict to resolve it if we climb up
-            # the tree again. In case of climb up we loose the directly parent.
-            self.current_parent = self.db_layer_list[-1]
-            self.parent_lookup.update({self.current_parent.node_id: self.current_parent})
-            parsed_layer.node_id = self.db_layer_list[-1].node_id + ".1"
-        elif self.last_node_level > parsed_layer.level:
-            # climb up the tree. We need to lookup the parent of this node.
-            sibling_node_id = self.db_layer_list[-1].parent.node_id.split(".")
-            sibling_node_id[-1] = str(int(sibling_node_id[-1]) + 1)
-            parsed_layer.node_id = ".".join(sibling_node_id)
-            self.current_parent = self.parent_lookup.get(parsed_layer.node_id.rsplit(".", 1)[0])
-        else:
-            # sibling node. we just increase the node_id counter
-            if self.parent_lookup:
-                last_node_id = self.db_layer_list[-1].node_id.split(".")
-                last_node_id[-1] = str(int(last_node_id[-1]) + 1)
-                parsed_layer.node_id = ".".join(last_node_id)
-            else:
-                parsed_layer.node_id = "1"
-        self.last_node_level = parsed_layer.level
-
     def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
         if not self.sub_element_content_type:
             self.sub_element_content_type = ContentType.objects.get_for_model(model=self.sub_element_cls)
@@ -184,27 +137,6 @@ class ServiceXmlManager(models.Manager):
                                                                          object_id=db_sub_element.pk,
                                                                          **self.common_info,
                                                                          **remote_metadata.get_field_dict()))
-
-    def _construct_style_instances(self, parsed_layer, db_layer):
-        for style in parsed_layer.styles:
-            if not self.style_cls:
-                self.style_cls = style.get_model_class()
-            db_style = self.style_cls(layer=db_layer,
-                                      **self.common_info,
-                                      **style.get_field_dict())
-            if style.legend_url:
-                # legend_url is optional for style entities
-                if not self.legend_url_cls:
-                    self.legend_url_cls = style.legend_url.get_model_class()
-                if not self.mime_type_cls:
-                    self.mime_type_cls = style.legend_url.mime_type.get_model_class()
-                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
-                    **style.legend_url.mime_type.get_field_dict())
-                self.db_legend_url_list.append(self.legend_url_cls(style=db_style,
-                                                                   mime_type=db_mime_type,
-                                                                   **self.common_info,
-                                                                   **style.legend_url.get_field_dict()))
-            self.db_style_list.append(db_style)
 
     def _get_or_create_output_formats(self, parsed_feature_type, db_feature_type):
         for mime_type in parsed_feature_type.output_formats:
@@ -239,6 +171,101 @@ class ServiceXmlManager(models.Manager):
                 self.reference_system_cls = reference_system.get_model_class()
             db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
             db_sub_element.reference_system_list.append(db_reference_system)
+
+    @abstractmethod
+    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
+        """ Custom create function for :class:`models.Service` which is based on the parsed capabilities document.
+
+            Args:
+                parsed_service: the parsed Service object based on the :class:`new.Service` class.
+
+            Returns:
+                db instance (Service): the created Service object based on the :class:`models.Service`
+        """
+        raise NotImplementedError
+
+
+class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
+    last_node_level = 0
+    parent_lookup = None
+    current_parent = None
+
+    db_layer_list = []
+    db_style_list = []
+    db_legend_url_list = []
+    style_cls = None
+    legend_url_cls = None
+
+    def _reset_local_variables(self):
+        super()._reset_local_variables()
+        self.last_node_level = 0
+        self.parent_lookup = None
+        self.current_parent = None
+
+        self.db_layer_list = []
+        self.db_style_list = []
+        self.db_legend_url_list = []
+
+        self.style_cls = None
+        self.legend_url_cls = None
+
+    def _get_next_tree_id(self, layer_cls):
+        
+        max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
+        tree_id = max_tree_id.get("tree_id__max")
+        if isinstance(tree_id, int):
+            tree_id += 1
+        else:
+            tree_id = 0
+        # FIXME: not thread safe handling of tree_id... random is only a workaround
+        random = randrange(1, 20)
+        return tree_id + random
+
+    def _update_current_parent(self, parsed_layer):
+        # todo: maybe we can move node id setting to get_all_layers()
+        if self.last_node_level < parsed_layer.level:
+            # Climb down the tree. In this case the last node is always the a parent node. (preorder traversal)
+            # We store it in our parent_lookup dict to resolve it if we climb up
+            # the tree again. In case of climb up we loose the directly parent.
+            self.current_parent = self.db_layer_list[-1]
+            self.parent_lookup.update({self.current_parent.node_id: self.current_parent})
+            parsed_layer.node_id = self.db_layer_list[-1].node_id + ".1"
+        elif self.last_node_level > parsed_layer.level:
+            # climb up the tree. We need to lookup the parent of this node.
+            sibling_node_id = self.db_layer_list[-1].parent.node_id.split(".")
+            sibling_node_id[-1] = str(int(sibling_node_id[-1]) + 1)
+            parsed_layer.node_id = ".".join(sibling_node_id)
+            self.current_parent = self.parent_lookup.get(parsed_layer.node_id.rsplit(".", 1)[0])
+        else:
+            # sibling node. we just increase the node_id counter
+            if self.parent_lookup:
+                last_node_id = self.db_layer_list[-1].node_id.split(".")
+                last_node_id[-1] = str(int(last_node_id[-1]) + 1)
+                parsed_layer.node_id = ".".join(last_node_id)
+            else:
+                parsed_layer.node_id = "1"
+        self.last_node_level = parsed_layer.level
+
+    def _construct_style_instances(self, parsed_layer, db_layer):
+        for style in parsed_layer.styles:
+            if not self.style_cls:
+                self.style_cls = style.get_model_class()
+            db_style = self.style_cls(layer=db_layer,
+                                      **self.common_info,
+                                      **style.get_field_dict())
+            if style.legend_url:
+                # legend_url is optional for style entities
+                if not self.legend_url_cls:
+                    self.legend_url_cls = style.legend_url.get_model_class()
+                if not self.mime_type_cls:
+                    self.mime_type_cls = style.legend_url.mime_type.get_model_class()
+                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
+                    **style.legend_url.mime_type.get_field_dict())
+                self.db_legend_url_list.append(self.legend_url_cls(style=db_style,
+                                                                   mime_type=db_mime_type,
+                                                                   **self.common_info,
+                                                                   **style.legend_url.get_field_dict()))
+            self.db_style_list.append(db_style)
 
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
@@ -330,6 +357,16 @@ class ServiceXmlManager(models.Manager):
             db_layer.keywords.add(*db_layer.keyword_list)
             db_layer.reference_systems.add(*db_layer.reference_system_list)
 
+    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
+        self._reset_local_variables()
+        with transaction.atomic():
+            db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
+            self._create_wms(parsed_service=parsed_service, db_service=db_service)
+        return db_service
+
+
+class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
+
     def _create_wfs(self, parsed_service, db_service):
         db_feature_type_list = []
         if not self.sub_element_cls:
@@ -368,23 +405,18 @@ class ServiceXmlManager(models.Manager):
             db_feature_type.reference_systems.add(*db_feature_type.reference_system_list)
 
     def create_from_parsed_service(self, parsed_service, *args, **kwargs):
-        """ Custom create function for :class:`models.Service` which is based on the parsed capabilities document.
-
-            Args:
-                parsed_service: the parsed Service object based on the :class:`new.Service` class.
-
-            Returns:
-                db instance (Service): the created Service object based on the :class:`models.Service`
-        """
         self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
+            self._create_wfs(parsed_service=parsed_service, db_service=db_service)
+        return db_service
 
-            if db_service.service_type.name == OGCServiceEnum.WMS.value:
-                self._create_wms(parsed_service=parsed_service, db_service=db_service)
-            elif db_service.service_type.name == OGCServiceEnum.WFS.value:
-                self._create_wfs(parsed_service=parsed_service, db_service=db_service)
 
+class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):
+    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
+        self._reset_local_variables()
+        with transaction.atomic():
+            db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
         return db_service
 
 
@@ -412,76 +444,3 @@ class FeatureTypeElementXmlManager(models.Manager):
                                               **self.common_info,
                                               **element.get_field_dict()))
         return self.model.objects.bulk_create(objs=db_element_list)
-
-
-class ServiceManager(models.Manager):
-
-    def for_table_view(self, service_type__name: OGCServiceEnum):
-        queryset = self.get_queryset()
-        if service_type__name.value == OGCServiceEnum.WMS.value:
-            queryset = self.with_layers_counter()
-        elif service_type__name.value == OGCServiceEnum.WFS.value:
-            queryset = self.with_feature_types_counter()
-        return queryset.filter(service_type__name=service_type__name.value) \
-                       .select_related("service_type",
-                                       "service_contact",
-                                       "metadata_contact",
-                                       "created_by_user",
-                                       "owned_by_org",
-                                       "external_authentication",
-                                       "proxy_setting") \
-                       .prefetch_related("allowed_operations",
-                                         "operation_urls")\
-                       .order_by("-title")\
-                       .annotate(is_secured=Count("allowed_operation"))
-
-    def for_tree_view(self, service_type__name: OGCServiceEnum):
-        queryset = self.get_queryset()
-        if service_type__name.value == OGCServiceEnum.WFS.value:
-            queryset = self.with_feature_types_counter().prefetch_related("featuretypes",
-                                                                          "featuretypes__elements")
-        return queryset
-
-    def with_layers_counter(self):
-        return self.get_queryset().annotate(layers_count=Count("layer"))
-
-    def with_feature_types_counter(self):
-        return self.get_queryset().annotate(feature_types_count=Count("featuretype", distinct=True))
-
-
-class LayerManager(TreeManager):
-
-    def for_table_view(self):
-        return self.get_queryset()\
-            .annotate(children_count=Count("child", distinct=True))\
-            .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
-            .select_related("service",
-                            "service__service_type",
-                            "parent",
-                            "created_by_user",
-                            "owned_by_org")
-
-
-class FeatureTypeManager(models.Manager):
-
-    def for_table_view(self):
-        return self.get_queryset()\
-            .annotate(elements_count=Count("element", distinct=True))\
-            .annotate(dataset_metadata_count=Count("dataset_metadata_relation", distinct=True))\
-            .select_related("service",
-                            "service__service_type",
-                            "created_by_user",
-                            "owned_by_org")
-
-
-class FeatureTypeElementManager(models.Manager):
-
-    def get_queryset(self):
-        return super().get_queryset().select_related("feature_type")
-
-    def for_table_view(self):
-        return self.get_queryset().select_related("feature_type",
-                                                  "feature_type__service",
-                                                  "feature_type__service__service_type",
-                                                  "created_by_user",
-                                                  "owned_by_org")

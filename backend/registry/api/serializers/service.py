@@ -1,11 +1,8 @@
-from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.reverse import reverse
-from rest_framework.serializers import ModelSerializer, HyperlinkedRelatedField
-from rest_framework.fields import SerializerMethodField
-from extras.api.serializers import ObjectAccessSerializer
-from registry.models.service import Layer, FeatureType, Service, OperationUrl, ServiceType
-from registry.models.metadata import Keyword
-from registry.enums.service import OGCServiceEnum
+from rest_framework_gis.fields import GeometryField
+from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
+from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
+from rest_framework_json_api.relations import ResourceRelatedField, HyperlinkedRelatedField
+from rest_framework.relations import HyperlinkedIdentityField
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -15,106 +12,89 @@ class OperationsUrlSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class LayerSerializer(ObjectAccessSerializer):
-    # TODO: extreme slow lookup... Present a link to the dataset_metadata entpoint filtered by the given layer
-    # dataset_metadata = HyperlinkedRelatedField(
-    #     many=True,
-    #     read_only=True,
-    #     view_name='api:dataset_metadata-detail'
-    # )
-    service = HyperlinkedRelatedField(
-        read_only=True,
-        view_name='api:service-detail'
-    )
+class LayerSerializer(ModelSerializer):
+
+    bbox_lat_lon = GeometryField()
 
     class Meta:
         model = Layer
-        fields = [
-            'id',
-            'service',
-            'scale_min',
-            'scale_max',
-            # TODO: this is causing too much queries to be made. Find out exactly why
-            # 'inherit_scale_min',
-            # 'inherit_scale_max',
-
-            # TODO: extreme slow lookup... dont do this
-            # 'dataset_metadata'
-        ]
-
-
-class FeatureTypeSerializer(ObjectAccessSerializer):
-    # FIXME: extreme slow lookup... Present a link to the dataset_metadata entpoint filtered by the given ft
-    # dataset_metadata = HyperlinkedRelatedField(
-    #     many=True,
-    #     read_only=True,
-    #     view_name='api:dataset_metadata-detail'
-    # )
-
-    class Meta:
-        model = Layer
-        fields = [
-            'id',
-            'scale_min',
-            'scale_max',
-            # TODO: this is causing too much queries to be made. Find out exactly why
-            # 'inherit_scale_min',
-            # 'inherit_scale_max',
-            # TODO: extreme slow lookup... dont do this
-            # 'dataset_metadata'
-        ]
-
-
-class KeywordSerializer(ModelSerializer):
-
-    class Meta:
-        model = Keyword
         fields = '__all__'
 
 
-class ServiceTypeSerializer(ModelSerializer):
+class WebMapServiceSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:wms-detail',
+    )
+
+    layers = HyperlinkedRelatedField(
+        queryset=Layer.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:wms-layers-list',
+        related_link_url_kwarg='parent_lookup_service',
+        self_link_view_name='registry:wms-relationships',
+    )
+
+    included_serializers = {
+        'layers': LayerSerializer,
+    }
 
     class Meta:
-        model = ServiceType
-        fields = ['name']
+        model = WebMapService
+        fields = "__all__"
+
+    class JSONAPIMeta:
+        include_resources = ['layers']
 
 
-class ServiceSerializer(ObjectAccessSerializer):
-    type = ServiceTypeSerializer(source='service_type')
-    layers = SerializerMethodField()
-    
-    feature_types = SerializerMethodField()
-    keywords = SerializerMethodField()
+class FeatureTypeSerializer(ModelSerializer):
 
     class Meta:
-        model = Service
-        fields = [
-            'id',
-            'title',
-            'abstract',
-            'created_at',
-            'type',
-            'keywords',
-            'layers',
-            'feature_types',
-        ]
+        model = FeatureType
+        fields = '__all__'
 
-    def get_layers(self, obj):
-        return self.context['request'].build_absolute_uri(f"{reverse('api:layer-list')}?service__id={obj.pk}")
 
-    def get_feature_types(self, obj):
-        queryset = FeatureType.objects.none()
+class WebFeatureServiceSerializer(ModelSerializer):
 
-        if obj.is_service_type(OGCServiceEnum.WFS):
-            queryset = obj.featuretypes.all().prefetch_related('keywords')
-        return FeatureTypeSerializer(queryset, many=True, context=self.context).data
+    url = HyperlinkedIdentityField(
+        view_name='registry:wfs-detail',
+    )
 
-    @staticmethod
-    def get_keywords(obj):
-        try:
-            keywords = obj.keywords
-        except ObjectDoesNotExist:
-            keywords = None
-        if keywords:
-            return KeywordSerializer(keywords, many=True).data
-        return None
+    included_serializers = {
+        'featuretypes': FeatureTypeSerializer,
+    }
+
+    featuretypes = ResourceRelatedField(
+        queryset=FeatureType.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:wfs-featuretypes-list',
+        related_link_url_kwarg='parent_lookup_service',
+        self_link_view_name='registry:wfs-relationships',
+    )
+
+    class Meta:
+        model = WebFeatureService
+        fields = "__all__"
+
+    class JSONAPIMeta:
+        include_resources = ['featuretypes']
+
+
+class OgcServiceSerializer(PolymorphicModelSerializer):
+    polymorphic_serializers = [WebMapServiceSerializer, WebFeatureServiceSerializer]
+
+    class Meta:
+        model = OgcService
+        fields = "__all__"
+
+
+class OgcServiceCreateSerializer(ModelSerializer):
+
+    # TODO: implement included serializer for ServiceAuthentication
+    # included_serializers = {
+    #     'auth': ServiceAuthentication,
+    # }
+
+    class Meta:
+        model = OgcService
+        fields = ("get_capabilities_url", "owned_by_org")

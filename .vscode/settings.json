@@ -15,6 +15,10 @@
     "python.linting.flake8Args": [
         "--ignore=E501,W504",
     ],
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.extraPaths": [
+        ".venv"
+    ],
     "javascript.format.enable": false,
     "typescript.format.enable": false,
     "eslint.format.enable": true,

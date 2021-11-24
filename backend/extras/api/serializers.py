@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 from rest_framework.serializers import ModelSerializer
 
 

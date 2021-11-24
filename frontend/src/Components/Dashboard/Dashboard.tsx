@@ -1,7 +1,10 @@
-import React from 'react';
+import Search from "antd/lib/input/Search";
 
 export const Dashboard = () => {
-  return (
-        <>HUHU</>
-  );
-};
+
+    const onSearch = (value:string) => console.log(value);
+
+    return (
+        <Search size="large" placeholder="input search text" allowClear={true} onSearch={onSearch} />
+    );
+}

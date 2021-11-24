@@ -6,4 +6,5 @@ class JobConfig(AppConfig):
     name = 'jobs'
 
     def ready(self):  # method just to import the signals
-        import jobs.signals # noqa
+        # import jobs.signals # noqa
+        pass

@@ -2,31 +2,17 @@ import threading
 
 from uuid import uuid4
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from crum import get_current_user
-from MrMap.icons import get_icon, IconEnum
 from extras.utils import camel_to_snake
 
 _thread_locals = threading.local()
-
-
-class GenericFKSaveMixin:
-    """Class to support a generic way of first follow all unsaved ForeignKey fields.
-
-       We need this for models we parse from xml or some other stuff.
-    """
-    def save(self, *args, **kwargs):
-        """ generic way to save all fk fields first """
-        for field in self._meta.fields:
-            if field.get_internal_type() == 'ForeignKey':
-                _field = getattr(self, field.name)
-                if _field:
-                    _field.save()
-        super().save(*args, **kwargs)
 
 
 class GenericModelMixin:
@@ -53,17 +39,6 @@ class GenericModelMixin:
         ]
 
     """
-
-    @classmethod
-    def get_icon(cls) -> str:
-        try:
-            return get_icon(getattr(IconEnum, camel_to_snake(cls.__name__).upper()))
-        except AttributeError:
-            return ""
-
-    @property
-    def icon(self) -> str:
-        return self.get_icon()
 
     @classmethod
     def get_add_url(cls) -> str:
@@ -196,6 +171,8 @@ class CommonInfo(models.Model):
     def save(self, update_last_modified=True, *args, **kwargs):
         if self._state.adding:
             user = get_current_user()
+            if isinstance(user, AnonymousUser):
+                user = get_user_model().objects.get(username="AnonymousUser")
             self.created_by_user = user
             self.last_modified_by = user
 

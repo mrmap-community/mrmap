@@ -14,8 +14,7 @@ from MrMap.settings import PROXIES
 from extras.models import CommonInfo, GenericModelMixin
 from registry.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
     MetadataRelationEnum, MetadataOriginEnum
-from registry.managers.metadata import LicenceManager, IsoMetadataManager, DatasetManager, \
-    DatasetMetadataRelationManager, AbstractMetadataManager
+from registry.managers.metadata import LicenceManager, IsoMetadataManager
 from registry.models.document import MetadataDocumentModelMixin
 from registry.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
 
@@ -204,11 +203,11 @@ class RemoteMetadata(CommonInfo):
     remote_content = models.TextField(null=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
-    service = models.ForeignKey(to="registry.Service",
+    service = models.ForeignKey(to="registry.OgcService",
                                 on_delete=models.CASCADE,
                                 related_name="remote_metadata",
                                 related_query_name="remote_metadata",
-                                verbose_name=_("service"),
+                                verbose_name=_("web map service"),
                                 help_text=_("the service where this remote metadata is related to. This remote metadata"
                                             " was found in the GetCapabilites document of the related service."))
     content_type = models.ForeignKey(to=ContentType,
@@ -220,17 +219,14 @@ class RemoteMetadata(CommonInfo):
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
-        from registry.models.security import ExternalAuthentication  # to avoid circular import
-        try:
-            auth = self.service.external_authentication
-            auth = auth.get_auth_for_request()
-        except ExternalAuthentication.DoesNotExist:
-            auth = None
+        
         session = Session()
         session.proxies = PROXIES
+        # FIXME: Re add authentication
         request = Request(method="GET",
                           url=self.link,
-                          auth=auth)
+                          # auth=auth,
+                          )
         response = session.send(request.prepare())
         self.remote_content = response.text
         if save:
@@ -252,8 +248,8 @@ class RemoteMetadata(CommonInfo):
 
     def create_metadata_instance(self):
         """ Return the created metadata record, based on the content_type of the described element. """
-        from registry.models.service import Service
-        if isinstance(self.describes, Service):
+        from registry.models.service import OgcService
+        if isinstance(self.describes, OgcService):
             metadata_cls = ServiceMetadata
         else:
             metadata_cls = DatasetMetadata
@@ -351,7 +347,6 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
     language = None  # Todo
-    objects = AbstractMetadataManager()
     xml_mapper_cls = MdMetadata
 
     class Meta:
@@ -376,14 +371,14 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
     """
     service_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
-                                        related_name="service_contact_service_metadata",
-                                        related_query_name="service_contact_service_metadata",
+                                        related_name="service_contact_%(class)s_metadata",
+                                        related_query_name="service_contact_%(class)s_metadata",
                                         verbose_name=_("service contact"),
                                         help_text=_("This is the contact for the service provider."))
     metadata_contact = models.ForeignKey(to=MetadataContact,
                                          on_delete=models.RESTRICT,
-                                         related_name="metadata_contact_service_metadata",
-                                         related_query_name="metadata_contact_service_metadata",
+                                         related_name="metadata_contact_%(class)s_metadata",
+                                         related_query_name="metadata_contact_%(class)s_metadata",
                                          verbose_name=_("metadata contact"),
                                          help_text=_("This is the contact for the metadata information."))
     iso_metadata = IsoMetadataManager()
@@ -443,12 +438,12 @@ class DatasetMetadataRelation(CommonInfo):
                                      blank=True,
                                      related_name="dataset_metadata_relations",
                                      related_query_name="dataset_metadata_relation")
-    service = models.ForeignKey(to="registry.Service",
-                                on_delete=models.CASCADE,
-                                null=True,  # nullable to support polymorph using in DatasetMetadata model
-                                blank=True,
-                                related_name="dataset_metadata_relations",
-                                related_query_name="dataset_metadata_relation")
+    csw = models.ForeignKey(to="registry.CatalougeService",
+                            on_delete=models.CASCADE,
+                            null=True,  # nullable to support polymorph using in DatasetMetadata model
+                            blank=True,
+                            related_name="dataset_metadata_relations",
+                            related_query_name="dataset_metadata_relation")
     dataset_metadata = models.ForeignKey(to="DatasetMetadata",
                                          on_delete=models.CASCADE,
                                          related_name="dataset_metadata_relations",
@@ -466,17 +461,15 @@ class DatasetMetadataRelation(CommonInfo):
                               verbose_name=_("origin"),
                               help_text=_("determines where this relation was found or it is added by a user."))
 
-    objects = DatasetMetadataRelationManager()
-
     class Meta:
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_one_related_object_selected",
-                check=Q((Q(layer=True, feature_type=False, service=False) |
-                         Q(layer=False, feature_type=True, service=False) |
-                         Q(layer=False, feature_type=False, service=True)) and
-                        ~Q(Q(layer=True) and Q(feature_type=True) and Q(service=True)) and
-                        ~Q(Q(layer=False) and Q(feature_type=False) and Q(service=False)))
+                check=Q((Q(layer=True, feature_type=False, csw=False) |
+                         Q(layer=False, feature_type=True, csw=False) |
+                         Q(layer=False, feature_type=False, csw=True)) and
+                        ~Q(Q(layer=True) and Q(feature_type=True) and Q(csw=True)) and
+                        ~Q(Q(layer=False) and Q(feature_type=False) and Q(csw=False)))
                 # TODO: some more cases are possible
             )
         ]
@@ -487,16 +480,16 @@ class DatasetMetadataRelation(CommonInfo):
             self_str += f" layer {self.layer.metadata.title}"
         elif self.feature_type:
             self_str += f" feature type {self.feature_type.metadata.title}"
-        elif self.service:
-            self_str += f" service {self.service.metadata.title}"
+        elif self.csw:
+            self_str += f" csw {self.csw.metadata.title}"
         return self_str
 
     def clean(self):
         """ Raise ValidationError if layer and feature type are null or if both are configured. """
-        if not self.layer and not self.feature_type and not self.service:
-            raise ValidationError("either layer, feature type or service must be linked.")
-        elif self.layer and self.feature_type and self.service:
-            raise ValidationError("link layer, feature type and service is not supported.")
+        if not self.layer and not self.feature_type and not self.csw:
+            raise ValidationError("either layer, feature type or csw must be linked.")
+        elif self.layer and self.feature_type and self.csw:
+            raise ValidationError("link layer, feature type and csw is not supported.")
         # todo: some more cases are possible
 
 
@@ -646,16 +639,15 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                                          verbose_name=_("feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
-    self_pointing_services = models.ManyToManyField(to="registry.Service",
-                                                    through=DatasetMetadataRelation,
-                                                    editable=False,
-                                                    related_name="dataset_metadata",
-                                                    related_query_name="dataset_metadata",
-                                                    blank=True,
-                                                    verbose_name=_("services"),
-                                                    help_text=_("all services from which this dataset was harvested."))
+    self_pointing_catalouge_service = models.ManyToManyField(to="registry.CatalougeService",
+                                                             through=DatasetMetadataRelation,
+                                                             editable=False,
+                                                             related_name="dataset_metadata",
+                                                             related_query_name="dataset_metadata",
+                                                             blank=True,
+                                                             verbose_name=_("services"),
+                                                             help_text=_("all services from which this dataset was harvested."))
 
-    objects = DatasetManager()
     iso_metadata = IsoMetadataManager()
 
     class Meta:
@@ -669,7 +661,7 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
         ]
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
-        from registry.models.service import Service, Layer, FeatureType
+        from registry.models.service import CatalougeService, Layer, FeatureType
 
         kwargs = {}
         if related_object._meta.model == Layer:
@@ -680,8 +672,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
             kwargs.update({"feature_type": related_object,
                            "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object._meta.model == Service:
-            kwargs.update({"service": related_object,
+        elif related_object._meta.model == CatalougeService:
+            kwargs.update({"csw": related_object,
                            "relation_type": relation_type if relation_type else MetadataRelationEnum.HARVESTED_THROUGH.value,
                            "origin": origin if origin else MetadataOriginEnum.CATALOGUE.value})
             is_internal = True
@@ -693,15 +685,15 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
         return relation
 
     def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
-        from registry.models.service import Service, Layer, FeatureType
+        from registry.models.service import CatalougeService, Layer, FeatureType
 
         kwargs = {}
         if related_object._meta.model == Layer:
             kwargs.update({"layer": related_object})
         elif related_object._meta.model == FeatureType:
             kwargs.update({"feature_type": related_object})
-        elif related_object._meta.model == Service:
-            kwargs.update({"service": related_object})
+        elif related_object._meta.model == CatalougeService:
+            kwargs.update({"csw": related_object})
         DatasetMetadataRelation.objects.filter(
             from_metadata=self,
             relation_type=relation_type,

@@ -12,7 +12,6 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from MrMap.icons import IconEnum, get_icon
 from users.models.groups import Organization
 from users.settings import USER_ACTIVATION_TIME_WINDOW
 
@@ -33,10 +32,6 @@ class MrMapUser(AbstractUser):
     class Meta:
         verbose_name = _('User')
         verbose_name_plural = _('Users')
-
-    @property
-    def icon(self):
-        return get_icon(IconEnum.USER)
 
     def get_absolute_url(self):
         return reverse('users:password_change_done')
@@ -118,12 +113,21 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
 class Subscription(GenericModelMixin, CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
-    # todo: rename field to service
-    service = models.ForeignKey(to='registry.Service', on_delete=models.CASCADE,
-                                verbose_name=_('Service'),
-                                help_text=_("Select the service you want to subscribe. When you edit an existing "
-                                            "subscription, you can not change this selection."))
-    user = models.ForeignKey(MrMapUser,
+    web_map_service = models.ForeignKey(to='registry.WebMapService',
+                                        null=True,
+                                        blank=True,
+                                        on_delete=models.CASCADE,
+                                        verbose_name=_('web map service'),
+                                        help_text=_("Select the service you want to subscribe. When you edit an existing "
+                                                    "subscription, you can not change this selection."))
+    web_feature_service = models.ForeignKey(to='registry.WebFeatureService',
+                                            null=True,
+                                            blank=True,
+                                            on_delete=models.CASCADE,
+                                            verbose_name=_('web feature service'),
+                                            help_text=_("Select the service you want to subscribe. When you edit an existing "
+                                                        "subscription, you can not change this selection."))
+    user = models.ForeignKey(to=MrMapUser,
                              on_delete=models.CASCADE)
     notify_on_update = models.BooleanField(default=True,
                                            verbose_name=_('Notify on update'),
@@ -140,7 +144,7 @@ class Subscription(GenericModelMixin, CommonInfo):
     class Meta:
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
-        unique_together = ('service', 'user',)
+        unique_together = ('web_map_service', 'web_feature_service', 'user',)
 
     def inform_subscriptor(self):
         """ Informs subscriptor on changes

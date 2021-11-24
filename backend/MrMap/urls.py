@@ -15,26 +15,14 @@ Including another URLconf
 """
 
 from django.urls import path, include
-from django.views.generic.base import RedirectView
-from rest_framework.routers import DefaultRouter
-from rest_framework.documentation import include_docs_urls
 from MrMap.settings import DEBUG
-from registry.api.urls import registry_api_router
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from django.views.generic import TemplateView
+from rest_framework.schemas import get_schema_view
+from rest_framework_json_api.schemas.openapi import SchemaGenerator
+from django.views.decorators.cache import cache_page
 
-# Register REST API routes
-rest_api_router = DefaultRouter()
-rest_api_router.registry.extend(registry_api_router.registry)
 
 urlpatterns = [
-    # generic redirect if no path is used
-    path('', RedirectView.as_view(url='users/dashboard')),
-
-    # MrMapApps
-    path('users/', include('users.urls')),
-    path('acls/', include('acls.urls')),
-    path('registry/', include('registry.urls')),
-    path('jobs/', include('jobs.urls')),
 
     # captcha support
     path('captcha/', include('captcha.urls')),
@@ -42,20 +30,33 @@ urlpatterns = [
     # translation support
     path('i18n/', include("django.conf.urls.i18n")),
 
-    # Autocompletes
-    path('ac/registry/', include('registry.autocompletes.urls')),
-    path('ac/users/', include('users.autocompletes.urls')),
-
     # REST API
-    path('api/v1/', include((rest_api_router.urls, 'rest_framework'), namespace='api')),
-    path('api/v1/auth/', include('dj_rest_auth.urls')),
-    path('api/v1/docs/', include_docs_urls(title='MrMap REST', public=False), name='api_docs'),
 
-    # Swagger/OpenAPI
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    # Optional UI:
-    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    # registry api urls
+    path('api/v1/registry/', include('registry.api.urls', namespace='registry')),
+    path('api/v1/users/', include('users.api.urls', namespace='users')),
+    # path('api/v1/auth/', include('dj_rest_auth.urls')),
+
+    path(
+        "api/schema/",
+        cache_page(timeout=60 * 15, cache='local-memory')(
+            get_schema_view(
+                title="MrMap JSON:API",
+                description="API for all things …",
+                version="1.0.0",
+                generator_class=SchemaGenerator,
+            )
+        ),
+        name="openapi-schema",
+    ),
+    path(
+        "api/schema/swagger-ui/",
+        TemplateView.as_view(
+            template_name="extras/swagger-ui.html",
+            extra_context={"schema_url": "openapi-schema"},
+        ),
+        name="swagger-ui",
+    ),
 ]
 
 if DEBUG:

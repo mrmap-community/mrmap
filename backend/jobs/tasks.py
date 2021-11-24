@@ -1,5 +1,6 @@
 from abc import ABC
 from celery import Task
+from celery.app import shared_task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
@@ -8,6 +9,17 @@ from extras.models import set_current_owner
 from users.models.groups import Organization
 from django.utils import timezone
 from jobs.models import Job as DbJob, Task as DbTask
+from django.apps import apps
+
+
+@shared_task(name="delete_job",
+             bind=True)
+def delete_job(self,
+               job_pk,
+               app_label,
+               model_name,
+               **kwargs):
+    apps.get_model(app_label=app_label, model_name=model_name).objects.filter(pk=job_pk).delete()
 
 
 class CommonInfoSetupMixin(Task, ABC):

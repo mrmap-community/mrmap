@@ -16,20 +16,19 @@ export interface TreeNodeType extends DataNode {
 }
 
 interface TreeFormFieldProps {
-  name?: string,
   title?: string;
   defaultExpandAll?: boolean;
   defaultExpandedKeys?: number[] | string[];
   draggable?: boolean;
   showLine?: boolean;
   initTreeData?: TreeNodeType[];
-  onNodeAdd?: () => void;
-  onNodeRemove?: () => void;
-  onNodeEdit?: () => void;
+  onAddNodeClick?: () => void;
+  onRemoveNodeClick?: () => void;
+  onEditNodeClick?: () => void;
+
 }
 
 export const TreeFormField: FC<TreeFormFieldProps> = ({
-  name = 'treeForm',
   title = '',
   showLine = true,
   draggable = false,
@@ -40,7 +39,10 @@ export const TreeFormField: FC<TreeFormFieldProps> = ({
       children: [],
       properties: null
     }
-  ]
+  ],
+  onAddNodeClick = () => undefined,
+  onRemoveNodeClick = () => undefined,
+  onEditNodeClick = () => undefined
 }) => {
   const [treeData, setTreeData] = useState<TreeNodeType[]>(initTreeData);
 
@@ -82,7 +84,7 @@ export const TreeFormField: FC<TreeFormFieldProps> = ({
    */
   const onAddNode = (node: TreeNodeType, values: any) => {
     const newNode: TreeNodeType = {
-      title: values ? values.title : `${node.key}-${node.children.length}`,
+      title: values.title || `${node.key}-${node.children.length}`,
       key: `${node.key}-${node.children.length}`,
       children: [],
       parent: node.key,
@@ -133,9 +135,18 @@ export const TreeFormField: FC<TreeFormFieldProps> = ({
         (nodeData: TreeNodeType) => (
           <TreeFormFieldActions
             node={nodeData}
-            onAddNode={(node, values) => { onAddNode(node, values); }}
-            onRemoveNode={(node) => { onRemoveNode(node); }}
-            onEditNode={(node, values) => onEditNode(node, values)}
+            onAddNode={(node, values) => {
+              onAddNodeClick();
+              // onAddNode(node, {}/*values*/);
+            }}
+            onRemoveNode={(node) => {
+              onRemoveNodeClick();
+              // onRemoveNode(node);
+            }}
+            onEditNode={(node, values) => {
+              onEditNodeClick();
+              // onEditNode(node, {}/*values*/)
+            }}
           />
         )}
         />

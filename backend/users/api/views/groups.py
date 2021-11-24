@@ -19,3 +19,9 @@ class OrganizationViewSet(ModelViewSet):
     )
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
+    filter_fields = {
+        'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
+        'name': ['exact', 'icontains', 'contains'],
+        'description': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ('id', 'name')

@@ -1,8 +1,11 @@
+
 from rest_framework_gis.fields import GeometryField
-from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
 from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
-from rest_framework_json_api.relations import ResourceRelatedField, HyperlinkedRelatedField
+from rest_framework_json_api.relations import  HyperlinkedRelatedField
 from rest_framework.relations import HyperlinkedIdentityField
+from registry.api.serializers.metadata import KeywordSerializer, StyleSerializer
+from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
+from registry.models.metadata import Style, Keyword
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -13,12 +16,37 @@ class OperationsUrlSerializer(ModelSerializer):
 
 
 class LayerSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:layer-detail',
+    )
 
     bbox_lat_lon = GeometryField()
+    styles = HyperlinkedRelatedField(
+        queryset=Style.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:layers-list',
+        related_link_url_kwarg='parent_lookup_layer',
+        self_link_view_name='registry:layers-relationships',
+    )
+    keywords = HyperlinkedRelatedField(
+        queryset=Keyword.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:layer-list',
+        related_link_url_kwarg='parent_lookup_keyword',
+        self_link_view_name='registry:layer-relationships',
+    )
+
+    included_serializers = {
+        'styles': StyleSerializer,
+        'keywords': KeywordSerializer,
+    }
 
     class Meta:
         model = Layer
         fields = '__all__'
+
+    class JSONAPIMeta:
+        include_resources = ['styles', 'keywords']
 
 
 class WebMapServiceSerializer(ModelSerializer):
@@ -49,9 +77,24 @@ class WebMapServiceSerializer(ModelSerializer):
 
 class FeatureTypeSerializer(ModelSerializer):
 
+    keywords = HyperlinkedRelatedField(
+        queryset=Keyword.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:featuretype-list',
+        related_link_url_kwarg='parent_lookup_keyword',
+        self_link_view_name='registry:featuretype-relationships',
+    )
+
+    included_serializers = {
+        'keywords': KeywordSerializer,
+    }
+
     class Meta:
         model = FeatureType
         fields = '__all__'
+
+    class JSONAPIMeta:
+        include_resources = ['keywords']
 
 
 class WebFeatureServiceSerializer(ModelSerializer):
@@ -64,7 +107,7 @@ class WebFeatureServiceSerializer(ModelSerializer):
         'featuretypes': FeatureTypeSerializer,
     }
 
-    featuretypes = ResourceRelatedField(
+    featuretypes = HyperlinkedRelatedField(
         queryset=FeatureType.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wfs-featuretypes-list',

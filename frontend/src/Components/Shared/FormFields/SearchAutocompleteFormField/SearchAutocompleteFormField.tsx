@@ -37,9 +37,7 @@ export const SearchAutocompleteFormField: FC<SearchAutocompleteFormFieldProps> =
   searchData,
   validation = {
     rules: [],
-    errorHelp: '',
-    hasFeedback: false,
-    feedbackStatus: ''
+    hasFeedback: false
   },
   tooltip = undefined
 }) => {

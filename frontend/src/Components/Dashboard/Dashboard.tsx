@@ -1,8 +1,11 @@
 import Search from 'antd/lib/input/Search';
-import React from 'react';
+import React, { ReactElement } from 'react';
 
-export const Dashboard = () => {
-  const onSearch = (value:string) => console.log(value);
+export const Dashboard = (): ReactElement => {
+  const onSearch = (value:string) => {
+    /* eslint-disable-next-line */
+    console.log(value);
+  };
 
   return (
     <Search

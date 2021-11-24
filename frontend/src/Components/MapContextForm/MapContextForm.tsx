@@ -339,6 +339,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
           // setLayersForSubmission({ mapContextLayers: treeData });
           toggleModal();
         }
+        /* eslint-disable-next-line */
         console.log(formName, { ...values, mapContextLayers: treeData });
       }}
     >

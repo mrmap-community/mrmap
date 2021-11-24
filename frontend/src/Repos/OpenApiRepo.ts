@@ -2,17 +2,16 @@ import OpenAPIClientAxios, { OpenAPIClient } from 'openapi-client-axios';
 
 export const JsonApiMimeType = 'application/vnd.api+json';
 
-export interface JsonApiResponse<T> {
-    data: JsonApiObject<T>[] | JsonApiObject<T>;
+export interface JsonApiResponse {
+    data: JsonApiObject[] | JsonApiObject;
     errors: any;
     meta: any;
 }
 
-export interface JsonApiObject<T> {
+export interface JsonApiObject {
     type: string;
     id: string;
     links: any;
-    // TODO add type info for attributes
     attributes: any;
     relationships: any;
 }
@@ -24,7 +23,7 @@ export interface QueryParams {
     filters: any;
 }
 
-export class OpenApiRepo<T> {
+export class OpenApiRepo {
     private static apiInstance: OpenAPIClientAxios;
 
     private static clientInstance: OpenAPIClient;
@@ -35,14 +34,14 @@ export class OpenApiRepo<T> {
       this.resourcePath = resourcePath;
     }
 
-    static async getClientInstance () {
+    static async getClientInstance (): Promise<OpenAPIClient> {
       if (!this.clientInstance) {
         this.clientInstance = await (await this.getApiInstance()).getClient();
       }
       return this.clientInstance;
     }
 
-    static async getApiInstance () {
+    static async getApiInstance (): Promise<OpenAPIClientAxios> {
       if (!this.apiInstance) {
         if (process.env.REACT_APP_REST_API_SCHEMA_URL === undefined) {
           throw new Error('Environment variable REACT_APP_REST_API_SCHEMA_URL is undefined.');
@@ -82,7 +81,7 @@ export class OpenApiRepo<T> {
       return mimeType.schema;
     }
 
-    async findAll (queryParams?: QueryParams): Promise<JsonApiResponse<T>> {
+    async findAll (queryParams?: QueryParams): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
       // TODO why does Parameters<UnknownParamsObject> not work?
       let jsonApiParams: any;
@@ -108,6 +107,7 @@ export class OpenApiRepo<T> {
       });
     }
 
+    // eslint-disable-next-line
     async add (type: string, attributes: any, relationships: any): Promise<any> {
       const client = await OpenApiRepo.getClientInstance();
       return await client['create' + this.resourcePath](undefined, {

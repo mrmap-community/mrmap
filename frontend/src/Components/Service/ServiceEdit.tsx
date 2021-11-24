@@ -1,5 +1,5 @@
 import { Button, Card, Form, Input, notification } from 'antd';
-import React from 'react';
+import React, { ReactElement } from 'react';
 
 import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
 
@@ -14,14 +14,12 @@ const tailLayout = {
 
 const repo = new OgcServiceRepo();
 
-export const ServiceEdit = (props: any, context: any) => {
+export const ServiceEdit = (): ReactElement => {
   const [form] = Form.useForm();
 
   const onFinish = (values: any) => {
     async function postData () {
-      console.log(values);
       const res = await repo.create(values);
-      console.log(res);
       if (res.status === 202) {
         notification.info({
           message: 'Service registration job started',

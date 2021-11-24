@@ -31,7 +31,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "npm run lint -- --fix"
   },
   "eslintConfig": {
     "extends": [
@@ -52,7 +54,18 @@
     ]
   },
   "devDependencies": {
-    "@types/react": "^17.0.34",
-    "@types/react-highlight-words": "^0.16.3"
+    "@types/lodash": "^4.14.177",
+    "@types/react": "^17.0.35",
+    "@types/react-highlight-words": "^0.16.3",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
+    "@typescript-eslint/parser": "^4.33.0",
+    "eslint": "^7.32.0",
+    "eslint-config-standard-with-typescript": "^21.0.1",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.1",
+    "eslint-plugin-react": "^7.27.0",
+    "eslint-plugin-simple-import-sort": "^7.0.0",
+    "eslint-plugin-standard": "^5.0.0"
   }
 }

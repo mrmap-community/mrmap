@@ -24,7 +24,7 @@ services:
   pre-commit-check:
     build:
       context: ./backend
-      dockerfile: ../docker/mrmap/Dockerfile
+      dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
@@ -46,7 +46,7 @@ services:
   test:
     build:
       context: ./backend
-      dockerfile: ../docker/mrmap/Dockerfile
+      dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
     tty: true  # To support colorized log output of gherkin and other log information. 
@@ -70,7 +70,7 @@ services:
   behave:
     build:
       context: ./backend
-      dockerfile: ../docker/mrmap/Dockerfile
+      dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)

@@ -1,4 +1,4 @@
-import OpenApiRepo from "./OpenApiRepo";
+import OpenApiRepo from './OpenApiRepo';
 
 export interface MapContextCreate {
     title: string;
@@ -7,30 +7,28 @@ export interface MapContextCreate {
 }
 
 export class MapContextRepo extends OpenApiRepo<any> {
+  constructor () {
+    super('/api/v1/registry/mapcontexts/');
+  }
 
-    constructor() {
-        super("/api/v1/registry/mapcontexts/");
+  async create (create: MapContextCreate): Promise<any> {
+    const client = await OpenApiRepo.getClientInstance();
+    const attributes:any = {
+      title: create.title
+    };
+    if (create.abstract) {
+      attributes.abstract = create.abstract;
     }
-
-    async create(create: MapContextCreate): Promise<any> {
-        const client = await OpenApiRepo.getClientInstance();
-        const attributes:any = {
-            "title": create.title
+    const relationships = {
+      owned_by_org: { // eslint-disable-line
+        data: {
+          type: 'Organization',
+          id: create.ownerOrganizationId
         }
-        if (create.abstract) {
-            attributes.abstract = create.abstract;
-        }
-        const relationships = {
-            "owned_by_org": {
-                "data": {
-                    "type": "Organization",
-                    "id": create.ownerOrganizationId
-                }
-            }
-        }
-        return this.add("MapContext", attributes, relationships);
-    }
-
+      }
+    };
+    return this.add('MapContext', attributes, relationships);
+  }
 }
 
 export default MapContextRepo;

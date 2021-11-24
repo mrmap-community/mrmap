@@ -5,7 +5,7 @@ export interface OgcServiceCreate {
     owned_by_org: string; // eslint-disable-line
 }
 
-export class OgcServiceRepo extends OpenApiRepo<any> {
+export class OgcServiceRepo extends OpenApiRepo {
   constructor () {
     super('/api/v1/registry/ogcservices/');
   }

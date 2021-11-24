@@ -6,9 +6,11 @@ import { useAuth } from '../../../Hooks/AuthUserProvider';
 import { CSRFToken } from '../../CSRF/CSRF';
 
 export const LoginForm = (): ReactElement => {
+   // @ts-ignore
   const [, handleAuth] = useAuth();
 
   const onFinish = (values: any) => {
+    // eslint-disable-next-line
     console.log('Received values of form: ', values);
     handleAuth({ username: values.username, password: values.password }, 'loginUser');
   };

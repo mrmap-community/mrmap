@@ -1,13 +1,13 @@
-import React, { useContext, useState } from 'react';
+import React, { Context, FC, ReactElement, useContext, useState } from 'react';
 
 import OpenApiRepo from '../Repos/OpenApiRepo';
 
-export const AuthContext = React.createContext();
+export const AuthContext = React.createContext(undefined);
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider: FC<any> = ({ children }): ReactElement => {
   const [username, setUsername] = useState('guest');
 
-  const handleAuth = ({ username, password }, action) => {
+  const handleAuth = ({ username, password }: { username: string, password: string }, action: string) => {
     // async function checkCurrentAuth() {
     //   const client = await api.getClient();
     //   debugger;
@@ -21,21 +21,17 @@ export const AuthProvider = ({ children }) => {
     // }
     // checkCurrentAuth();
 
-    async function loginUser () {
-      const client = OpenApiRepo.getClientInstance();
+    async function loginUser (): Promise<void> {
+      const client = await OpenApiRepo.getClientInstance();
       const res = await client.v1_auth_login_create({}, { username: username, password: password });
-      console.log(res);
       if (res.status === 200) {
-        console.log('HUHU');
         setUsername(username);
       }
-      console.log(username);
     }
 
-    async function logoutUser () {
-      const client = OpenApiRepo.getClientInstance();
-      const res = await client.v1_auth_logout_create();
-      console.log(res);
+    async function logoutUser (): Promise<void> {
+      const client = await OpenApiRepo.getClientInstance();
+      await client.v1_auth_logout_create();
     }
 
     switch (action) {
@@ -50,10 +46,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
   const data = [username, handleAuth];
-  return (<AuthContext.Provider value={data}>{children}</AuthContext.Provider>);
+  return (<AuthContext.Provider value={data as any}>{children}</AuthContext.Provider>);
 };
 
-export const useAuth = () => {
+export const useAuth = (): Context<any> => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth can only be used inside AuthProvider');

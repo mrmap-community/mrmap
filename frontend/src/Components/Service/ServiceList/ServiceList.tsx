@@ -1,6 +1,6 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { Button, Card, Input, Modal, notification, Space, Table } from 'antd';
-import React, { createRef, useEffect, useState } from 'react';
+import React, { createRef, ReactElement, useEffect, useState } from 'react';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from 'react-router';
 
@@ -89,7 +89,7 @@ const getColumnSearchProps = (dataIndex: any): any => {
   };
 };
 
-export const ServiceList = () => {
+export const ServiceList = (): ReactElement => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({
     dataSource: [],

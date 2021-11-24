@@ -6,13 +6,12 @@ export interface MapContextCreate {
     ownerOrganizationId: string;
 }
 
-export class MapContextRepo extends OpenApiRepo<any> {
+export class MapContextRepo extends OpenApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontexts/');
   }
 
   async create (create: MapContextCreate): Promise<any> {
-    const client = await OpenApiRepo.getClientInstance();
     const attributes:any = {
       title: create.title
     };

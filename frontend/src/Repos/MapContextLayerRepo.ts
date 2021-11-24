@@ -7,13 +7,12 @@ export interface MapContextLayerCreate {
     parentLayerId?: string;
 }
 
-export class MapContextLayerRepo extends OpenApiRepo<any> {
+export class MapContextLayerRepo extends OpenApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontextlayers/');
   }
 
   async create (create: MapContextLayerCreate): Promise<any> {
-    const client = await OpenApiRepo.getClientInstance();
     const attributes:any = {
       name: create.name
     };

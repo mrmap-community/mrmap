@@ -1,5 +1,7 @@
 import OpenAPIClientAxios, { OpenAPIClient } from "openapi-client-axios";
 
+export const JsonApiMimeType = "application/vnd.api+json";
+
 export interface JsonApiResponse<T> {
     data: T[] | T;
     errors: any;
@@ -19,7 +21,7 @@ export class OpenApiRepo<T> {
 
     private static clientInstance: OpenAPIClient;
 
-    private resourcePath: string;
+    protected readonly resourcePath: string;
 
     constructor(resourcePath: string) {
         this.resourcePath = resourcePath;
@@ -93,11 +95,10 @@ export class OpenApiRepo<T> {
 
     async delete(id: string): Promise<void> {
         const client = await OpenApiRepo.getClientInstance();
-        await client["destroy/api/v1/registry/ogcservices/{id}/"](id, {}, {
-            headers: { 'Content-Type': 'application/vnd.api+json' }
+        await client["destroy" + this.resourcePath + "{id}/"](id, {}, {
+            headers: { 'Content-Type': JsonApiMimeType }
         });
     }
-
 }
 
 export default OpenApiRepo;

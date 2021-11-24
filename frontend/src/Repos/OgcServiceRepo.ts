@@ -1,4 +1,4 @@
-import OpenApiRepo from "./OpenApiRepo";
+import OpenApiRepo, { JsonApiMimeType } from "./OpenApiRepo";
 import OpenAPIService from "./OpenApiRepo";
 
 export interface OgcService {
@@ -22,7 +22,7 @@ export class OgcServiceRepo extends OpenApiRepo<OgcService> {
 
     async create(create: OgcServiceCreate): Promise<any> {
         const client = await OpenAPIService.getClientInstance();
-        return await client["create/api/v1/registry/ogcservices/"](undefined, {
+        return await client["create" + this.resourcePath ](undefined, {
             "data": {
                 "type": "OgcService",
                 "attributes": {
@@ -37,7 +37,7 @@ export class OgcServiceRepo extends OpenApiRepo<OgcService> {
                     }
                 }
             }
-        }, { headers: { 'Content-Type': 'application/vnd.api+json' } });
+        }, { headers: { 'Content-Type': JsonApiMimeType } });
     }
 }
 

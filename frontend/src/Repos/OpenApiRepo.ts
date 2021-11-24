@@ -108,6 +108,21 @@ export class OpenApiRepo<T> {
             headers: { 'Content-Type': JsonApiMimeType }
         });
     }
+
+    async add(type: string, attributes: any, relationships: any): Promise<any> {
+        const client = await OpenApiRepo.getClientInstance();
+        return await client["create" + this.resourcePath ](undefined, {
+            "data": {
+                "type": type,
+                "attributes": {
+                    ...attributes
+                },
+                "relationships": {
+                    ...relationships
+                }
+            }
+        }, { headers: { 'Content-Type': JsonApiMimeType } });
+    }
 }
 
 export default OpenApiRepo;

@@ -3,7 +3,7 @@ import { Table, Card, Input, Space, Button, notification, Modal } from "antd";
 import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from "react-router";
-import OgcServiceRepo from "../../../Repos/OgcServiceRepo";
+import { WebMapServiceRepo } from "../../../Repos/WebMapServiceRepo";
 
 interface TableState {
     page: number;
@@ -11,6 +11,8 @@ interface TableState {
     ordering: string;
     filters: any;
 }
+
+const repo = new WebMapServiceRepo();
 
 const getColumnSearchProps = (dataIndex: any): any => {
     const searchInput: any = createRef();
@@ -101,8 +103,6 @@ export const ServiceList = () => {
     const [columnTypes, setColumnTypes] = useState<any>({});
 
     const navigate = useNavigate();
-
-    const repo = new OgcServiceRepo();
 
     useEffect(() => {
         const onDeleteRecord = (record: any) => {

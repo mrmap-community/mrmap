@@ -1,5 +1,4 @@
-import OpenApiRepo, { JsonApiMimeType } from "./OpenApiRepo";
-import OpenAPIService from "./OpenApiRepo";
+import OpenApiRepo from "./OpenApiRepo";
 
 export interface OgcServiceCreate {
     get_capabilities_url: string;
@@ -9,27 +8,22 @@ export interface OgcServiceCreate {
 export class OgcServiceRepo extends OpenApiRepo<any> {
 
     constructor() {
-        super("/api/v1/registry/wms/");
+        super("/api/v1/registry/ogcservices/");
     }
 
     async create(create: OgcServiceCreate): Promise<any> {
-        const client = await OpenAPIService.getClientInstance();
-        return await client["create" + this.resourcePath ](undefined, {
-            "data": {
-                "type": "OgcService",
-                "attributes": {
-                    "get_capabilities_url": create.get_capabilities_url
-                },
-                "relationships": {
-                    "owned_by_org": {
-                        "data": {
-                            "type": "Organization",
-                            "id": create.owned_by_org
-                        }
-                    }
+        const attributes = {
+            "get_capabilities_url": create.get_capabilities_url
+        }
+        const relationships = {
+            "owned_by_org": {
+                "data": {
+                    "type": "Organization",
+                    "id": create.owned_by_org
                 }
             }
-        }, { headers: { 'Content-Type': JsonApiMimeType } });
+        }
+        return this.add("OgcService", attributes, relationships);
     }
 }
 

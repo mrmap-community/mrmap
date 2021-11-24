@@ -1,4 +1,4 @@
-import OpenApiRepo from "./OpenApiRepo";
+import OpenApiRepo from './OpenApiRepo';
 
 export interface MapContextLayerCreate {
     name: string;
@@ -8,38 +8,36 @@ export interface MapContextLayerCreate {
 }
 
 export class MapContextLayerRepo extends OpenApiRepo<any> {
+  constructor () {
+    super('/api/v1/registry/mapcontextlayers/');
+  }
 
-    constructor() {
-        super("/api/v1/registry/mapcontextlayers/");
+  async create (create: MapContextLayerCreate): Promise<any> {
+    const client = await OpenApiRepo.getClientInstance();
+    const attributes:any = {
+      name: create.name
+    };
+    if (create.title) {
+      attributes.title = create.title;
     }
-
-    async create(create: MapContextLayerCreate): Promise<any> {
-        const client = await OpenApiRepo.getClientInstance();
-        const attributes:any = {
-            "name": create.name
+    const relationships:any = {
+      map_context: { // eslint-disable-line
+        data: {
+          type: 'MapContext',
+          id: create.mapContextId
         }
-        if (create.title) {
-            attributes.title = create.title;
+      }
+    };
+    if (create.parentLayerId) {
+      relationships.parent = {
+        data: {
+          type: 'MapContextLayer',
+          id: create.parentLayerId
         }
-        const relationships:any = {
-            "map_context": {
-                "data": {
-                    "type": "MapContext",
-                    "id": create.mapContextId
-                }
-            }
-        }
-        if (create.parentLayerId) {
-            relationships.parent = {
-                "data": {
-                    "type": "MapContextLayer",
-                    "id": create.parentLayerId
-                }
-            };
-        }
-        return this.add("MapContextLayer", attributes, relationships);
+      };
     }
-
+    return this.add('MapContextLayer', attributes, relationships);
+  }
 }
 
 export default MapContextLayerRepo;

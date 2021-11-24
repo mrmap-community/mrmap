@@ -3,7 +3,7 @@ import { Table, Card, Input, Space, Button, notification, Modal } from "antd";
 import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from "react-router";
-import OgcServices, { OgcService } from "../../../Services/OgcServices";
+import OgcServiceRepo, { OgcService } from "../../../Repos/OgcServiceRepo";
 
 interface TableState {
     page: number;
@@ -102,10 +102,12 @@ export const ServiceList = () => {
 
     const navigate = useNavigate();
 
+    const repo = new OgcServiceRepo();
+
     useEffect(() => {
         const onDeleteRecord = (record: any) => {
             async function deleteRecord() {
-                await new OgcServices().delete(record.id);
+                await repo.delete(record.id);
                 notification['success']({
                     message: 'Service deleted',
                     description: `Service with id ${record.id} has been deleted succesfully`
@@ -130,8 +132,7 @@ export const ServiceList = () => {
         }
 
         async function buildColumns() {
-            const ogcServices = new OgcServices();
-            const schema = await ogcServices.getSchema();
+            const schema = await repo.getSchema();
             const props = schema.properties.data.items.properties.attributes.properties;
             const columns = [];
             for (const propName in props) {
@@ -171,7 +172,7 @@ export const ServiceList = () => {
     useEffect(() => {
         async function fetchTableData() {
             setLoading(true);
-            const response = await new OgcServices().findAll(tableState);
+            const response = await repo.findAll(tableState);
             const ogcServices = response.data as OgcService[];
             const dataSource: any = [];
             ogcServices.forEach((ogcService: any) => {

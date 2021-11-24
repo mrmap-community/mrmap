@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import OpenAPIService from "../Services/OpenAPIService";
+import OpenApiRepo from "../Repos/OpenApiRepo";
 
 export const AuthContext = React.createContext();
 
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
 
       async function loginUser() {
-        const client = OpenAPIService.getClientInstance();
+        const client = OpenApiRepo.getClientInstance();
         const res = await client.v1_auth_login_create({},{username: username, password: password});
         console.log(res);
         if (res.status === 200){
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       async function logoutUser(){
-        const client = OpenAPIService.getClientInstance();
+        const client = OpenApiRepo.getClientInstance();
         const res = await client.v1_auth_logout_create();
         console.log(res);
       }

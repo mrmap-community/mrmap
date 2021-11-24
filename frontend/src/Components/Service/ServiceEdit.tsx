@@ -1,5 +1,5 @@
 import { Card, Form, Input, Button, notification } from 'antd';
-import OgcServices from '../../Services/OgcServices';
+import OgcServiceRepo from '../../Repos/OgcServiceRepo';
 
 const layout = {
   labelCol: { span: 3 },
@@ -17,7 +17,7 @@ export const ServiceEdit = (props: any, context: any) => {
   const onFinish = (values: any) => {
     async function postData() {
       console.log(values);
-      const res = await new OgcServices().create(values);
+      const res = await new OgcServiceRepo().create(values);
       console.log(res);
       if (res.status === 202) {
         notification['info']({

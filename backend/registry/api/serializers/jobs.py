@@ -13,5 +13,6 @@ class TaskResultSerializer(ModelSerializer):
     )
 
     class Meta:
+        
         model = TaskResult
         exclude = ("meta", )  # meta field clashes with json:api meta field. We use alternate naming. See task_meta above.

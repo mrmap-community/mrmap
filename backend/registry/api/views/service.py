@@ -117,6 +117,7 @@ class OgcServiceViewSet(ModelViewSet):
         dummy_request = APIRequestFactory().get(path=request.build_absolute_uri(reverse("registry:taskresult-detail", args=[task_result.pk])), data={})
 
         dummy_request.query_params = OrderedDict()
+        # FIXME: wrong response data type is used. We need to set the resource_name to TaskResult here.
         serialized_task_result = TaskResultSerializer(task_result, **{'context': {'request': dummy_request}})
         serialized_task_result_data = serialized_task_result.data
         # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
@@ -125,7 +126,6 @@ class OgcServiceViewSet(ModelViewSet):
 
         headers = self.get_success_headers(serialized_task_result_data)
 
-        # FIXME: wrong response data type is used. We need to set the resource_name to TaskResult here.
         return Response(serialized_task_result_data, status=status.HTTP_202_ACCEPTED, headers=headers)
 
     def get_success_headers(self, data):

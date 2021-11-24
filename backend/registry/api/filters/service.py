@@ -28,6 +28,8 @@ class OgcServiceFilterSet(FilterSet):
             'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains'],
+            'owned_by_org': ['exact'],
+            
         }
 
     def bbox_lat_lon_contains(self, queryset, name, value):

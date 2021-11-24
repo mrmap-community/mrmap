@@ -15,7 +15,8 @@ export const MapContextList: FC<MapContextListProps> = () => {
       <h2>UNDER  CONSTRUCTION</h2>
       <Button
         type='primary'
-        onClick={onAddMapContextAdd}>
+        onClick={onAddMapContextAdd}
+      >
           Add map context
       </Button>
       </>

@@ -1,7 +1,7 @@
 
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
-from rest_framework_json_api.relations import  HyperlinkedRelatedField
+from rest_framework_json_api.relations import HyperlinkedRelatedField
 from rest_framework.relations import HyperlinkedIdentityField
 from registry.api.serializers.metadata import KeywordSerializer, StyleSerializer
 from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
@@ -24,9 +24,9 @@ class LayerSerializer(ModelSerializer):
     styles = HyperlinkedRelatedField(
         queryset=Style.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:layers-list',
+        related_link_view_name='registry:layer-list',
         related_link_url_kwarg='parent_lookup_layer',
-        self_link_view_name='registry:layers-relationships',
+        self_link_view_name='registry:layer-relationships',
     )
     keywords = HyperlinkedRelatedField(
         queryset=Keyword.objects,
@@ -45,9 +45,6 @@ class LayerSerializer(ModelSerializer):
         model = Layer
         fields = '__all__'
 
-    class JSONAPIMeta:
-        include_resources = ['styles', 'keywords']
-
 
 class WebMapServiceSerializer(ModelSerializer):
 
@@ -58,9 +55,10 @@ class WebMapServiceSerializer(ModelSerializer):
     layers = HyperlinkedRelatedField(
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:wms-layers-list',
+        related_link_view_name='registry:wms-layer-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
+        required=False,
     )
 
     included_serializers = {
@@ -70,9 +68,6 @@ class WebMapServiceSerializer(ModelSerializer):
     class Meta:
         model = WebMapService
         fields = "__all__"
-
-    class JSONAPIMeta:
-        include_resources = ['layers']
 
 
 class FeatureTypeSerializer(ModelSerializer):
@@ -93,9 +88,6 @@ class FeatureTypeSerializer(ModelSerializer):
         model = FeatureType
         fields = '__all__'
 
-    class JSONAPIMeta:
-        include_resources = ['keywords']
-
 
 class WebFeatureServiceSerializer(ModelSerializer):
 
@@ -110,7 +102,7 @@ class WebFeatureServiceSerializer(ModelSerializer):
     featuretypes = HyperlinkedRelatedField(
         queryset=FeatureType.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:wfs-featuretypes-list',
+        related_link_view_name='registry:wfs-featuretype-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wfs-relationships',
     )
@@ -118,9 +110,6 @@ class WebFeatureServiceSerializer(ModelSerializer):
     class Meta:
         model = WebFeatureService
         fields = "__all__"
-
-    class JSONAPIMeta:
-        include_resources = ['featuretypes']
 
 
 class OgcServiceSerializer(PolymorphicModelSerializer):

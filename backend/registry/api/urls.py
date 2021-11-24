@@ -14,18 +14,18 @@ nested_api_router = ExtendedSimpleRouter()
 
     # web map service
     nested_api_router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-                     .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
-    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='wms-layers'),
+                     .register(r'layers', service_views.LayerViewSet, basename='wms-layer', parents_query_lookups=['service']),
+    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='wms-layer'),
 
     # web feature service
     nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
-    nested_api_router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes'),
+                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretype', parents_query_lookups=['service']),
+    nested_api_router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretype'),
 
     # # map context
     nested_api_router.register(r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
-                     .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-layers', parents_query_lookups=['map_context']),
-    nested_api_router.register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-layers'),
+                     .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer', parents_query_lookups=['map_context']),
+    nested_api_router.register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
 
     # # metadata
     nested_api_router.register(r'keywords', metadata_views.KeywordViewSet, basename='keyword'),

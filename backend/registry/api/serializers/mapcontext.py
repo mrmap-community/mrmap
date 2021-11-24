@@ -6,9 +6,9 @@ from rest_framework_json_api.relations import HyperlinkedRelatedField
 
 class MapContextLayerSerializer(ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #     view_name='registry:mapcontextlayer-detail',
-    # )
+    url = HyperlinkedIdentityField(
+        view_name='registry:mapcontextlayer-detail',
+    )
 
     class Meta:
         model = MapContextLayer
@@ -24,9 +24,10 @@ class MapContextSerializer(ModelSerializer):
     map_context_layers = HyperlinkedRelatedField(
         queryset=MapContextLayer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:mapcontext-layers-list',
+        related_link_view_name='registry:mapcontextlayer-list',
         related_link_url_kwarg='parent_lookup_map_context',
-        self_link_view_name='registry:mapcontext-relationships',
+        self_link_view_name='registry:mapcontextlayer-relationships',
+        required=False,
     )
 
     included_serializers = {
@@ -36,6 +37,3 @@ class MapContextSerializer(ModelSerializer):
     class Meta:
         model = MapContext
         fields = "__all__"
-
-    class JSONAPIMeta:
-        include_resources = ['map_context_layers']

@@ -17,7 +17,7 @@ interface SearchAutocompleteFormFieldProps {
   onChange?: (value: any, option:any) => void;
   onFocus?: React.FocusEventHandler<HTMLElement>;
   onBlur?: React.FocusEventHandler<HTMLElement>;
-  filterOption?: boolean | ((value:any, option:any) => void) | undefined,
+  filterOption?: any // TODO,
   searchData: SearchFieldData[],
   validation?: ValidationPropsType
   tooltip?: ReactNode | TooltipPropsType;
@@ -48,8 +48,6 @@ export const SearchAutocompleteFormField: FC<SearchAutocompleteFormFieldProps> =
         label={label}
         name={name}
         rules={validation.rules}
-        validateStatus={validation.feedbackStatus}
-        help={validation.errorHelp}
         hasFeedback={validation.hasFeedback}
         tooltip={tooltip}
         fieldKey={fieldKey}
@@ -64,7 +62,12 @@ export const SearchAutocompleteFormField: FC<SearchAutocompleteFormFieldProps> =
           filterOption={filterOption}
         >
           {searchData.map((data: SearchFieldData, index: number) => (
-            <Select.Option key={index} value={data.value}>{data.text}</Select.Option>
+            <Select.Option
+              key={index}
+              value={data.value}
+            >
+              {data.text}
+            </Select.Option>
           ))}
         </Select>
       </Form.Item>

@@ -1,13 +1,13 @@
 import './MapContextForm.css';
 
 import { EditFilled, InfoCircleOutlined, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
-import { Button, Divider, Form, Input, Modal, Tooltip, Tree } from 'antd';
+import { Button, Divider, Form, Modal, Tooltip, Tree } from 'antd';
+import { DataNode } from 'antd/lib/tree';
 import React, { FC, useEffect, useState } from 'react';
 
 import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormField';
 import { SearchAutocompleteFormField } from '../Shared/FormFields/SearchAutocompleteFormField/SearchAutocompleteFormField';
 import { SubmitFormButton } from '../Shared/FormFields/SubmitFormButton/SubmitFormButton';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 
 const datasetMetadataData = [
   {
@@ -42,10 +42,22 @@ const layerData = [
 const MAP_CONTEXT_FORM = 'mapContextForm';
 const MAP_CONTEXT_LAYER_FORM = 'mapContextLayerForm';
 
-interface MapContextFormProps {}
-interface MapContextLayerFormrops {}
+export interface TreeNodeType extends DataNode {
+  parent?: string | number;
+  children: TreeNodeType[];
+  properties?: any;
+}
+interface MapContextFormProps {
+  initTreeData?: TreeNodeType[];
+}
+interface MapContextLayerFormProps {
+  visible: boolean;
+  onCancel: () => void;
+  isEditing: boolean;
+  node: TreeNodeType | undefined;
+}
 
-const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCancel, isEditing, node }) => {
+const MapContextLayerForm: FC<MapContextLayerFormProps> = ({ visible, onCancel, isEditing, node }) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -55,7 +67,7 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
       form.resetFields();
       if (isEditing && node) {
         form.setFieldsValue({
-          name: node.name,
+          name: node.properties.name,
           title: node.title
         });
       }
@@ -74,18 +86,21 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
     >
       <Form
         form={form}
-        layout="vertical"
+        layout='vertical'
         name={MAP_CONTEXT_LAYER_FORM}
         initialValues={{
           name: '',
           title: ''
         }}
       >
-      <Divider plain orientation="left">
+      <Divider
+        plain
+        orientation='left'
+      >
         <h3> Metainformation of MapContextLayer </h3>
       </Divider>
         <InputFormField
-          label="Name"
+          label='Name'
           name='name'
           tooltip={{ title: 'an identifying name for this map context layer', icon: <InfoCircleOutlined /> }}
           placeholder='Map Context Layer Name'
@@ -95,7 +110,7 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
           }}
         />
         <InputFormField
-          label="Title"
+          label='Title'
           name='title'
           tooltip={{ title: 'a short descriptive title for this map context layer', icon: <InfoCircleOutlined /> }}
           placeholder='Map Context Layer Title'
@@ -104,13 +119,16 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
             hasFeedback: true
           }}
         />
-        <Divider plain orientation="left">
+        <Divider
+          plain
+          orientation='left'
+        >
           <h3> Associated metadata record </h3>
         </Divider>
 
         <SearchAutocompleteFormField
           showSearch
-          label="Dataset Metadata"
+          label='Dataset Metadata'
           name='datasetMetadata'
           placeholder='Select Metadata'
           searchData={datasetMetadataData}
@@ -124,13 +142,15 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
           }}
         />
 
-        <Divider plain orientation="left">
+        <Divider
+          plain
+          orientation='left'>
           <h3> Rendering options </h3>
         </Divider>
 
         <SearchAutocompleteFormField
           showSearch
-          label="Rendering Layer"
+          label='Rendering Layer'
           name='renderingLayer'
           placeholder='Select a rendering layer'
           searchData={layerData}
@@ -142,10 +162,11 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
         />
 
         <InputFormField
-          label="Scale minimum value"
+          label='Scale minimum value'
           name='scaleMin'
           tooltip={{
-            title: 'minimum scale for a possible request to this layer. If the request is out of the given scope, the service will response with empty transparentimages. None value means no restriction.',
+            title: 'minimum scale for a possible request to this layer. If the request is out of the given scope,' +
+              'the service will response with empty transparentimages. None value means no restriction.',
             icon: <InfoCircleOutlined />
           }}
           placeholder='Scale minimum value'
@@ -157,10 +178,11 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
         />
 
         <InputFormField
-          label="Scale maximum value"
+          label='Scale maximum value'
           name='scaleMax'
           tooltip={{
-            title: 'maximum scale for a possible request to this layer. If the request is out of the given scope, the service will response with empty transparentimages. None value means no restriction.',
+            title: 'maximum scale for a possible request to this layer. If the request is out of the given scope,' +
+              'the service will response with empty transparentimages. None value means no restriction.',
             icon: <InfoCircleOutlined />
           }}
           placeholder='Scale maximum value'
@@ -172,7 +194,7 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
         />
 
         <InputFormField
-          label="Style"
+          label='Style'
           name='style'
           tooltip={{ title: 'Select a style for rendering.', icon: <InfoCircleOutlined /> }}
           placeholder='Style'
@@ -182,13 +204,16 @@ const MapContextLayerForm: React.FC<MapContextLayerFormrops> = ({ visible, onCan
           }}
         />
 
-        <Divider plain orientation="left">
+        <Divider
+          plain
+          orientation='left'
+        >
           <h3> Feature selection options </h3>
         </Divider>
 
         <SearchAutocompleteFormField
           showSearch
-          label="Selection Layer"
+          label='Selection Layer'
           name='featureSelectionLayer'
           placeholder='Select a feature type'
           searchData={layerData}
@@ -216,10 +241,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [treeData, setTreeData] = useState<TreeNodeType[]>(initTreeData);
   const [selectedNode, setSelectedNode] = useState<TreeNodeType>();
-  const [modalTitle, setModalTitle] = useState<string>('');
   const [isEditing, setIsEditing] = useState<boolean>(false);
-
-  useEffect(() => { console.log(selectedNode); }, [selectedNode]);
 
   const toggleModal = () => {
     setIsModalVisible(!isModalVisible);
@@ -244,8 +266,8 @@ export const MapContextForm: FC<MapContextFormProps> = ({
     });
   };
 
-  const getNodeParent = (list: TreeNodeType[], node: TreeNodeType): TreeNodeType[] | never[] => {
-    return list.reduce((acc: (TreeNodeType[] | never[]), value: TreeNodeType) => {
+  const getNodeParent = (list: TreeNodeType[], node: TreeNodeType): TreeNodeType[] => {
+    return list.reduce((acc: (TreeNodeType[]), value: TreeNodeType) => {
       if (value.key === node.parent) {
         acc.push(value);
         return acc;
@@ -293,8 +315,8 @@ export const MapContextForm: FC<MapContextFormProps> = ({
    * @description: Method to define the action to happen when the user wants to edit an existing node
    * @param node
    */
-  const onEditNode = (node: TreeNodeType, values: any) => {
-    if (values) {
+  const onEditNode = (node: TreeNodeType | undefined, values: any) => {
+    if (values && node) {
       node.title = values.title;
       node.properties = values;
     }
@@ -304,7 +326,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
     <Form.Provider
       onFormFinish={(formName, { values, forms }) => {
         const {
-          mapContextForm,
+          // mapContextForm,
           mapContextLayerForm
         } = forms;
         if (formName === MAP_CONTEXT_LAYER_FORM) {
@@ -322,7 +344,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
     >
       <Form
         name={MAP_CONTEXT_FORM}
-        layout="vertical"
+        layout='vertical'
         initialValues={{
           abstract: '',
           title: '',
@@ -331,8 +353,8 @@ export const MapContextForm: FC<MapContextFormProps> = ({
 
       >
         <InputFormField
-          label="Title"
-          name="title"
+          label='Title'
+          name='title'
           tooltip={{ title: 'a short descriptive title for this map context', icon: <InfoCircleOutlined /> }}
           placeholder='Map Context Title'
           validation={{
@@ -341,8 +363,8 @@ export const MapContextForm: FC<MapContextFormProps> = ({
           }}
         />
         <InputFormField
-          label="Abstract"
-          name="abstract"
+          label='Abstract'
+          name='abstract'
           tooltip={{ title: 'brief summary of the topic of this map context', icon: <InfoCircleOutlined /> }}
           placeholder='Map Context Abstract'
           type='textarea'
@@ -350,7 +372,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
         <>
           <h1>Ebenen und Datenangebote</h1>
           <Tree
-            className="tree-form-field"
+            className='tree-form-field'
             // draggable={draggable}
             // blockNode
             showIcon
@@ -360,25 +382,26 @@ export const MapContextForm: FC<MapContextFormProps> = ({
             treeData={treeData}
             showLine
             multiple={false}
+            // @ts-ignore
             titleRender={
-              (nodeData: TreeNodeType) => (
+              (nodeData: TreeNodeType):JSX.Element => (
                 <div className='tree-form-field-node'>
                   <div className='tree-form-field-node-title'>
                     <h3> {nodeData.title}</h3>
                   </div>
                   <div className='tree-form-field-node-actions'>
-                    <Tooltip title="Create Node">
+                    <Tooltip title='Create Node'>
                       <Button
                         onClick={() => {
                           toggleModal();
                           setSelectedNode(nodeData);
                         }}
-                        type="text"
+                        type='text'
                         icon={<PlusCircleFilled />}
                       />
                     </Tooltip>
                     {nodeData.parent && (
-                      <Tooltip title="Remove Node">
+                      <Tooltip title='Remove Node'>
                         <Button
                           onClick={() => {
                             Modal.warning({
@@ -387,19 +410,19 @@ export const MapContextForm: FC<MapContextFormProps> = ({
                               onOk: () => { onRemoveNode(nodeData); }
                             });
                           }}
-                          type="text"
+                          type='text'
                           icon={<MinusCircleFilled />}
                         />
                       </Tooltip>
                     )}
-                    <Tooltip title="Edit Node">
+                    <Tooltip title='Edit Node'>
                       <Button
                         onClick={() => {
                           toggleModal();
                           setIsEditing(true);
                           setSelectedNode(nodeData);
                         }}
-                        type="text"
+                        type='text'
                         icon={<EditFilled />}
                       />
                     </Tooltip>

@@ -68,13 +68,19 @@ rules:
     - error 
     - always
   no-use-before-define: 0
+  jsx-quotes: 
+    - error
+    - prefer-single
 overrides:
   - files:
     - '**/*.tsx'
     - '**/*.ts'
+    - '**/*.jsx'
+    - '**/*.js'
     rules:
       react/prop-types: 0
       '@typescript-eslint/no-use-before-define': 1
       '@typescript-eslint/no-empty-interface': 1
       '@typescript-eslint/no-unused-vars': 2
       '@typescript-eslint/no-explicit-any': 0
+      '@typescript-eslint/ban-ts-comment': 0

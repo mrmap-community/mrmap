@@ -13,8 +13,8 @@ export const SubmitFormButton: FC<SubmitFormButtonProps> = ({
   return (
     <Form.Item>
         <Button
-          type="primary"
-          htmlType="submit"
+          type='primary'
+          htmlType='submit'
           disabled={disabled}
         >
           {buttonText}

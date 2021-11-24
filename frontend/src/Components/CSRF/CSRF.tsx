@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { ReactElement } from 'react';
 
-function getCookie (name:string) {
+function getCookie (name:string): string | number | readonly string[]| undefined {
   let cookieValue = null;
   if (document.cookie && document.cookie !== '') {
     const cookies = document.cookie.split(';');
@@ -18,8 +18,12 @@ function getCookie (name:string) {
 
 const csrftoken = getCookie('csrftoken');
 
-export const CSRFToken = () => {
+export const CSRFToken = (): ReactElement => {
   return (
-        <input type="hidden" name="csrfmiddlewaretoken" value={csrftoken} />
+    <input
+      type='hidden'
+      name='csrfmiddlewaretoken'
+      value={csrftoken}
+    />
   );
 };

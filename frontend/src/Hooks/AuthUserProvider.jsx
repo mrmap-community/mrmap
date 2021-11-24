@@ -1,6 +1,5 @@
 import React, { useContext, useState } from 'react';
-
-import OpenAPIService from '../Services/OpenAPIService';
+import OpenApiRepo from "../Repos/OpenApiRepo";
 
 export const AuthContext = React.createContext();
 
@@ -18,27 +17,26 @@ export const AuthProvider = ({ children }) => {
     //   console.log(res);
     //   // 200 if logged in user
     //   // 403 if no authenticated used is present
-
     // }
-
     // checkCurrentAuth();
 
-    async function loginUser () {
-      const client = OpenAPIService.getClientInstance();
-      const res = await client.v1_auth_login_create({}, { username: username, password: password });
-      console.log(res);
-      if (res.status === 200) {
-        console.log('HUHU');
-        setUsername(username);
-      }
-      console.log(username);
-    }
 
-    async function logoutUser () {
-      const client = OpenAPIService.getClientInstance();
-      const res = await client.v1_auth_logout_create();
-      console.log(res);
-    }
+      async function loginUser() {
+        const client = OpenApiRepo.getClientInstance();
+        const res = await client.v1_auth_login_create({},{username: username, password: password});
+        console.log(res);
+        if (res.status === 200){
+          console.log("HUHU");
+          setUsername(username);
+        }
+        console.log(username);
+      }
+
+      async function logoutUser(){
+        const client = OpenApiRepo.getClientInstance();
+        const res = await client.v1_auth_logout_create();
+        console.log(res);
+      }
 
     switch (action) {
       case 'loginUser':

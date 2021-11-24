@@ -1,16 +1,16 @@
-import { Button, Card, Form, Input, notification } from 'antd';
-import React from 'react';
-
-import OgcServices from '../../Services/OgcServices';
+import { Card, Form, Input, Button, notification } from 'antd';
+import { OgcServiceRepo } from "../../Repos/OgcServiceRepo";
 
 const layout = {
   labelCol: { span: 3 },
-  wrapperCol: { span: 8 }
+  wrapperCol: { span: 8 },
 };
 
 const tailLayout = {
-  wrapperCol: { offset: 3, span: 8 }
+  wrapperCol: { offset: 3, span: 8 },
 };
+
+const repo = new OgcServiceRepo();
 
 export const ServiceEdit = (props: any, context: any) => {
   const [form] = Form.useForm();
@@ -18,10 +18,10 @@ export const ServiceEdit = (props: any, context: any) => {
   const onFinish = (values: any) => {
     async function postData () {
       console.log(values);
-      const res = await new OgcServices().create(values);
+      const res = await repo.create(values);
       console.log(res);
       if (res.status === 202) {
-        notification.info({
+        notification['info']({
           message: 'Service registration job started',
           description: 'Your service registration job has been accepted and is being processed'
         });

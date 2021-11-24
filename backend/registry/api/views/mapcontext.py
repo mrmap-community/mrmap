@@ -1,33 +1,40 @@
-from rest_framework.permissions import DjangoModelPermissions
-from django_filters import rest_framework as api_filters
-from rest_framework.filters import OrderingFilter
 
-from extras.api.pagination import StandardResultsSetPagination
-from extras.api.viewsets import ModelViewSetWithPermissionChecker
-from registry.api.filters.mapcontext import MapContextApiFilter
-from registry.api.serializers.mapcontext import MapContextSerializer
-from registry.models import MapContext
+from rest_framework_json_api.schemas.openapi import AutoSchema
+from rest_framework_extensions.mixins import NestedViewSetMixin
+from rest_framework_json_api.views import ModelViewSet, RelationshipView
+from registry.api.serializers.mapcontext import MapContextSerializer, MapContextLayerSerializer
+from registry.models import MapContext, MapContextLayer
 
 
-class MapContextViewSet(ModelViewSetWithPermissionChecker):
+class MapContextRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=['MapContext'],
+    )
+    queryset = MapContext.objects
+
+
+class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=['MapContext'],
+    )
     queryset = MapContext.objects.all()
-    filterset_class = MapContextApiFilter
-    filter_backends = [api_filters.DjangoFilterBackend, OrderingFilter]
-    ordering_fields = ['title', 'abstract', 'id']
-    pagination_class = StandardResultsSetPagination
-    permission_classes = [DjangoModelPermissions]
-
-    serializers = {
-        'default': MapContextSerializer
+    serializer_class = MapContextSerializer
+    prefetch_for_includes = {
+        '__all__': [],
+        'map_context_layers': ['map_context_layers']
     }
 
-    def get_serializer_class(self):
-        return self.serializers.get(self.action, self.serializers['default'])
 
-    # TODO: add to mixin (not needed for now. Will come in handy when we need to start overwriting methods)
-    # def get_serialized_status_ok_response(self, _queryset, _many=True, _status=status.HTTP_200_OK):
-    #    serializer = self.get_serializer(_queryset, many=_many)
-    #    return Response(data=serializer.data, status=_status)
+class MapContextLayerViewSet(ModelViewSet):
+    schema = AutoSchema(
+        tags=['MapContext'],
+    )
+    queryset = MapContextLayer.objects.all()
+    serializer_class = MapContextLayerSerializer
 
-    def get_queryset(self, *args, **kwargs):
-        return super().get_queryset()
+    def get_queryset(self):
+        queryset = super(MapContextLayerViewSet, self).get_queryset()
+        if 'map_context_pk' in self.kwargs:
+            map_context_pk = self.kwargs['map_context_pk']
+            queryset = queryset.filter(map_context__pk=map_context_pk)
+        return queryset

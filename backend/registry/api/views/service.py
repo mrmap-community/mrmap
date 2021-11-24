@@ -36,6 +36,13 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
     filterset_class = WebMapServiceFilterSet
 
 
+class LayerRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=['WebMapService'],
+    )
+    queryset = Layer.objects
+
+
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['WebMapServices'],
@@ -44,6 +51,11 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
+    prefetch_for_includes = {
+        '__all__': [],
+        'styles': ['styles'],
+        'keywords': ['keywords']
+    }
 
     def get_queryset(self):
         queryset = super(LayerViewSet, self).get_queryset()
@@ -73,6 +85,13 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
     filterset_class = WebFeatureServiceFilterSet
 
 
+class FeatureTypeRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=['WebFeatureService'],
+    )
+    queryset = FeatureType.objects
+
+
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['WebFeatureServices'],
@@ -80,6 +99,11 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
+
+    prefetch_for_includes = {
+        '__all__': [],
+        'keywords': ['keywords']
+    }
 
     def get_queryset(self):
         queryset = super(FeatureTypeViewSet, self).get_queryset()

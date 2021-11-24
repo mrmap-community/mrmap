@@ -42,7 +42,10 @@ class MapContext(GenericModelMixin, CommonInfo):
 class MapContextLayer(MPTTModel):
     parent = TreeForeignKey("MapContextLayer", on_delete=models.CASCADE, null=True, blank=True,
                             related_name="child_layers")
-    map_context = models.ForeignKey(MapContext, on_delete=models.CASCADE)
+    map_context = models.ForeignKey(to=MapContext, 
+                                    on_delete=models.CASCADE,
+                                    related_name='map_context_layers',
+                                    related_query_name='map_context_layer')
     name = models.CharField(max_length=1000,
                             null=False,
                             blank=False,

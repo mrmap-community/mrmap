@@ -3,9 +3,18 @@ import OpenAPIClientAxios, { OpenAPIClient } from "openapi-client-axios";
 export const JsonApiMimeType = "application/vnd.api+json";
 
 export interface JsonApiResponse<T> {
-    data: T[] | T;
+    data: JsonApiObject<T>[] | JsonApiObject<T>;
     errors: any;
     meta: any;
+}
+
+export interface JsonApiObject<T> {
+    type: string;
+    id: string;
+    links: any;
+    // TODO add type info for attributes
+    attributes: any;
+    relationships: any;
 }
 
 export interface QueryParams {

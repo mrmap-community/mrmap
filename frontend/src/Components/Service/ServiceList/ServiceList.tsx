@@ -3,7 +3,7 @@ import { Table, Card, Input, Space, Button, notification, Modal } from "antd";
 import { SearchOutlined } from '@ant-design/icons';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from "react-router";
-import OgcServiceRepo, { OgcService } from "../../../Repos/OgcServiceRepo";
+import OgcServiceRepo from "../../../Repos/OgcServiceRepo";
 
 interface TableState {
     page: number;
@@ -173,7 +173,7 @@ export const ServiceList = () => {
         async function fetchTableData() {
             setLoading(true);
             const response = await repo.findAll(tableState);
-            const ogcServices = response.data as OgcService[];
+            const ogcServices = response.data as any;
             const dataSource: any = [];
             ogcServices.forEach((ogcService: any) => {
                 const row = {

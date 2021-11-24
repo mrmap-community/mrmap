@@ -1,20 +1,12 @@
 import OpenApiRepo, { JsonApiMimeType } from "./OpenApiRepo";
 import OpenAPIService from "./OpenApiRepo";
 
-export interface OgcService {
-    type: string;
-    id: string;
-    links: any;
-    attributes: any;
-    relationships: any;
-}
-
 export interface OgcServiceCreate {
     get_capabilities_url: string;
     owned_by_org: string;
 }
 
-export class OgcServiceRepo extends OpenApiRepo<OgcService> {
+export class OgcServiceRepo extends OpenApiRepo<any> {
 
     constructor() {
         super("/api/v1/registry/wms/");

@@ -21,20 +21,20 @@ class LayerSerializer(ModelSerializer):
     )
 
     bbox_lat_lon = GeometryField()
-    styles = HyperlinkedRelatedField(
-        queryset=Style.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:layer-list',
-        related_link_url_kwarg='parent_lookup_layer',
-        self_link_view_name='registry:layer-relationships',
-    )
-    keywords = HyperlinkedRelatedField(
-        queryset=Keyword.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:layer-list',
-        related_link_url_kwarg='parent_lookup_keyword',
-        self_link_view_name='registry:layer-relationships',
-    )
+    # styles = HyperlinkedRelatedField(
+    #     queryset=Style.objects,
+    #     many=True,  # necessary for M2M fields & reverse FK fields
+    #     related_link_view_name='registry:layer-list',
+    #     related_link_url_kwarg='parent_lookup_layer',
+    #     self_link_view_name='registry:layer-relationships',
+    # )
+    # keywords = HyperlinkedRelatedField(
+    #     queryset=Keyword.objects,
+    #     many=True,  # necessary for M2M fields & reverse FK fields
+    #     related_link_view_name='registry:layer-list',
+    #     related_link_url_kwarg='parent_lookup_keyword',
+    #     self_link_view_name='registry:layer-relationships',
+    # )
 
     included_serializers = {
         'styles': StyleSerializer,
@@ -55,7 +55,7 @@ class WebMapServiceSerializer(ModelSerializer):
     layers = HyperlinkedRelatedField(
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:wms-layer-list',
+        related_link_view_name='registry:layer-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
         required=False,

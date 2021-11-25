@@ -14,13 +14,13 @@ nested_api_router = ExtendedSimpleRouter()
 
     # web map service
     nested_api_router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-                     .register(r'layers', service_views.LayerViewSet, basename='wms-layer', parents_query_lookups=['service']),
-    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='wms-layer'),
+                     .register(r'layers', service_views.LayerViewSet, basename='layer', parents_query_lookups=['service']),
+    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='layer'),
 
     # web feature service
     nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretype', parents_query_lookups=['service']),
-    nested_api_router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretype'),
+                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype', parents_query_lookups=['service']),
+    nested_api_router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype'),
 
     # # map context
     nested_api_router.register(r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
@@ -29,7 +29,7 @@ nested_api_router = ExtendedSimpleRouter()
 
     # # metadata
     nested_api_router.register(r'keywords', metadata_views.KeywordViewSet, basename='keyword'),
-    # nested_api_router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
+    #nested_api_router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
 
     # jobs
     nested_api_router.register(r'task-results', jobs_views.TaskResultReadOnlyViewSet, basename='taskresult')

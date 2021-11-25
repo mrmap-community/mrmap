@@ -6,14 +6,29 @@ import { useAuth } from '../../Hooks/AuthContextProvider';
 
 const { SubMenu } = Menu;
 
+// submenu keys of first level
+const rootSubmenuKeys = ['users', 'registry', 'security'];
+
 export const NavBar = (): ReactElement => {
   const location = useLocation();
   const auth = useAuth();
+
+  const [openKeys, setOpenKeys] = React.useState(['/']);
+
+  const onOpenChange = (keys: string[]) => {
+    const latestOpenKey = keys.find(key => openKeys.indexOf(key) === -1);
+    if (latestOpenKey === undefined || rootSubmenuKeys.indexOf(latestOpenKey) === -1) {
+      setOpenKeys(keys);
+    } else {
+      setOpenKeys(latestOpenKey ? [latestOpenKey] : []);
+    }
+  };
 
   return (
     <Menu
       theme='dark'
       selectedKeys={[location.pathname]}
+      openKeys={openKeys} onOpenChange={onOpenChange}
       mode='inline'
     >
       <Menu.Item
@@ -42,7 +57,7 @@ export const NavBar = (): ReactElement => {
         <Menu.Item key='/registry/services/layers'><Link to='/registry/services/layers'>Layers</Link></Menu.Item>
         <Menu.Item key='registry:featuretypes'>Feature Types</Menu.Item>
         <Menu.Item key='registry:metadata'>Metadata Records</Menu.Item>
-        <Menu.Item key='registry:map-contexts'><Link to='/registry/mapcontexts'>Map Contexts</Link></Menu.Item>
+        <Menu.Item key='/registry/mapcontexts'><Link to='/registry/mapcontexts'>Map Contexts</Link></Menu.Item>
       </SubMenu>
       <SubMenu
         key='security'
@@ -53,7 +68,7 @@ export const NavBar = (): ReactElement => {
         <Menu.Item key='security:service-proxy-settings'>Service proxy settings</Menu.Item>
         <Menu.Item key='security:service-access-groups'>Service Access Groups</Menu.Item>
         <Menu.Item key='security:allowed-operations'>Allowed Operations</Menu.Item>
-        <Menu.Item key='scurity:logs'>Logs</Menu.Item>
+        <Menu.Item key='security:logs'>Logs</Menu.Item>
       </SubMenu>
       <Menu.Item
         key='logout'
@@ -62,7 +77,5 @@ export const NavBar = (): ReactElement => {
         <Link to='/logout'>Logout ({auth.user})</Link>
       </Menu.Item>
     </Menu>
-    //       <AuthButton username={username} handleAuth={handleAuth}/>
-    // <Tag color="default">{username}</Tag>
   );
 };

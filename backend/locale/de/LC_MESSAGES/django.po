@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-25 17:30+0100\n"
+"POT-Creation-Date: 2021-11-25 19:23+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -202,7 +202,7 @@ msgid "The last user who has modified this object."
 msgstr "Der Benutzer der dieses Objekt zuletzt verändert hat."
 
 #: jobs/models.py:15 jobs/models.py:80 registry/models/mapcontext.py:52
-#: registry/models/metadata.py:43 registry/models/metadata.py:708
+#: registry/models/metadata.py:43 registry/models/metadata.py:709
 #, fuzzy
 #| msgid "Username"
 msgid "name"
@@ -320,7 +320,7 @@ msgstr "Dienst"
 msgid "the service targeted by this check"
 msgstr "Der Dienst der von dieser Überprüfung betroffen ist."
 
-#: registry/models/conformity.py:152 registry/models/metadata.py:722
+#: registry/models/conformity.py:152 registry/models/metadata.py:723
 #: registry/models/service.py:271
 #, fuzzy
 #| msgid "Layer:"
@@ -331,7 +331,7 @@ msgstr "Ebene:"
 msgid "the layer targeted by this check"
 msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
 
-#: registry/models/conformity.py:164 registry/models/metadata.py:730
+#: registry/models/conformity.py:164 registry/models/metadata.py:731
 #: registry/models/service.py:425 registry/models/service.py:498
 #, fuzzy
 #| msgid "Featuretype:"
@@ -342,8 +342,8 @@ msgstr "Featuretype:"
 msgid "the feature type targeted by this check"
 msgstr "Der Merkmalstyp der von dieser Überprüfung betroffen ist. "
 
-#: registry/models/conformity.py:176 registry/models/metadata.py:654
-#: registry/models/metadata.py:655 registry/models/metadata.py:738
+#: registry/models/conformity.py:176 registry/models/metadata.py:655
+#: registry/models/metadata.py:656 registry/models/metadata.py:739
 #, fuzzy
 #| msgid "Dataset Metadata"
 msgid "dataset metadata"
@@ -908,25 +908,25 @@ msgstr "Dienste"
 msgid "all services from which this dataset was harvested."
 msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
 
-#: registry/models/metadata.py:709
+#: registry/models/metadata.py:710
 msgid "the type of the content stored in extent field."
 msgstr "Die Art des Inhalts"
 
-#: registry/models/metadata.py:711
+#: registry/models/metadata.py:712
 msgid "units"
 msgstr "Einheiten"
 
-#: registry/models/metadata.py:712
+#: registry/models/metadata.py:713
 msgid "measurement units specifier"
 msgstr "Maßeinheitenspezifizierer"
 
-#: registry/models/metadata.py:713
+#: registry/models/metadata.py:714
 #, fuzzy
 #| msgid "Spatial extent"
 msgid "extent"
 msgstr "Räumliche Ausdehnung"
 
-#: registry/models/metadata.py:714
+#: registry/models/metadata.py:715
 msgid ""
 "The extent string declares what value(s) along the Dimension axis are "
 "appropriate for this specific geospatial data object."
@@ -934,25 +934,25 @@ msgstr ""
 "Der Erweiterungstext beschreibt, welche Werte entlang der Achse, angemessen "
 "für diese Art Geodaten ist."
 
-#: registry/models/metadata.py:723
+#: registry/models/metadata.py:724
 msgid "the related layer of this dimension entity"
 msgstr "Die verknüpfte Ebene dieses Eintrags"
 
-#: registry/models/metadata.py:731
+#: registry/models/metadata.py:732
 msgid "the related feature type of this dimension entity"
 msgstr "Der verknüpfte Merkmalstyp des Dimensionseintrages"
 
-#: registry/models/metadata.py:739
+#: registry/models/metadata.py:740
 #, fuzzy
 #| msgid "Health state of the ressource"
 msgid "the related dataset metadata of this dimension entity"
 msgstr "Gesundheitszustand der Ressource"
 
-#: registry/models/metadata.py:762
+#: registry/models/metadata.py:763
 msgid "related dimension"
 msgstr "verknüpfter Dimensionseintrag"
 
-#: registry/models/metadata.py:763
+#: registry/models/metadata.py:764
 msgid "the related dimension where this interval was found."
 msgstr "Die vernüpfte Dimension des Intervals."
 

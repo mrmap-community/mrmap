@@ -1,8 +1,8 @@
 
 from rest_framework_json_api.schemas.openapi import AutoSchema
-from registry.api.serializers.metadata import KeywordSerializer, StyleSerializer
-from registry.models.metadata import Keyword, Style
 from rest_framework_json_api.views import ModelViewSet
+from registry.api.serializers.metadata import DatasetMetadataSerializer, KeywordSerializer, StyleSerializer
+from registry.models.metadata import DatasetMetadata, Keyword, Style
 
 
 class KeywordViewSet(ModelViewSet):
@@ -19,3 +19,11 @@ class StyleViewSet(ModelViewSet):
     )
     queryset = Style.objects.all()
     serializer_class = StyleSerializer
+
+
+class DatasetMetadataViewSet(ModelViewSet):
+    schema = AutoSchema(
+        tags=['Metadata'],
+    )
+    queryset = DatasetMetadata.objects.all()
+    serializer_class = DatasetMetadataSerializer

@@ -100,7 +100,7 @@ export const ServiceEdit = (): ReactElement => {
           name='collect_metadata_records'
           label='Collet metadata records'
         >
-          <Checkbox checked={true}/>
+          <Checkbox/>
         </Form.Item>
 
         {/* <SearchAutocompleteFormField name='owned_by_org' label='Owner organization' validation={{

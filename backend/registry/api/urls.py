@@ -29,7 +29,8 @@ nested_api_router = ExtendedSimpleRouter()
 
     # # metadata
     nested_api_router.register(r'keywords', metadata_views.KeywordViewSet, basename='keyword'),
-    # nested_api_router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
+    nested_api_router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
+    nested_api_router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
 
     # jobs
     nested_api_router.register(r'task-results', jobs_views.TaskResultReadOnlyViewSet, basename='taskresult')

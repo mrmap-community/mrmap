@@ -1,37 +1,14 @@
-import { DashboardOutlined, DatabaseOutlined, SecurityScanOutlined, UserOutlined } from '@ant-design/icons';
+import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlined, UserOutlined } from '@ant-design/icons';
 import { Menu } from 'antd';
 import React, { ReactElement } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-// import { useAuth } from '../../Hooks/AuthUserProvider';
+import { useAuth } from '../../Hooks/AuthContextProvider';
 
 const { SubMenu } = Menu;
 
-// const AuthButton = (props: any) => {
-//   if (props.username === "guest") {
-//     return (
-//        <Tooltip title="login">
-//          <Button
-//            type="primary"
-//            icon={<LoginOutlined />}
-//            href="/users/auth/login" />
-//        </Tooltip>
-//      )
-//   } else {
-//     return (
-//   <Tooltip title="logout">
-//     <Button
-//       type="primary"
-//       icon={<LogoutOutlined />}
-//       onClick={() => props.handleAuth({}, "logoutUser")}
-//     />
-//   </Tooltip>
-// )
-//   }
-// }
-
 export const NavBar = (): ReactElement => {
   const location = useLocation();
-  // const [username, handleAuth] = useAuth();
+  const auth = useAuth();
 
   return (
     <Menu
@@ -78,9 +55,14 @@ export const NavBar = (): ReactElement => {
         <Menu.Item key='security:allowed-operations'>Allowed Operations</Menu.Item>
         <Menu.Item key='scurity:logs'>Logs</Menu.Item>
       </SubMenu>
+      <Menu.Item
+        key='logout'
+        icon={<LogoutOutlined />}
+      >
+        <Link to='/logout'>Logout ({auth.user})</Link>
+      </Menu.Item>
     </Menu>
-    // <Avatar icon={<UserOutlined />} />
+    //       <AuthButton username={username} handleAuth={handleAuth}/>
     // <Tag color="default">{username}</Tag>
-    // <AuthButton username={username} handleAuth={handleAuth}/>
   );
 };

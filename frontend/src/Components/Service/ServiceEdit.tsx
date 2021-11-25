@@ -3,7 +3,6 @@ import React, { ReactElement, useState } from 'react';
 
 import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
-import { SearchAutocompleteFormField } from '../Shared/FormFields/SearchAutocompleteFormField/SearchAutocompleteFormField';
 
 const layout = {
   labelCol: { span: 3 },
@@ -14,17 +13,12 @@ const tailLayout = {
   wrapperCol: { offset: 3, span: 8 }
 };
 
-const mockVal = (str: string, repeat: number = 1) => ({
-  value: str.repeat(repeat),
-});
-
 const repo = new OgcServiceRepo();
 const organizationRepo = new OrganizationRepo();
 
 export const ServiceEdit = (): ReactElement => {
   const [form] = Form.useForm();
 
-  const [value, setValue] = useState('');
   const [options, setOptions] = useState<{ id: string, value: string }[]>([]);
   const [isLoading, setLoading] = useState(false);
 
@@ -50,17 +44,10 @@ export const ServiceEdit = (): ReactElement => {
     }
 
     autocomplete();
-
-    // setOptions(
-    //   !searchText ? [] : [mockVal(searchText), mockVal(searchText, 2), mockVal(searchText, 3)],
-    // );
   };
   const onSelect = (data: string) => {
     console.log('onSelect', data);
   };
-  const onChange = (data: string) => {
-    setValue(data);
-  }
 
   const onFinish = (values: any) => {
     async function postData() {

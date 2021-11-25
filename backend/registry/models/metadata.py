@@ -648,6 +648,7 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                                              verbose_name=_("services"),
                                                              help_text=_("all services from which this dataset was harvested."))
 
+    objects = models.Manager()
     iso_metadata = IsoMetadataManager()
 
     class Meta:

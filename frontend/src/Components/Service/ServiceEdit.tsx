@@ -1,4 +1,4 @@
-import { AutoComplete, Button, Card, Form, Input, notification } from 'antd';
+import { AutoComplete, Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useState } from 'react';
 
 import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
@@ -50,6 +50,7 @@ export const ServiceEdit = (): ReactElement => {
   };
 
   const onFinish = (values: any) => {
+    debugger;
     async function postData() {
       const res = await repo.create(values);
       if (res.status === 202) {
@@ -95,6 +96,12 @@ export const ServiceEdit = (): ReactElement => {
             <Input.Search placeholder="input here" loading={isLoading} />
           </AutoComplete>
         </Form.Item >
+        <Form.Item
+          name='collect_metadata_records'
+          label='Collet metadata records'
+        >
+          <Checkbox checked={true}/>
+        </Form.Item>
 
         {/* <SearchAutocompleteFormField name='owned_by_org' label='Owner organization' validation={{
           rules: [{ required: true, message: 'Required: Owner organization' }],

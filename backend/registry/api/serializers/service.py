@@ -1,4 +1,5 @@
 
+from rest_framework.fields import BooleanField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
 from rest_framework_json_api.relations import HyperlinkedRelatedField
@@ -127,6 +128,8 @@ class OgcServiceCreateSerializer(ModelSerializer):
     #     'auth': ServiceAuthentication,
     # }
 
+    collect_metadata_records = BooleanField(default=True)
+
     class Meta:
         model = OgcService
-        fields = ("get_capabilities_url", "owned_by_org")
+        fields = ("get_capabilities_url", "owned_by_org", "collect_metadata_records")

@@ -7,10 +7,10 @@ import { useNavigate } from 'react-router';
 import { WebMapServiceRepo } from '../../../Repos/WebMapServiceRepo';
 
 interface TableState {
-    page: number;
-    pageSize: number;
-    ordering: string;
-    filters: any;
+  page: number;
+  pageSize: number;
+  ordering: string;
+  filters: any;
 }
 
 const repo = new WebMapServiceRepo();
@@ -31,40 +31,40 @@ const getColumnSearchProps = (dataIndex: any): any => {
         searchText = '';
       };
       return (<div style={{ padding: 8 }}>
-                <Input
-                    ref={searchInput}
-                    placeholder={`Search ${dataIndex}`}
-                    value={selectedKeys[0]}
-                    onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
-                    style={{ marginBottom: 8, display: 'block' }}
-                />
-                <Space>
-                    <Button
-                        type='primary'
-                        onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
-                        icon={<SearchOutlined />}
-                        size='small'
-                        style={{ width: 90 }}
-                    >
-                        Search
-                    </Button>
-                    <Button onClick={() => handleReset(clearFilters)} size='small' style={{ width: 90 }}>
-                        Reset
-                    </Button>
-                    <Button
-                        type='link'
-                        size='small'
-                        onClick={() => {
-                          confirm({ closeDropdown: false });
-                          searchText = selectedKeys[0];
-                          searchedColumn = dataIndex;
-                        }}
-                    >
-                        Filter
-                    </Button>
-                </Space>
-            </div>);
+        <Input
+          ref={searchInput}
+          placeholder={`Search ${dataIndex}`}
+          value={selectedKeys[0]}
+          onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+          onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+          style={{ marginBottom: 8, display: 'block' }}
+        />
+        <Space>
+          <Button
+            type='primary'
+            onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+            icon={<SearchOutlined />}
+            size='small'
+            style={{ width: 90 }}
+          >
+            Search
+          </Button>
+          <Button onClick={() => handleReset(clearFilters)} size='small' style={{ width: 90 }}>
+            Reset
+          </Button>
+          <Button
+            type='link'
+            size='small'
+            onClick={() => {
+              confirm({ closeDropdown: false });
+              searchText = selectedKeys[0];
+              searchedColumn = dataIndex;
+            }}
+          >
+            Filter
+          </Button>
+        </Space>
+      </div>);
     },
     onFilterDropdownVisibleChange: (visible: any) => {
       if (visible) {
@@ -75,16 +75,16 @@ const getColumnSearchProps = (dataIndex: any): any => {
     render: (text: any) => {
       return searchedColumn === dataIndex
         ? (
-                <Highlighter
-                    highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
-                    searchWords={[searchText]}
-                    autoEscape
-                    textToHighlight={text ? text.toString() : ''}
-                />
-          )
+          <Highlighter
+            highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+            searchWords={[searchText]}
+            autoEscape
+            textToHighlight={text ? text.toString() : ''}
+          />
+        )
         : (
-            text
-          );
+          text
+        );
     }
   };
 };
@@ -108,7 +108,7 @@ export const ServiceList = (): ReactElement => {
 
   useEffect(() => {
     const onDeleteRecord = (record: any) => {
-      async function deleteRecord () {
+      async function deleteRecord() {
         await repo.delete(record.id);
         notification.success({
           message: 'Service deleted',
@@ -133,7 +133,7 @@ export const ServiceList = (): ReactElement => {
       });
     };
 
-    async function buildColumns () {
+    async function buildColumns() {
       const schema = await repo.getSchema();
       const props = schema.properties.data.items.properties.attributes.properties;
       const columns = [];
@@ -158,9 +158,9 @@ export const ServiceList = (): ReactElement => {
         render: (text: any, record: any) => {
           const boundOnDeleteRecord = onDeleteRecord.bind(null, record);
           return (
-                        <Space size='middle'>
-                            <Button danger size='small' onClick={boundOnDeleteRecord}>Delete</Button>
-                        </Space>
+            <Space size='middle'>
+              <Button danger size='small' onClick={boundOnDeleteRecord}>Delete</Button>
+            </Space>
           );
         }
       });
@@ -169,10 +169,10 @@ export const ServiceList = (): ReactElement => {
     }
     buildColumns();
     // eslint-disable-next-line
-    }, []);
+  }, []);
 
   useEffect(() => {
-    async function fetchTableData () {
+    async function fetchTableData() {
       setLoading(true);
       const response = await repo.findAll(tableState);
       const ogcServices = response.data as any;
@@ -228,24 +228,24 @@ export const ServiceList = (): ReactElement => {
     });
   };
   return (
-        <Card
-          title='Services'
-          extra={<Button type='primary' onClick={onAddService}>Add service</Button>}
-          style={{ width: '100%' }}
-        >
-            <Table
-                dataSource={data.dataSource}
-                rowKey={(record: any) => record.id}
-                columns={columns}
-                loading={loading}
-                pagination={{
-                  current: tableState.page,
-                  pageSize: tableState.pageSize,
-                  total: data.total
-                }}
-                scroll={{ x: true }}
-                onChange={handleTableChange}
-            />
-        </Card>
+    <Card
+      title='Services'
+      extra={<Button type='primary' onClick={onAddService}>Add service</Button>}
+      style={{ width: '100%' }}
+    >
+      <Table
+        dataSource={data.dataSource}
+        rowKey={(record: any) => record.id}
+        columns={columns}
+        loading={loading}
+        pagination={{
+          current: tableState.page,
+          pageSize: tableState.pageSize,
+          total: data.total
+        }}
+        scroll={{ x: true }}
+        onChange={handleTableChange}
+      />
+    </Card>
   );
 };

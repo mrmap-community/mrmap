@@ -59,9 +59,8 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
 
     def get_queryset(self):
         queryset = super(LayerViewSet, self).get_queryset()
-        if 'service_pk' in self.kwargs:
-            service_pk = self.kwargs['service_pk']
-            queryset = queryset.filter(service__pk=service_pk)
+        if 'parent_lookup_service' in self.kwargs:
+            queryset = queryset.filter(service__id=self.kwargs['parent_lookup_service'])
         return queryset
 
 
@@ -107,9 +106,8 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     def get_queryset(self):
         queryset = super(FeatureTypeViewSet, self).get_queryset()
-        if 'service_pk' in self.kwargs:
-            service_pk = self.kwargs['service_pk']
-            queryset = queryset.filter(service__pk=service_pk)
+        if 'parent_lookup_service' in self.kwargs:
+            queryset = queryset.filter(service__id=self.kwargs['parent_lookup_service'])
         return queryset
 
 

@@ -14,22 +14,27 @@ nested_api_router = ExtendedSimpleRouter()
 
     # web map service
     nested_api_router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-                     .register(r'layers', service_views.LayerViewSet, basename='layer', parents_query_lookups=['service']),
-    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='layer'),
 
+                     .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
+    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='layer')
+                     .register(r'styles', metadata_views.StyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
+    nested_api_router.register(r'layers', service_views.LayerViewSet, basename='layer')
+                     .register(r'keywords', metadata_views.KeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
     # web feature service
     nested_api_router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype', parents_query_lookups=['service']),
-    nested_api_router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype'),
+                     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
+    nested_api_router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
+                     .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
 
     # # map context
     nested_api_router.register(r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
-                     .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer', parents_query_lookups=['map_context']),
+                     .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
     nested_api_router.register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
 
     # # metadata
     nested_api_router.register(r'keywords', metadata_views.KeywordViewSet, basename='keyword'),
-    #nested_api_router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
+    nested_api_router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
+    nested_api_router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
 
     # jobs
     nested_api_router.register(r'task-results', jobs_views.TaskResultReadOnlyViewSet, basename='taskresult')

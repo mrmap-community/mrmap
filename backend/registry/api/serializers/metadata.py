@@ -1,6 +1,6 @@
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.serializers import ModelSerializer
-from registry.models.metadata import Keyword, Style
+from registry.models.metadata import DatasetMetadata, Keyword, Style
 
 
 class KeywordSerializer(ModelSerializer):
@@ -21,5 +21,16 @@ class StyleSerializer(ModelSerializer):
     )
 
     class Meta:
-        models = Style
+        model = Style
+        fields = '__all__'
+
+
+class DatasetMetadataSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:datasetmetadata-detail'
+    )
+
+    class Meta:
+        model = DatasetMetadata
         fields = '__all__'

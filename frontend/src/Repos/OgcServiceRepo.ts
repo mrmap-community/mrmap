@@ -3,6 +3,7 @@ import OpenApiRepo from './OpenApiRepo';
 export interface OgcServiceCreate {
     get_capabilities_url: string;  // eslint-disable-line
     owned_by_org: string; // eslint-disable-line
+    collect_metadata_records: boolean;
 }
 
 export class OgcServiceRepo extends OpenApiRepo {
@@ -12,7 +13,8 @@ export class OgcServiceRepo extends OpenApiRepo {
 
   async create (create: OgcServiceCreate): Promise<any> {
     const attributes = {
-      get_capabilities_url: create.get_capabilities_url // eslint-disable-line
+      get_capabilities_url: create.get_capabilities_url, // eslint-disable-line
+      collect_metadata_records: create.collect_metadata_records
     };
     const relationships = {
       owned_by_org: { // eslint-disable-line

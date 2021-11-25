@@ -25,15 +25,15 @@ class LayerSerializer(ModelSerializer):
     styles = HyperlinkedRelatedField(
         queryset=Style.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:layer-list',
+        related_link_view_name='registry:layer-styles-list',
         related_link_url_kwarg='parent_lookup_layer',
         self_link_view_name='registry:layer-relationships',
     )
     keywords = HyperlinkedRelatedField(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:layer-list',
-        related_link_url_kwarg='parent_lookup_keyword',
+        related_link_view_name='registry:layer-keywords-list',
+        related_link_url_kwarg='parent_lookup_layer',
         self_link_view_name='registry:layer-relationships',
     )
 
@@ -56,7 +56,7 @@ class WebMapServiceSerializer(ModelSerializer):
     layers = HyperlinkedRelatedField(
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:wms-layer-list',
+        related_link_view_name='registry:wms-layers-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
         required=False,
@@ -76,8 +76,8 @@ class FeatureTypeSerializer(ModelSerializer):
     keywords = HyperlinkedRelatedField(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:featuretype-list',
-        related_link_url_kwarg='parent_lookup_keyword',
+        related_link_view_name='registry:featuretype-keywords-list',
+        related_link_url_kwarg='parent_lookup_featuretype',
         self_link_view_name='registry:featuretype-relationships',
     )
 
@@ -103,7 +103,7 @@ class WebFeatureServiceSerializer(ModelSerializer):
     featuretypes = HyperlinkedRelatedField(
         queryset=FeatureType.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:wfs-featuretype-list',
+        related_link_view_name='registry:wfs-featuretypes-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wfs-relationships',
     )

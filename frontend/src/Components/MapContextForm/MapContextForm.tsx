@@ -8,6 +8,7 @@ import React, { FC, useEffect, useState } from 'react';
 import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
 import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
 import LayerRepo from '../../Repos/LayerRepo';
+import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormField';
 import { SelectAutocompleteFormField } from '../Shared/FormFields/SearchAutocompleteFormField/SearchAutocompleteFormField';
 import { SubmitFormButton } from '../Shared/FormFields/SubmitFormButton/SubmitFormButton';
@@ -54,6 +55,7 @@ const fetchData = async (
 const layerRepo = new LayerRepo();
 const datasetMetadataRepo = new DatasetMetadataRepo();
 const featureTypesRepo = new FeatureTypeRepo();
+const mapContextRepo = new MapContextLayerRepo();
 
 const MapContextLayerForm: FC<MapContextLayerFormProps> = ({ visible, onCancel, isEditing, node }) => {
   const [form] = Form.useForm();
@@ -193,10 +195,10 @@ const MapContextLayerForm: FC<MapContextLayerFormProps> = ({ visible, onCancel, 
             title: 'You can use this field to pre filter possible Layer selection.',
             icon: <InfoCircleOutlined />
           }}
-          validation={{
-            rules: [{ required: true, message: 'Please select metadata!' }],
-            hasFeedback: true
-          }}
+          // validation={{
+          //   rules: [{ required: true, message: 'Please select metadata!' }],
+          //   hasFeedback: true
+          // }}
           onSelect={(value, option) => {
             setIsShowingRenderingData(true);
             // TODO set rendering layer list
@@ -379,13 +381,16 @@ export const MapContextForm: FC<MapContextFormProps> = ({
    */
   const onAddNode = (node: TreeNodeType | undefined, values: any) => {
     if (node) {
+      // mapContextRepo.create(node.key)
       const newNode: TreeNodeType = {
         title: values.title || `${node.key}-${node.children.length}`,
-        key: `${node.key}-${node.children.length}`,
+        key: `${node.key}-${node.children.length}`, // this must be  the id of the created node
         children: [],
         parent: node.key,
         properties: values
       };
+      //  add here to DB
+      // mapContextRepo.create(values)
       setTreeData(updateTreeData(treeData, node.key, [...node.children, newNode]));
     }
   };
@@ -401,6 +406,8 @@ export const MapContextForm: FC<MapContextFormProps> = ({
         const indexToRemove = parentNode[0].children.indexOf(node);
         parentNode[0].children.splice(indexToRemove, 1);
         setTreeData(updateTreeData(treeData, parentNode[0].key, parentNode[0].children));
+        // remove here  from db
+        // mapContextRepo.delete(node.key)
       }
     }
   };
@@ -426,6 +433,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
         if (formName === MAP_CONTEXT_LAYER_FORM) {
           if (!isEditing) {
             onAddNode(selectedNode, values);
+            // new MapContextLayerRepo().create(values);
             mapContextLayerForm.resetFields();
           } else {
             onEditNode(selectedNode, values);

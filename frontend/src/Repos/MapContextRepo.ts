@@ -13,7 +13,8 @@ export class MapContextRepo extends OpenApiRepo {
 
   async create (create: MapContextCreate): Promise<any> {
     const attributes:any = {
-      title: create.title
+      title: create.title,
+      abstract: create.abstract
     };
     if (create.abstract) {
       attributes.abstract = create.abstract;
@@ -21,7 +22,7 @@ export class MapContextRepo extends OpenApiRepo {
     const relationships = {
       owned_by_org: { // eslint-disable-line
         data: {
-          type: 'Organization',
+          type: 'MapContext',
           id: create.ownerOrganizationId
         }
       }

@@ -13,6 +13,7 @@ export class LayerRepo extends OpenApiRepo {
       // 'fields[Layer]': 'scale_max, scale_min, title'  // TODO: not working. Grab all for now
     };
     if (!searchText) {
+      // to avoid error when string is empty
       delete jsonApiParams['filter[title.icontains]'];
     }
 
@@ -23,7 +24,7 @@ export class LayerRepo extends OpenApiRepo {
       attributes: {
         scaleMin: o.attributes.scale_min,
         scaleMax: o.attributes.scale_max,
-        style: '' // o.attributes.style,  TODO: not available  at the moment
+        style: o.attributes.style
       }
     }));
   }

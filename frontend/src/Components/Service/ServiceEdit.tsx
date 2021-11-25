@@ -23,8 +23,7 @@ export const ServiceEdit = (): ReactElement => {
   const [isLoading, setLoading] = useState(false);
 
   const onSearch = (searchText: string) => {
-
-    async function autocomplete() {
+    async function autocomplete () {
       setLoading(true);
       try {
         const res: any = await organizationRepo.autocomplete(searchText);
@@ -32,9 +31,9 @@ export const ServiceEdit = (): ReactElement => {
         setOptions(res);
       } catch (err) {
         // TODO centralise error notification
-        notification['error']({
-          message: "Autocompletion failed",
-          description: "" + err,
+        notification.error({
+          message: 'Autocompletion failed',
+          description: '' + err,
           duration: null
         });
         throw err;
@@ -50,8 +49,7 @@ export const ServiceEdit = (): ReactElement => {
   };
 
   const onFinish = (values: any) => {
-    debugger;
-    async function postData() {
+    async function postData () {
       const res = await repo.create(values);
       if (res.status === 202) {
         notification.info({
@@ -93,7 +91,7 @@ export const ServiceEdit = (): ReactElement => {
             onSelect={onSelect}
             onSearch={onSearch}
           >
-            <Input.Search placeholder="input here" loading={isLoading} />
+            <Input.Search placeholder='input here' loading={isLoading} />
           </AutoComplete>
         </Form.Item >
         <Form.Item

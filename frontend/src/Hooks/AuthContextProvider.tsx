@@ -4,6 +4,7 @@ import TokenObtainRepo from "../Repos/TokenObtainRepo";
 import { isExpired, decodeToken } from "react-jwt";
 import { hasOwnProperty } from "../utils";
 import { UserRepo } from "../Repos/UserRepo";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export interface AuthContextType {
   user: any;
@@ -19,28 +20,28 @@ const userRepo = new UserRepo();
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState('');
   const [userId, setUserId] = React.useState('');
-
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/";
   useEffect(() => {
     async function fetchCurrentUser() {
-      try{
-        const res = await userRepo.get(userId);
-        if (res.status === 200
-          && res.data
-          && res.data.data
-          && hasOwnProperty(res.data.data, 'attributes')
-          && res.data.data.attributes){
-          setUser(res.data.data.attributes);
-          notification.success({
-            message: 'Successfully logged in.',
-          });
-        }
-      } catch (error) {
-        console.log(error);
+      const res = await userRepo.get(userId);
+      if (res.status === 200
+        && res.data
+        && res.data.data
+        && hasOwnProperty(res.data.data, 'attributes')
+        && res.data.data.attributes){
+        setUser(res.data.data.attributes);
+        notification.success({
+          message: 'Successfully logged in.',
+        });
+        navigate(from, { replace: true });
       }
     } 
     console.log(userId);
-    if (userId){fetchCurrentUser();}
-    
+    if (userId){
+      fetchCurrentUser();
+    }
   }, [userId]);
   
   function waitforme(milisec:number) {

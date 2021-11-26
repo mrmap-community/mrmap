@@ -7,26 +7,27 @@ import { BrowserRouter as Router, Navigate, Outlet, Route, Routes } from 'react-
 
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import { MapContextList } from './Components/MapContext/MapContextList/MapContextList';
-import { MapContextForm } from './Components/MapContextForm/MapContextForm';
+import { FormSteps } from './Components/MapContextForm/MapContextForm';
 import { NavBar } from './Components/NavBar/NavBar';
 import { ServiceEdit } from './Components/Service/ServiceEdit';
 import { ServiceList } from './Components/Service/ServiceList/ServiceList';
 import { Login } from './Components/Users/Auth/Login';
+import { Logout } from './Components/Users/Auth/Logout';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
-import { Logout } from './Components/Users/Auth/Logout';
 
 const { Content, Footer, Sider } = Layout;
 
-function RequireAuth({ children }: { children: JSX.Element }) {
+function RequireAuth ({ children }: { children: JSX.Element }) {
   const auth = useAuth();
+  debugger;
   if (!auth.user) {
-    return <Navigate to="/login" />;
+    return <Navigate to='/login' />;
   }
   return children;
 }
 
-export default function App(): JSX.Element {
+export default function App (): JSX.Element {
   if (process.env.REACT_APP_REST_API_SCHEMA_URL === undefined) {
     throw new Error('Environment variable REACT_APP_REST_API_SCHEMA_URL is undefined.');
   }
@@ -56,7 +57,8 @@ export default function App(): JSX.Element {
           <Route
             path='/'
             element={
-              <RequireAuth><Layout style={{ minHeight: '100vh' }}>
+              <RequireAuth>
+              <Layout style={{ minHeight: '100vh' }}>
                 <Sider
                   collapsible
                   collapsed={collapsed}
@@ -86,7 +88,9 @@ export default function App(): JSX.Element {
                     </Space>
                   </Footer>
                 </Layout>
-              </Layout></RequireAuth>
+              </Layout>
+
+              </RequireAuth>
             }
           >
             <Route
@@ -107,7 +111,7 @@ export default function App(): JSX.Element {
             />
             <Route
               path='/registry/mapcontexts/add'
-              element={<MapContextForm />}
+              element={<FormSteps />}
             />
           </Route>
         </Routes>

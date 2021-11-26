@@ -1,5 +1,6 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { Button, Card, Input, Modal, notification, Space, Table } from 'antd';
+import { List } from 'rc-field-form';
 import React, { createRef, ReactElement, useEffect, useState } from 'react';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from 'react-router';
@@ -175,15 +176,17 @@ export const ServiceList = (): ReactElement => {
     async function fetchTableData() {
       setLoading(true);
       const response = await repo.findAll(tableState);
-      const ogcServices = response.data as any;
+      const ogcServices = response.data?.data == undefined ? []: response.data?.data ;
       const dataSource: any = [];
-      ogcServices.forEach((ogcService: any) => {
-        const row = {
-          id: ogcService.id,
-          ...ogcService.attributes
-        };
-        dataSource.push(row);
-      });
+      if (Array.isArray(ogcServices)){
+        ogcServices.forEach((ogcService: any) => {
+          const row = {
+            id: ogcService.id,
+            ...ogcService.attributes
+          };
+          dataSource.push(row);
+        });
+      }
       // for (const columnName in columnTypes) {
       //     const columnType = columnTypes[columnName];
       //     if (!columnType.isFlat) {

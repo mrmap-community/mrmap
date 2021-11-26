@@ -3,7 +3,7 @@ import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
 
 export class DatasetMetadataRepo extends OpenApiRepo {
   constructor () {
-    super('/api/v1/registry/dataset-metadata//');
+    super('/api/v1/registry/dataset-metadata/');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
@@ -13,6 +13,7 @@ export class DatasetMetadataRepo extends OpenApiRepo {
       // 'filter[Layer]': 'title'
     };
     if (!searchText) {
+      // to avoid error when string is empty
       delete jsonApiParams['filter[title.icontains]'];
     }
 

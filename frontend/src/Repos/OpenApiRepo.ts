@@ -79,10 +79,6 @@ export class OpenApiRepo {
       return this.apiInstance;
     }
 
-    handle_error(error: Error) {
-      console.log(error);
-    }
-
     async getSchema (): Promise<any> {
       const client = await OpenApiRepo.getClientInstance();
       const op = client.api.getOperation('List' + this.resourcePath);
@@ -120,7 +116,7 @@ export class OpenApiRepo {
 
     async get (id: string): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
-      return await client['get' + this.resourcePath + '{id}/'](id, {}, {
+      return await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
     }

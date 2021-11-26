@@ -27,13 +27,14 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['WebMapServices'],
     )
-    queryset = WebMapService.objects.all()
+    queryset = WebMapService.objects.with_meta()
     serializer_class = WebMapServiceSerializer
     prefetch_for_includes = {
         '__all__': [],
         'layers': ['layers']
     }
     filterset_class = WebMapServiceFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
 
 class LayerRelationshipView(RelationshipView):
@@ -75,13 +76,14 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['WebFeatureServices'],
     )
-    queryset = WebFeatureService.objects.all()
+    queryset = WebFeatureService.objects.with_meta()
     serializer_class = WebFeatureServiceSerializer
     prefetch_for_includes = {
         '__all__': [],
         'featuretypes': ['featuretypes']
     }
     filterset_class = WebFeatureServiceFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
 
 class FeatureTypeRelationshipView(RelationshipView):
@@ -98,6 +100,7 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
     prefetch_for_includes = {
         '__all__': [],

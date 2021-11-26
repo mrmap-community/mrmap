@@ -25,11 +25,9 @@ class OgcServiceFilterSet(FilterSet):
     class Meta:
         model = OgcService
         fields = {
-            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains'],
             'owned_by_org': ['exact'],
-            
         }
 
     def bbox_lat_lon_contains(self, queryset, name, value):
@@ -66,7 +64,6 @@ class WebMapServiceFilterSet(FilterSet):
     class Meta:
         model = WebMapService
         fields = {
-            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }
@@ -81,7 +78,6 @@ class LayerFilterSet(GeoFilterSet):
     class Meta:
         model = Layer
         fields = {
-            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }
@@ -96,7 +92,6 @@ class WebFeatureServiceFilterSet(GeoFilterSet):
     class Meta:
         model = WebFeatureService
         fields = {
-            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }
@@ -111,7 +106,6 @@ class FeatureTypeFilterSet(GeoFilterSet):
     class Meta:
         model = FeatureType
         fields = {
-            'id': ['exact', 'lt', 'gt', 'gte', 'lte', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }

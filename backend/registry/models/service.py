@@ -19,7 +19,7 @@ from ows_client.request_builder import OgcService as OgcServiceClient
 from registry.enums.service import OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
     AuthTypeEnum
 from registry.managers.security import ServiceSecurityManager, OperationUrlManager
-from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureServiceCapabilitiesManager, WebMapServiceCapabilitiesManager, CatalougeServiceCapabilitiesManager
+from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureServiceCapabilitiesManager, WebFeatureServiceManager, WebMapServiceCapabilitiesManager, CatalougeServiceCapabilitiesManager, WebMapServiceManager
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
 from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
@@ -97,6 +97,7 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
 
 
 class WebMapService(OgcService):
+    objects = WebMapServiceManager()
     capabilities = WebMapServiceCapabilitiesManager()
 
     class Meta:
@@ -109,6 +110,7 @@ class WebMapService(OgcService):
 
 
 class WebFeatureService(OgcService):
+    objects = WebFeatureServiceManager()
     capabilities = WebFeatureServiceCapabilitiesManager()
 
     class Meta:

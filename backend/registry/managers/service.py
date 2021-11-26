@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from django.db.models.functions import Coalesce
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
@@ -444,3 +445,21 @@ class FeatureTypeElementXmlManager(models.Manager):
                                               **self.common_info,
                                               **element.get_field_dict()))
         return self.model.objects.bulk_create(objs=db_element_list)
+
+
+class WebMapServiceManager(models.Manager):
+
+    def with_meta(self):
+        return self.annotate(
+            layer_count=Coalesce(models.Count("layer"), 0),
+            keyword_count=Coalesce(models.Count("keywords"), 0),
+        )
+
+
+class WebFeatureServiceManager(models.Manager):
+
+    def with_meta(self):
+        return self.annotate(
+            featuretype_count=Coalesce(models.Count("featuretype"), 0),
+            keyword_count=Coalesce(models.Count("keywords"), 0),
+        )

@@ -27,7 +27,7 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['WebMapServices'],
     )
-    queryset = WebMapService.objects.all()
+    queryset = WebMapService.objects.with_meta()
     serializer_class = WebMapServiceSerializer
     prefetch_for_includes = {
         '__all__': [],
@@ -76,7 +76,7 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['WebFeatureServices'],
     )
-    queryset = WebFeatureService.objects.all()
+    queryset = WebFeatureService.objects.with_meta()
     serializer_class = WebFeatureServiceSerializer
     prefetch_for_includes = {
         '__all__': [],

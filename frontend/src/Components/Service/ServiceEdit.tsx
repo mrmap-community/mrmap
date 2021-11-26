@@ -21,6 +21,7 @@ export const ServiceEdit = (): ReactElement => {
 
   const [options, setOptions] = useState<{ id: string, value: string }[]>([]);
   const [isLoading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   const onSearch = (searchText: string) => {
     async function autocomplete () {
@@ -49,6 +50,7 @@ export const ServiceEdit = (): ReactElement => {
   };
 
   const onFinish = (values: any) => {
+    console.log(values);
     async function postData () {
       const res = await repo.create(values);
       if (res.status === 202) {
@@ -72,6 +74,9 @@ export const ServiceEdit = (): ReactElement => {
         form={form}
         name='control-hooks'
         onFinish={onFinish}
+        initialValues={{
+          collect_metadata_records: false
+        }}
       >
         <Form.Item
           name='get_capabilities_url'
@@ -97,6 +102,7 @@ export const ServiceEdit = (): ReactElement => {
         <Form.Item
           name='collect_metadata_records'
           label='Collet metadata records'
+          valuePropName='checked'
         >
           <Checkbox/>
         </Form.Item>

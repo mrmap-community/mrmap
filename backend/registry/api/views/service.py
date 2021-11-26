@@ -34,6 +34,7 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
         'layers': ['layers']
     }
     filterset_class = WebMapServiceFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
 
 class LayerRelationshipView(RelationshipView):
@@ -82,6 +83,7 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
         'featuretypes': ['featuretypes']
     }
     filterset_class = WebFeatureServiceFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
 
 class FeatureTypeRelationshipView(RelationshipView):
@@ -98,6 +100,7 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
+    search_fields = ('id', 'title', 'abstract', 'keywords__keyword')
 
     prefetch_for_includes = {
         '__all__': [],

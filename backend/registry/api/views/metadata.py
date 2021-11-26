@@ -11,6 +11,10 @@ class KeywordViewSet(ModelViewSet):
     )
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
+    filter_fields = {
+        'keyword': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ('keyword',)
 
     def get_queryset(self):
         queryset = super(KeywordViewSet, self).get_queryset()
@@ -27,6 +31,11 @@ class StyleViewSet(ModelViewSet):
     )
     queryset = Style.objects.all()
     serializer_class = StyleSerializer
+    filter_fields = {
+        'name': ['exact', 'icontains', 'contains'],
+        'title': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ('name', 'title',)
 
     def get_queryset(self):
         queryset = super(StyleViewSet, self).get_queryset()

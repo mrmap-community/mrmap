@@ -1,17 +1,32 @@
-import OpenAPIClientAxios, { OpenAPIClient } from 'openapi-client-axios';
+import OpenAPIClientAxios, { AxiosResponse, OpenAPIClient } from 'openapi-client-axios';
 
 export const JsonApiMimeType = 'application/vnd.api+json';
 
-export interface JsonApiResponse {
-    data: JsonApiObject[] | JsonApiObject;
-    errors: any;
-    meta: any;
+export interface JsonApiResponse extends AxiosResponse{
+  // extends the AxiosResponse interface to declare the responsed data type
+  data: JsonApiDocument | null;
 }
 
-export interface JsonApiObject {
+export interface JsonApiDocument {
+    data?: JsonApiPrimaryData[] | JsonApiPrimaryData;
+    errors?: JsonApiErrorObject;
+    meta?: any;
+}
+
+export interface JsonApiErrorObject {
+  id: string;
+  links: any;  // TODO: add JsonApiLinkObject
+  status: string;
+  code: string;
+  title: string;
+  detail: string;
+  source: string;
+}
+
+export interface JsonApiPrimaryData {
     type: string;
     id: string;
-    links: any;
+    links: any; // TODO: add JsonApiLinkObject
     attributes: any;
     relationships: any;
 }
@@ -64,6 +79,10 @@ export class OpenApiRepo {
       return this.apiInstance;
     }
 
+    handle_error(error: Error) {
+      console.log(error);
+    }
+
     async getSchema (): Promise<any> {
       const client = await OpenApiRepo.getClientInstance();
       const op = client.api.getOperation('List' + this.resourcePath);
@@ -96,26 +115,25 @@ export class OpenApiRepo {
           jsonApiParams.ordering = queryParams.ordering;
         }
       }
-      const res = await client['List' + this.resourcePath](jsonApiParams);
-      return res.data;
+      return await client['List' + this.resourcePath](jsonApiParams);
     }
 
-    async get (id: string): Promise<void> {
+    async get (id: string): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
-      await client['get' + this.resourcePath + '{id}/'](id, {}, {
+      return await client['get' + this.resourcePath + '{id}/'](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
     }
 
-    async delete (id: string): Promise<void> {
+    async delete (id: string): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
-      await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
+      return await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
     }
 
     // eslint-disable-next-line
-    async add (type: string, attributes: any, relationships?: any): Promise<any> {
+    async add (type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
       // TODO: make relationships optional
       return await client['create' + this.resourcePath](undefined, {

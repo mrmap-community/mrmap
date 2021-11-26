@@ -11,7 +11,7 @@ export const Logout = (): ReactElement => {
 
   return (
     <Row justify="center" align="middle" style={{ minHeight: '100vh', backgroundColor: '#001529' }}>
-      <Spin tip={`Logging out "${auth.user}"...`} />
+      <Spin tip={`Logging out "${auth.user.username}"...`} />
     </Row>
   );
 };

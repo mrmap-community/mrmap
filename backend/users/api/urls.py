@@ -1,10 +1,11 @@
+from users.api.views.auth import TokenObtainPairView
 from users.api.views import users as user_views
 from users.api.views import groups as group_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 # from dj_rest_auth.views import LoginView
 from django.urls import path
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
+    
     TokenRefreshView,
 )
 

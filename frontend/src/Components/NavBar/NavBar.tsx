@@ -74,7 +74,7 @@ export const NavBar = (): ReactElement => {
         key='logout'
         icon={<LogoutOutlined />}
       >
-        <Link to='/logout'>Logout ({auth.user})</Link>
+        <Link to='/logout'>Logout ({auth.user.username})</Link>
       </Menu.Item>
     </Menu>
   );

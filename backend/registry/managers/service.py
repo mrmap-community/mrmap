@@ -9,6 +9,7 @@ from extras.models import get_current_owner
 from registry.enums.metadata import MetadataOrigin
 from crum import get_current_user
 from random import randrange
+from polymorphic.managers import PolymorphicManager
 
 
 class ServiceCapabilitiesManager(models.Manager):
@@ -447,7 +448,7 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class WebMapServiceManager(models.Manager):
+class WebMapServiceManager(PolymorphicManager):
 
     def with_meta(self):
         return self.annotate(
@@ -456,7 +457,7 @@ class WebMapServiceManager(models.Manager):
         )
 
 
-class WebFeatureServiceManager(models.Manager):
+class WebFeatureServiceManager(PolymorphicManager):
 
     def with_meta(self):
         return self.annotate(

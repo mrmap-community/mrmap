@@ -192,9 +192,15 @@ export const ServiceList = (): ReactElement => {
       //         });
       //     }
       // }
+      let total = 0
+
+      if (response.data
+      && response.data.meta){
+          total = response.data.meta.pagination.count
+      }
       setData({
         dataSource: dataSource,
-        total: response.meta.pagination.count
+        total: total
       });
       setLoading(false);
     }

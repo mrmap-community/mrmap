@@ -1,4 +1,4 @@
-import OpenApiRepo from './OpenApiRepo';
+import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
 
 export interface OgcServiceCreate {
     get_capabilities_url: string;  // eslint-disable-line
@@ -11,7 +11,7 @@ export class OgcServiceRepo extends OpenApiRepo {
     super('/api/v1/registry/ogcservices/');
   }
 
-  async create (create: OgcServiceCreate): Promise<any> {
+  async create (create: OgcServiceCreate): Promise<JsonApiResponse> {
     const attributes = {
       get_capabilities_url: create.get_capabilities_url, // eslint-disable-line
       collect_metadata_records: create.collect_metadata_records

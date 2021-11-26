@@ -1,4 +1,4 @@
-import OpenApiRepo from './OpenApiRepo';
+import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
 
 export interface MapContextCreate {
     title: string;
@@ -11,7 +11,7 @@ export class MapContextRepo extends OpenApiRepo {
     super('/api/v1/registry/mapcontexts/');
   }
 
-  async create (create: MapContextCreate): Promise<any> {
+  async create (create: MapContextCreate): Promise<JsonApiResponse> {
     const attributes:any = {
       title: create.title,
       abstract: create.abstract

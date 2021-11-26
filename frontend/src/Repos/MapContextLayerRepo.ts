@@ -1,6 +1,6 @@
 import { RightCircleFilled } from '@ant-design/icons';
 
-import OpenApiRepo from './OpenApiRepo';
+import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
 
 export interface MapContextLayerCreate {
     name: string;
@@ -24,7 +24,7 @@ export class MapContextLayerRepo extends OpenApiRepo {
     super('/api/v1/registry/mapcontextlayers/');
   }
 
-  async create (create: MapContextLayerCreate): Promise<any> {
+  async create (create: MapContextLayerCreate): Promise<JsonApiResponse> {
     const attributes:any = {
       name: create.name,
       title: create.title,

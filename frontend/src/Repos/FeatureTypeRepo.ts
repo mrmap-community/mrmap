@@ -13,6 +13,7 @@ export class FeatureTypeRepo extends OpenApiRepo {
       // 'filter[Featuretypes]': 'title'  //TODO
     };
     if (!searchText) {
+      // to avoid error when string is empty
       delete jsonApiParams['filter[title.icontains]'];
     }
     const res = await client['List' + this.resourcePath](jsonApiParams);

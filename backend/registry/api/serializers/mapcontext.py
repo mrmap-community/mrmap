@@ -24,7 +24,7 @@ class MapContextSerializer(ModelSerializer):
     map_context_layers = HyperlinkedRelatedField(
         queryset=MapContextLayer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:mapcontextlayer-list',
+        related_link_view_name='registry:mapcontext-mapcontextlayers-list',
         related_link_url_kwarg='parent_lookup_map_context',
         self_link_view_name='registry:mapcontextlayer-relationships',
         required=False,

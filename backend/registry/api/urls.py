@@ -46,5 +46,6 @@ urlpatterns.extend([
     path('layers/<pk>/relationships/<related_field>', service_views.LayerRelationshipView.as_view(), name='layer-relationships'),
     path('wfs/<pk>/relationships/<related_field>', service_views.WebFeatureServiceRelationshipView.as_view(), name='wfs-relationships'),
     path('featuretypes/<pk>/relationships/<related_field>', service_views.FeatureTypeRelationshipView.as_view(), name='featuretype-relationships'),
-    path('mapcontexts/<pk>relationships/<related_field>', mapcontext_views.MapContextRelationshipView.as_view(), name='mapcontext-relationships')
+    path('mapcontexts/<pk>relationships/<related_field>', mapcontext_views.MapContextRelationshipView.as_view(), name='mapcontext-relationships'),
+    path('mapcontextlayers/<pk>relationships/<related_field>', mapcontext_views.MapContextLayerRelationshipView.as_view(), name='mapcontextlayer-relationships')
 ])

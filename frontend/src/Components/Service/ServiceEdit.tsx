@@ -106,30 +106,6 @@ export const ServiceEdit = (): ReactElement => {
         >
           <Checkbox/>
         </Form.Item>
-
-        {/* <SearchAutocompleteFormField name='owned_by_org' label='Owner organization' validation={{
-          rules: [{ required: true, message: 'Required: Owner organization' }],
-          hasFeedback: false,
-        }} placeholder='' searchData={[{
-          value: '1',
-          text: 'Dataset 1'
-        },
-        {
-          value: '2',
-          text: 'Dataset 2'
-        },
-        {
-          value: '3',
-          text: 'Dataset 3'
-        }]} showSearch/> */}
-
-        {/* <Form.Item
-          name='owned_by_org'
-          label='Owner organization'
-          rules={[{ required: true, message: 'Required: Owner organization' }]}
-        >
-          <Input />
-        </Form.Item> */}
         <Form.Item {...tailLayout}>
           <Button
             type='primary'

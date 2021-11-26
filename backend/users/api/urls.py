@@ -21,6 +21,6 @@ nested_api_router = ExtendedSimpleRouter()
 urlpatterns = nested_api_router.urls
 urlpatterns.extend([
     # path('auth/login', LoginView.as_view(), name='login'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ])

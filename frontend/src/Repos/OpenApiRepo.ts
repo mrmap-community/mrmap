@@ -100,6 +100,13 @@ export class OpenApiRepo {
       return res.data;
     }
 
+    async get (id: string): Promise<void> {
+      const client = await OpenApiRepo.getClientInstance();
+      await client['get' + this.resourcePath + '{id}/'](id, {}, {
+        headers: { 'Content-Type': JsonApiMimeType }
+      });
+    }
+
     async delete (id: string): Promise<void> {
       const client = await OpenApiRepo.getClientInstance();
       await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
@@ -108,8 +115,9 @@ export class OpenApiRepo {
     }
 
     // eslint-disable-next-line
-    async add (type: string, attributes: any, relationships: any): Promise<any> {
+    async add (type: string, attributes: any, relationships?: any): Promise<any> {
       const client = await OpenApiRepo.getClientInstance();
+      // TODO: make relationships optional
       return await client['create' + this.resourcePath](undefined, {
         data: {
           type: type,

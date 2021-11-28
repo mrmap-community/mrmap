@@ -16,12 +16,11 @@ const tailLayout = {
 const repo = new OgcServiceRepo();
 const organizationRepo = new OrganizationRepo();
 
-export const ServiceEdit = (): ReactElement => {
+export const OgcServiceAdd = (): ReactElement => {
   const [form] = Form.useForm();
 
   const [options, setOptions] = useState<{ id: string, value: string }[]>([]);
   const [isLoading, setLoading] = useState(false);
-  const [checked, setChecked] = useState(false);
 
   const onSearch = (searchText: string) => {
     async function autocomplete () {
@@ -101,7 +100,7 @@ export const ServiceEdit = (): ReactElement => {
         </Form.Item >
         <Form.Item
           name='collect_metadata_records'
-          label='Collet metadata records'
+          label='Collect metadata records'
           valuePropName='checked'
         >
           <Checkbox/>
@@ -124,3 +123,5 @@ export const ServiceEdit = (): ReactElement => {
     </Card>
   );
 };
+
+export default OgcServiceAdd;

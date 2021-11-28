@@ -1,11 +1,15 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { Button, Card, Input, Modal, notification, Space, Table } from 'antd';
-import { List } from 'rc-field-form';
 import React, { createRef, ReactElement, useEffect, useState } from 'react';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from 'react-router';
 
-import { WebMapServiceRepo } from '../../../Repos/WebMapServiceRepo';
+import OpenApiRepo from '../../Repos/OpenApiRepo';
+
+interface ResourceTableProps {
+    repo: OpenApiRepo
+    addRecord?: string
+}
 
 interface TableState {
   page: number;
@@ -13,8 +17,6 @@ interface TableState {
   ordering: string;
   filters: any;
 }
-
-const repo = new WebMapServiceRepo();
 
 const getColumnSearchProps = (dataIndex: any): any => {
   const searchInput: any = createRef();
@@ -82,15 +84,15 @@ const getColumnSearchProps = (dataIndex: any): any => {
             autoEscape
             textToHighlight={text ? text.toString() : ''}
           />
-        )
+          )
         : (
-          text
-        );
+            text
+          );
     }
   };
 };
 
-export const ServiceList = (): ReactElement => {
+export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactElement => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({
     dataSource: [],
@@ -109,11 +111,11 @@ export const ServiceList = (): ReactElement => {
 
   useEffect(() => {
     const onDeleteRecord = (record: any) => {
-      async function deleteRecord() {
+      async function deleteRecord () {
         await repo.delete(record.id);
         notification.success({
-          message: 'Service deleted',
-          description: `Service with id ${record.id} has been deleted succesfully`
+          message: 'Record deleted',
+          description: `Record with id ${record.id} has been deleted succesfully`
         });
         // const newData = {
         //     dataSource: data.dataSource.filter((row: any) => (row.id !== record.id)),
@@ -122,8 +124,8 @@ export const ServiceList = (): ReactElement => {
         // setData(newData);
       }
       const modal = Modal.confirm({
-        title: 'Delete Service',
-        content: `Do you want to delete the service with id ${record.id}?`,
+        title: 'Delete record',
+        content: `Do you want to delete the record with id ${record.id}?`,
         onOk: () => {
           modal.update(prevConfig => ({
             ...prevConfig,
@@ -134,7 +136,7 @@ export const ServiceList = (): ReactElement => {
       });
     };
 
-    async function buildColumns() {
+    async function buildColumns () {
       const schema = await repo.getSchema();
       const props = schema.properties.data.items.properties.attributes.properties;
       const columns = [];
@@ -173,16 +175,16 @@ export const ServiceList = (): ReactElement => {
   }, []);
 
   useEffect(() => {
-    async function fetchTableData() {
+    async function fetchTableData () {
       setLoading(true);
       const response = await repo.findAll(tableState);
-      const ogcServices = response.data?.data == undefined ? []: response.data?.data ;
+      const records = response.data?.data === undefined ? [] : response.data?.data;
       const dataSource: any = [];
-      if (Array.isArray(ogcServices)){
-        ogcServices.forEach((ogcService: any) => {
+      if (Array.isArray(records)) {
+        records.forEach((record: any) => {
           const row = {
-            id: ogcService.id,
-            ...ogcService.attributes
+            id: record.id,
+            ...record.attributes
           };
           dataSource.push(row);
         });
@@ -195,11 +197,11 @@ export const ServiceList = (): ReactElement => {
       //         });
       //     }
       // }
-      let total = 0
+      let total = 0;
 
-      if (response.data
-      && response.data.meta){
-          total = response.data.meta.pagination.count
+      if (response.data &&
+      response.data.meta) {
+        total = response.data.meta.pagination.count;
       }
       setData({
         dataSource: dataSource,
@@ -216,11 +218,7 @@ export const ServiceList = (): ReactElement => {
       return;
     }
     fetchTableData();
-  }, [tableState, columnTypes]);
-
-  const onAddService = () => {
-    navigate('/registry/services/add');
-  };
+  }, [tableState, columnTypes, repo]);
 
   const handleTableChange = (pagination: any, filters: any, sorter: any) => {
     const filterParams: any = {};
@@ -238,8 +236,8 @@ export const ServiceList = (): ReactElement => {
   };
   return (
     <Card
-      title='Services'
-      extra={<Button type='primary' onClick={onAddService}>Add service</Button>}
+      title='Records'
+      extra={addRecord ? <Button type='primary' onClick={() => navigate(addRecord)}>Add record</Button> : undefined}
       style={{ width: '100%' }}
     >
       <Table
@@ -258,3 +256,5 @@ export const ServiceList = (): ReactElement => {
     </Card>
   );
 };
+
+export default ResourceTable;

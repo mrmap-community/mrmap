@@ -15,7 +15,7 @@ export interface JsonApiDocument {
 
 export interface JsonApiErrorObject {
   id: string;
-  links: any;  // TODO: add JsonApiLinkObject
+  links: any; // TODO: add JsonApiLinkObject
   status: string;
   code: string;
   title: string;

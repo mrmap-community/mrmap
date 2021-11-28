@@ -9,10 +9,10 @@ import { Dashboard } from './Components/Dashboard/Dashboard';
 import { MapContextList } from './Components/MapContext/MapContextList/MapContextList';
 import { FormSteps } from './Components/MapContextForm/MapContextForm';
 import { NavBar } from './Components/NavBar/NavBar';
-import { ServiceEdit } from './Components/Service/ServiceEdit';
-import { ServiceList } from './Components/Service/ServiceList/ServiceList';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
+import WmsAdd from './Components/Wms/WmsAdd';
+import WmsTable from './Components/Wms/WmsTable';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
 
@@ -20,7 +20,6 @@ const { Content, Footer, Sider } = Layout;
 
 function RequireAuth ({ children }: { children: JSX.Element }) {
   const auth = useAuth();
-  debugger;
   if (!auth.user) {
     return <Navigate to='/login' />;
   }
@@ -99,11 +98,11 @@ export default function App (): JSX.Element {
             />
             <Route
               path='/registry/services/wms'
-              element={<ServiceList />}
+              element={<WmsTable />}
             />
             <Route
               path='/registry/services/add'
-              element={<ServiceEdit />}
+              element={<WmsAdd />}
             />
             <Route
               path='/registry/mapcontexts'

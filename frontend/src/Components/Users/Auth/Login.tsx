@@ -4,8 +4,6 @@ import React, { ReactElement, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../../Hooks/AuthContextProvider';
 
-import { CSRFToken } from '../../CSRF/CSRF';
-
 export const Login = (): ReactElement => {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -35,8 +33,6 @@ export const Login = (): ReactElement => {
         initialValues={{ remember: true }}
         onFinish={onFinish}
       >
-        <CSRFToken />
-
         <Form.Item
           name='username'
           rules={[{ required: true, message: 'Please enter your Username!' }]}

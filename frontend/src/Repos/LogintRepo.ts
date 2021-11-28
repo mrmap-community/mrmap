@@ -1,23 +1,24 @@
 import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
 
-export interface TokenRepoObtain {
+export interface Login {
     username: string;  // eslint-disable-line
     password: string; // eslint-disable-line
 }
 
 
-export class TokenObtainRepo extends OpenApiRepo {
+export class LoginRepo extends OpenApiRepo {
   constructor () {
-    super('/api/v1/users/token/');
+    super('/api/v1/users/login/');
   }
 
-  async obtain (obtain: TokenRepoObtain): Promise<JsonApiResponse> {
+  async login (obtain: Login): Promise<JsonApiResponse> {
     const attributes = {
       username: obtain.username, // eslint-disable-line
       password: obtain.password
     };
-    return this.add('Token', attributes, {});
+    return this.add('Login', attributes, {});
   }
+
 }
 
-export default TokenObtainRepo;
+export default LoginRepo;

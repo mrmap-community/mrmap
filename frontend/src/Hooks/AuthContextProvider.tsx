@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { notification } from 'antd';
-import TokenObtainRepo from "../Repos/TokenObtainRepo";
-import { isExpired, decodeToken } from "react-jwt";
+import LoginRepo from "../Repos/LogintRepo";
+import LogoutRepo from "../Repos/LogoutRepo";
 import { hasOwnProperty } from "../utils";
 import { UserRepo } from "../Repos/UserRepo";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -14,11 +14,13 @@ export interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType>(null!);
 
-const tokenRepo = new TokenObtainRepo();
+const loginRepo = new LoginRepo();
+const logoutRepo = new LogoutRepo();
 const userRepo = new UserRepo();
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState('');
+  // TODO: store userId in local storage...
   const [userId, setUserId] = React.useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,32 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
   async function login(user: string, password: string): Promise<boolean> {
-    const res = await tokenRepo.obtain({username: user, password: password});
+    const res = await loginRepo.login({username: user, password: password});
     if (res.status === 200
       && res.data
       && res.data.data
       && hasOwnProperty(res.data.data, 'attributes')
       && res.data.data.attributes) {
-      
-      const decodedToken = decodeToken(res.data.data.attributes.access);
-      /* TODO: 
-         1. get 'user_id' from decoded token
-         2. obtain user object from user endpoint by the given id from 'user_id'
-         3. set current user
-         4. set auth header: 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX3BrIjoxLCJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiY29sZF9zdHVmZiI6IuKYgyIsImV4cCI6MTIzNDU2LCJqdGkiOiJmZDJmOWQ1ZTFhN2M0MmU4OTQ5MzVlMzYyYmNhOGJjYSJ9.NHlztMGER7UADHZJlxNG0WSi22a2KaYSfd1S-AuT7lU'
-      
-        Note: auth header should be stored in locale storage or cookie?
-      
-      */
-
-        if(typeof decodedToken === 'object' 
-        && decodedToken
-        && hasOwnProperty(decodedToken, 'user_id') 
-        && typeof decodedToken.user_id === 'string' 
-        ) {
-          setUserId(decodedToken.user_id);          
-        }
-
+        setUserId(res.data.data.id); 
       return Promise.resolve(true);
     } else {
       notification.error({
@@ -89,8 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function logout(): Promise<void> {
     setUser('');
     setUserId('');
+    const res = await logoutRepo.logout();
     /* TODO: 
-         1. delete auth header
+         1. delete session cookie
          2. add success notification
     */
   }

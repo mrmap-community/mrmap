@@ -1,4 +1,5 @@
 import OpenAPIClientAxios, { AxiosResponse, OpenAPIClient } from 'openapi-client-axios';
+import Cookies from 'js-cookie';
 
 export const JsonApiMimeType = 'application/vnd.api+json';
 
@@ -124,13 +125,14 @@ export class OpenApiRepo {
     async delete (id: string): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
       return await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
-        headers: { 'Content-Type': JsonApiMimeType }
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
       });
     }
 
     // eslint-disable-next-line
     async add (type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
       const client = await OpenApiRepo.getClientInstance();
+      
       // TODO: make relationships optional
       return await client['create' + this.resourcePath](undefined, {
         data: {
@@ -142,7 +144,8 @@ export class OpenApiRepo {
             ...relationships
           }
         }
-      }, { headers: { 'Content-Type': JsonApiMimeType } });
+      }, { headers: { 
+        'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken')} });
     }
 }
 

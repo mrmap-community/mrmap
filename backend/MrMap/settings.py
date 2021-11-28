@@ -485,7 +485,7 @@ REST_FRAMEWORK = {
     'MAX_PAGE_SIZE': 100,
     'EXCEPTION_HANDLER': 'rest_framework_json_api.exceptions.exception_handler',
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS':
         'rest_framework_json_api.pagination.JsonApiPageNumberPagination',
@@ -516,11 +516,4 @@ REST_FRAMEWORK = {
         'rest_framework_json_api.renderers.JSONRenderer',
     ),
     'TEST_REQUEST_DEFAULT_FORMAT': 'vnd.api+json'
-}
-
-
-# Django rest auth settings
-REST_AUTH_SERIALIZERS = {
-    'LOGIN_SERIALIZER': 'users.api.serializers.auth.LoginSerializer',
-    # 'TOKEN_SERIALIZER': 'path.to.custom.TokenSerializer',
 }

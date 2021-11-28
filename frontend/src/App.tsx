@@ -20,7 +20,6 @@ const { Content, Footer, Sider } = Layout;
 
 function RequireAuth ({ children }: { children: JSX.Element }) {
   const auth = useAuth();
-  debugger;
   if (!auth.user) {
     return <Navigate to='/login' />;
   }

@@ -53,11 +53,12 @@ export const NavBar = (): ReactElement => {
         title='Registry'
       >
         <Menu.Item key='/registry/services/wms'><Link to='/registry/services/wms'>WMS</Link></Menu.Item>
-        <Menu.Item key='registry:wfs'>WFS</Menu.Item>
-        <Menu.Item key='registry:csw'>CSW</Menu.Item>
-        <Menu.Item key='/registry/services/layers'><Link to='/registry/services/layers'>Layers</Link></Menu.Item>
-        <Menu.Item key='registry:featuretypes'>Feature Types</Menu.Item>
-        <Menu.Item key='registry:metadata'>Metadata Records</Menu.Item>
+        <Menu.Item key='/registry/services/wfs'><Link to='/registry/services/wfs'>WFS</Link></Menu.Item>
+        <Menu.Item key='/registry/layers'><Link to='/registry/layers'>Layers</Link></Menu.Item>
+        <Menu.Item key='/registry/featuretypes'><Link to='/registry/featuretypes'>Feature Types</Link></Menu.Item>
+        <Menu.Item key='/registry/dataset-metadata'>
+          <Link to='/registry/dataset-metadata'>Metadata Records</Link>
+        </Menu.Item>
         <Menu.Item key='/registry/mapcontexts'><Link to='/registry/mapcontexts'>Map Contexts</Link></Menu.Item>
       </SubMenu>
       <SubMenu

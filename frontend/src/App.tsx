@@ -7,12 +7,17 @@ import { BrowserRouter as Router, Navigate, Outlet, Route, Routes } from 'react-
 
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import { MapContextList } from './Components/MapContext/MapContextList/MapContextList';
+import MapContextTable from './Components/MapContext/MapContextTable';
 import { FormSteps } from './Components/MapContextForm/MapContextForm';
+import DatasetMetadataTable from './Components/Metadata/DatasetMetadataTable';
 import { NavBar } from './Components/NavBar/NavBar';
+import FeatureTypeTable from './Components/OgcService/FeatureTypeTable';
+import LayerTable from './Components/OgcService/LayerTable';
+import OgcServiceAdd from './Components/OgcService/OgcServiceAdd';
+import WfsTable from './Components/OgcService/WfsTable';
+import WmsTable from './Components/OgcService/WmsTable';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
-import WmsAdd from './Components/Wms/WmsAdd';
-import WmsTable from './Components/Wms/WmsTable';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
 
@@ -101,12 +106,28 @@ export default function App (): JSX.Element {
               element={<WmsTable />}
             />
             <Route
+              path='/registry/services/wfs'
+              element={<WfsTable />}
+            />
+            <Route
               path='/registry/services/add'
-              element={<WmsAdd />}
+              element={<OgcServiceAdd />}
+            />
+            <Route
+              path='/registry/layers'
+              element={<LayerTable />}
+            />
+            <Route
+              path='/registry/featuretypes'
+              element={<FeatureTypeTable />}
+            />
+            <Route
+              path='/registry/dataset-metadata'
+              element={<DatasetMetadataTable />}
             />
             <Route
               path='/registry/mapcontexts'
-              element={<MapContextList />}
+              element={<MapContextTable />}
             />
             <Route
               path='/registry/mapcontexts/add'

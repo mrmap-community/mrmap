@@ -16,7 +16,7 @@ const tailLayout = {
 const repo = new OgcServiceRepo();
 const organizationRepo = new OrganizationRepo();
 
-export const WmsAdd = (): ReactElement => {
+export const OgcServiceAdd = (): ReactElement => {
   const [form] = Form.useForm();
 
   const [options, setOptions] = useState<{ id: string, value: string }[]>([]);
@@ -124,4 +124,4 @@ export const WmsAdd = (): ReactElement => {
   );
 };
 
-export default WmsAdd;
+export default OgcServiceAdd;

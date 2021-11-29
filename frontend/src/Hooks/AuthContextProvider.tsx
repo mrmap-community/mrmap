@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { notification } from 'antd';
 import LoginRepo from "../Repos/LogintRepo";
 import LogoutRepo from "../Repos/LogoutRepo";
@@ -6,8 +6,25 @@ import { hasOwnProperty } from "../utils";
 import { UserRepo } from "../Repos/UserRepo";
 import { useLocation, useNavigate } from "react-router-dom";
 
+function getStorageValue(key: string, defaultValue: any) {
+  return localStorage.getItem(key) || defaultValue;
+}
+
+export const useLocalStorage = (key: string, defaultValue: any) => {
+  const [value, setValue] = useState(() => {
+    return getStorageValue(key, defaultValue);
+  });
+
+  useEffect(() => {
+    localStorage.setItem(key, value);
+  }, [key, value]);
+
+  return [value, setValue];
+};
+
 export interface AuthContextType {
   user: any;
+  userId: string;
   login: (user: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -20,11 +37,8 @@ const userRepo = new UserRepo();
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState('');
-  // TODO: store userId in local storage...
-  const [userId, setUserId] = React.useState('');
-  const navigate = useNavigate();
-  const location = useLocation();
-  const from = location.state?.from?.pathname || "/";
+  const [userId, setUserId] = useLocalStorage("userId", undefined);
+  
   useEffect(() => {
     async function fetchCurrentUser() {
       const res = await userRepo.get(userId);
@@ -34,13 +48,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         && hasOwnProperty(res.data.data, 'attributes')
         && res.data.data.attributes){
         setUser(res.data.data.attributes);
-        notification.success({
-          message: 'Successfully logged in.',
-        });
-        navigate(from, { replace: true });
+        
+        
       }
     } 
-    console.log(userId);
     if (userId){
       fetchCurrentUser();
     }
@@ -60,6 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       && hasOwnProperty(res.data.data, 'attributes')
       && res.data.data.attributes) {
         setUserId(res.data.data.id); 
+        notification.success({
+          message: 'Successfully logged in.',
+        });
       return Promise.resolve(true);
     } else {
       notification.error({
@@ -71,15 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout(): Promise<void> {
     setUser('');
-    setUserId('');
+    setUserId(undefined);
     const res = await logoutRepo.logout();
     /* TODO: 
-         1. delete session cookie
-         2. add success notification
+         1. add success notification
     */
   }
 
-  let value = { user, login, logout };
+  let value = { user, userId, login, logout };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

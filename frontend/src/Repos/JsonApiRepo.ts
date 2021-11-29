@@ -81,6 +81,11 @@ export class JsonApiRepo {
     }
 
     async getSchema (): Promise<any> {
+      const schema = localStorage.getItem("schema") || undefined;
+      if (schema){
+        return JSON.parse(schema);
+      }
+
       const client = await JsonApiRepo.getClientInstance();
       const op = client.api.getOperation('List' + this.resourcePath);
       if (!op) {
@@ -94,6 +99,8 @@ export class JsonApiRepo {
       if (!mimeType) {
         return [];
       }
+
+      localStorage.setItem("schema", JSON.stringify(mimeType.schema));
       return mimeType.schema;
     }
 

@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function logout(): Promise<void> {
     setUser('');
     setUserId(undefined);
+    localStorage.setItem("schema", "");
     const res = await logoutRepo.logout();
     /* TODO: 
          1. add success notification

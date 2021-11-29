@@ -1,12 +1,9 @@
-import OpenAPIClientAxios, { AxiosResponse, OpenAPIClient } from 'openapi-client-axios';
 import Cookies from 'js-cookie';
+import OpenAPIClientAxios, { AxiosResponse, OpenAPIClient } from 'openapi-client-axios';
 
 export const JsonApiMimeType = 'application/vnd.api+json';
 
-export interface JsonApiResponse extends AxiosResponse{
-  // extends the AxiosResponse interface to declare the responsed data type
-  data: JsonApiDocument | null;
-}
+export type JsonApiResponse = AxiosResponse<JsonApiDocument | null>
 
 export interface JsonApiDocument {
     data?: JsonApiPrimaryData[] | JsonApiPrimaryData;
@@ -81,11 +78,6 @@ export class JsonApiRepo {
     }
 
     async getSchema (): Promise<any> {
-      const schema = localStorage.getItem("schema") || undefined;
-      if (schema){
-        return JSON.parse(schema);
-      }
-
       const client = await JsonApiRepo.getClientInstance();
       const op = client.api.getOperation('List' + this.resourcePath);
       if (!op) {
@@ -99,8 +91,6 @@ export class JsonApiRepo {
       if (!mimeType) {
         return [];
       }
-
-      localStorage.setItem("schema", JSON.stringify(mimeType.schema));
       return mimeType.schema;
     }
 
@@ -139,7 +129,7 @@ export class JsonApiRepo {
     // eslint-disable-next-line
     async add (type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
-      
+
       // TODO: make relationships optional
       return await client['create' + this.resourcePath](undefined, {
         data: {
@@ -151,8 +141,9 @@ export class JsonApiRepo {
             ...relationships
           }
         }
-      }, { headers: { 
-        'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken')} });
+      }, {
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+      });
     }
 }
 

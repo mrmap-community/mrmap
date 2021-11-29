@@ -1,10 +1,10 @@
-import React, { useEffect } from "react";
 import { notification } from 'antd';
-import LoginRepo from "../Repos/LoginRepo";
-import LogoutRepo from "../Repos/LogoutRepo";
-import { hasOwnProperty, useLocalStorage } from "../utils";
-import { UserRepo } from "../Repos/UserRepo";
+import React, { useEffect } from 'react';
 
+import LoginRepo from '../Repos/LoginRepo';
+import LogoutRepo from '../Repos/LogoutRepo';
+import { UserRepo } from '../Repos/UserRepo';
+import { hasOwnProperty, useLocalStorage } from '../utils';
 
 export interface AuthContextType {
   user: any;
@@ -19,68 +19,60 @@ const loginRepo = new LoginRepo();
 const logoutRepo = new LogoutRepo();
 const userRepo = new UserRepo();
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider ({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState('');
-  const [userId, setUserId] = useLocalStorage("userId", undefined);
-  
+  const [userId, setUserId] = useLocalStorage('userId', '');
+
   useEffect(() => {
-    async function fetchCurrentUser() {
+    async function fetchCurrentUser () {
       const res = await userRepo.get(userId);
-      if (res.status === 200
-        && res.data
-        && res.data.data
-        && hasOwnProperty(res.data.data, 'attributes')
-        && res.data.data.attributes){
+      if (res.status === 200 &&
+        res.data &&
+        res.data.data &&
+        hasOwnProperty(res.data.data, 'attributes') &&
+        res.data.data.attributes) {
         setUser(res.data.data.attributes);
-        
-        
       }
-    } 
-    if (userId){
+    }
+    if (userId) {
       fetchCurrentUser();
     }
   }, [userId]);
-  
-  function waitforme(milisec:number) {
-    return new Promise(resolve => {
-        setTimeout(() => { resolve('') }, milisec);
-    })
-}
 
-  async function login(user: string, password: string): Promise<boolean> {
-    const res = await loginRepo.login({username: user, password: password});
-    if (res.status === 200
-      && res.data
-      && res.data.data
-      && hasOwnProperty(res.data.data, 'attributes')
-      && res.data.data.attributes) {
-        setUserId(res.data.data.id); 
-        notification.success({
-          message: 'Successfully logged in.',
-        });
+  async function login (user: string, password: string): Promise<boolean> {
+    const res = await loginRepo.login({ username: user, password: password });
+    if (res.status === 200 &&
+      res.data &&
+      res.data.data &&
+      hasOwnProperty(res.data.data, 'attributes') &&
+      res.data.data.attributes) {
+      setUserId(res.data.data.id);
+      notification.success({
+        message: 'Successfully logged in.'
+      });
       return Promise.resolve(true);
     } else {
       notification.error({
-        message: 'Failed to log in.',
+        message: 'Failed to log in.'
       });
       return Promise.resolve(false);
     }
   }
 
-  async function logout(): Promise<void> {
+  async function logout (): Promise<void> {
     setUser('');
-    setUserId(undefined);
-    localStorage.setItem("schema", "");
+    setUserId('');
+    localStorage.setItem('schema', '');
     const res = await logoutRepo.logout();
-    /* TODO: 
+    /* TODO:
          1. add success notification
     */
   }
 
-  let value = { user, userId, login, logout };
+  const value = { user, userId, login, logout };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth () {
   return React.useContext(AuthContext);
 }

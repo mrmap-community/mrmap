@@ -40,13 +40,12 @@ urlpatterns = [
     path(
         "api/schema/",
         cache_page(timeout=60 * 15, cache='local-memory')(
-            vary_on_cookie(
-                get_schema_view(
-                    title="MrMap JSON:API",
-                    description="API for all things …",
-                    version="1.0.0",
-                    generator_class=SchemaGenerator,
-                )
+            get_schema_view(
+                title="MrMap JSON:API",
+                description="API for all things …",
+                version="1.0.0",
+                public=True,
+                generator_class=SchemaGenerator,
             )
         ),
         name="openapi-schema",

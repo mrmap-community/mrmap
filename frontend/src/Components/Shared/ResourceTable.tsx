@@ -109,18 +109,51 @@ export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactEle
 
   const navigate = useNavigate();
 
+  async function fetchTableData () {
+    setLoading(true);
+    const response = await repo.findAll(tableState);
+    const records = response.data?.data === undefined ? [] : response.data?.data;
+    const dataSource: any = [];
+    if (Array.isArray(records)) {
+      records.forEach((record: any) => {
+        const row = {
+          id: record.id,
+          ...record.attributes
+        };
+        dataSource.push(row);
+      });
+    }
+    // for (const columnName in columnTypes) {
+    //     const columnType = columnTypes[columnName];
+    //     if (!columnType.isFlat) {
+    //         res.data.data.forEach((result: any) => {
+    //             result[columnName] = '[complex value]';
+    //         });
+    //     }
+    // }
+    let total = 0;
+
+    if (response.data &&
+    response.data.meta) {
+      total = response.data.meta.pagination.count;
+    }
+    setData({
+      dataSource: dataSource,
+      total: total
+    });
+    setLoading(false);
+  }
+
   useEffect(() => {
     const onDeleteRecord = (record: any) => {
       async function deleteRecord () {
+        setLoading(true);
         await repo.delete(record.id);
         notification.success({
           message: 'Record deleted',
           description: `Record with id ${record.id} has been deleted succesfully`
         });
-        // trigger reload
-        setTableState({
-          ...tableState
-        });
+        fetchTableData();
         // const newData = {
         //     dataSource: data.dataSource.filter((row: any) => (row.id !== record.id)),
         //     total: data.total - 1
@@ -179,40 +212,6 @@ export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactEle
   }, []);
 
   useEffect(() => {
-    async function fetchTableData () {
-      setLoading(true);
-      const response = await repo.findAll(tableState);
-      const records = response.data?.data === undefined ? [] : response.data?.data;
-      const dataSource: any = [];
-      if (Array.isArray(records)) {
-        records.forEach((record: any) => {
-          const row = {
-            id: record.id,
-            ...record.attributes
-          };
-          dataSource.push(row);
-        });
-      }
-      // for (const columnName in columnTypes) {
-      //     const columnType = columnTypes[columnName];
-      //     if (!columnType.isFlat) {
-      //         res.data.data.forEach((result: any) => {
-      //             result[columnName] = '[complex value]';
-      //         });
-      //     }
-      // }
-      let total = 0;
-
-      if (response.data &&
-      response.data.meta) {
-        total = response.data.meta.pagination.count;
-      }
-      setData({
-        dataSource: dataSource,
-        total: total
-      });
-      setLoading(false);
-    }
     // TODO can this skip be avoided somehow -> necessary when columnTypes is not initialized yet
     if (
       columnTypes &&
@@ -239,28 +238,24 @@ export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactEle
     });
   };
 
-  const renderAddRecord = (): JSX.Element | undefined => {
+  const renderAddButton = (): JSX.Element | undefined => {
     if (addRecord) {
       return (<Button type='primary' onClick={() => navigate(addRecord)}>Add record</Button>);
     }
     return undefined;
   };
 
-  const renderReload = (): JSX.Element => {
+  const renderReloadButton = (): JSX.Element => {
     const triggerReload = () => {
-      setTableState({
-        ...tableState
-      });
+      fetchTableData();
     };
-    return (<Button onClick={triggerReload}>
-      <ReloadOutlined/>
-      </Button>);
+    return (<Button onClick={triggerReload}><ReloadOutlined/></Button>);
   };
 
   return (
     <Card
       title='Records'
-      extra={<Space>{renderAddRecord()}{renderReload()}</Space>}
+      extra={<Space>{renderAddButton()}{renderReloadButton()}</Space>}
       style={{ width: '100%' }}
     >
       <Table

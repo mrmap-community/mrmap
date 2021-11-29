@@ -1,6 +1,7 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
@@ -24,6 +25,8 @@ export const OgcServiceAdd = (): ReactElement => {
   const [options, setOptions] = useState<SearchFieldData[]>([]);
   const [isLoading, setLoading] = useState(false);
 
+  const navigate = useNavigate();
+
   const onFinish = (values: any) => {
     async function postData () {
       const res = await repo.create(values);
@@ -32,6 +35,7 @@ export const OgcServiceAdd = (): ReactElement => {
           message: 'Service registration job started',
           description: 'Your service registration job has been accepted and is being processed'
         });
+        navigate(-1);
       }
     }
     postData();

@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError
+from rest_framework.fields import CharField, ChoiceField, IntegerField, ModelField
 from rest_framework.serializers import HyperlinkedIdentityField
 from registry.models import MapContext, MapContextLayer
-from rest_framework_json_api.serializers import ModelSerializer
+from rest_framework_json_api.serializers import ModelSerializer, Serializer
 from rest_framework_json_api.relations import HyperlinkedRelatedField
 
 
@@ -37,3 +39,22 @@ class MapContextSerializer(ModelSerializer):
     class Meta:
         model = MapContext
         fields = "__all__"
+
+
+class MapContextLayerMoveLayerSerializer(Serializer):
+
+    target = IntegerField()
+    position = ChoiceField(choices=['first-child', 'last-child', 'left', 'right'])
+
+    class Meta:
+        resource_name = 'MapContextLayer'
+
+    def validate(self, attrs):
+        validated_data = super().validate(attrs)
+
+        try:
+            validated_data['target'] = MapContextLayer.objects.get(pk=validated_data['target'])
+        except MapContextLayer.DoesNotExist:
+            raise ValidationError('given target MapContextLayer does not exist.')
+
+        return validated_data

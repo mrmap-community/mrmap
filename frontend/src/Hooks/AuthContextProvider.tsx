@@ -1,4 +1,3 @@
-import { notification } from 'antd';
 import React, { useEffect } from 'react';
 
 import LoginRepo from '../Repos/LoginRepo';
@@ -10,7 +9,7 @@ export interface AuthContextType {
   user: any;
   userId: string;
   login: (user: string, password: string) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
 }
 
 const AuthContext = React.createContext<AuthContextType>(null!);
@@ -29,6 +28,8 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
       if (res.status === 200 &&
         res.data &&
         res.data.data &&
+        // TODO remove this after backend is fixed
+        (res.data.data as any).id &&
         hasOwnProperty(res.data.data, 'attributes') &&
         res.data.data.attributes) {
         setUser(res.data.data.attributes);
@@ -40,33 +41,38 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   async function login (user: string, password: string): Promise<boolean> {
-    const res = await loginRepo.login({ username: user, password: password });
-    if (res.status === 200 &&
+    try {
+      const res = await loginRepo.login({ username: user, password: password });
+      if (res.status === 200 &&
       res.data &&
       res.data.data &&
+      // TODO remove this after backend is fixed
+      (res.data.data as any).id &&
       hasOwnProperty(res.data.data, 'attributes') &&
       res.data.data.attributes) {
-      setUserId(res.data.data.id);
-      notification.success({
-        message: 'Successfully logged in.'
-      });
-      return Promise.resolve(true);
-    } else {
-      notification.error({
-        message: 'Failed to log in.'
-      });
+        setUserId(res.data.data.id);
+        return Promise.resolve(true);
+      } else {
+        return Promise.resolve(false);
+      }
+    } catch (err: any) {
       return Promise.resolve(false);
     }
   }
 
-  async function logout (): Promise<void> {
+  async function logout (): Promise<boolean> {
     setUser('');
     setUserId('');
     localStorage.setItem('schema', '');
-    const res = await logoutRepo.logout();
-    /* TODO:
-         1. add success notification
-    */
+    try {
+      const res = await logoutRepo.logout();
+      if (res.status === 200) {
+        return Promise.resolve(true);
+      }
+    } catch (err: any) {
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(false);
   }
 
   const value = { user, userId, login, logout };

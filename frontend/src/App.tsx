@@ -3,7 +3,7 @@ import './App.css';
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { Layout, Space } from 'antd';
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import { MapContextList } from './Components/MapContext/MapContextList/MapContextList';
@@ -23,11 +23,12 @@ import logo from './logo.png';
 
 const { Content, Footer, Sider } = Layout;
 
-function RequireAuth ({ children }: { children: JSX.Element }) {
+function RequireAuth ({ children }:{ children: JSX.Element }) {
   const auth = useAuth();
-  
+  const location = useLocation();
   if (!auth.userId) {
-    return <Navigate to='/login' />;
+    // store location so login page can forward to original page
+    return <Navigate to='/login' state={{ from: location }} />;
   }
   return children;
 }
@@ -57,7 +58,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/logout'
-            element={<RequireAuth><Logout /></RequireAuth>}
+            element={<Logout />}
           />
           <Route
             path='/'

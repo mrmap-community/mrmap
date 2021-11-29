@@ -35,6 +35,7 @@ class LoginView(generics.GenericAPIView):
             login(request=request, user=serializer.user)
 
         except AuthenticationFailed:
+            # TODO find out why error code 403 is swallowed -> backend returns 200 in any case
             return Response(status=status.HTTP_403_FORBIDDEN)
         finally:
             return Response(MrMapUserSerializer(serializer.user, context={'request': request}).data, status=status.HTTP_200_OK)

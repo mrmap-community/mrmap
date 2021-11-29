@@ -1,33 +1,42 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Alert, Button, Form, Input, Row } from 'antd';
+import { Alert, Button, Form, Input, notification, Row } from 'antd';
 import React, { ReactElement, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../../../Hooks/AuthContextProvider';
 
 export const Login = (): ReactElement => {
   const auth = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
 
+  const from = location.state?.from?.pathname || '/';
+
   const onFinish = (values: any) => {
-    async function login(username: string, password: string) {
+    async function login (username: string, password: string) {
       setLoggingIn(true);
       const success = await auth.login(username, password);
       setLoggingIn(false);
       if (!success) {
+        notification.error({
+          message: 'Failed to log in.'
+        });
         setLoginFailed(true);
-        return;
       } else {
+        notification.success({
+          message: 'Successfully logged in.'
+        });
         setLoginFailed(false);
-        navigate('/');
+        navigate(from, { replace: true });
       }
     }
     login(values.username, values.password);
   };
 
   return (
-    <Row justify="center" align="middle" style={{ minHeight: '100vh', backgroundColor: '#001529' }}>
+    <Row justify='center' align='middle' style={{ minHeight: '100vh', backgroundColor: '#001529' }}>
       <Form
         name='normal_login'
         initialValues={{ remember: true }}
@@ -51,9 +60,11 @@ export const Login = (): ReactElement => {
             placeholder='Password'
           />
         </Form.Item>
-        {loginFailed ? (
-          <Form.Item><Alert message="Login failed. Hint: mrmap/mrmap" type="error" showIcon /></Form.Item>
-        ) : (<></>)
+        {loginFailed
+          ? (
+          <Form.Item><Alert message='Login failed. Hint: mrmap/mrmap' type='error' showIcon /></Form.Item>
+            )
+          : (<></>)
         }
         <Form.Item>
           <Button size='large' type='primary' loading={loggingIn}

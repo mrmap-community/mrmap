@@ -52,7 +52,7 @@ class LoginSerializer(Serializer):
             )
 
         return {}
-        
+  
 
 class LogoutSerializer(Serializer):
 

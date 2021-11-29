@@ -12,11 +12,13 @@ class MapContextRelationshipView(RelationshipView):
     )
     queryset = MapContext.objects
 
+
 class MapContextLayerRelationshipView(RelationshipView):
     schema = AutoSchema(
         tags=['MapContext'],
     )
     queryset = MapContextLayer.objects
+
 
 class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(

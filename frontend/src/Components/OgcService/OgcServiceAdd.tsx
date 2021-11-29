@@ -1,8 +1,10 @@
-import { Button, Card, Checkbox, Form, Input, notification, Select } from 'antd';
+import { InfoCircleOutlined } from '@ant-design/icons';
+import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
 
 import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
+import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 
 const layout = {
   labelCol: { span: 3 },
@@ -19,7 +21,7 @@ const organizationRepo = new OrganizationRepo();
 export const OgcServiceAdd = (): ReactElement => {
   const [form] = Form.useForm();
 
-  const [options, setOptions] = useState<{ label: string, value: string }[]>([]);
+  const [options, setOptions] = useState<SearchFieldData[]>([]);
   const [isLoading, setLoading] = useState(false);
 
   const onFinish = (values: any) => {
@@ -35,13 +37,14 @@ export const OgcServiceAdd = (): ReactElement => {
     postData();
   };
 
+  async function fetchOrgOptions (orgName: string) {
+    setLoading(true);
+    setOptions(await organizationRepo.autocomplete(orgName));
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function fetchOrgOptions () {
-      setLoading(true);
-      setOptions(await organizationRepo.autocomplete(''));
-      setLoading(false);
-    }
-    fetchOrgOptions();
+    fetchOrgOptions('');
   }, []);
 
   const onReset = () => {
@@ -67,20 +70,25 @@ export const OgcServiceAdd = (): ReactElement => {
           <Input />
         </Form.Item>
 
-        <Form.Item
-          name='owned_by_org'
+        <SelectAutocompleteFormField
+          loading={isLoading}
           label='Owner organization'
-          rules={[{ required: true, message: 'Required: Owner organization' }]}>
-          <Select
-            showSearch
-            style={{ width: 200 }}
-            placeholder='Select an organization'
-            optionFilterProp='label'
-            filterOption={true}
-            options={options}
-            loading={isLoading}
-          />
-        </Form.Item >
+          name='owned_by_org'
+          placeholder='Select Organization'
+          searchData={options}
+          tooltip={{
+            title: 'You can use this field to pre filter possible organization selection.',
+            icon: <InfoCircleOutlined />
+          }}
+          validation={{
+            rules: [{ required: true, message: 'Required: Owner organization' }],
+            hasFeedback: false
+          }}
+          onSearch={(value: string) => {
+            fetchOrgOptions(value);
+          }}
+        />
+
         <Form.Item
           name='collect_metadata_records'
           label='Collect metadata records'

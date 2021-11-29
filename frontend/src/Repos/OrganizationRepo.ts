@@ -1,3 +1,4 @@
+import { SearchFieldData } from '../Components/Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 import JsonApiRepo from './JsonApiRepo';
 
 export class OrganizationRepo extends JsonApiRepo {
@@ -5,7 +6,7 @@ export class OrganizationRepo extends JsonApiRepo {
     super('/api/v1/users/organizations/');
   }
 
-  async autocomplete (searchText: string | undefined): Promise<{ label: string; value: string; }[]> {
+  async autocomplete (searchText: string | undefined): Promise<SearchFieldData[]> {
     const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
       'fields[Organization]': 'name'
@@ -14,7 +15,7 @@ export class OrganizationRepo extends JsonApiRepo {
       jsonApiParams['filter[name.icontains]'] = searchText;
     }
     const res = await client['List' + this.resourcePath](jsonApiParams);
-    return res.data.data.map((o: any) => ({ value: o.id, label: o.attributes.name }));
+    return res.data.data.map((o: any) => ({ value: o.id, text: o.attributes.name }));
   }
 }
 

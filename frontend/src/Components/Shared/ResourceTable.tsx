@@ -1,4 +1,4 @@
-import { SearchOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Card, Input, Modal, notification, Space, Table } from 'antd';
 import React, { createRef, ReactElement, useEffect, useState } from 'react';
 import Highlighter from 'react-highlight-words';
@@ -117,6 +117,10 @@ export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactEle
           message: 'Record deleted',
           description: `Record with id ${record.id} has been deleted succesfully`
         });
+        // trigger reload
+        setTableState({
+          ...tableState
+        });
         // const newData = {
         //     dataSource: data.dataSource.filter((row: any) => (row.id !== record.id)),
         //     total: data.total - 1
@@ -234,10 +238,29 @@ export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactEle
       filters: filterParams
     });
   };
+
+  const renderAddRecord = (): JSX.Element | undefined => {
+    if (addRecord) {
+      return (<Button type='primary' onClick={() => navigate(addRecord)}>Add record</Button>);
+    }
+    return undefined;
+  };
+
+  const renderReload = (): JSX.Element => {
+    const triggerReload = () => {
+      setTableState({
+        ...tableState
+      });
+    };
+    return (<Button onClick={triggerReload}>
+      <ReloadOutlined/>
+      </Button>);
+  };
+
   return (
     <Card
       title='Records'
-      extra={addRecord ? <Button type='primary' onClick={() => navigate(addRecord)}>Add record</Button> : undefined}
+      extra={<Space>{renderAddRecord()}{renderReload()}</Space>}
       style={{ width: '100%' }}
     >
       <Table

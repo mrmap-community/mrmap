@@ -7,7 +7,7 @@ import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
 import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormField';
-import { SelectAutocompleteFormField } from '../Shared/FormFields/SearchAutocompleteFormField/SearchAutocompleteFormField';
+import { SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 import { TreeNodeType } from './MapContextForm';
 
 interface MapContextLayerFormProps {

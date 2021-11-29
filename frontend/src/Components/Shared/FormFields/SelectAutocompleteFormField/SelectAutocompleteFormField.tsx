@@ -4,7 +4,7 @@ import React, { FC, ReactNode } from 'react';
 
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
-interface SearchFieldData {
+export interface SearchFieldData {
   value: string | number;
   text: string;
   attributes?: any;

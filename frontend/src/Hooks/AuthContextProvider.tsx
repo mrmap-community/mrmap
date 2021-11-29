@@ -4,7 +4,6 @@ import LoginRepo from "../Repos/LogintRepo";
 import LogoutRepo from "../Repos/LogoutRepo";
 import { hasOwnProperty } from "../utils";
 import { UserRepo } from "../Repos/UserRepo";
-import { useLocation, useNavigate } from "react-router-dom";
 
 function getStorageValue(key: string, defaultValue: any) {
   return localStorage.getItem(key) || defaultValue;

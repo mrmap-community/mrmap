@@ -1,5 +1,4 @@
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.views import APIView
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from users.api.serializers.users import LoginSerializer, LogoutSerializer, MrMapUserSerializer
 from users.models.users import MrMapUser
@@ -8,6 +7,7 @@ from rest_framework_json_api.views import ModelViewSet
 from rest_framework import generics, status
 from rest_framework.response import Response
 from django.contrib.auth import login, logout
+from rest_framework.permissions import DjangoObjectPermissions
 
 
 class MrMapUserViewSet(NestedViewSetMixin, ModelViewSet):
@@ -16,6 +16,7 @@ class MrMapUserViewSet(NestedViewSetMixin, ModelViewSet):
     )
     queryset = MrMapUser.objects.all()
     serializer_class = MrMapUserSerializer
+    permission_classes = [DjangoObjectPermissions]
     prefetch_for_includes = {
         '__all__': [],
         'groups': ['groups']

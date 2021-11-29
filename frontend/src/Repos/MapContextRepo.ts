@@ -1,4 +1,4 @@
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextCreate {
     title: string;
@@ -6,7 +6,7 @@ export interface MapContextCreate {
     ownerOrganizationId: string;
 }
 
-export class MapContextRepo extends OpenApiRepo {
+export class MapContextRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontexts/');
   }

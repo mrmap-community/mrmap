@@ -1,4 +1,4 @@
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export interface OgcServiceCreate {
     get_capabilities_url: string;  // eslint-disable-line
@@ -6,7 +6,7 @@ export interface OgcServiceCreate {
     collect_metadata_records: boolean;
 }
 
-export class OgcServiceRepo extends OpenApiRepo {
+export class OgcServiceRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/ogcservices/');
   }

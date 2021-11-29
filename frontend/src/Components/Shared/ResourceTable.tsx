@@ -4,10 +4,10 @@ import React, { createRef, ReactElement, useEffect, useState } from 'react';
 import Highlighter from 'react-highlight-words';
 import { useNavigate } from 'react-router';
 
-import OpenApiRepo from '../../Repos/OpenApiRepo';
+import JsonApiRepo from '../../Repos/JsonApiRepo';
 
 interface ResourceTableProps {
-    repo: OpenApiRepo
+    repo: JsonApiRepo
     addRecord?: string
 }
 

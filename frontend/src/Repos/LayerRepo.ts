@@ -1,13 +1,13 @@
 
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
-export class LayerRepo extends OpenApiRepo {
+export class LayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/layers/');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
-    const client = await OpenApiRepo.getClientInstance();
+    const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
       'filter[title.icontains]': searchText
       // 'fields[Layer]': 'scale_max, scale_min, title'  // TODO: not working. Grab all for now

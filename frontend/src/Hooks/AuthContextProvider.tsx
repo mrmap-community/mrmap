@@ -1,25 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { notification } from 'antd';
-import LoginRepo from "../Repos/LogintRepo";
+import LoginRepo from "../Repos/LoginRepo";
 import LogoutRepo from "../Repos/LogoutRepo";
-import { hasOwnProperty } from "../utils";
+import { hasOwnProperty, useLocalStorage } from "../utils";
 import { UserRepo } from "../Repos/UserRepo";
 
-function getStorageValue(key: string, defaultValue: any) {
-  return localStorage.getItem(key) || defaultValue;
-}
-
-export const useLocalStorage = (key: string, defaultValue: any) => {
-  const [value, setValue] = useState(() => {
-    return getStorageValue(key, defaultValue);
-  });
-
-  useEffect(() => {
-    localStorage.setItem(key, value);
-  }, [key, value]);
-
-  return [value, setValue];
-};
 
 export interface AuthContextType {
   user: any;

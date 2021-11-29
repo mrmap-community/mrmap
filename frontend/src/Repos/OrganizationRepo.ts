@@ -1,12 +1,12 @@
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
-export class OrganizationRepo extends OpenApiRepo {
+export class OrganizationRepo extends JsonApiRepo {
   constructor() {
     super('/api/v1/users/organizations/');
   }
 
   async autocomplete(searchText: string): Promise<JsonApiResponse> {
-    const client = await OpenApiRepo.getClientInstance();
+    const client = await JsonApiRepo.getClientInstance();
     let jsonApiParams: any = {
       'filter[name.icontains]': searchText,
       'fields[Organization]': 'name'

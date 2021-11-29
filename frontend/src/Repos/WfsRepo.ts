@@ -1,6 +1,6 @@
-import OpenApiRepo from './OpenApiRepo';
+import JsonApiRepo from './JsonApiRepo';
 
-export class WebFeatureServiceRepo extends OpenApiRepo {
+export class WebFeatureServiceRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/wfs/');
   }

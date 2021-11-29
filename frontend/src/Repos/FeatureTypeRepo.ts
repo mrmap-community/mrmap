@@ -1,13 +1,13 @@
 
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
-export class FeatureTypeRepo extends OpenApiRepo {
+export class FeatureTypeRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/featuretypes/');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
-    const client = await OpenApiRepo.getClientInstance();
+    const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
       'filter[title.icontains]': searchText
       // 'filter[Featuretypes]': 'title'  //TODO

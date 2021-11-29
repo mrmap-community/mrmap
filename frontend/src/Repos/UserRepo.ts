@@ -1,7 +1,7 @@
 
-import OpenApiRepo from './OpenApiRepo';
+import JsonApiRepo from './JsonApiRepo';
 
-export class UserRepo extends OpenApiRepo {
+export class UserRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/users/users/');
   }

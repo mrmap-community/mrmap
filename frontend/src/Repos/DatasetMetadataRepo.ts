@@ -1,13 +1,13 @@
 
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
-export class DatasetMetadataRepo extends OpenApiRepo {
+export class DatasetMetadataRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/dataset-metadata/');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
-    const client = await OpenApiRepo.getClientInstance();
+    const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
       'filter[title.icontains]': searchText
       // 'filter[Layer]': 'title'

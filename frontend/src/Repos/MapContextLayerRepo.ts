@@ -1,5 +1,5 @@
 import { RightCircleFilled } from '@ant-design/icons';
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextLayerCreate {
     name: string;
@@ -18,7 +18,7 @@ export interface MapContextLayerCreate {
     parentLayerId?: string;
 }
 
-export class MapContextLayerRepo extends OpenApiRepo {
+export class MapContextLayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontextlayers/');
   }

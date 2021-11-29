@@ -1,4 +1,4 @@
-import OpenApiRepo, { JsonApiResponse } from './OpenApiRepo';
+import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export interface Login {
     username: string;  // eslint-disable-line
@@ -6,7 +6,7 @@ export interface Login {
 }
 
 
-export class LoginRepo extends OpenApiRepo {
+export class LoginRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/users/login/');
   }

@@ -39,7 +39,7 @@ export interface QueryParams {
     filters: any;
 }
 
-export class OpenApiRepo {
+export class JsonApiRepo {
     private static apiInstance: OpenAPIClientAxios;
 
     private static clientInstance: OpenAPIClient;
@@ -81,7 +81,7 @@ export class OpenApiRepo {
     }
 
     async getSchema (): Promise<any> {
-      const client = await OpenApiRepo.getClientInstance();
+      const client = await JsonApiRepo.getClientInstance();
       const op = client.api.getOperation('List' + this.resourcePath);
       if (!op) {
         return [];
@@ -98,7 +98,7 @@ export class OpenApiRepo {
     }
 
     async findAll (queryParams?: QueryParams): Promise<JsonApiResponse> {
-      const client = await OpenApiRepo.getClientInstance();
+      const client = await JsonApiRepo.getClientInstance();
       // TODO why does Parameters<UnknownParamsObject> not work?
       let jsonApiParams: any;
       if (queryParams) {
@@ -116,14 +116,14 @@ export class OpenApiRepo {
     }
 
     async get (id: string): Promise<JsonApiResponse> {
-      const client = await OpenApiRepo.getClientInstance();
+      const client = await JsonApiRepo.getClientInstance();
       return await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
     }
 
     async delete (id: string): Promise<JsonApiResponse> {
-      const client = await OpenApiRepo.getClientInstance();
+      const client = await JsonApiRepo.getClientInstance();
       return await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
       });
@@ -131,7 +131,7 @@ export class OpenApiRepo {
 
     // eslint-disable-next-line
     async add (type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
-      const client = await OpenApiRepo.getClientInstance();
+      const client = await JsonApiRepo.getClientInstance();
       
       // TODO: make relationships optional
       return await client['create' + this.resourcePath](undefined, {
@@ -149,4 +149,4 @@ export class OpenApiRepo {
     }
 }
 
-export default OpenApiRepo;
+export default JsonApiRepo;

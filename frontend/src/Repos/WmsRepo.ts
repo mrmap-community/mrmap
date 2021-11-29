@@ -1,6 +1,6 @@
-import OpenApiRepo from './OpenApiRepo';
+import JsonApiRepo from './JsonApiRepo';
 
-export class WebMapServiceRepo extends OpenApiRepo {
+export class WebMapServiceRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/wms/');
   }

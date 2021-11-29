@@ -20,7 +20,7 @@ from django.views.generic import TemplateView
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 from django.views.decorators.cache import cache_page
-
+from django.views.decorators.vary import vary_on_cookie
 
 urlpatterns = [
 
@@ -40,11 +40,13 @@ urlpatterns = [
     path(
         "api/schema/",
         cache_page(timeout=60 * 15, cache='local-memory')(
-            get_schema_view(
-                title="MrMap JSON:API",
-                description="API for all things …",
-                version="1.0.0",
-                generator_class=SchemaGenerator,
+            vary_on_cookie(
+                get_schema_view(
+                    title="MrMap JSON:API",
+                    description="API for all things …",
+                    version="1.0.0",
+                    generator_class=SchemaGenerator,
+                )
             )
         ),
         name="openapi-schema",

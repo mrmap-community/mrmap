@@ -1,5 +1,7 @@
 
 from django.conf import settings
+from extras.fields import ExtendedHyperlinkedRelatedField
+from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from guardian.core import ObjectPermissionChecker
 from registry.api.serializers.metadata import (KeywordSerializer,
                                                StyleSerializer)
@@ -55,19 +57,20 @@ class LayerSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class WebMapServiceSerializer(ModelSerializer):
+class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:wms-detail',
     )
 
-    layers = HyperlinkedRelatedField(
+    layers = ExtendedHyperlinkedRelatedField(
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wms-layers-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
         required=False,
+        meta_attrs={'layer_count': 'count'}
     )
 
     is_accessible = SerializerMethodField()
@@ -82,13 +85,7 @@ class WebMapServiceSerializer(ModelSerializer):
         meta_fields = ('is_accessible', )
 
     def get_is_accessible(self, obj):
-        perm_checker = self.context.get('perm_checker', None)
-        if not perm_checker:
-            # fallback with slow solution if no perm_checker is in the context
-            perm_checker = ObjectPermissionChecker(
-                user_or_group=self.context['request']['user'])
-            settings.ROOT_LOGGER.warning(
-                f"slow handling of object permissions detected. Optimize your view by adding a permchecker in your view.")
+        perm_checker = self.get_perm_checker()
         return perm_checker.has_perm(f'view_{obj._meta.model_name}', obj)
 
 

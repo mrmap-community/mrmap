@@ -2,7 +2,7 @@ from typing import OrderedDict
 
 from django_celery_results.models import TaskResult
 from extras.permissions import ReadOnly
-from guardian.core import ObjectPermissionChecker
+from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.api.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                           OgcServiceFilterSet,
                                           WebFeatureServiceFilterSet,
@@ -35,7 +35,7 @@ class WebMapServiceRelationshipView(RelationshipView):
     queryset = WebMapService.objects
 
 
-class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
+class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=["WebMapServices"],
     )
@@ -45,13 +45,6 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissions | ReadOnly]
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        perm_checker = ObjectPermissionChecker(user_or_group=self.request.user)
-        perm_checker.prefetch_perms(self.get_queryset())
-        context.update({'perm_checker': perm_checker})
-        return context
 
 
 class LayerRelationshipView(RelationshipView):

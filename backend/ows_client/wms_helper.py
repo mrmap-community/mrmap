@@ -5,11 +5,8 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-from registry.enums.service import (
-    OGCOperationEnum,
-    OGCServiceEnum,
-    OGCServiceVersionEnum,
-)
+from registry.enums.service import (OGCOperationEnum, OGCServiceEnum,
+                                    OGCServiceVersionEnum)
 from registry.models import Service
 
 from .url_helper import UrlHelper

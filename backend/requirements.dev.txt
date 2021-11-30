@@ -8,6 +8,4 @@ PyYAML==5.4.1
 debugpy==1.4.3
 argh==0.26.2
 behave-restful==0.4.1
-django-cors-headers==3.10.0
-
-
+autopep8==1.6.0

@@ -20,7 +20,6 @@
   "python.analysis.extraPaths": [
     ".venv"
   ],
-  "python.formatting.provider": "black",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll": true,

@@ -1,12 +1,18 @@
 
+from registry.api.serializers.metadata import (KeywordSerializer,
+                                               StyleSerializer)
+from registry.models.metadata import Keyword, Style
+from registry.models.service import (FeatureType, Layer, OgcService,
+                                     OperationUrl, WebFeatureService,
+                                     WebMapService)
 from rest_framework.fields import BooleanField
-from rest_framework_gis.fields import GeometryField
-from rest_framework_json_api.serializers import ModelSerializer, PolymorphicModelSerializer
-from rest_framework_json_api.relations import HyperlinkedRelatedField
 from rest_framework.relations import HyperlinkedIdentityField
-from registry.api.serializers.metadata import KeywordSerializer, StyleSerializer
-from registry.models.service import OgcService, Layer, FeatureType, WebMapService, WebFeatureService, OperationUrl
-from registry.models.metadata import Style, Keyword
+from rest_framework_gis.fields import GeometryField
+from rest_framework_json_api.relations import (HyperlinkedRelatedField,
+                                               ResourceRelatedField)
+from rest_framework_json_api.serializers import (ModelSerializer,
+                                                 PolymorphicModelSerializer)
+from users.models.groups import Organization
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -114,7 +120,8 @@ class WebFeatureServiceSerializer(ModelSerializer):
 
 
 class OgcServiceSerializer(PolymorphicModelSerializer):
-    polymorphic_serializers = [WebMapServiceSerializer, WebFeatureServiceSerializer]
+    polymorphic_serializers = [
+        WebMapServiceSerializer, WebFeatureServiceSerializer]
 
     class Meta:
         model = OgcService
@@ -127,9 +134,13 @@ class OgcServiceCreateSerializer(ModelSerializer):
     # included_serializers = {
     #     'auth': ServiceAuthentication,
     # }
+    owned_by_org = ResourceRelatedField(
+        queryset=Organization.objects,
+    )
 
     collect_metadata_records = BooleanField(default=True)
 
     class Meta:
         model = OgcService
-        fields = ("get_capabilities_url", "owned_by_org", "collect_metadata_records")
+        fields = ("get_capabilities_url", "owned_by_org",
+                  "collect_metadata_records")

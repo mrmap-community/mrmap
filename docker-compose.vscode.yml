@@ -5,8 +5,7 @@ services:
   backend:
     command: >
       /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
-      /opt/mrmap/manage.py makemigrations users registry object_permissions
-      jobs"
+      /opt/mrmap/manage.py runserver 0.0.0.0:8001"
     ports:
       - "0.0.0.0:3001:5678"
 

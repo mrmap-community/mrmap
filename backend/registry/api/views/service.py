@@ -1,31 +1,23 @@
 from typing import OrderedDict
 
 from django_celery_results.models import TaskResult
-from registry.api.filters.service import (
-    FeatureTypeFilterSet,
-    LayerFilterSet,
-    OgcServiceFilterSet,
-    WebFeatureServiceFilterSet,
-    WebMapServiceFilterSet,
-)
+from extras.permissions import ReadOnly
+from registry.api.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
+                                          OgcServiceFilterSet,
+                                          WebFeatureServiceFilterSet,
+                                          WebMapServiceFilterSet)
 from registry.api.serializers.jobs import TaskResultSerializer
-from registry.api.serializers.service import (
-    FeatureTypeSerializer,
-    LayerSerializer,
-    OgcServiceCreateSerializer,
-    OgcServiceSerializer,
-    WebFeatureServiceSerializer,
-    WebMapServiceSerializer,
-)
-from registry.models import (
-    FeatureType,
-    Layer,
-    OgcService,
-    WebFeatureService,
-    WebMapService,
-)
+from registry.api.serializers.service import (FeatureTypeSerializer,
+                                              LayerSerializer,
+                                              OgcServiceCreateSerializer,
+                                              OgcServiceSerializer,
+                                              WebFeatureServiceSerializer,
+                                              WebMapServiceSerializer)
+from registry.models import (FeatureType, Layer, OgcService, WebFeatureService,
+                             WebMapService)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
+from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.settings import api_settings
@@ -51,6 +43,7 @@ class WebMapServiceViewSet(NestedViewSetMixin, ModelViewSet):
     prefetch_for_includes = {"__all__": [], "layers": ["layers"]}
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    permission_classes = [DjangoObjectPermissions | ReadOnly]
 
 
 class LayerRelationshipView(RelationshipView):
@@ -77,7 +70,8 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     def get_queryset(self):
         queryset = super(LayerViewSet, self).get_queryset()
         if "parent_lookup_service" in self.kwargs:
-            queryset = queryset.filter(service__id=self.kwargs["parent_lookup_service"])
+            queryset = queryset.filter(
+                service__id=self.kwargs["parent_lookup_service"])
         return queryset
 
 
@@ -120,7 +114,8 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     def get_queryset(self):
         queryset = super(FeatureTypeViewSet, self).get_queryset()
         if "parent_lookup_service" in self.kwargs:
-            queryset = queryset.filter(service__id=self.kwargs["parent_lookup_service"])
+            queryset = queryset.filter(
+                service__id=self.kwargs["parent_lookup_service"])
         return queryset
 
 
@@ -148,8 +143,16 @@ class OgcServiceViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        task = build_ogc_service.delay(data=serializer.data)
-        task_result, created = TaskResult.objects.get_or_create(task_id=task.id)
+        common_info_data = {'owned_by_org_pk': serializer.validated_data['owned_by_org'].pk,
+                            'created_by_user_pk': request.user.pk}
+
+        task = build_ogc_service.delay(get_capabilities_url=serializer.validated_data['get_capabilities_url'],
+                                       collect_metadata_records=serializer.validated_data[
+                                           'collect_metadata_records'],
+                                       auth=None,  # TODO: handle auth information
+                                       **common_info_data)
+        task_result, created = TaskResult.objects.get_or_create(
+            task_id=task.id)
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(

@@ -1,11 +1,13 @@
 
+from django.conf import settings
+from guardian.core import ObjectPermissionChecker
 from registry.api.serializers.metadata import (KeywordSerializer,
                                                StyleSerializer)
 from registry.models.metadata import Keyword, Style
 from registry.models.service import (FeatureType, Layer, OgcService,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
-from rest_framework.fields import BooleanField
+from rest_framework.fields import BooleanField, SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (HyperlinkedRelatedField,
@@ -68,6 +70,8 @@ class WebMapServiceSerializer(ModelSerializer):
         required=False,
     )
 
+    is_accessible = SerializerMethodField()
+
     included_serializers = {
         'layers': LayerSerializer,
     }
@@ -75,6 +79,17 @@ class WebMapServiceSerializer(ModelSerializer):
     class Meta:
         model = WebMapService
         fields = "__all__"
+        meta_fields = ('is_accessible', )
+
+    def get_is_accessible(self, obj):
+        perm_checker = self.context.get('perm_checker', None)
+        if not perm_checker:
+            # fallback with slow solution if no perm_checker is in the context
+            perm_checker = ObjectPermissionChecker(
+                user_or_group=self.context['request']['user'])
+            settings.ROOT_LOGGER.warning(
+                f"slow handling of object permissions detected. Optimize your view by adding a permchecker in your view.")
+        return perm_checker.has_perm(f'view_{obj._meta.model_name}', obj)
 
 
 class FeatureTypeSerializer(ModelSerializer):

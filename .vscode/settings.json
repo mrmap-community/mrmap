@@ -1,35 +1,44 @@
 {
-    "cucumberautocomplete.steps": [
-        "backend/tests/behave/steps/*.py",
-        "backend/tests/behave/api/steps/*.py",
-        "backend/tests/behave/selenium/steps/*.py",
-        ".venv/lib/python3.9/site-packages/behave_webdriver/steps/*.py",
-        ".venv/lib/python3.9/site-packages/behave_restful/lang/*.py"
-        
-    ],
-    "cucumberautocomplete.strictGherkinCompletion": true,
-    "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
-    "cucumberautocomplete.smartSnippets": true,
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
-    "python.linting.flake8Enabled": true,
-    "python.linting.flake8Args": [
-        "--ignore=E501,W504",
-    ],
-    "python.analysis.diagnosticMode": "workspace",
-    "python.analysis.extraPaths": [
-        ".venv"
-    ],
-    "javascript.format.enable": false,
-    "typescript.format.enable": false,
-    "eslint.format.enable": true,
-    "eslint.lintTask.enable": true,
-    "editor.codeActionsOnSave": {
-      "source.fixAll": true
-    },
-    "eslint.workingDirectories": [
-      {
-        "mode": "auto"
-      }
-    ],
-    "eslint.validate": ["javascript", "typescript", "javascriptreact", "typescriptreact"]
+  "cucumberautocomplete.steps": [
+    "backend/tests/behave/steps/*.py",
+    "backend/tests/behave/api/steps/*.py",
+    "backend/tests/behave/selenium/steps/*.py",
+    ".venv/lib/python3.9/site-packages/behave_webdriver/steps/*.py",
+    ".venv/lib/python3.9/site-packages/behave_restful/lang/*.py"
+  ],
+  "cucumberautocomplete.strictGherkinCompletion": true,
+  "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
+  "cucumberautocomplete.smartSnippets": true,
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--ignore=E501,W504",
+    "--remove-all-unused-imports",
+  ],
+  "python.linting.lintOnSave": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.extraPaths": [
+    ".venv"
+  ],
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": true,
+    "source.organizeImports": true
+  },
+  "javascript.format.enable": false,
+  "typescript.format.enable": false,
+  "eslint.format.enable": true,
+  "eslint.lintTask.enable": true,
+  "eslint.workingDirectories": [
+    {
+      "mode": "auto"
+    }
+  ],
+  "eslint.validate": [
+    "javascript",
+    "typescript",
+    "javascriptreact",
+    "typescriptreact"
+  ],
 }

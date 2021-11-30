@@ -55,10 +55,9 @@ INSTALLED_APPS = [
     "django_filters",
     "django_nose",
     "mptt",
-    # "corsheaders",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "users",
-    "acls",
+    "object_permissions",
     "jobs",
     "registry",
     "extras",
@@ -155,7 +154,8 @@ ALLOWED_HOSTS = os.environ.get(
 ).split(";")
 
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+    CORS_ALLOWED_ORIGINS = os.environ.get(
+        "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -437,7 +437,8 @@ MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 DEFAULT_SRS = 4326
 FONT_IMG_RATIO = 1 / 20  # Font to image ratio
 ERROR_MASK_VAL = (
-    1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
+    # Indicates an error while creating the mask ("good" values are either 0 or 255)
+    1
 )
 ERROR_MASK_TXT = (
     "Error during mask creation! \nCheck the configuration of security_mask.map!"
@@ -447,7 +448,8 @@ ERROR_MASK_TXT = (
 ################################################################
 ROOT_LOGGER = logging.getLogger("MrMap.root")
 
-LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+LOG_DIR = os.environ.get(
+    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 

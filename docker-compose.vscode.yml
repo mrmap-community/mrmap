@@ -4,13 +4,17 @@ services:
 
   backend:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
+      /opt/mrmap/manage.py makemigrations users registry object_permissions
+      jobs"
     ports:
       - "0.0.0.0:3001:5678"
-  
+
   celery-default-worker:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /usr/local/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
+      /usr/local/bin/watchmedo auto-restart --directory=./ --pattern=*.py
+      --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
@@ -20,7 +24,10 @@ services:
 
   celery-download-worker:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /usr/local/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
+      /usr/local/bin/watchmedo auto-restart --directory=./ --pattern=*.py
+      --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q
+      download_iso_metadata,download_described_elements,harvest"
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
@@ -30,6 +37,10 @@ services:
 
   behave:
     command: >
-        /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
+      /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped
+      tests/behave/api/features && python -u -m debugpy --listen 0.0.0.0:5678
+      /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped
+      tests/behave/selenium/features"
     ports:
       - "0.0.0.0:3004:5678"

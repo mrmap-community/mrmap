@@ -1,17 +1,18 @@
 import hashlib
 import uuid
+
 import six
-from django.db.models import Q, QuerySet
-from django.utils.functional import cached_property
-from acls.models.acls import AccessControlList
-from extras.models import CommonInfo, GenericModelMixin
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
+from django.db.models import Q, QuerySet
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from extras.models import CommonInfo, GenericModelMixin
+
 from users.models.groups import Organization
 from users.settings import USER_ACTIVATION_TIME_WINDOW
 
@@ -39,26 +40,6 @@ class MrMapUser(AbstractUser):
     def get_edit_view_url(self):
         return reverse('users:edit_profile')
 
-    @cached_property
-    def organizations(self):
-        return Organization.objects.prefetch_related('acls_accesscontrollist_owned_by_org',
-                                                     'acls_accesscontrollist_owned_by_org__user_set',
-                                                     'acls_accesscontrollist_owned_by_org__permissions')\
-            .filter(acls_accesscontrollist_owned_by_org__permissions__codename='view_organization')\
-            .distinct('name')
-
-    def get_publishable_organizations(self):
-        if self.is_superuser:
-            return Organization.objects.all()
-        else:
-            organizations = Organization.objects.\
-                filter(acls_accesscontrollist_owned_by_org__in=AccessControlList.objects.
-                       filter(user=self, permissions__codename='add_resource'))\
-                .prefetch_related('can_publish_for')
-            for org in organizations:
-                organizations |= org.can_publish_for.all()
-            return organizations.distinct('name', 'pk')
-
     def get_instances(self, klass, filter: Q = None, perms: str = None, accept_global_perms: bool = False) -> QuerySet:
         from guardian.shortcuts import get_objects_for_user
         if not perms:
@@ -81,7 +62,8 @@ class MrMapUser(AbstractUser):
         # user does not exist yet! We need to create an activation object
         user_activation = UserActivation()
         user_activation.user = self
-        user_activation.activation_until = timezone.now() + timezone.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
+        user_activation.activation_until = timezone.now(
+        ) + timezone.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
         hasher = get_hasher('default')
         user_activation.activation_hash = hashlib.sha256(
             self.username + hasher.salt() + str(user_activation.activation_until))
@@ -89,7 +71,8 @@ class MrMapUser(AbstractUser):
 
 
 class UserActivation(models.Model, PasswordResetTokenGenerator):
-    user = models.OneToOneField(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
     activation_until = models.DateTimeField(null=False, blank=False)
     activation_hash = models.CharField(primary_key=True, max_length=500)
 
@@ -100,7 +83,8 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
              update_fields=None):
         if self._state.adding:
             if not self.activation_until:
-                self.activation_until = timezone.now() + timezone.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
+                self.activation_until = timezone.now(
+                ) + timezone.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
             self.activation_hash = self.make_token(self.user)
         super().save(force_insert, force_update, using, update_fields)
 
@@ -124,7 +108,8 @@ class Subscription(GenericModelMixin, CommonInfo):
                                             null=True,
                                             blank=True,
                                             on_delete=models.CASCADE,
-                                            verbose_name=_('web feature service'),
+                                            verbose_name=_(
+                                                'web feature service'),
                                             help_text=_("Select the service you want to subscribe. When you edit an existing "
                                                         "subscription, you can not change this selection."))
     user = models.ForeignKey(to=MrMapUser,
@@ -133,11 +118,13 @@ class Subscription(GenericModelMixin, CommonInfo):
                                            verbose_name=_('Notify on update'),
                                            help_text=_("Sends an e-mai if the service has been updated."))
     notify_on_metadata_edit = models.BooleanField(default=True,
-                                                  verbose_name=_('Notify on metadata edit'),
+                                                  verbose_name=_(
+                                                      'Notify on metadata edit'),
                                                   help_text=_("Sends an e-mai if the service's metadata has been "
                                                               "changed."))
     notify_on_access_edit = models.BooleanField(default=True,
-                                                verbose_name=_('Notify on access edit'),
+                                                verbose_name=_(
+                                                    'Notify on access edit'),
                                                 help_text=_("Sends an e-mai if the service's access has been changed."))
     created_on = models.DateTimeField(auto_now_add=True)
 

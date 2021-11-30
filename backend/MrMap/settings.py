@@ -16,7 +16,7 @@ import sys
 from django.contrib import messages
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
-from kombu import Queue, Exchange
+from kombu import Exchange, Queue
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,72 +26,70 @@ MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/media")
 if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT)
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
-    'channels',
-    'guardian',
-    'polymorphic',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.postgres',
-    'django.contrib.gis',
-    'django_extensions',
-    'captcha',
-    'rest_framework',
-    'rest_framework.authtoken',
-    'rest_framework_gis',
-    'rest_framework_json_api',
-    'dj_rest_auth',
-    'django_celery_beat',
-    'django_celery_results',
-    'django_filters',
-    'django_nose',
-    'mptt',
-    'corsheaders',
-    'MrMap',  # added so we can use general commands in MrMap/management/commands
-    'users',
-    'acls',
-    'jobs',
-    'registry',
-    'extras',
+    "channels",
+    "guardian",
+    "polymorphic",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.postgres",
+    "django.contrib.gis",
+    "django_extensions",
+    "captcha",
+    "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_gis",
+    "rest_framework_json_api",
+    "dj_rest_auth",
+    "django_celery_beat",
+    "django_celery_results",
+    "django_filters",
+    "django_nose",
+    "mptt",
+    "corsheaders",
+    "MrMap",  # added so we can use general commands in MrMap/management/commands
+    "users",
+    "acls",
+    "jobs",
+    "registry",
+    "extras",
 ]
 
 MIDDLEWARE = [
     # 'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
+    "django.middleware.security.SecurityMiddleware",
     # 'django.middleware.gzip.GZipMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     # 'django.contrib.auth.middleware.RemoteUserMiddleware',
     # 'django.contrib.messages.middleware.MessageMiddleware',
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'crum.CurrentRequestUserMiddleware',
+    "crum.CurrentRequestUserMiddleware",
 ]
 
-TEMPLATE_LOADERS = (
-    'django.template.loaders.app_directories.Loader'
-)
+TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
             ],
         },
     },
@@ -99,60 +97,68 @@ TEMPLATES = [
 
 if DEBUG:
     INSTALLED_APPS.append(
-        'debug_toolbar',
+        "debug_toolbar",
     )
     # Disable all panels by default
     DEBUG_TOOLBAR_CONFIG = {
         "DISABLE_PANELS": {
-            'debug_toolbar.panels.versions.VersionsPanel',
-            'debug_toolbar.panels.timer.TimerPanel',
-            'debug_toolbar.panels.settings.SettingsPanel',
-            'debug_toolbar.panels.headers.HeadersPanel',
-            'debug_toolbar.panels.request.RequestPanel',
-            'debug_toolbar.panels.sql.SQLPanel',
-            'debug_toolbar.panels.staticfiles.StaticFilesPanel',
-            'debug_toolbar.panels.templates.TemplatesPanel',
-            'debug_toolbar.panels.cache.CachePanel',
-            'debug_toolbar.panels.signals.SignalsPanel',
-            'debug_toolbar.panels.logging.LoggingPanel',
-            'debug_toolbar.panels.redirects.RedirectsPanel',
-            'debug_toolbar.panels.profiling.ProfilingPanel',
+            "debug_toolbar.panels.versions.VersionsPanel",
+            "debug_toolbar.panels.timer.TimerPanel",
+            "debug_toolbar.panels.settings.SettingsPanel",
+            "debug_toolbar.panels.headers.HeadersPanel",
+            "debug_toolbar.panels.request.RequestPanel",
+            "debug_toolbar.panels.sql.SQLPanel",
+            "debug_toolbar.panels.staticfiles.StaticFilesPanel",
+            "debug_toolbar.panels.templates.TemplatesPanel",
+            "debug_toolbar.panels.cache.CachePanel",
+            "debug_toolbar.panels.signals.SignalsPanel",
+            "debug_toolbar.panels.logging.LoggingPanel",
+            "debug_toolbar.panels.redirects.RedirectsPanel",
+            "debug_toolbar.panels.profiling.ProfilingPanel",
         },
-        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
     }
 
-    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
 
-if os.environ.get("MRMAP_PRODUCTION") == 'False':
-    INSTALLED_APPS.extend([
-        'behave_django',
-        'django.forms',  # for debug_toolbar and rest api html page
-    ])
+if os.environ.get("MRMAP_PRODUCTION") == "False":
+    INSTALLED_APPS.extend(
+        [
+            "behave_django",
+            "django.forms",  # for debug_toolbar and rest api html page
+        ]
+    )
 
 # Password hashes
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
 ]
 
-ROOT_URLCONF = 'MrMap.urls'
+ROOT_URLCONF = "MrMap.urls"
 
-FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
+FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 
-METADATA_URL = ["request=GetMetadata&", ]
+METADATA_URL = [
+    "request=GetMetadata&",
+]
 
-BASE_URL_FOR_ETF = os.environ.get("MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001")
+BASE_URL_FOR_ETF = os.environ.get(
+    "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
+)
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver").split(";")
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver"
+).split(";")
 
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
     CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
 
 USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
@@ -160,16 +166,14 @@ GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
-LANGUAGE_CODE = 'en'
+LANGUAGE_CODE = "en"
 LANGUAGES = (
-    ('en', _('English')),
-    ('de', _('German')),
+    ("en", _("English")),
+    ("de", _("German")),
 )
-LOCALE_PATHS = (
-    os.path.join(BASE_DIR, 'locale'),
-)
-DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
-TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE')
+LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
+DEFAULT_DATE_TIME_FORMAT = "YYYY-MM-DD hh:mm:ss"
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE")
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -188,24 +192,26 @@ VERIFY_SSL_CERTIFICATES = True
 # django-guardian
 
 AUTHENTICATION_BACKENDS = (
-    'django.contrib.auth.backends.ModelBackend',  # default
-    'guardian.backends.ObjectPermissionBackend',
+    "django.contrib.auth.backends.ModelBackend",  # default
+    "guardian.backends.ObjectPermissionBackend",
 )
 
 GUARDIAN_RAISE_403 = True
 
 # django-guardian-roles
-GUARDIAN_ROLES_OWNABLE_MODELS = ['registry.Metadata',
-                                 'registry.MonitoringRun',
-                                 'registry.MonitoringResult',
-                                 'registry.HealthState',
-                                 'registry.ProxyLog']
+GUARDIAN_ROLES_OWNABLE_MODELS = [
+    "registry.Metadata",
+    "registry.MonitoringRun",
+    "registry.MonitoringResult",
+    "registry.HealthState",
+    "registry.ProxyLog",
+]
 
-GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = 'owned_by_org'
-GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = '_owned_by_org'
+GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = "owned_by_org"
+GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = "_owned_by_org"
 
-GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = 'organization_administrator'
-GUARDIAN_ROLES_OWNER_MODEL = 'users.Organization'
+GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = "organization_administrator"
+GUARDIAN_ROLES_OWNER_MODEL = "users.Organization"
 
 ################################################################
 # Database settings
@@ -218,17 +224,17 @@ DATABASES = {
         "USER": os.environ.get("SQL_USER"),
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
-        "PORT": os.environ.get("SQL_PORT")
+        "PORT": os.environ.get("SQL_PORT"),
     }
 }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
 # Redis settings
 ################################################################
 REDIS_HOST = os.environ.get("REDIS_HOST")
 REDIS_PORT = os.environ.get("REDIS_PORT")
-BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
+BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
 # Cache
 # Use local redis installation as cache
@@ -241,35 +247,42 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-        }
+        },
     },
-    'local-memory': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
+    "local-memory": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+    },
 }
 
 
 ################################################################
 # Celery settings
 ################################################################
-CELERY_RESULT_BACKEND = 'django-db'
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_DEFAULT_QUEUE = "default"
 CELERY_DEFAULT_EXCHANGE = "default"
 
 CELERY_QUEUES = (
-    Queue('default', Exchange('default'), routing_key='default'),
-    Queue('download_iso_metadata', Exchange('download_iso_metadata'), routing_key='download_iso_metadata'),
-    Queue('download_described_elements', Exchange('download_described_elements'),
-          routing_key='download_described_elements'),
-    Queue('harvest', Exchange('harvest'), routing_key='harvest'),
+    Queue("default", Exchange("default"), routing_key="default"),
+    Queue(
+        "download_iso_metadata",
+        Exchange("download_iso_metadata"),
+        routing_key="download_iso_metadata",
+    ),
+    Queue(
+        "download_described_elements",
+        Exchange("download_described_elements"),
+        routing_key="download_described_elements",
+    ),
+    Queue("harvest", Exchange("harvest"), routing_key="harvest"),
 )
 
 ################################################################
@@ -292,40 +305,38 @@ MIN_PASSWORD_LENGTH = 9
 MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
             "min_length": MIN_PASSWORD_LENGTH,
-        }
+        },
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-STATIC_URL = '/backend/static/'
+STATIC_URL = "/backend/static/"
 STATIC_ROOT = "/var/www/mrmap/static/"
-STATICFILES_DIRS = [
-    BASE_DIR + '/MrMap/static'
-]
+STATICFILES_DIRS = [BASE_DIR + "/MrMap/static"]
 
 # static is used for localdev + runserver
-if os.path.exists(BASE_DIR + '/static'):
-    STATICFILES_DIRS.append(BASE_DIR + '/static')
+if os.path.exists(BASE_DIR + "/static"):
+    STATICFILES_DIRS.append(BASE_DIR + "/static")
 
 # /tmp/static is used in docker container
 if os.path.exists("/tmp/static"):
-    STATICFILES_DIRS.append('/tmp/static')
+    STATICFILES_DIRS.append("/tmp/static")
 
-WSGI_APPLICATION = 'MrMap.wsgi.application'
-ASGI_APPLICATION = 'MrMap.asgi.application'
+WSGI_APPLICATION = "MrMap.wsgi.application"
+ASGI_APPLICATION = "MrMap.asgi.application"
 
 # Extends the number of GET/POST parameters
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
@@ -343,7 +354,7 @@ PAGE_DEFAULT = 1
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = 'users.MrMapUser'
+AUTH_USER_MODEL = "users.MrMapUser"
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60
@@ -353,36 +364,34 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 # define the message tags for bootstrap
 MESSAGE_TAGS = {
-    messages.DEBUG: 'alert-info',
-    messages.INFO: 'alert-info',
-    messages.SUCCESS: 'alert-success',
-    messages.WARNING: 'alert-warning',
-    messages.ERROR: 'alert-danger',
+    messages.DEBUG: "alert-info",
+    messages.INFO: "alert-info",
+    messages.SUCCESS: "alert-success",
+    messages.WARNING: "alert-warning",
+    messages.ERROR: "alert-danger",
 }
 
 ################################################################
 # nose test runner settings
 ################################################################
-if 'test' in sys.argv:
+if "test" in sys.argv:
     CAPTCHA_TEST_MODE = True
 
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+TEST_RUNNER = "django_nose.NoseTestSuiteRunner"
 NOSE_ARGS = [
-    '--with-xunit',
-    f'--xunit-file={BASE_DIR}/xunit-result.xml',
-    '--with-coverage',
-    '--cover-erase',
-    '--cover-xml',
-    f'--cover-xml-file={BASE_DIR}/coverage-report.xml',
+    "--with-xunit",
+    f"--xunit-file={BASE_DIR}/xunit-result.xml",
+    "--with-coverage",
+    "--cover-erase",
+    "--cover-xml",
+    f"--cover-xml-file={BASE_DIR}/coverage-report.xml",
 ]
 
 ################################################################
 # DJANGO DEBUG TOOLBAR
 ################################################################
 # Add the IP for which the toolbar should be shown
-INTERNAL_IPS = [
-    "127.0.0.1"
-]
+INTERNAL_IPS = ["127.0.0.1"]
 
 # Defines xml namespaces used for xml parsing and creating
 XML_NAMESPACES = {
@@ -417,23 +426,28 @@ GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 ################################################################
 # Mapserver
 ################################################################
-MAPSERVER_URL = os.environ.get('MAPSERVER_URL')
+MAPSERVER_URL = os.environ.get("MAPSERVER_URL")
 MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
-    "MAPSERVER_SECURITY_MASK_FILE_PATH")  # path on the machine which provides the mapserver service
+    "MAPSERVER_SECURITY_MASK_FILE_PATH"
+)  # path on the machine which provides the mapserver service
 MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
 DEFAULT_SRS = 4326
 FONT_IMG_RATIO = 1 / 20  # Font to image ratio
-ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
-ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
+ERROR_MASK_VAL = (
+    1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
+)
+ERROR_MASK_TXT = (
+    "Error during mask creation! \nCheck the configuration of security_mask.map!"
+)
 ################################################################
 # Logger settings
 ################################################################
-ROOT_LOGGER = logging.getLogger('MrMap.root')
+ROOT_LOGGER = logging.getLogger("MrMap.root")
 
-LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f'/var/log/mrmap/{socket.gethostname()}/')
+LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
@@ -442,60 +456,59 @@ if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
             # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
-            'format': '{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}',
-            'style': '{',
+            "format": "{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}",
+            "style": "{",
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
         },
     },
-    'handlers': {
-        'syslog': {
-            'class': 'logging.handlers.SysLogHandler',
-            'formatter': 'verbose',
-            'facility': 'user',
-            'address': ('localhost', 1514),
+    "handlers": {
+        "syslog": {
+            "class": "logging.handlers.SysLogHandler",
+            "formatter": "verbose",
+            "facility": "user",
+            "address": ("localhost", 1514),
         },
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + 'logs.log',
-            'formatter': 'verbose',
-        }
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "maxBytes": LOG_FILE_MAX_SIZE,
+            "backupCount": LOG_FILE_BACKUP_COUNT,
+            "filename": LOG_DIR + "logs.log",
+            "formatter": "verbose",
+        },
     },
-    'loggers': {
-        'MrMap.root': {
-            'handlers': ['file', 'syslog'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
-            'disabled': False,
-            'propagate': True,
+    "loggers": {
+        "MrMap.root": {
+            "handlers": ["file", "syslog"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "disabled": False,
+            "propagate": True,
         },
     },
 }
 
 REST_FRAMEWORK = {
-    'PAGE_SIZE': 10,
-    'MAX_PAGE_SIZE': 100,
-    'EXCEPTION_HANDLER': 'rest_framework_json_api.exceptions.exception_handler',
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
+    "PAGE_SIZE": 10,
+    "MAX_PAGE_SIZE": 100,
+    "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
     ),
-    'DEFAULT_PAGINATION_CLASS':
-        'rest_framework_json_api.pagination.JsonApiPageNumberPagination',
-    'DEFAULT_PARSER_CLASSES': (
-        'rest_framework_json_api.parsers.JSONParser',
+    "DEFAULT_PAGINATION_CLASS": "rest_framework_json_api.pagination.JsonApiPageNumberPagination",
+    "DEFAULT_PARSER_CLASSES": (
+        "rest_framework_json_api.parsers.JSONParser",
         # 'rest_framework.parsers.FormParser',
         # 'rest_framework.parsers.MultiPartParser'
     ),
-    'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework_json_api.renderers.JSONRenderer',
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework_json_api.renderers.JSONRenderer",
         # If you're performance testing, you will want to use the browseable API
         # without forms, as the forms can generate their own queries.
         # If performance testing, enable:
@@ -503,17 +516,17 @@ REST_FRAMEWORK = {
         # Otherwise, to play around with the browseable API, enable:
         # 'rest_framework_json_api.renderers.BrowsableAPIRenderer'
     ),
-    'DEFAULT_METADATA_CLASS': 'rest_framework_json_api.metadata.JSONAPIMetadata',
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework_json_api.schemas.openapi.AutoSchema',
-    'DEFAULT_FILTER_BACKENDS': (
-        'rest_framework_json_api.filters.QueryParameterValidationFilter',
-        'rest_framework_json_api.filters.OrderingFilter',
-        'rest_framework_json_api.django_filters.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
+    "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
+    "DEFAULT_SCHEMA_CLASS": "rest_framework_json_api.schemas.openapi.AutoSchema",
+    "DEFAULT_FILTER_BACKENDS": (
+        "rest_framework_json_api.filters.QueryParameterValidationFilter",
+        "rest_framework_json_api.filters.OrderingFilter",
+        "rest_framework_json_api.django_filters.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
     ),
-    'SEARCH_PARAM': 'filter[search]',
-    'TEST_REQUEST_RENDERER_CLASSES': (
-        'rest_framework_json_api.renderers.JSONRenderer',
+    "SEARCH_PARAM": "filter[search]",
+    "TEST_REQUEST_RENDERER_CLASSES": (
+        "rest_framework_json_api.renderers.JSONRenderer",
     ),
-    'TEST_REQUEST_DEFAULT_FORMAT': 'vnd.api+json'
+    "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
 }

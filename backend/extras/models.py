@@ -1,15 +1,15 @@
 import threading
 
-from uuid import uuid4
+from crum import get_current_user
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.db import models
-from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
-from crum import get_current_user
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
 from extras.utils import camel_to_snake
 
 _thread_locals = threading.local()
@@ -44,13 +44,20 @@ class GenericModelMixin:
     def get_add_url(cls) -> str:
         instance = cls()
         try:
-            return reverse(f'{instance._meta.app_label}:{camel_to_snake(instance.__class__.__name__)}_add')
+            return reverse(
+                f"{instance._meta.app_label}:{camel_to_snake(instance.__class__.__name__)}_add"
+            )
         except NoReverseMatch:
             return ""
 
     def get_absolute_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view', args=[self.pk, ])
+            return reverse(
+                f"{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_view",
+                args=[
+                    self.pk,
+                ],
+            )
         except NoReverseMatch:
             return self.get_concrete_table_url()
 
@@ -59,69 +66,79 @@ class GenericModelMixin:
         instance = cls()
         try:
             return reverse(
-                f'{instance._meta.app_label}:{camel_to_snake(instance.__class__.__name__)}_list')
+                f"{instance._meta.app_label}:{camel_to_snake(instance.__class__.__name__)}_list"
+            )
         except NoReverseMatch:
             return ""
 
     def get_concrete_table_url(self) -> str:
         try:
-            return reverse(
-                f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_list') + f'?id__in={self.pk}'
+            return (
+                reverse(
+                    f"{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_list"
+                )
+                + f"?id__in={self.pk}"
+            )
         except NoReverseMatch:
             return ""
 
     def get_change_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_change', args=[self.pk, ])
+            return reverse(
+                f"{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_change",
+                args=[
+                    self.pk,
+                ],
+            )
         except NoReverseMatch:
             return ""
 
     def get_delete_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_delete', args=[self.pk, ])
+            return reverse(
+                f"{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_delete",
+                args=[
+                    self.pk,
+                ],
+            )
         except NoReverseMatch:
             return ""
 
     def get_restore_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_restore', args=[self.pk, ])
+            return reverse(
+                f"{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_restore",
+                args=[
+                    self.pk,
+                ],
+            )
         except NoReverseMatch:
             return ""
 
     def get_xml_view_url(self) -> str:
         try:
-            return reverse(f'{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_xml_view', args=[self.pk])
+            return reverse(
+                f"{self._meta.app_label}:{camel_to_snake(self.__class__.__name__)}_xml_view",
+                args=[self.pk],
+            )
         except NoReverseMatch:
             return ""
 
 
-class UuidPk(models.Model):
-    """
-    An abstract model which adds uuid as primary key
-    """
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-
-    class Meta:
-        abstract = True
-
-    def __str__(self):
-        return str(self.pk)
-
-
 def set_current_owner(owner):
     """
-        .. note:
-            be carefully of using _thread_locals with celery. Celery worker threads are endless running.
+    .. note:
+        be carefully of using _thread_locals with celery. Celery worker threads are endless running.
     """
     _thread_locals.owner = owner
 
 
 def get_current_owner():
     """
-        .. note:
-            be carefully of using _thread_locals with celery. Celery worker threads are endless running.
+    .. note:
+        be carefully of using _thread_locals with celery. Celery worker threads are endless running.
     """
-    return getattr(_thread_locals, 'owner', None)
+    return getattr(_thread_locals, "owner", None)
 
 
 class CommonInfo(models.Model):
@@ -129,37 +146,51 @@ class CommonInfo(models.Model):
     An abstract model which adds fields to store the creation and last-updated times for an object. All fields can be
     null to facilitate adding these fields to existing instances via a database migration.
     """
-    created_at = models.DateTimeField(verbose_name=_('Created at'),
-                                      help_text=_('The timestamp of the creation date of this object.'),
-                                      auto_now_add=True,
-                                      editable=False,
-                                      db_index=True)
-    created_by_user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                                        verbose_name=_('Created by'),
-                                        help_text=_('The user who has created this object.'),
-                                        editable=False,
-                                        blank=True, null=True,
-                                        related_name="%(app_label)s_%(class)s_created_by_user",
-                                        on_delete=models.SET_NULL)
-    owned_by_org = models.ForeignKey(settings.GUARDIAN_ROLES_OWNER_MODEL,
-                                     verbose_name=_('Owner'),
-                                     help_text=_('The organization which is the owner of this object.'),
-                                     editable=False,
-                                     blank=True, null=True,
-                                     related_name="%(app_label)s_%(class)s_owned_by_org",
-                                     on_delete=models.SET_NULL)
-    last_modified_at = models.DateTimeField(verbose_name=_('Last modified at'),
-                                            help_text=_('The timestamp of the last modification of this object'),
-                                            editable=False,
-                                            auto_now=True,
-                                            db_index=True)
-    last_modified_by = models.ForeignKey(settings.AUTH_USER_MODEL,
-                                         verbose_name=_('Last modified by'),
-                                         help_text=_('The last user who has modified this object.'),
-                                         blank=True, null=True,
-                                         editable=False,
-                                         related_name="%(app_label)s_%(class)s_last_modified_by",
-                                         on_delete=models.SET_NULL)
+
+    created_at = models.DateTimeField(
+        verbose_name=_("Created at"),
+        help_text=_("The timestamp of the creation date of this object."),
+        auto_now_add=True,
+        editable=False,
+        db_index=True,
+    )
+    created_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Created by"),
+        help_text=_("The user who has created this object."),
+        editable=False,
+        blank=True,
+        null=True,
+        related_name="%(app_label)s_%(class)s_created_by_user",
+        on_delete=models.SET_NULL,
+    )
+    owned_by_org = models.ForeignKey(
+        settings.GUARDIAN_ROLES_OWNER_MODEL,
+        verbose_name=_("Owner"),
+        help_text=_("The organization which is the owner of this object."),
+        editable=False,
+        blank=True,
+        null=True,
+        related_name="%(app_label)s_%(class)s_owned_by_org",
+        on_delete=models.SET_NULL,
+    )
+    last_modified_at = models.DateTimeField(
+        verbose_name=_("Last modified at"),
+        help_text=_("The timestamp of the last modification of this object"),
+        editable=False,
+        auto_now=True,
+        db_index=True,
+    )
+    last_modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Last modified by"),
+        help_text=_("The last user who has modified this object."),
+        blank=True,
+        null=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_last_modified_by",
+        on_delete=models.SET_NULL,
+    )
 
     class Meta:
         abstract = True

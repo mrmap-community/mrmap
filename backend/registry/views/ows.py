@@ -5,49 +5,38 @@ from io import BytesIO
 from queue import Queue
 from threading import Thread
 
-from PIL import Image, ImageFont, ImageDraw
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
 from django.db import connection, transaction
 from django.db.models.functions import datetime
-from django.http import HttpResponse
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from eulxml import xmlmap
-from requests import Session, Request
-from requests.exceptions import (
-    ConnectTimeout as ConnectTimeoutException,
-    ConnectionError as ConnectionErrorException,
-)
-
-from MrMap.messages import (
-    SERVICE_NOT_FOUND,
-    SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE,
-    SERVICE_DISABLED,
-    SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE,
-    SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE,
-)
-from MrMap.settings import PROXIES
 from extras.utils import execute_threads
-from registry.models.service import WebFeatureService, WebMapService
-from ows_client.exception_reports import NO_FEATURE_TYPES, MULTIPLE_FEATURE_TYPES
+from MrMap.settings import PROXIES
+from ows_client.exception_reports import MULTIPLE_FEATURE_TYPES, NO_FEATURE_TYPES
 from ows_client.exceptions import (
     MissingBboxParam,
     MissingServiceParam,
     MissingVersionParam,
 )
 from ows_client.request_builder import WebService
-from registry.enums.service import OGCServiceEnum, OGCOperationEnum
+from PIL import Image, ImageDraw, ImageFont
+from registry.enums.service import OGCOperationEnum, OGCServiceEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
+from registry.models.service import WebFeatureService, WebMapService
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 from registry.xmlmapper.ogc.wfs_get_feature import GetFeature
 from registry.xmlmapper.ogc.wfs_transaction import Transaction
+from requests import Request, Session
+from requests.exceptions import ConnectionError as ConnectionErrorException
+from requests.exceptions import ConnectTimeout as ConnectTimeoutException
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -146,20 +135,20 @@ class GenericOwsServiceOperationFacade(View):
         """
         if not self.service:
             return self.return_http_response(
-                {"status_code": 404, "content": SERVICE_NOT_FOUND}
+                {"status_code": 404, "content": "SERVICE_NOT_FOUND"}
             )
         elif not self.request.query_parameters.get("request", None):
             return self.return_http_response(
                 {
                     "status_code": 400,
-                    "content": SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE,
+                    "content": "SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE",
                 }
             )
         elif not self.request.query_parameters.get("service", None):
             return self.return_http_response(
                 {
                     "status_code": 400,
-                    "content": SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE,
+                    "content": "SECURITY_PROXY_ERROR_MISSING_SERVICE_TYPE",
                 }
             )
         elif (
@@ -171,12 +160,12 @@ class GenericOwsServiceOperationFacade(View):
             return self.return_http_response(
                 {
                     "status_code": 400,
-                    "content": SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE,
+                    "content": "SECURITY_PROXY_ERROR_MISSING_VERSION_TYPE",
                 }
             )
         elif not self.service.is_active:
             return self.return_http_response(
-                {"status_code": 423, "content": SERVICE_DISABLED}
+                {"status_code": 423, "content": "SERVICE_DISABLED"}
             )
         elif (
             not self.request.query_parameters.get("request").lower()

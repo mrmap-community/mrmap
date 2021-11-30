@@ -55,7 +55,7 @@ INSTALLED_APPS = [
     "django_filters",
     "django_nose",
     "mptt",
-    "corsheaders",
+    # "corsheaders",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "users",
     "acls",

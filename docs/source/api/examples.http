@@ -1,0 +1,68 @@
+@host = https://localhost/
+@organization = 30c54b62-fa4f-4158-86c2-763ebeb3747b
+@get_capabilities_url = https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities
+@sql_timing = off
+@username = mrmap
+@password = mrmap
+@session_id = nkg9trrp00a1dm1ectr7aajb4x8n88uf
+@csrf_token = G9EkL90FynWIuHwSqKfZBjb0gMUvbPvWfj7ElIVyWVwt3plZyXDvX9JyVSveGmCs
+
+# @name postOgcService
+POST {{host}}api/v1/registry/ogcservices/ HTTP/1.1
+content-type: application/vnd.api+json
+Referer: {{host}}api/v1/registry/ogcservices/
+X-CSRFToken: {{csrf_token}}
+
+{
+  "data": {
+    "type": "OgcService",
+    "attributes": {
+      "get_capabilities_url": "{{get_capabilities_url}}",
+      "collect_metadata_records": true
+    },
+    "relationships": {
+      "owned_by_org": {
+        "data": {"id": "{{organization}}", "type": "Organization"}
+      }
+    }
+  }
+}
+
+###
+
+# @name getWmsList
+GET {{host}}api/v1/registry/wms/ HTTP/1.1
+Content-Type: application/vnd.api+json
+Cookie: djdtSQLPanel={{sql_timing}};
+Referer: {{host}}api/v1/registry/wms/
+
+###
+
+# @name login
+POST {{host}}api/v1/users/login/ HTTP/1.1
+Content-Type: application/vnd.api+json
+Referer: {{host}}api/v1/users/login/
+
+{
+  "data": {
+    "type": "Login",
+    "attributes": {
+      "username": "{{username}}",
+      "password": "{{password}}"
+    }
+  }
+}
+
+### 
+
+# @name logout
+POST {{host}}api/v1/users/logout/ HTTP/1.1
+Content-Type: application/vnd.api+json
+Referer: {{host}}api/v1/users/logout/
+X-CSRFToken: {{csrf_token}}
+
+{
+  "data": {
+    "type": "Logout"
+  }
+}

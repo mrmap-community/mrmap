@@ -32,8 +32,8 @@ export interface JsonApiPrimaryData {
 export interface QueryParams {
     page: number;
     pageSize: number;
-    ordering: string;
-    filters: any;
+    ordering?: string;
+    filters?: any;
 }
 
 export class JsonApiRepo {
@@ -104,9 +104,8 @@ export class JsonApiRepo {
           'page[size]': queryParams.pageSize,
           ...queryParams.filters
         };
-        // TODO why can a string occur here?
-        if (queryParams.ordering && queryParams.ordering !== 'undefined') {
-          jsonApiParams.ordering = queryParams.ordering;
+        if (queryParams.ordering) {
+          jsonApiParams.sort = queryParams.ordering;
         }
       }
       return await client['List' + this.resourcePath](jsonApiParams);

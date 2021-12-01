@@ -4,6 +4,8 @@
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^4.7.0",
+    "@ant-design/pro-layout": "^6.31.3",
+    "@ant-design/pro-table": "^2.59.0",
     "@rjsf/antd": "^3.2.0",
     "@rjsf/core": "^3.2.0",
     "@testing-library/jest-dom": "^5.11.4",

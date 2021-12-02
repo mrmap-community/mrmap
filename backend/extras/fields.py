@@ -13,7 +13,7 @@ class ExtendedHyperlinkedRelatedField(HyperlinkedRelatedField):
 
     def get_links(self, obj=None, lookup_field="pk"):
         links = super().get_links(obj=obj, lookup_field=lookup_field)
-        # FIXME: make it save to execute on runtime
+        # FIXME: make it save to execute on runtime if AttributeError occours
         if self.meta_attrs:
             meta = {}
             for lookup, name in self.meta_attrs.items():

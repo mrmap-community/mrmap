@@ -5,7 +5,7 @@
 @username = mrmap
 @password = mrmap
 @session_id = nkg9trrp00a1dm1ectr7aajb4x8n88uf
-@csrf_token = zx5d36Dx7N3p7hax6RZh0QXylMvY8r1PmJPWYsXR2eLUSiOKV5ED6ze1h8jsWNib
+@csrf_token = IW89P72MOwSpNafI8W04xP7m06LS1hTEWgighJR4F5N4HsVFVjPetj1w8ogCh0Pq
 
 # @name postOgcService
 POST {{host}}api/v1/registry/ogcservices/ HTTP/1.1
@@ -38,6 +38,13 @@ Referer: {{host}}api/v1/registry/wms/
 
 ###
 
+# @name getUserList
+GET {{host}}api/v1/users/users/
+Content-Type: application/vnd.api+json
+Referer: {{host}}api/v1/registry/wms/
+
+###
+
 # @name addUser
 POST {{host}}api/v1/users/users/
 Content-Type: application/vnd.api+json
@@ -49,7 +56,8 @@ Referer: {{host}}api/v1/registry/wms/
     "type": "User",
     "attributes": {
       "is_superuser": false,
-      "username": "testuser",
+      "username": "testuser10",
+      "password": "test",
       "is_active": true
     },
     "relationships": {

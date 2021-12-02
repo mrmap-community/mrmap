@@ -4,6 +4,7 @@ from extras.fields import ExtendedHyperlinkedRelatedField
 from rest_framework import exceptions
 from rest_framework.fields import CharField
 from rest_framework.relations import HyperlinkedIdentityField
+from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer, Serializer
 
 from users.api.serializers.groups import GroupSerializer
@@ -20,29 +21,53 @@ class PasswordField(CharField):
         super().__init__(*args, **kwargs)
 
 
-class MrMapUserSerializer(ModelSerializer):
+class UserSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='users:user-detail',
     )
 
     groups = ExtendedHyperlinkedRelatedField(
-        queryset=Group.objects,
         many=True,
         related_link_view_name='users:user-groups-list',
         related_link_url_kwarg='parent_lookup_user',
         self_link_view_name='users:user-relationships',
-        required=False,
+        read_only=True,
         meta_attrs={'group_count': 'count'})
-
-    related_serializers = {
-        'groups': GroupSerializer,
-    }
 
     class Meta:
         resource_name = 'User'
         model = MrMapUser
         exclude = ("password", )
+
+
+class UserCreateSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='users:user-detail',
+    )
+
+    groups = ResourceRelatedField(
+        queryset=Group.objects.all(),
+        many=True,
+        related_link_view_name='users:user-groups-list',
+        related_link_url_kwarg='parent_lookup_user',
+        self_link_view_name='users:user-relationships')
+
+    related_serializers = {
+        "groups": GroupSerializer
+    }
+
+    class Meta:
+        resource_name = 'User'
+        model = MrMapUser
+        fields = ("username", "password", "url", "groups")
+
+    def save(self, **kwargs):
+        user = super().save(**kwargs)
+        # set the correct password
+        user.set_password(self.validated_data['password'])
+        return user
 
 
 class LoginSerializer(Serializer):

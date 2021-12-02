@@ -1,7 +1,8 @@
 import './App.css';
 
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
-import { Layout, Space } from 'antd';
+import { ConfigProvider, Layout, Space } from 'antd';
+import enUS from 'antd/lib/locale/en_US';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -50,92 +51,94 @@ export default function App (): JSX.Element {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          <Route
-            path='/login'
-            element={<Login />}
-          />
-          <Route
-            path='/logout'
-            element={<Logout />}
-          />
-          <Route
-            path='/'
-            element={
-              <RequireAuth>
-              <Layout style={{ minHeight: '100vh' }}>
-                <Sider
-                  collapsible
-                  collapsed={collapsed}
-                  onCollapse={onCollapse}>
-                  <div className='logo'>
-                    <img
-                      src={logo}
-                      alt='Mr. Map Logo'
-                    >
-                    </img>
-                  </div>
-                  <NavBar />
-                </Sider>
-                <Layout className='site-layout'>
-                  <Content style={{ margin: '0 16px' }}>
-                    <div
-                      className='site-layout-background'
-                      style={{ padding: 24, minHeight: 360 }}
-                    >
-                      <Outlet />
-                    </div>
-                  </Content>
-                  <Footer style={{ textAlign: 'center' }}>
-                    <Space>
-                      <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
-                      <a href='https://github.com/mrmap-community/mrmap'><GithubOutlined /> GitHub</a>
-                    </Space>
-                  </Footer>
-                </Layout>
-              </Layout>
-
-              </RequireAuth>
-            }
-          >
+        <ConfigProvider locale={enUS}>
+          <Routes>
+            <Route
+              path='/login'
+              element={<Login />}
+            />
+            <Route
+              path='/logout'
+              element={<Logout />}
+            />
             <Route
               path='/'
-              element={<Dashboard />}
-            />
-            <Route
-              path='/registry/services/wms'
-              element={<WmsTable />}
-            />
-            <Route
-              path='/registry/services/wfs'
-              element={<WfsTable />}
-            />
-            <Route
-              path='/registry/services/add'
-              element={<OgcServiceAdd />}
-            />
-            <Route
-              path='/registry/layers'
-              element={<LayerTable />}
-            />
-            <Route
-              path='/registry/featuretypes'
-              element={<FeatureTypeTable />}
-            />
-            <Route
-              path='/registry/dataset-metadata'
-              element={<DatasetMetadataTable />}
-            />
-            <Route
-              path='/registry/mapcontexts'
-              element={<MapContextTable />}
-            />
-            <Route
-              path='/registry/mapcontexts/add'
-              element={<MapContext />}
-            />
-          </Route>
-        </Routes>
+              element={
+                <RequireAuth>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <Sider
+                    collapsible
+                    collapsed={collapsed}
+                    onCollapse={onCollapse}>
+                    <div className='logo'>
+                      <img
+                        src={logo}
+                        alt='Mr. Map Logo'
+                      >
+                      </img>
+                    </div>
+                    <NavBar />
+                  </Sider>
+                  <Layout className='site-layout'>
+                    <Content style={{ margin: '0 16px' }}>
+                      <div
+                        className='site-layout-background'
+                        style={{ padding: 24, minHeight: 360 }}
+                      >
+                        <Outlet />
+                      </div>
+                    </Content>
+                    <Footer style={{ textAlign: 'center' }}>
+                      <Space>
+                        <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
+                        <a href='https://github.com/mrmap-community/mrmap'><GithubOutlined /> GitHub</a>
+                      </Space>
+                    </Footer>
+                  </Layout>
+                </Layout>
+
+                </RequireAuth>
+              }
+            >
+              <Route
+                path='/'
+                element={<Dashboard />}
+              />
+              <Route
+                path='/registry/services/wms'
+                element={<WmsTable />}
+              />
+              <Route
+                path='/registry/services/wfs'
+                element={<WfsTable />}
+              />
+              <Route
+                path='/registry/services/add'
+                element={<OgcServiceAdd />}
+              />
+              <Route
+                path='/registry/layers'
+                element={<LayerTable />}
+              />
+              <Route
+                path='/registry/featuretypes'
+                element={<FeatureTypeTable />}
+              />
+              <Route
+                path='/registry/dataset-metadata'
+                element={<DatasetMetadataTable />}
+              />
+              <Route
+                path='/registry/mapcontexts'
+                element={<MapContextTable />}
+              />
+              <Route
+                path='/registry/mapcontexts/add'
+                element={<MapContext />}
+              />
+            </Route>
+          </Routes>
+        </ConfigProvider>
       </AuthProvider>
     </Router>
   );

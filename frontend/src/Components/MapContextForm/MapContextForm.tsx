@@ -1,21 +1,23 @@
 import './MapContextForm.css';
 
 import { Steps } from 'antd';
+import { Key } from 'antd/lib/table/interface';
 import { DataNode } from 'antd/lib/tree';
 import React, { FC, useEffect, useState } from 'react';
 
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
+import { hasOwnProperty } from '../../utils';
 import { MapContextForm } from './Step1';
 import { MapContextLayerForm } from './Step2';
 import { TreeComp } from './Tree';
-import { hasOwnProperty } from '../../utils';
 
 export interface TreeNodeType extends DataNode {
   key: string | number;
   parent?: string | number | null;
   children: TreeNodeType[];
   properties?: any;
+  expanded?: boolean;
 }
 
 const mapContextRepo = new MapContextRepo();
@@ -31,6 +33,8 @@ export const FormSteps: FC = () => {
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
   const [isAddingNode, setIsAddingNode] = useState<boolean>(false);
   const [isRemovingNode, setIsRemovingNode] = useState<boolean>(false);
+  const [isDraggingNode, setIsDraggingNode] = useState<boolean>(false);
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
 
   const toggleModal = () => {
     setIsModalVisible(!isModalVisible);
@@ -70,17 +74,16 @@ export const FormSteps: FC = () => {
     });
   };
 
-  const getNodeParent = (list: TreeNodeType[], node: TreeNodeType): TreeNodeType[] => {
-    return list.reduce((acc: (TreeNodeType[]), value: TreeNodeType) => {
+  const getNodeParent = (list: TreeNodeType[], node: TreeNodeType): TreeNodeType[] | never[] => {
+    return list.flatMap((value: TreeNodeType) => {
       if (value.key === node.parent) {
-        acc.push(value);
-        return acc;
+        return value;
       }
       if (value.children) {
         return getNodeParent(value.children, node);
       }
-      return acc;
-    }, []);
+      return value;
+    });
   };
 
   /**
@@ -94,10 +97,10 @@ export const FormSteps: FC = () => {
         key: `${node.key}-${node.children.length}`, // this will be the id of the created node
         children: [],
         parent: node.key === '0' ? null : node.key,
-        properties: values || null
+        properties: values || null,
+        expanded: true
       };
       setIsAddingNode(true);
-      debugger;
       try {
         const response = await mapContextLayerRepo.create({
           ...values,
@@ -105,8 +108,8 @@ export const FormSteps: FC = () => {
           mapContextId: createdMapContextId
         });
         // update new node key
-        if (response.data?.data
-          && hasOwnProperty(response.data.data, 'id')){
+        if (response.data?.data &&
+          hasOwnProperty(response.data.data, 'id')) {
           newNode.key = response.data.data.id;
         }
       } catch (error) {
@@ -120,6 +123,7 @@ export const FormSteps: FC = () => {
         } else {
           setTreeData(updateTreeData(treeData, node.key, [...node.children, newNode]));
         }
+        setExpandedKeys([...expandedKeys, newNode.key]);
         setIsAddingNode(false);
         if (isModalVisible) {
           toggleModal();
@@ -143,9 +147,11 @@ export const FormSteps: FC = () => {
         throw new Error(error);
       } finally {
         const parentNode = getNodeParent(treeData, node);
-        if (parentNode.length > 0) {
+        if (parentNode) {
           const indexToRemove = parentNode[0].children.indexOf(node);
           parentNode[0].children.splice(indexToRemove, 1);
+          const expandedNodeIndexToRemove = expandedKeys.indexOf(node.key);
+          setExpandedKeys(expandedKeys.splice(expandedNodeIndexToRemove, 1));
           setTreeData(updateTreeData(treeData, parentNode[0].key, parentNode[0].children));
         }
         setIsRemovingNode(false);
@@ -162,6 +168,110 @@ export const FormSteps: FC = () => {
       node.title = values.title;
       node.properties = values;
     }
+  };
+
+  const onDropNode = async (info:any) => {
+    const dropKey = info.node.key;
+    const dragKey = info.dragNode.key;
+    const originKey = info.dragNode.parent;
+    const dropPos = info.node.pos.split('-');
+    const dropPosition = info.node.children.length - Number(dropPos[dropPos.length - 1]);
+
+    console.log(info.node, info.dragNode);
+    setIsDraggingNode(true);
+    try {
+      let position:string;
+      if (info.node.parent === info.dragNode.parent) {
+        position = 'right';
+      } else {
+        position = 'first-child';
+      }
+      console.log(position, dropKey === dragKey, dropKey, dragKey);
+      return mapContextLayerRepo.move(dragKey, dropKey, position);
+    } catch (error) {
+      setIsDraggingNode(false);
+      // @ts-ignore
+      throw new Error(error);
+    } finally {
+      setIsDraggingNode(false);
+      // @ts-ignore
+      const loop = (data, key, callback) => {
+        for (let i = 0; i < data.length; i++) {
+          if (data[i].key === key) {
+            return callback(data[i], i, data);
+          }
+          if (data[i].children) {
+            loop(data[i].children, key, callback);
+          }
+        }
+      };
+
+      const data = [...treeData];
+
+      // Find dragObject and remove it from paarent
+      // @ts-ignore
+      let dragObj;
+      // @ts-ignore
+      loop(data, dragKey, (item, index, arr) => {
+        arr.splice(index, 1);
+        dragObj = item;
+      });
+
+      //  if inserting between nodes
+      if (!info.dropToGap) {
+      // Drop on the content
+      // @ts-ignore
+        loop(data, dropKey, item => {
+          item.children = item.children || [];
+          // where to insert
+          // @ts-ignore
+          item.children.unshift(dragObj);
+        });
+      } else if (
+      //  if inserting on  first position
+        (info.node.props.children || []).length > 0 && // Has children
+      info.node.props.expanded && // Is expanded
+      dropPosition === 1 // On the bottom gap
+      ) {
+      // @ts-ignore
+        loop(data, dropKey, item => {
+          item.children = item.children || [];
+          // where to insert
+          // @ts-ignore
+          item.children.unshift(dragObj);
+        // in previous version, we use item.children.push(dragObj) to insert the
+        // item to the tail of the children
+        });
+      } else {
+        let ar;
+        let i;
+        // @ts-ignore
+        loop(data, dropKey, (item, index, arr) => {
+          ar = arr;
+          i = index;
+        });
+        if (dropPosition === -1) {
+        // @ts-ignore
+          ar.splice(i, 0, dragObj);
+        } else {
+        // @ts-ignore
+          ar.splice(i + 1, 0, dragObj);
+        }
+      }
+      // @ts-ignore
+      setTreeData(data);
+    }
+  };
+
+  const onExpand = (expandedKeys:any, info:any) => {
+    const node = info.node;
+    node.expanded = info.expanded;
+    if (node.expanded) {
+      expandedKeys.push(node.key);
+    } else {
+      expandedKeys.splice(expandedKeys.indexOf(node.key), 1);
+    }
+    setExpandedKeys(expandedKeys);
   };
 
   const createRootNode = () => {
@@ -212,6 +322,10 @@ export const FormSteps: FC = () => {
             }}
           />
           <TreeComp
+            draggable
+            onExpand={onExpand}
+            expandedKeys={expandedKeys}
+            onDropNode={onDropNode}
             treeData={treeData}
             onAddNodeClick={(nodeData) => {
               toggleModal();

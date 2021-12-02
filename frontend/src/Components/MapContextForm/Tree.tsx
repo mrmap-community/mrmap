@@ -1,5 +1,7 @@
 import { EditFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
 import { Button, Modal, Tooltip, Tree } from 'antd';
+import { Key } from 'antd/lib/table/interface';
+import { EventDataNode } from 'antd/lib/tree';
 import React, { FC } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -10,9 +12,13 @@ interface TreeProps {
   onAddNodeClick?: (nodeData?: any) => void;
   onRemoveNodeClick?: (nodeData?: any) => void;
   onEditNodeClick?: (nodeData?: any) => void;
+  onDropNode?: (info?: any) => void;
   onPreviousClick: () => void;
-  isRemovingMapContext?: boolean
-  isRemovingNode?: boolean
+  onExpand?:(expandedKeys: Key[], info: { node: EventDataNode; expanded: boolean; nativeEvent: MouseEvent; }) => void;
+  isRemovingMapContext?: boolean;
+  isRemovingNode?: boolean;
+  draggable?: boolean;
+  expandedKeys?: Key[];
 }
 
 export const TreeComp: FC<TreeProps> = ({
@@ -20,9 +26,13 @@ export const TreeComp: FC<TreeProps> = ({
   onAddNodeClick = () => undefined,
   onRemoveNodeClick = () => undefined,
   onEditNodeClick = () => undefined,
+  onDropNode = () => undefined,
   onPreviousClick = () => undefined,
+  onExpand = () => undefined,
   isRemovingMapContext = false,
-  isRemovingNode = false
+  isRemovingNode = false,
+  draggable = false,
+  expandedKeys = undefined
 }) => {
   const navigate = useNavigate();
 
@@ -31,15 +41,17 @@ export const TreeComp: FC<TreeProps> = ({
       <h1>Ebenen und Datenangebote</h1>
       <Tree
         className='tree-form-field'
-        // draggable={draggable}
+        draggable={draggable}
         // blockNode
         showIcon
         defaultExpandAll
+        onExpand={onExpand}
         // onDragEnter={this.onDragEnter}
-        // onDrop={this.onDrop}
+        onDrop={onDropNode}
         treeData={treeData}
         showLine
         multiple={false}
+        expandedKeys={expandedKeys}
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>

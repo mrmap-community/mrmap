@@ -18,7 +18,13 @@ export class DatasetMetadataRepo extends JsonApiRepo {
     }
 
     const res = await client['List' + this.resourcePath](jsonApiParams);
-    return res.data.data.map((o: any) => ({ value: o.id, text: o.attributes.title }));
+    return res.data.data.map((o: any) => ({
+      value: o.id,
+      text: o.attributes.title,
+      pagination: {
+        next: res.data.links.next
+      }
+    }));
   }
 }
 

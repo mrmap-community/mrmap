@@ -1,5 +1,6 @@
-import { RightCircleFilled } from '@ant-design/icons';
-import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
+import Cookies from 'js-cookie';
+
+import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextLayerCreate {
     name: string;
@@ -21,6 +22,25 @@ export interface MapContextLayerCreate {
 export class MapContextLayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontextlayers/');
+  }
+
+  async move (
+    id: number|string,
+    target: number|string,
+    position: number|string = 'left'
+  ) : Promise<JsonApiResponse> {
+    const client = await JsonApiRepo.getClientInstance();
+    return await client['move_to' + this.resourcePath + '{id}/move_to/'](id, {
+      data: {
+        type: 'MapContextLayer',
+        attributes: {
+          target,
+          position
+        }
+      }
+    }, {
+      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+    });
   }
 
   async create (create: MapContextLayerCreate): Promise<JsonApiResponse> {

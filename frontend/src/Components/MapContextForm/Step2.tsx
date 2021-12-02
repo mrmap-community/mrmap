@@ -1,7 +1,6 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Button, Divider, Form, Modal, notification } from 'antd';
+import { Divider, Form, Modal, notification } from 'antd';
 import React, { FC, useEffect, useState } from 'react';
-import { finished } from 'stream';
 
 import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
 import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
@@ -207,11 +206,12 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
           }}
           onSearch={(value: string) => {
             fetchData(
-              () => layerRepo.autocomplete(value),
+              () => datasetMetadataRepo.autocomplete(value),
               (values) => setDatasetMetadataOptions(values),
               (boolean) => setIsDatasetMetadataOptionsLoading(boolean)
             );
           }}
+          pagination
         />
 
         {isShowingRenderingData && (

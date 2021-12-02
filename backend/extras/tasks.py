@@ -43,8 +43,8 @@ class CommonInfoSetupMixin(Task, ABC):
             set_current_owner(self.owner)
 
     def common_info_setup(self, **kwargs):
-        self.set_current_user(kwargs.get("created_by_user_pk", None))
-        self.set_current_owner(kwargs.get("owned_by_org_pk", None))
+        self.set_current_user(kwargs.get("current_user", None))
+        self.set_current_owner(kwargs.get("owner", None))
 
     def __call__(self, *args, **kwargs):
         # all task functions uses the same class instance; so we need to reset the stored pending pending task variable

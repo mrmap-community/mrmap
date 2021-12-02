@@ -198,21 +198,6 @@ AUTHENTICATION_BACKENDS = (
 
 GUARDIAN_RAISE_403 = True
 
-# django-guardian-roles
-GUARDIAN_ROLES_OWNABLE_MODELS = [
-    "registry.Metadata",
-    "registry.MonitoringRun",
-    "registry.MonitoringResult",
-    "registry.HealthState",
-    "registry.ProxyLog",
-]
-
-GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = "owned_by_org"
-GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = "_owned_by_org"
-
-GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = "organization_administrator"
-GUARDIAN_ROLES_OWNER_MODEL = "users.Organization"
-
 ################################################################
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases

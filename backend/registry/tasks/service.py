@@ -41,13 +41,13 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
         if isinstance(parsed_service, WmsXmlMapper):
             db_service = WebMapService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service)
+                parsed_service=parsed_service, **{"current_user": self.user, "owner": self.owner})
         elif isinstance(parsed_service, WfsXmlMapper):
             db_service = WebFeatureService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service)
+                parsed_service=parsed_service, **{"current_user": self.user, "owner": self.owner})
         elif isinstance(parsed_service, CswXmlMapper):
             db_service = CatalougeService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service)
+                parsed_service=parsed_service, **{"current_user": self.user, "owner": self.owner})
         else:
             raise NotImplementedError(
                 "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
@@ -108,7 +108,8 @@ def parse_remote_metadata_xml_for_service(self, remote_metadata_ids: list, **kwa
     if remote_metadata_list:
         for remote_metadata in remote_metadata_list:
             try:
-                db_metadata = remote_metadata.create_metadata_instance()
+                db_metadata = remote_metadata.create_metadata_instance(
+                    **{"current_user": self.user, "owner": self.owner})
                 successfully_list.append(db_metadata.pk)
                 if isinstance(db_metadata, DatasetMetadata):
                     dataset_list.append(db_metadata.pk)

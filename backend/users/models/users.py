@@ -34,25 +34,6 @@ class MrMapUser(AbstractUser):
         verbose_name = _('User')
         verbose_name_plural = _('Users')
 
-    def get_absolute_url(self):
-        return reverse('users:password_change_done')
-
-    def get_edit_view_url(self):
-        return reverse('users:edit_profile')
-
-    def get_instances(self, klass, filter: Q = None, perms: str = None, accept_global_perms: bool = False) -> QuerySet:
-        from guardian.shortcuts import get_objects_for_user
-        if not perms:
-            perms = f'{klass._meta.app_label}.view_{klass._meta.object_name.lower()}'
-        if filter:
-            queryset = klass.objects.filter(filter)
-        else:
-            queryset = klass.objects.all()
-        return get_objects_for_user(user=self,
-                                    perms=perms,
-                                    klass=queryset,
-                                    accept_global_perms=accept_global_perms)
-
     def create_activation(self):
         """ Create an activation object
 
@@ -93,7 +74,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
                 six.text_type(user.email))
 
 
-# todo: check if subscription should be part of users app?
+# TODO: check if subscription should be part of users app?
 class Subscription(GenericModelMixin, CommonInfo):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)

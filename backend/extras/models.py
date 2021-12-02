@@ -1,9 +1,10 @@
 import threading
 
+from celery import current_task
 from crum import get_current_user
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, Group
 from django.db import models
 from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
@@ -125,22 +126,6 @@ class GenericModelMixin:
             return ""
 
 
-def set_current_owner(owner):
-    """
-    .. note:
-        be carefully of using _thread_locals with celery. Celery worker threads are endless running.
-    """
-    _thread_locals.owner = owner
-
-
-def get_current_owner():
-    """
-    .. note:
-        be carefully of using _thread_locals with celery. Celery worker threads are endless running.
-    """
-    return getattr(_thread_locals, "owner", None)
-
-
 class CommonInfo(models.Model):
     """
     An abstract model which adds fields to store the creation and last-updated times for an object. All fields can be
@@ -152,25 +137,24 @@ class CommonInfo(models.Model):
         help_text=_("The timestamp of the creation date of this object."),
         auto_now_add=True,
         editable=False,
+        blank=True,
         db_index=True,
     )
     created_by_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL,
         verbose_name=_("Created by"),
         help_text=_("The user who has created this object."),
         editable=False,
         blank=True,
-        null=True,
         related_name="%(app_label)s_%(class)s_created_by_user",
         on_delete=models.SET_NULL,
     )
-    owned_by_org = models.ForeignKey(
-        settings.GUARDIAN_ROLES_OWNER_MODEL,
+    owner = models.ForeignKey(
+        to=Group,
         verbose_name=_("Owner"),
         help_text=_("The organization which is the owner of this object."),
         editable=False,
         blank=True,
-        null=True,
         related_name="%(app_label)s_%(class)s_owned_by_org",
         on_delete=models.SET_NULL,
     )
@@ -182,11 +166,10 @@ class CommonInfo(models.Model):
         db_index=True,
     )
     last_modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL,
         verbose_name=_("Last modified by"),
         help_text=_("The last user who has modified this object."),
         blank=True,
-        null=True,
         editable=False,
         related_name="%(app_label)s_%(class)s_last_modified_by",
         on_delete=models.SET_NULL,
@@ -199,23 +182,26 @@ class CommonInfo(models.Model):
         super(CommonInfo, self).__init__(*args, **kwargs)
         # self._owned_by_org_id = self.owned_by_org_id
 
-    def save(self, update_last_modified=True, *args, **kwargs):
-        if self._state.adding:
-            user = get_current_user()
-            if isinstance(user, AnonymousUser):
-                user = get_user_model().objects.get(username="AnonymousUser")
-            self.created_by_user = user
-            self.last_modified_by = user
+    def save(self, update_last_modified=True, current_user=None, *args, **kwargs):
+        if current_task and not current_user:
+            # running inside celery worker with non safe access to thread locals.
+            raise AttributeError(
+                'You trying to store a model inside celery without setting the current_user on the object.')
+        else:
+            # try to fetch the current user from thread variable
+            current_user = get_current_user()
+            if isinstance(current_user, AnonymousUser):
+                current_user = get_user_model().objects.get(username="AnonymousUser")
 
-            if not self.owned_by_org:
-                # the owner is not set yet. Try to get it from the global variable
-                self.owned_by_org = get_current_owner()
+        if self._state.adding:
+            self.created_by_user = current_user
+            self.last_modified_by = current_user
         else:
             if update_last_modified:
                 # We always want to have automatically the last timestamp from the latest change!
                 # ONLY if the function is especially called with a False flag in update_last_modified, we will not
                 # change the record's last change
-                self.last_modified_by = get_current_user()
+                self.last_modified_by = current_user
                 self.last_modified_at = timezone.now()
 
         super(CommonInfo, self).save(*args, **kwargs)

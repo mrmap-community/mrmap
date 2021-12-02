@@ -1,15 +1,13 @@
 from abc import abstractmethod
-from django.db.models.functions import Coalesce
+from random import randrange
+
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
-from django.contrib.contenttypes.models import ContentType
-from django.utils import timezone
-from extras.models import get_current_owner
-from registry.enums.metadata import MetadataOrigin
-from crum import get_current_user
-from random import randrange
+from django.db.models.functions import Coalesce
 from polymorphic.managers import PolymorphicManager
+from registry.enums.metadata import MetadataOrigin
 
 
 class ServiceCapabilitiesManager(models.Manager):
@@ -34,7 +32,7 @@ class ServiceCapabilitiesManager(models.Manager):
 
     common_info = {}
 
-    def _reset_local_variables(self):
+    def _reset_local_variables(self, **kwargs):
         """helper function to reset local variables.
            It seems to be that a manager in django is a singleton object.
         """
@@ -59,14 +57,11 @@ class ServiceCapabilitiesManager(models.Manager):
 
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        now = timezone.now()
-        current_user = get_current_user()
-        self.common_info = {"created_at": now,
-                            "last_modified_at": now,
-                            "last_modified_by": current_user,
-                            "created_by_user": current_user,
-                            "owned_by_org": get_current_owner(),
-                            }
+        self.common_info = {}
+        if "current_user" in kwargs:
+            self.common_info.update({"current_user": kwargs["current_user"]})
+        if "owner" in kwargs:
+            self.common_info.update({"owner": kwargs["owner"]})
 
     def _get_or_create_keywords(self, parsed_keywords, db_object):
         db_object.keyword_list = []
@@ -74,7 +69,8 @@ class ServiceCapabilitiesManager(models.Manager):
             # todo: slow get_or_create solution - maybe there is a better way to do this
             if not self.keyword_cls:
                 self.keyword_cls = keyword.get_model_class()
-            db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
+            db_keyword, created = self.keyword_cls.objects.get_or_create(
+                **keyword.get_field_dict())
             db_object.keyword_list.append(db_keyword)
 
     def _create_service_instance(self, parsed_service, *args, **kwargs):
@@ -83,7 +79,8 @@ class ServiceCapabilitiesManager(models.Manager):
 
         parsed_service_contact = parsed_service.service_metadata.service_contact
         service_contact_cls = parsed_service_contact.get_model_class()
-        db_service_contact, created = service_contact_cls.objects.get_or_create(**parsed_service_contact.get_field_dict())
+        db_service_contact, created = service_contact_cls.objects.get_or_create(
+            **parsed_service_contact.get_field_dict())
 
         service = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                  service_contact=db_service_contact,
@@ -118,10 +115,12 @@ class ServiceCapabilitiesManager(models.Manager):
                     # todo: slow get_or_create solution - maybe there is a better way to do this
                     if not self.mime_type_cls:
                         self.mime_type_cls = mime_type.get_model_class()
-                    db_mime_type, created = self.mime_type_cls.objects.get_or_create(**mime_type.get_field_dict())
+                    db_mime_type, created = self.mime_type_cls.objects.get_or_create(
+                        **mime_type.get_field_dict())
                     db_operation_url.mime_type_list.append(db_mime_type)
             operation_urls.append(db_operation_url)
-        db_operation_url_list = operation_url_model_cls.objects.bulk_create(objs=operation_urls)
+        db_operation_url_list = operation_url_model_cls.objects.bulk_create(
+            objs=operation_urls)
 
         for db_operation_url in db_operation_url_list:
             db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
@@ -130,7 +129,8 @@ class ServiceCapabilitiesManager(models.Manager):
 
     def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
         if not self.sub_element_content_type:
-            self.sub_element_content_type = ContentType.objects.get_for_model(model=self.sub_element_cls)
+            self.sub_element_content_type = ContentType.objects.get_for_model(
+                model=self.sub_element_cls)
         for remote_metadata in parsed_sub_element.remote_metadata:
             if not self.remote_metadata_cls:
                 self.remote_metadata_cls = remote_metadata.get_model_class()
@@ -145,7 +145,8 @@ class ServiceCapabilitiesManager(models.Manager):
             # todo: slow get_or_create solution - maybe there is a better way to do this
             if not self.mime_type_cls:
                 self.mime_type_cls = mime_type.get_model_class()
-            db_mime_type, created = self.mime_type_cls.objects.get_or_create(**mime_type.get_field_dict())
+            db_mime_type, created = self.mime_type_cls.objects.get_or_create(
+                **mime_type.get_field_dict())
             db_feature_type.db_output_format_list.append(db_mime_type)
 
     def _construct_dimension_instances(self, parsed_layer, db_layer):
@@ -171,7 +172,8 @@ class ServiceCapabilitiesManager(models.Manager):
             # todo: slow get_or_create solution - maybe there is a better way to do this
             if not self.reference_system_cls:
                 self.reference_system_cls = reference_system.get_model_class()
-            db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
+            db_reference_system, created = self.reference_system_cls.objects.get_or_create(
+                **reference_system.get_field_dict())
             db_sub_element.reference_system_list.append(db_reference_system)
 
     @abstractmethod
@@ -198,8 +200,8 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
     style_cls = None
     legend_url_cls = None
 
-    def _reset_local_variables(self):
-        super()._reset_local_variables()
+    def _reset_local_variables(self, **kwargs):
+        super()._reset_local_variables(**kwargs)
         self.last_node_level = 0
         self.parent_lookup = None
         self.current_parent = None
@@ -212,8 +214,9 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         self.legend_url_cls = None
 
     def _get_next_tree_id(self, layer_cls):
-        
-        max_tree_id = layer_cls.objects.filter(parent=None).aggregate(Max('tree_id'))
+
+        max_tree_id = layer_cls.objects.filter(
+            parent=None).aggregate(Max('tree_id'))
         tree_id = max_tree_id.get("tree_id__max")
         if isinstance(tree_id, int):
             tree_id += 1
@@ -230,14 +233,16 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             # We store it in our parent_lookup dict to resolve it if we climb up
             # the tree again. In case of climb up we loose the directly parent.
             self.current_parent = self.db_layer_list[-1]
-            self.parent_lookup.update({self.current_parent.node_id: self.current_parent})
+            self.parent_lookup.update(
+                {self.current_parent.node_id: self.current_parent})
             parsed_layer.node_id = self.db_layer_list[-1].node_id + ".1"
         elif self.last_node_level > parsed_layer.level:
             # climb up the tree. We need to lookup the parent of this node.
             sibling_node_id = self.db_layer_list[-1].parent.node_id.split(".")
             sibling_node_id[-1] = str(int(sibling_node_id[-1]) + 1)
             parsed_layer.node_id = ".".join(sibling_node_id)
-            self.current_parent = self.parent_lookup.get(parsed_layer.node_id.rsplit(".", 1)[0])
+            self.current_parent = self.parent_lookup.get(
+                parsed_layer.node_id.rsplit(".", 1)[0])
         else:
             # sibling node. we just increase the node_id counter
             if self.parent_lookup:
@@ -287,7 +292,8 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self.parent_lookup = {}
 
         if not self.sub_element_cls:
-            self.sub_element_cls = parsed_service.get_all_layers()[0].get_model_class()
+            self.sub_element_cls = parsed_service.get_all_layers()[
+                0].get_model_class()
 
         tree_id = self._get_next_tree_id(self.sub_element_cls)
 
@@ -326,9 +332,11 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         return tree_id
 
     def _create_wms(self, parsed_service, db_service):
-        tree_id = self._construct_layer_tree(parsed_service=parsed_service, db_service=db_service)
+        tree_id = self._construct_layer_tree(
+            parsed_service=parsed_service, db_service=db_service)
 
-        db_layer_list = self.sub_element_cls.objects.bulk_create(objs=self.db_layer_list)
+        db_layer_list = self.sub_element_cls.objects.bulk_create(
+            objs=self.db_layer_list)
         # non documented function from mptt to rebuild the tree
         # todo: check if we need to rebuild if we create the tree with the correct right and left values.
         self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
@@ -342,7 +350,8 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                 # before we create related objects in bulk.
                 # todo: find better way to update foreignkey id
                 legend_url.style_id = legend_url.style.pk
-            self.legend_url_cls.objects.bulk_create(objs=self.db_legend_url_list)
+            self.legend_url_cls.objects.bulk_create(
+                objs=self.db_legend_url_list)
         if self.db_dimension_list:
             self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)
         if self.db_dimension_extent_list:
@@ -351,19 +360,23 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                 # before we create related objects in bulk.
                 # todo: find better way to update foreignkey id
                 db_dimension_extent.dimension_id = db_dimension_extent.dimension.pk
-            self.dimension_extent_cls.objects.bulk_create(objs=self.db_dimension_extent_list)
+            self.dimension_extent_cls.objects.bulk_create(
+                objs=self.db_dimension_extent_list)
         if self.db_remote_metadata_list:
-            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
+            self.remote_metadata_cls.objects.bulk_create(
+                objs=self.db_remote_metadata_list)
 
         for db_layer in db_layer_list:
             db_layer.keywords.add(*db_layer.keyword_list)
             db_layer.reference_systems.add(*db_layer.reference_system_list)
 
     def create_from_parsed_service(self, parsed_service, *args, **kwargs):
-        self._reset_local_variables()
+        self._reset_local_variables(**kwargs)
         with transaction.atomic():
-            db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
-            self._create_wms(parsed_service=parsed_service, db_service=db_service)
+            db_service = self._create_service_instance(
+                parsed_service=parsed_service, *args, **kwargs)
+            self._create_wms(parsed_service=parsed_service,
+                             db_service=db_service)
         return db_service
 
 
@@ -372,7 +385,8 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
     def _create_wfs(self, parsed_service, db_service):
         db_feature_type_list = []
         if not self.sub_element_cls:
-            self.sub_element_cls = parsed_service.feature_types[0].get_model_class()
+            self.sub_element_cls = parsed_service.feature_types[0].get_model_class(
+            )
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = self.sub_element_cls(service=db_service,
                                                    origin=MetadataOrigin.CAPABILITIES.value,
@@ -392,57 +406,63 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self._construct_dimension_instances(parsed_layer=parsed_layer,
                                                 db_layer=db_layer)
             """
-            self._get_or_create_output_formats(parsed_feature_type=parsed_feature_type, db_feature_type=db_feature_type)
+            self._get_or_create_output_formats(
+                parsed_feature_type=parsed_feature_type, db_feature_type=db_feature_type)
             self._create_reference_system_instances(parsed_sub_element=parsed_feature_type,
                                                     db_sub_element=db_feature_type)
 
-        db_feature_type_list = self.sub_element_cls.objects.bulk_create(objs=db_feature_type_list)
+        db_feature_type_list = self.sub_element_cls.objects.bulk_create(
+            objs=db_feature_type_list)
 
         if self.db_remote_metadata_list:
-            self.remote_metadata_cls.objects.bulk_create(objs=self.db_remote_metadata_list)
+            self.remote_metadata_cls.objects.bulk_create(
+                objs=self.db_remote_metadata_list)
 
         for db_feature_type in db_feature_type_list:
             db_feature_type.keywords.add(*db_feature_type.keyword_list)
-            db_feature_type.output_formats.add(*db_feature_type.db_output_format_list)
-            db_feature_type.reference_systems.add(*db_feature_type.reference_system_list)
+            db_feature_type.output_formats.add(
+                *db_feature_type.db_output_format_list)
+            db_feature_type.reference_systems.add(
+                *db_feature_type.reference_system_list)
 
     def create_from_parsed_service(self, parsed_service, *args, **kwargs):
         self._reset_local_variables()
         with transaction.atomic():
-            db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
-            self._create_wfs(parsed_service=parsed_service, db_service=db_service)
+            db_service = self._create_service_instance(
+                parsed_service=parsed_service, *args, **kwargs)
+            self._create_wfs(parsed_service=parsed_service,
+                             db_service=db_service)
         return db_service
 
 
 class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):
     def create_from_parsed_service(self, parsed_service, *args, **kwargs):
-        self._reset_local_variables()
+        self._reset_local_variables(**kwargs)
         with transaction.atomic():
-            db_service = self._create_service_instance(parsed_service=parsed_service, *args, **kwargs)
+            db_service = self._create_service_instance(
+                parsed_service=parsed_service, *args, **kwargs)
         return db_service
 
 
 class FeatureTypeElementXmlManager(models.Manager):
     common_info = {}
 
-    def _reset_local_variables(self):
+    def _reset_local_variables(self, **kwargs):
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        now = timezone.now()
-        current_user = get_current_user()
-        self.common_info = {"created_at": now,
-                            "last_modified_at": now,
-                            "last_modified_by": current_user,
-                            "created_by_user": current_user,
-                            "owned_by_org": get_current_owner(),
-                            }
+        self.common_info = {}
+        if "current_user" in kwargs:
+            self.common_info.update({"current_user": kwargs['current_user']})
+        if "owner" in kwargs:
+            self.common_info.update({"owner": kwargs["owner"]})
 
-    def create_from_parsed_xml(self, parsed_xml, related_object):
-        self._reset_local_variables()
+    def create_from_parsed_xml(self, parsed_xml, related_object, *args, **kwargs):
+        self._reset_local_variables(**kwargs)
 
         db_element_list = []
         for element in parsed_xml.elements:
             db_element_list.append(self.model(feature_type=related_object,
+                                              *args,
                                               **self.common_info,
                                               **element.get_field_dict()))
         return self.model.objects.bulk_create(objs=db_element_list)

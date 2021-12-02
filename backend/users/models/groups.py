@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet
@@ -7,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo
+from guardian.shortcuts import assign_perm, get_objects_for_group, remove_perm
 
 from users.settings import DEFAULT_REQUEST_ACIVATION_TIME
 
@@ -79,20 +81,13 @@ class Contact(models.Model):
         )
 
 
-class Organization(CommonInfo, Contact):
+class Organization(CommonInfo, Contact, Group):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-    name = models.CharField(
-        _("Name"),
-        default="",
-        help_text=_("The name of the organization"),
-        max_length=256,
-        unique=True,
-    )
     description = models.TextField(
         default="",
         null=True,
@@ -100,15 +95,6 @@ class Organization(CommonInfo, Contact):
         verbose_name=_("description"),
         help_text=_("Describe what this organization representing"),
     )
-    can_publish_for = models.ManyToManyField(
-        to="self",
-        through="OrganizationPublishRelation",
-        related_name="publishers",
-        related_query_name="publishers",
-        blank=True,
-    )
-
-    # todo: add parent/child field (mptt)
 
     class Meta:
         # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
@@ -117,73 +103,30 @@ class Organization(CommonInfo, Contact):
         ordering = ["name"]
         verbose_name = _("Organization")
         verbose_name_plural = _("Organizations")
+        permissions = [
+            ('can_publish_for_organization', 'Can publish for this organization')]
 
     def __str__(self):
         return self.name
 
-    def add_organization_publish_relation(self, to):
-        relation, created = OrganizationPublishRelation.objects.get_or_create(
-            from_organization=self, to_organization=to
-        )
-        return relation
-
-    def remove_organization_publish_relation(self, to):
-        OrganizationPublishRelation.objects.filter(
-            from_organization=self, to_organization=to
-        ).delete()
-
-    def get_publishers(self) -> QuerySet:
+    @property
+    def publishers(self) -> QuerySet:
         """
         return all `Organization` objects which can publish for this `Organization.
 
         Returns:
             all publishers for this organization (QuerySet)
         """
-        return self.can_publish_for.filter(from_organizations__to_organization=self)
+        return get_objects_for_group(group=self,
+                                     perms='users.can_publish_for_organization')
 
-    def get_publish_ables(self) -> QuerySet:
-        """
-        return all `Organization` objects which this `Organization` can publish for.
+    def add_publisher(self, publisher: Group) -> None:
+        assign_perm(perm='users.can_publish_for_organization',
+                    user_or_group=publisher, obj=self)
 
-        Returns:
-            all publish able organizations (QuerySet)
-        """
-        return self.can_publish_for.filter(to_organizations__from_organization=self)
-
-    def get_absolute_url(self) -> str:
-        return reverse(
-            "users:organization_view",
-            args=[
-                self.pk,
-            ],
-        )
-
-    @property
-    def publishers_uri(self):
-        return reverse(
-            "users:organization_publisher_list",
-            args=[
-                self.pk,
-            ],
-        )
-
-    @property
-    def acls_uri(self):
-        return reverse(
-            "users:organization_acl_overview",
-            args=[
-                self.pk,
-            ],
-        )
-
-
-class OrganizationPublishRelation(models.Model):
-    from_organization = models.ForeignKey(
-        to=Organization, on_delete=models.CASCADE, related_name="from_organizations"
-    )
-    to_organization = models.ForeignKey(
-        to=Organization, on_delete=models.CASCADE, related_name="to_organizations"
-    )
+    def remove_publisher(self, publisher: Group) -> None:
+        remove_perm(perm='users.can_publish_for_organization',
+                    user_or_group=publisher, obj=self)
 
 
 class BaseInternalRequest(CommonInfo):

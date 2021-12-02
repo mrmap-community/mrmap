@@ -27,6 +27,8 @@ def handle_organization_creation(instance, created, **kwargs):
                 name=f"{organization.name} Members")
             assign_perm(perm='registry.view_organization',
                         user_or_group=orga_members, obj=organization)
+            assign_perm(perm='registry.can_publish_for_organization',
+                        user_or_group=orga_members, obj=organization)
 
             # create groups for any configured secured model
             for secured_model in get_secured_models():
@@ -46,7 +48,7 @@ def handle_secured_model_creation(instance, created, **kwargs):
     if created:
         with atomic():
             instance_admins = Group.objects.get(
-                name=f'{instance.owned_by_org.name} {instance._meta.model_name} Admins')
+                name=f'{instance.owner.name} {instance._meta.model_name} Admins')
             global_add_perm = Permission.objects.get(
                 codename=f'add_{instance._meta.model_name}', content_type__app_label=instance._meta.app_label, content_type__model=instance._meta.model_name)
             instance_admins.permissions.add(global_add_perm)

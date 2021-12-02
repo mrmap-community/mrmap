@@ -6,8 +6,6 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from users.models.groups import Organization
 
-from extras.models import set_current_owner
-
 
 class CommonInfoSetupMixin(Task, ABC):
     """ Set current user and owner for models which uses CommonInfo
@@ -24,10 +22,6 @@ class CommonInfoSetupMixin(Task, ABC):
                 raise ObjectDoesNotExist
         except ObjectDoesNotExist:
             pass
-        finally:
-            # cause celery worker starts n threads to schedule tasks with and the threads are `endless` we need
-            # to `reset` the current user. Otherwise the last set user for this thread will be used.
-            set_current_user(self.user)
 
     def set_current_owner(self, owner_pk=None):
         try:
@@ -37,10 +31,6 @@ class CommonInfoSetupMixin(Task, ABC):
                 raise ObjectDoesNotExist
         except ObjectDoesNotExist:
             pass
-        finally:
-            # cause celery worker starts n threads to schedule tasks with and the threads are `endless` we need
-            # to `reset` the current organization. Otherwise the last set organization for this thread will be used.
-            set_current_owner(self.owner)
 
     def common_info_setup(self, **kwargs):
         self.set_current_user(kwargs.get("current_user", None))

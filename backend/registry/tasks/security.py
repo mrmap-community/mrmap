@@ -1,5 +1,5 @@
 from celery import shared_task
-from jobs.tasks import CommonInfoSetupMixin
+from extras.tasks import CommonInfoSetupMixin
 
 
 @shared_task(name="async_analyze_log",

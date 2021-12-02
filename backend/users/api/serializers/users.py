@@ -1,10 +1,13 @@
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import Group
+from extras.fields import ExtendedHyperlinkedRelatedField
+from rest_framework import exceptions
 from rest_framework.fields import CharField
+from rest_framework.relations import HyperlinkedIdentityField
+from rest_framework_json_api.serializers import ModelSerializer, Serializer
+
 from users.api.serializers.groups import GroupSerializer
 from users.models.users import MrMapUser
-from rest_framework_json_api.serializers import ModelSerializer, Serializer
-from rest_framework.relations import HyperlinkedIdentityField
-from django.contrib.auth import authenticate
-from rest_framework import exceptions
 
 
 class PasswordField(CharField):
@@ -20,15 +23,24 @@ class PasswordField(CharField):
 class MrMapUserSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
-        view_name='users:mrmapuser-detail',
+        view_name='users:user-detail',
     )
+
+    groups = ExtendedHyperlinkedRelatedField(
+        queryset=Group.objects,
+        many=True,
+        related_link_view_name='users:user-groups-list',
+        related_link_url_kwarg='parent_lookup_user',
+        self_link_view_name='users:user-relationships',
+        required=False,
+        meta_attrs={'group_count': 'count'})
 
     included_serializers = {
         'groups': GroupSerializer,
     }
 
     class Meta:
-        resource_name = 'MrMapUser'
+        resource_name = 'User'
         model = MrMapUser
         exclude = ("password", )
 
@@ -43,7 +55,8 @@ class LoginSerializer(Serializer):
         # fields = ('username', 'password',)
 
     def validate(self, attrs):
-        self.user = authenticate(username=attrs['username'], password=attrs['password'])
+        self.user = authenticate(
+            username=attrs['username'], password=attrs['password'])
 
         if not self.user:
             raise exceptions.AuthenticationFailed(
@@ -52,7 +65,7 @@ class LoginSerializer(Serializer):
             )
 
         return {}
-  
+
 
 class LogoutSerializer(Serializer):
 

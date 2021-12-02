@@ -26,7 +26,7 @@
 
 # class MonitoringSetting(models.Model):
 #     # TODO other resource types
-#     metadatas = models.ManyToManyField('registry.Service', 
+#     metadatas = models.ManyToManyField('registry.Service',
 #                                        related_name='monitoring_setting')
 #     check_time = models.TimeField()
 #     timeout = models.IntegerField()
@@ -126,7 +126,7 @@
 #         if adding:
 #             from registry.tasks.monitoring import run_manual_service_monitoring
 #             transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(
-#                 args=(self.owned_by_org.pk if self.owned_by_org else None,
+#                 args=(self.owner.pk if self.owner else None,
 #                       self.pk,),
 #                 kwargs={'created_by_user_pk': self.created_by_user.pk},
 #                 countdown=settings.CELERY_DEFAULT_COUNTDOWN))

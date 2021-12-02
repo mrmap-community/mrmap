@@ -146,7 +146,7 @@ class OgcServiceCreateSerializer(ModelSerializer):
     # included_serializers = {
     #     'auth': ServiceAuthentication,
     # }
-    owned_by_org = ResourceRelatedField(
+    owner = ResourceRelatedField(
         queryset=Organization.objects,
     )
 
@@ -154,5 +154,5 @@ class OgcServiceCreateSerializer(ModelSerializer):
 
     class Meta:
         model = OgcService
-        fields = ("get_capabilities_url", "owned_by_org",
+        fields = ("get_capabilities_url", "owner",
                   "collect_metadata_records")

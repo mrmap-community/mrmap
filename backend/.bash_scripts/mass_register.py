@@ -1,8 +1,10 @@
 # usage: python mass_register.py services.txt
-import requests
-import sys
 import json
+import sys
+
+import requests
 import urllib3
+
 urllib3.disable_warnings()
 
 
@@ -19,7 +21,7 @@ headers = {
 }
 
 # register parameters
-owned_by_org = "71ea1bd8-a9b0-4e15-a5ad-abbe8d403217"  # uuid
+owner = "71ea1bd8-a9b0-4e15-a5ad-abbe8d403217"  # uuid
 # TODO
 service_authentication = None
 
@@ -34,8 +36,8 @@ request_body = {
             "get_capabilities_url": "http://www.komserv4gdi.service24.rlp.de/ows/wms/07334016_Leimersheim?VERSION=1.1.1&SERVICE=WMS&REQUEST=GetCapabilities"
         },
         "relationships": {
-            "owned_by_org": {
-                "data": {"type": "Organization", "id": owned_by_org}
+            "owner": {
+                "data": {"type": "Organization", "id": owner}
             }
         }
     }

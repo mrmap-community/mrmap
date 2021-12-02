@@ -2,7 +2,7 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export interface OgcServiceCreate {
     get_capabilities_url: string;  // eslint-disable-line
-    owned_by_org: string; // eslint-disable-line
+    owner: string; // eslint-disable-line
     collect_metadata_records: boolean;
 }
 
@@ -17,10 +17,10 @@ export class OgcServiceRepo extends JsonApiRepo {
       collect_metadata_records: create.collect_metadata_records
     };
     const relationships = {
-      owned_by_org: { // eslint-disable-line
+      owner: { // eslint-disable-line
         data: {
           type: 'Organization',
-          id: create.owned_by_org
+          id: create.owner
         }
       }
     };

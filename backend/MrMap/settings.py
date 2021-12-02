@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "users",
     "object_permissions",
-    "jobs",
     "registry",
     "extras",
 ]

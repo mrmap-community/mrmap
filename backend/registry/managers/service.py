@@ -303,7 +303,7 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self._update_current_parent(parsed_layer=parsed_layer)
 
             # to support bulk create for mptt model lft, rght, tree_id can't be None
-            # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owned_by_org
+            # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owner
             db_layer = self.sub_element_cls(service=db_service,
                                             parent=self.current_parent,
                                             lft=parsed_layer.left,

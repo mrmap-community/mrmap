@@ -1,21 +1,30 @@
 from django.db.models.query_utils import Q
-from registry.models.service import OgcService, WebFeatureService, WebMapService, FeatureType, Layer
-from rest_framework_gis.filterset import GeoFilterSet
-from rest_framework_gis.filters import GeometryFilter
-from django_filters.filterset import FilterSet
 from django_filters.filters import Filter
+from django_filters.filterset import FilterSet
+from registry.models.service import (FeatureType, Layer, OgcService,
+                                     WebFeatureService, WebMapService)
+from rest_framework_gis.filters import GeometryFilter
+from rest_framework_gis.filterset import GeoFilterSet
 
 
 class OgcServiceFilterSet(FilterSet):
-    layer__bbox_lat_lon__contains = Filter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='contains')
-    layer__bbox_lat_lon__covers = Filter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='covers')
-    layer__bbox_lat_lon__equals = Filter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='equals')
-    layer__bbox_lat_lon__intersects = Filter(field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='intersects')
+    layer__bbox_lat_lon__contains = Filter(
+        field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='contains')
+    layer__bbox_lat_lon__covers = Filter(
+        field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='covers')
+    layer__bbox_lat_lon__equals = Filter(
+        field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='equals')
+    layer__bbox_lat_lon__intersects = Filter(
+        field_name='webmapservice__layer__bbox_lat_lon', lookup_expr='intersects')
 
-    featuretype__bbox_lat_lon__contains = Filter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='contains')
-    featuretype__bbox_lat_lon__covers = Filter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='covers')
-    featuretype__bbox_lat_lon__equals = Filter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='equals')
-    featuretype__bbox_lat_lon__intersects = Filter(field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='intersects')
+    featuretype__bbox_lat_lon__contains = Filter(
+        field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='contains')
+    featuretype__bbox_lat_lon__covers = Filter(
+        field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='covers')
+    featuretype__bbox_lat_lon__equals = Filter(
+        field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='equals')
+    featuretype__bbox_lat_lon__intersects = Filter(
+        field_name='webfeatureservice__featuretype__bbox_lat_lon', lookup_expr='intersects')
 
     bbox_lat_lon__contains = Filter(method='bbox_lat_lon_contains')
     bbox_lat_lon__covers = Filter(method='bbox_lat_lon_covers')
@@ -27,7 +36,7 @@ class OgcServiceFilterSet(FilterSet):
         fields = {
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains'],
-            'owned_by_org': ['exact'],
+            'owner': ['exact'],
         }
 
     def bbox_lat_lon_contains(self, queryset, name, value):
@@ -56,10 +65,14 @@ class OgcServiceFilterSet(FilterSet):
 
 
 class WebMapServiceFilterSet(FilterSet):
-    bbox_lat_lon__contains = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='contains')
-    bbox_lat_lon__covers = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='covers')
-    bbox_lat_lon__equals = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='equals')
-    bbox_lat_lon__intersects = GeometryFilter(field_name='layer__bbox_lat_lon', lookup_expr='intersects')
+    bbox_lat_lon__contains = GeometryFilter(
+        field_name='layer__bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(
+        field_name='layer__bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(
+        field_name='layer__bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(
+        field_name='layer__bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = WebMapService
@@ -70,10 +83,14 @@ class WebMapServiceFilterSet(FilterSet):
 
 
 class LayerFilterSet(GeoFilterSet):
-    bbox_lat_lon__contains = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='contains')
-    bbox_lat_lon__covers = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='covers')
-    bbox_lat_lon__equals = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='equals')
-    bbox_lat_lon__intersects = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='intersects')
+    bbox_lat_lon__contains = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = Layer
@@ -84,10 +101,14 @@ class LayerFilterSet(GeoFilterSet):
 
 
 class WebFeatureServiceFilterSet(GeoFilterSet):
-    bbox_lat_lon__contains = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='contains')
-    bbox_lat_lon__covers = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='covers')
-    bbox_lat_lon__equals = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='equals')
-    bbox_lat_lon__intersects = GeometryFilter(field_name='featuretype__bbox_lat_lon', lookup_expr='intersects')
+    bbox_lat_lon__contains = GeometryFilter(
+        field_name='featuretype__bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(
+        field_name='featuretype__bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(
+        field_name='featuretype__bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(
+        field_name='featuretype__bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = WebFeatureService
@@ -98,10 +119,14 @@ class WebFeatureServiceFilterSet(GeoFilterSet):
 
 
 class FeatureTypeFilterSet(GeoFilterSet):
-    bbox_lat_lon__contains = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='contains')
-    bbox_lat_lon__covers = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='covers')
-    bbox_lat_lon__equals = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='equals')
-    bbox_lat_lon__intersects = GeometryFilter(field_name='bbox_lat_lon', lookup_expr='intersects')
+    bbox_lat_lon__contains = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='contains')
+    bbox_lat_lon__covers = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='covers')
+    bbox_lat_lon__equals = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='equals')
+    bbox_lat_lon__intersects = GeometryFilter(
+        field_name='bbox_lat_lon', lookup_expr='intersects')
 
     class Meta:
         model = FeatureType

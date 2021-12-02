@@ -15,6 +15,13 @@ class GroupViewSet(ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
+    def get_queryset(self):
+        queryset = super(GroupViewSet, self).get_queryset()
+        if "parent_lookup_user" in self.kwargs:
+            queryset = queryset.filter(
+                user__id=self.kwargs["parent_lookup_user"])
+        return queryset
+
 
 class OrganizationViewSet(ModelViewSet):
     schema = AutoSchema(

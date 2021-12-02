@@ -6,14 +6,11 @@ from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
-from django.db.models import Q, QuerySet
-from django.urls import reverse
 from django.utils import timezone
-from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo, GenericModelMixin
 
-from users.models.groups import Organization
+from users.managers.users import CustomUserManager
 from users.settings import USER_ACTIVATION_TIME_WINDOW
 
 
@@ -25,10 +22,12 @@ class MrMapUser(AbstractUser):
                                                verbose_name=_("I want to sign up for the newsletter"))
     confirmed_survey = models.BooleanField(default=False,
                                            verbose_name=_("I want to participate in surveys"))
-    confirmed_dsgvo = models.DateTimeField(auto_now_add=True,
-                                           verbose_name=_("I understand and accept that my data will be automatically "
-                                                          "processed and securely stored, as it is stated in the "
-                                                          "general data protection regulation (GDPR)."))
+    confirmed_dsgvo = models.DateTimeField(auto_now_add=True,  # FIXME: auto_now_add results in auto accepting dsgvo... this is not a good practice.
+                                           help_text=_("I understand and accept that my data will be automatically "
+                                                       "processed and securely stored, as it is stated in the "
+                                                       "general data protection regulation (GDPR)."))
+
+    objects = CustomUserManager()
 
     class Meta:
         verbose_name = _('User')

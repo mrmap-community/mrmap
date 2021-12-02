@@ -73,7 +73,7 @@
 
 
 # @shared_task(name='run_manual_service_monitoring')
-# def run_manual_service_monitoring(owned_by_org: str, monitoring_run, *args, **kwargs):
+# def run_manual_service_monitoring(owner: str, monitoring_run, *args, **kwargs):
 #     default_task_handler(**kwargs)
 
 #     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)

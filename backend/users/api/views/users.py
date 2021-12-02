@@ -1,20 +1,29 @@
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_json_api.schemas.openapi import AutoSchema
-from users.api.serializers.users import LoginSerializer, LogoutSerializer, MrMapUserSerializer
-from users.models.users import MrMapUser
-from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import ModelViewSet
-from rest_framework import generics, status
-from rest_framework.response import Response
 from django.contrib.auth import login, logout
+from rest_framework import generics, serializers, status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import DjangoObjectPermissions
+from rest_framework.response import Response
+from rest_framework_extensions.mixins import NestedViewSetMixin
+from rest_framework_json_api.schemas.openapi import AutoSchema
+from rest_framework_json_api.views import ModelViewSet, RelationshipView
+
+from users.api.serializers.users import (LoginSerializer, LogoutSerializer,
+                                         MrMapUserSerializer)
+from users.models.users import MrMapUser
+
+
+class MrMapUserRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=["Users"],
+    )
+    queryset = MrMapUser.objects
 
 
 class MrMapUserViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['Users'],
     )
-    queryset = MrMapUser.objects.all()
+    queryset = MrMapUser.objects.with_meta()
     serializer_class = MrMapUserSerializer
     permission_classes = [DjangoObjectPermissions]
     prefetch_for_includes = {
@@ -38,6 +47,8 @@ class LoginView(generics.GenericAPIView):
             # TODO find out why error code 403 is swallowed -> backend returns 200 in any case
             return Response(status=status.HTTP_403_FORBIDDEN)
         finally:
+            user = serializer.user
+            user.group_count = user.groups.count()
             return Response(MrMapUserSerializer(serializer.user, context={'request': request}).data, status=status.HTTP_200_OK)
 
 

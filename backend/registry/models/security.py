@@ -1,26 +1,29 @@
 import time
-from PIL import Image
+
+from cryptography.fernet import Fernet
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.gis.db import models
 from django.contrib.auth.models import Group
+from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from django.conf import settings
-from requests.auth import HTTPDigestAuth
-from registry.models.service import CatalougeService, OgcService, WebFeatureService, WebMapService, Layer, FeatureType
-
 from extras.models import CommonInfo, GenericModelMixin
+from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
+from PIL import Image
 from registry.enums.security import EntityUnits
-from registry.enums.service import AuthTypeEnum, OGCOperationEnum, OGCServiceEnum
-from MrMap.validators import geometry_is_empty
-from registry.managers.security import AllowedOperationManager, AnalyzedResponseLogTableManager
+from registry.enums.service import (AuthTypeEnum, OGCOperationEnum,
+                                    OGCServiceEnum)
+from registry.managers.security import (AllowedOperationManager,
+                                        AnalyzedResponseLogTableManager)
+from registry.models.service import (CatalougeService, FeatureType, Layer,
+                                     OgcService, WebFeatureService,
+                                     WebMapService)
 from registry.tasks.security import async_analyze_log
-from django.core.files.base import ContentFile
-from MrMap.validators import validate_get_capablities_uri
-from cryptography.fernet import Fernet
+from requests.auth import HTTPDigestAuth
 
 
 def key_file_path(instance, filename):
@@ -52,7 +55,8 @@ class ServiceAuthentication(GenericModelMixin, CommonInfo):
                                 max_length=1024)
     service = models.OneToOneField(to=OgcService,
                                    verbose_name=_("web map service"),
-                                   help_text=_("the optional authentication type and credentials to request the service."),
+                                   help_text=_(
+                                       "the optional authentication type and credentials to request the service."),
                                    related_query_name="auth",
                                    related_name="auth",
                                    on_delete=models.CASCADE,
@@ -104,8 +108,10 @@ class ServiceAuthentication(GenericModelMixin, CommonInfo):
             None
         """
         cipher_suite = Fernet(self.key)
-        self.username = cipher_suite.encrypt(self.username.encode("ascii")).decode("ascii")
-        self.password = cipher_suite.encrypt(self.password.encode("ascii")).decode("ascii")
+        self.username = cipher_suite.encrypt(
+            self.username.encode("ascii")).decode("ascii")
+        self.password = cipher_suite.encrypt(
+            self.password.encode("ascii")).decode("ascii")
 
     def decrypt_password(self):
         cipher_suite = Fernet(self.key)
@@ -119,8 +125,10 @@ class ServiceAuthentication(GenericModelMixin, CommonInfo):
         """
         if self.key:
             cipher_suite = Fernet(self.key)
-            password = cipher_suite.decrypt(self.password.encode("ascii")).decode("ascii")
-            username = cipher_suite.decrypt(self.username.encode("ascii")).decode("ascii")
+            password = cipher_suite.decrypt(
+                self.password.encode("ascii")).decode("ascii")
+            username = cipher_suite.decrypt(
+                self.username.encode("ascii")).decode("ascii")
             return username, password
         return None, None
 
@@ -219,7 +227,7 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
                                     related_name="allowed_operations",
                                     related_query_name="allowed_operation",
                                     verbose_name=_("secured service"),
-                                    help_text=_("the service where some layers or feature types are secured of."))    
+                                    help_text=_("the service where some layers or feature types are secured of."))
     secured_layers = models.ManyToManyField(to=Layer,
                                             related_name="allowed_operations",
                                             related_query_name="allowed_operation",
@@ -229,7 +237,8 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
     secured_feature_types = models.ManyToManyField(to=FeatureType,
                                                    related_name="allowed_operations",
                                                    related_query_name="allowed_operation",
-                                                   verbose_name=_("secured feature types"),
+                                                   verbose_name=_(
+                                                       "secured feature types"),
                                                    help_text=_("Select one or more feature types."))
     description = models.CharField(max_length=512,
                                    verbose_name=_("description"),
@@ -252,12 +261,14 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
         # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
         # does NOT call save() or triggers signals
         if self.secured_wms:
-            proxy_setting = ProxySetting.objects.filter(secured_wms=self.secured_wms).update(camouflage=True)
+            proxy_setting = ProxySetting.objects.filter(
+                secured_wms=self.secured_wms).update(camouflage=True)
             if proxy_setting == 0:
                 ProxySetting.objects.create(secured_wms=self.secured_wms,
                                             camouflage=True)
         if self.secured_wfs:
-            proxy_setting = ProxySetting.objects.filter(secured_wfs=self.secured_wfs).update(camouflage=True)
+            proxy_setting = ProxySetting.objects.filter(
+                secured_wfs=self.secured_wfs).update(camouflage=True)
             if proxy_setting == 0:
                 ProxySetting.objects.create(secured_wfs=self.secured_wfs,
                                             camouflage=True)
@@ -289,13 +300,15 @@ class ProxySetting(GenericModelMixin, CommonInfo):
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_log_response_without_camouflage",
-                check=Q(camouflage=True, log_response=True) | Q(camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
+                check=Q(camouflage=True, log_response=True) | Q(
+                    camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
             ),
         ]
 
     def clean(self):
         if self.log_response and not self.camouflage:
-            raise ValidationError({"camouflage": _("log response without active camouflage is not supported.")})
+            raise ValidationError(
+                {"camouflage": _("log response without active camouflage is not supported.")})
         if not self.camouflage and self.secured_service.allowed_operations.exists():
             url = f"{AllowedOperation.get_table_url()}?id__in="
             for pk in self.secured_service.allowed_operations.all().values_list("pk", flat=True):
@@ -357,7 +370,8 @@ class HttpResponseLog(models.Model):
     elapsed = models.DurationField()
     headers = models.JSONField(default=dict)
     url = models.URLField(max_length=4096)
-    content = models.FileField(upload_to=response_content_path, max_length=1024)
+    content = models.FileField(
+        upload_to=response_content_path, max_length=1024)
     request = models.OneToOneField(to=HttpRequestLog,
                                    on_delete=models.PROTECT,
                                    related_name="response",
@@ -372,7 +386,7 @@ class HttpResponseLog(models.Model):
             transaction.on_commit(lambda: async_analyze_log.apply_async(
                 args=(self.pk, ),
                 kwargs={'created_by_user_pk': get_user_model().objects.values_list("pk", flat=True).get(username="system"),
-                        'owned_by_org_pk': self.request.service.owned_by_org_id}))
+                        'owner_pk': self.request.service.owner_id}))
 
     def delete(self, *args, **kwargs):
         self.content.delete(save=False)
@@ -395,7 +409,8 @@ class AnalyzedResponseLog(GenericModelMixin, CommonInfo):
                                                      "For WFS this will be discrete number of feature types that are "
                                                      "returned by the service.")
     entity_unit = models.CharField(max_length=5,
-                                   choices=EntityUnits.as_choices(drop_empty_choice=True),
+                                   choices=EntityUnits.as_choices(
+                                       drop_empty_choice=True),
                                    help_text="The unit in which the entity count is stored.")
     objects = AnalyzedResponseLogTableManager()
 
@@ -417,7 +432,8 @@ class AnalyzedResponseLog(GenericModelMixin, CommonInfo):
         num_alpha_pixels = all_pixel_vals.count(0)
 
         # Compute data pixels
-        self.entity_count = round((len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
+        self.entity_count = round(
+            (len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
         # Compute full image pixel count (including transparent pixels)
         self.entity_total_count = round((img.height * img.width) / 1000000, 4)
         self.entity_unit = EntityUnits.MEGA_PIXEL.value

@@ -21,7 +21,7 @@ X-CSRFToken: {{csrf_token}}
       "collect_metadata_records": true
     },
     "relationships": {
-      "owned_by_org": {
+      "owner": {
         "data": {"id": "{{organization}}", "type": "Organization"}
       }
     }

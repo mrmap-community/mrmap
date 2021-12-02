@@ -1,17 +1,15 @@
 import random
 from time import sleep
 
-from celery import shared_task, chain, chord
+from celery import chain, chord, shared_task, states
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
-
-from jobs.enums import TaskStatusEnum
-from jobs.tasks import NewJob, CurrentTask
+from extras.tasks import CommonInfoSetupMixin
 from ows_client.request_builder import CatalogueServiceWeb
-from registry.enums.service import OGCOperationEnum, HttpMethodEnum
-from registry.models import DatasetMetadata, Service, OperationUrl
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.models import DatasetMetadata, OperationUrl, Service
 from registry.models.harvest import HarvestResult
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 
@@ -20,12 +18,13 @@ MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]
 
 @shared_task(name="async_harvest_service",
              bind=True,
-             base=NewJob)
+             base=CommonInfoSetupMixin)
 def harvest_service(self,
                     service,
                     **kwargs):
     _calibrate_step_size = chord(
-        [get_response_elapsed.s(service, test_max_records, **kwargs) for test_max_records in MAX_RECORDS_TEST_LIST],
+        [get_response_elapsed.s(service, test_max_records, **kwargs)
+         for test_max_records in MAX_RECORDS_TEST_LIST],
         calibrate_step_size.s(**kwargs))
     workflow = chain(_calibrate_step_size,
                      schedule_get_records.s(service, **kwargs))
@@ -35,7 +34,7 @@ def harvest_service(self,
 
 @shared_task(name="async_schedule_get_records",
              bind=True,
-             base=CurrentTask)
+             base=CommonInfoSetupMixin)
 def schedule_get_records(self,
                          step_size,
                          service_id,
@@ -95,13 +94,13 @@ def calibrate_step_size(test_results,
 
 @shared_task(name="async_get_response_elapse",
              bind=True,
-             base=CurrentTask)
+             base=CommonInfoSetupMixin)
 def get_response_elapsed(self,
                          service_id,
                          test_max_records,
                          **kwargs):
     if self.task:
-        self.task.status = TaskStatusEnum.STARTED.value
+        self.task.status = states.STARTED
         self.task.phase = f"Start analyzing elapsing time of the request for maxRecords query parameter '{test_max_records}'"
         self.task.save()
     db_service = Service.objects.get(pk=service_id)
@@ -127,7 +126,7 @@ def get_response_elapsed(self,
         elapsed = -1
 
     if self.task:
-        self.task.status = TaskStatusEnum.SUCCESS.value
+        self.task.status = states.SUCCESS
         self.task.phase = f"Elapsing time for maxRecords query parameter '{test_max_records}': {elapsed}"
         self.task.progress = 100
         self.task.save()
@@ -136,7 +135,7 @@ def get_response_elapsed(self,
 
 @shared_task(name="async_get_records",
              bind=True,
-             base=CurrentTask,
+             base=CommonInfoSetupMixin,
              queue="harvest")
 def get_records(self,
                 service_id,
@@ -176,7 +175,7 @@ def get_records(self,
             task = cls.objects.select_for_update().get(pk=self.task.pk)
             if not task.started_at:
                 task.started_at = timezone.now()
-            task.status = TaskStatusEnum.STARTED.value
+            task.status = states.STARTED
             task.progress += progress_step_size / 2
             try:
                 phase = task.phase.split(":")
@@ -192,7 +191,7 @@ def get_records(self,
 
 @shared_task(name="async_analyze_records",
              bind=True,
-             base=CurrentTask,
+             base=CommonInfoSetupMixin,
              queue="harvest")
 def analyze_results(self,
                     harvest_results,
@@ -200,7 +199,7 @@ def analyze_results(self,
                     total_records,
                     **kwargs):
     if self.task:
-        self.task.status = TaskStatusEnum.STARTED.value
+        self.task.status = states.STARTED
         self.task.phase = f"Persisting downloaded records: 0 / {total_records}"
         self.task.save()
     service = Service.objects.get(pk=service_id)
@@ -236,7 +235,7 @@ def analyze_results(self,
                 pass
 
     if self.task:
-        self.task.status = TaskStatusEnum.SUCCESS.value
+        self.task.status = states.SUCCESS
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{DatasetMetadata.get_table_url()}?id__in={",".join(str(pk) for pk in dataset_list)}">dataset metadata</a>'
         self.task.save()

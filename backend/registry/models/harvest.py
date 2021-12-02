@@ -1,7 +1,5 @@
 from django.contrib.gis.db import models
 from eulxml import xmlmap
-
-from jobs.models import Job
 from extras.models import CommonInfo
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 
@@ -16,10 +14,6 @@ class HarvestResult(CommonInfo):
                                 on_delete=models.CASCADE,
                                 related_name="harvest_results",
                                 related_query_name="harvest_result")
-    job = models.ForeignKey(to=Job,
-                            on_delete=models.PROTECT,
-                            related_name="harvest_results",
-                            related_query_name="harvest_result")
     result_file = models.FileField(upload_to=result_file_path,
                                    editable=False,
                                    max_length=1024)

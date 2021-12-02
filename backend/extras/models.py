@@ -146,6 +146,7 @@ class CommonInfo(models.Model):
         help_text=_("The user who has created this object."),
         editable=False,
         blank=True,
+        null=True,
         related_name="%(app_label)s_%(class)s_created_by_user",
         on_delete=models.SET_NULL,
     )
@@ -155,7 +156,8 @@ class CommonInfo(models.Model):
         help_text=_("The organization which is the owner of this object."),
         editable=False,
         blank=True,
-        related_name="%(app_label)s_%(class)s_owned_by_org",
+        null=True,
+        related_name="%(app_label)s_%(class)s_owner",
         on_delete=models.SET_NULL,
     )
     last_modified_at = models.DateTimeField(
@@ -170,6 +172,7 @@ class CommonInfo(models.Model):
         verbose_name=_("Last modified by"),
         help_text=_("The last user who has modified this object."),
         blank=True,
+        null=True,
         editable=False,
         related_name="%(app_label)s_%(class)s_last_modified_by",
         on_delete=models.SET_NULL,
@@ -177,10 +180,6 @@ class CommonInfo(models.Model):
 
     class Meta:
         abstract = True
-
-    def __init__(self, *args, **kwargs):
-        super(CommonInfo, self).__init__(*args, **kwargs)
-        # self._owned_by_org_id = self.owned_by_org_id
 
     def save(self, update_last_modified=True, current_user=None, *args, **kwargs):
         if current_task and not current_user:

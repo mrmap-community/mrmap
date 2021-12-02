@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo
+from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import assign_perm, get_objects_for_group, remove_perm
 
 from users.settings import DEFAULT_REQUEST_ACIVATION_TIME
@@ -81,13 +82,12 @@ class Contact(models.Model):
         )
 
 
-class Organization(CommonInfo, Contact, Group):
+class Organization(Group, CommonInfo, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     description = models.TextField(
         default="",
         null=True,
@@ -110,7 +110,7 @@ class Organization(CommonInfo, Contact, Group):
         return self.name
 
     @property
-    def publishers(self) -> QuerySet:
+    def can_publish_for(self) -> QuerySet:
         """
         return all `Organization` objects which can publish for this `Organization.
 
@@ -118,15 +118,28 @@ class Organization(CommonInfo, Contact, Group):
             all publishers for this organization (QuerySet)
         """
         return get_objects_for_group(group=self,
-                                     perms='users.can_publish_for_organization')
+                                     perms='users.can_publish_for_organization',
+                                     klass=Organization,
+                                     accept_global_perms=False).exclude(pk=self.pk)
 
-    def add_publisher(self, publisher: Group) -> None:
-        assign_perm(perm='users.can_publish_for_organization',
-                    user_or_group=publisher, obj=self)
+    @property
+    def publishers(self) -> QuerySet:
+        # TODO:
+        return Organization.objects.none()
 
-    def remove_publisher(self, publisher: Group) -> None:
-        remove_perm(perm='users.can_publish_for_organization',
-                    user_or_group=publisher, obj=self)
+    def add_publisher(self, publisher) -> None:
+        if isinstance(publisher, Organization):
+            assign_perm(perm='users.can_publish_for_organization',
+                        user_or_group=publisher, obj=self)
+        else:
+            raise TypeError('given publisher is not from type Organization')
+
+    def remove_publisher(self, publisher) -> None:
+        if isinstance(publisher, Organization):
+            remove_perm(perm='users.can_publish_for_organization',
+                        user_or_group=publisher, obj=self)
+        else:
+            raise TypeError('given publisher is not from type Organization')
 
 
 class BaseInternalRequest(CommonInfo):
@@ -181,23 +194,17 @@ class PublishRequest(BaseInternalRequest):
             f"{self.from_organization} would like to publish for {self.to_organization}"
         )
 
-    def get_absolute_url(self):
-        return f"{reverse('users:publish_request_overview')}?from_organization={self.from_organization.pk}&to_organization={self.to_organization.pk}"
-
-    @property
-    def accept_request_uri(self):
-        return reverse("users:publish_request_accept", args=[self.pk])
-
     def clean(self):
         errors = []
-        if self.from_organization.can_publish_for.filter(
-            id=self.to_organization.id
-        ).exists():
+        perm_checker = ObjectPermissionChecker(
+            user_or_group=self.from_organization)
+        if perm_checker.has_perm(perm='users.can_publish_for', obj=self.to_organization):
             errors.append(
                 self.from_organization.__str__()
                 + _(" can already publish for ").__str__()
                 + self.to_organization.__str__()
             )
+
         if self.from_organization == self.to_organization:
             errors.append(
                 "You can not request publishing rights for two equal organizations."
@@ -208,9 +215,7 @@ class PublishRequest(BaseInternalRequest):
     def save(self, *args, **kwargs):
         if not self._state.adding:
             if self.is_accepted:
-                self.from_organization.add_organization_publish_relation(
-                    self.to_organization
-                )
+                self.from_organization.add_publisher(self.to_organization)
                 self.delete()
         else:
             super().save(*args, **kwargs)

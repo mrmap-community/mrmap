@@ -8,22 +8,21 @@ Created on: 27.10.20
 import json
 import sys
 
-from celery import shared_task
+from celery import shared_task, states
 from celery.utils.log import get_task_logger
 from django.utils import timezone
-
-from jobs.enums import TaskStatusEnum
-from jobs.tasks import CurrentTask, NewJob
-from registry.helper.plugins.etf import QualityEtf, EtfClient
-from registry.helper.plugins.internal import QualityInternal
+from extras.tasks import CommonInfoSetupMixin
 from registry.enums.conformity import ConformityTypeEnum, ReportType
-from registry.models import ConformityCheckRun, ConformityCheckConfigurationExternal
+from registry.helper.plugins.etf import EtfClient, QualityEtf
+from registry.helper.plugins.internal import QualityInternal
+from registry.models import (ConformityCheckConfigurationExternal,
+                             ConformityCheckRun)
 
 logger = get_task_logger(__name__)
 
 
 @shared_task(name='async_run_conformity_check',
-             base=NewJob,
+             base=CommonInfoSetupMixin,
              bind=True)
 def run_conformity_check(self, run_id: int, **kwargs):
     run = ConformityCheckRun.objects.get(id=run_id)
@@ -43,11 +42,11 @@ def run_conformity_check(self, run_id: int, **kwargs):
 
 
 @shared_task(name='async_run_conformity_check_etf',
-             base=CurrentTask,
+             base=CommonInfoSetupMixin,
              bind=True)
 def run_conformity_check_etf(self, run_id: int, **kwargs):
     if self.task:
-        self.task.status = TaskStatusEnum.STARTED.value
+        self.task.status = states.STARTED
         self.task.phase = "performing ETF-based conformity check..."
         self.task.started_at = timezone.now()
         self.task.save()
@@ -62,7 +61,8 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
         checker = QualityEtf(run, config_ext, client)
         run = checker.run()
     except Exception:
-        logger.exception('ETF conformity check failure', exc_info=sys.exc_info()[0])
+        logger.exception('ETF conformity check failure',
+                         exc_info=sys.exc_info()[0])
         run.passed = False
         run.report = json.dumps({
             "Unexpected error": str(sys.exc_info())
@@ -71,7 +71,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
         run.save()
 
         self.task.progress = 100
-        self.task.status = TaskStatusEnum.FAILURE
+        self.task.status = states.FAILURE
         self.task.done_at = timezone.now()
         self.task.phase = f'Failure. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
@@ -79,7 +79,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
 
     if self.task:
         self.task.progress = 100
-        self.task.status = TaskStatusEnum.SUCCESS.value
+        self.task.status = states.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
@@ -87,11 +87,11 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
 
 
 @shared_task(name='async_run_conformity_check_internal',
-             base=CurrentTask,
+             base=CommonInfoSetupMixin,
              bind=True)
 def run_conformity_check_internal(self, run_id: int, **kwargs):
     if self.task:
-        self.task.status = TaskStatusEnum.STARTED.value
+        self.task.status = states.STARTED.value
         self.task.phase = "performing internal conformity check..."
         self.task.started_at = timezone.now()
         self.task.save()
@@ -103,7 +103,8 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
         checker = QualityInternal(run)
         run = checker.run()
     except Exception:
-        logger.exception('Internal conformity check failure', exc_info=sys.exc_info()[0])
+        logger.exception('Internal conformity check failure',
+                         exc_info=sys.exc_info()[0])
         run.passed = False
         run.report = json.dumps({
             "Unexpected error": str(sys.exc_info())
@@ -112,7 +113,7 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
         run.save()
 
         self.task.progress = 100
-        self.task.status = TaskStatusEnum.FAILURE
+        self.task.status = states.FAILURE
         self.task.done_at = timezone.now()
         self.task.phase = f'Failure. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()
@@ -120,7 +121,7 @@ def run_conformity_check_internal(self, run_id: int, **kwargs):
 
     if self.task:
         self.task.progress = 100
-        self.task.status = TaskStatusEnum.SUCCESS.value
+        self.task.status = states.SUCCESS.value
         self.task.done_at = timezone.now()
         self.task.phase = f'Done. <a href="{ConformityCheckRun.get_table_url()}?id__in={run_id}">Conformity check results</a>'
         self.task.save()

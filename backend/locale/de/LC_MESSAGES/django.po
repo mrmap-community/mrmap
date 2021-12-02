@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-12-02 18:20+0100\n"
+"POT-Creation-Date: 2021-12-02 21:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -252,51 +252,6 @@ msgstr "XML Sicherung"
 #: registry/models/document.py:23
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
-
-#: registry/models/jobs.py:70 registry/models/security.py:48
-#, fuzzy
-#| msgid "Service"
-msgid "Service url"
-msgstr "Dienst"
-
-#: registry/models/jobs.py:71 registry/models/security.py:49
-msgid "this shall be the full get capabilities request url."
-msgstr "Dies sollte die vollständige GetCapabilities url sein."
-
-#: registry/models/jobs.py:76
-#, fuzzy
-#| msgid "Restore metadata"
-msgid "collect metadata"
-msgstr "Metadaten wiederherstellen"
-
-#: registry/models/jobs.py:78
-msgid ""
-"auto start collecting task after successful registering which register all "
-"linked metadata records found in the GetCapabilities document."
-msgstr ""
-"Automatisches starten der Teilaufgabe zum erfassen aller verknüpften "
-"Metadatensätze, welche im GetCapabilities Dokument gefunden werden."
-
-#: registry/models/jobs.py:86
-#, fuzzy
-#| msgid "Registration for other organization"
-msgid "Registration for organization"
-msgstr "Registriere für andere Organisation"
-
-#: registry/models/jobs.py:88
-msgid "Select for which organization you'd like to register the service."
-msgstr ""
-"Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
-
-#: registry/models/jobs.py:96
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "service authentication"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: registry/models/jobs.py:98
-msgid "Optional credentials to authenticate against the web service."
-msgstr ""
 
 #: registry/models/mapcontext.py:18 registry/models/mapcontext.py:57
 #: registry/models/metadata.py:48 registry/models/metadata.py:321
@@ -914,6 +869,16 @@ msgstr "Authentifizierungstyp"
 msgid "kind of authentication mechanism shall used."
 msgstr "Authentifizierungsmechanismus."
 
+#: registry/models/security.py:48
+#, fuzzy
+#| msgid "Service"
+msgid "Service url"
+msgstr "Dienst"
+
+#: registry/models/security.py:49
+msgid "this shall be the full get capabilities request url."
+msgstr "Dies sollte die vollständige GetCapabilities url sein."
+
 #: registry/models/security.py:55
 msgid ""
 "the optional authentication type and credentials to request the service."
@@ -1393,6 +1358,33 @@ msgstr "Bei Zugangsänderungen informieren"
 #: users/models/users.py:141
 msgid "Sends an e-mai if the service's access has been changed."
 msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
+
+#, fuzzy
+#~| msgid "Restore metadata"
+#~ msgid "collect metadata"
+#~ msgstr "Metadaten wiederherstellen"
+
+#~ msgid ""
+#~ "auto start collecting task after successful registering which register "
+#~ "all linked metadata records found in the GetCapabilities document."
+#~ msgstr ""
+#~ "Automatisches starten der Teilaufgabe zum erfassen aller verknüpften "
+#~ "Metadatensätze, welche im GetCapabilities Dokument gefunden werden."
+
+#, fuzzy
+#~| msgid "Registration for other organization"
+#~ msgid "Registration for organization"
+#~ msgstr "Registriere für andere Organisation"
+
+#~ msgid "Select for which organization you'd like to register the service."
+#~ msgstr ""
+#~ "Wählen Sie die Organisation aus, für die der Dienst registriert werden "
+#~ "soll."
+
+#, fuzzy
+#~| msgid "Service needs authentication"
+#~ msgid "service authentication"
+#~ msgstr "Dienst benötigt Authentifizierung"
 
 #~ msgid "Check this field"
 #~ msgstr "Feld prüfen"

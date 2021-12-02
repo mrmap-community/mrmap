@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation }
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import MapContextTable from './Components/MapContext/MapContextTable';
 import { MapContext } from './Components/MapContextForm/MapContext';
+import { MapContextEdit } from './Components/MapContextForm/MapContextEdit';
 import DatasetMetadataTable from './Components/Metadata/DatasetMetadataTable';
 import { NavBar } from './Components/NavBar/NavBar';
 import FeatureTypeTable from './Components/OgcService/FeatureTypeTable';
@@ -135,6 +136,10 @@ export default function App (): JSX.Element {
               <Route
                 path='/registry/mapcontexts/add'
                 element={<MapContext />}
+              />
+              <Route
+                path='/registry/mapcontexts/edit'
+                element={<MapContextEdit/>}
               />
             </Route>
           </Routes>

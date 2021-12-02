@@ -63,7 +63,7 @@ export const OgcServiceAdd = (): ReactElement => {
         name='control-hooks'
         onFinish={onFinish}
         initialValues={{
-          collect_metadata_records: false
+          collect_metadata_records: false // eslint-disable-line
         }}
       >
         <Form.Item

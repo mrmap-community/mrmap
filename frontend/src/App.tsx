@@ -6,9 +6,8 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 
 import { Dashboard } from './Components/Dashboard/Dashboard';
-import { MapContextList } from './Components/MapContext/MapContextList/MapContextList';
 import MapContextTable from './Components/MapContext/MapContextTable';
-import { FormSteps } from './Components/MapContextForm/MapContextForm';
+import { MapContext } from './Components/MapContextForm/MapContext';
 import DatasetMetadataTable from './Components/Metadata/DatasetMetadataTable';
 import { NavBar } from './Components/NavBar/NavBar';
 import FeatureTypeTable from './Components/OgcService/FeatureTypeTable';
@@ -133,7 +132,7 @@ export default function App (): JSX.Element {
             />
             <Route
               path='/registry/mapcontexts/add'
-              element={<FormSteps />}
+              element={<MapContext />}
             />
           </Route>
         </Routes>

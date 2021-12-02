@@ -19,10 +19,10 @@ globals:
   beforeEach: true
   expect: true
 extends:
-  - 'plugin:react/recommended'
+  - "plugin:react/recommended"
   - standard
-  - 'plugin:@typescript-eslint/recommended'
-parser: '@typescript-eslint/parser'
+  - "plugin:@typescript-eslint/recommended"
+parser: "@typescript-eslint/parser"
 parserOptions:
   ecmaFeatures:
     jsx: true
@@ -30,23 +30,24 @@ parserOptions:
   sourceType: module
 plugins:
   - react
-  - '@typescript-eslint'
+  - "@typescript-eslint"
   - simple-import-sort
 rules:
   no-console:
     - warn
     - allow:
-      - info
-      - warn
-      - error
+        - info
+        - warn
+        - error
   semi:
     - error
     - always
-  object-curly-spacing: 
+  object-curly-spacing:
     - error
     - always
   no-unused-vars: 0
   no-debugger: 0
+  no-prototype-builtins: 1
   simple-import-sort/imports: error
   simple-import-sort/exports: error
   import/first: error
@@ -56,31 +57,31 @@ rules:
   import/extensions: 0
   import/no-cycle: 0
   implicit-arrow-linebreak: 0
-  camelcase: 
+  camelcase:
     - error
     - allow:
-      - 'jwt_decode'
-  max-len: 
+        - "jwt_decode"
+  max-len:
     - 2
     - 120
-    - ignorePattern: '^import'
+    - ignorePattern: "^import"
   eol-last:
-    - error 
+    - error
     - always
   no-use-before-define: 0
-  jsx-quotes: 
+  jsx-quotes:
     - error
     - prefer-single
 overrides:
   - files:
-    - '**/*.tsx'
-    - '**/*.ts'
-    - '**/*.jsx'
-    - '**/*.js'
+      - "**/*.tsx"
+      - "**/*.ts"
+      - "**/*.jsx"
+      - "**/*.js"
     rules:
       react/prop-types: 0
-      '@typescript-eslint/no-use-before-define': 1
-      '@typescript-eslint/no-empty-interface': 1
-      '@typescript-eslint/no-unused-vars': 2
-      '@typescript-eslint/no-explicit-any': 0
-      '@typescript-eslint/ban-ts-comment': 0
+      "@typescript-eslint/no-use-before-define": 1
+      "@typescript-eslint/no-empty-interface": 1
+      "@typescript-eslint/no-unused-vars": 2
+      "@typescript-eslint/no-explicit-any": 0
+      "@typescript-eslint/ban-ts-comment": 0

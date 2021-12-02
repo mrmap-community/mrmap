@@ -9,6 +9,8 @@ import JsonApiRepo from '../../Repos/JsonApiRepo';
 interface ResourceTableProps {
     repo: JsonApiRepo
     addRecord?: string
+    editRecord?: boolean,
+    onEditRecord?: () => void;
 }
 
 interface TableState {
@@ -92,7 +94,12 @@ const getColumnSearchProps = (dataIndex: any): any => {
   };
 };
 
-export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactElement => {
+export const ResourceTable = ({
+  repo,
+  addRecord,
+  editRecord = false,
+  onEditRecord = () => undefined
+}: ResourceTableProps): ReactElement => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({
     dataSource: [],
@@ -198,9 +205,26 @@ export const ResourceTable = ({ repo, addRecord }: ResourceTableProps): ReactEle
         render: (text: any, record: any) => {
           const boundOnDeleteRecord = onDeleteRecord.bind(null, record);
           return (
-            <Space size='middle'>
-              <Button danger size='small' onClick={boundOnDeleteRecord}>Delete</Button>
-            </Space>
+            <>
+              <Space size='middle'>
+              {editRecord && (
+                  <Button
+                    size='small'
+                    onClick={() => onEditRecord()}
+                  >
+                    Edit
+                  </Button>
+              )}
+                <Button
+                  danger
+                  size='small'
+                  onClick={boundOnDeleteRecord}
+                >
+                  Delete
+                </Button>
+
+              </Space>
+            </>
           );
         }
       });

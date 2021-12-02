@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router';
 
 import MapContextRepo from '../../Repos/MapContextRepo';
 import ResourceTable from '../Shared/ResourceTable';
@@ -6,7 +7,15 @@ import ResourceTable from '../Shared/ResourceTable';
 const repo = new MapContextRepo();
 
 export const MapContextTable = (): JSX.Element => {
-  return <ResourceTable repo={repo} addRecord='/registry/mapcontexts/add'/>;
+  const navigate = useNavigate();
+
+  return (
+  <ResourceTable
+    repo={repo}
+    editRecord
+    onEditRecord={() => navigate('/registry/mapcontexts/edit')}
+    addRecord='/registry/mapcontexts/add'
+  />);
 };
 
 export default MapContextTable;

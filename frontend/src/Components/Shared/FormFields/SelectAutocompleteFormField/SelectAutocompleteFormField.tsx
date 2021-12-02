@@ -1,7 +1,7 @@
 import { SettingFilled } from '@ant-design/icons';
 import { Form, Select } from 'antd';
 import { LabeledValue } from 'antd/lib/select';
-import React, { FC, ReactNode, useState } from 'react';
+import React, { FC, ReactNode, useEffect, useState } from 'react';
 
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
@@ -54,9 +54,17 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
   pagination = false
 
 }) => {
-  const [searchOptions, setsearchOptions] = useState<SearchFieldData[]>(searchData);
+  const [searchOptions, setsearchOptions] = useState<SearchFieldData[]>([]);
   const [nextPageData, setNextPageData] = useState<any>(undefined);
   const [isLoadingPaginatedResults, setIsLoadingPaginatedResults] = useState<boolean>(false);
+
+  /**
+   * @descriptionHook to run when searchData changes
+   */
+  useEffect(() => {
+    setsearchOptions(searchData);
+  }, [searchData]);
+
   /**
    * @description: Method to fetch paginaation data and set it to ther state.
    * Assumes that the pagination data is  set as a parameter in every searchData element.

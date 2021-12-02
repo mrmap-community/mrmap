@@ -35,7 +35,7 @@ class MrMapUserSerializer(ModelSerializer):
         required=False,
         meta_attrs={'group_count': 'count'})
 
-    included_serializers = {
+    related_serializers = {
         'groups': GroupSerializer,
     }
 

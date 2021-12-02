@@ -5,7 +5,7 @@
 @username = mrmap
 @password = mrmap
 @session_id = nkg9trrp00a1dm1ectr7aajb4x8n88uf
-@csrf_token = G9EkL90FynWIuHwSqKfZBjb0gMUvbPvWfj7ElIVyWVwt3plZyXDvX9JyVSveGmCs
+@csrf_token = zx5d36Dx7N3p7hax6RZh0QXylMvY8r1PmJPWYsXR2eLUSiOKV5ED6ze1h8jsWNib
 
 # @name postOgcService
 POST {{host}}api/v1/registry/ogcservices/ HTTP/1.1
@@ -35,6 +35,37 @@ GET {{host}}api/v1/registry/wms/ HTTP/1.1
 Content-Type: application/vnd.api+json
 Cookie: djdtSQLPanel={{sql_timing}};
 Referer: {{host}}api/v1/registry/wms/
+
+###
+
+# @name addUser
+POST {{host}}api/v1/users/users/
+Content-Type: application/vnd.api+json
+X-CSRFToken: {{csrf_token}}
+Referer: {{host}}api/v1/registry/wms/
+
+{
+  "data": {
+    "type": "User",
+    "attributes": {
+      "is_superuser": false,
+      "username": "testuser",
+      "is_active": true
+    },
+    "relationships": {
+      "groups": {
+        "data": [
+          {
+            "type": "Group",
+            "id": "1"
+          
+          }
+        ]
+      }   
+    }
+  }
+}
+
 
 ###
 

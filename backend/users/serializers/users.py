@@ -7,8 +7,8 @@ from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer, Serializer
 
-from users.api.serializers.groups import GroupSerializer
 from users.models.users import MrMapUser
+from users.serializers.groups import GroupSerializer
 
 
 class PasswordField(CharField):

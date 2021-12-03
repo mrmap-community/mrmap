@@ -7,9 +7,9 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
-from users.api.serializers.users import (LoginSerializer, LogoutSerializer,
-                                         UserCreateSerializer, UserSerializer)
 from users.models.users import MrMapUser
+from users.serializers.users import (LoginSerializer, LogoutSerializer,
+                                     UserCreateSerializer, UserSerializer)
 
 
 class MrMapUserRelationshipView(RelationshipView):

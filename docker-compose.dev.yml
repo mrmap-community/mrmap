@@ -28,8 +28,7 @@ services:
       args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
-    command:
-      /bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
+    command: /bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
     hostname: "mrmap-test"
     volumes:
       - type: bind
@@ -49,10 +48,10 @@ services:
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
-    tty: true  # To support colorized log output of gherkin and other log information. 
+    tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
-    command:
-      /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i -o behave-coverage-report.xml"
+    command: /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i
+      -o behave-coverage-report.xml"
     hostname: "mrmap-test"
     volumes:
       - type: bind
@@ -74,10 +73,12 @@ services:
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
-    tty: true  # To support colorized log output of gherkin and other log information. 
+    tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-         /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/api/features && coverage run manage.py behave --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
+      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip
+      --no-skipped tests/behave/api/features && coverage run manage.py behave
+      --noinput --tags=-skip --no-skipped tests/behave/selenium/features"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -95,39 +96,49 @@ services:
       - redis
 
   backend:
-      build:
-        args:
-          MRMAP_PRODUCTION: "False"
-      env_file:
-        - docker/backend/.mrmap.env
-        - docker/backend/.mrmap.dev.env
-      command:
-        /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
-      ports:
-        - "8001:8001"
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - docker/backend/.mrmap.env
+      - docker/backend/.mrmap.dev.env
+    command: /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
+    ports:
+      - "8001:8001"
 
   celery-default-worker:
-      build:
-        args:
-          MRMAP_PRODUCTION: "False"
-      env_file:
-        - ./docker/backend/.mrmap.env
-        - ./docker/backend/.mrmap.dev.env
-      command: >
-        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py
+      --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
 
   celery-download-worker:
-      build:
-        args:
-          MRMAP_PRODUCTION: "False"
-      env_file:
-        - ./docker/backend/.mrmap.env
-        - ./docker/backend/.mrmap.dev.env
-      command: >
-        /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py
+      --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q
+      download_iso_metadata,download_described_elements,harvest"
 
   nginx:
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.dev.conf
         target: /etc/nginx/conf.d/default.conf
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    env_file:
+      - ./docker/swagger/.swagger.env
+    hostname: "mrmap-swagger-ui"
+    networks:
+      - mrmap-internal

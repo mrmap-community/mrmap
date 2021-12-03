@@ -9,8 +9,7 @@ import os
 import random
 import string
 
-from auth.models.groups import Organization
-from dateutil.parser import parse
+from accounts.models.groups import Organization
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, call_command
 from django.db import (DEFAULT_DB_ALIAS, OperationalError, connections,
@@ -47,6 +46,7 @@ class Command(BaseCommand):
             self._run_system_user_default_setup()
             self._run_superuser_default_setup()
             # then load the default categories
+            # TODO: only load one time on initial setup
             call_command('load_categories')
             call_command('load_licences')
             # finally load the fixtures

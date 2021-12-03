@@ -1,6 +1,6 @@
 from django.core.checks import register
 
-from auth.utils import get_secured_models
+from accounts.utils import get_secured_models
 
 
 @register()

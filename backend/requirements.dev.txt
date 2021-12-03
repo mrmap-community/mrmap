@@ -9,3 +9,4 @@ debugpy==1.4.3
 argh==0.26.2
 behave-restful==0.4.1
 autopep8==1.6.0
+django-debug-toolbar==3.2.2

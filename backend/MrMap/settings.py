@@ -13,7 +13,6 @@ import os
 import socket
 import sys
 
-from django.contrib import messages
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
@@ -39,27 +38,22 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
-    "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django.contrib.gis",
     "django_extensions",
     "captcha",
     "rest_framework",
-    "rest_framework.authtoken",
     "rest_framework_gis",
     "rest_framework_json_api",
-    "dj_rest_auth",
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
     "django_nose",
     "mptt",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
-    "auth",
-    "object_permissions",
+    "accounts",
     "registry",
-    "extras",
 ]
 
 MIDDLEWARE = [
@@ -138,7 +132,6 @@ PASSWORD_HASHERS = [
 ROOT_URLCONF = "MrMap.urls"
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
-
 
 METADATA_URL = [
     "request=GetMetadata&",
@@ -325,35 +318,17 @@ ASGI_APPLICATION = "MrMap.asgi.application"
 # Extends the number of GET/POST parameters
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 
-# A string template used in the beginnings of this project
-EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
-
-# Defines table page constants
-PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
-PAGE_SIZE_DEFAULT = 5
-PAGE_SIZE_MAX = 100
-PAGE_DEFAULT = 1
-
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = "auth.MrMapUser"
+AUTH_USER_MODEL = "accounts.User"
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60
 
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
-
-# define the message tags for bootstrap
-MESSAGE_TAGS = {
-    messages.DEBUG: "alert-info",
-    messages.INFO: "alert-info",
-    messages.SUCCESS: "alert-success",
-    messages.WARNING: "alert-warning",
-    messages.ERROR: "alert-danger",
-}
 
 ################################################################
 # nose test runner settings

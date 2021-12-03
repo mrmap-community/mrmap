@@ -1,4 +1,4 @@
-from auth.settings import DEFAULT_REQUEST_ACIVATION_TIME
+from accounts.settings import DEFAULT_REQUEST_ACIVATION_TIME
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -115,7 +115,7 @@ class Organization(Group, CommonInfo, Contact):
             all publishers for this organization (QuerySet)
         """
         return get_objects_for_group(group=self,
-                                     perms='auth.can_publish_for_organization',
+                                     perms='accounts.can_publish_for_organization',
                                      klass=Organization,
                                      accept_global_perms=False).exclude(pk=self.pk)
 
@@ -126,14 +126,14 @@ class Organization(Group, CommonInfo, Contact):
 
     def add_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            assign_perm(perm='auth.can_publish_for_organization',
+            assign_perm(perm='accounts.can_publish_for_organization',
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
 
     def remove_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            remove_perm(perm='auth.can_publish_for_organization',
+            remove_perm(perm='accounts.can_publish_for_organization',
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
@@ -195,7 +195,7 @@ class PublishRequest(BaseInternalRequest):
         errors = []
         perm_checker = ObjectPermissionChecker(
             user_or_group=self.from_organization)
-        if perm_checker.has_perm(perm='auth.can_publish_for', obj=self.to_organization):
+        if perm_checker.has_perm(perm='accounts.can_publish_for', obj=self.to_organization):
             errors.append(
                 self.from_organization.__str__()
                 + _(" can already publish for ").__str__()

@@ -10,7 +10,7 @@ from polymorphic.managers import PolymorphicManager
 from registry.enums.metadata import MetadataOrigin
 
 
-class ServiceCapabilitiesManager(models.Manager):
+class ServiceCapabilitiesManager(PolymorphicManager):
     """
     handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
     instance.

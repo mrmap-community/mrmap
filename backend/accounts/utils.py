@@ -1,6 +1,6 @@
 from django.apps import apps
 
-from auth import settings
+from accounts import settings
 
 
 def get_secured_models():

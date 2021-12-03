@@ -5,8 +5,8 @@ from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from guardian.shortcuts import assign_perm
 
-from auth.models.groups import Organization
-from auth.utils import get_secured_models
+from accounts.models.groups import Organization
+from accounts.utils import get_secured_models
 
 
 @receiver(post_save, sender=Organization)

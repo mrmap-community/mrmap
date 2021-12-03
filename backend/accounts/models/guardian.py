@@ -5,7 +5,7 @@ For more information on this file, see
 https://django-guardian.readthedocs.io/en/v2.3.0/userguide/performance.html#direct-foreign-keys
 
 """
-from auth.models.groups import Organization
+from accounts.models.groups import Organization
 from django.db import models
 
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase

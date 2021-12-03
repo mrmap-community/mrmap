@@ -1,8 +1,8 @@
-from auth.models.users import User
-from auth.serializers.users import (LoginSerializer, LogoutSerializer,
-                                    UserCreateSerializer, UserSerializer)
+from accounts.models.users import User
+from accounts.serializers.users import (LoginSerializer, LogoutSerializer,
+                                        UserCreateSerializer, UserSerializer)
 from django.contrib.auth import login, logout
-from rest_framework import generics, serializers, status
+from rest_framework import generics, status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response

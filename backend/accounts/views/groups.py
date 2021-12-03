@@ -1,6 +1,6 @@
-from auth.filters.groups import OrganizationFilterSet
-from auth.models.groups import Organization
-from auth.serializers.groups import GroupSerializer, OrganizationSerializer
+from accounts.filters.groups import OrganizationFilterSet
+from accounts.models.groups import Organization
+from accounts.serializers.groups import GroupSerializer, OrganizationSerializer
 from django.contrib.auth.models import Group
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet

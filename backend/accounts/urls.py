@@ -1,10 +1,10 @@
 from django.urls import path
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
-from auth.views import groups as group_views
-from auth.views import users as user_views
+from accounts.views import groups as group_views
+from accounts.views import users as user_views
 
-app_name = 'auth'
+app_name = 'accounts'
 
 nested_api_router = ExtendedSimpleRouter()
 (

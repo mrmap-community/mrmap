@@ -16,8 +16,6 @@ Including another URLconf
 
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_cookie
-from django.views.generic import TemplateView
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
@@ -31,7 +29,7 @@ urlpatterns = [
     # REST API
     # registry api urls
     path("api/v1/registry/", include("registry.urls", namespace="registry")),
-    path("api/v1/auth/", include("auth.urls", namespace="auth")),
+    path("api/v1/accounts/", include("accounts.urls", namespace="accounts")),
     # path('api/v1/auth/', include('dj_rest_auth.urls')),
     path(
         "api/schema/",
@@ -45,14 +43,6 @@ urlpatterns = [
             )
         ),
         name="openapi-schema",
-    ),
-    path(
-        "api/schema/swagger-ui/",
-        TemplateView.as_view(
-            template_name="extras/swagger-ui.html",
-            extra_context={"schema_url": "openapi-schema"},
-        ),
-        name="swagger-ui",
     ),
 ]
 

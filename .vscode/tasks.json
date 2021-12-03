@@ -61,7 +61,7 @@
             "command": "docker-compose",
             "args": [
                 "-f",
-                "${workspaceFolder}/docker-compose.yml",                
+                "${workspaceFolder}/docker-compose.yml",
                 "up",
                 "--remove-orphans",
                 "--build",
@@ -69,6 +69,25 @@
                 "frontend",
                 "--abort-on-container-exit",
                 "frontend"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: swagger-ui",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "swagger-ui",
+                "--abort-on-container-exit",
+                "swagger-ui"
             ],
             "problemMatcher": []
         },
@@ -186,7 +205,7 @@
                 "-iname",
                 "migrations",
                 "|",
-                "xargs",  
+                "xargs",
                 "-i",
                 "find",
                 "{}",
@@ -237,28 +256,28 @@
             ]
         },
         {
-          "label": "ESLint",
-          "type": "shell",
-          "problemMatcher": "$eslint-stylish",
-          "command": "npm",
-          "args":  [
-            "--prefix",
-            "${workspaceFolder}/frontend/",
-            "run",
-            "lint"
-          ]
+            "label": "ESLint",
+            "type": "shell",
+            "problemMatcher": "$eslint-stylish",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "${workspaceFolder}/frontend/",
+                "run",
+                "lint"
+            ]
         },
         {
-          "label": "ESLint:fix",
-          "type": "shell",
-          "problemMatcher": "$eslint-stylish",
-          "command": "npm",
-          "args":  [
-            "--prefix",
-            "${workspaceFolder}/frontend/",
-            "run",
-            "lint:fix"
-          ]
+            "label": "ESLint:fix",
+            "type": "shell",
+            "problemMatcher": "$eslint-stylish",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "${workspaceFolder}/frontend/",
+                "run",
+                "lint:fix"
+            ]
         }
     ]
 }

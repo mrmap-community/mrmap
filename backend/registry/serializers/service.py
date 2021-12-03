@@ -1,5 +1,5 @@
 
-from auth.models.groups import Organization
+from accounts.models.groups import Organization
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, Style

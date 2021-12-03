@@ -2,8 +2,8 @@ import hashlib
 import uuid
 
 import six
-from auth.managers.users import CustomUserManager
-from auth.settings import USER_ACTIVATION_TIME_WINDOW
+from accounts.managers.users import CustomUserManager
+from accounts.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator

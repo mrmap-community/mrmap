@@ -1,4 +1,4 @@
-from auth.models.groups import Organization
+from accounts.models.groups import Organization
 from django_filters.filterset import Filter, FilterSet
 from guardian.shortcuts import get_objects_for_user
 

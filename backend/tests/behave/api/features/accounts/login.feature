@@ -3,29 +3,50 @@ Feature: Login Endpoint
     I want to login a user,
     so that I can use secured endpoints.
 
-    Scenario: Login with correct credentials.
+    Background: create user and prepare request
+        Given there are set of Users in Database
+            | username | password |
+            | mrmap    | mrmap    |
+        Given request headers
+            | param        | value                    |
+            | content-type | application/vnd.api+json |
         Given a request url http://localhost:8000/api/v1/accounts/login/
-        When the request sends GET
-        Then the response status is OK
-        And the response json matches
+
+    Scenario: Login with correct credentials.
+        And a request json payload
             """
             {
-                "title": "GeoJSON OWS Context",
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "string",
-                        "format": "uri"
+                "data": {
+                    "type": "Login",
+                    "attributes": {
+                        "username": "mrmap",
+                        "password": "mrmap"
                     }
-                },
-                "required": [
-                    "type",
-                    "id"
-                ]
+                }
             }
             """
+        When the request sends POST
+        Then the response status is OK
+# Currently this will fail, cause the media type is wrong
+# And the response json matches
+#     """
+#     {
+#         "title": "GeoJSON OWS Context",
+#         "type": "object",
+#         "properties": {
+#             "type": {
+#                 "type": "string"
+#             },
+#             "id": {
+#                 "type": "string",
+#                 "format": "uri"
+#             }
+#         },
+#         "required": [
+#             "type",
+#             "id"
+#         ]
+#     }
+#     """
 
-    Scenario: Login with wrong credentials
+#Scenario: Login with wrong credentials

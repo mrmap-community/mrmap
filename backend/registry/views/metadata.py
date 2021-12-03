@@ -1,8 +1,9 @@
 
+from registry.models.metadata import DatasetMetadata, Keyword, Style
+from registry.serializers.metadata import (DatasetMetadataSerializer,
+                                           KeywordSerializer, StyleSerializer)
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet
-from registry.api.serializers.metadata import DatasetMetadataSerializer, KeywordSerializer, StyleSerializer
-from registry.models.metadata import DatasetMetadata, Keyword, Style
 
 
 class KeywordViewSet(ModelViewSet):
@@ -19,9 +20,11 @@ class KeywordViewSet(ModelViewSet):
     def get_queryset(self):
         queryset = super(KeywordViewSet, self).get_queryset()
         if 'parent_lookup_layer' in self.kwargs:
-            queryset = queryset.filter(layer_metadata=self.kwargs['parent_lookup_layer'])
+            queryset = queryset.filter(
+                layer_metadata=self.kwargs['parent_lookup_layer'])
         if 'parent_lookup_featuretype' in self.kwargs:
-            queryset = queryset.filter(featuretype_metadata=self.kwargs['parent_lookup_featuretype'])
+            queryset = queryset.filter(
+                featuretype_metadata=self.kwargs['parent_lookup_featuretype'])
         return queryset
 
 
@@ -40,7 +43,8 @@ class StyleViewSet(ModelViewSet):
     def get_queryset(self):
         queryset = super(StyleViewSet, self).get_queryset()
         if 'parent_lookup_layer' in self.kwargs:
-            queryset = queryset.filter(layer_id=self.kwargs['parent_lookup_layer'])
+            queryset = queryset.filter(
+                layer_id=self.kwargs['parent_lookup_layer'])
         return queryset
 
 

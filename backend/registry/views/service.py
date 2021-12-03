@@ -3,19 +3,19 @@ from typing import OrderedDict
 from django_celery_results.models import TaskResult
 from extras.permissions import ReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
-from registry.api.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
-                                          OgcServiceFilterSet,
-                                          WebFeatureServiceFilterSet,
-                                          WebMapServiceFilterSet)
-from registry.api.serializers.jobs import TaskResultSerializer
-from registry.api.serializers.service import (FeatureTypeSerializer,
-                                              LayerSerializer,
-                                              OgcServiceCreateSerializer,
-                                              OgcServiceSerializer,
-                                              WebFeatureServiceSerializer,
-                                              WebMapServiceSerializer)
+from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
+                                      OgcServiceFilterSet,
+                                      WebFeatureServiceFilterSet,
+                                      WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, OgcService, WebFeatureService,
                              WebMapService)
+from registry.serializers.jobs import TaskResultSerializer
+from registry.serializers.service import (FeatureTypeSerializer,
+                                          LayerSerializer,
+                                          OgcServiceCreateSerializer,
+                                          OgcServiceSerializer,
+                                          WebFeatureServiceSerializer,
+                                          WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
 from rest_framework.permissions import DjangoObjectPermissions

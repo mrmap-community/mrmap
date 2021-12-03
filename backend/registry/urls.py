@@ -1,32 +1,69 @@
 from django.urls import path
+from rest_framework_extensions.routers import ExtendedSimpleRouter
 
-from registry.views import ows as ows_views
+from registry.views import jobs as jobs_views
+from registry.views import mapcontext as mapcontext_views
+from registry.views import metadata as metadata_views
 from registry.views import service as service_views
-from registry.views import xml as xml_views
 
 app_name = 'registry'
 
-urlpatterns = [
-    # Service views
-    path("ogcservice/add", service_views.RegisterServiceFormView.as_view(), name="service_add"),
+nested_api_router = ExtendedSimpleRouter()
+(
+    # ogc service
+    nested_api_router.register(
+        r'ogcservices', service_views.OgcServiceViewSet, basename='ogcservice'),
 
-    # security proxy
-    path("ogcservice/<pk>/operation", ows_views.GenericOwsServiceOperationFacade.as_view(), name="service_operation_view"),
-    
-    # Xml representation views
-    path("wms/<pk>/xml", xml_views.WebMapServiceXmlView.as_view(), name="web_map_service_xml_view"),
-    path("wms/layers/<pk>/xml", xml_views.LayerXmlView.as_view(), name="layer_xml_view"),
+    # web map service
+    nested_api_router.register(
+        r'wms', service_views.WebMapServiceViewSet, basename='wms')
+    .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
+    nested_api_router.register(
+        r'layers', service_views.LayerViewSet, basename='layer')
+    .register(r'styles', metadata_views.StyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
+    nested_api_router.register(
+        r'layers', service_views.LayerViewSet, basename='layer')
+    .register(r'keywords', metadata_views.KeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
+    # web feature service
+    nested_api_router.register(
+        r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
+    .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
+    nested_api_router.register(
+        r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
+    .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
 
-    path("wfs/<pk>/xml", xml_views.WebFeatureServiceXmlView.as_view(), name="web_feature_service_xml_view"),
-    path("wfs/featuretypes/<pk>/xml", xml_views.FeatureTypeXmlView.as_view(), name="feature_type_xml_view"),
+    # # map context
+    nested_api_router.register(
+        r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
+    .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
+    nested_api_router.register(
+        r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
 
-    path("metadata/wms/<pk>/xml", xml_views.WebMapServiceMetadataXmlView.as_view(), name="web_map_service_metadata_xml_view"),
-    path("metadata/layers/<pk>/xml", xml_views.LayerMetadataXmlView.as_view(), name="layer_metadata_xml_view"),
-    
-    path("metadata/wfs/<pk>/xml", xml_views.WebFeatureServiceMetadataXmlView.as_view(), name="web_feature_service_metadata_xml_view"),
-    path("metadata/featuretypes/<pk>/xml", xml_views.FeatureTypeMetadataXmlView.as_view(),
-         name="feature_type_metadata_xml_view"),
+    # # metadata
+    nested_api_router.register(
+        r'keywords', metadata_views.KeywordViewSet, basename='keyword'),
+    nested_api_router.register(
+        r'styles', metadata_views.StyleViewSet, basename='style'),
+    nested_api_router.register(
+        r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
 
-    path("metadata/datasets/<pk>/xml", xml_views.DatasetMetadataXmlView.as_view(), name="dataset_metadata_xml_view"),
+    # jobs
+    nested_api_router.register(
+        r'task-results', jobs_views.TaskResultReadOnlyViewSet, basename='taskresult')
+)
 
-]
+urlpatterns = nested_api_router.urls
+urlpatterns.extend([
+    path('wms/<pk>/relationships/<related_field>',
+         service_views.WebMapServiceRelationshipView.as_view(), name='wms-relationships'),
+    path('layers/<pk>/relationships/<related_field>',
+         service_views.LayerRelationshipView.as_view(), name='layer-relationships'),
+    path('wfs/<pk>/relationships/<related_field>',
+         service_views.WebFeatureServiceRelationshipView.as_view(), name='wfs-relationships'),
+    path('featuretypes/<pk>/relationships/<related_field>',
+         service_views.FeatureTypeRelationshipView.as_view(), name='featuretype-relationships'),
+    path('mapcontexts/<pk>relationships/<related_field>',
+         mapcontext_views.MapContextRelationshipView.as_view(), name='mapcontext-relationships'),
+    path('mapcontextlayers/<pk>relationships/<related_field>',
+         mapcontext_views.MapContextLayerRelationshipView.as_view(), name='mapcontextlayer-relationships')
+])

@@ -2,12 +2,11 @@
 from auth.models.groups import Organization
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
-from registry.api.serializers.metadata import (KeywordSerializer,
-                                               StyleSerializer)
 from registry.models.metadata import Keyword, Style
 from registry.models.service import (FeatureType, Layer, OgcService,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
+from registry.serializers.metadata import KeywordSerializer, StyleSerializer
 from rest_framework.fields import BooleanField, SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_gis.fields import GeometryField

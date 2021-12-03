@@ -1,13 +1,16 @@
 
-from rest_framework.serializers import Serializer
-from rest_framework_json_api.schemas.openapi import AutoSchema
-from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import ModelViewSet, RelationshipView
-from registry.api.serializers.mapcontext import MapContextLayerMoveLayerSerializer, MapContextSerializer, MapContextLayerSerializer
 from registry.models import MapContext, MapContextLayer
-from rest_framework.decorators import action
+from registry.serializers.mapcontext import (
+    MapContextLayerMoveLayerSerializer, MapContextLayerSerializer,
+    MapContextSerializer)
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.serializers import Serializer
+from rest_framework_extensions.mixins import NestedViewSetMixin
+from rest_framework_json_api.schemas.openapi import AutoSchema
+from rest_framework_json_api.views import ModelViewSet, RelationshipView
+
 
 class MapContextRelationshipView(RelationshipView):
     schema = AutoSchema(
@@ -61,7 +64,8 @@ class MapContextLayerViewSet(ModelViewSet):
 
         serializer = MapContextLayerMoveLayerSerializer(data=request.data)
         if serializer.is_valid():
-            current_node.move_to(target=serializer.validated_data['target'], position=serializer.validated_data['position'])
+            current_node.move_to(
+                target=serializer.validated_data['target'], position=serializer.validated_data['position'])
             return Response(MapContextLayerSerializer(current_node, context={'request': request}).data, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors,

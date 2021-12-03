@@ -30,7 +30,7 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     # REST API
     # registry api urls
-    path("api/v1/registry/", include("registry.api.urls", namespace="registry")),
+    path("api/v1/registry/", include("registry.urls", namespace="registry")),
     path("api/v1/users/", include("users.urls", namespace="users")),
     # path('api/v1/auth/', include('dj_rest_auth.urls')),
     path(

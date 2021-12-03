@@ -13,7 +13,7 @@ export const MapContextTable = (): JSX.Element => {
   <ResourceTable
     repo={repo}
     editRecord
-    onEditRecord={() => navigate('/registry/mapcontexts/edit')}
+    onEditRecord={(mapContextId) => navigate(`/registry/mapcontexts/${mapContextId}/edit`)}
     addRecord='/registry/mapcontexts/add'
   />);
 };

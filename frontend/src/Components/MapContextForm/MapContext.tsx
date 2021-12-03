@@ -14,7 +14,13 @@ import { TreeFormField } from './TreeFormField';
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
 
-export const MapContext: FC = () => {
+interface MapContextProps {
+  edit?:boolean;
+}
+
+export const MapContext: FC<MapContextProps> = ({
+  edit = false
+}) => {
   const navigate = useNavigate();
   const [form] = useForm();
 

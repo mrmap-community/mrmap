@@ -13,7 +13,7 @@ interface ResourceTableProps {
     repo: JsonApiRepo
     addRecord?: string
     editRecord?: boolean,
-    onEditRecord?: () => void;
+    onEditRecord?: (recordId: number | string) => void;
 }
 
 function deriveColumns (resourceSchema: any): ProColumnType[] {
@@ -97,7 +97,7 @@ export const ResourceTable = ({
               {editRecord && (
                   <Button
                     size='small'
-                    onClick={() => onEditRecord()}
+                    onClick={() => onEditRecord(record.id)}
                   >
                     Edit
                   </Button>

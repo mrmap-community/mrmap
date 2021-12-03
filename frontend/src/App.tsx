@@ -138,8 +138,10 @@ export default function App (): JSX.Element {
                 element={<MapContext />}
               />
               <Route
-                path='/registry/mapcontexts/edit'
+                path='/registry/mapcontexts/:id/edit'
                 element={<MapContextEdit/>}
+                // @ts-ignore
+                exact
               />
             </Route>
           </Routes>

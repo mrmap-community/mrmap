@@ -6,9 +6,10 @@ https://django-guardian.readthedocs.io/en/v2.3.0/userguide/performance.html#dire
 
 """
 from django.db import models
-from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 from registry.models.service import (OgcService, WebFeatureService,
                                      WebMapService)
+
+from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 
 
 class OgcServiceUserObjectPermission(UserObjectPermissionBase):

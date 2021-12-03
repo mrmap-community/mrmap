@@ -1,4 +1,4 @@
-.. _features-users:
+.. _features-auth:
 
 =============
 Users Package
@@ -7,11 +7,11 @@ Users Package
 Login
 -----
 
-.. literalinclude :: ../../../backend/users/tests/acceptance/features/login.feature
+.. literalinclude :: ../../../backend/auth/tests/acceptance/features/login.feature
    :language: gherkin
 
 Logout
 ------
 
-.. literalinclude :: ../../../backend/users/tests/acceptance/features/logout.feature
+.. literalinclude :: ../../../backend/auth/tests/acceptance/features/logout.feature
    :language: gherkin

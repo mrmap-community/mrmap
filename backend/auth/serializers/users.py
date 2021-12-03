@@ -1,4 +1,4 @@
-from auth.models.users import MrMapUser
+from auth.models.users import User
 from auth.serializers.groups import GroupSerializer
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
@@ -23,35 +23,35 @@ class PasswordField(CharField):
 class UserSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
-        view_name='users:user-detail',
+        view_name='auth:user-detail',
     )
 
     groups = ExtendedHyperlinkedRelatedField(
         many=True,
-        related_link_view_name='users:user-groups-list',
+        related_link_view_name='auth:user-groups-list',
         related_link_url_kwarg='parent_lookup_user',
-        self_link_view_name='users:user-relationships',
+        self_link_view_name='auth:user-relationships',
         read_only=True,
         meta_attrs={'group_count': 'count'})
 
     class Meta:
         resource_name = 'User'
-        model = MrMapUser
+        model = User
         exclude = ("password", )
 
 
 class UserCreateSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
-        view_name='users:user-detail',
+        view_name='auth:user-detail',
     )
 
     groups = ResourceRelatedField(
         queryset=Group.objects.all(),
         many=True,
-        related_link_view_name='users:user-groups-list',
+        related_link_view_name='auth:user-groups-list',
         related_link_url_kwarg='parent_lookup_user',
-        self_link_view_name='users:user-relationships')
+        self_link_view_name='auth:user-relationships')
 
     related_serializers = {
         "groups": GroupSerializer
@@ -59,7 +59,7 @@ class UserCreateSerializer(ModelSerializer):
 
     class Meta:
         resource_name = 'User'
-        model = MrMapUser
+        model = User
         fields = ("username", "password", "url", "groups")
 
     def save(self, **kwargs):

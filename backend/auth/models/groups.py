@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo
+
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import assign_perm, get_objects_for_group, remove_perm
 
@@ -114,7 +115,7 @@ class Organization(Group, CommonInfo, Contact):
             all publishers for this organization (QuerySet)
         """
         return get_objects_for_group(group=self,
-                                     perms='users.can_publish_for_organization',
+                                     perms='auth.can_publish_for_organization',
                                      klass=Organization,
                                      accept_global_perms=False).exclude(pk=self.pk)
 
@@ -125,14 +126,14 @@ class Organization(Group, CommonInfo, Contact):
 
     def add_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            assign_perm(perm='users.can_publish_for_organization',
+            assign_perm(perm='auth.can_publish_for_organization',
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
 
     def remove_publisher(self, publisher) -> None:
         if isinstance(publisher, Organization):
-            remove_perm(perm='users.can_publish_for_organization',
+            remove_perm(perm='auth.can_publish_for_organization',
                         user_or_group=publisher, obj=self)
         else:
             raise TypeError('given publisher is not from type Organization')
@@ -194,7 +195,7 @@ class PublishRequest(BaseInternalRequest):
         errors = []
         perm_checker = ObjectPermissionChecker(
             user_or_group=self.from_organization)
-        if perm_checker.has_perm(perm='users.can_publish_for', obj=self.to_organization):
+        if perm_checker.has_perm(perm='auth.can_publish_for', obj=self.to_organization):
             errors.append(
                 self.from_organization.__str__()
                 + _(" can already publish for ").__str__()

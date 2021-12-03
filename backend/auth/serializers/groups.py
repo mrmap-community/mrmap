@@ -7,7 +7,7 @@ from rest_framework_json_api.serializers import ModelSerializer
 class GroupSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
-        view_name='users:group-detail',
+        view_name='auth:group-detail',
     )
 
     class Meta:
@@ -18,7 +18,7 @@ class GroupSerializer(ModelSerializer):
 class OrganizationSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
-        view_name='users:organization-detail',
+        view_name='auth:organization-detail',
     )
 
     class Meta:

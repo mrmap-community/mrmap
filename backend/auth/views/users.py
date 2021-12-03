@@ -1,4 +1,4 @@
-from auth.models.users import MrMapUser
+from auth.models.users import User
 from auth.serializers.users import (LoginSerializer, LogoutSerializer,
                                     UserCreateSerializer, UserSerializer)
 from django.contrib.auth import login, logout
@@ -11,18 +11,18 @@ from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
-class MrMapUserRelationshipView(RelationshipView):
+class UserRelationshipView(RelationshipView):
     schema = AutoSchema(
         tags=["Users"],
     )
-    queryset = MrMapUser.objects
+    queryset = User.objects
 
 
-class MrMapUserViewSet(NestedViewSetMixin, ModelViewSet):
+class UserViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['Users'],
     )
-    queryset = MrMapUser.objects.with_meta()
+    queryset = User.objects.with_meta()
     serializer_classes = {
         "default": UserSerializer,
         "create": UserCreateSerializer,
@@ -47,7 +47,7 @@ class MrMapUserViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class LoginView(generics.GenericAPIView):
-    queryset = MrMapUser.objects.all()
+    queryset = User.objects.all()
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):

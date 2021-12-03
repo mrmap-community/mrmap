@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo, GenericModelMixin
 
 
-class MrMapUser(AbstractUser):
+class User(AbstractUser):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4,
                           editable=False)
@@ -51,7 +51,7 @@ class MrMapUser(AbstractUser):
 
 class UserActivation(models.Model, PasswordResetTokenGenerator):
     user = models.OneToOneField(
-        MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
+        User, null=False, blank=False, on_delete=models.CASCADE)
     activation_until = models.DateTimeField(null=False, blank=False)
     activation_hash = models.CharField(primary_key=True, max_length=500)
 
@@ -91,7 +91,7 @@ class Subscription(GenericModelMixin, CommonInfo):
                                                 'web feature service'),
                                             help_text=_("Select the service you want to subscribe. When you edit an existing "
                                                         "subscription, you can not change this selection."))
-    user = models.ForeignKey(to=MrMapUser,
+    user = models.ForeignKey(to=User,
                              on_delete=models.CASCADE)
     notify_on_update = models.BooleanField(default=True,
                                            verbose_name=_('Notify on update'),

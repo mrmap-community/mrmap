@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     "django_nose",
     "mptt",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
-    "users",
+    "auth",
     "object_permissions",
     "registry",
     "extras",
@@ -338,7 +338,7 @@ PAGE_DEFAULT = 1
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = "users.MrMapUser"
+AUTH_USER_MODEL = "auth.MrMapUser"
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60

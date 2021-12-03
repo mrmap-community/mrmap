@@ -1,8 +1,8 @@
 from django.urls import path
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
-from users.views import groups as group_views
-from users.views import users as user_views
+from auth.views import groups as group_views
+from auth.views import users as user_views
 
 app_name = 'users'
 

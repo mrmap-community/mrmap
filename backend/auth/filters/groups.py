@@ -1,7 +1,6 @@
+from auth.models.groups import Organization
 from django_filters.filterset import Filter, FilterSet
 from guardian.shortcuts import get_objects_for_user
-from rest_framework_gis.filters import GeometryFilter
-from users.models.groups import Organization
 
 
 class OrganizationFilterSet(FilterSet):

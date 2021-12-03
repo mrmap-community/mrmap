@@ -1,10 +1,10 @@
+from auth.models.groups import Organization
 from django.contrib.auth.models import Group, Permission
 from django.db.models.signals import post_save
 from django.db.transaction import atomic
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from guardian.shortcuts import assign_perm
-from users.models.groups import Organization
 
 from object_permissions.utils import get_secured_models
 

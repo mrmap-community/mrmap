@@ -1,3 +1,6 @@
+from auth.models.users import MrMapUser
+from auth.serializers.users import (LoginSerializer, LogoutSerializer,
+                                    UserCreateSerializer, UserSerializer)
 from django.contrib.auth import login, logout
 from rest_framework import generics, serializers, status
 from rest_framework.exceptions import AuthenticationFailed
@@ -6,10 +9,6 @@ from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
-
-from users.models.users import MrMapUser
-from users.serializers.users import (LoginSerializer, LogoutSerializer,
-                                     UserCreateSerializer, UserSerializer)
 
 
 class MrMapUserRelationshipView(RelationshipView):

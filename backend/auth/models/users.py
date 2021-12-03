@@ -2,6 +2,8 @@ import hashlib
 import uuid
 
 import six
+from auth.managers.users import CustomUserManager
+from auth.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -9,9 +11,6 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo, GenericModelMixin
-
-from users.managers.users import CustomUserManager
-from users.settings import USER_ACTIVATION_TIME_WINDOW
 
 
 class MrMapUser(AbstractUser):

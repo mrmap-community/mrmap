@@ -1,7 +1,7 @@
+from auth.models.groups import Organization
 from django.contrib.auth.models import Group
-from users.models.groups import Organization
-from rest_framework_json_api.serializers import ModelSerializer
 from rest_framework.relations import HyperlinkedIdentityField
+from rest_framework_json_api.serializers import ModelSerializer
 
 
 class GroupSerializer(ModelSerializer):

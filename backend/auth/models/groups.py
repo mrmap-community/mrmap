@@ -1,17 +1,13 @@
-from uuid import uuid4
-
+from auth.settings import DEFAULT_REQUEST_ACIVATION_TIME
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import assign_perm, get_objects_for_group, remove_perm
-
-from users.settings import DEFAULT_REQUEST_ACIVATION_TIME
 
 
 class Contact(models.Model):

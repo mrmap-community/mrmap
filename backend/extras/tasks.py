@@ -1,10 +1,10 @@
 from abc import ABC
 
+from auth.models.groups import Organization
 from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
-from users.models.groups import Organization
 
 
 class CommonInfoSetupMixin(Task, ABC):

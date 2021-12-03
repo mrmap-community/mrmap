@@ -1,8 +1,7 @@
 
-from django.conf import settings
+from auth.models.groups import Organization
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
-from guardian.core import ObjectPermissionChecker
 from registry.api.serializers.metadata import (KeywordSerializer,
                                                StyleSerializer)
 from registry.models.metadata import Keyword, Style
@@ -16,7 +15,6 @@ from rest_framework_json_api.relations import (HyperlinkedRelatedField,
                                                ResourceRelatedField)
 from rest_framework_json_api.serializers import (ModelSerializer,
                                                  PolymorphicModelSerializer)
-from users.models.groups import Organization
 
 
 class OperationsUrlSerializer(ModelSerializer):

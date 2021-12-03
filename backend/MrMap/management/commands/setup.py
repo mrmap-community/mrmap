@@ -9,6 +9,7 @@ import os
 import random
 import string
 
+from auth.models.groups import Organization
 from dateutil.parser import parse
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, call_command
@@ -19,7 +20,6 @@ from django.utils import timezone
 from registry.enums.service import OGCOperationEnum
 from registry.models.security import OGCOperation
 from registry.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
-from users.models.groups import Organization
 
 # from registry.models import MonitoringSetting
 

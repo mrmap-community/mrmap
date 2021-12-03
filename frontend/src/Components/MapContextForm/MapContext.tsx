@@ -2,11 +2,12 @@ import './MapContext.css';
 
 import { Button, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
-import React, { FC, useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { FC, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
+import { hasOwnProperty } from '../../utils';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
 import { TreeFormField } from './TreeFormField';
@@ -19,15 +20,39 @@ interface MapContextProps {
 }
 
 export const MapContext: FC<MapContextProps> = ({
-  edit = false
 }) => {
   const navigate = useNavigate();
   const [form] = useForm();
+
+  // get the ID parameter from the url
+  const { id } = useParams();
 
   const [current, setCurrent] = useState(0);
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
+
+  useEffect(() => {
+    // TODO: need to add some sort of loading until the values are fetched
+    if (id) {
+      const fetchMapContext = async () => {
+        try {
+          const response = await mapContextRepo.get(id);
+          form.setFieldsValue({
+            // @ts-ignore
+            title: response.data.data.attributes.title || '',
+            // @ts-ignore
+            abstract: response.data.data.attributes.abstract || ''
+          });
+        } catch (error) {
+          // @ts-ignore
+          throw new Error(error);
+        }
+      };
+      fetchMapContext();
+      // TODO: set treeData
+    }
+  }, [id]);
 
   const nextStep = () => {
     setCurrent(current + 1);
@@ -43,9 +68,31 @@ export const MapContext: FC<MapContextProps> = ({
       content: (
         <>
           <MapContextForm
-            setCreatedMapContextId={(bool) => setCreatedMapContextId(bool)}
-            setIsSubmittingMapContext={(id) => setIsSubmittingMapContext(id)}
-            onSubmit={() => nextStep()}
+            onSubmit={async (values) => {
+              if (!id) {
+                setIsSubmittingMapContext(true);
+                try {
+                  const response = await mapContextRepo.create(values);
+                  if (response.data?.data &&
+                    hasOwnProperty(response.data.data, 'id')) {
+                    setCreatedMapContextId(response.data.data.id);
+                  }
+                  return response;
+                } catch (error) {
+                  setIsSubmittingMapContext(false);
+                  // @ts-ignore
+                  throw new Error(error);
+                } finally {
+                  setIsSubmittingMapContext(false);
+                  nextStep();
+                }
+              } else {
+                // TODO add action to edit
+                setCreatedMapContextId(id);
+                nextStep();
+                console.log('Editing');
+              }
+            }}
             form={form}
           />
           <div className='steps-action'>
@@ -99,15 +146,19 @@ export const MapContext: FC<MapContextProps> = ({
             <Button
               type='primary'
               onClick={async () => {
-                setIsRemovingMapContext(true);
-                try {
-                  return await mapContextRepo.delete(createdMapContextId);
-                } catch (error) {
-                  setIsRemovingMapContext(false);
-                  // @ts-ignore
-                  throw new Error(error);
-                } finally {
-                  setIsRemovingMapContext(false);
+                if (!id) {
+                  setIsRemovingMapContext(true);
+                  try {
+                    return await mapContextRepo.delete(createdMapContextId);
+                  } catch (error) {
+                    setIsRemovingMapContext(false);
+                    // @ts-ignore
+                    throw new Error(error);
+                  } finally {
+                    setIsRemovingMapContext(false);
+                    prevStep();
+                  }
+                } else {
                   prevStep();
                 }
               }}

@@ -2,23 +2,15 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { Form } from 'antd';
 import React, { FC } from 'react';
 
-import MapContextRepo from '../../Repos/MapContextRepo';
-import { hasOwnProperty } from '../../utils';
 import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormField';
 
 interface MapContextFormProps {
   form?: any;
-  setIsSubmittingMapContext?: (bool: boolean) => void;
-  setCreatedMapContextId?: (id: string) => void;
-  onSubmit?:()=>void;
+  onSubmit?:(values: any)=>void;
 }
-
-const mapContextRepo = new MapContextRepo();
 
 export const MapContextForm: FC<MapContextFormProps> = ({
   form = undefined,
-  setIsSubmittingMapContext = () => undefined,
-  setCreatedMapContextId = () => undefined,
   onSubmit = () => undefined
 }) => {
   return (
@@ -29,24 +21,7 @@ export const MapContextForm: FC<MapContextFormProps> = ({
         title: ''
       }}
       form={form}
-      onFinish={async (values) => {
-        setIsSubmittingMapContext(true);
-        try {
-          const response = await mapContextRepo.create(values);
-          if (response.data?.data &&
-            hasOwnProperty(response.data.data, 'id')) {
-            setCreatedMapContextId(response.data.data.id);
-          }
-          return response;
-        } catch (error) {
-          setIsSubmittingMapContext(false);
-          // @ts-ignore
-          throw new Error(error);
-        } finally {
-          setIsSubmittingMapContext(false);
-          onSubmit();
-        }
-      }}
+      onFinish={onSubmit}
     >
       <InputFormField
         label='Title'

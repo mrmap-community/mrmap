@@ -2,10 +2,9 @@ from django.contrib.auth.models import Group
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet
 
-from users.api.filters.groups import OrganizationFilterSet
-from users.api.serializers.groups import (GroupSerializer,
-                                          OrganizationSerializer)
+from users.filters.groups import OrganizationFilterSet
 from users.models.groups import Organization
+from users.serializers.groups import GroupSerializer, OrganizationSerializer
 
 
 class GroupViewSet(ModelViewSet):

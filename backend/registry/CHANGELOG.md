@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `Organization` is based on django's `Group` model to add object permissions directly on it.
 * Renamed `CommonInfo.owned_by_org` to `CommonInfo.owner` and changed the related destination 
   model to `Group`. 
+* move `api` submodule content directly under the app path
 
 
 ### Removed

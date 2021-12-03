@@ -5,10 +5,9 @@ export interface Login {
     password: string; // eslint-disable-line
 }
 
-
 export class LoginRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/users/login/');
+    super('/api/v1/accounts/login/');
   }
 
   async login (obtain: Login): Promise<JsonApiResponse> {
@@ -18,7 +17,6 @@ export class LoginRepo extends JsonApiRepo {
     };
     return this.add('Login', attributes, {});
   }
-
 }
 
 export default LoginRepo;

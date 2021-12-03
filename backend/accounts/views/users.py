@@ -56,13 +56,13 @@ class LoginView(generics.GenericAPIView):
         try:
             serializer.is_valid(raise_exception=True)
             login(request=request, user=serializer.user)
-
+            user = serializer.user
+            user.group_count = user.groups.count()
         except AuthenticationFailed:
             # TODO find out why error code 403 is swallowed -> backend returns 200 in any case
             return Response(status=status.HTTP_403_FORBIDDEN)
         finally:
-            user = serializer.user
-            user.group_count = user.groups.count()
+
             return Response(UserSerializer(serializer.user, context={'request': request}).data, status=status.HTTP_200_OK)
 
 

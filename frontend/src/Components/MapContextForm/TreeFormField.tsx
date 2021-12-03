@@ -25,7 +25,7 @@ interface TreeProps {
     newNodeParent?: string | number | null | undefined) =>
     Promise<JsonApiResponse> | void;
   removeNodeDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
-  editNodeDispatchAction?: () => Promise<JsonApiResponse> | void;
+  editNodeDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragNodeDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
   draggable?: boolean;
   nodeAttributeForm?: ReactNode;
@@ -40,7 +40,7 @@ export const TreeFormField: FC<TreeProps> = ({
   asyncTree = false,
   addNodeDispatchAction = () => undefined,
   removeNodeDispatchAction = () => undefined,
-  // editNodeDispatchAction = () => undefined,
+  editNodeDispatchAction = () => undefined,
   dragNodeDispatchAction = () => undefined,
   draggable = false,
   nodeAttributeForm = (<></>),
@@ -55,6 +55,7 @@ export const TreeFormField: FC<TreeProps> = ({
   const [isNodeAttributeFormVisible, setIsNodeAttributeFormVisible] = useState<boolean>(false);
   const [isEditingNodeAttributes, setIsEditingNodeAttributes] = useState<boolean>(false);
   const [isAddingNode, setIsAddingNode] = useState<boolean>(false);
+  const [isEditingNode, setIsEditingNode] = useState<boolean>(false);
   const [isRemovingNode, setIsRemovingNode] = useState<boolean>(false);
   // eslint-disable-next-line
   const [isDraggingNode, setIsDraggingNode] = useState<boolean>(false); // TODO
@@ -68,7 +69,8 @@ export const TreeFormField: FC<TreeProps> = ({
       form.resetFields();
       if (isEditingNodeAttributes && selectedNode) {
         form.setFieldsValue({
-          name: selectedNode.properties.name,
+          ...selectedNode.properties,
+          // name: selectedNode.properties.name,
           title: selectedNode.title
         });
       }
@@ -173,7 +175,7 @@ export const TreeFormField: FC<TreeProps> = ({
   };
 
   /**
-   * @description Method to updaate the tree data when user removes a node
+   * @description Method to updaate the tree data when user edits a node
    * @param node
    */
   const setTreeDataOnRemove = (node: TreeNodeType) => {
@@ -185,6 +187,13 @@ export const TreeFormField: FC<TreeProps> = ({
       expandedKeys.splice(expandedNodeIndexToRemove, 1);
       setExpandedKeys(expandedKeys);
       setTreeData(updateTreeData(_treeData, parentNode[0].key, parentNode[0].children));
+    }
+  };
+
+  const setTreeDataOnEdit = (node: TreeNodeType) => {
+    setTreeData(updateTreeData(_treeData, node.key, node.children));
+    if (isNodeAttributeFormVisible) {
+      toggleNodeAttributeForm();
     }
   };
 
@@ -337,10 +346,34 @@ export const TreeFormField: FC<TreeProps> = ({
    * If using an asyncronous tree, a JsonApiReponse is expected
    * @param node
    */
-  const onEditNode = (node: TreeNodeType | undefined, values: any) => {
-    if (values && node) {
-      node.title = values.title;
-      node.properties = values;
+  const onEditNode = async (node: TreeNodeType | undefined, values: any) => {
+    if (node) {
+      if (values && node) {
+        node.title = values.title;
+        node.properties = values;
+        delete node.properties.title;
+      }
+      if (asyncTree) {
+        setIsEditingNode(true);
+        try {
+          return await editNodeDispatchAction(
+            node.key,
+            {
+              ...node.properties,
+              title: node.title
+            }
+          );
+        } catch (error) {
+          setIsEditingNode(false);
+          // @ts-ignore
+          throw new Error(error);
+        } finally {
+          setTreeDataOnEdit(node);
+          setIsEditingNode(false);
+        }
+      } else {
+        setTreeDataOnEdit(node);
+      }
     }
   };
 
@@ -351,9 +384,6 @@ export const TreeFormField: FC<TreeProps> = ({
    * @returns
    */
   const onDropNode = async (info:any) => {
-    // const dropKey = info.node.key;
-    // const dragKey = info.dragNode.key;
-
     if (asyncTree) {
       setIsDraggingNode(true);
       try {
@@ -516,8 +546,8 @@ export const TreeFormField: FC<TreeProps> = ({
         onCancel={onNodeAttributeFormCancelClick}
         destroyOnClose
         okButtonProps={{
-          disabled: isAddingNode,
-          loading: isAddingNode
+          disabled: isAddingNode || isEditingNode,
+          loading: isAddingNode || isEditingNode
         }}
       >
         {clonedNodeAttributeForm}

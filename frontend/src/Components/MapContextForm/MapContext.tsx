@@ -72,7 +72,9 @@ export const MapContext: FC = () => {
             removeNodeDispatchAction={async (nodeToRemove) => (
               await mapContextLayerRepo?.delete(String(nodeToRemove.key))
             )}
-            editNodeDispatchAction={() => undefined}
+            editNodeDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
+              await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
+            )}
             dragNodeDispatchAction={async (nodeBeingDraggedInfo) => {
               const dropKey = nodeBeingDraggedInfo.node.key;
               const dragKey = nodeBeingDraggedInfo.dragNode.key;

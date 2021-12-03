@@ -144,6 +144,26 @@ export class JsonApiRepo {
         headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
       });
     }
+
+    async partialUpdate (id:string, type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
+      const client = await JsonApiRepo.getClientInstance();
+
+      // TODO: make relationships optional
+      return await client['partial_update' + this.resourcePath + '{id}/'](id, {
+        data: {
+          type: type,
+          id: id,
+          attributes: {
+            ...attributes
+          },
+          relationships: {
+            ...relationships
+          }
+        }
+      }, {
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+      });
+    }
 }
 
 export default JsonApiRepo;

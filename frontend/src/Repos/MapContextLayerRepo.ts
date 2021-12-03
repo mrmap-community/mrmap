@@ -19,6 +19,21 @@ export interface MapContextLayerCreate {
     parentLayerId?: string;
 }
 
+type MapContextLayerAttributesUpdate = {
+  name: string;
+  title?: string;
+  lft?: string;
+  rght?: string;
+  tree?: string;
+  datasetMetadata?: string;
+  renderingLayer?: string;
+  parent?: string;
+  layerScaleMax?: string;
+  layerScaleMin?: string;
+  layerStyleId?: string;
+  selectionLayerId?: string;
+};
+
 export class MapContextLayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontextlayers/');
@@ -92,6 +107,44 @@ export class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     return this.add('MapContextLayer', attributes, relationships);
+  }
+
+  async update (id:string, attributesToUpdate: MapContextLayerAttributesUpdate): Promise<JsonApiResponse> {
+    const attributes:any = {
+      name: attributesToUpdate.name,
+      title: attributesToUpdate.title,
+      layer_scale_max: attributesToUpdate.layerScaleMax, //eslint-disable-line
+      layer_scale_min: attributesToUpdate.layerScaleMin, //eslint-disable-line
+      layer_style_id: attributesToUpdate.layerStyleId, //eslint-disable-line
+    };
+
+    const relationships:any = {};
+
+    if (attributesToUpdate.datasetMetadata) {
+      relationships.dataset_metadata = { // eslint-disable-line
+        data: {
+          type: 'DatasetMetadata',
+          id: attributesToUpdate.datasetMetadata
+        }
+      };
+    }
+    if (attributesToUpdate.renderingLayer) {
+      relationships.rendering_layer = { // eslint-disable-line
+        data: {
+          type: 'Layer',
+          id: attributesToUpdate.renderingLayer
+        }
+      };
+    }
+    if (attributesToUpdate.selectionLayerId) {
+      relationships.selection_layer = { // eslint-disable-line
+        data: {
+          type: 'FeatureType',
+          id: attributesToUpdate.selectionLayerId
+        }
+      };
+    }
+    return this.partialUpdate(id, 'MapContextLayer', attributes, relationships);
   }
 }
 

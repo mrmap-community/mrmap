@@ -79,13 +79,8 @@ class LoginSerializer(Serializer):
     def validate(self, attrs):
         self.user = authenticate(
             username=attrs['username'], password=attrs['password'])
-
         if not self.user:
-            raise exceptions.AuthenticationFailed(
-                self.error_messages['no_active_account'],
-                'no_active_account',
-            )
-
+            raise exceptions.AuthenticationFailed
         return {}
 
 

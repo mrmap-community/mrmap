@@ -5,8 +5,8 @@ from registry.serializers.mapcontext import (
     MapContextSerializer)
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.permissions import DjangoModelPermissionsOrAnonReadOnly
 from rest_framework.response import Response
-from rest_framework.serializers import Serializer
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
@@ -17,6 +17,7 @@ class MapContextRelationshipView(RelationshipView):
         tags=['MapContext'],
     )
     queryset = MapContext.objects
+    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
 
 
 class MapContextLayerRelationshipView(RelationshipView):
@@ -24,6 +25,7 @@ class MapContextLayerRelationshipView(RelationshipView):
         tags=['MapContext'],
     )
     queryset = MapContextLayer.objects
+    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
 
 
 class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
@@ -36,6 +38,7 @@ class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
         '__all__': [],
         'map_context_layers': ['map_context_layers']
     }
+    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
 
 
 class MapContextLayerViewSet(ModelViewSet):
@@ -47,6 +50,7 @@ class MapContextLayerViewSet(ModelViewSet):
         "default": MapContextLayerSerializer,
         "move_to": MapContextLayerMoveLayerSerializer,
     }
+    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
 
     def get_queryset(self):
         queryset = super(MapContextLayerViewSet, self).get_queryset()

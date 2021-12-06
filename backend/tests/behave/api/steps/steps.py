@@ -1,5 +1,6 @@
 from accounts.models import User
 from behave import given, step, then
+from guardian.shortcuts import assign_perm
 from rest_framework.authtoken.models import Token
 
 
@@ -8,6 +9,14 @@ def create_test_users(context):
     for row in context.table:
         User.objects.create_user(
             username=row['username'], password=row['password'])
+
+
+@step(u'the user {username} has {permission} permission')
+def step_impl(context, username, permission):
+    assign_perm(
+        perm=permission,
+        user_or_group=User.objects.get(username=username)
+    )
 
 
 @step(u'I am logged in as {username} with password {password}')

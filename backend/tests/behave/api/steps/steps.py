@@ -1,11 +1,22 @@
 from accounts.models import User
 from behave import given, step, then
+from django.apps import apps
 from guardian.shortcuts import assign_perm
 from rest_framework.authtoken.models import Token
 
 
-@given('there are set of Users in Database')
-def create_test_users(context):
+@step('there are set of Model {model} in Database')
+def step_impl(context, model):
+    app_label, model_name = model.split('.')
+    Model = apps.get_model(app_label=app_label, model_name=model_name)
+    objs = []
+    for row in context.table:
+        objs.append(Model(**dict(row.as_dict())))
+    Model.objects.bulk_create(objs)
+
+
+@step('there are set of Users in Database')
+def step_impl(context):
     for row in context.table:
         User.objects.create_user(
             username=row['username'], password=row['password'])

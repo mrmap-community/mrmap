@@ -7,21 +7,21 @@ from accounts.views import users as user_views
 
 app_name = 'accounts'
 
-nested_api_router = ExtendedSimpleRouter()
+router = ExtendedSimpleRouter()
 (
-    nested_api_router.register(
-        r'users', user_views.UserViewSet, basename='user')
-    .register(r'groups', group_views.GroupViewSet, basename='user-groups', parents_query_lookups=['user']),
-    nested_api_router.register(
-        r'users', user_views.UserViewSet, basename='user')
-    .register(r'organizations', group_views.OrganizationViewSet, basename='user-organizations', parents_query_lookups=['user']),
-    nested_api_router.register(
-        r'groups', group_views.GroupViewSet, basename='group'),
-    nested_api_router.register(
-        r'organizations', group_views.OrganizationViewSet, basename='organization'),
+    router.register(r'users', user_views.UserViewSet, basename='user')
+          .register(r'groups', group_views.GroupViewSet, basename='user-groups', parents_query_lookups=['user']),
+    router.register(r'users', user_views.UserViewSet, basename='user')
+          .register(r'organizations', group_views.OrganizationViewSet, basename='user-organizations', parents_query_lookups=['user']),
+    router.register(r'groups', group_views.GroupViewSet, basename='group'),
+    router.register(r'organizations',
+                    group_views.OrganizationViewSet, basename='organization'),
+    router.register(r'permissions', auth_views.PermissionViewSet,
+                    basename='permission'),
+
 )
 
-urlpatterns = nested_api_router.urls
+urlpatterns = router.urls
 urlpatterns.extend([
     path('login/', auth_views.LoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),

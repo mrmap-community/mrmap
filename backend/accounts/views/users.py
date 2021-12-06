@@ -12,6 +12,7 @@ class UserRelationshipView(RelationshipView):
         tags=["Users"],
     )
     queryset = User.objects
+    permission_classes = [DjangoObjectPermissions]
 
 
 class UserViewSet(NestedViewSetMixin, ModelViewSet):

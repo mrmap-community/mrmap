@@ -1,6 +1,5 @@
 coverage==5.5
 behave-django==1.4.0
-behave-restful==0.4.1
 flake8==4.0.1
 watchdog[watchmedo]==2.1.5
 PyYAML==5.4.1

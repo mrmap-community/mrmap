@@ -7,13 +7,11 @@ Feature: Login Endpoint
         Given there are set of Users in Database
             | username | password |
             | mrmap    | mrmap    |
-        Given request headers
-            | param        | value                    |
-            | content-type | application/vnd.api+json |
-        Given a request url http://localhost:8000/api/v1/accounts/login/
+        Given I use the endpoint http://localhost:8000/api/v1/accounts/login/
+        Given I set the content type of the request to application/vnd.api+json
 
     Scenario: Login with correct credentials.
-        And a request json payload
+        Given I set the request payload to:
             """
             {
                 "data": {
@@ -25,28 +23,21 @@ Feature: Login Endpoint
                 }
             }
             """
-        When the request sends POST
-        Then the response status is OK
-# Currently this will fail, cause the media type is wrong
-# And the response json matches
-#     """
-#     {
-#         "title": "GeoJSON OWS Context",
-#         "type": "object",
-#         "properties": {
-#             "type": {
-#                 "type": "string"
-#             },
-#             "id": {
-#                 "type": "string",
-#                 "format": "uri"
-#             }
-#         },
-#         "required": [
-#             "type",
-#             "id"
-#         ]
-#     }
-#     """
+        When I send the request with POST method
+        Then I expect the response status is 200
 
-#Scenario: Login with wrong credentials
+    Scenario: Login with wrong credentials.
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "Login",
+                    "attributes": {
+                        "username": "mrmap",
+                        "password": "mrmap2"
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 403

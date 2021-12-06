@@ -23,3 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Removed `jobs` app.
 * Removed `swagger-ui` support directrly by the backend.
 * Removed all django views.
+
+
+### Fixed
+* Fixed login endpoint which returns status code `200` if the authentication fails

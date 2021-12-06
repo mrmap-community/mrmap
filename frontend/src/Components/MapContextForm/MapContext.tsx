@@ -19,6 +19,205 @@ interface MapContextProps {
   edit?:boolean;
 }
 
+// const mockMCLayers = [
+//   {
+//     type: 'MapContextLayer',
+//     id: '632',
+//     attributes: {
+//       name: 'Test1',
+//       title: 'test1',
+//       layer_scale_min: null,
+//       layer_scale_max: null,
+//       preview_image: null,
+//       lft: 1,
+//       rght: 8,
+//       tree_id: 1,
+//       level: 0
+//     },
+//     relationships: {
+//       parent: {
+//         data: null
+//       },
+//       map_context: {
+//         data: {
+//           type: 'MapContext',
+//           id: '82'
+//         }
+//       },
+//       dataset_metadata: {
+//         data: null
+//       },
+//       rendering_layer: {
+//         data: null
+//       },
+//       layer_style: {
+//         data: null
+//       },
+//       selection_layer: {
+//         data: null
+//       }
+//     },
+//     links: {
+//       self: 'https://localhost/api/v1/registry/mapcontextlayers/632/'
+//     }
+//   },
+//   {
+//     type: 'MapContextLayer',
+//     id: '633',
+//     attributes: {
+//       name: '1',
+//       title: '1',
+//       layer_scale_min: null,
+//       layer_scale_max: null,
+//       preview_image: null,
+//       lft: 2,
+//       rght: 5,
+//       tree_id: 1,
+//       level: 1
+//     },
+//     relationships: {
+//       parent: {
+//         data: {
+//           type: 'MapContextLayer',
+//           id: '632'
+//         }
+//       },
+//       map_context: {
+//         data: {
+//           type: 'MapContext',
+//           id: '82'
+//         }
+//       },
+//       dataset_metadata: {
+//         data: null
+//       },
+//       rendering_layer: {
+//         data: null
+//       },
+//       layer_style: {
+//         data: null
+//       },
+//       selection_layer: {
+//         data: null
+//       }
+//     },
+//     links: {
+//       self: 'https://localhost/api/v1/registry/mapcontextlayers/633/'
+//     }
+//   },
+//   {
+//     type: 'MapContextLayer',
+//     id: '635',
+//     attributes: {
+//       name: '11',
+//       title: '11',
+//       layer_scale_min: null,
+//       layer_scale_max: null,
+//       preview_image: null,
+//       lft: 3,
+//       rght: 4,
+//       tree_id: 1,
+//       level: 2
+//     },
+//     relationships: {
+//       parent: {
+//         data: {
+//           type: 'MapContextLayer',
+//           id: '633'
+//         }
+//       },
+//       map_context: {
+//         data: {
+//           type: 'MapContext',
+//           id: '82'
+//         }
+//       },
+//       dataset_metadata: {
+//         data: null
+//       },
+//       rendering_layer: {
+//         data: null
+//       },
+//       layer_style: {
+//         data: null
+//       },
+//       selection_layer: {
+//         data: null
+//       }
+//     },
+//     links: {
+//       self: 'https://localhost/api/v1/registry/mapcontextlayers/635/'
+//     }
+//   },
+//   {
+//     type: 'MapContextLayer',
+//     id: '634',
+//     attributes: {
+//       name: '21',
+//       title: '2',
+//       layer_scale_min: null,
+//       layer_scale_max: null,
+//       preview_image: null,
+//       lft: 6,
+//       rght: 7,
+//       tree_id: 1,
+//       level: 1
+//     },
+//     relationships: {
+//       parent: {
+//         data: {
+//           type: 'MapContextLayer',
+//           id: '632'
+//         }
+//       },
+//       map_context: {
+//         data: {
+//           type: 'MapContext',
+//           id: '82'
+//         }
+//       },
+//       dataset_metadata: {
+//         data: null
+//       },
+//       rendering_layer: {
+//         data: null
+//       },
+//       layer_style: {
+//         data: null
+//       },
+//       selection_layer: {
+//         data: null
+//       }
+//     },
+//     links: {
+//       self: 'https://localhost/api/v1/registry/mapcontextlayers/634/'
+//     }
+//   }
+// ];
+
+// const parseMapContextLayers = (rawMapContextLayers: any[]) => {
+//   const nodeChildren = rawMapContextLayers.reduce((accumulator, rawNode) => {
+//     const property = rawNode.relationships.parent.data?.id || 'root';
+//     // @ts-ignore
+//     accumulator[property] = accumulator[property] || [];
+//     const node = {
+//       title: rawNode.attributes.title,
+//       key: rawNode.id,
+//       children: [],
+//       parent: rawNode.relationships.parent.data?.id || null,
+//       properties: rawNode.attributes,
+//       expanded: true
+//     };
+//     // @ts-ignore
+//     accumulator[property].push(node);
+//     // @ts-ignore
+//     accumulator[property].sort((a, b) => a.properties.lft - b.properties.lft);
+
+//     return accumulator;
+//   }, {});
+//   return nodeChildren;
+// };
+
 export const MapContext: FC<MapContextProps> = ({
 }) => {
   const navigate = useNavigate();
@@ -31,6 +230,10 @@ export const MapContext: FC<MapContextProps> = ({
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
+
+  // useEffect(() => {
+  //   parseMapContextLayers(mockMCLayers);
+  // }, []);
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
@@ -90,7 +293,6 @@ export const MapContext: FC<MapContextProps> = ({
                 // TODO add action to edit
                 setCreatedMapContextId(id);
                 nextStep();
-                console.log('Editing');
               }
             }}
             form={form}

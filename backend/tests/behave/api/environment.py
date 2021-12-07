@@ -1,17 +1,7 @@
-import os
-
 from behave.model_core import Status
 from behave_django.testcase import BehaviorDrivenTestCase
 from rest_framework.test import APIClient
-
-
-def before_feature(context, feature):
-    if 'MapContext' in feature.name:
-        context.fixtures = ['test_map_context.json']
-    else:
-        # Resetting fixtures, otherwise previously set fixtures carry
-        # over to subsequent features.
-        context.fixtures = []
+from tests.test_data.factory import FixtureBuilder
 
 
 def before_scenario(context, scenario):
@@ -19,7 +9,11 @@ def before_scenario(context, scenario):
     BehaviorDrivenTestCase.port = 8000
     context.client = APIClient()
 
+    if 'MapContext' in scenario.feature.name:
+        fb = FixtureBuilder()
+        fb.build_mapcontext_scenario()
+
 
 def after_step(context, step):
-    if step.status == Status.failed:
+    if step.status == Status.failed and context.response:
         print(context.response.content)

@@ -1,5 +1,6 @@
 from accounts.models import User
 from behave import given, step, then
+from django.apps import apps
 from guardian.shortcuts import assign_perm
 from model_bakery import baker
 from rest_framework.authtoken.models import Token
@@ -8,6 +9,14 @@ from rest_framework.authtoken.models import Token
 @step('there are set of {quantity} Model {model} in Database')
 def step_impl(context, quantity, model):
     baker.make(model, _quantity=quantity)
+
+
+@step('the endpoint is pointing to the last created object of model {model}')
+def step_impl(context, model):
+    app_label, model_name = model.split('.')
+    Model = apps.get_model(app_label=app_label, model_name=model_name)
+    last_object = Model.objects.all().last()
+    context.endpoint = f'{context.endpoint}{last_object.pk}/'
 
 
 @step('there are set of Users in Database')

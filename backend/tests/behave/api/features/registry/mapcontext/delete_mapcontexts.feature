@@ -1,7 +1,7 @@
-Feature: MapContext Change Endpoint
+Feature: MapContext Delete Endpoint
     As an API client,
-    I want to change mapcontexts,
-    so that I can modify existing map applications.
+    I want to delete mapcontexts,
+    so that I can remove them from the registry.
 
     Background: Setup base url, content type and payload
         Given I use the endpoint http://localhost:8000/api/v1/registry/mapcontexts/
@@ -19,17 +19,17 @@ Feature: MapContext Change Endpoint
                 }
             }
             """
-    @qwertz
-    Scenario: Can change as authenticated user with permissions
-        Given I am logged in as User1 with password User1
-        When I send the request with PATCH method
-        Then I expect the response status is 201
 
-    Scenario: Can't change as authenticated user without permissions
+    Scenario: Can delete as authenticated user with permissions
+        Given I am logged in as User1 with password User1
+        When I send the request with DELETE method
+        Then I expect the response status is 204
+
+    Scenario: Can't delete as authenticated user without permissions
         Given I am logged in as User2 with password User2
-        When I send the request with PATCH method
+        When I send the request with DELETE method
         Then I expect the response status is 403
 
-    Scenario: Can't change as anonymous user
-        When I send the request with PATCH method
+    Scenario: Can't delete as anonymous user
+        When I send the request with DELETE method
         Then I expect the response status is 403

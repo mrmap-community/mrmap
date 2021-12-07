@@ -1,11 +1,12 @@
 
+from extras.permissions import ReadOnly
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.mapcontext import (
     MapContextLayerMoveLayerSerializer, MapContextLayerSerializer,
     MapContextSerializer)
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import DjangoModelPermissionsOrAnonReadOnly
+from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
@@ -17,7 +18,7 @@ class MapContextRelationshipView(RelationshipView):
         tags=['MapContext'],
     )
     queryset = MapContext.objects
-    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissions | ReadOnly]
 
 
 class MapContextLayerRelationshipView(RelationshipView):
@@ -25,7 +26,7 @@ class MapContextLayerRelationshipView(RelationshipView):
         tags=['MapContext'],
     )
     queryset = MapContextLayer.objects
-    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissions | ReadOnly]
 
 
 class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
@@ -38,7 +39,7 @@ class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
         '__all__': [],
         'map_context_layers': ['map_context_layers']
     }
-    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissions | ReadOnly]
 
 
 class MapContextLayerViewSet(ModelViewSet):
@@ -50,7 +51,7 @@ class MapContextLayerViewSet(ModelViewSet):
         "default": MapContextLayerSerializer,
         "move_to": MapContextLayerMoveLayerSerializer,
     }
-    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
+    permission_classes = [DjangoObjectPermissions | ReadOnly]
 
     def get_queryset(self):
         queryset = super(MapContextLayerViewSet, self).get_queryset()

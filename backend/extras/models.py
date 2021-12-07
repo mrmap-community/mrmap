@@ -181,6 +181,8 @@ class CommonInfo(models.Model):
 
     class Meta:
         abstract = True
+        get_latest_by = "created_at"
+        ordering = ["-created_at", ]
 
     def save(self, update_last_modified=True, current_user=None, *args, **kwargs):
         if current_task and not current_user:

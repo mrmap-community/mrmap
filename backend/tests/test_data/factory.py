@@ -1,11 +1,6 @@
-import sys
-from io import StringIO, UnsupportedOperation
-
 from accounts.models.users import User
 from django.contrib.auth.models import Group
-from django.core.management import BaseCommand, call_command
 from django.db import transaction
-from django.db.utils import IntegrityError
 from guardian.shortcuts import assign_perm
 from model_bakery import baker
 
@@ -48,7 +43,7 @@ class FixtureBuilder(object):
             map_context=self.map_context1,
             parent=node2)
 
-    def build_mapcontext_fixture(self):
+    def build_mapcontext_scenario(self):
         with transaction.atomic():
             self.build_users_and_groups()
             self.build_map_contexts()
@@ -62,33 +57,3 @@ class FixtureBuilder(object):
             assign_perm(perm='registry.delete_mapcontext',
                         user_or_group=self.group1,
                         obj=self.map_context1)
-            call_command(
-                'dumpdata',
-                '--natural-foreign',
-                '--natural-primary',
-                'registry',
-                'accounts',
-                output='./fixture.json')
-
-            raise IntegrityError(
-                'Just to force a rollback to dismiss all data from the database.')
-
-
-class Command(BaseCommand):
-    help = "(DEV COMMAND) creates a fixture file for the served scenario"
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            'scenario',
-            type=str,
-            help='the scenario you want to build')
-
-    def handle(self, *args, **options):
-        scenario = options["scenario"]
-        fb = FixtureBuilder()
-        if hasattr(fb, scenario):
-            build_func = getattr(fb, scenario)
-            build_func()
-
-        else:
-            raise UnsupportedOperation('the requested scenario is unknown')

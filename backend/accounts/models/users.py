@@ -5,12 +5,14 @@ import six
 from accounts.managers.users import CustomUserManager
 from accounts.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo, GenericModelMixin
+
+from guardian.shortcuts import assign_perm
 
 
 class User(AbstractUser):
@@ -31,6 +33,17 @@ class User(AbstractUser):
     class Meta:
         verbose_name = _('User')
         verbose_name_plural = _('Users')
+
+    def assign_object_perms(self):
+        assign_perm(perm='view_user',
+                    user_or_group=self,
+                    obj=self)
+        assign_perm(perm='change_user',
+                    user_or_group=self,
+                    obj=self)
+        assign_perm(perm='delete_user',
+                    user_or_group=self,
+                    obj=self)
 
     def create_activation(self):
         """ Create an activation object

@@ -1,4 +1,4 @@
-import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
+import JsonApiRepo, { JsonApiMimeType, JsonApiPrimaryData, JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextCreate {
     title: string;
@@ -30,7 +30,7 @@ export class MapContextRepo extends JsonApiRepo {
     return this.add('MapContext', attributes, relationships);
   }
 
-  async getMapContextLayerFromMapContextId (mapContextId: string): Promise<JsonApiResponse> {
+  async getMapContextLayerFromMapContextId (mapContextId: string): Promise<JsonApiPrimaryData[]> {
     const client = await JsonApiRepo.getClientInstance();
     const res = await client['List' + this.resourcePath + '{parent_lookup_map_context}/mapcontextlayers/'](
       mapContextId,
@@ -39,7 +39,7 @@ export class MapContextRepo extends JsonApiRepo {
         headers: { 'Content-Type': JsonApiMimeType }
       }
     );
-    return res.data;
+    return res.data.data;
   }
 }
 

@@ -51,7 +51,7 @@ export const TreeFormField: FC<TreeProps> = ({
 }) => {
   const [form] = useForm();
 
-  const [_treeData, setTreeData] = useState<TreeNodeType[]>([]);
+  const [_treeData, setTreeData] = useState<TreeNodeType[]>(treeData);
   const [isNodeAttributeFormVisible, setIsNodeAttributeFormVisible] = useState<boolean>(false);
   const [isEditingNodeAttributes, setIsEditingNodeAttributes] = useState<boolean>(false);
   const [isAddingNode, setIsAddingNode] = useState<boolean>(false);

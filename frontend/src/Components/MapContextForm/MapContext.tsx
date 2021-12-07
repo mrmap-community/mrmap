@@ -51,19 +51,54 @@ export const MapContext: FC<MapContextProps> = ({
         }
       };
 
-      // const fetchMapContextLayers = async () => {
-      //   try {
-      //     const response = await mapContextRepo.getMapContextLayerFromMapContextId(String(id));
-      //     const treeNodeList = response.data;
-      //   } catch (error) {
-      //     // @ts-ignore
-      //     throw new Error(error);
-      //   }
-      // };
+      const fetchMapContextLayers = async () => {
+        try {
+          const response = await mapContextRepo.getMapContextLayerFromMapContextId(String(id));
+          const cena = listToTree(response);
+          setInitTreeData(cena);
+        } catch (error) {
+          // @ts-ignore
+          throw new Error(error);
+        }
+      };
       fetchMapContext();
-      // fetchMapContextLayers();
+      fetchMapContextLayers();
     }
   }, [id]);
+
+  const listToTree = (list:any[]):any => {
+    const roots:any[] = [];
+
+    // initialize children on the list element
+    list = list.map((element: any) => ({ ...element, children: [] }));
+
+    list = list.map((element:any, index:number) => {
+      // transform the list element into a TreeNodeType element
+      const node = {
+        key: element.id,
+        title: element.attributes.title,
+        parent: element.relationships.parent.data?.id,
+        children: element.children,
+        properties: {
+          name: element.attributes.name,
+          datasetMetadata: element.relationships.dataset_metadata.data?.id,
+          renderingLayer: element.relationships.rendering_layer.data?.id,
+          scaleMin: element.attributes.layer_scale_min,
+          scaleMax: element.attributes.layer_scale_max,
+          style: element.relationships.layer_style.data?.id,
+          featureSelectionLayer: element.relationships.selection_layer.data?.id
+        },
+        expanded: true
+      };
+      if (node.parent) {
+        const parent = list.find((element1:any) => element1.id === node.parent);
+        list[list.indexOf(parent)].children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+    return roots;
+  };
 
   const nextStep = () => {
     setCurrent(current + 1);

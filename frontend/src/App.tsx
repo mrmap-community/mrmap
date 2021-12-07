@@ -1,8 +1,9 @@
+import 'moment/locale/de';
 import './App.css';
 
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { ConfigProvider, Layout, Space } from 'antd';
-import enUS from 'antd/lib/locale/en_US';
+import deDE from 'antd/lib/locale/de_DE';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -52,7 +53,7 @@ export default function App (): JSX.Element {
   return (
     <Router>
       <AuthProvider>
-        <ConfigProvider locale={enUS}>
+        <ConfigProvider locale={deDE}>
           <Routes>
             <Route
               path='/login'

@@ -7,51 +7,58 @@ import { SortOrder } from 'antd/lib/table/interface';
 import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import JsonApiRepo from '../../Repos/JsonApiRepo';
+import JsonApiRepo from '../../../Repos/JsonApiRepo';
+import { augmentColumnWithJsonSchema } from './TableHelper';
 
-interface ResourceTableProps {
+interface RepoTableProps {
     repo: JsonApiRepo
     addRecord?: string
     editRecord?: boolean,
-    onEditRecord?: (recordId: number | string) => void;
+    onEditRecord?: (recordId: number | string) => void,
+    columnHints?: ProColumnType[];
 }
 
-function deriveColumns (resourceSchema: any): ProColumnType[] {
+function deriveColumns (resourceSchema: any, columnHints: ProColumnType[] | undefined): ProColumnType[] {
   const props = resourceSchema.properties.data.items.properties.attributes.properties;
-  const columns = [];
-  for (const propName in props) {
-    const prop = props[propName];
-    // https://procomponents.ant.design/components/schema#valuetype
-    // let valueType = 'text';
-    // if (prop.type === 'string') {
-    //   if (prop.format === 'date-time') {
-    //     // valueType = 'dateTime';
-    //     valueType = 'dateTimeRange';
-    //   }
-    // } else if (prop.type === 'integer') {
-    //   valueType = 'digit';
-    // }
-    const column: any = {
-      title: prop.title || propName,
-      dataIndex: propName,
-      key: propName,
-      valueType: undefined
-    };
-    prop.isFlat = prop.type === 'string';
-    if (prop.isFlat) {
-      column.sorter = true;
-    }
-    columns.push(column);
+  const columns:any = {};
+  if (columnHints) {
+    columnHints.forEach((columnHint) => {
+      const columnName = columnHint.dataIndex as string;
+      const schema = props[columnName];
+      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema);
+    });
   }
-  return columns;
+  for (const propName in props) {
+    if (propName in columns) {
+      continue;
+    }
+    const prop = props[propName];
+    const columnHint = {
+      dataIndex: propName
+    };
+    columns[propName] = augmentColumnWithJsonSchema(columnHint, prop);
+    // const column: any = {
+    //   title: prop.title || propName,
+    //   dataIndex: propName,
+    //   key: propName,
+    //   valueType: undefined
+    // };
+    // prop.isFlat = prop.type === 'string';
+    // if (prop.isFlat) {
+    //   column.sorter = true;
+    // }
+    // columns.push(column);
+  }
+  return Object.values(columns);
 }
 
 export const ResourceTable = ({
   repo,
   addRecord,
   editRecord = false,
-  onEditRecord = () => undefined
-}: ResourceTableProps): ReactElement => {
+  onEditRecord = () => undefined,
+  columnHints = undefined
+}: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
   const actionRef = useRef();
   const [columns, setColumns] = useState<any>([]);
@@ -84,7 +91,8 @@ export const ResourceTable = ({
 
     async function buildColumns () {
       const schema = await repo.getSchema();
-      const columns = deriveColumns(schema);
+      console.log('schema', schema);
+      const columns = deriveColumns(schema, columnHints);
       columns.push({
         title: 'Actions',
         key: 'actions',
@@ -109,7 +117,6 @@ export const ResourceTable = ({
                 >
                   Delete
                 </Button>
-
               </Space>
             </>
           );

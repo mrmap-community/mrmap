@@ -44,5 +44,19 @@ export const augmentColumnWithJsonSchema = (column: ProColumnType, propSchema: a
     }
   }
 
+  if (column.valueType === 'dateTime') {
+    column = augmentDateTimeColumn(column);
+  }
+
+  return column;
+};
+
+const augmentDateTimeColumn = (column: ProColumnType) : ProColumnType => {
+  const fieldProps = column.fieldProps || {};
+  if (!fieldProps.format) {
+    // TODO i18n
+    fieldProps.format = 'DD.MM.YYYY HH:mm:ss';
+  }
+  column.fieldProps = fieldProps;
   return column;
 };

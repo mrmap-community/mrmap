@@ -17,18 +17,10 @@ const columns:any = [{
   title: 'Zusammenfassung'
 }, {
   dataIndex: 'created_at',
-  title: 'Erstellt',
-  fieldProps: {
-    // format: moment.localeData().longDateFormat('L')
-    format: 'DD.MM.YYYY HH:mm:ss'
-  }
+  title: 'Erstellt'
 }, {
   dataIndex: 'last_modified_at',
-  title: 'Zuletzt modifiziert',
-  fieldProps: {
-    // format: moment.localeData().longDateFormat('L')
-    format: 'DD.MM.YYYY HH:mm:ss'
-  }
+  title: 'Zuletzt modifiziert'
 }, {
   dataIndex: 'version',
   title: 'Version'

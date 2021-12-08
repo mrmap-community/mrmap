@@ -21,10 +21,30 @@ export const WmsTable = (): JSX.Element => {
     title: 'Zusammenfassung'
   }, {
     dataIndex: 'created_at',
-    title: 'Erstellt'
+    title: 'Erstellt',
+    hideInSearch: true
+  }, {
+    dataIndex: 'created_between',
+    title: 'Erstellt',
+    valueType: 'dateRange',
+    fieldProps: {
+      format: 'DD.MM.YYYY',
+      allowEmpty: [true, true]
+    },
+    hideInTable: true
   }, {
     dataIndex: 'last_modified_at',
-    title: 'Zuletzt modifiziert'
+    title: 'Modifiziert',
+    hideInSearch: true
+  }, {
+    dataIndex: 'last_modified_between',
+    title: 'Modifiziert',
+    valueType: 'dateRange',
+    fieldProps: {
+      format: 'DD.MM.YYYY',
+      allowEmpty: [true, true]
+    },
+    hideInTable: true
   }, {
     dataIndex: 'version',
     title: 'Version'
@@ -96,7 +116,7 @@ export const WmsTable = (): JSX.Element => {
     hideInSearch: true
   }, {
     key: 'actions',
-    title: 'Actions',
+    title: 'Aktionen',
     valueType: 'option',
     render: (text: any, record:any) => {
       return (
@@ -108,7 +128,7 @@ export const WmsTable = (): JSX.Element => {
                 actionRef.current?.deleteRecord(record);
               }}
             >
-              Delete
+              Löschen
             </Button>
         </>
       );
@@ -119,7 +139,7 @@ export const WmsTable = (): JSX.Element => {
             repo={repo}
             columns={columns}
             actionRef={actionRef as any}
-            addRecord='/registry/services/add'
+            onAddRecord='/registry/services/add'
           />;
 };
 

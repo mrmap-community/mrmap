@@ -17,8 +17,10 @@ export interface RepoTableProps {
     columns?: ProColumnType[]
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
-    addRecord?: string
-    onEditRecord?: (recordId: number | string) => void | undefined
+    /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
+    onAddRecord?: string
+    /** Function to invoke for editing records (if omitted, no 'Edit' button will be available) */
+    onEditRecord?: (recordId: number | string) => void
 }
 
 // extends ActionType from Pro Table
@@ -54,7 +56,7 @@ export const RepoTable = ({
   repo,
   columns = undefined,
   actionRef = undefined,
-  addRecord = undefined,
+  onAddRecord = undefined,
   onEditRecord = undefined
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
@@ -100,8 +102,8 @@ export const RepoTable = ({
       const augmentedColumns = augmentColumns(schema, columns);
       if (!augmentedColumns.some(column => column.key === 'actions')) {
         augmentedColumns.push({
-          title: 'Actions',
           key: 'actions',
+          title: 'Aktionen',
           valueType: 'option',
           render: (text: any, record: any) => {
             return (
@@ -112,7 +114,7 @@ export const RepoTable = ({
                     size='small'
                     onClick={() => onEditRecord(record.id)}
                   >
-                    Edit
+                    Bearbeiten
                   </Button>
               )}
                 <Button
@@ -120,7 +122,7 @@ export const RepoTable = ({
                   size='small'
                   onClick={() => actions.current?.deleteRecord(record)}
                 >
-                  Delete
+                  Löschen
                 </Button>
               </Space>
             </>
@@ -142,6 +144,7 @@ export const RepoTable = ({
         ordering = (sorter[prop] === 'descend' ? '-' : '') + prop;
       }
     }
+    console.log('Fetching', params);
     const filters:any = {};
     for (const prop in params) {
       // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
@@ -188,19 +191,24 @@ export const RepoTable = ({
         request={fetchData}
         columns={augmentedColumns}
         scroll={{ x: true }}
-        headerTitle={'Records'}
+        headerTitle={'Datensätze'}
         actionRef={setActions}
-        toolBarRender={() => [
+        toolBarRender={onAddRecord
+          ? () => [
           <Button
             type='primary'
             key='primary'
             onClick={() => {
-              navigate(addRecord as string);
+              navigate(onAddRecord as string);
             }}
           >
             <PlusOutlined />Neu
           </Button>
-        ]}
+            ]
+          : () => []}
+        search={{
+          layout: 'vertical'
+        }}
     />)}
   </Card>
   );

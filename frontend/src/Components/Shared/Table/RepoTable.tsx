@@ -52,7 +52,7 @@ function deriveColumns (resourceSchema: any, columnHints: ProColumnType[] | unde
   return Object.values(columns);
 }
 
-export const ResourceTable = ({
+export const RepoTable = ({
   repo,
   addRecord,
   editRecord = false,
@@ -184,8 +184,6 @@ export const ResourceTable = ({
         scroll={{ x: true }}
         headerTitle={'Records'}
         actionRef={actionRef}
-        // search={false}
-        // toolBarRender={false}
         toolBarRender={() => [
           <Button
             type='primary'
@@ -203,4 +201,4 @@ export const ResourceTable = ({
   );
 };
 
-export default ResourceTable;
+export default RepoTable;

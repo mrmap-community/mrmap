@@ -9,7 +9,7 @@ const repo = new WmsRepo();
 
 export const WmsTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
-  const columns:ProColumnType[] = [{
+  const columns: ProColumnType[] = [{
     dataIndex: 'id',
     title: 'ID',
     ellipsis: true
@@ -117,8 +117,8 @@ export const WmsTable = (): JSX.Element => {
 
   return <RepoTable
             repo={repo}
+            columns={columns}
             actionRef={actionRef as any}
-            columnHints={columns}
             addRecord='/registry/services/add'
           />;
 };

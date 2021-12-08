@@ -12,7 +12,6 @@ export const MapContextTable = (): JSX.Element => {
   return (
   <RepoTable
     repo={repo}
-    editRecord
     onEditRecord={(mapContextId) => navigate(`/registry/mapcontexts/${mapContextId}/edit`)}
     addRecord='/registry/mapcontexts/add'
   />);

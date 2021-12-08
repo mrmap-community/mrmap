@@ -10,20 +10,24 @@ import { useNavigate } from 'react-router';
 import JsonApiRepo from '../../../Repos/JsonApiRepo';
 import { augmentColumnWithJsonSchema } from './TableHelper';
 
-interface RepoTableProps {
+export interface RepoTableProps {
+    /** Repository that defines the schema and offers CRUD operations */
     repo: JsonApiRepo
+    /** Optional column hints, will be augmented by the repository schema */
+    columns?: ProColumnType[]
+    /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
     addRecord?: string
-    editRecord?: boolean,
-    onEditRecord?: (recordId: number | string) => void,
-    columnHints?: ProColumnType[],
+    onEditRecord?: (recordId: number | string) => void | undefined
 }
 
+// extends ActionType from Pro Table
+// https://procomponents.ant.design/en-US/components/table/?current=1&pageSize=5#protable
 export type RepoActionType = ActionType & {
   deleteRecord: (row:any) => void
 }
 
-function deriveColumns (resourceSchema: any, columnHints: ProColumnType[] | undefined): ProColumnType[] {
+function augmentColumns (resourceSchema: any, columnHints: ProColumnType[] | undefined): ProColumnType[] {
   const props = resourceSchema.properties.data.items.properties.attributes.properties;
   const columns:any = {};
   if (columnHints) {
@@ -48,14 +52,13 @@ function deriveColumns (resourceSchema: any, columnHints: ProColumnType[] | unde
 
 export const RepoTable = ({
   repo,
+  columns = undefined,
   actionRef = undefined,
-  addRecord,
-  editRecord = false,
-  onEditRecord = () => undefined,
-  columnHints = undefined
+  addRecord = undefined,
+  onEditRecord = undefined
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
-  const [columns, setColumns] = useState<any>([]);
+  const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
 
   const actions = useRef<RepoActionType>();
   const setActions = (proTableActions: ActionType) => {
@@ -90,13 +93,13 @@ export const RepoTable = ({
     }
   };
 
-  // build columns from schema (and add delete action)
+  // augment / build columns from schema (and add delete action)
   useEffect(() => {
     async function buildColumns () {
       const schema = await repo.getSchema();
-      const columns = deriveColumns(schema, columnHints);
-      if (!columns.some(column => column.key === 'actions')) {
-        columns.push({
+      const augmentedColumns = augmentColumns(schema, columns);
+      if (!augmentedColumns.some(column => column.key === 'actions')) {
+        augmentedColumns.push({
           title: 'Actions',
           key: 'actions',
           valueType: 'option',
@@ -104,7 +107,7 @@ export const RepoTable = ({
             return (
             <>
               <Space size='middle'>
-              {editRecord && (
+              {onEditRecord && (
                   <Button
                     size='small'
                     onClick={() => onEditRecord(record.id)}
@@ -125,7 +128,7 @@ export const RepoTable = ({
           }
         });
       }
-      setColumns(columns);
+      setAugmentedColumns(augmentedColumns);
     }
     buildColumns();
   }, []);
@@ -181,9 +184,9 @@ export const RepoTable = ({
     title='WebMapServices'
     style={{ width: '100%' }}
   >
-    { columns.length > 0 && (<ProTable
+    { augmentedColumns.length > 0 && (<ProTable
         request={fetchData}
-        columns={columns}
+        columns={augmentedColumns}
         scroll={{ x: true }}
         headerTitle={'Records'}
         actionRef={setActions}
@@ -195,11 +198,10 @@ export const RepoTable = ({
               navigate(addRecord as string);
             }}
           >
-            <PlusOutlined />New
+            <PlusOutlined />Neu
           </Button>
         ]}
     />)}
-
   </Card>
   );
 };

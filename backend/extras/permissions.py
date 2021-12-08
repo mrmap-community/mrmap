@@ -1,6 +1,5 @@
-from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.permissions import DjangoObjectPermissions
 
 
-class ReadOnly(BasePermission):
-    def has_permission(self, request, view):
-        return request.method in SAFE_METHODS
+class DjangoObjectPermissionsOrAnonReadOnly(DjangoObjectPermissions):
+    authenticated_users_only = False

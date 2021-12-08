@@ -9,7 +9,8 @@ def before_scenario(context, scenario):
     context.client = APIClient()
     context.query_params = {}
 
-    context.fixture = ['test_default_scenario.json']
+    # TODO: move test_mapcontext.json fixture loading to before_scenario for features where the name contains MapContext
+    context.fixtures = ['test_users.json', 'test_mapcontext.json']
 
 
 def after_step(context, step):

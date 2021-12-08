@@ -11,6 +11,7 @@ Feature: MapContext Change Endpoint
             {
                 "data": {
                     "type": "MapContext",
+                    "id": "1",
                     "attributes": {
                         "title": "nice title",
                         "abstract": "short abstract"

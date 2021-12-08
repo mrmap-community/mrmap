@@ -1,7 +1,6 @@
 from typing import OrderedDict
 
 from django_celery_results.models import TaskResult
-from extras.permissions import ReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       OgcServiceFilterSet,
@@ -44,7 +43,10 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     prefetch_for_includes = {"__all__": [], "layers": ["layers"]}
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-    permission_classes = [DjangoObjectPermissions | ReadOnly]
+    permission_classes = [DjangoObjectPermissions]
+
+    def get_object(self):
+        return super().get_object()
 
 
 class LayerRelationshipView(RelationshipView):

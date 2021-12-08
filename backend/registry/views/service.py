@@ -1,6 +1,7 @@
 from typing import OrderedDict
 
 from django_celery_results.models import TaskResult
+from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       OgcServiceFilterSet,
@@ -17,7 +18,6 @@ from registry.serializers.service import (FeatureTypeSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
-from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.settings import api_settings
@@ -32,6 +32,7 @@ class WebMapServiceRelationshipView(RelationshipView):
         tags=["WebMapServices"],
     )
     queryset = WebMapService.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
@@ -43,10 +44,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     prefetch_for_includes = {"__all__": [], "layers": ["layers"]}
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-    permission_classes = [DjangoObjectPermissions]
-
-    def get_object(self):
-        return super().get_object()
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class LayerRelationshipView(RelationshipView):
@@ -54,6 +52,7 @@ class LayerRelationshipView(RelationshipView):
         tags=["WebMapService"],
     )
     queryset = Layer.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):
@@ -69,6 +68,7 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
         "styles": ["styles"],
         "keywords": ["keywords"],
     }
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
     def get_queryset(self):
         queryset = super(LayerViewSet, self).get_queryset()
@@ -83,6 +83,7 @@ class WebFeatureServiceRelationshipView(RelationshipView):
         tags=["WebFeatureServices"],
     )
     queryset = WebFeatureService.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
@@ -94,6 +95,7 @@ class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
     prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class FeatureTypeRelationshipView(RelationshipView):
@@ -101,6 +103,7 @@ class FeatureTypeRelationshipView(RelationshipView):
         tags=["WebFeatureService"],
     )
     queryset = FeatureType.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
@@ -113,6 +116,7 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     search_fields = ("id", "title", "abstract", "keywords__keyword")
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
     def get_queryset(self):
         queryset = super(FeatureTypeViewSet, self).get_queryset()
@@ -134,6 +138,7 @@ class OgcServiceViewSet(ModelViewSet):
 
     filterset_class = OgcServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
     def get_serializer_class(self):
         return self.serializer_classes.get(

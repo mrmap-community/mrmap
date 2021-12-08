@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
-from rest_framework.fields import CharField, ChoiceField, IntegerField, ModelField
-from rest_framework.serializers import HyperlinkedIdentityField
 from registry.models import MapContext, MapContextLayer
-from rest_framework_json_api.serializers import ModelSerializer, Serializer
+from rest_framework.fields import (CharField, ChoiceField, IntegerField,
+                                   ModelField)
+from rest_framework.serializers import HyperlinkedIdentityField
 from rest_framework_json_api.relations import HyperlinkedRelatedField
+from rest_framework_json_api.serializers import ModelSerializer, Serializer
 
 
 class MapContextLayerSerializer(ModelSerializer):
@@ -17,12 +18,11 @@ class MapContextLayerSerializer(ModelSerializer):
         fields = "__all__"
 
 
-class MapContextSerializer(ModelSerializer):
+class MapContextDefaultSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
     )
-
     map_context_layers = HyperlinkedRelatedField(
         queryset=MapContextLayer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -32,6 +32,16 @@ class MapContextSerializer(ModelSerializer):
         required=False,
     )
 
+    class Meta:
+        model = MapContext
+        fields = "__all__"
+
+
+class MapContextIncludeSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:mapcontext-detail',
+    )
     included_serializers = {
         'map_context_layers': MapContextLayerSerializer,
     }
@@ -44,7 +54,8 @@ class MapContextSerializer(ModelSerializer):
 class MapContextLayerMoveLayerSerializer(Serializer):
 
     target = IntegerField()
-    position = ChoiceField(choices=['first-child', 'last-child', 'left', 'right'])
+    position = ChoiceField(
+        choices=['first-child', 'last-child', 'left', 'right'])
 
     class Meta:
         resource_name = 'MapContextLayer'
@@ -53,8 +64,10 @@ class MapContextLayerMoveLayerSerializer(Serializer):
         validated_data = super().validate(attrs)
 
         try:
-            validated_data['target'] = MapContextLayer.objects.get(pk=validated_data['target'])
+            validated_data['target'] = MapContextLayer.objects.get(
+                pk=validated_data['target'])
         except MapContextLayer.DoesNotExist:
-            raise ValidationError('given target MapContextLayer does not exist.')
+            raise ValidationError(
+                'given target MapContextLayer does not exist.')
 
         return validated_data

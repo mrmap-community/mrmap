@@ -2,8 +2,8 @@
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.mapcontext import (
-    MapContextLayerMoveLayerSerializer, MapContextLayerSerializer,
-    MapContextSerializer)
+    MapContextDefaultSerializer, MapContextIncludeSerializer,
+    MapContextLayerMoveLayerSerializer, MapContextLayerSerializer)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -33,12 +33,23 @@ class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
         tags=['MapContext'],
     )
     queryset = MapContext.objects.all()
-    serializer_class = MapContextSerializer
+    serializer_classes = {
+        'default': MapContextDefaultSerializer,
+        'include': MapContextIncludeSerializer
+    }
     prefetch_for_includes = {
         '__all__': [],
         'map_context_layers': ['map_context_layers']
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def get_serializer_class(self):
+        self.request
+        if 'include' in self.request.query_params:
+            return self.serializer_classes["include"]
+        return self.serializer_classes.get(
+            self.action, self.serializer_classes["default"]
+        )
 
 
 class MapContextLayerViewSet(ModelViewSet):

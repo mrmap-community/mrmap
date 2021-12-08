@@ -32,8 +32,8 @@ export interface JsonApiPrimaryData {
 export interface QueryParams {
     page: number;
     pageSize: number;
-    ordering: string;
-    filters: any;
+    ordering?: string;
+    filters?: any;
 }
 
 export class JsonApiRepo {
@@ -104,9 +104,8 @@ export class JsonApiRepo {
           'page[size]': queryParams.pageSize,
           ...queryParams.filters
         };
-        // TODO why can a string occur here?
-        if (queryParams.ordering && queryParams.ordering !== 'undefined') {
-          jsonApiParams.ordering = queryParams.ordering;
+        if (queryParams.ordering) {
+          jsonApiParams.sort = queryParams.ordering;
         }
       }
       return await client['List' + this.resourcePath](jsonApiParams);
@@ -134,6 +133,26 @@ export class JsonApiRepo {
       return await client['create' + this.resourcePath](undefined, {
         data: {
           type: type,
+          attributes: {
+            ...attributes
+          },
+          relationships: {
+            ...relationships
+          }
+        }
+      }, {
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+      });
+    }
+
+    async partialUpdate (id:string, type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
+      const client = await JsonApiRepo.getClientInstance();
+
+      // TODO: make relationships optional
+      return await client['partial_update' + this.resourcePath + '{id}/'](id, {
+        data: {
+          type: type,
+          id: id,
           attributes: {
             ...attributes
           },

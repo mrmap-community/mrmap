@@ -14,7 +14,7 @@ export class OgcServiceRepo extends JsonApiRepo {
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {
     const attributes = {
       get_capabilities_url: create.get_capabilities_url, // eslint-disable-line
-      collect_metadata_records: create.collect_metadata_records
+      collect_metadata_records: create.collect_metadata_records // eslint-disable-line
     };
     const relationships = {
       owner: { // eslint-disable-line

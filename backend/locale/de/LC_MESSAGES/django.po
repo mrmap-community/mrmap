@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-11-26 13:40+0100\n"
+"POT-Creation-Date: 2021-12-08 11:48+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,43 +18,39 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/forms.py:21
-msgid "Check this field"
-msgstr "Feld prüfen"
-
-#: MrMap/settings.py:165
+#: MrMap/settings.py:172
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:166
+#: MrMap/settings.py:173
 msgid "German"
 msgstr "Deutsch"
 
-#: MrMap/validators.py:45
+#: MrMap/validators.py:46
 msgid "The given requested method is not GetCapabilities."
 msgstr "Die angegebene Anfragemethode ist nicht GetCapabilities."
 
-#: MrMap/validators.py:49
+#: MrMap/validators.py:50
 msgid "The given uri is not valid cause there is no request parameter."
 msgstr "Die URI ist ungültig, da kein 'request' Parameter enthalten ist."
 
-#: MrMap/validators.py:77
+#: MrMap/validators.py:89
 msgid "The given service typ is not supported from Mr. Map."
 msgstr "Dieser Servicetyp wird von Mr. Map nicht unterstützt."
 
-#: MrMap/validators.py:87
+#: MrMap/validators.py:100
 msgid "The given {} version {} is not supported from Mr. Map."
 msgstr "Die {} Version {} wird von Mr. Map nicht unterstützt."
 
-#: MrMap/validators.py:92
+#: MrMap/validators.py:108
 msgid "The given uri is not valid cause there is no version parameter."
 msgstr "Die URI ist ungültig, da kein 'version' Parameter enthalten ist."
 
-#: MrMap/validators.py:102
+#: MrMap/validators.py:118
 msgid "The given uri is not valid cause there is no service parameter."
 msgstr "Die URI ist ungültig, da kein 'service' Parameter enthalten ist."
 
-#: MrMap/validators.py:134
+#: MrMap/validators.py:150
 #, fuzzy
 #| msgid "Directory indexes are not allowed here."
 msgid "Empty geometry collections are not allowed."
@@ -68,7 +64,7 @@ msgstr "Beschreibung"
 msgid "Describe what this acls shall allow."
 msgstr "Beschreiben Sie was diese Berechtigungsliste erlauben soll."
 
-#: acls/models/acls.py:29 acls/tables.py:41
+#: acls/models/acls.py:29
 #, fuzzy
 #| msgid "Access constraints"
 msgid "Accessible access control lists"
@@ -80,7 +76,7 @@ msgid ""
 msgstr ""
 "Wählen Sie die Berechtigungslisten für die konfigurierten Berechtigungen aus."
 
-#: acls/models/acls.py:33 acls/tables.py:42
+#: acls/models/acls.py:33
 #, fuzzy
 #| msgid "Delete organization"
 msgid "Accessible organizations"
@@ -132,72 +128,49 @@ msgstr ""
 "Dienst Administratoren können alle aktionen für die entsprechenden Dienste "
 "einer Organisation ausführen."
 
-#: acls/tables.py:13 acls/tables.py:38
-#: templates/MrMap/includes/nav-signed-in.html:17
-#: templates/MrMap/includes/nav-signed-in.html:28
-#: templates/MrMap/includes/nav-signed-in.html:29 users/models/users.py:34
-msgid "Users"
-msgstr "Nutzer"
-
-#: acls/tables.py:39
-#, fuzzy
-#| msgid "Allowed area"
-msgid "Allowed permissions"
-msgstr "Erlaubte Bereiche"
-
-#: acls/views.py:25 acls/views.py:28
-msgid "Details"
-msgstr "Einzelheiten"
-
-#: extras/autocompletes.py:19
-msgid "If you provide add functionality you need to define `add_perm` param"
-msgstr ""
-"Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
-"`add_perm` setzen."
-
-#: extras/models.py:132
+#: extras/models.py:151
 #, fuzzy
 #| msgid "Created on"
 msgid "Created at"
 msgstr "Erstellt am"
 
-#: extras/models.py:133
+#: extras/models.py:152
 msgid "The timestamp of the creation date of this object."
 msgstr "Der Zeitstempel an dem das Objekt erstellt wurde."
 
-#: extras/models.py:138
+#: extras/models.py:159
 #, fuzzy
 #| msgid "Created on"
 msgid "Created by"
 msgstr "Erstellt am"
 
-#: extras/models.py:139
+#: extras/models.py:160
 msgid "The user who has created this object."
 msgstr "Der Benutzer der dieses Objekt erstellt hat."
 
-#: extras/models.py:145
+#: extras/models.py:169
 msgid "Owner"
 msgstr "Besitzer"
 
-#: extras/models.py:146
+#: extras/models.py:170
 #, fuzzy
 #| msgid "The organization which provides the resource."
 msgid "The organization which is the owner of this object."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: extras/models.py:151
+#: extras/models.py:178
 msgid "Last modified at"
 msgstr "zuletzt verändert am"
 
-#: extras/models.py:152
+#: extras/models.py:179
 msgid "The timestamp of the last modification of this object"
 msgstr "Der Zeitstempel an dem dieses Objekt zuletzt verändert wurde."
 
-#: extras/models.py:157
+#: extras/models.py:186
 msgid "Last modified by"
 msgstr "Zuletzt geändert von"
 
-#: extras/models.py:158
+#: extras/models.py:187
 msgid "The last user who has modified this object."
 msgstr "Der Benutzer der dieses Objekt zuletzt verändert hat."
 
@@ -221,89 +194,6 @@ msgstr "Gesundheitszustand"
 #: jobs/models.py:77
 msgid "Current state of the task being run"
 msgstr "Aktueller Status der Teilaufgabe."
-
-#: registry/forms/service.py:8 registry/models/jobs.py:66
-#: registry/models/security.py:48
-#, fuzzy
-#| msgid "Service"
-msgid "Service url"
-msgstr "Dienst"
-
-#: registry/forms/service.py:9 registry/models/jobs.py:67
-#: registry/models/security.py:49
-msgid "this shall be the full get capabilities request url."
-msgstr "Dies sollte die vollständige GetCapabilities url sein."
-
-#: registry/forms/service.py:14 registry/models/jobs.py:70
-#, fuzzy
-#| msgid "Restore metadata"
-msgid "collect metadata"
-msgstr "Metadaten wiederherstellen"
-
-#: registry/forms/service.py:15 registry/models/jobs.py:71
-msgid ""
-"auto start collecting task after successful registering which register all "
-"linked metadata records found in the GetCapabilities document."
-msgstr ""
-"Automatisches starten der Teilaufgabe zum erfassen aller verknüpften "
-"Metadatensätze, welche im GetCapabilities Dokument gefunden werden."
-
-#: registry/forms/service.py:19 registry/models/jobs.py:76
-#, fuzzy
-#| msgid "Registration for other organization"
-msgid "Registration for organization"
-msgstr "Registriere für andere Organisation"
-
-#: registry/forms/service.py:20 registry/models/jobs.py:77
-msgid "Select for which organization you'd like to register the service."
-msgstr ""
-"Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
-
-#: registry/forms/service.py:26 registry/models/security.py:34
-#, fuzzy
-#| msgid "Username"
-msgid "username"
-msgstr "Nutzername"
-
-#: registry/forms/service.py:27 registry/models/security.py:35
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "the username used for the authentication."
-msgstr "Dienst benötigt Authentifizierung"
-
-#: registry/forms/service.py:30 registry/models/security.py:38
-#, fuzzy
-#| msgid "Password"
-msgid "password"
-msgstr "Passwort"
-
-#: registry/forms/service.py:31 registry/models/security.py:39
-msgid "the password used for the authentication."
-msgstr ""
-"Das Passwort, welches für die Authentifizierung des Dienstes genutzt werden "
-"soll."
-
-#: registry/forms/service.py:35 registry/models/security.py:43
-#, fuzzy
-#| msgid "Authentication type"
-msgid "authentication type"
-msgstr "Authentifizierungstyp"
-
-#: registry/forms/service.py:36 registry/models/security.py:44
-msgid "kind of authentication mechanism shall used."
-msgstr "Authentifizierungsmechanismus."
-
-#: registry/forms/service.py:49
-msgid "You must provide a username if you joice any authentication method."
-msgstr ""
-"Setzen Sie einen Benutzernamen, wenn Sie eine Authentifizierungsmethode "
-"ausgewählt haben."
-
-#: registry/forms/service.py:52
-msgid "You must provide a password if you joice any authentication method."
-msgstr ""
-"Setzen Sie ein Passwort, wenn Sie eine Authentifizierungsmethode ausgewählt "
-"haben."
 
 #: registry/managers/metadata.py:39
 msgid "Explanations: <br>"
@@ -363,16 +253,6 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/jobs.py:82
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "service authentication"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: registry/models/jobs.py:83
-msgid "Optional credentials to authenticate against the web service."
-msgstr ""
-
 #: registry/models/mapcontext.py:18 registry/models/mapcontext.py:57
 #: registry/models/metadata.py:48 registry/models/metadata.py:321
 #, fuzzy
@@ -403,7 +283,6 @@ msgid "a short descriptive title for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
 #: registry/models/mapcontext.py:63
-#: templates/MrMap/includes/nav-signed-in.html:65
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
@@ -536,55 +415,55 @@ msgstr "Erstellt am"
 msgid "the style entity which is linked to this legend url"
 msgstr "Der Stil der mit dieser Legenendurl verknüpft ist"
 
-#: registry/models/metadata.py:116 users/models/groups.py:52
+#: registry/models/metadata.py:116 users/models/groups.py:91
 msgid "Name"
 msgstr "Name"
 
-#: registry/models/metadata.py:117 users/models/groups.py:54
+#: registry/models/metadata.py:117 users/models/groups.py:93
 #, fuzzy
 #| msgid "Delete organization"
 msgid "The name of the organization"
 msgstr "Organisation entfernen"
 
-#: registry/models/metadata.py:120 users/models/groups.py:18
+#: registry/models/metadata.py:120 users/models/groups.py:26
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
-#: registry/models/metadata.py:123 users/models/groups.py:19
+#: registry/models/metadata.py:123 users/models/groups.py:29
 msgid "E-Mail"
 msgstr "E-Mail"
 
-#: registry/models/metadata.py:126 users/models/groups.py:20
+#: registry/models/metadata.py:126 users/models/groups.py:32
 msgid "Phone"
 msgstr "Telefon"
 
-#: registry/models/metadata.py:130 users/models/groups.py:21
+#: registry/models/metadata.py:130 users/models/groups.py:35
 msgid "Facsimile"
 msgstr "Fax"
 
-#: registry/models/metadata.py:133 users/models/groups.py:22
+#: registry/models/metadata.py:133 users/models/groups.py:38
 msgid "City"
 msgstr "Stadt"
 
-#: registry/models/metadata.py:136 users/models/groups.py:23
+#: registry/models/metadata.py:136 users/models/groups.py:41
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: registry/models/metadata.py:139 users/models/groups.py:24
+#: registry/models/metadata.py:139 users/models/groups.py:48
 #, fuzzy
 #| msgid "Address"
 msgid "Address type"
 msgstr "Adresse"
 
-#: registry/models/metadata.py:142 users/models/groups.py:25
+#: registry/models/metadata.py:142 users/models/groups.py:51
 msgid "Address"
 msgstr "Adresse"
 
-#: registry/models/metadata.py:145 users/models/groups.py:26
+#: registry/models/metadata.py:145 users/models/groups.py:58
 msgid "State or province"
 msgstr "Bundesland"
 
-#: registry/models/metadata.py:148 users/models/groups.py:27
+#: registry/models/metadata.py:148 users/models/groups.py:61
 msgid "Country"
 msgstr "Land"
 
@@ -956,13 +835,57 @@ msgstr "verknüpfter Dimensionseintrag"
 msgid "the related dimension where this interval was found."
 msgstr "Die vernüpfte Dimension des Intervals."
 
+#: registry/models/security.py:34
+#, fuzzy
+#| msgid "Username"
+msgid "username"
+msgstr "Nutzername"
+
+#: registry/models/security.py:35
+#, fuzzy
+#| msgid "Service needs authentication"
+msgid "the username used for the authentication."
+msgstr "Dienst benötigt Authentifizierung"
+
+#: registry/models/security.py:38
+#, fuzzy
+#| msgid "Password"
+msgid "password"
+msgstr "Passwort"
+
+#: registry/models/security.py:39
+msgid "the password used for the authentication."
+msgstr ""
+"Das Passwort, welches für die Authentifizierung des Dienstes genutzt werden "
+"soll."
+
+#: registry/models/security.py:43
+#, fuzzy
+#| msgid "Authentication type"
+msgid "authentication type"
+msgstr "Authentifizierungstyp"
+
+#: registry/models/security.py:44
+msgid "kind of authentication mechanism shall used."
+msgstr "Authentifizierungsmechanismus."
+
+#: registry/models/security.py:48
+#, fuzzy
+#| msgid "Service"
+msgid "Service url"
+msgstr "Dienst"
+
+#: registry/models/security.py:49
+msgid "this shall be the full get capabilities request url."
+msgstr "Dies sollte die vollständige GetCapabilities url sein."
+
 #: registry/models/security.py:55
 msgid ""
 "the optional authentication type and credentials to request the service."
 msgstr ""
 
 #: registry/models/security.py:163 registry/models/security.py:235
-#: users/models/groups.py:59
+#: users/models/groups.py:100
 #, fuzzy
 #| msgid "Description"
 msgid "description"
@@ -1325,632 +1248,51 @@ msgstr "Diese Ressource ist aktiviert."
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
 
-#: registry/templates/registry/mapcontext/mapcontext_form.html:37
-#: templates/MrMap/generic_views/generic_form.html:25
-#: templates/MrMap/generic_views/generic_wizard_form.html:104
-msgid "Save"
-msgstr "Speichern"
-
-#: registry/templates/registry/mapcontext/mapcontext_form.html:39
-#: templates/MrMap/generic_views/generic_delete.html:15
-#: templates/MrMap/generic_views/generic_form.html:26
-#: templates/MrMap/generic_views/generic_wizard_form.html:27
-#: templates/MrMap/generic_views/generic_wizard_form.html:90
-#: templates/MrMap/generic_views/generic_wizard_form.html:97
-#: templates/MrMap/generic_views/generic_wizard_form.html:105
-#: templates/MrMap/generic_views/generic_wizard_form.html:112
-#: templates/MrMap/generic_views/generic_wizard_form.html:120
-msgid "Loading..."
-msgstr "Laden..."
-
-#: registry/templates/registry/service/base.html:22
-#: registry/templates/registry/service/views/wms_tree.html:27
-msgid "Capabilities"
-msgstr "Capabilities"
-
-#: registry/templates/registry/service/base.html:28
-#: registry/templates/registry/service/views/wms_tree.html:33
-#, fuzzy
-#| msgid "Metadata restored to original"
-msgid "See current or original:"
-msgstr "Metadaten auf Originalzustand wiederhergestellt"
-
-#: registry/templates/registry/service/base.html:29
-#: registry/templates/registry/service/views/wms_tree.html:34
-msgid "Original"
-msgstr "Original"
-
-#: registry/templates/registry/service/base.html:30
-#: registry/templates/registry/service/views/wms_tree.html:35
-msgid "Current"
-msgstr "Aktuell"
-
-#: registry/templates/registry/service/base.html:34
-#: registry/templates/registry/service/views/wfs_tree.html:22
-#: registry/templates/registry/service/views/wms_tree.html:39
-#: templates/MrMap/includes/nav-signed-in.html:63
-msgid "Metadata"
-msgstr "Metadaten"
-
-#: registry/templates/registry/service/base.html:39
-#: registry/templates/registry/service/views/wfs_tree.html:27
-#: registry/templates/registry/service/views/wms_tree.html:44
-#, fuzzy
-#| msgid "Your metadata datasets"
-msgid "Show metadata as:"
-msgstr "Ihre Metadaten Datensätze"
-
-#: registry/templates/registry/service/base.html:40
-#: registry/templates/registry/service/views/wfs_tree.html:28
-#: registry/templates/registry/service/views/wms_tree.html:45
-msgid "XML"
-msgstr "XML"
-
-#: registry/templates/registry/service/base.html:41
-#: registry/templates/registry/service/views/wfs_tree.html:29
-#: registry/templates/registry/service/views/wms_tree.html:46
-msgid "HTML"
-msgstr "HTML"
-
-#: registry/templates/registry/service/base.html:51
-#: registry/templates/registry/service/views/wfs_tree.html:44
-#: registry/templates/registry/service/views/wms_tree.html:61
-#, fuzzy
-#| msgid "Health state of the ressource"
-msgid "Deactivate the resource"
-msgstr "Gesundheitszustand der Ressource"
-
-#: registry/templates/registry/service/base.html:51
-#: registry/templates/registry/service/views/wfs_tree.html:44
-#: registry/templates/registry/service/views/wms_tree.html:61
-#, fuzzy
-#| msgid "Health state of the ressource"
-msgid "Activate the resource"
-msgstr "Gesundheitszustand der Ressource"
-
-#: registry/templates/registry/service/base.html:55
-#, fuzzy
-#| msgid "Name of resource"
-msgid "Update this resource"
-msgstr "Ressourcenname"
-
-#: registry/templates/registry/service/base.html:60
-#, fuzzy
-#| msgid "Select categories for this resource."
-msgid "Run monitoring task for this resource"
-msgstr "Kategorien auswählen"
-
-#: registry/templates/registry/service/base.html:65
-#, fuzzy
-#| msgid "Health state of the ressource"
-msgid "Delete the resource"
-msgstr "Gesundheitszustand der Ressource"
-
-#: registry/templates/registry/service/views/featuretype.html:6
-#: registry/templates/registry/service/views/wfs_tree.html:53
-#, fuzzy
-#| msgid "Show elements"
-msgid "Elements"
-msgstr "Zeige Elemente"
-
-#: registry/templates/registry/service/views/wfs_tree.html:34
-#: registry/templates/registry/service/views/wms_tree.html:51
-msgid "Datasets"
-msgstr "Datensätze"
-
-#: templates/403.html:13
-msgid "Forbidden"
-msgstr "Verboten"
-
-#: templates/403.html:17 templates/403.html:20
-#, fuzzy
-#| msgid "Mr. Map logo"
-msgid "Mr. Map can\\"
-msgstr "Mr. Map Logo"
-
-#: templates/403.html:17 templates/404.html:17
-msgid "Irritated Mr. Map"
-msgstr "Irritierter Mr. Map"
-
-#: templates/403.html:27 templates/404.html:28 templates/500.html:29
-msgid "Back to home"
-msgstr "Zurück zur Startseite"
-
-#: templates/404.html:13
-#, fuzzy
-#| msgid "No XML found."
-msgid "Not Found"
-msgstr "Kein XML gefunden."
-
-#: templates/404.html:17
-msgid "Mr. Map can`t find the page you are looking for"
-msgstr "Mr. Map kann die angeforderte Seite nicht finden"
-
-#: templates/404.html:20
-msgid "Oh no!"
-msgstr "Oh nein!"
-
-#: templates/404.html:22
-msgid "Mr. Map can`t find it!"
-msgstr "Mr. Map kann sie nicht finden!"
-
-#: templates/500.html:13
-msgid "Internal Server Error "
-msgstr "Interner Serverfehler"
-
-#: templates/500.html:17
-msgid "Mr. Map seems to be ill!"
-msgstr "Mr. Map scheint krank zu sein!"
-
-#: templates/500.html:17
-msgid "Ill Mr. Map"
-msgstr "Kranker Mr. Map"
-
-#: templates/500.html:20
-msgid "Oh dear!"
-msgstr "Oh je!"
-
-#: templates/500.html:21
-msgid "Mr. Map seems to be ill and can`t work at the moment."
-msgstr "Mr. Map scheint krank zu sein, weshalb er gerade nicht arbeiten kann."
-
-#: templates/500.html:23
-msgid "We are doing our best to get him healthy again!"
-msgstr "We arbeiten daran ihn wieder fit zu machen!"
-
-#: templates/MrMap/detail_views/base.html:18
-#, fuzzy
-#| msgid "Created on"
-msgid "created by"
-msgstr "Erstellt am"
-
-#: templates/MrMap/detail_views/base.html:18
-#, fuzzy
-#| msgid "None"
-msgid "on"
-msgstr "Nichts"
-
-#: templates/MrMap/generic_views/generic_delete.html:10
-#, fuzzy
-#| msgid "Do you really want to delete this dataset?"
-msgid "Are you sure you want to delete"
-msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
-
-#: templates/MrMap/generic_views/generic_delete.html:14
-msgid "Delete"
-msgstr "Löschen"
-
-#: templates/MrMap/generic_views/generic_filter.html:6
-msgid "Search"
-msgstr "Suchen"
-
-#: templates/MrMap/generic_views/generic_filter.html:15
-msgid "Filter the table"
-msgstr "Tabelle filtern"
-
-#: templates/MrMap/generic_views/generic_filter.html:19
-msgid "Dismiss all filters"
-msgstr "Filter verwerfen"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:24
-msgid "Go to step "
-msgstr "Gehe zu Schritt "
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:45
-#, fuzzy
-#| msgid "Delete"
-msgid "Delete this "
-msgstr "Löschen"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:62
-#, fuzzy
-#| msgid "Add new group"
-msgid "Add new "
-msgstr "Neue Gruppe hinzufügen"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:77
-msgid "Dismiss"
-msgstr "Abbrechen"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:81
-msgid "Step"
-msgstr "Schritt"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:87
-msgid "Go to the first step"
-msgstr "Gehe zum ersten Schritt"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:94
-msgid "Go one step backward"
-msgstr "Gehe einen Schritt zurück"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:109
-msgid "Go to the next step"
-msgstr "Gehe zum nächsten Schritt"
-
-#: templates/MrMap/generic_views/generic_wizard_form.html:117
-msgid "Go to the last step"
-msgstr "Gehe zum letzten Schritt"
-
-#: templates/MrMap/includes/footer.html:10
-msgid "Change language"
-msgstr "Sprache wechseln"
-
-#: templates/MrMap/includes/footer.html:40
-msgid "Docs"
-msgstr "Doku"
-
-#: templates/MrMap/includes/footer.html:42
-msgid "REST"
-msgstr "REST"
-
-#: templates/MrMap/includes/footer.html:44
-msgid "REST DOCS"
-msgstr "REST Dokumentation"
-
-#: templates/MrMap/includes/footer.html:46
-msgid "Code"
-msgstr "Code"
-
-#: templates/MrMap/includes/nav-signed-in.html:5
-#: templates/MrMap/includes/nav-signed-out.html:6
-msgid "Mr. Map logo"
-msgstr "Mr. Map Logo"
-
-#: templates/MrMap/includes/nav-signed-in.html:14
-msgid "Dashboard"
-msgstr "Dashboard"
-
-#: templates/MrMap/includes/nav-signed-in.html:19
-#: templates/MrMap/includes/nav-signed-in.html:20 users/models/groups.py:76
-msgid "Organizations"
-msgstr "Organisationen"
-
-#: templates/MrMap/includes/nav-signed-in.html:22
-msgid "Pending requests"
-msgstr "Ausstehende Anfragen"
-
-#: templates/MrMap/includes/nav-signed-in.html:24
-#, fuzzy
-#| msgid "Publisher Requests"
-msgid "Publish requests"
-msgstr "Veröffentlichungsanfragen"
-
-#: templates/MrMap/includes/nav-signed-in.html:25
-#, fuzzy
-#| msgid "Publisher Requests"
-msgid "New Publish request"
-msgstr "Veröffentlichungsanfragen"
-
-#: templates/MrMap/includes/nav-signed-in.html:34
-msgid "Registry"
-msgstr "Registrierung"
-
-#: templates/MrMap/includes/nav-signed-in.html:36
-#, fuzzy
-#| msgid "Your registered Web Map Services"
-msgid "Web Map Service"
-msgstr "Ihre registrierten Web Map Services"
-
-#: templates/MrMap/includes/nav-signed-in.html:38
-msgid "WMS"
-msgstr "WMS"
-
-#: templates/MrMap/includes/nav-signed-in.html:40
-#: templates/MrMap/includes/nav-signed-in.html:49
-#: templates/MrMap/includes/nav-signed-in.html:59
-#, fuzzy
-#| msgid "Registered for"
-msgid "Register new service"
-msgstr "Registriert für"
-
-#: templates/MrMap/includes/nav-signed-in.html:43
-msgid "Layers"
-msgstr "Ebenen"
-
-#: templates/MrMap/includes/nav-signed-in.html:45
-#, fuzzy
-#| msgid "Your registered Web Feature Services"
-msgid "Web Feature Service"
-msgstr "Ihre registrierten Web Feature Services"
-
-#: templates/MrMap/includes/nav-signed-in.html:47
-msgid "WFS"
-msgstr "WFS"
-
-#: templates/MrMap/includes/nav-signed-in.html:52
-#, fuzzy
-#| msgid "Featuretypes"
-msgid "Feature types"
-msgstr "Featuretypen"
-
-#: templates/MrMap/includes/nav-signed-in.html:53
-#, fuzzy
-#| msgid "Featuretype tile contains"
-msgid "Feature type elements"
-msgstr "Featuretype Titel enthält"
-
-#: templates/MrMap/includes/nav-signed-in.html:55
-#, fuzzy
-#| msgid "Parent Service"
-msgid "Catalogue Service"
-msgstr "Zugehöriger Dienst"
-
-#: templates/MrMap/includes/nav-signed-in.html:57
-msgid "CSW"
-msgstr "CSW"
-
-#: templates/MrMap/includes/nav-signed-in.html:67
-#, fuzzy
-#| msgid "Coupled dataset metadata"
-msgid "Create new dataset metadata"
-msgstr "Zugehörige Datensatz Metadaten"
-
-#: templates/MrMap/includes/nav-signed-in.html:71
-#: templates/MrMap/includes/nav-signed-in.html:73
-msgid "Map Contexts"
-msgstr "MapContexts"
-
-#: templates/MrMap/includes/nav-signed-in.html:74
-#, fuzzy
-#| msgid "Coupled dataset metadata"
-msgid "Create new map context"
-msgstr "Zugehörige Datensatz Metadaten"
-
-#: templates/MrMap/includes/nav-signed-in.html:79
-msgid "Security"
-msgstr "Absicherung"
-
-#: templates/MrMap/includes/nav-signed-in.html:81
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "Service authentication"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: templates/MrMap/includes/nav-signed-in.html:83
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "External authentications"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: templates/MrMap/includes/nav-signed-in.html:85
-#, fuzzy
-#| msgid "Service needs authentication"
-msgid "New external authentication"
-msgstr "Dienst benötigt Authentifizierung"
-
-#: templates/MrMap/includes/nav-signed-in.html:89
-msgid "Security Proxy"
-msgstr "Sicherheitsproxy"
-
-#: templates/MrMap/includes/nav-signed-in.html:91
-#, fuzzy
-#| msgid "General settings"
-msgid "Service proxy settings"
-msgstr "Allgemeine Einstellungen"
-
-#: templates/MrMap/includes/nav-signed-in.html:93
-#, fuzzy
-#| msgid "General settings"
-msgid "New proxy setting"
-msgstr "Allgemeine Einstellungen"
-
-#: templates/MrMap/includes/nav-signed-in.html:97
-msgid "Service Access Groups"
-msgstr "Dienstzugriffsgruppen"
-
-#: templates/MrMap/includes/nav-signed-in.html:99
-#, fuzzy
-#| msgid "Restrict access"
-msgid "New service access group"
-msgstr "Zugriff beschränken"
-
-#: templates/MrMap/includes/nav-signed-in.html:103
-#, fuzzy
-#| msgid "Allowed area"
-msgid "Allowed Operations"
-msgstr "Erlaubte Bereiche"
-
-#: templates/MrMap/includes/nav-signed-in.html:105
-#, fuzzy
-#| msgid "Allowed area"
-msgid "New allowed operation"
-msgstr "Erlaubte Bereiche"
-
-#: templates/MrMap/includes/nav-signed-in.html:109
-#, fuzzy
-#| msgid "Service type version"
-msgid "Service request logging"
-msgstr "Diensttypversion"
-
-#: templates/MrMap/includes/nav-signed-in.html:110
-msgid "Logs"
-msgstr "Protokolle"
-
-#: templates/MrMap/includes/nav-signed-in.html:114
-#, fuzzy
-#| msgid "Last monitoring runs"
-msgid "Monitoring"
-msgstr "Letzte Checks"
-
-#: templates/MrMap/includes/nav-signed-in.html:116
-#: templates/MrMap/includes/nav-signed-in.html:118
-msgid "Runs"
-msgstr "Läufe"
-
-#: templates/MrMap/includes/nav-signed-in.html:120
-#, fuzzy
-#| msgid "New group"
-msgid "New run"
-msgstr "Neue Gruppe"
-
-#: templates/MrMap/includes/nav-signed-in.html:124
-#: templates/MrMap/includes/nav-signed-in.html:125
-msgid "Results"
-msgstr "Ergebnisse"
-
-#: templates/MrMap/includes/nav-signed-in.html:127
-#: templates/MrMap/includes/nav-signed-in.html:128
-#, fuzzy
-#| msgid "Health state"
-msgid "Health states"
-msgstr "Gesundheitszustand"
-
-#: templates/MrMap/includes/nav-signed-in.html:132
-#: templates/MrMap/includes/nav-signed-in.html:134
-#: templates/MrMap/includes/nav-signed-in.html:135
-msgid "Jobs"
-msgstr "Aufträge"
-
-#: templates/MrMap/includes/nav-signed-in.html:137
-#: templates/MrMap/includes/nav-signed-in.html:138
-msgid "Tasks"
-msgstr "Aufgaben"
-
-#: templates/MrMap/includes/nav-signed-in.html:142
-#: templates/MrMap/includes/nav-signed-in.html:145
-msgid "Acl\\"
-msgstr "Acl\\"
-
-#: templates/MrMap/includes/nav-signed-in.html:144
-msgid "Acls"
-msgstr "Acls"
-
-#: templates/MrMap/includes/nav-signed-in.html:151
-#, fuzzy
-#| msgid "Pending tasks"
-msgid "There are open jobs"
-msgstr "Laufende Prozesse"
-
-#: templates/MrMap/includes/nav-signed-in.html:153
-msgid "Account"
-msgstr "Account"
-
-#: templates/MrMap/includes/nav-signed-in.html:154
-msgid "Logout"
-msgstr "Ausloggen"
-
-#: templates/MrMap/includes/nav-signed-out.html:17
-msgid "Login"
-msgstr "Anmelden"
-
-#: templates/MrMap/includes/nav-signed-out.html:22
-msgid "Sign up"
-msgstr "Registrieren"
-
-#: templates/MrMap/includes/nav-signed-out.html:27
-msgid "Reset password"
-msgstr "Passwort zurücksetzen"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:10
-msgid "Show"
-msgstr "Anzeigen"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:12
-msgid "Switch the items per page"
-msgstr "Treffer pro Seite ändern"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:14
-msgid "entries"
-msgstr "Einträge"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:51
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:75
-msgid "Sort the table descending by column "
-msgstr "Tabelle absteigend sortieren nach Spalte "
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:59
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:71
-msgid "Reset current sorting to the default way"
-msgstr "Setze Sortierung zurück"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:63
-msgid "Sort the table ascending by column "
-msgstr "Tabelle aufsteigend sortieren nach Spalte "
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:131
-#, fuzzy
-#| msgid "Show link"
-msgid "Showing"
-msgstr "Zeige Link"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:131
-msgid "of"
-msgstr "von"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:141
-msgid "previous"
-msgstr "Zurück"
-
-#: templates/MrMap/skeletons/django_tables2_bootstrap4_custom.html:161
-msgid "next"
-msgstr "Nächste"
-
-#: users/api/serializers/auth.py:33
-msgid "Must include \"email\" and \"password\"."
-msgstr ""
-
-#: users/api/serializers/auth.py:42
-msgid "Must include \"username\" and \"password\"."
-msgstr ""
-
-#: users/api/serializers/auth.py:53
-msgid "Must include either \"username\" or \"email\" and \"password\"."
-msgstr ""
-
-#: users/api/serializers/auth.py:99 users/api/serializers/auth.py:124
-msgid "Unable to log in with provided credentials."
-msgstr ""
-
-#: users/api/serializers/auth.py:106
-msgid "User account is disabled."
-msgstr ""
-
-#: users/api/serializers/auth.py:115
-msgid "E-mail is not verified."
-msgstr ""
-
-#: users/models/groups.py:60
+#: users/models/groups.py:101
 #, fuzzy
 #| msgid "The organization you are requesting"
 msgid "Describe what this organization representing"
 msgstr "Die angefragte Organisation"
 
-#: users/models/groups.py:75
+#: users/models/groups.py:119
 msgid "Organization"
 msgstr "Organisation"
 
-#: users/models/groups.py:151
+#: users/models/groups.py:120
+msgid "Organizations"
+msgstr "Organisationen"
+
+#: users/models/groups.py:217
 #, fuzzy
 #| msgid "New organization"
 msgid "requesting organization"
 msgstr "Neue Organisation"
 
-#: users/models/groups.py:155
+#: users/models/groups.py:223
 #, fuzzy
 #| msgid "Delete organization"
 msgid "requested organization"
 msgstr "Organisation entfernen"
 
-#: users/models/groups.py:158
+#: users/models/groups.py:227
 #, fuzzy
 #| msgid "Accept"
 msgid "accepted"
 msgstr "Akzeptieren"
 
-#: users/models/groups.py:164
+#: users/models/groups.py:236
 #, fuzzy
 #| msgid "Pending requests"
 msgid "Pending publish request"
 msgstr "Ausstehende Anfragen"
 
-#: users/models/groups.py:165
+#: users/models/groups.py:237
 #, fuzzy
 #| msgid "Pending requests"
 msgid "Pending publish requests"
 msgstr "Ausstehende Anfragen"
 
-#: users/models/groups.py:180
+#: users/models/groups.py:258
 #, fuzzy
 #| msgid "A group wants to publish for your organization."
 msgid " can already publish for "
@@ -1975,6 +1317,10 @@ msgstr ""
 
 #: users/models/users.py:33
 msgid "User"
+msgstr "Nutzer"
+
+#: users/models/users.py:34
+msgid "Users"
 msgstr "Nutzer"
 
 #: users/models/users.py:121 users/models/users.py:128
@@ -2012,6 +1358,465 @@ msgstr "Bei Zugangsänderungen informieren"
 #: users/models/users.py:141
 msgid "Sends an e-mai if the service's access has been changed."
 msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
+
+#, fuzzy
+#~| msgid "Restore metadata"
+#~ msgid "collect metadata"
+#~ msgstr "Metadaten wiederherstellen"
+
+#~ msgid ""
+#~ "auto start collecting task after successful registering which register "
+#~ "all linked metadata records found in the GetCapabilities document."
+#~ msgstr ""
+#~ "Automatisches starten der Teilaufgabe zum erfassen aller verknüpften "
+#~ "Metadatensätze, welche im GetCapabilities Dokument gefunden werden."
+
+#, fuzzy
+#~| msgid "Registration for other organization"
+#~ msgid "Registration for organization"
+#~ msgstr "Registriere für andere Organisation"
+
+#~ msgid "Select for which organization you'd like to register the service."
+#~ msgstr ""
+#~ "Wählen Sie die Organisation aus, für die der Dienst registriert werden "
+#~ "soll."
+
+#, fuzzy
+#~| msgid "Service needs authentication"
+#~ msgid "service authentication"
+#~ msgstr "Dienst benötigt Authentifizierung"
+
+#~ msgid "Check this field"
+#~ msgstr "Feld prüfen"
+
+#, fuzzy
+#~| msgid "Allowed area"
+#~ msgid "Allowed permissions"
+#~ msgstr "Erlaubte Bereiche"
+
+#~ msgid "Details"
+#~ msgstr "Einzelheiten"
+
+#~ msgid "If you provide add functionality you need to define `add_perm` param"
+#~ msgstr ""
+#~ "Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
+#~ "`add_perm` setzen."
+
+#~ msgid "You must provide a username if you joice any authentication method."
+#~ msgstr ""
+#~ "Setzen Sie einen Benutzernamen, wenn Sie eine Authentifizierungsmethode "
+#~ "ausgewählt haben."
+
+#~ msgid "You must provide a password if you joice any authentication method."
+#~ msgstr ""
+#~ "Setzen Sie ein Passwort, wenn Sie eine Authentifizierungsmethode "
+#~ "ausgewählt haben."
+
+#~ msgid "Save"
+#~ msgstr "Speichern"
+
+#~ msgid "Loading..."
+#~ msgstr "Laden..."
+
+#~ msgid "Capabilities"
+#~ msgstr "Capabilities"
+
+#, fuzzy
+#~| msgid "Metadata restored to original"
+#~ msgid "See current or original:"
+#~ msgstr "Metadaten auf Originalzustand wiederhergestellt"
+
+#~ msgid "Original"
+#~ msgstr "Original"
+
+#~ msgid "Current"
+#~ msgstr "Aktuell"
+
+#~ msgid "Metadata"
+#~ msgstr "Metadaten"
+
+#, fuzzy
+#~| msgid "Your metadata datasets"
+#~ msgid "Show metadata as:"
+#~ msgstr "Ihre Metadaten Datensätze"
+
+#~ msgid "XML"
+#~ msgstr "XML"
+
+#~ msgid "HTML"
+#~ msgstr "HTML"
+
+#, fuzzy
+#~| msgid "Health state of the ressource"
+#~ msgid "Deactivate the resource"
+#~ msgstr "Gesundheitszustand der Ressource"
+
+#, fuzzy
+#~| msgid "Health state of the ressource"
+#~ msgid "Activate the resource"
+#~ msgstr "Gesundheitszustand der Ressource"
+
+#, fuzzy
+#~| msgid "Name of resource"
+#~ msgid "Update this resource"
+#~ msgstr "Ressourcenname"
+
+#, fuzzy
+#~| msgid "Select categories for this resource."
+#~ msgid "Run monitoring task for this resource"
+#~ msgstr "Kategorien auswählen"
+
+#, fuzzy
+#~| msgid "Health state of the ressource"
+#~ msgid "Delete the resource"
+#~ msgstr "Gesundheitszustand der Ressource"
+
+#, fuzzy
+#~| msgid "Show elements"
+#~ msgid "Elements"
+#~ msgstr "Zeige Elemente"
+
+#~ msgid "Datasets"
+#~ msgstr "Datensätze"
+
+#~ msgid "Forbidden"
+#~ msgstr "Verboten"
+
+#, fuzzy
+#~| msgid "Mr. Map logo"
+#~ msgid "Mr. Map can\\"
+#~ msgstr "Mr. Map Logo"
+
+#~ msgid "Irritated Mr. Map"
+#~ msgstr "Irritierter Mr. Map"
+
+#~ msgid "Back to home"
+#~ msgstr "Zurück zur Startseite"
+
+#, fuzzy
+#~| msgid "No XML found."
+#~ msgid "Not Found"
+#~ msgstr "Kein XML gefunden."
+
+#~ msgid "Mr. Map can`t find the page you are looking for"
+#~ msgstr "Mr. Map kann die angeforderte Seite nicht finden"
+
+#~ msgid "Oh no!"
+#~ msgstr "Oh nein!"
+
+#~ msgid "Mr. Map can`t find it!"
+#~ msgstr "Mr. Map kann sie nicht finden!"
+
+#~ msgid "Internal Server Error "
+#~ msgstr "Interner Serverfehler"
+
+#~ msgid "Mr. Map seems to be ill!"
+#~ msgstr "Mr. Map scheint krank zu sein!"
+
+#~ msgid "Ill Mr. Map"
+#~ msgstr "Kranker Mr. Map"
+
+#~ msgid "Oh dear!"
+#~ msgstr "Oh je!"
+
+#~ msgid "Mr. Map seems to be ill and can`t work at the moment."
+#~ msgstr ""
+#~ "Mr. Map scheint krank zu sein, weshalb er gerade nicht arbeiten kann."
+
+#~ msgid "We are doing our best to get him healthy again!"
+#~ msgstr "We arbeiten daran ihn wieder fit zu machen!"
+
+#, fuzzy
+#~| msgid "Created on"
+#~ msgid "created by"
+#~ msgstr "Erstellt am"
+
+#, fuzzy
+#~| msgid "None"
+#~ msgid "on"
+#~ msgstr "Nichts"
+
+#, fuzzy
+#~| msgid "Do you really want to delete this dataset?"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
+
+#~ msgid "Delete"
+#~ msgstr "Löschen"
+
+#~ msgid "Search"
+#~ msgstr "Suchen"
+
+#~ msgid "Filter the table"
+#~ msgstr "Tabelle filtern"
+
+#~ msgid "Dismiss all filters"
+#~ msgstr "Filter verwerfen"
+
+#~ msgid "Go to step "
+#~ msgstr "Gehe zu Schritt "
+
+#, fuzzy
+#~| msgid "Delete"
+#~ msgid "Delete this "
+#~ msgstr "Löschen"
+
+#, fuzzy
+#~| msgid "Add new group"
+#~ msgid "Add new "
+#~ msgstr "Neue Gruppe hinzufügen"
+
+#~ msgid "Dismiss"
+#~ msgstr "Abbrechen"
+
+#~ msgid "Step"
+#~ msgstr "Schritt"
+
+#~ msgid "Go to the first step"
+#~ msgstr "Gehe zum ersten Schritt"
+
+#~ msgid "Go one step backward"
+#~ msgstr "Gehe einen Schritt zurück"
+
+#~ msgid "Go to the next step"
+#~ msgstr "Gehe zum nächsten Schritt"
+
+#~ msgid "Go to the last step"
+#~ msgstr "Gehe zum letzten Schritt"
+
+#~ msgid "Change language"
+#~ msgstr "Sprache wechseln"
+
+#~ msgid "Docs"
+#~ msgstr "Doku"
+
+#~ msgid "REST"
+#~ msgstr "REST"
+
+#~ msgid "REST DOCS"
+#~ msgstr "REST Dokumentation"
+
+#~ msgid "Code"
+#~ msgstr "Code"
+
+#~ msgid "Mr. Map logo"
+#~ msgstr "Mr. Map Logo"
+
+#~ msgid "Dashboard"
+#~ msgstr "Dashboard"
+
+#~ msgid "Pending requests"
+#~ msgstr "Ausstehende Anfragen"
+
+#, fuzzy
+#~| msgid "Publisher Requests"
+#~ msgid "Publish requests"
+#~ msgstr "Veröffentlichungsanfragen"
+
+#, fuzzy
+#~| msgid "Publisher Requests"
+#~ msgid "New Publish request"
+#~ msgstr "Veröffentlichungsanfragen"
+
+#~ msgid "Registry"
+#~ msgstr "Registrierung"
+
+#, fuzzy
+#~| msgid "Your registered Web Map Services"
+#~ msgid "Web Map Service"
+#~ msgstr "Ihre registrierten Web Map Services"
+
+#~ msgid "WMS"
+#~ msgstr "WMS"
+
+#, fuzzy
+#~| msgid "Registered for"
+#~ msgid "Register new service"
+#~ msgstr "Registriert für"
+
+#~ msgid "Layers"
+#~ msgstr "Ebenen"
+
+#, fuzzy
+#~| msgid "Your registered Web Feature Services"
+#~ msgid "Web Feature Service"
+#~ msgstr "Ihre registrierten Web Feature Services"
+
+#~ msgid "WFS"
+#~ msgstr "WFS"
+
+#, fuzzy
+#~| msgid "Featuretypes"
+#~ msgid "Feature types"
+#~ msgstr "Featuretypen"
+
+#, fuzzy
+#~| msgid "Featuretype tile contains"
+#~ msgid "Feature type elements"
+#~ msgstr "Featuretype Titel enthält"
+
+#, fuzzy
+#~| msgid "Parent Service"
+#~ msgid "Catalogue Service"
+#~ msgstr "Zugehöriger Dienst"
+
+#~ msgid "CSW"
+#~ msgstr "CSW"
+
+#, fuzzy
+#~| msgid "Coupled dataset metadata"
+#~ msgid "Create new dataset metadata"
+#~ msgstr "Zugehörige Datensatz Metadaten"
+
+#~ msgid "Map Contexts"
+#~ msgstr "MapContexts"
+
+#, fuzzy
+#~| msgid "Coupled dataset metadata"
+#~ msgid "Create new map context"
+#~ msgstr "Zugehörige Datensatz Metadaten"
+
+#~ msgid "Security"
+#~ msgstr "Absicherung"
+
+#, fuzzy
+#~| msgid "Service needs authentication"
+#~ msgid "Service authentication"
+#~ msgstr "Dienst benötigt Authentifizierung"
+
+#, fuzzy
+#~| msgid "Service needs authentication"
+#~ msgid "External authentications"
+#~ msgstr "Dienst benötigt Authentifizierung"
+
+#, fuzzy
+#~| msgid "Service needs authentication"
+#~ msgid "New external authentication"
+#~ msgstr "Dienst benötigt Authentifizierung"
+
+#~ msgid "Security Proxy"
+#~ msgstr "Sicherheitsproxy"
+
+#, fuzzy
+#~| msgid "General settings"
+#~ msgid "Service proxy settings"
+#~ msgstr "Allgemeine Einstellungen"
+
+#, fuzzy
+#~| msgid "General settings"
+#~ msgid "New proxy setting"
+#~ msgstr "Allgemeine Einstellungen"
+
+#~ msgid "Service Access Groups"
+#~ msgstr "Dienstzugriffsgruppen"
+
+#, fuzzy
+#~| msgid "Restrict access"
+#~ msgid "New service access group"
+#~ msgstr "Zugriff beschränken"
+
+#, fuzzy
+#~| msgid "Allowed area"
+#~ msgid "Allowed Operations"
+#~ msgstr "Erlaubte Bereiche"
+
+#, fuzzy
+#~| msgid "Allowed area"
+#~ msgid "New allowed operation"
+#~ msgstr "Erlaubte Bereiche"
+
+#, fuzzy
+#~| msgid "Service type version"
+#~ msgid "Service request logging"
+#~ msgstr "Diensttypversion"
+
+#~ msgid "Logs"
+#~ msgstr "Protokolle"
+
+#, fuzzy
+#~| msgid "Last monitoring runs"
+#~ msgid "Monitoring"
+#~ msgstr "Letzte Checks"
+
+#~ msgid "Runs"
+#~ msgstr "Läufe"
+
+#, fuzzy
+#~| msgid "New group"
+#~ msgid "New run"
+#~ msgstr "Neue Gruppe"
+
+#~ msgid "Results"
+#~ msgstr "Ergebnisse"
+
+#, fuzzy
+#~| msgid "Health state"
+#~ msgid "Health states"
+#~ msgstr "Gesundheitszustand"
+
+#~ msgid "Jobs"
+#~ msgstr "Aufträge"
+
+#~ msgid "Tasks"
+#~ msgstr "Aufgaben"
+
+#~ msgid "Acl\\"
+#~ msgstr "Acl\\"
+
+#~ msgid "Acls"
+#~ msgstr "Acls"
+
+#, fuzzy
+#~| msgid "Pending tasks"
+#~ msgid "There are open jobs"
+#~ msgstr "Laufende Prozesse"
+
+#~ msgid "Account"
+#~ msgstr "Account"
+
+#~ msgid "Logout"
+#~ msgstr "Ausloggen"
+
+#~ msgid "Login"
+#~ msgstr "Anmelden"
+
+#~ msgid "Sign up"
+#~ msgstr "Registrieren"
+
+#~ msgid "Reset password"
+#~ msgstr "Passwort zurücksetzen"
+
+#~ msgid "Show"
+#~ msgstr "Anzeigen"
+
+#~ msgid "Switch the items per page"
+#~ msgstr "Treffer pro Seite ändern"
+
+#~ msgid "entries"
+#~ msgstr "Einträge"
+
+#~ msgid "Sort the table descending by column "
+#~ msgstr "Tabelle absteigend sortieren nach Spalte "
+
+#~ msgid "Reset current sorting to the default way"
+#~ msgstr "Setze Sortierung zurück"
+
+#~ msgid "Sort the table ascending by column "
+#~ msgstr "Tabelle aufsteigend sortieren nach Spalte "
+
+#, fuzzy
+#~| msgid "Show link"
+#~ msgid "Showing"
+#~ msgstr "Zeige Link"
+
+#~ msgid "of"
+#~ msgstr "von"
+
+#~ msgid "previous"
+#~ msgstr "Zurück"
+
+#~ msgid "next"
+#~ msgstr "Nächste"
 
 #~ msgid "Publish request created"
 #~ msgstr "Anfrage gestellt"

@@ -9,16 +9,22 @@ export class DatasetMetadataRepo extends JsonApiRepo {
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
     const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
-      'filter[title.icontains]': searchText
+      'filter[search]': searchText // TODO: maybe add the possibility to search for the title
       // 'filter[Layer]': 'title'
     };
     if (!searchText) {
       // to avoid error when string is empty
-      delete jsonApiParams['filter[title.icontains]'];
+      delete jsonApiParams['filter[search]'];
     }
 
     const res = await client['List' + this.resourcePath](jsonApiParams);
-    return res.data.data.map((o: any) => ({ value: o.id, text: o.attributes.title }));
+    return res.data.data.map((o: any) => ({
+      value: o.id,
+      text: o.attributes.title,
+      pagination: {
+        next: res.data.links.next
+      }
+    }));
   }
 }
 

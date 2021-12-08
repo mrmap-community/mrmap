@@ -22,17 +22,26 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState('');
   const [userId, setUserId] = useLocalStorage('userId', '');
 
+  // on first initialization & when user id changes, fetch user information
   useEffect(() => {
     async function fetchCurrentUser () {
-      const res = await userRepo.get(userId);
-      if (res.status === 200 &&
+      try {
+        const res = await userRepo.get(userId);
+        if (res.status === 200 &&
         res.data &&
         res.data.data &&
         // TODO remove this after backend is fixed
         (res.data.data as any).id &&
         hasOwnProperty(res.data.data, 'attributes') &&
         res.data.data.attributes) {
-        setUser(res.data.data.attributes);
+          setUser(res.data.data.attributes);
+        } else {
+          // not 200 -> no session for user in backend
+          setUserId('');
+        }
+      } catch (err: any) {
+        // exception -> force logout
+        setUserId('');
       }
     }
     if (userId) {

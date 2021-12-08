@@ -1,12 +1,20 @@
 import React from 'react';
+import { useNavigate } from 'react-router';
 
 import MapContextRepo from '../../Repos/MapContextRepo';
-import ResourceTable from '../Shared/ResourceTable';
+import RepoTable from '../Shared/Table/RepoTable';
 
 const repo = new MapContextRepo();
 
 export const MapContextTable = (): JSX.Element => {
-  return <ResourceTable repo={repo} addRecord='/registry/mapcontexts/add'/>;
+  const navigate = useNavigate();
+
+  return (
+  <RepoTable
+    repo={repo}
+    onEditRecord={(mapContextId) => navigate(`/registry/mapcontexts/${mapContextId}/edit`)}
+    addRecord='/registry/mapcontexts/add'
+  />);
 };
 
 export default MapContextTable;

@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export class FeatureTypeRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/featuretypes/');
+    super('/api/v1/registry/featuretypes/', 'WFS-Feature Types');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {

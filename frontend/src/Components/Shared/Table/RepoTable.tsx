@@ -2,7 +2,7 @@ import '@ant-design/pro-table/dist/table.css';
 
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable, { ActionType, ProColumnType } from '@ant-design/pro-table';
-import { Button, Card, Modal, notification, Space } from 'antd';
+import { Button, Modal, notification, Space } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -60,6 +60,7 @@ export const RepoTable = ({
   onEditRecord = undefined
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
+  const [title, setTitle] = useState('');
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
 
   const actions = useRef<RepoActionType>();
@@ -99,6 +100,7 @@ export const RepoTable = ({
   useEffect(() => {
     async function buildColumns () {
       const schema = await repo.getSchema();
+      console.log(schema);
       const augmentedColumns = augmentColumns(schema, columns);
       if (!augmentedColumns.some(column => column.key === 'actions')) {
         augmentedColumns.push({
@@ -183,15 +185,11 @@ export const RepoTable = ({
   }
 
   return (
-  <Card
-    title='WebMapServices'
-    style={{ width: '100%' }}
-  >
-    { augmentedColumns.length > 0 && (<ProTable
+    <>{ augmentedColumns.length > 0 && (<ProTable
         request={fetchData}
         columns={augmentedColumns}
         scroll={{ x: true }}
-        headerTitle={'Datensätze'}
+        headerTitle={repo.displayName}
         actionRef={setActions}
         toolBarRender={onAddRecord
           ? () => [
@@ -209,8 +207,7 @@ export const RepoTable = ({
         search={{
           layout: 'vertical'
         }}
-    />)}
-  </Card>
+    />)}</>
   );
 };
 

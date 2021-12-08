@@ -43,8 +43,11 @@ export class JsonApiRepo {
 
     protected readonly resourcePath: string;
 
-    constructor (resourcePath: string) {
+    readonly displayName: string;
+
+    constructor (resourcePath: string, displayName: string) {
       this.resourcePath = resourcePath;
+      this.displayName = displayName;
     }
 
     static async getClientInstance (): Promise<OpenAPIClient> {

@@ -10,17 +10,14 @@ import MapContextRepo from '../../Repos/MapContextRepo';
 import { hasOwnProperty } from '../../utils';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
-import { TreeFormField } from './TreeFormField';
+import { MPTTListToTreeNodeList, TreeFormField, TreeNodeType } from './TreeFormField';
 
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
 
-interface MapContextProps {
-  edit?:boolean;
-}
+interface MapContextProps {}
 
-export const MapContext: FC<MapContextProps> = ({
-}) => {
+export const MapContext: FC<MapContextProps> = () => {
   const navigate = useNavigate();
   const [form] = useForm();
 
@@ -31,6 +28,7 @@ export const MapContext: FC<MapContextProps> = ({
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
+  const [initTreeData, setInitTreeData] = useState<TreeNodeType[]>([]);
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
@@ -49,8 +47,19 @@ export const MapContext: FC<MapContextProps> = ({
           throw new Error(error);
         }
       };
+
+      const fetchMapContextLayers = async () => {
+        try {
+          const response = await mapContextRepo.getMapContextLayerFromMapContextId(String(id));
+          const cena = MPTTListToTreeNodeList(response);
+          setInitTreeData(cena);
+        } catch (error) {
+          // @ts-ignore
+          throw new Error(error);
+        }
+      };
       fetchMapContext();
-      // TODO: set treeData
+      fetchMapContextLayers();
     }
   }, [id]);
 
@@ -90,7 +99,6 @@ export const MapContext: FC<MapContextProps> = ({
                 // TODO add action to edit
                 setCreatedMapContextId(id);
                 nextStep();
-                console.log('Editing');
               }
             }}
             form={form}
@@ -113,7 +121,7 @@ export const MapContext: FC<MapContextProps> = ({
       content: (
         <>
           <TreeFormField
-            treeData={[]}
+            treeData={initTreeData}
             asyncTree
             addNodeDispatchAction={async (nodeAttributes, newNodeParent) => {
               return await mapContextLayerRepo.create({

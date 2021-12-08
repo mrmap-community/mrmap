@@ -10,6 +10,43 @@ import React, { cloneElement, FC, ReactNode, useEffect, useState } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { hasOwnProperty } from '../../utils';
 
+interface MPTTJsonApiAttributeType {
+  name: string;
+  title: string;
+  layer_scale_min?: string; // eslint-disable-line
+  layer_scale_max?: string; // eslint-disable-line
+  preview_image?: string; // eslint-disable-line
+  lft: number;
+  rght: number;
+  tree_id: number; // eslint-disable-line
+  level: number;
+}
+
+interface MPTTJsonApiRelashionshipDataType {
+  data?: {
+    type: string;
+    id: string;
+  }
+}
+
+interface MPTTJsonApiRelashionshipType {
+  parent: MPTTJsonApiRelashionshipDataType;
+  map_context: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
+  dataset_metadata: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
+  rendering_layer: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
+  layer_style: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
+  selection_layer: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
+}
+export interface MPTTJsonApiTreeNodeType{
+  type: string;
+  id: string;
+  attributes: MPTTJsonApiAttributeType;
+  relationships: MPTTJsonApiRelashionshipType;
+  links: {
+    self: string;
+  }
+  children?: TreeNodeType[];
+}
 export interface TreeNodeType extends DataNode {
   key: string | number;
   parent?: string | number | null;
@@ -17,6 +54,7 @@ export interface TreeNodeType extends DataNode {
   properties?: any;
   expanded?: boolean;
 }
+
 interface TreeProps {
   treeData: TreeNodeType[];
   asyncTree?: boolean;
@@ -35,6 +73,49 @@ interface TreeProps {
   title?: string;
 }
 
+//  TODO: create helper with several tree methods
+/**
+* @description: Method to parse an MPTT tree array to a TreeNodeType array
+* @param list
+* @returns
+*/
+export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeType[] => {
+  const roots:TreeNodeType[] = [];
+
+  // initialize children on the list element
+  list = list.map((element: MPTTJsonApiTreeNodeType) => ({ ...element, children: [] }));
+
+  list.map((element:MPTTJsonApiTreeNodeType) => {
+    // transform the list element into a TreeNodeType element
+    const node: TreeNodeType = {
+      key: element.id,
+      title: element.attributes.title,
+      parent: element.relationships.parent.data?.id,
+      children: element.children || [],
+      properties: {
+        name: element.attributes.name,
+        datasetMetadata: element.relationships.dataset_metadata.data?.id,
+        renderingLayer: element.relationships.rendering_layer.data?.id,
+        scaleMin: element.attributes.layer_scale_min,
+        scaleMax: element.attributes.layer_scale_max,
+        style: element.relationships.layer_style.data?.id,
+        featureSelectionLayer: element.relationships.selection_layer.data?.id
+      },
+      expanded: true
+    };
+    if (node.parent) {
+      const parentNode: MPTTJsonApiTreeNodeType | undefined = list.find((el:any) => el.id === node.parent);
+      if (parentNode) {
+        list[list.indexOf(parentNode)].children?.push(node);
+      }
+    } else {
+      roots.push(node);
+    }
+    return element;
+  });
+  return roots;
+};
+
 export const TreeFormField: FC<TreeProps> = ({
   treeData = [],
   asyncTree = false,
@@ -51,7 +132,7 @@ export const TreeFormField: FC<TreeProps> = ({
 }) => {
   const [form] = useForm();
 
-  const [_treeData, setTreeData] = useState<TreeNodeType[]>([]);
+  const [_treeData, setTreeData] = useState<TreeNodeType[]>(treeData);
   const [isNodeAttributeFormVisible, setIsNodeAttributeFormVisible] = useState<boolean>(false);
   const [isEditingNodeAttributes, setIsEditingNodeAttributes] = useState<boolean>(false);
   const [isAddingNode, setIsAddingNode] = useState<boolean>(false);

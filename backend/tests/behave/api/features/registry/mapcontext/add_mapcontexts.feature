@@ -20,7 +20,6 @@ Feature: MapContext Add Endpoint
             """
 
     Scenario: Can add as authenticated user
-        Given the user User1 has registry.add_mapcontext permission
         Given I am logged in as User1 with password User1
         When I send the request with POST method
         Then I expect the response status is 201

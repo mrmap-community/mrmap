@@ -4,9 +4,6 @@ Feature: Login Endpoint
     so that I can use secured endpoints.
 
     Background: create user and prepare request
-        Given there are set of Users in Database
-            | username | password |
-            | mrmap    | mrmap    |
         Given I use the endpoint http://localhost:8000/api/v1/accounts/login/
         Given I set the content type of the request to application/vnd.api+json
 
@@ -17,8 +14,8 @@ Feature: Login Endpoint
                 "data": {
                     "type": "Login",
                     "attributes": {
-                        "username": "mrmap",
-                        "password": "mrmap"
+                        "username": "User1",
+                        "password": "User1"
                     }
                 }
             }
@@ -33,7 +30,7 @@ Feature: Login Endpoint
                 "data": {
                     "type": "Login",
                     "attributes": {
-                        "username": "mrmap",
+                        "username": "User1",
                         "password": "mrmap2"
                     }
                 }

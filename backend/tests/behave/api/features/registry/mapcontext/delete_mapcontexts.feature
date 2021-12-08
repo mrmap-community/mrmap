@@ -4,8 +4,7 @@ Feature: MapContext Delete Endpoint
     so that I can remove them from the registry.
 
     Background: Setup base url, content type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/mapcontexts/
-        Given the endpoint is pointing to the last created object of model registry.MapContext
+        Given I use the endpoint http://localhost:8000/api/v1/registry/mapcontexts/1/
         Given I set the content type of the request to application/vnd.api+json
         Given I set the request payload to:
             """

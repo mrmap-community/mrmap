@@ -36,11 +36,14 @@ INSTALLED_APPS = [
     "guardian",
     "polymorphic",
     "django.contrib.auth",
+    "django.contrib.admin",  # for django admin pages
+    "django.contrib.messages",  # for django admin pages
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django.contrib.gis",
+    "django.forms",  # for debug_toolbar and rest api html page
     "django_extensions",
     "captcha",
     "rest_framework",
@@ -57,17 +60,13 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    # 'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
-    # 'django.middleware.gzip.GZipMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    # 'django.contrib.auth.middleware.RemoteUserMiddleware',
-    # 'django.contrib.messages.middleware.MessageMiddleware',
-    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',  # for django admin pages
     "crum.CurrentRequestUserMiddleware",
 ]
 
@@ -82,6 +81,7 @@ TEMPLATES = [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",  # for django admin pages
             ],
         },
     },
@@ -117,7 +117,6 @@ if os.environ.get("MRMAP_PRODUCTION") == "False":
     INSTALLED_APPS.extend(
         [
             "behave_django",
-            "django.forms",  # for debug_toolbar and rest api html page
         ]
     )
 

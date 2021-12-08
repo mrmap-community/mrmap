@@ -14,14 +14,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
+from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
-from MrMap.settings import DEBUG
-
 urlpatterns = [
+    path('django-admin/', admin.site.urls),
     # captcha support
     path("captcha/", include("captcha.urls")),
     # translation support
@@ -46,7 +47,7 @@ urlpatterns = [
     ),
 ]
 
-if DEBUG:
+if settings.DEBUG:
     import debug_toolbar
     from django.conf import settings
     from django.conf.urls.static import static

@@ -1,37 +1,5 @@
-from accounts.models import User
 from behave import given, step, then
-from django.apps import apps
-from guardian.shortcuts import assign_perm
-from model_bakery import baker
 from rest_framework.authtoken.models import Token
-
-
-@step('there are set of {quantity} Model {model} in Database')
-def step_impl(context, quantity, model):
-    baker.make(model, _quantity=quantity)
-
-
-@step('the endpoint is pointing to the last created object of model {model}')
-def step_impl(context, model):
-    app_label, model_name = model.split('.')
-    Model = apps.get_model(app_label=app_label, model_name=model_name)
-    last_object = Model.objects.all().last()
-    context.endpoint = f'{context.endpoint}{last_object.pk}/'
-
-
-@step('there are set of Users in Database')
-def step_impl(context):
-    for row in context.table:
-        User.objects.create_user(
-            username=row['username'], password=row['password'])
-
-
-@step('the user {username} has {permission} permission')
-def step_impl(context, username, permission):
-    assign_perm(
-        perm=permission,
-        user_or_group=User.objects.get(username=username)
-    )
 
 
 @step('I am logged in as {username} with password {password}')
@@ -65,6 +33,11 @@ def step_impl(context):
     context.payload = context.text
 
 
+@given('I set a queryparam {param} with value {value}')
+def step_impl(context, param, value):
+    context.query_params.update({param: value})
+
+
 @step('I set the content type of the request to {content_type}')
 def step_impl(context, content_type):
     context.content_type = content_type
@@ -72,7 +45,9 @@ def step_impl(context, content_type):
 
 @step('I send the request with GET method')
 def step_impl(context):
-    context.response = context.client.get(path=context.endpoint)
+    context.response = context.client.get(
+        path=context.endpoint,
+        data=context.query_params or None)
 
 
 @step('I send the request with PATCH method')
@@ -80,7 +55,7 @@ def step_impl(context):
     context.response = context.client.patch(
         path=context.endpoint,
         data=context.payload,
-        content_type=context.content_type if hasattr(context, 'content_type') else 'application/json')
+        content_type=context.content_type if hasattr(context, 'content_type') else 'application/json',)
 
 
 @step('I send the request with POST method')

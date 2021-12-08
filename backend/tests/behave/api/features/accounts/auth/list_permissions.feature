@@ -9,10 +9,7 @@ Feature: Permissions List Endpoint
         Then I expect the response status is 403
 
     Scenario: Access allowed as authenticated user
-        Given there are set of Users in Database
-            | username | password |
-            | mrmap    | mrmap    |
-        Given I am logged in as mrmap with password mrmap
+        Given I am logged in as User1 with password User1
         Given I use the endpoint http://localhost:8000/api/v1/accounts/permissions/
         When I send the request with GET method
         Then I expect the response status is 200

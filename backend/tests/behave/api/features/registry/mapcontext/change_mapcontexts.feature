@@ -23,7 +23,7 @@ Feature: MapContext Change Endpoint
     Scenario: Can change as authenticated user with permissions
         Given I am logged in as User1 with password User1
         When I send the request with PATCH method
-        Then I expect the response status is 201
+        Then I expect the response status is 200
 
     Scenario: Can't change as authenticated user without permissions
         Given I am logged in as User2 with password User2

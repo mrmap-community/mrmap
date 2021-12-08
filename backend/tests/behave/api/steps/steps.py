@@ -76,3 +76,13 @@ def step_impl(context):
 def step_impl(context, expected_status: int):
     context.test.assertEqual(
         context.response.status_code, int(expected_status))
+
+
+@then('I expect that response json has an attribute {attribute} with value {expected_value}')
+def step_impl(context, attribute, expected_value):
+    keys = attribute.split('.')
+    json = context.response.json()
+    value = None
+    for key in keys:
+        value = json[key] if not value else value[key]
+    context.test.assertEqual(str(value), expected_value)

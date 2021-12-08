@@ -65,9 +65,9 @@ class MapContextLayerViewSet(ModelViewSet):
 
     def get_queryset(self):
         queryset = super(MapContextLayerViewSet, self).get_queryset()
-        if 'map_context_pk' in self.kwargs:
-            map_context_pk = self.kwargs['map_context_pk']
-            queryset = queryset.filter(map_context__pk=map_context_pk)
+        if 'parent_lookup_map_context' in self.kwargs:
+            queryset = queryset.filter(
+                map_context__id=self.kwargs['parent_lookup_map_context'])
         return queryset
 
     def get_serializer_class(self):

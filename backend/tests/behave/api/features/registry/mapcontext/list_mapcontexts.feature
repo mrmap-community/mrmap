@@ -19,4 +19,3 @@ Feature: MapContext List Endpoint
         Given I set a queryparam include with value map_context_layers
         When I send the request with GET method
         Then I expect the response status is 200
-# TODO: check response payload

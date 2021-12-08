@@ -1,11 +1,12 @@
 from django.contrib.gis.db import models
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from extras.models import CommonInfo, GenericModelMixin
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
-from extras.models import GenericModelMixin, CommonInfo
-from registry.models import Layer, DatasetMetadata
+from registry.managers.mapcontext import MapContextManager
+from registry.models import DatasetMetadata, Layer
 from registry.models.metadata import Style
-from django.core.exceptions import ValidationError
 
 
 def preview_image_file_path(instance, filename):
@@ -35,6 +36,8 @@ class MapContext(GenericModelMixin, CommonInfo):
     # contextMetadata
     # extension
 
+    objects = MapContextManager()
+
     def __str__(self):
         return self.title
 
@@ -42,7 +45,7 @@ class MapContext(GenericModelMixin, CommonInfo):
 class MapContextLayer(MPTTModel):
     parent = TreeForeignKey("MapContextLayer", on_delete=models.CASCADE, null=True, blank=True,
                             related_name="child_layers")
-    map_context = models.ForeignKey(to=MapContext, 
+    map_context = models.ForeignKey(to=MapContext,
                                     on_delete=models.CASCADE,
                                     related_name='map_context_layers',
                                     related_query_name='map_context_layer')
@@ -90,7 +93,8 @@ class MapContextLayer(MPTTModel):
                                     verbose_name=_("Style"),
                                     help_text=_("Select a style for rendering."))
     preview_image = models.ImageField(verbose_name=_("preview image"),
-                                      help_text=_("A preview image for the Map Context Layer"),
+                                      help_text=_(
+                                          "A preview image for the Map Context Layer"),
                                       upload_to=preview_image_file_path,
                                       null=True,
                                       blank=True)
@@ -111,18 +115,23 @@ class MapContextLayer(MPTTModel):
             # Check scale min/max values against the possible configureable values.
             if self.layer_scale_min and self.layer.inherit_scale_min:
                 if self.layer_scale_min < self.layer.inherit_scale_min:
-                    errors.update({'layer_scale_min': ValidationError("configured layer minimum scale can't be smaller than the scale value of the layer.")})
+                    errors.update({'layer_scale_min': ValidationError(
+                        "configured layer minimum scale can't be smaller than the scale value of the layer.")})
                 if self.layer_scale_min > self.layer.inherit_scale_max:
-                    errors.update({'layer_scale_min': ValidationError("configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
+                    errors.update({'layer_scale_min': ValidationError(
+                        "configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
             if self.layer_scale_max and self.layer.inherit_scale_max:
                 if self.layer_scale_max > self.layer.inherit_scale_max:
-                    errors.update({'layer_scale_max': ValidationError("configured layer maximum scale can't be greater than the scale value of the layer.")})
+                    errors.update({'layer_scale_max': ValidationError(
+                        "configured layer maximum scale can't be greater than the scale value of the layer.")})
                 if self.layer_scale_max < self.layer.inherit_scale_max:
-                    errors.update({'layer_scale_max': ValidationError("configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
+                    errors.update({'layer_scale_max': ValidationError(
+                        "configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
 
             # Check style configuration
             if self.layer_style and not self.layer.styles.filter(pk=self.layer_style.pk).exists():
-                errors.update({'layer_style': ValidationError("configured style is not a valid style for the selected layer.")})
+                errors.update({'layer_style': ValidationError(
+                    "configured style is not a valid style for the selected layer.")})
 
         if errors:
             raise ValidationError(errors)

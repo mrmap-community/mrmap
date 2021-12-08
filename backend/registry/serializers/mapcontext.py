@@ -1,9 +1,9 @@
 from django.core.exceptions import ValidationError
+from extras.fields import ExtendedHyperlinkedRelatedField
 from registry.models import MapContext, MapContextLayer
-from rest_framework.fields import (CharField, ChoiceField, IntegerField,
-                                   ModelField)
+from rest_framework.fields import ChoiceField, IntegerField
 from rest_framework.serializers import HyperlinkedIdentityField
-from rest_framework_json_api.relations import HyperlinkedRelatedField
+from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer, Serializer
 
 
@@ -23,13 +23,25 @@ class MapContextDefaultSerializer(ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
     )
-    map_context_layers = HyperlinkedRelatedField(
+
+    class Meta:
+        model = MapContext
+        fields = "__all__"
+
+
+class MapContextListSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:mapcontext-detail',
+    )
+    map_context_layers = ExtendedHyperlinkedRelatedField(
         queryset=MapContextLayer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:mapcontext-mapcontextlayers-list',
         related_link_url_kwarg='parent_lookup_map_context',
         self_link_view_name='registry:mapcontextlayer-relationships',
         required=False,
+        meta_attrs={'map_context_layer_count': 'count'}
     )
 
     class Meta:
@@ -42,6 +54,15 @@ class MapContextIncludeSerializer(ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
     )
+
+    map_context_layers = ResourceRelatedField(
+        queryset=MapContextLayer.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:mapcontext-mapcontextlayers-list',
+        related_link_url_kwarg='parent_lookup_map_context',
+        self_link_view_name='registry:mapcontextlayer-relationships'
+    )
+
     included_serializers = {
         'map_context_layers': MapContextLayerSerializer,
     }

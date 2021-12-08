@@ -78,11 +78,20 @@ def step_impl(context, expected_status: int):
         context.response.status_code, int(expected_status))
 
 
-@then('I expect that response json has an attribute {attribute} with value {expected_value}')
-def step_impl(context, attribute, expected_value):
+def _traverse_json(context, attribute):
     keys = attribute.split('.')
     json = context.response.json()
     value = None
     for key in keys:
+        if '[' and ']' in key:
+            key = int(key.split('[')[-1].split(']')[0])
         value = json[key] if not value else value[key]
-    context.test.assertEqual(str(value), expected_value)
+    return value
+
+
+@then('I expect that response json has an attribute {attribute}')
+@then('I expect that response json has an attribute {attribute} with value {expected_value}')
+def step_impl(context, attribute, expected_value=None):
+    value = _traverse_json(context=context, attribute=attribute)
+    if expected_value:
+        context.test.assertEqual(str(value), expected_value)

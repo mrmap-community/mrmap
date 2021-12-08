@@ -36,12 +36,15 @@ export const augmentColumnWithJsonSchema = (column: ProColumnType, propSchema: a
       } else if (propSchema.format === 'binary') {
         // column.render = renderLink.bind(null, column.dataIndex as string) as any;
       } else {
-        console.log('****', propSchema.format);
         column.render = renderEllipsis.bind(null, column.dataIndex as string) as any;
       }
     } else if (propSchema.type === 'integer') {
       column.valueType = 'digit';
     }
+  }
+
+  if (!('sorter' in column)) {
+    column.sorter = true;
   }
 
   if (column.valueType === 'dateTime') {

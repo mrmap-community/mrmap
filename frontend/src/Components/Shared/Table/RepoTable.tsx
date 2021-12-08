@@ -60,7 +60,6 @@ export const RepoTable = ({
   onEditRecord = undefined
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
 
   const actions = useRef<RepoActionType>();

@@ -1,18 +1,17 @@
-import { ProColumnType } from '@ant-design/pro-table';
 import { Button } from 'antd';
 import React, { useRef } from 'react';
 
 import WmsRepo from '../../Repos/WmsRepo';
-import RepoTable, { RepoActionType } from '../Shared/Table/RepoTable';
+import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/Table/RepoTable';
+import { buildSearchTransformDateRange } from '../Shared/Table/TableHelper';
 
 const repo = new WmsRepo();
 
 export const WmsTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
-  const columns: ProColumnType[] = [{
+  const columns: RepoTableColumnType[] = [{
     dataIndex: 'id',
-    title: 'ID',
-    ellipsis: true
+    title: 'ID'
   }, {
     dataIndex: 'title',
     title: 'Titel'
@@ -28,8 +27,11 @@ export const WmsTable = (): JSX.Element => {
     title: 'Erstellt',
     valueType: 'dateRange',
     fieldProps: {
-      format: 'DD.MM.YYYY',
+      // format: 'DD.MM.YYYY',
       allowEmpty: [true, true]
+    },
+    search: {
+      transform: buildSearchTransformDateRange('created_at')
     },
     hideInTable: true
   }, {
@@ -41,8 +43,11 @@ export const WmsTable = (): JSX.Element => {
     title: 'Modifiziert',
     valueType: 'dateRange',
     fieldProps: {
-      format: 'DD.MM.YYYY',
+      // format: 'DD.MM.YYYY',
       allowEmpty: [true, true]
+    },
+    search: {
+      transform: buildSearchTransformDateRange('last_modified_at')
     },
     hideInTable: true
   }, {

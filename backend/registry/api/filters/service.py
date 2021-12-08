@@ -77,10 +77,10 @@ class WebMapServiceFilterSet(FilterSet):
     class Meta:
         model = WebMapService
         fields = {
-            'id': ['exact', 'icontains'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains'],
             'created_at': ['lte', 'gte'],
+            'last_modified_at': ['lte', 'gte'],
         }
 
 

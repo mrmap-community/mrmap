@@ -13,8 +13,8 @@ import { augmentColumnWithJsonSchema } from './TableHelper';
 export interface RepoTableProps {
     /** Repository that defines the schema and offers CRUD operations */
     repo: JsonApiRepo
-    /** Optional column hints, will be augmented by the repository schema */
-    columns?: ProColumnType[]
+    /** Optional column definitions, automatically augmented with the repository schema */
+    columns?: RepoTableColumnType[]
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
     /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
@@ -23,20 +23,28 @@ export interface RepoTableProps {
     onEditRecord?: (recordId: number | string) => void
 }
 
+export type RepoTableColumnType = ProColumnType & {
+  /** Optional mapping of query form values to repo filter params */
+  toFilterParams?: (value: any) => { [key: string]: string; }
+}
+
 // extends ActionType from Pro Table
 // https://procomponents.ant.design/en-US/components/table/?current=1&pageSize=5#protable
 export type RepoActionType = ActionType & {
   deleteRecord: (row:any) => void
 }
 
-function augmentColumns (resourceSchema: any, columnHints: ProColumnType[] | undefined): ProColumnType[] {
+function augmentColumns (resourceSchema: any, queryParams: any,
+  columnHints: ProColumnType[] | undefined): ProColumnType[] {
+  console.log('resourceSchema', resourceSchema);
+  console.log('queryParams', queryParams);
   const props = resourceSchema.properties.data.items.properties.attributes.properties;
   const columns:any = {};
   if (columnHints) {
     columnHints.forEach((columnHint) => {
       const columnName = columnHint.dataIndex as string;
       const schema = props[columnName];
-      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema);
+      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
     });
   }
   for (const propName in props) {
@@ -47,7 +55,7 @@ function augmentColumns (resourceSchema: any, columnHints: ProColumnType[] | und
     const columnHint = {
       dataIndex: propName
     };
-    columns[propName] = augmentColumnWithJsonSchema(columnHint, prop);
+    columns[propName] = augmentColumnWithJsonSchema(columnHint, prop, queryParams);
   }
   return Object.values(columns);
 }
@@ -98,9 +106,9 @@ export const RepoTable = ({
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
     async function buildColumns () {
-      const schema = await repo.getSchema();
-      console.log(schema);
-      const augmentedColumns = augmentColumns(schema, columns);
+      const resourceSchema = await repo.getResourceSchema();
+      const queryParams = await repo.getQueryParams();
+      const augmentedColumns = augmentColumns(resourceSchema, queryParams, columns);
       if (!augmentedColumns.some(column => column.key === 'actions')) {
         augmentedColumns.push({
           key: 'actions',
@@ -145,13 +153,11 @@ export const RepoTable = ({
         ordering = (sorter[prop] === 'descend' ? '-' : '') + prop;
       }
     }
-    console.log('Fetching', params);
     const filters:any = {};
     for (const prop in params) {
       // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
-      if (prop !== 'current' && prop !== 'pageSize') {
-        // TODO respect backend filtering capabilities
-        filters[`filter[${prop}.icontains]`] = params[prop];
+      if (prop !== 'current' && prop !== 'pageSize' && params[prop]) {
+        filters[prop] = params[prop];
       }
     }
     const queryParams = {
@@ -190,6 +196,7 @@ export const RepoTable = ({
         scroll={{ x: true }}
         headerTitle={repo.displayName}
         actionRef={setActions}
+        dateFormatter={false}
         toolBarRender={onAddRecord
           ? () => [
           <Button
@@ -203,9 +210,13 @@ export const RepoTable = ({
           </Button>
             ]
           : () => []}
-        search={{
-          layout: 'vertical'
-        }}
+        search={ augmentedColumns.some((column: RepoTableColumnType) => {
+          return column.search && column.search.transform;
+        })
+          ? {
+              layout: 'vertical'
+            }
+          : false}
     />)}</>
   );
 };

@@ -7,5 +7,5 @@ import { MapContext } from './MapContext';
 
 test('Renders the MapContext Component', () => {
   const element = render(<MapContext/>);
-  expect(element).toBeVisible();
+  expect(element).toMatchSnapshot();
 });

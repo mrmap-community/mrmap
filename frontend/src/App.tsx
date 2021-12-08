@@ -18,6 +18,7 @@ import LayerTable from './Components/OgcService/LayerTable';
 import OgcServiceAdd from './Components/OgcService/OgcServiceAdd';
 import WfsTable from './Components/OgcService/WfsTable';
 import WmsTable from './Components/OgcService/WmsTable';
+import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
@@ -143,6 +144,10 @@ export default function App (): JSX.Element {
                 element={<MapContextEdit/>}
                 // @ts-ignore
                 exact
+              />
+              <Route
+                path='*'
+                element={<PageNotFound/>}
               />
             </Route>
           </Routes>

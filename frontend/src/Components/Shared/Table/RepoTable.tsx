@@ -36,8 +36,6 @@ export type RepoActionType = ActionType & {
 
 function augmentColumns (resourceSchema: any, queryParams: any,
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
-  console.log('resourceSchema', resourceSchema);
-  console.log('queryParams', queryParams);
   const props = resourceSchema.properties.data.items.properties.attributes.properties;
   const columns:any = {};
   if (columnHints) {

@@ -1,15 +1,23 @@
 import { ProColumnType } from '@ant-design/pro-table';
 import Text from 'antd/lib/typography/Text';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import React, { ReactNode } from 'react';
+
+// required for parsing of German dates
+dayjs.extend(customParseFormat);
 
 export const buildSearchTransformDateRange = (dataIndex: string) => {
   return (values: any[]) => {
     const queryParams: {[key: string]: string} = {};
     if (values[0]) {
-      queryParams[`filter[${dataIndex}.gte]`] = values[0].startOf('day').toISOString();
+      // re-parsing the date is not very nice, but as soon as we set a date format for the date picker
+      // (via the column) the same (string) representation is used here in the transform function...
+      queryParams[`filter[${dataIndex}.gte]`] = dayjs(values[0], 'DD.MM.YYYY').startOf('day').toISOString();
     }
     if (values[1]) {
-      queryParams[`filter[${dataIndex}.lte]`] = values[1].endOf('day').toISOString();
+      // TODO
+      queryParams[`filter[${dataIndex}.lte]`] = dayjs(values[1], 'DD.MM.YYYY').endOf('day').toISOString();
     }
     return queryParams;
   };

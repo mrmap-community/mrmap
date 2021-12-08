@@ -27,7 +27,7 @@ export const WmsTable = (): JSX.Element => {
     title: 'Erstellt',
     valueType: 'dateRange',
     fieldProps: {
-      // format: 'DD.MM.YYYY',
+      format: 'DD.MM.YYYY',
       allowEmpty: [true, true]
     },
     search: {
@@ -43,7 +43,7 @@ export const WmsTable = (): JSX.Element => {
     title: 'Modifiziert',
     valueType: 'dateRange',
     fieldProps: {
-      // format: 'DD.MM.YYYY',
+      format: 'DD.MM.YYYY',
       allowEmpty: [true, true]
     },
     search: {

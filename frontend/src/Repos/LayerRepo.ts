@@ -1,5 +1,5 @@
 
-import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
+import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 export class LayerRepo extends JsonApiRepo {
   constructor () {
@@ -27,6 +27,28 @@ export class LayerRepo extends JsonApiRepo {
         style: o.attributes.style
       }
     }));
+  }
+
+  async getFromIdArray (idList: string[]): Promise<JsonApiResponse[]> {
+    const client = await JsonApiRepo.getClientInstance();
+    const layerResponses: JsonApiResponse[] = [];
+    idList.forEach(async (id:string) => {
+      const res = await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {
+        headers: { 'Content-Type': JsonApiMimeType }
+      });
+      const dataToAdd = {
+        value: res.data.data.id,
+        text: res.data.data.attributes.title,
+        attributes: {
+          scaleMin: res.data.data.attributes.scale_min,
+          scaleMax: res.data.data.attributes.scale_max,
+          style: res.data.data.attributes.style
+        }
+      };
+      // @ts-ignore
+      layerResponses.push(dataToAdd);
+    });
+    return layerResponses;
   }
 }
 

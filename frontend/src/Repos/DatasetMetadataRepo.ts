@@ -22,7 +22,10 @@ export class DatasetMetadataRepo extends JsonApiRepo {
       value: o.id,
       text: o.attributes.title,
       pagination: {
-        next: res.data.links.next
+        next: res.data.links.nexts
+      },
+      attributes: {
+        associatedLayers: o.relationships.self_pointing_layers.data.map((dt:any) => dt.id)
       }
     }));
   }

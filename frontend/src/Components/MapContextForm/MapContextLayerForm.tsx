@@ -15,7 +15,7 @@ interface MapContextLayerFormProps {
 }
 
 const fetchData = async (
-  fetcher: () => Promise<JsonApiResponse>,
+  fetcher: () => Promise<JsonApiResponse> | Promise<JsonApiResponse[]>,
   setValues: (values: any) => void,
   setLoading: (bool: boolean) => void
 ) => {
@@ -52,6 +52,8 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   const [renderingLayerOptions, setRenderingLayerOptions] = useState<any[]>([]);
   const [featureSelectionLayerOptions, setFeatureSelectionLayerOptions] = useState<any[]>([]);
 
+  const [selectedDatasetMetadata, setSelectedDatasetMetadata] = useState<any>();
+
   /**
    * @description: Hook to run on component mount. Fetches initial results for daataset metadata autocomplete
    */
@@ -64,6 +66,19 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   }, []);
 
   /**
+   * @description: Hook to run on when value of dataset metadata changes
+   */
+  useEffect(() => {
+    if (selectedDatasetMetadata) {
+      fetchData(
+        () => layerRepo.getFromIdArray(selectedDatasetMetadata.attributes.associatedLayers),
+        (values) => setRenderingLayerOptions(values),
+        (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+      );
+    }
+  }, [selectedDatasetMetadata]);
+
+  /**
    * @description: Hook to run on component mount. Fetches initial results for rendering layer autocomplete
    */
   useEffect(() => {
@@ -73,6 +88,15 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
       (boolean) => setIsRenderingLayerOptionsLoading(boolean)
     );
   }, []);
+
+  /**
+   * @description: Hook to run on when value of dataset metadata changes
+   */
+  useEffect(() => {
+    if (renderingLayerOptions) {
+      console.log(renderingLayerOptions);
+    }
+  }, [renderingLayerOptions]);
 
   /**
    * @description: Hook to run on component mount. Fetches initial results for rendering feature type selection
@@ -143,11 +167,11 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
           //   rules: [{ required: true, message: 'Please select metadata!' }],
           //   hasFeedback: true
           // }}
-          // onSelect={(value, option) => {
-          //   setIsShowingRenderingData(true);
-          //   // TODO set rendering layer list
-          //   // TODO reset dependents
-          // }}
+          onSelect={(value, option) => {
+            setSelectedDatasetMetadata(option);
+            // TODO set rendering layer list
+            // TODO reset dependents
+          }}
           // onClear={() => {
           //   setIsShowingRenderingData(false);
           //   // TODO clear rendering layer list

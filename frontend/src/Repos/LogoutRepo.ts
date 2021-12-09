@@ -2,7 +2,7 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export class LogoutRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/users/logout/');
+    super('/api/v1/users/logout/', '');
   }
 
   async logout (): Promise<JsonApiResponse> {

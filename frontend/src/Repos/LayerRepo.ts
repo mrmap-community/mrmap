@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 export class LayerRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/layers/');
+    super('/api/v1/registry/layers/', 'WMS-Ebenen');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {

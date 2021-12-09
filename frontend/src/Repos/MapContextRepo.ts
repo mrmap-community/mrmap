@@ -8,7 +8,7 @@ export interface MapContextCreate {
 
 export class MapContextRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/mapcontexts/');
+    super('/api/v1/registry/mapcontexts/', 'Karten');
   }
 
   async create (create: MapContextCreate): Promise<JsonApiResponse> {

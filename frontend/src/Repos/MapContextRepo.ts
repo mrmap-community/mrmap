@@ -20,7 +20,7 @@ export class MapContextRepo extends JsonApiRepo {
       attributes.abstract = create.abstract;
     }
     const relationships = {
-      owned_by_org: { // eslint-disable-line
+      owner: { // eslint-disable-line
         data: {
           type: 'MapContext',
           id: create.ownerOrganizationId

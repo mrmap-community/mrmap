@@ -10,20 +10,22 @@ import hashlib
 from io import BytesIO
 from typing import Union
 
-from PIL import Image
-from PIL import UnidentifiedImageError
 from django.db import transaction
 from django.utils import timezone
 from lxml import etree
 from lxml.etree import XMLSyntaxError
-from requests import Request, Session
 from MrMap.settings import PROXIES
 from ows_client.wfs_helper import WfsHelper
 from ows_client.wms_helper import WmsHelper
+from PIL import Image, UnidentifiedImageError
+from requests import Request, Session
+
 from registry.enums.service import OGCServiceVersionEnum
-from registry.models import MonitoringResult as MonitoringResult, MonitoringResultDocument, MonitoringRun, \
-    MonitoringSetting, HealthState
-from registry.models import WebMapService, WebFeatureService, Layer, FeatureType, DatasetMetadata
+from registry.models import DatasetMetadata, FeatureType, HealthState, Layer
+from registry.models import MonitoringResult as MonitoringResult
+from registry.models import (MonitoringResultDocument, MonitoringRun,
+                             MonitoringSetting, WebFeatureService,
+                             WebMapService)
 from registry.settings import MONITORING_REQUEST_TIMEOUT
 
 
@@ -73,13 +75,14 @@ class Monitor:
         elif isinstance(self.resource, DatasetMetadata):
             self.check_dataset(self.resource)
         else:
-            raise ValueError(f"Unexpected resource type {self.resource.__class__.__name__}")
+            raise ValueError(
+                f"Unexpected resource type {self.resource.__class__.__name__}")
 
         # all checks are done. Calculate the health state for all monitoring results
         health_state = HealthState(monitoring_run=self.monitoring_run,
                                    resource=self.resource,
                                    created_by_user=self.monitoring_run.created_by_user,
-                                   owned_by_org=self.monitoring_run.owned_by_org)
+                                   owner=self.monitoring_run.owner)
         health_state.save()
         health_state.run_health_state()
 
@@ -175,7 +178,8 @@ class Monitor:
         """
         wfs_helper = WfsHelper(feature_type.service)
         urls_to_check = [
-            (wfs_helper.get_describe_featuretype_url(feature_type.identifier), True),
+            (wfs_helper.get_describe_featuretype_url(
+                feature_type.identifier), True),
             (wfs_helper.get_get_feature_url(feature_type.identifier), True),
         ]
         for url in urls_to_check:
@@ -193,7 +197,8 @@ class Monitor:
         Returns:
             nothing
         """
-        service_status = self.check_status(url, check_wfs_member=check_wfs_member, check_image=check_image)
+        service_status = self.check_status(
+            url, check_wfs_member=check_wfs_member, check_image=check_image)
         if service_status.success is True:
             self.handle_service_success(service_status)
         else:
@@ -208,7 +213,8 @@ class Monitor:
             session = Session()
             session.proxies = PROXIES
             return session
-        raise ValueError(f"Unexpected resource type {self.resource.__class__.__name__}")
+        raise ValueError(
+            f"Unexpected resource type {self.resource.__class__.__name__}")
 
     def check_status(self, url: str, check_wfs_member: bool = False, check_image: bool = False) -> ServiceStatus:
         """ Check status of ogc service.
@@ -250,7 +256,8 @@ class Monitor:
                 success = True
             except UnidentifiedImageError:
                 success = False
-        service_status = Monitor.ServiceStatus(url, success, response_text, response.status_code, duration)
+        service_status = Monitor.ServiceStatus(
+            url, success, response_text, response.status_code, duration)
         return service_status
 
     def has_wfs_member(self, xml):
@@ -310,7 +317,8 @@ class Monitor:
     def check_document(self, url, original_document):
         service_status = self.check_status(url)
         if service_status.success:
-            diff_obj = self.get_document_diff(service_status.message, original_document)
+            diff_obj = self.get_document_diff(
+                service_status.message, original_document)
             if diff_obj is not None:
                 needs_update = True
                 diff = ''.join(diff_obj)
@@ -319,7 +327,7 @@ class Monitor:
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
-                    owned_by_org=self.monitoring_run.owned_by_org
+                    owner=self.monitoring_run.owner
                 )
             else:
                 needs_update = False
@@ -328,7 +336,7 @@ class Monitor:
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
                     needs_update=needs_update, monitoring_run=self.monitoring_run,
                     created_by_user=self.monitoring_run.created_by_user,
-                    owned_by_org=self.monitoring_run.owned_by_org
+                    owner=self.monitoring_run.owner
                 )
             monitoring_document.save()
         else:
@@ -352,12 +360,14 @@ class Monitor:
             new_document = new_document.decode('UTF-8')
         except AttributeError:
             pass
-        new_capabilities_hash = hashlib.sha256(new_document.encode("UTF-8")).hexdigest()
+        new_capabilities_hash = hashlib.sha256(
+            new_document.encode("UTF-8")).hexdigest()
         original_document_hash = hashlib.sha256(original_document).hexdigest()
         if new_capabilities_hash == original_document_hash:
             return
         else:
-            original_lines = original_document.decode('UTF-8').splitlines(keepends=True)
+            original_lines = original_document.decode(
+                'UTF-8').splitlines(keepends=True)
             new_lines = new_document.splitlines(keepends=True)
             # info on the created diff on https://docs.python.org/3.6/library/difflib.html#difflib.unified_diff
             diff = difflib.unified_diff(original_lines, new_lines)
@@ -376,7 +386,7 @@ class Monitor:
                 available=service_status.success, resource=self.resource, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 monitoring_run=self.monitoring_run, created_by_user=self.monitoring_run.created_by_user,
-                owned_by_org=self.monitoring_run.owned_by_org
+                owner=self.monitoring_run.owner
             )
         else:
             monitoring_result = MonitoringResult(
@@ -384,7 +394,7 @@ class Monitor:
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
                 duration=service_status.duration, monitoring_run=self.monitoring_run,
                 created_by_user=self.monitoring_run.created_by_user,
-                owned_by_org=self.monitoring_run.owned_by_org
+                owner=self.monitoring_run.owner
             )
         monitoring_result.save()
 
@@ -404,7 +414,7 @@ class Monitor:
             monitored_uri=service_status.monitored_uri,
             monitoring_run=self.monitoring_run,
             created_by_user=self.monitoring_run.created_by_user,
-            owned_by_org=self.monitoring_run.owned_by_org
+            owner=self.monitoring_run.owner
         )
         monitoring_result.save()
 
@@ -427,7 +437,8 @@ class Monitor:
             xml_b = xml
         try:
             parser = etree.XMLParser(huge_tree=len(xml_b) > 10000000)
-            xml_obj = etree.ElementTree(etree.fromstring(text=xml_b, parser=parser))
+            xml_obj = etree.ElementTree(
+                etree.fromstring(text=xml_b, parser=parser))
             if encoding != xml_obj.docinfo.encoding:
                 # there might be problems e.g. with german Umlaute ä,ö,ü, ...
                 # try to parse again but with the correct encoding

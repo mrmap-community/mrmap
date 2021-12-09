@@ -8,15 +8,17 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from requests import Session, Request
-
-from MrMap.settings import PROXIES
 from extras.models import CommonInfo, GenericModelMixin
-from registry.enums.metadata import DatasetFormatEnum, MetadataCharset, MetadataOrigin, ReferenceSystemPrefixEnum, \
-    MetadataRelationEnum, MetadataOriginEnum
-from registry.managers.metadata import LicenceManager, IsoMetadataManager
+from MrMap.settings import PROXIES
+from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
+                                     MetadataOrigin, MetadataOriginEnum,
+                                     MetadataRelationEnum,
+                                     ReferenceSystemPrefixEnum)
+from registry.managers.metadata import IsoMetadataManager, LicenceManager
 from registry.models.document import MetadataDocumentModelMixin
-from registry.xmlmapper.iso_metadata.iso_metadata import WrappedIsoMetadata, MdMetadata
+from registry.xmlmapper.iso_metadata.iso_metadata import (MdMetadata,
+                                                          WrappedIsoMetadata)
+from requests import Request, Session
 
 
 class MimeType(models.Model):
@@ -246,7 +248,7 @@ class RemoteMetadata(CommonInfo):
         else:
             raise ValueError("there is no fetched content. You need to call fetch_remote_content() first.")
 
-    def create_metadata_instance(self):
+    def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
         from registry.models.service import OgcService
         if isinstance(self.describes, OgcService):
@@ -255,7 +257,8 @@ class RemoteMetadata(CommonInfo):
             metadata_cls = DatasetMetadata
         return metadata_cls.iso_metadata.create_from_parsed_metadata(parsed_metadata=self.parse(),
                                                                      related_object=self.describes,
-                                                                     origin_url=self.link)
+                                                                     origin_url=self.link,
+                                                                     **kwargs)
 
 
 class MetadataTermsOfUse(models.Model):
@@ -662,7 +665,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
         ]
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
-        from registry.models.service import CatalougeService, Layer, FeatureType
+        from registry.models.service import (CatalougeService, FeatureType,
+                                             Layer)
 
         kwargs = {}
         if related_object._meta.model == Layer:
@@ -686,7 +690,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
         return relation
 
     def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
-        from registry.models.service import CatalougeService, Layer, FeatureType
+        from registry.models.service import (CatalougeService, FeatureType,
+                                             Layer)
 
         kwargs = {}
         if related_object._meta.model == Layer:

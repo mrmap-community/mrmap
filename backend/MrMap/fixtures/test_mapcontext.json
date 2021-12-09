@@ -1,0 +1,280 @@
+[
+    {
+        "model": "registry.mapcontext",
+        "pk": 1,
+        "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
+            "title": "MapContext1",
+            "abstract": "MapContext1"
+        }
+    },
+    {
+        "model": "registry.mapcontext",
+        "pk": 2,
+        "fields": {
+            "created_at": "2021-12-08T14:11:50.791Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:50.791Z",
+            "last_modified_by": [
+                "User1"
+            ],
+            "title": "MapContext2",
+            "abstract": "MapContext2"
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 1,
+        "fields": {
+            "parent": null,
+            "map_context": 1,
+            "name": "mc1_node1",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 1,
+            "rght": 10,
+            "tree_id": 1,
+            "level": 0
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 2,
+        "fields": {
+            "parent": 1,
+            "map_context": 1,
+            "name": "mc1_node1.1",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 2,
+            "rght": 7,
+            "tree_id": 1,
+            "level": 1
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 3,
+        "fields": {
+            "parent": 2,
+            "map_context": 1,
+            "name": "mc1_node1.1.1",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 3,
+            "rght": 4,
+            "tree_id": 1,
+            "level": 2
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 4,
+        "fields": {
+            "parent": 2,
+            "map_context": 1,
+            "name": "mc1_node1.1.2",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 5,
+            "rght": 6,
+            "tree_id": 1,
+            "level": 2
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 5,
+        "fields": {
+            "parent": 1,
+            "map_context": 1,
+            "name": "mc1_node1.2",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 8,
+            "rght": 9,
+            "tree_id": 1,
+            "level": 1
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 6,
+        "fields": {
+            "parent": null,
+            "map_context": 2,
+            "name": "mc2_node1",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 1,
+            "rght": 6,
+            "tree_id": 2,
+            "level": 0
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 7,
+        "fields": {
+            "parent": 6,
+            "map_context": 2,
+            "name": "mc2_node1.1",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 2,
+            "rght": 3,
+            "tree_id": 2,
+            "level": 1
+        }
+    },
+    {
+        "model": "registry.mapcontextlayer",
+        "pk": 8,
+        "fields": {
+            "parent": 6,
+            "map_context": 2,
+            "name": "mc2_node1.2",
+            "title": null,
+            "dataset_metadata": null,
+            "rendering_layer": null,
+            "layer_scale_min": null,
+            "layer_scale_max": null,
+            "layer_style": null,
+            "preview_image": "",
+            "selection_layer": null,
+            "lft": 4,
+            "rght": 5,
+            "tree_id": 2,
+            "level": 1
+        }
+    },
+    {
+        "model": "guardian.groupobjectpermission",
+        "pk": 1,
+        "fields": {
+            "permission": [
+                "change_mapcontext",
+                "registry",
+                "mapcontext"
+            ],
+            "content_type": [
+                "registry",
+                "mapcontext"
+            ],
+            "object_pk": "1",
+            "group": [
+                "Group1"
+            ]
+        }
+    },
+    {
+        "model": "guardian.groupobjectpermission",
+        "pk": 2,
+        "fields": {
+            "permission": [
+                "delete_mapcontext",
+                "registry",
+                "mapcontext"
+            ],
+            "content_type": [
+                "registry",
+                "mapcontext"
+            ],
+            "object_pk": "1",
+            "group": [
+                "Group1"
+            ]
+        }
+    },
+    {
+        "model": "guardian.groupobjectpermission",
+        "pk": 3,
+        "fields": {
+            "permission": [
+                "change_mapcontext",
+                "registry",
+                "mapcontext"
+            ],
+            "content_type": [
+                "registry",
+                "mapcontext"
+            ],
+            "object_pk": "2",
+            "group": [
+                "Group2"
+            ]
+        }
+    },
+    {
+        "model": "guardian.groupobjectpermission",
+        "pk": 4,
+        "fields": {
+            "permission": [
+                "delete_mapcontext",
+                "registry",
+                "mapcontext"
+            ],
+            "content_type": [
+                "registry",
+                "mapcontext"
+            ],
+            "object_pk": "2",
+            "group": [
+                "Group2"
+            ]
+        }
+    }
+]

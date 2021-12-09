@@ -1,10 +1,19 @@
 #!/bin/bash
-
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NOCOLOR='\033[0m'
 /opt/mrmap/.bash_scripts/wait_db.sh
 
-echo "run mrmap setup"
-# run mrmap setup command. It will handle everthing we need to pre setup the system.
-python manage.py setup
+echo "django migrate"
+python manage.py migrate
+
+if [ $? != 0 ]; 
+then
+  exit 1
+  printf "${RED}failed to migrate database${NOCOLOR}\n"
+else
+  printf "${GREEN}database migrations applied${NOCOLOR}\n"
+fi
 
 echo '
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
@@ -51,7 +60,7 @@ MMMMNhhho--yMMMMMMmhhhhhmmmdddmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMdhhhhhhMMMMMMNmdmmNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMNhhddmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 
-Preconfiguration is done. MrMap is ready...
+MrMap is ready. Application server is starting now.
 '
 
 exec "$@"

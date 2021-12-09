@@ -2,10 +2,10 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
 import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
+
 
 const layout = {
   labelCol: { span: 3 },
@@ -77,7 +77,7 @@ export const OgcServiceAdd = (): ReactElement => {
         <SelectAutocompleteFormField
           loading={isLoading}
           label='Owner organization'
-          name='owned_by_org'
+          name='owner'
           placeholder='Select Organization'
           searchData={options}
           tooltip={{

@@ -14,16 +14,17 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-# to get docstrings from django code, the django project needs to setup fist
 import os
 import sys
+
 import django
-from subprocess import check_output
+from backend.MrMap.settings import LOG_DIR
+# to get docstrings from django code, the django project needs to setup fist
+from sphinx.builders.html import StandaloneHTMLBuilder
 
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../backend'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 # Get an instance of a logger
-from MrMap.settings import LOG_DIR
 
 # create log dir if it does not exist
 if not os.path.exists(LOG_DIR):
@@ -74,11 +75,12 @@ html_theme = "sphinx_rtd_theme"
 
 #html_static_path = ['_static']
 
-linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', ]
+linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
+                    r'https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', ]
 
 master_doc = "index"
 
-from sphinx.builders.html import StandaloneHTMLBuilder
+
 StandaloneHTMLBuilder.supported_image_types = [
     'image/svg+xml',
     'image/gif',
@@ -89,4 +91,5 @@ StandaloneHTMLBuilder.supported_image_types = [
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
 smv_branch_whitelist = r'^develop$'              # Include develop branch
-smv_remote_whitelist = None                       # Use branches from all remotes
+# Use branches from all remotes
+smv_remote_whitelist = None

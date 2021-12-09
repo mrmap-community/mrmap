@@ -1,0 +1,96 @@
+[
+    {
+        "model": "auth.group",
+        "fields": {
+            "name": "Group1",
+            "permissions": []
+        }
+    },
+    {
+        "model": "auth.group",
+        "fields": {
+            "name": "Group2",
+            "permissions": []
+        }
+    },
+    {
+        "model": "accounts.user",
+        "fields": {
+            "password": "argon2$argon2id$v=19$m=102400,t=2,p=8$SFl2bHVYNGFoM0VCQ2VhRTFManlkRg$gNkcrXVr58njA+5CUE2RZg",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "User1",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "is_staff": false,
+            "is_active": true,
+            "date_joined": "2021-12-08T14:10:33Z",
+            "confirmed_newsletter": false,
+            "confirmed_survey": false,
+            "confirmed_dsgvo": "2021-12-08T14:10:42.563Z",
+            "groups": [
+                [
+                    "Group1"
+                ]
+            ],
+            "user_permissions": [
+                [
+                    "add_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "change_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "delete_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ]
+            ]
+        }
+    },
+    {
+        "model": "accounts.user",
+        "fields": {
+            "password": "argon2$argon2id$v=19$m=102400,t=2,p=8$dVpwUnB4S1hYcFVoeUlwQkF2anJIcw$+hx2RZKSi4gxtqk+gMUqtQ",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "User2",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "is_staff": false,
+            "is_active": true,
+            "date_joined": "2021-12-08T14:10:43Z",
+            "confirmed_newsletter": false,
+            "confirmed_survey": false,
+            "confirmed_dsgvo": "2021-12-08T14:10:52.765Z",
+            "groups": [
+                [
+                    "Group2"
+                ]
+            ],
+            "user_permissions": [
+                [
+                    "add_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "change_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "delete_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ]
+            ]
+        }
+    }
+]

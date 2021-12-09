@@ -3,7 +3,7 @@ import JsonApiRepo from './JsonApiRepo';
 
 export class OrganizationRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/users/organizations/', 'Organisationen');
+    super('/api/v1/accounts/organizations/', 'Organisationen');
   }
 
   async autocomplete (searchText: string | undefined): Promise<SearchFieldData[]> {

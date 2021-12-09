@@ -9,6 +9,8 @@
         "ms-toolsai.jupyter-keymap",
         "ms-python.vscode-pylance",
         "ms-python.python",
-        "trond-snekvik.simple-rst"
+        "trond-snekvik.simple-rst",
+        "humao.rest-client",
+        "ckolkman.vscode-postgres"
     ]
 }

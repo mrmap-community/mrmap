@@ -13,7 +13,6 @@ import os
 import socket
 import sys
 
-from django.contrib import messages
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
@@ -37,45 +36,37 @@ INSTALLED_APPS = [
     "guardian",
     "polymorphic",
     "django.contrib.auth",
+    "django.contrib.admin",  # for django admin pages
+    "django.contrib.messages",  # for django admin pages
     "django.contrib.contenttypes",
     "django.contrib.sessions",
-    "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django.contrib.gis",
+    "django.forms",  # for debug_toolbar and rest api html page
     "django_extensions",
     "captcha",
     "rest_framework",
-    "rest_framework.authtoken",
     "rest_framework_gis",
     "rest_framework_json_api",
-    "dj_rest_auth",
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
     "django_nose",
     "mptt",
-    # "corsheaders",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
-    "users",
-    "acls",
-    "jobs",
+    "accounts",
     "registry",
-    "extras",
 ]
 
 MIDDLEWARE = [
-    # 'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
-    # 'django.middleware.gzip.GZipMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    # 'django.contrib.auth.middleware.RemoteUserMiddleware',
-    # 'django.contrib.messages.middleware.MessageMiddleware',
-    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',  # for django admin pages
     "crum.CurrentRequestUserMiddleware",
 ]
 
@@ -90,6 +81,7 @@ TEMPLATES = [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",  # for django admin pages
             ],
         },
     },
@@ -125,7 +117,6 @@ if os.environ.get("MRMAP_PRODUCTION") == "False":
     INSTALLED_APPS.extend(
         [
             "behave_django",
-            "django.forms",  # for debug_toolbar and rest api html page
         ]
     )
 
@@ -140,7 +131,6 @@ PASSWORD_HASHERS = [
 ROOT_URLCONF = "MrMap.urls"
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
-
 
 METADATA_URL = [
     "request=GetMetadata&",
@@ -198,21 +188,6 @@ AUTHENTICATION_BACKENDS = (
 )
 
 GUARDIAN_RAISE_403 = True
-
-# django-guardian-roles
-GUARDIAN_ROLES_OWNABLE_MODELS = [
-    "registry.Metadata",
-    "registry.MonitoringRun",
-    "registry.MonitoringResult",
-    "registry.HealthState",
-    "registry.ProxyLog",
-]
-
-GUARDIAN_ROLES_OWNER_FIELD_ATTRIBUTE = "owned_by_org"
-GUARDIAN_ROLES_OLD_OWNER_FIELD_ATTRIBUTE = "_owned_by_org"
-
-GUARDIAN_ROLES_ADMIN_ROLE_FOR_ROLE_ADMIN_ROLE = "organization_administrator"
-GUARDIAN_ROLES_OWNER_MODEL = "users.Organization"
 
 ################################################################
 # Database settings
@@ -342,35 +317,17 @@ ASGI_APPLICATION = "MrMap.asgi.application"
 # Extends the number of GET/POST parameters
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 
-# A string template used in the beginnings of this project
-EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
-
-# Defines table page constants
-PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
-PAGE_SIZE_DEFAULT = 5
-PAGE_SIZE_MAX = 100
-PAGE_DEFAULT = 1
-
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = "users.MrMapUser"
+AUTH_USER_MODEL = "accounts.User"
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60
 
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
-
-# define the message tags for bootstrap
-MESSAGE_TAGS = {
-    messages.DEBUG: "alert-info",
-    messages.INFO: "alert-info",
-    messages.SUCCESS: "alert-success",
-    messages.WARNING: "alert-warning",
-    messages.ERROR: "alert-danger",
-}
 
 ################################################################
 # nose test runner settings

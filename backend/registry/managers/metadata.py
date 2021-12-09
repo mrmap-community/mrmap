@@ -1,10 +1,12 @@
+from datetime import date, datetime
+
 from django.core.files.base import ContentFile
-from django.db import models, transaction, OperationalError
-from django.db.models import Count, ExpressionWrapper, BooleanField, F, Q, Subquery
+from django.db import OperationalError, models, transaction
+from django.db.models import (BooleanField, Count, ExpressionWrapper, F, Q,
+                              Subquery)
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from registry.enums.metadata import MetadataOrigin
-from django.utils import timezone
-from datetime import datetime, date
 
 
 class LicenceManager(models.Manager):
@@ -53,19 +55,29 @@ class IsoMetadataManager(models.Manager):
     metadata_contact_cls = None
     dataset_contact_cls = None
 
-    def _reset_local_variables(self):
+    def _reset_local_variables(self, **kwargs):
         self.keyword_cls = None
         self.reference_system_cls = None
         self.metadata_contact_cls = None
         self.dataset_contact_cls = None
+        # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
+        # collect them once.
+        self.common_info = {}
+        if "current_user" in kwargs:
+            self.common_info.update({"current_user": kwargs["current_user"]})
+        if "owner" in kwargs:
+            self.common_info.update({"owner": kwargs["owner"]})
 
     def _create_contact(self, contact):
-        contact, created = contact.get_model_class().objects.get_or_create(**contact.get_field_dict())
+        contact, created = contact.get_model_class().objects.get_or_create(**
+                                                                           contact.get_field_dict())
         return contact
 
     def _create_dataset_metadata(self, parsed_metadata, origin_url):
-        db_metadata_contact = self._create_contact(contact=parsed_metadata.metadata_contact)
-        db_dataset_contact = self._create_contact(contact=parsed_metadata.md_data_identification.dataset_contact)
+        db_metadata_contact = self._create_contact(
+            contact=parsed_metadata.metadata_contact)
+        db_dataset_contact = self._create_contact(
+            contact=parsed_metadata.md_data_identification.dataset_contact)
 
         field_dict = parsed_metadata.get_field_dict()
         update = False
@@ -75,13 +87,20 @@ class IsoMetadataManager(models.Manager):
                                                          dataset_id_code_space=field_dict["dataset_id_code_space"])
             # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
             if isinstance(field_dict["date_stamp"], date):
-                field_dict["date_stamp"] = datetime.combine(field_dict["date_stamp"], datetime.min.time())
-            dt_aware = timezone.make_aware(field_dict["date_stamp"], timezone.get_current_timezone())
+                field_dict["date_stamp"] = datetime.combine(
+                    field_dict["date_stamp"], datetime.min.time())
+            dt_aware = timezone.make_aware(
+                field_dict["date_stamp"], timezone.get_current_timezone())
             if dt_aware > db_dataset_metadata.date_stamp:
                 # todo: on update we need to check custom metadata
+                current_user = {}
+                if self.common_info.get('current_user', None):
+                    current_user.update(
+                        {'current_user': self.common_info['current_user']})
                 self.model.objects.update(metadata_contact=db_metadata_contact,
                                           dataset_contact=db_dataset_contact,
-                                          **field_dict)
+                                          **field_dict,
+                                          **current_user)
                 update = True
             exists = True
         except self.model.DoesNotExist:
@@ -89,11 +108,13 @@ class IsoMetadataManager(models.Manager):
                                                  dataset_contact=db_dataset_contact,
                                                  origin=MetadataOrigin.ISO_METADATA.value,
                                                  origin_url=origin_url,
-                                                 **field_dict)
+                                                 **field_dict,
+                                                 **self.common_info)
         return db_dataset_metadata, exists, update
 
     def _create_service_metadata(self, parsed_metadata, *args, **kwargs):
-        db_metadata_contact = self._create_contact(contact=parsed_metadata.metadata_contact).save()
+        db_metadata_contact = self._create_contact(
+            contact=parsed_metadata.metadata_contact).save()
 
         db_service_metadata = super().create(metadata_contact=db_metadata_contact,
                                              *args,
@@ -101,18 +122,20 @@ class IsoMetadataManager(models.Manager):
         return db_service_metadata
 
     def create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url, *args, **kwargs):
-        self._reset_local_variables()
+        self._reset_local_variables(**kwargs)
         with transaction.atomic():
             update = False
             if parsed_metadata.hierarchy_level == "service":
                 # todo: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
-                db_metadata = self._create_service_metadata(parsed_metadata=parsed_metadata, *args, **kwargs)
+                db_metadata = self._create_service_metadata(
+                    parsed_metadata=parsed_metadata, *args, **kwargs)
             else:
                 db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
                                                                             origin_url=origin_url)
 
-                db_metadata.add_dataset_metadata_relation(related_object=related_object)
+                db_metadata.add_dataset_metadata_relation(
+                    related_object=related_object)
                 if not exists:
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(str(parsed_metadata.serializeDocument(), "UTF-8")))
@@ -126,16 +149,20 @@ class IsoMetadataManager(models.Manager):
                 db_keyword_list = []
                 for keyword in parsed_metadata.keywords:
                     if not self.keyword_cls:
-                        self.keyword_cls = parsed_metadata.keywords[0].get_model_class()
-                    db_keyword, created = self.keyword_cls.objects.get_or_create(**keyword.get_field_dict())
+                        self.keyword_cls = parsed_metadata.keywords[0].get_model_class(
+                        )
+                    db_keyword, created = self.keyword_cls.objects.get_or_create(
+                        **keyword.get_field_dict())
                     db_keyword_list.append(db_keyword)
                 db_metadata.keywords.add(*db_keyword_list)
 
                 db_reference_system_list = []
                 for reference_system in parsed_metadata.reference_systems:
                     if not self.reference_system_cls:
-                        self.reference_system_cls = parsed_metadata.reference_systems[0].get_model_class()
-                    db_reference_system, created = self.reference_system_cls.objects.get_or_create(**reference_system.get_field_dict())
+                        self.reference_system_cls = parsed_metadata.reference_systems[0].get_model_class(
+                        )
+                    db_reference_system, created = self.reference_system_cls.objects.get_or_create(
+                        **reference_system.get_field_dict())
                     db_reference_system_list.append(db_reference_system)
                 db_metadata.reference_systems.add(*db_reference_system_list)
 

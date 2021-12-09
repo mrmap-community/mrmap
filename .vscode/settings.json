@@ -1,13 +1,9 @@
 {
   "cucumberautocomplete.steps": [
-    "backend/tests/behave/steps/*.py",
     "backend/tests/behave/api/steps/*.py",
-    "backend/tests/behave/selenium/steps/*.py",
-    ".venv/lib/python3.9/site-packages/behave_webdriver/steps/*.py",
-    ".venv/lib/python3.9/site-packages/behave_restful/lang/*.py"
   ],
   "cucumberautocomplete.strictGherkinCompletion": true,
-  "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
+  "cucumberautocomplete.syncfeatures": "backend/tests/behave/**/features/*feature",
   "cucumberautocomplete.smartSnippets": true,
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
   "python.linting.flake8Enabled": true,
@@ -39,5 +35,5 @@
     "typescript",
     "javascriptreact",
     "typescriptreact"
-  ],
+  ]
 }

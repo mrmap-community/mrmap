@@ -39,13 +39,13 @@ export const NavBar = (): ReactElement => {
         <Link to='/'>Dashboard</Link>
       </Menu.Item>
       <SubMenu
-        key='users'
+        key='auth'
         icon={<UserOutlined />}
-        title='Users'
+        title='Auth'
       >
-        <Menu.Item key='users:users'>Users</Menu.Item>
-        <Menu.Item key='users:organizations'>Organizations</Menu.Item>
-        <Menu.Item key='users:publish-requests'>Publish requests</Menu.Item>
+        <Menu.Item key='auth:users'>Users</Menu.Item>
+        <Menu.Item key='auth:organizations'>Organizations</Menu.Item>
+        <Menu.Item key='auth:publish-requests'>Publish requests</Menu.Item>
       </SubMenu>
       <SubMenu
         key='registry'

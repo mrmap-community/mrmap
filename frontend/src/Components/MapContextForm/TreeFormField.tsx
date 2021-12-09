@@ -29,7 +29,7 @@ interface MPTTJsonApiRelashionshipDataType {
   }
 }
 
-interface MPTTJsonApiRelashionshipType {
+export interface MPTTJsonApiRelashionshipType {
   parent: MPTTJsonApiRelashionshipDataType;
   map_context: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
   dataset_metadata: MPTTJsonApiRelashionshipDataType; // eslint-disable-line

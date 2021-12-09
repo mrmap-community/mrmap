@@ -35,31 +35,22 @@ export const MapContext: FC<MapContextProps> = () => {
     if (id) {
       const fetchMapContext = async () => {
         try {
-          const response = await mapContextRepo.get(id);
+          const response = await mapContextRepo.getMapContextWithLayers(String(id));
           form.setFieldsValue({
             // @ts-ignore
-            title: response.data.data.attributes.title || '',
+            title: response.mapContext.attributes.title || '',
             // @ts-ignore
-            abstract: response.data.data.attributes.abstract || ''
+            abstract: response.mapContext.attributes.abstract || ''
           });
-        } catch (error) {
-          // @ts-ignore
-          throw new Error(error);
-        }
-      };
-
-      const fetchMapContextLayers = async () => {
-        try {
-          const response = await mapContextRepo.getMapContextLayerFromMapContextId(String(id));
-          const cena = MPTTListToTreeNodeList(response);
-          setInitTreeData(cena);
+          //  set  Initial  Tree Data
+          const transformedTreeData = MPTTListToTreeNodeList(response.mapContextLayers);
+          setInitTreeData(transformedTreeData);
         } catch (error) {
           // @ts-ignore
           throw new Error(error);
         }
       };
       fetchMapContext();
-      fetchMapContextLayers();
     }
   }, [id]);
 
@@ -148,7 +139,7 @@ export const MapContext: FC<MapContextProps> = () => {
               return await mapContextLayerRepo?.move(dragKey, dropKey, position);
             }}
             draggable
-            nodeAttributeForm={(<MapContextLayerForm/>)}
+            nodeAttributeForm={(<MapContextLayerForm form={form}/>)}
           />
           <div className='steps-action'>
             <Button

@@ -1,5 +1,5 @@
 
-import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
+import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 export class FeatureTypeRepo extends JsonApiRepo {
   constructor () {
@@ -9,7 +9,8 @@ export class FeatureTypeRepo extends JsonApiRepo {
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
     const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
-      'filter[title.icontains]': searchText
+      'filter[title.icontains]': searchText,
+      sort: 'title'
       // 'filter[Featuretypes]': 'title'  //TODO
     };
     if (!searchText) {
@@ -17,7 +18,34 @@ export class FeatureTypeRepo extends JsonApiRepo {
       delete jsonApiParams['filter[title.icontains]'];
     }
     const res = await client['List' + this.resourcePath](jsonApiParams);
-    return res.data.data.map((o: any) => ({ value: o.id, text: o.attributes.title }));
+    return res.data.data.map((o: any) => ({
+      value: o.id,
+      text: o.attributes.title,
+      attributes: {},
+      pagination: {
+        next: res.data.links.next
+      }
+    }));
+  }
+
+  async autocompleteInitialValue (id:string): Promise<any> {
+    const client = await JsonApiRepo.getClientInstance();
+
+    const res = await client['retrieve' + this.resourcePath + '{id}/'](
+      id,
+      {},
+      {
+        headers: { 'Content-Type': JsonApiMimeType }
+      }
+    );
+    return {
+      value: res.data.data.id,
+      text: res.data.data.attributes.title,
+      attributes: res.data.data.attributes,
+      pagination: {
+        next: undefined
+      }
+    };
   }
 }
 

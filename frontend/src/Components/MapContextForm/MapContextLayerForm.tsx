@@ -1,5 +1,5 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Divider, Form, notification } from 'antd';
+import { Divider, Form, FormInstance, notification } from 'antd';
 import React, { FC, useEffect, useState } from 'react';
 
 import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
@@ -10,7 +10,7 @@ import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormFie
 import { SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 
 interface MapContextLayerFormProps {
-  form?: any;
+  form?: FormInstance<any>;
   onSubmit?: (values?:any) => void;
 }
 
@@ -53,61 +53,108 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   const [featureSelectionLayerOptions, setFeatureSelectionLayerOptions] = useState<any[]>([]);
 
   const [selectedDatasetMetadata, setSelectedDatasetMetadata] = useState<any>();
+  const [selectedRenderingLayer, setSelectedRenderingLayer] = useState<any>();
+  const [selectedFeatureSelectionLayer, setSelectedFeatureSelectionLayer] = useState<any>();
 
   /**
    * @description: Hook to run on component mount. Fetches initial results for daataset metadata autocomplete
    */
   useEffect(() => {
-    fetchData(
-      () => datasetMetadataRepo.autocomplete(''),
-      (values) => setDatasetMetadataOptions(values),
-      (boolean) => setIsDatasetMetadataOptionsLoading(boolean)
-    );
-  }, []);
-
-  /**
-   * @description: Hook to run on when value of dataset metadata changes
-   */
-  useEffect(() => {
-    if (selectedDatasetMetadata) {
+    if (!selectedDatasetMetadata) {
       fetchData(
-        () => layerRepo.getFromIdArray(selectedDatasetMetadata.attributes.associatedLayers),
-        (values) => setRenderingLayerOptions(values),
-        (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+        () => datasetMetadataRepo.autocomplete(''),
+        (values) => setDatasetMetadataOptions(values),
+        (boolean) => setIsDatasetMetadataOptionsLoading(boolean)
       );
     }
   }, [selectedDatasetMetadata]);
+
+  // /**
+  //  * @description: Hook to run on when value of dataset metadata changes
+  //  */
+  // useEffect(() => {
+  //   if (selectedDatasetMetadata) {
+  //     fetchData(
+  //       () => layerRepo.getFromIdArray(selectedDatasetMetadata.attributes.associatedLayers),
+  //       (values) => setRenderingLayerOptions(values),
+  //       (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+  //     );
+  //   }
+  // }, [selectedDatasetMetadata]);
+
+  /**
+   * @description: Hook  to run on component mount, if daataset metadata already has a value (on edit form)
+   */
+  useEffect(() => {
+    if (form?.getFieldValue('datasetMetadata')) {
+      fetchData(
+        () => datasetMetadataRepo.autocompleteInitialValue(form?.getFieldValue('datasetMetadata')),
+        (values) => {
+          setRenderingLayerOptions([values]);
+          setSelectedRenderingLayer(values);
+        },
+        (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+      );
+    }
+  }, []);
 
   /**
    * @description: Hook to run on component mount. Fetches initial results for rendering layer autocomplete
    */
   useEffect(() => {
-    fetchData(
-      () => layerRepo.autocomplete(''),
-      (values) => setRenderingLayerOptions(values),
-      (boolean) => setIsRenderingLayerOptionsLoading(boolean)
-    );
-  }, []);
+    if (!selectedRenderingLayer) {
+      fetchData(
+        () => layerRepo.autocomplete(''),
+        (values) => setRenderingLayerOptions(values),
+        (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+      );
+    }
+  }, [selectedRenderingLayer]);
 
   /**
-   * @description: Hook to run on when value of dataset metadata changes
+   * @description: Hook  to run on component mount, if rendering layer already has a value (on edit form)
    */
   useEffect(() => {
-    if (renderingLayerOptions) {
-      console.log(renderingLayerOptions);
+    if (form?.getFieldValue('renderingLayer')) {
+      fetchData(
+        () => layerRepo.autocompleteInitialValue(form?.getFieldValue('renderingLayer')),
+        (values) => {
+          setRenderingLayerOptions([values]);
+          setSelectedRenderingLayer(values);
+        },
+        (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+      );
     }
-  }, [renderingLayerOptions]);
+  }, []);
 
   /**
    * @description: Hook to run on component mount. Fetches initial results for rendering feature type selection
    * layers autocomplete
    */
   useEffect(() => {
-    fetchData(
-      () => featureTypesRepo.autocomplete(''),
-      (values) => setFeatureSelectionLayerOptions(values),
-      (boolean) => setIsFeatureSelectionLayerOptionsLoading(boolean)
-    );
+    if (!selectedFeatureSelectionLayer) {
+      fetchData(
+        () => featureTypesRepo.autocomplete(''),
+        (values) => setFeatureSelectionLayerOptions(values),
+        (boolean) => setIsFeatureSelectionLayerOptionsLoading(boolean)
+      );
+    }
+  }, [selectedFeatureSelectionLayer]);
+
+  /**
+   * @description: Hook  to run on component mount, if feature selection layer already has a value (on edit form)
+   */
+  useEffect(() => {
+    if (form?.getFieldValue('featureSelectionLayer')) {
+      fetchData(
+        () => layerRepo.autocompleteInitialValue(form?.getFieldValue('featureSelectionLayer')),
+        (values) => {
+          setRenderingLayerOptions([values]);
+          setSelectedRenderingLayer(values);
+        },
+        (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+      );
+    }
   }, []);
 
   return (
@@ -169,14 +216,10 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
           // }}
           onSelect={(value, option) => {
             setSelectedDatasetMetadata(option);
-            // TODO set rendering layer list
-            // TODO reset dependents
           }}
-          // onClear={() => {
-          //   setIsShowingRenderingData(false);
-          //   // TODO clear rendering layer list
-          //   // TODO reset dependents
-          // }}
+          onClear={() => {
+            setSelectedDatasetMetadata(undefined);
+          }}
           onSearch={(value: string) => {
             fetchData(
               () => datasetMetadataRepo.autocomplete(value),
@@ -205,13 +248,10 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
           //   hasFeedback: true
           // }}
           onSelect={(value, option) => {
-            // setIsShowingRenderingLayerAttributes(true);
-            // fill attribute fields with current layer attributes
-            form.setFieldsValue({
-              scaleMin: option.attributes.scaleMin,
-              scaleMax: option.attributes.scaleMax,
-              style: option.attributes.style
-            });
+            setSelectedRenderingLayer(option);
+          }}
+          onClear={() => {
+            setSelectedRenderingLayer(undefined);
           }}
           onSearch={(value: string) => {
             fetchData(
@@ -220,13 +260,11 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
               (boolean) => setIsRenderingLayerOptionsLoading(boolean)
             );
           }}
-          // onClear={() => {
-          //   setIsShowingRenderingLayerAttributes(false);
-          // }}
+          pagination
         />
 
         <InputFormField
-          disabled={!form.getFieldValue('scaleMin')}
+          disabled={!form?.getFieldValue('scaleMin')}
           label='Scale minimum value'
           name='scaleMin'
           tooltip={{
@@ -239,7 +277,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
         />
 
         <InputFormField
-          disabled={!form.getFieldValue('scaleMax')}
+          disabled={!form?.getFieldValue('scaleMax')}
           label='Scale maximum value'
           name='scaleMax'
           tooltip={{
@@ -252,7 +290,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
         />
 
         <InputFormField
-          disabled={!form.getFieldValue('style')}
+          disabled={!form?.getFieldValue('style')}
           label='Style'
           name='style'
           tooltip={{ title: 'Select a style for rendering.', icon: <InfoCircleOutlined /> }}
@@ -272,13 +310,20 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
           placeholder='Select a feature type'
           searchData={featureSelectionLayerOptions}
           tooltip={{ title: ' Select a layer for feature selection.', icon: <InfoCircleOutlined /> }}
+          onSelect={(value, option) => {
+            setSelectedFeatureSelectionLayer(option);
+          }}
+          onClear={() => {
+            setSelectedFeatureSelectionLayer(undefined);
+          }}
           onSearch={(value: string) => {
             fetchData(
-              () => layerRepo.autocomplete(value),
+              () => featureTypesRepo.autocomplete(value),
               (values) => setFeatureSelectionLayerOptions(values),
               (boolean) => setIsFeatureSelectionLayerOptionsLoading(boolean)
             );
           }}
+          pagination
         />
       </Form>
   );

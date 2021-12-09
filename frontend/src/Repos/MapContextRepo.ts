@@ -1,9 +1,15 @@
+import { MPTTJsonApiTreeNodeType } from '../Components/MapContextForm/TreeFormField';
 import JsonApiRepo, { JsonApiMimeType, JsonApiPrimaryData, JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextCreate {
     title: string;
     abstract?: string;
     ownerOrganizationId: string;
+}
+
+interface MapContextWithLayersResponseType {
+  mapContext: JsonApiPrimaryData,
+  mapContextLayers: MPTTJsonApiTreeNodeType[]
 }
 
 export class MapContextRepo extends JsonApiRepo {
@@ -30,16 +36,20 @@ export class MapContextRepo extends JsonApiRepo {
     return this.add('MapContext', attributes, relationships);
   }
 
-  async getMapContextLayerFromMapContextId (mapContextId: string): Promise<JsonApiPrimaryData[]> {
+  async getMapContextWithLayers (mapContextId: string): Promise<MapContextWithLayersResponseType> {
     const client = await JsonApiRepo.getClientInstance();
-    const res = await client['List' + this.resourcePath + '{parent_lookup_map_context}/mapcontextlayers/'](
+    const res = await client['retrieve' + this.resourcePath + '{id}/'](
       mapContextId,
       {},
       {
-        headers: { 'Content-Type': JsonApiMimeType }
+        headers: { 'Content-Type': JsonApiMimeType },
+        params: { include: 'map_context_layers' }
       }
     );
-    return res.data.data;
+    return {
+      mapContext: res.data.data,
+      mapContextLayers: res.data.included
+    };
   }
 }
 

@@ -96,6 +96,7 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
             setsearchOptions([...searchOptions, ...response.data.map((o: any) => ({
               value: o.id,
               text: o.attributes.title,
+              attributes: o.attributes,
               pagination: {
                 next: response.links.next
               }

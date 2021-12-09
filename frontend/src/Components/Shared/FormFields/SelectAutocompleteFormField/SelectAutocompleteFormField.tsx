@@ -54,7 +54,7 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
   pagination = false
 
 }) => {
-  const [searchOptions, setsearchOptions] = useState<SearchFieldData[]>([]);
+  const [searchOptions, setSearchOptions] = useState<SearchFieldData[]>([]);
   const [nextPageData, setNextPageData] = useState<any>(undefined);
   const [isLoadingPaginatedResults, setIsLoadingPaginatedResults] = useState<boolean>(false);
 
@@ -62,7 +62,7 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
    * @description Hook to run when searchData changes
    */
   useEffect(() => {
-    setsearchOptions(searchData);
+    setSearchOptions(searchData);
   }, [searchData]);
 
   /**
@@ -101,7 +101,7 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
           if (promise.ok) {
             const response = await promise.json();
             // update the search options by providing more results coming from the response
-            setsearchOptions([...searchOptions, ...response.data.map((o: any) => ({
+            setSearchOptions([...searchOptions, ...response.data.map((o: any) => ({
               value: o.id,
               text: o.attributes.title,
               attributes: o.attributes,

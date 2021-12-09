@@ -39,15 +39,16 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     with transaction.atomic():
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
+        # FIXME: pass the current user
         if isinstance(parsed_service, WmsXmlMapper):
             db_service = WebMapService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service, **{"current_user": self.user, "owner": self.owner})
+                parsed_service=parsed_service, **{"owner": self.owner})
         elif isinstance(parsed_service, WfsXmlMapper):
             db_service = WebFeatureService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service, **{"current_user": self.user, "owner": self.owner})
+                parsed_service=parsed_service, **{"owner": self.owner})
         elif isinstance(parsed_service, CswXmlMapper):
             db_service = CatalougeService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service, **{"current_user": self.user, "owner": self.owner})
+                parsed_service=parsed_service, **{"owner": self.owner})
         else:
             raise NotImplementedError(
                 "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")

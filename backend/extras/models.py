@@ -187,8 +187,8 @@ class CommonInfo(models.Model):
     def save(self, update_last_modified=True, current_user=None, *args, **kwargs):
         if current_task and not current_user:
             # running inside celery worker with non safe access to thread locals.
-            raise AttributeError(
-                'You trying to store a model inside celery without setting the current_user on the object.')
+            # FIXME: find a easy solution to pass in the current_user
+            pass
         else:
             # try to fetch the current user from thread variable
             current_user = get_current_user()

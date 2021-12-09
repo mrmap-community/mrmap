@@ -59,11 +59,20 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
   const [isLoadingPaginatedResults, setIsLoadingPaginatedResults] = useState<boolean>(false);
 
   /**
-   * @descriptionHook to run when searchData changes
+   * @description Hook to run when searchData changes
    */
   useEffect(() => {
     setsearchOptions(searchData);
   }, [searchData]);
+
+  /**
+   * @description Hook to run when searchData is available and has pagination. Fetches the initial pagination data
+   */
+  useEffect(() => {
+    if (pagination && searchOptions) {
+      getPaginationData(searchOptions);
+    }
+  }, [searchOptions]);
 
   /**
    * @description: Method to fetch paginaation data and set it to ther state.
@@ -85,7 +94,6 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
     const hasReachedBottom: boolean = e.target.scrollHeight - e.target.scrollTop === e.target.clientHeight;
 
     if (pagination) {
-      getPaginationData(searchOptions);
       if (nextPageData && nextPageData.next && hasReachedBottom) {
         try {
           setIsLoadingPaginatedResults(true);

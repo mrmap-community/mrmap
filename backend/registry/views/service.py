@@ -70,13 +70,6 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
-    def get_queryset(self):
-        queryset = super(LayerViewSet, self).get_queryset()
-        if "parent_lookup_service" in self.kwargs:
-            queryset = queryset.filter(
-                service__id=self.kwargs["parent_lookup_service"])
-        return queryset
-
 
 class WebFeatureServiceRelationshipView(RelationshipView):
     schema = AutoSchema(
@@ -117,13 +110,6 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-    def get_queryset(self):
-        queryset = super(FeatureTypeViewSet, self).get_queryset()
-        if "parent_lookup_service" in self.kwargs:
-            queryset = queryset.filter(
-                service__id=self.kwargs["parent_lookup_service"])
-        return queryset
 
 
 class OgcServiceViewSet(ModelViewSet):

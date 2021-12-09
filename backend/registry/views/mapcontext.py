@@ -28,7 +28,7 @@ class MapContextLayerRelationshipView(RelationshipView):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
-class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
+class MapContextViewSet(ModelViewSet):
     schema = AutoSchema(
         tags=['MapContext'],
     )
@@ -51,7 +51,7 @@ class MapContextViewSet(NestedViewSetMixin, ModelViewSet):
         )
 
 
-class MapContextLayerViewSet(ModelViewSet):
+class MapContextLayerViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=['MapContext'],
     )
@@ -61,13 +61,6 @@ class MapContextLayerViewSet(ModelViewSet):
         "move_to": MapContextLayerMoveLayerSerializer,
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-    def get_queryset(self):
-        queryset = super(MapContextLayerViewSet, self).get_queryset()
-        if 'parent_lookup_map_context' in self.kwargs:
-            queryset = queryset.filter(
-                map_context__id=self.kwargs['parent_lookup_map_context'])
-        return queryset
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.serializer_classes['default'])

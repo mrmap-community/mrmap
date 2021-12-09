@@ -7,7 +7,7 @@ export interface Login {
 
 export class LoginRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/accounts/login/');
+    super('/api/v1/accounts/login/', '');
   }
 
   async login (obtain: Login): Promise<JsonApiResponse> {

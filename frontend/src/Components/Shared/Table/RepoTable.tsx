@@ -2,7 +2,7 @@ import '@ant-design/pro-table/dist/table.css';
 
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable, { ActionType, ProColumnType } from '@ant-design/pro-table';
-import { Button, Card, Modal, notification, Space } from 'antd';
+import { Button, Modal, notification, Space } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -13,12 +13,19 @@ import { augmentColumnWithJsonSchema } from './TableHelper';
 export interface RepoTableProps {
     /** Repository that defines the schema and offers CRUD operations */
     repo: JsonApiRepo
-    /** Optional column hints, will be augmented by the repository schema */
-    columns?: ProColumnType[]
+    /** Optional column definitions, automatically augmented with the repository schema */
+    columns?: RepoTableColumnType[]
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
-    addRecord?: string
-    onEditRecord?: (recordId: number | string) => void | undefined
+    /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
+    onAddRecord?: string
+    /** Function to invoke for editing records (if omitted, no 'Edit' button will be available) */
+    onEditRecord?: (recordId: number | string) => void
+}
+
+export type RepoTableColumnType = ProColumnType & {
+  /** Optional mapping of query form values to repo filter params */
+  toFilterParams?: (value: any) => { [key: string]: string; }
 }
 
 // extends ActionType from Pro Table
@@ -27,14 +34,15 @@ export type RepoActionType = ActionType & {
   deleteRecord: (row:any) => void
 }
 
-function augmentColumns (resourceSchema: any, columnHints: ProColumnType[] | undefined): ProColumnType[] {
+function augmentColumns (resourceSchema: any, queryParams: any,
+  columnHints: ProColumnType[] | undefined): ProColumnType[] {
   const props = resourceSchema.properties.data.items.properties.attributes.properties;
   const columns:any = {};
   if (columnHints) {
     columnHints.forEach((columnHint) => {
       const columnName = columnHint.dataIndex as string;
       const schema = props[columnName];
-      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema);
+      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
     });
   }
   for (const propName in props) {
@@ -45,7 +53,7 @@ function augmentColumns (resourceSchema: any, columnHints: ProColumnType[] | und
     const columnHint = {
       dataIndex: propName
     };
-    columns[propName] = augmentColumnWithJsonSchema(columnHint, prop);
+    columns[propName] = augmentColumnWithJsonSchema(columnHint, prop, queryParams);
   }
   return Object.values(columns);
 }
@@ -54,7 +62,7 @@ export const RepoTable = ({
   repo,
   columns = undefined,
   actionRef = undefined,
-  addRecord = undefined,
+  onAddRecord = undefined,
   onEditRecord = undefined
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
@@ -96,12 +104,13 @@ export const RepoTable = ({
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
     async function buildColumns () {
-      const schema = await repo.getSchema();
-      const augmentedColumns = augmentColumns(schema, columns);
+      const resourceSchema = await repo.getResourceSchema();
+      const queryParams = await repo.getQueryParams();
+      const augmentedColumns = augmentColumns(resourceSchema, queryParams, columns);
       if (!augmentedColumns.some(column => column.key === 'actions')) {
         augmentedColumns.push({
-          title: 'Actions',
           key: 'actions',
+          title: 'Aktionen',
           valueType: 'option',
           render: (text: any, record: any) => {
             return (
@@ -112,7 +121,7 @@ export const RepoTable = ({
                     size='small'
                     onClick={() => onEditRecord(record.id)}
                   >
-                    Edit
+                    Bearbeiten
                   </Button>
               )}
                 <Button
@@ -120,7 +129,7 @@ export const RepoTable = ({
                   size='small'
                   onClick={() => actions.current?.deleteRecord(record)}
                 >
-                  Delete
+                  Löschen
                 </Button>
               </Space>
             </>
@@ -145,9 +154,8 @@ export const RepoTable = ({
     const filters:any = {};
     for (const prop in params) {
       // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
-      if (prop !== 'current' && prop !== 'pageSize') {
-        // TODO respect backend filtering capabilities
-        filters[`filter[${prop}.icontains]`] = params[prop];
+      if (prop !== 'current' && prop !== 'pageSize' && params[prop]) {
+        filters[prop] = params[prop];
       }
     }
     const queryParams = {
@@ -180,29 +188,34 @@ export const RepoTable = ({
   }
 
   return (
-  <Card
-    title='WebMapServices'
-    style={{ width: '100%' }}
-  >
-    { augmentedColumns.length > 0 && (<ProTable
+    <>{ augmentedColumns.length > 0 && (<ProTable
         request={fetchData}
         columns={augmentedColumns}
         scroll={{ x: true }}
-        headerTitle={'Records'}
+        headerTitle={repo.displayName}
         actionRef={setActions}
-        toolBarRender={() => [
+        dateFormatter={false}
+        toolBarRender={onAddRecord
+          ? () => [
           <Button
             type='primary'
             key='primary'
             onClick={() => {
-              navigate(addRecord as string);
+              navigate(onAddRecord as string);
             }}
           >
             <PlusOutlined />Neu
           </Button>
-        ]}
-    />)}
-  </Card>
+            ]
+          : () => []}
+        search={ augmentedColumns.some((column: RepoTableColumnType) => {
+          return column.search && column.search.transform;
+        })
+          ? {
+              layout: 'vertical'
+            }
+          : false}
+    />)}</>
   );
 };
 

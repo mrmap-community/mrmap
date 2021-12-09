@@ -36,7 +36,7 @@ type MapContextLayerAttributesUpdate = {
 
 export class MapContextLayerRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/mapcontextlayers/');
+    super('/api/v1/registry/mapcontextlayers/', 'Kartenebenen');
   }
 
   async move (

@@ -8,7 +8,7 @@ export interface OgcServiceCreate {
 
 export class OgcServiceRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/ogcservices/');
+    super('/api/v1/registry/ogcservices/', 'OGC Dienste');
   }
 
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {

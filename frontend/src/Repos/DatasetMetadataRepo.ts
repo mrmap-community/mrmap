@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 export class DatasetMetadataRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/dataset-metadata/');
+    super('/api/v1/registry/dataset-metadata/', 'Metadatensätze');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {

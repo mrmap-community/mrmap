@@ -1,18 +1,17 @@
-import { ProColumnType } from '@ant-design/pro-table';
 import { Button } from 'antd';
 import React, { useRef } from 'react';
 
 import WmsRepo from '../../Repos/WmsRepo';
-import RepoTable, { RepoActionType } from '../Shared/Table/RepoTable';
+import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/Table/RepoTable';
+import { buildSearchTransformDateRange } from '../Shared/Table/TableHelper';
 
 const repo = new WmsRepo();
 
 export const WmsTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
-  const columns: ProColumnType[] = [{
+  const columns: RepoTableColumnType[] = [{
     dataIndex: 'id',
-    title: 'ID',
-    ellipsis: true
+    title: 'ID'
   }, {
     dataIndex: 'title',
     title: 'Titel'
@@ -21,10 +20,36 @@ export const WmsTable = (): JSX.Element => {
     title: 'Zusammenfassung'
   }, {
     dataIndex: 'created_at',
-    title: 'Erstellt'
+    title: 'Erstellt',
+    hideInSearch: true
+  }, {
+    dataIndex: 'created_between',
+    title: 'Erstellt',
+    valueType: 'dateRange',
+    fieldProps: {
+      format: 'DD.MM.YYYY',
+      allowEmpty: [true, true]
+    },
+    search: {
+      transform: buildSearchTransformDateRange('created_at')
+    },
+    hideInTable: true
   }, {
     dataIndex: 'last_modified_at',
-    title: 'Zuletzt modifiziert'
+    title: 'Modifiziert',
+    hideInSearch: true
+  }, {
+    dataIndex: 'last_modified_between',
+    title: 'Modifiziert',
+    valueType: 'dateRange',
+    fieldProps: {
+      format: 'DD.MM.YYYY',
+      allowEmpty: [true, true]
+    },
+    search: {
+      transform: buildSearchTransformDateRange('last_modified_at')
+    },
+    hideInTable: true
   }, {
     dataIndex: 'version',
     title: 'Version'
@@ -96,7 +121,7 @@ export const WmsTable = (): JSX.Element => {
     hideInSearch: true
   }, {
     key: 'actions',
-    title: 'Actions',
+    title: 'Aktionen',
     valueType: 'option',
     render: (text: any, record:any) => {
       return (
@@ -108,7 +133,7 @@ export const WmsTable = (): JSX.Element => {
                 actionRef.current?.deleteRecord(record);
               }}
             >
-              Delete
+              Löschen
             </Button>
         </>
       );
@@ -119,7 +144,7 @@ export const WmsTable = (): JSX.Element => {
             repo={repo}
             columns={columns}
             actionRef={actionRef as any}
-            addRecord='/registry/services/add'
+            onAddRecord='/registry/services/add'
           />;
 };
 

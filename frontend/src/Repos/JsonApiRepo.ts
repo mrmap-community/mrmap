@@ -43,8 +43,11 @@ export class JsonApiRepo {
 
     protected readonly resourcePath: string;
 
-    constructor (resourcePath: string) {
+    readonly displayName: string;
+
+    constructor (resourcePath: string, displayName: string) {
       this.resourcePath = resourcePath;
+      this.displayName = displayName;
     }
 
     static async getClientInstance (): Promise<OpenAPIClient> {
@@ -77,7 +80,7 @@ export class JsonApiRepo {
       return this.apiInstance;
     }
 
-    async getSchema (): Promise<any> {
+    async getResourceSchema (): Promise<any> {
       const client = await JsonApiRepo.getClientInstance();
       const op = client.api.getOperation('List' + this.resourcePath);
       if (!op) {
@@ -92,6 +95,19 @@ export class JsonApiRepo {
         return [];
       }
       return mimeType.schema;
+    }
+
+    async getQueryParams (): Promise<any> {
+      const client = await JsonApiRepo.getClientInstance();
+      const op = client.api.getOperation('List' + this.resourcePath);
+      if (!op) {
+        return [];
+      }
+      const params:any = {};
+      op.parameters?.forEach((element: any) => {
+        params[element.name] = element;
+      });
+      return params;
     }
 
     async findAll (queryParams?: QueryParams): Promise<JsonApiResponse> {

@@ -1,0 +1,311 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Renders the MapContext Component 1`] = `
+Object {
+  "asFragment": [Function],
+  "baseElement": <body>
+    <div>
+      <h1 />
+      <div
+        class="ant-tree tree-form-field ant-tree-show-line"
+        role="tree"
+      >
+        <div>
+          <input
+            aria-label="for screen reader"
+            style="width: 0px; height: 0px; display: flex; overflow: hidden; opacity: 0; border: 0px; padding: 0px; margin: 0px;"
+            tabindex="0"
+            value=""
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          class="ant-tree-treenode"
+          style="position: absolute; pointer-events: none; visibility: hidden; height: 0px; overflow: hidden;"
+        >
+          <div
+            class="ant-tree-indent"
+          >
+            <div
+              class="ant-tree-indent-unit"
+            />
+          </div>
+        </div>
+        <div
+          class="ant-tree-list"
+          style="position: relative;"
+        >
+          <div
+            class="ant-tree-list-holder"
+          >
+            <div>
+              <div
+                class="ant-tree-list-holder-inner"
+                style="display: flex; flex-direction: column;"
+              >
+                <div
+                  class="ant-tree-treenode-motion"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>,
+  "container": <div>
+    <h1 />
+    <div
+      class="ant-tree tree-form-field ant-tree-show-line"
+      role="tree"
+    >
+      <div>
+        <input
+          aria-label="for screen reader"
+          style="width: 0px; height: 0px; display: flex; overflow: hidden; opacity: 0; border: 0px; padding: 0px; margin: 0px;"
+          tabindex="0"
+          value=""
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        class="ant-tree-treenode"
+        style="position: absolute; pointer-events: none; visibility: hidden; height: 0px; overflow: hidden;"
+      >
+        <div
+          class="ant-tree-indent"
+        >
+          <div
+            class="ant-tree-indent-unit"
+          />
+        </div>
+      </div>
+      <div
+        class="ant-tree-list"
+        style="position: relative;"
+      >
+        <div
+          class="ant-tree-list-holder"
+        >
+          <div>
+            <div
+              class="ant-tree-list-holder-inner"
+              style="display: flex; flex-direction: column;"
+            >
+              <div
+                class="ant-tree-treenode-motion"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  "debug": [Function],
+  "findAllByAltText": [Function],
+  "findAllByDisplayValue": [Function],
+  "findAllByLabelText": [Function],
+  "findAllByPlaceholderText": [Function],
+  "findAllByRole": [Function],
+  "findAllByTestId": [Function],
+  "findAllByText": [Function],
+  "findAllByTitle": [Function],
+  "findByAltText": [Function],
+  "findByDisplayValue": [Function],
+  "findByLabelText": [Function],
+  "findByPlaceholderText": [Function],
+  "findByRole": [Function],
+  "findByTestId": [Function],
+  "findByText": [Function],
+  "findByTitle": [Function],
+  "getAllByAltText": [Function],
+  "getAllByDisplayValue": [Function],
+  "getAllByLabelText": [Function],
+  "getAllByPlaceholderText": [Function],
+  "getAllByRole": [Function],
+  "getAllByTestId": [Function],
+  "getAllByText": [Function],
+  "getAllByTitle": [Function],
+  "getByAltText": [Function],
+  "getByDisplayValue": [Function],
+  "getByLabelText": [Function],
+  "getByPlaceholderText": [Function],
+  "getByRole": [Function],
+  "getByTestId": [Function],
+  "getByText": [Function],
+  "getByTitle": [Function],
+  "queryAllByAltText": [Function],
+  "queryAllByDisplayValue": [Function],
+  "queryAllByLabelText": [Function],
+  "queryAllByPlaceholderText": [Function],
+  "queryAllByRole": [Function],
+  "queryAllByTestId": [Function],
+  "queryAllByText": [Function],
+  "queryAllByTitle": [Function],
+  "queryByAltText": [Function],
+  "queryByDisplayValue": [Function],
+  "queryByLabelText": [Function],
+  "queryByPlaceholderText": [Function],
+  "queryByRole": [Function],
+  "queryByTestId": [Function],
+  "queryByText": [Function],
+  "queryByTitle": [Function],
+  "rerender": [Function],
+  "unmount": [Function],
+}
+`;
+
+exports[`Renders the TreeFormField Component 1`] = `
+Object {
+  "asFragment": [Function],
+  "baseElement": <body>
+    <div>
+      <h1 />
+      <div
+        class="ant-tree tree-form-field ant-tree-show-line"
+        role="tree"
+      >
+        <div>
+          <input
+            aria-label="for screen reader"
+            style="width: 0px; height: 0px; display: flex; overflow: hidden; opacity: 0; border: 0px; padding: 0px; margin: 0px;"
+            tabindex="0"
+            value=""
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          class="ant-tree-treenode"
+          style="position: absolute; pointer-events: none; visibility: hidden; height: 0px; overflow: hidden;"
+        >
+          <div
+            class="ant-tree-indent"
+          >
+            <div
+              class="ant-tree-indent-unit"
+            />
+          </div>
+        </div>
+        <div
+          class="ant-tree-list"
+          style="position: relative;"
+        >
+          <div
+            class="ant-tree-list-holder"
+          >
+            <div>
+              <div
+                class="ant-tree-list-holder-inner"
+                style="display: flex; flex-direction: column;"
+              >
+                <div
+                  class="ant-tree-treenode-motion"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>,
+  "container": <div>
+    <h1 />
+    <div
+      class="ant-tree tree-form-field ant-tree-show-line"
+      role="tree"
+    >
+      <div>
+        <input
+          aria-label="for screen reader"
+          style="width: 0px; height: 0px; display: flex; overflow: hidden; opacity: 0; border: 0px; padding: 0px; margin: 0px;"
+          tabindex="0"
+          value=""
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        class="ant-tree-treenode"
+        style="position: absolute; pointer-events: none; visibility: hidden; height: 0px; overflow: hidden;"
+      >
+        <div
+          class="ant-tree-indent"
+        >
+          <div
+            class="ant-tree-indent-unit"
+          />
+        </div>
+      </div>
+      <div
+        class="ant-tree-list"
+        style="position: relative;"
+      >
+        <div
+          class="ant-tree-list-holder"
+        >
+          <div>
+            <div
+              class="ant-tree-list-holder-inner"
+              style="display: flex; flex-direction: column;"
+            >
+              <div
+                class="ant-tree-treenode-motion"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  "debug": [Function],
+  "findAllByAltText": [Function],
+  "findAllByDisplayValue": [Function],
+  "findAllByLabelText": [Function],
+  "findAllByPlaceholderText": [Function],
+  "findAllByRole": [Function],
+  "findAllByTestId": [Function],
+  "findAllByText": [Function],
+  "findAllByTitle": [Function],
+  "findByAltText": [Function],
+  "findByDisplayValue": [Function],
+  "findByLabelText": [Function],
+  "findByPlaceholderText": [Function],
+  "findByRole": [Function],
+  "findByTestId": [Function],
+  "findByText": [Function],
+  "findByTitle": [Function],
+  "getAllByAltText": [Function],
+  "getAllByDisplayValue": [Function],
+  "getAllByLabelText": [Function],
+  "getAllByPlaceholderText": [Function],
+  "getAllByRole": [Function],
+  "getAllByTestId": [Function],
+  "getAllByText": [Function],
+  "getAllByTitle": [Function],
+  "getByAltText": [Function],
+  "getByDisplayValue": [Function],
+  "getByLabelText": [Function],
+  "getByPlaceholderText": [Function],
+  "getByRole": [Function],
+  "getByTestId": [Function],
+  "getByText": [Function],
+  "getByTitle": [Function],
+  "queryAllByAltText": [Function],
+  "queryAllByDisplayValue": [Function],
+  "queryAllByLabelText": [Function],
+  "queryAllByPlaceholderText": [Function],
+  "queryAllByRole": [Function],
+  "queryAllByTestId": [Function],
+  "queryAllByText": [Function],
+  "queryAllByTitle": [Function],
+  "queryByAltText": [Function],
+  "queryByDisplayValue": [Function],
+  "queryByLabelText": [Function],
+  "queryByPlaceholderText": [Function],
+  "queryByRole": [Function],
+  "queryByTestId": [Function],
+  "queryByText": [Function],
+  "queryByTitle": [Function],
+  "rerender": [Function],
+  "unmount": [Function],
+}
+`;

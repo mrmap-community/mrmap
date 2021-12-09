@@ -17,19 +17,13 @@ class MapContextLayerSerializer(ModelSerializer):
         model = MapContextLayer
         fields = "__all__"
 
+    def validate(self, attrs):
+        validated_data = super().validate(attrs)
+        # FIXME: check if the requesting user has permissions to change the parent. If not raise PermissionDenied
+        return validated_data
+
 
 class MapContextDefaultSerializer(ModelSerializer):
-
-    url = HyperlinkedIdentityField(
-        view_name='registry:mapcontext-detail',
-    )
-
-    class Meta:
-        model = MapContext
-        fields = "__all__"
-
-
-class MapContextListSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
@@ -47,6 +41,12 @@ class MapContextListSerializer(ModelSerializer):
     class Meta:
         model = MapContext
         fields = "__all__"
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        # to set the map_context_layer_count attribute on a frech object, so that the map_context_layers field will not raise an AttributeError
+        instance.map_context_layer_count = 0
+        return instance
 
 
 class MapContextIncludeSerializer(ModelSerializer):

@@ -44,6 +44,8 @@ class MapContextViewSet(ModelViewSet):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
     def get_serializer_class(self):
+        # if we detect include as queryparam, we need to switch the serializer,
+        # cause the default serializer uses HyperlinkedRelatedField to render related fields.
         if self.request and 'include' in self.request.query_params:
             return self.serializer_classes["include"]
         return self.serializer_classes.get(

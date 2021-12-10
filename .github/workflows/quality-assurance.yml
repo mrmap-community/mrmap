@@ -24,10 +24,6 @@ jobs:
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
       
-      - name: Run unit tests
-        run: |
-          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from test test 
-      
       - name: Run behave tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
@@ -37,6 +33,7 @@ jobs:
         with:
           args: >
             -Dsonar.branch.name=${env.BRANCH_NAME}
+            -Dsonar.working.directory=./backend
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
           SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}'

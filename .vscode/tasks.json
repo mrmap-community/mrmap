@@ -92,6 +92,44 @@
             "problemMatcher": []
         },
         {
+            "label": "Docker-Compose: sonarqube",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "sonarqube",
+                "--abort-on-container-exit",
+                "sonarqube"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: sonar-scanner",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "sonar-scanner",
+                "--abort-on-container-exit",
+                "sonar-scanner"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "Docker-Compose: mrmap validator",
             "type": "shell",
             "command": "docker-compose",

@@ -7,25 +7,6 @@ __pycache__/
 # C extensions
 *.so
 
-# Distribution / packaging
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -39,15 +20,11 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-nosecover.xml
-*,cover
-**/xunit-result.xml
-coverage-report.xml
-.hypothesis/
+**/.coverage
+**/.coverage.*
+**/.cache
+**/coverage.xml
+**/coverage.json
 
 # Django stuff:
 *.log
@@ -61,12 +38,6 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-<<<<<<< HEAD
-# Sphinx documentation
-_docs/_build/
-=======
->>>>>>> 6547e7f6ad710c8351a3ede267a054c17a44fa14
-
 # PyBuilder
 target/
 
@@ -76,14 +47,8 @@ target/
 # pyenv
 .python-version
 
-# celery beat schedule file
-celerybeat-schedule
-
 # SageMath parsed files
 *.sage.py
-
-# dotenv
-.env
 
 # virtualenv
 .venv
@@ -100,39 +65,12 @@ ENV/
 .ropeproject
 
 # Pycharm
-./idea
-.idea/
-
-.idea/
-
-redis/redis_data/
+.idea
 
 # Sonar
 .scannerwork/
-
-# postgis
-postgis/postgresql_data/PyXB-1.2.6/
-PyXB-1.2.6/
-logs/
-celerybeat.pid
-
-docker/etf-inspire/
-docker/etf/
-docker/geoserver/
-docker/postgis/postgresql_data/coverage-report.xml
-coverage-report.xml
-**/xunit-result.xml
-/docker/postgis/postgresql_data/
-/docker/redis/redis_data/
-
-ext_auth_keys/
-mrmap/media/
 
 # npm-related
 node_modules/
 /mrmap/static/
 package-lock.json
-
-selenium-*.png
-*coverage.xml
-*coverage-report.xml

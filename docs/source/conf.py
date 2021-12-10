@@ -18,7 +18,7 @@ import os
 import sys
 
 import django
-from MrMap.settings import LOG_DIR
+from backend.MrMap.settings import LOG_DIR
 # to get docstrings from django code, the django project needs to setup fist
 from sphinx.builders.html import StandaloneHTMLBuilder
 

@@ -43,5 +43,6 @@ jobs:
         run: |
           echo "sonar.branch.name=$GITHUB_HEAD_REF" >> ./backend/sonar-project.properties
           echo "sonar.branch.target=$GITHUB_BASE_REF" >> ./backend/sonar-project.properties
-          echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./backend/sonar-project.properties          
+          echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./backend/sonar-project.properties
+          cat ./backend/sonar-project.properties
           GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner

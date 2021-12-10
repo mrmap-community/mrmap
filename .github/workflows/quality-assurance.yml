@@ -40,8 +40,8 @@ jobs:
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
       
       - name: Run sonar-scanner
+        args: >
+            -Dsonar.branch.name=${env.BRANCH_NAME}
         run: |
-          SONAR_TOKEN=$SONAR_TOKEN GITHUB_TOKEN=$GITHUB_TOKEN docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner
-        env: 
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-          SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}'
+          SONAR_TOKEN='${{ secrets.SONAR_TOKEN }}' GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner
+

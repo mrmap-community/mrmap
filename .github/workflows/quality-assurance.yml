@@ -27,13 +27,17 @@ jobs:
       - name: Run behave tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
-      
+            
+      - name: copy backend src
+        run: |
+          cp -r ./backend /opt/mrmap
+
       - name: push results to sonarcloud
         uses: SonarSource/sonarcloud-github-action@master
         with:
           args: >
             -Dsonar.branch.name=${env.BRANCH_NAME}
-            -Dsonar.working.directory=./backend
+          projectBaseDir: /opt/mrmap
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
           SONAR_TOKEN: '${{ secrets.SONAR_TOKEN }}'

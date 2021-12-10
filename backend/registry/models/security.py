@@ -19,9 +19,8 @@ from registry.enums.service import (AuthTypeEnum, OGCOperationEnum,
                                     OGCServiceEnum)
 from registry.managers.security import (AllowedOperationManager,
                                         AnalyzedResponseLogTableManager)
-from registry.models.service import (CatalougeService, FeatureType, Layer,
-                                     OgcService, WebFeatureService,
-                                     WebMapService)
+from registry.models.service import (FeatureType, Layer, OgcService,
+                                     WebFeatureService, WebMapService)
 from registry.tasks.security import async_analyze_log
 from requests.auth import HTTPDigestAuth
 

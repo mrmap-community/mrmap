@@ -2,8 +2,6 @@ from datetime import date, datetime
 
 from django.core.files.base import ContentFile
 from django.db import OperationalError, models, transaction
-from django.db.models import (BooleanField, Count, ExpressionWrapper, F, Q,
-                              Subquery)
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from registry.enums.metadata import MetadataOrigin

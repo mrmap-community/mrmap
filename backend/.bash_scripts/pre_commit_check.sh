@@ -14,7 +14,7 @@ NOCOLOR='\033[0m'
 
 
 echo "Validating PEP8 compliance..."
-flake8 --ignore E501,W504 /opt/mrmap/
+flake8 --ignore E501,W503,W504 /opt/mrmap/ --exclude /opt/mrmap/tests/behave/api/steps/
 
 if [ $? != 0 ]; 
 then

@@ -2,7 +2,7 @@ from rest_framework_json_api.relations import HyperlinkedRelatedField
 
 
 class ExtendedHyperlinkedRelatedField(HyperlinkedRelatedField):
-    """extend the rest_framework_json_api.relations.HyperlinkedRelatedField by adding 
+    """extend the rest_framework_json_api.relations.HyperlinkedRelatedField by adding
     the possibility to add meta key on json:api response per related field
     """
 

@@ -18,13 +18,11 @@ import os
 import sys
 
 import django
-from backend.MrMap.settings import LOG_DIR
-# to get docstrings from django code, the django project needs to setup fist
-from sphinx.builders.html import StandaloneHTMLBuilder
 
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../backend'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 # Get an instance of a logger
+from MrMap.settings import LOG_DIR
 
 # create log dir if it does not exist
 if not os.path.exists(LOG_DIR):
@@ -80,7 +78,8 @@ linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http
 
 master_doc = "index"
 
-
+# to get docstrings from django code, the django project needs to setup fist
+from sphinx.builders.html import StandaloneHTMLBuilder
 StandaloneHTMLBuilder.supported_image_types = [
     'image/svg+xml',
     'image/gif',

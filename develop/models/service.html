@@ -82,6 +82,21 @@
   <div class="section" id="module-registry.models.service">
 <span id="service-models"></span><span id="models-resource-service"></span><h1>Service Models<a class="headerlink" href="#module-registry.models.service" title="Permalink to this headline"></a></h1>
 <dl class="py class">
+<dt class="sig sig-object py" id="registry.models.service.CatalougeService">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">CatalougeService</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polymorphic_ctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xml_backup_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">access_constraints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fees</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_limitation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">license_source_note</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">licence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_stamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_identifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">abstract</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_broken</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_customized</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">insufficient_quality</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_searchable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_contact</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata_contact</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_active</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_capabilities_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ogcservice_ptr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.CatalougeService" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.CatalougeService.DoesNotExist">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.CatalougeService.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.CatalougeService.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.service.CatalougeService.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="registry.models.service.FeatureType">
 <em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">FeatureType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.FeatureType" title="Permalink to this definition"></a></dt>
 <dd><p>Concrete model class to store parsed FeatureType.</p>
@@ -127,7 +142,7 @@
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.FeatureType.save" title="Permalink to this definition"></a></dt>
 <dd><p>Custom save function to handle activate process for the feature type and his related service.
 If the given feature type shall be active, the feature type it self and the related
-<a class="reference internal" href="#registry.models.service.Service" title="registry.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></a> will be updated with <code class="docutils literal notranslate"><span class="pre">is_active=True</span></code>.
+<code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code> will be updated with <code class="docutils literal notranslate"><span class="pre">is_active=True</span></code>.
 If the given feature type shall be inactive only the feature type it self will be updated with
 <code class="docutils literal notranslate"><span class="pre">is_active=False</span></code>.</p>
 </dd></dl>
@@ -136,7 +151,7 @@ If the given feature type shall be inactive only the feature type it self will b
 
 <dl class="py class">
 <dt class="sig sig-object py" id="registry.models.service.FeatureTypeElement">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">FeatureTypeElement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owned_by_org</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_occurs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_occurs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">required</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.FeatureTypeElement" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">FeatureTypeElement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_occurs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_occurs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">required</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.FeatureTypeElement" title="Permalink to this definition"></a></dt>
 <dd><dl class="py exception">
 <dt class="sig sig-object py" id="registry.models.service.FeatureTypeElement.DoesNotExist">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.FeatureTypeElement.DoesNotExist" title="Permalink to this definition"></a></dt>
@@ -155,7 +170,7 @@ If the given feature type shall be inactive only the feature type it self will b
 <dd><p>Concrete model class to store parsed layers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Attr objects</dt>
-<dd class="field-odd"><p>custom models manager <a class="reference internal" href="../managers/service.html#registry.managers.service.LayerManager" title="registry.managers.service.LayerManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.managers.service.LayerManager</span></code></a></p>
+<dd class="field-odd"><p>custom models manager <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.managers.service.LayerManager</span></code></p>
 </dd>
 </dl>
 <dl class="py exception">
@@ -271,7 +286,7 @@ any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)</p>
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.Layer.save" title="Permalink to this definition"></a></dt>
 <dd><p>Custom save function to handle activate process for the layer, all his descendants and his related service.
 If the given layer shall be active, the complete family (<code class="xref py py-meth docutils literal notranslate"><span class="pre">mptt.models.MPTTModel.get_family()</span></code>) of this
-layer and the related <a class="reference internal" href="#registry.models.service.Service" title="registry.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></a> will be updated with <code class="docutils literal notranslate"><span class="pre">ìs_active=True</span></code>.
+layer and the related <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code> will be updated with <code class="docutils literal notranslate"><span class="pre">ìs_active=True</span></code>.
 If the given layer shall be inactive, all descendants (<code class="xref py py-meth docutils literal notranslate"><span class="pre">mptt.models.MPTTModel.get_descendants()</span></code>) of this
 layer will be updated with <code class="docutils literal notranslate"><span class="pre">is_active=False</span></code>.</p>
 </dd></dl>
@@ -305,6 +320,32 @@ at least one &lt;CRS&gt; element that is either stated explicitly or inherited f
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="registry.models.service.OgcService">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">OgcService</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.OgcService" title="Permalink to this definition"></a></dt>
+<dd><p>Abstract Service model to store OGC service.</p>
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.OgcService.DoesNotExist">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.OgcService.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.OgcService.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.service.OgcService.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.models.service.OgcService.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.OgcService.save" title="Permalink to this definition"></a></dt>
+<dd><p>Save the current instance. Override this in a subclass if you want to
+control the saving process.</p>
+<p>The ‘force_insert’ and ‘force_update’ parameters can be used to insist
+that the “save” must be an SQL insert or update (or equivalent for
+non-SQL backends), respectively. Normally, they should not be set.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="registry.models.service.OperationUrl">
 <em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">OperationUrl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.OperationUrl" title="Permalink to this definition"></a></dt>
 <dd><p>Concrete model class to store operation urls for registered services</p>
@@ -322,59 +363,37 @@ at least one &lt;CRS&gt; element that is either stated explicitly or inherited f
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="registry.models.service.Service">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">Service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.Service" title="Permalink to this definition"></a></dt>
-<dd><p>Light polymorph model class to store all registered services.</p>
-<dl class="py exception">
-<dt class="sig sig-object py" id="registry.models.service.Service.DoesNotExist">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.Service.DoesNotExist" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py exception">
-<dt class="sig sig-object py" id="registry.models.service.Service.MultipleObjectsReturned">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.service.Service.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.models.service.Service.is_service_type">
-<span class="sig-name descname"><span class="pre">is_service_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">registry.enums.service.OGCServiceEnum</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.Service.is_service_type" title="Permalink to this definition"></a></dt>
-<dd><p>Return True if the given service type name matches else return None</p>
-<dl class="simple">
-<dt>Returns:</dt><dd><p>True|False (boolean)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.models.service.Service.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.Service.save" title="Permalink to this definition"></a></dt>
-<dd><p>Save the current instance. Override this in a subclass if you want to
-control the saving process.</p>
-<p>The ‘force_insert’ and ‘force_update’ parameters can be used to insist
-that the “save” must be an SQL insert or update (or equivalent for
-non-SQL backends), respectively. Normally, they should not be set.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="registry.models.service.ServiceElement">
 <em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">ServiceElement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.ServiceElement" title="Permalink to this definition"></a></dt>
 <dd><p>Abstract model class to generalize some fields and functions for layers and feature types</p>
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="registry.models.service.ServiceType">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">ServiceType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.ServiceType" title="Permalink to this definition"></a></dt>
-<dd><p>Concrete model class to store different service types such as wms 1.1.1, csw 2.0.2…</p>
-<dl class="py exception">
-<dt class="sig sig-object py" id="registry.models.service.ServiceType.DoesNotExist">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.ServiceType.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.models.service.WebFeatureService">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">WebFeatureService</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polymorphic_ctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xml_backup_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">access_constraints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fees</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_limitation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">license_source_note</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">licence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_stamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_identifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">abstract</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_broken</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_customized</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">insufficient_quality</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_searchable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_contact</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata_contact</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_active</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_capabilities_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ogcservice_ptr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.WebFeatureService" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.WebFeatureService.DoesNotExist">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.WebFeatureService.DoesNotExist" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py exception">
-<dt class="sig sig-object py" id="registry.models.service.ServiceType.MultipleObjectsReturned">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.service.ServiceType.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.models.service.WebFeatureService.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.service.WebFeatureService.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.service.WebMapService">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.service.</span></span><span class="sig-name descname"><span class="pre">WebMapService</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polymorphic_ctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xml_backup_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">access_constraints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fees</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_limitation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">license_source_note</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">licence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_stamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_identifier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">abstract</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_broken</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_customized</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">insufficient_quality</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_searchable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_contact</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata_contact</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_active</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_capabilities_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ogcservice_ptr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.service.WebMapService" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.WebMapService.DoesNotExist">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.service.WebMapService.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.service.WebMapService.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.service.WebMapService.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>

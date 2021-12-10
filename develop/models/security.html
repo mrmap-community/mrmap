@@ -84,7 +84,7 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="registry.models.security.AllowedOperation">
 <em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AllowedOperation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AllowedOperation" title="Permalink to this definition"></a></dt>
-<dd><p>A AllowedOperation represents a security configuration for a given <a class="reference internal" href="service.html#registry.models.service.Service" title="registry.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></a>.</p>
+<dd><p>A AllowedOperation represents a security configuration for a given <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Attr operations</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.db.models.fields.related.ManyToManyField</span></code> field to configure allowed OGC
@@ -118,7 +118,7 @@ feature types.</p>
 <dt>One allowed operation is a configuration to allow</dt><dd><ul class="simple">
 <li><p>a set of <a class="reference internal" href="#registry.models.security.ServiceAccessGroup" title="registry.models.security.ServiceAccessGroup"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ServiceAccessGroup</span></code></a></p></li>
 <li><p>to access a set of <a class="reference internal" href="service.html#registry.models.service.Layer" title="registry.models.service.Layer"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Layer</span></code></a> or <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.FeatureType</span></code></p></li>
-<li><p>for one configured <a class="reference internal" href="service.html#registry.models.service.Service" title="registry.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></a></p></li>
+<li><p>for one configured <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></p></li>
 <li><p>limited by the configured <a class="reference internal" href="#registry.models.security.OGCOperation" title="registry.models.security.OGCOperation"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.OGCOperation</span></code></a></p></li>
 <li><p>and (optional) limited by a configured <code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.geos.MultiPolygon</span></code></p></li>
 </ul>
@@ -169,7 +169,7 @@ ELSE we create a new <a class="reference internal" href="#registry.models.securi
 
 <dl class="py class">
 <dt class="sig sig-object py" id="registry.models.security.AnalyzedResponseLog">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AnalyzedResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owned_by_org</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_total_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_unit</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AnalyzedResponseLog" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AnalyzedResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_total_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_unit</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AnalyzedResponseLog" title="Permalink to this definition"></a></dt>
 <dd><dl class="py exception">
 <dt class="sig sig-object py" id="registry.models.security.AnalyzedResponseLog.DoesNotExist">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.AnalyzedResponseLog.DoesNotExist" title="Permalink to this definition"></a></dt>
@@ -183,72 +183,8 @@ ELSE we create a new <a class="reference internal" href="#registry.models.securi
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">ExternalAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owned_by_org</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secured_service</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auth_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ExternalAuthentication" title="Permalink to this definition"></a></dt>
-<dd><dl class="py exception">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication.DoesNotExist">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.ExternalAuthentication.DoesNotExist" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py exception">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication.MultipleObjectsReturned">
-<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.ExternalAuthentication.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication.clean">
-<span class="sig-name descname"><span class="pre">clean</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ExternalAuthentication.clean" title="Permalink to this definition"></a></dt>
-<dd><p>Additional clean method. Cause we configured some fields to allow blank posting in model forms, such as used
-in the <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.views.service.ServiceUpdateView</span></code> to support adding optional
-<a class="reference internal" href="#registry.models.security.ExternalAuthentication" title="registry.models.security.ExternalAuthentication"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ExternalAuthentication</span></code></a> instances for a given
-<a class="reference internal" href="service.html#registry.models.service.Service" title="registry.models.service.Service"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></a>, we need to check in this custom clean() if there are empty posted
-fields.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Raises</dt>
-<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.core.exceptions.ValidationError</span></code>: If username, password or auth_type where empty.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication.decrypt">
-<span class="sig-name descname"><span class="pre">decrypt</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ExternalAuthentication.decrypt" title="Permalink to this definition"></a></dt>
-<dd><p>Decrypt the login credentials using the stored key</p>
-<dl class="simple">
-<dt>Returns:</dt><dd><p>username, password (tuple): the username and password in clear text</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication.delete">
-<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ExternalAuthentication.delete" title="Permalink to this definition"></a></dt>
-<dd><p>Overwrites default delete function</p>
-<p>Removes local stored file if it exists!</p>
-<dl class="simple">
-<dt>Args;</dt><dd><p>using:
-keep_parents:</p>
-</dd>
-<dt>Returns:</dt><dd><p>the deleted object</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.models.security.ExternalAuthentication.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">register_service</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ExternalAuthentication.save" title="Permalink to this definition"></a></dt>
-<dd><p>Save the current instance. Override this in a subclass if you want to
-control the saving process.</p>
-<p>The ‘force_insert’ and ‘force_update’ parameters can be used to insist
-that the “save” must be an SQL insert or update (or equivalent for
-non-SQL backends), respectively. Normally, they should not be set.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="registry.models.security.HttpRequestLog">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">HttpRequestLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elapsed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.HttpRequestLog" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">HttpRequestLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elapsed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wfs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.HttpRequestLog" title="Permalink to this definition"></a></dt>
 <dd><dl class="py exception">
 <dt class="sig sig-object py" id="registry.models.security.HttpRequestLog.DoesNotExist">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.HttpRequestLog.DoesNotExist" title="Permalink to this definition"></a></dt>
@@ -303,7 +239,7 @@ non-SQL backends), respectively. Normally, they should not be set.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="registry.models.security.ProxySetting">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">ProxySetting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owned_by_org</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secured_service</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camouflage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ProxySetting" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">ProxySetting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camouflage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wfs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ProxySetting" title="Permalink to this definition"></a></dt>
 <dd><dl class="py exception">
 <dt class="sig sig-object py" id="registry.models.security.ProxySetting.DoesNotExist">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.ProxySetting.DoesNotExist" title="Permalink to this definition"></a></dt>
@@ -327,7 +263,7 @@ have a special-case association with the field defined by NON_FIELD_ERRORS.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="registry.models.security.ServiceAccessGroup">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">ServiceAccessGroup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_ptr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owned_by_org</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ServiceAccessGroup" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">ServiceAccessGroup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_ptr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ServiceAccessGroup" title="Permalink to this definition"></a></dt>
 <dd><dl class="py exception">
 <dt class="sig sig-object py" id="registry.models.security.ServiceAccessGroup.DoesNotExist">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.ServiceAccessGroup.DoesNotExist" title="Permalink to this definition"></a></dt>
@@ -337,6 +273,55 @@ have a special-case association with the field defined by NON_FIELD_ERRORS.</p>
 <dt class="sig sig-object py" id="registry.models.security.ServiceAccessGroup.MultipleObjectsReturned">
 <em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.ServiceAccessGroup.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.ServiceAuthentication">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">ServiceAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">created_by_user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">owner</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_at</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_modified_by</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auth_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ServiceAuthentication" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.ServiceAuthentication.DoesNotExist">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.ServiceAuthentication.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.ServiceAuthentication.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span> </em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.ServiceAuthentication.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.models.security.ServiceAuthentication.decrypt">
+<span class="sig-name descname"><span class="pre">decrypt</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ServiceAuthentication.decrypt" title="Permalink to this definition"></a></dt>
+<dd><p>Decrypt the login credentials using the stored key</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>username, password (tuple): the username and password in clear text</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.models.security.ServiceAuthentication.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ServiceAuthentication.delete" title="Permalink to this definition"></a></dt>
+<dd><p>Overwrites default delete function</p>
+<p>Removes local stored file if it exists!</p>
+<dl class="simple">
+<dt>Args;</dt><dd><p>using:
+keep_parents:</p>
+</dd>
+<dt>Returns:</dt><dd><p>the deleted object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.models.security.ServiceAuthentication.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.ServiceAuthentication.save" title="Permalink to this definition"></a></dt>
+<dd><p>Save the current instance. Override this in a subclass if you want to
+control the saving process.</p>
+<p>The ‘force_insert’ and ‘force_update’ parameters can be used to insist
+that the “save” must be an SQL insert or update (or equivalent for
+non-SQL backends), respectively. Normally, they should not be set.</p>
+</dd></dl>
 
 </dd></dl>
 

@@ -131,7 +131,7 @@ Test documentation builds properly
 ==================================
 
 .. warning::
-    You need to have installed all python dependencies locally first. ``pip3 install -r ./mrmap/requirements.txt && pip3 install -r ./mrmap/docs/requirements.txt``
+    You need to have installed all python dependencies locally first. ``pip3 install -r ./backend/requirements.txt && pip3 install -r ./backend/docs/requirements.txt``
 
 .. code-block:: console
 

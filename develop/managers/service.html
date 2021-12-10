@@ -81,18 +81,11 @@
   <div class="section" id="module-registry.managers.service">
 <span id="service-managers"></span><span id="managers-resource-service"></span><h1>Service Managers<a class="headerlink" href="#module-registry.managers.service" title="Permalink to this headline"></a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="registry.managers.service.LayerManager">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">LayerManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.LayerManager" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="registry.managers.service.ServiceXmlManager">
-<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">ServiceXmlManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.ServiceXmlManager" title="Permalink to this definition"></a></dt>
-<dd><p>handles the creation of objects by using the parsed service which is stored in the given <code class="xref py py-class docutils literal notranslate"><span class="pre">new.Service</span></code>
-instance.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="registry.managers.service.ServiceXmlManager.create_from_parsed_service">
-<span class="sig-name descname"><span class="pre">create_from_parsed_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parsed_service</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.ServiceXmlManager.create_from_parsed_service" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="registry.managers.service.CatalougeServiceCapabilitiesManager">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">CatalougeServiceCapabilitiesManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.CatalougeServiceCapabilitiesManager" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="registry.managers.service.CatalougeServiceCapabilitiesManager.create_from_parsed_service">
+<span class="sig-name descname"><span class="pre">create_from_parsed_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parsed_service</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.CatalougeServiceCapabilitiesManager.create_from_parsed_service" title="Permalink to this definition"></a></dt>
 <dd><p>Custom create function for <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code> which is based on the parsed capabilities document.</p>
 <dl class="simple">
 <dt>Args:</dt><dd><p>parsed_service: the parsed Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">new.Service</span></code> class.</p>
@@ -103,6 +96,69 @@ instance.</p>
 </dd></dl>
 
 </dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.managers.service.ServiceCapabilitiesManager">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">ServiceCapabilitiesManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.ServiceCapabilitiesManager" title="Permalink to this definition"></a></dt>
+<dd><p>handles the creation of objects by using the parsed service which is stored in the given <code class="xref py py-class docutils literal notranslate"><span class="pre">new.Service</span></code>
+instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.managers.service.ServiceCapabilitiesManager.create_from_parsed_service">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">create_from_parsed_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parsed_service</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.ServiceCapabilitiesManager.create_from_parsed_service" title="Permalink to this definition"></a></dt>
+<dd><p>Custom create function for <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code> which is based on the parsed capabilities document.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>parsed_service: the parsed Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">new.Service</span></code> class.</p>
+</dd>
+<dt>Returns:</dt><dd><p>db instance (Service): the created Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.managers.service.WebFeatureServiceCapabilitiesManager">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceCapabilitiesManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.WebFeatureServiceCapabilitiesManager" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="registry.managers.service.WebFeatureServiceCapabilitiesManager.create_from_parsed_service">
+<span class="sig-name descname"><span class="pre">create_from_parsed_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parsed_service</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.WebFeatureServiceCapabilitiesManager.create_from_parsed_service" title="Permalink to this definition"></a></dt>
+<dd><p>Custom create function for <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code> which is based on the parsed capabilities document.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>parsed_service: the parsed Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">new.Service</span></code> class.</p>
+</dd>
+<dt>Returns:</dt><dd><p>db instance (Service): the created Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.managers.service.WebFeatureServiceManager">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.WebFeatureServiceManager" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.managers.service.WebMapServiceCapabilitiesManager">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceCapabilitiesManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.WebMapServiceCapabilitiesManager" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="registry.managers.service.WebMapServiceCapabilitiesManager.create_from_parsed_service">
+<span class="sig-name descname"><span class="pre">create_from_parsed_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parsed_service</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.WebMapServiceCapabilitiesManager.create_from_parsed_service" title="Permalink to this definition"></a></dt>
+<dd><p>Custom create function for <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code> which is based on the parsed capabilities document.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>parsed_service: the parsed Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">new.Service</span></code> class.</p>
+</dd>
+<dt>Returns:</dt><dd><p>db instance (Service): the created Service object based on the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Service</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.managers.service.WebMapServiceManager">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">registry.managers.service.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.managers.service.WebMapServiceManager" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 </div>
 

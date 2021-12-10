@@ -1,4 +1,4 @@
-name: Sonar
+name: Quality Assurance
 on:
   workflow_dispatch:
   push:
@@ -11,17 +11,17 @@ on:
 jobs:
   pre-commit-checks:
     name: pre-commit-checks
-      runs-on: ubuntu-20.04
-      steps:
-        - name: checkout repo
-          uses: actions/checkout@v2
-          with:
-            fetch-depth: 0
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-        - name: Run pre commit checks
-          run: |
-            docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
-        
+      - name: Run pre commit checks
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
+      
   quality-assurance:
     name: quality-assurance
     runs-on: ubuntu-20.04

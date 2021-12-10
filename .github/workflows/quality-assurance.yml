@@ -41,6 +41,7 @@ jobs:
       
       - name: Run sonar-scanner
         run: |
+          echo -en "\n" >> ./backend/sonar-project.properties
           echo "sonar.branch.name=$GITHUB_HEAD_REF" >> ./backend/sonar-project.properties
           echo "sonar.branch.target=$GITHUB_BASE_REF" >> ./backend/sonar-project.properties
           echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./backend/sonar-project.properties

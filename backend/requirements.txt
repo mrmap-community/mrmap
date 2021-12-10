@@ -25,8 +25,8 @@ uvicorn==0.15.0
 
 djangorestframework==3.12.4
 djangorestframework-gis==0.17
-djangorestframework-jsonapi==4.2.1
-djangorestframework-jsonapi[django-filter]==4.2.1
+djangorestframework-jsonapi==4.3.0
+djangorestframework-jsonapi[django-filter]==4.3.0
 drf-extensions==0.7.1
 uritemplate==4.1.1
 

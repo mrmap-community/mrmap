@@ -13,6 +13,7 @@ Python framework with a [PostgreSQL](https://www.postgresql.org/) database. For 
 complete list of requirements, see `requirements.txt`. The code is available [on GitHub](https://github.com/mrmap-community/mrmap).
 
 
+
 ### Screenshots
 
 <img src="https://github.com/mrmap-community/mrmap/blob/master/docs/source/images/mrmap_loginpage.png">

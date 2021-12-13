@@ -35,10 +35,10 @@ jobs:
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
       
-    - uses: actions/upload-artifact@v2
-      with:
-        name: acceptance-tests-coverage
-        path: ./backend/acceptance-tests-coverage.xml
+      - uses: actions/upload-artifact@v2
+        with:
+          name: acceptance-tests-coverage
+          path: ./backend/acceptance-tests-coverage.xml
 
   unit-tests:
     name: unit-tests

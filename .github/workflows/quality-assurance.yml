@@ -11,12 +11,22 @@ on:
 jobs:
   pre-commit-checks:
     name: pre-commit-checks
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
+      
+      # In this step, this action saves a list of existing images,
+      # the cache is created without them in the post run.
+      # It also restores the cache if it exists.
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
 
       - name: Run pre commit checks
         run: |
@@ -24,12 +34,22 @@ jobs:
       
   acceptance-tests:
     name: acceptance-tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull behave
+      
+      # In this step, this action saves a list of existing images,
+      # the cache is created without them in the post run.
+      # It also restores the cache if it exists.
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
 
       - name: Run behave tests
         run: |
@@ -43,12 +63,22 @@ jobs:
 
   unit-tests:
     name: unit-tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
+      
+      # In this step, this action saves a list of existing images,
+      # the cache is created without them in the post run.
+      # It also restores the cache if it exists.
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
 
       - name: Run unit tests
         run: |
@@ -63,12 +93,22 @@ jobs:
   sonar-scanner:
     needs: [acceptance-tests, unit-tests]
     name: sonar-scanner
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
+      
+      # In this step, this action saves a list of existing images,
+      # the cache is created without them in the post run.
+      # It also restores the cache if it exists.
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
 
       - name: download coverage reports
         uses: actions/download-artifact@v2

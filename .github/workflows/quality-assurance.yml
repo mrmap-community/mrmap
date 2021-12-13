@@ -38,7 +38,7 @@ jobs:
       - name: upload coverage reports
         uses: actions/upload-artifact@v2
         with:
-          name: acceptance-reports
+          name: coverage-reports
           path: ./backend/acceptance-tests-coverage-report.xml
 
   unit-tests:
@@ -57,7 +57,7 @@ jobs:
       - name: upload coverage reports
         uses: actions/upload-artifact@v2
         with:
-          name: unit-reports
+          name: coverage-reports
           path: ./backend/unit-tests-coverage-report.xml
 
   sonar-scanner:
@@ -72,6 +72,9 @@ jobs:
 
       - name: download coverage reports
         uses: actions/download-artifact@v2
+        with: 
+          name: coverage-reports
+          path: ./backend
      
       - name: Run sonar-scanner
         run: |

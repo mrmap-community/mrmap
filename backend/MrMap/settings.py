@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import socket
-import sys
 
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _

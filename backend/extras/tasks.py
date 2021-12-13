@@ -1,6 +1,6 @@
 from abc import ABC
 
-from celery import Task, current_task
+from celery import Task
 from crum import set_current_user
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist

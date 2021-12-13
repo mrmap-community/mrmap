@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo, GenericModelMixin
-from MrMap.validators import geometry_is_empty, validate_get_capablities_uri
+from MrMap.validators import geometry_is_empty
 from PIL import Image
 from registry.enums.security import EntityUnits
 from registry.enums.service import (AuthTypeEnum, OGCOperationEnum,

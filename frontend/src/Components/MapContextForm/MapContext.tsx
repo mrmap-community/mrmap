@@ -8,9 +8,9 @@ import { useNavigate, useParams } from 'react-router';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { hasOwnProperty } from '../../utils';
+import { MPTTListToTreeNodeList, TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
-import { MPTTListToTreeNodeList, TreeFormField, TreeNodeType } from './TreeFormField';
 
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
@@ -117,7 +117,7 @@ export const MapContext: FC<MapContextProps> = () => {
             addNodeDispatchAction={async (nodeAttributes, newNodeParent) => {
               return await mapContextLayerRepo.create({
                 ...nodeAttributes,
-                parentLayerId: newNodeParent,
+                parentLayerId: newNodeParent || '',
                 mapContextId: createdMapContextId
               });
             }}

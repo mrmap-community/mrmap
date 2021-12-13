@@ -37,7 +37,7 @@ jobs:
       
       - uses: actions/upload-artifact@v2
         with:
-          name: acceptance-tests-coverage
+          name: coverage-reports
           path: ./backend/acceptance-tests-coverage.xml
 
   unit-tests:
@@ -55,7 +55,7 @@ jobs:
       
       - uses: actions/upload-artifact@v2
         with:
-          name: unit-tests-coverage
+          name: coverage-reports
           path: ./backend/unit-tests-coverage.xml
 
   sonar-scanner:
@@ -70,14 +70,8 @@ jobs:
 
       - uses: actions/download-artifact@v2
         with:
-          name: unit-tests-coverage
-          path: ./backend/unit-tests-coverage.xml
-
-      - uses: actions/download-artifact@v2
-        with:
-          name: acceptance-tests-coverage
-          path: ./backend/acceptance-tests-coverage.xml
-
+          name: coverage-reports
+     
       - name: Run sonar-scanner
         run: |
           echo -en "\n" >> ./backend/sonar-project.properties

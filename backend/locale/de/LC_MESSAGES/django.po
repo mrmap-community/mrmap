@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-12-10 10:15+0100\n"
+"POT-Creation-Date: 2021-12-13 08:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -285,7 +285,7 @@ msgstr "Der Benutzer der dieses Objekt zuletzt verändert hat."
 msgid "Registry"
 msgstr "Registrierung"
 
-#: registry/managers/metadata.py:39
+#: registry/managers/metadata.py:40
 msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 

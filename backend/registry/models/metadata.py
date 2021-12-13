@@ -52,6 +52,9 @@ class Style(CommonInfo):
                              help_text=_("The Title is a human-readable string as an alternative for the name "
                                          "attribute."))
 
+    class Meta(CommonInfo.Meta):
+        pass
+
     def __str__(self):
         return self.layer.identifier + ": " + self.name
 
@@ -81,6 +84,9 @@ class LegendUrl(CommonInfo):
                                  related_name="legend_url",
                                  related_query_name="legend_url")
 
+    class Meta(CommonInfo.Meta):
+        pass
+
 
 class Licence(models.Model):
     name = models.CharField(max_length=255)
@@ -92,6 +98,9 @@ class Licence(models.Model):
     is_open_data = models.BooleanField(default=False)
 
     objects = LicenceManager()
+
+    class Meta(CommonInfo.Meta):
+        pass
 
     def __str__(self):
         return "{} ({})".format(self.identifier, self.name)

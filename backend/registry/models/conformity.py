@@ -7,13 +7,14 @@ Created on: 27.10.20
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
 from extras.models import CommonInfo, GenericModelMixin
-from registry.enums.conformity import ConformityTypeEnum, RuleFieldNameEnum, RulePropertyEnum, RuleOperatorEnum, \
-    ReportType
-from registry.managers.conformity import ConformityCheckConfigurationManager, ConformityCheckRunManager
+from registry.enums.conformity import (ConformityTypeEnum, ReportType,
+                                       RuleFieldNameEnum, RuleOperatorEnum,
+                                       RulePropertyEnum)
+from registry.managers.conformity import (ConformityCheckConfigurationManager,
+                                          ConformityCheckRunManager)
 from registry.models.metadata import DatasetMetadata
-from registry.models.service import Layer, FeatureType, WebMapService
+from registry.models.service import FeatureType, Layer, WebMapService
 
 
 class ConformityCheckConfiguration(models.Model):
@@ -112,7 +113,8 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
     """
     Model holding the relation of a resource to the results of a check.
     """
-    config = models.ForeignKey(ConformityCheckConfiguration, on_delete=models.CASCADE)
+    config = models.ForeignKey(
+        ConformityCheckConfiguration, on_delete=models.CASCADE)
     passed = models.BooleanField(blank=True, null=True)
     report = models.TextField(blank=True, null=True)
     report_type = models.TextField(
@@ -122,8 +124,6 @@ class ConformityCheckRun(CommonInfo, GenericModelMixin):
 
     class Meta:
         abstract = True
-        ordering = ["-created_at"]
-        get_latest_by = "-created_at"
 
     def clean(self):
         self.validate(self)
@@ -141,6 +141,9 @@ class WmsConformityCheckRun(ConformityCheckRun):
                                 verbose_name=_("service"),
                                 help_text=_("the service targeted by this check"))
 
+    class Meta(CommonInfo.Meta):
+        pass
+
     def get_validate_url(self):
         return self.get_add_url() + f"?service={self.service.pk}"
 
@@ -151,6 +154,9 @@ class LayerConformityCheckRun(ConformityCheckRun):
     """
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, null=True, blank=True, verbose_name=_("layer"),
                               help_text=_("the layer targeted by this check"))
+
+    class Meta(CommonInfo.Meta):
+        pass
 
     def get_validate_url(self):
         return self.get_add_url() + f"?layer={self.layer.pk}"
@@ -164,6 +170,9 @@ class FeatureTypeConformityCheckRun(ConformityCheckRun):
                                      verbose_name=_("feature type"),
                                      help_text=_("the feature type targeted by this check"))
 
+    class Meta(CommonInfo.Meta):
+        pass
+
     def get_validate_url(self):
         return self.get_add_url() + f"?feature_type={self.feature_type.pk}"
 
@@ -175,6 +184,9 @@ class DatasetMetadataConformityCheckRun(ConformityCheckRun):
     dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True,
                                          verbose_name=_("dataset metadata"),
                                          help_text=_("the dataset metadata targeted by this check"))
+
+    class Meta(CommonInfo.Meta):
+        pass
 
     def get_validate_url(self):
         return self.get_add_url() + f"?dataset_metadata={self.dataset_metadata.pk}"

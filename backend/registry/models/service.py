@@ -1,30 +1,38 @@
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.contrib.gis.db import models
 from django.db.models import QuerySet
-from django.urls import reverse, NoReverseMatch
+from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from extras.models import CommonInfo, GenericModelMixin
 from mptt.models import MPTTModel, TreeForeignKey
-from requests import Session
-from requests.auth import HTTPDigestAuth
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
-from extras.models import GenericModelMixin, CommonInfo
 from ows_client.request_builder import OgcService as OgcServiceClient
-from registry.enums.service import OGCServiceVersionEnum, HttpMethodEnum, OGCOperationEnum, \
-    AuthTypeEnum
-from registry.managers.security import ServiceSecurityManager, OperationUrlManager
-from registry.managers.service import FeatureTypeElementXmlManager, WebFeatureServiceCapabilitiesManager, WebFeatureServiceManager, WebMapServiceCapabilitiesManager, CatalougeServiceCapabilitiesManager, WebMapServiceManager
-from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
-from registry.xmlmapper.ogc.wfs_describe_feature_type import DescribedFeatureType as XmlDescribedFeatureType
-from polymorphic.models import PolymorphicModel
 from polymorphic.managers import PolymorphicManager
+from polymorphic.models import PolymorphicModel
+from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
+                                    OGCOperationEnum, OGCServiceVersionEnum)
+from registry.managers.security import (OperationUrlManager,
+                                        ServiceSecurityManager)
+from registry.managers.service import (CatalougeServiceCapabilitiesManager,
+                                       FeatureTypeElementXmlManager,
+                                       WebFeatureServiceCapabilitiesManager,
+                                       WebFeatureServiceManager,
+                                       WebMapServiceCapabilitiesManager,
+                                       WebMapServiceManager)
+from registry.models.document import CapabilitiesDocumentModelMixin
+from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
+                                      ServiceMetadata)
+from registry.xmlmapper.ogc.wfs_describe_feature_type import \
+    DescribedFeatureType as XmlDescribedFeatureType
+from requests import Session
+from requests.auth import HTTPDigestAuth
 
 
 class CommonServiceInfo(models.Model):
@@ -53,14 +61,19 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
                                   verbose_name=_("url"),
                                   help_text=_("the base url of the service"))
     get_capabilities_url = models.URLField(max_length=4096,
-                                           verbose_name=_("get capabilities url"),
-                                           help_text=_("the capabilities url of the ogc service"),
+                                           verbose_name=_(
+                                               "get capabilities url"),
+                                           help_text=_(
+                                               "the capabilities url of the ogc service"),
                                            validators=[validate_get_capablities_uri])
     objects = PolymorphicManager()
     security = ServiceSecurityManager()
 
     # todo:
     xml_mapper_cls = None
+
+    class Meta(CommonInfo.Meta):
+        pass
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -195,7 +208,8 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
                                                related_query_name="%(class)s",
                                                blank=True,
                                                editable=False,
-                                               verbose_name=_("reference systems"),
+                                               verbose_name=_(
+                                                   "reference systems"),
                                                help_text=_("all reference systems which this element supports"))
     # todo:
     xml_mapper_cls = None
@@ -290,7 +304,8 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             # is the most efficient way to do it.
             if self.is_active:
                 self.get_family().update(is_active=self.is_active)
-                WebMapService.objects.filter(pk=self.service_id).update(is_active=self.is_active)
+                WebMapService.objects.filter(
+                    pk=self.service_id).update(is_active=self.is_active)
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
@@ -366,7 +381,8 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        from registry.models import ReferenceSystem  # to avoid circular import errors
+        from registry.models import \
+            ReferenceSystem  # to avoid circular import errors
         return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
 
     @cached_property
@@ -391,7 +407,8 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        from registry.models import Dimension  # to avoid circular import errors
+        from registry.models import \
+            Dimension  # to avoid circular import errors
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
@@ -419,7 +436,8 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                         "listed for the GetFeature operation are assumed to be "
                                                         "supported. "))
     describe_feature_type_document = models.TextField(null=True,
-                                                      verbose_name=_("describe feature type"),
+                                                      verbose_name=_(
+                                                          "describe feature type"),
                                                       help_text=_("the fetched content of the download describe feature"
                                                                   " type document."))
 
@@ -437,7 +455,8 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if not adding and self.is_active:
-            WebFeatureService.objects.filter(pk=self.service_id).update(is_active=self.is_active)
+            WebFeatureService.objects.filter(
+                pk=self.service_id).update(is_active=self.is_active)
 
     def fetch_describe_feature_type_document(self, save=True):
         """ Return the fetched described feature type document and update the content if save is True """

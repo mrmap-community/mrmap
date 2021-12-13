@@ -18,8 +18,8 @@ class HarvestResult(CommonInfo):
                                    editable=False,
                                    max_length=1024)
 
-    class Meta:
-        ordering = ['-created_at']
+    class Meta(CommonInfo.Meta):
+        pass
 
     def parse(self):
         result_xml = xmlmap.load_xmlobject_from_string(string=self.result_file.open().read(),

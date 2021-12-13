@@ -120,7 +120,7 @@ class Subscription(GenericModelMixin, CommonInfo):
                                                 help_text=_("Sends an e-mai if the service's access has been changed."))
     created_on = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
+    class Meta(CommonInfo.Meta):
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
         unique_together = ('web_map_service', 'web_feature_service', 'user',)

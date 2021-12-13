@@ -1,6 +1,27 @@
+from pathlib import Path
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.test.utils import override_settings
-from tests.django.registry.tasks.tests_service import build_ogc_service
+from django.urls.base import reverse
+from registry.models.service import OgcService
+from registry.tasks.service import build_ogc_service
+from requests.sessions import Session
+from rest_framework import status
+
+
+class MockResponse:
+
+    def __init__(self, status_code, content):
+        self.status_code = status_code
+
+        if isinstance(content, Path):
+            in_file = open(content, "rb")
+            self.content = in_file.read()
+            in_file.close()
+
+        if isinstance(content, str):
+            self.content = content
 
 
 class BuildOgcServiceTaskTest(TestCase):
@@ -8,15 +29,26 @@ class BuildOgcServiceTaskTest(TestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    def test_success(self):
-        """Test that the ``add`` task runs with no errors,
+    @patch.object(Session, 'send', return_value=MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml'))))
+    def test_success(self, mock_response):
+        """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
-        # result = add.delay(8, 8)
 
-        # self.assertEquals(result.get(), 16)
-        # self.assertTrue(result.successful())
-        result = build_ogc_service(get_capabilities_url='http://someurl',
-                                   collect_metadata_records=False,
-                                   auth=None,
-                                   **{'user_pk': 'somepk'}).delay()
-        self.assertTrue(result)
+        result = build_ogc_service.delay(get_capabilities_url='http://someurl',
+                                         collect_metadata_records=False,
+                                         auth=None,
+                                         **{'user_pk': 'somepk'})
+
+        db_service = OgcService.objects.latest()
+
+        expected_result = {
+            "data": {
+                "type": "OgcService",
+                "id": f"{db_service.pk}",
+                "links": {
+                    "self": f"{reverse(viewname='registry:ogcservice-detail', args=[db_service.pk])}"
+                }
+            }
+        }
+        self.assertDictEqual(d1=result.result, d2=expected_result,
+                             msg="Task result does not match expection.")

@@ -38,6 +38,9 @@ class MapContext(GenericModelMixin, CommonInfo):
 
     objects = MapContextManager()
 
+    class Meta(CommonInfo.Meta):
+        pass
+
     def __str__(self):
         return self.title
 
@@ -105,6 +108,9 @@ class MapContextLayer(MPTTModel):
                                         related_name="mapcontextlayers_selection",
                                         verbose_name=_("Selection layer"),
                                         help_text=_("Select a layer for feature selection."))
+
+    class Meta(CommonInfo.Meta):
+        pass
 
     def __str__(self):
         return f"{self.name}"

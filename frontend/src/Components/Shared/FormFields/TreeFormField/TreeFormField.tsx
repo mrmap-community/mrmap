@@ -7,8 +7,8 @@ import { Key } from 'antd/lib/table/interface';
 import { DataNode } from 'antd/lib/tree';
 import React, { cloneElement, FC, ReactNode, useEffect, useState } from 'react';
 
-import { JsonApiResponse } from '../../Repos/JsonApiRepo';
-import { hasOwnProperty } from '../../utils';
+import { JsonApiResponse } from '../../../../Repos/JsonApiRepo';
+import { hasOwnProperty } from '../../../../utils';
 
 interface MPTTJsonApiAttributeType {
   name: string;
@@ -376,10 +376,9 @@ export const TreeFormField: FC<TreeProps> = ({
         try {
           const response = await addNodeDispatchAction(values, newNode.parent);
           // update new node key
-          // @ts-ignore
-          if (response && response.data.data && hasOwnProperty(response.data.data, 'id')) {
+          if (response && response.data?.data && hasOwnProperty(response.data.data, 'id')) {
             // @ts-ignore
-            newNode.key = response.data.data.id;
+            newNode.key = response.data?.data?.id;
           }
         } catch (error) {
           setIsAddingNode(false);

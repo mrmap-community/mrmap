@@ -37,6 +37,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 1,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": null,
             "map_context": 1,
             "name": "mc1_node1",
@@ -58,6 +67,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 2,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": 1,
             "map_context": 1,
             "name": "mc1_node1.1",
@@ -79,6 +97,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 3,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": 2,
             "map_context": 1,
             "name": "mc1_node1.1.1",
@@ -100,6 +127,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 4,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": 2,
             "map_context": 1,
             "name": "mc1_node1.1.2",
@@ -121,6 +157,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 5,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": 1,
             "map_context": 1,
             "name": "mc1_node1.2",
@@ -142,6 +187,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 6,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": null,
             "map_context": 2,
             "name": "mc2_node1",
@@ -163,6 +217,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 7,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": 6,
             "map_context": 2,
             "name": "mc2_node1.1",
@@ -184,6 +247,15 @@
         "model": "registry.mapcontextlayer",
         "pk": 8,
         "fields": {
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": [
+                "User1"
+            ],
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": [
+                "User1"
+            ],
             "parent": 6,
             "map_context": 2,
             "name": "mc2_node1.2",

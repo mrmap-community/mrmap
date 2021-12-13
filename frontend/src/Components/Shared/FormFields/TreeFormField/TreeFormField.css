@@ -1,0 +1,12 @@
+.tree-form-field-node {
+  display:flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.tree-form-field {
+  border: 1px solid black;
+  height:  50vh;
+  max-height: 50vh;
+  overflow-y: scroll;
+}

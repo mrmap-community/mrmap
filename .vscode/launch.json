@@ -84,5 +84,25 @@
             ],
             "justMyCode": false
         },
+        {
+            "name": "Debug: django-tests",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3005
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/backend",
+                    "remoteRoot": "/opt/mrmap"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
+                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                }
+            ],
+            "justMyCode": false
+        },
     ]
 }

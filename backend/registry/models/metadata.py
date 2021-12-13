@@ -52,6 +52,9 @@ class Style(CommonInfo):
                              help_text=_("The Title is a human-readable string as an alternative for the name "
                                          "attribute."))
 
+    class Meta(CommonInfo.Meta):
+        pass
+
     def __str__(self):
         return self.layer.identifier + ": " + self.name
 
@@ -80,6 +83,9 @@ class LegendUrl(CommonInfo):
                                      "the style entity which is linked to this legend url"),
                                  related_name="legend_url",
                                  related_query_name="legend_url")
+
+    class Meta(CommonInfo.Meta):
+        pass
 
 
 class Licence(models.Model):

@@ -38,11 +38,14 @@ class MapContext(GenericModelMixin, CommonInfo):
 
     objects = MapContextManager()
 
+    class Meta(CommonInfo.Meta):
+        pass
+
     def __str__(self):
         return self.title
 
 
-class MapContextLayer(MPTTModel):
+class MapContextLayer(CommonInfo, MPTTModel):
     parent = TreeForeignKey("MapContextLayer", on_delete=models.CASCADE, null=True, blank=True,
                             related_name="child_layers")
     map_context = models.ForeignKey(to=MapContext,
@@ -105,6 +108,9 @@ class MapContextLayer(MPTTModel):
                                         related_name="mapcontextlayers_selection",
                                         verbose_name=_("Selection layer"),
                                         help_text=_("Select a layer for feature selection."))
+
+    class Meta(CommonInfo.Meta):
+        pass
 
     def __str__(self):
         return f"{self.name}"

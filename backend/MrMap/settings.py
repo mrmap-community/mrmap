@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import socket
-import sys
 
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
@@ -52,7 +51,6 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
-    "django_nose",
     "mptt",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "accounts",
@@ -328,22 +326,6 @@ SESSION_COOKIE_AGE = 30 * 60
 
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
-
-################################################################
-# nose test runner settings
-################################################################
-if "test" in sys.argv:
-    CAPTCHA_TEST_MODE = True
-
-TEST_RUNNER = "django_nose.NoseTestSuiteRunner"
-NOSE_ARGS = [
-    "--with-xunit",
-    f"--xunit-file={BASE_DIR}/xunit-result.xml",
-    "--with-coverage",
-    "--cover-erase",
-    "--cover-xml",
-    f"--cover-xml-file={BASE_DIR}/coverage-report.xml",
-]
 
 ################################################################
 # DJANGO DEBUG TOOLBAR

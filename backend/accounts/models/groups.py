@@ -93,7 +93,7 @@ class Organization(Group, CommonInfo, Contact):
         help_text=_("Describe what this organization representing"),
     )
 
-    class Meta:
+    class Meta(CommonInfo.Meta):
         # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
         # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
         # the right default way here...
@@ -176,7 +176,7 @@ class PublishRequest(BaseInternalRequest):
     is_accepted = models.BooleanField(
         verbose_name=_("accepted"), default=False)
 
-    class Meta:
+    class Meta(CommonInfo.Meta):
         # It shall be restricted to create multiple requests objects for the same organization per group. This unique
         # constraint will also raise a form error if a user trays to add duplicates.
         unique_together = (

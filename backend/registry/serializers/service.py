@@ -3,6 +3,7 @@ from accounts.models.groups import Organization
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, Style
+from registry.models.security import ServiceAuthentication
 from registry.models.service import (FeatureType, Layer, OgcService,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
@@ -139,17 +140,18 @@ class OgcServiceSerializer(PolymorphicModelSerializer):
 
 class OgcServiceCreateSerializer(ModelSerializer):
 
-    # TODO: implement included serializer for ServiceAuthentication
-    # included_serializers = {
-    #     'auth': ServiceAuthentication,
-    # }
+    service_auth = ResourceRelatedField(
+        queryset=ServiceAuthentication.objects,
+        required=False)
     owner = ResourceRelatedField(
-        queryset=Organization.objects,
-    )
+        queryset=Organization.objects)
 
     collect_metadata_records = BooleanField(default=True)
 
     class Meta:
         model = OgcService
-        fields = ("get_capabilities_url", "owner",
-                  "collect_metadata_records")
+        fields = (
+            "get_capabilities_url",
+            "owner",
+            "service_auth",
+            "collect_metadata_records")

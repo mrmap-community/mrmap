@@ -23,8 +23,8 @@ htmlcov/
 **/.coverage
 **/.coverage.*
 **/.cache
-**/coverage.xml
-**/coverage.json
+**/*coverage-report.xml
+**/*coverage-report.json
 
 # Django stuff:
 *.log

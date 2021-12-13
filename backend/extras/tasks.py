@@ -16,7 +16,6 @@ class CurrentUserTaskMixin(Task, ABC):
             if user_pk:
                 set_current_user(user=get_user_model().objects.get(id=user_pk))
             else:
-                print(f'can not find user by id {user_pk}')
                 raise ObjectDoesNotExist
         except ObjectDoesNotExist:
             pass
@@ -41,3 +40,7 @@ class CurrentUserTaskMixin(Task, ABC):
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         set_current_user()
         return super().after_return(status, retval, task_id, args, kwargs, einfo)
+
+    def update_state(self, task_id=None, state=None, meta=None, **kwargs):
+        if self.request.id:
+            return super().update_state(task_id=task_id, state=state, meta=meta, **kwargs)

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Structure &mdash; MrMap v0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Environment Variables" href="environment.html" />
+    <link rel="prev" title="Getting Started" href="getting-started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MrMap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html">Getting Started</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Project Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#preamble">Preamble</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#what-is-an-app">What is an app?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#a-django-view-is-not-a-controller">A Django View is Not a Controller</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#where-to-put-app-logic-code-then">Where to put app logic code then?</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#package-overview">Package Overview</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#package-app-structure">package/app structure</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#faq">FAQ</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#why-is-the-registry-app-a-monolith">Why is the registry app a monolith?</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="environment.html">Environment Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="definition_of_done.html">Definition of Done (DoD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pycharm-configuration.html">Pycharm configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode-configuration.html">Visual Studio Code configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../features/index.html">Mr Map Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Development</a> &raquo;</li>
+      <li>Project Structure</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/development/project-structure.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="project-structure">
+<span id="development-project-structure"></span><h1>Project Structure<a class="headerlink" href="#project-structure" title="Permalink to this headline"></a></h1>
+<div class="section" id="preamble">
+<h2>Preamble<a class="headerlink" href="#preamble" title="Permalink to this headline"></a></h2>
+<p>In django universe the official propagated way to strucure a project is to use <cite>apps</cite> (a carryover from Django vernacular).
+But there are many discussions out there about the question <cite>when we have to make an app?</cite>.</p>
+<p>To understand our project structure, it is important to specify some terms first, so that everyone which likes to understand the code uses the same vocabulary.</p>
+<div class="section" id="what-is-an-app">
+<span id="id1"></span><h3>What is an app?<a class="headerlink" href="#what-is-an-app" title="Permalink to this headline"></a></h3>
+<p>In our opinion an app in a django project shall be a django specific python package, which is independend from other apps.
+The most common reason to start an app is to create reusable code.</p>
+</div>
+<div class="section" id="a-django-view-is-not-a-controller">
+<h3>A Django View is Not a Controller<a class="headerlink" href="#a-django-view-is-not-a-controller" title="Permalink to this headline"></a></h3>
+<p>A default app structure in django is splitted in some basic modules:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">app_folder</span></code>
+* <code class="docutils literal notranslate"><span class="pre">models.py</span></code>
+* <code class="docutils literal notranslate"><span class="pre">urls.py</span></code>
+* <code class="docutils literal notranslate"><span class="pre">views.py</span></code>
+* <code class="docutils literal notranslate"><span class="pre">...</span></code></p></li>
+</ul>
+<p>Like discussed in <a class="reference external" href="https://djangobook.com/mdj2-django-structure/">article</a> the module <code class="docutils literal notranslate"><span class="pre">views.py</span></code> is <strong>not</strong> the controller module.
+Citation from the article: “The view in Django is most often described as being equivalent to the controller in MVC, but it’s not—it’s still the view.”</p>
+</div>
+<div class="section" id="where-to-put-app-logic-code-then">
+<h3>Where to put app logic code then?<a class="headerlink" href="#where-to-put-app-logic-code-then" title="Permalink to this headline"></a></h3>
+<p>Follow the question from the <a class="reference external" href="https://djangobook.com/mdj2-django-structure/">article</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Does the function/class return a response?
+
+    * YES — it’s a view. Put it in the views module (views.py).
+    * NO — it’s not a view, it’s app logic. Put it somewhere else (somewhere_else.py).
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="package-overview">
+<h2>Package Overview<a class="headerlink" href="#package-overview" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">acls</span></code>: generic implementation of access control list management for django guaridan permissions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">axis_order_cache</span></code>: django cache implementation for axis ordering from remote epsg api.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">breadcrumb</span></code>: generic implementation to generate breadcrumbs based on the current path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">extras</span></code>: global project wide used django specific code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code>: implementation to show background processes and complex workflows.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MrMap</span></code>: django project root for mrmap project.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ows_client</span></code>: library to generate requests for ows services like wms, wfs, csw, based on a given GetCapabilities url.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">registry</span></code>: spatial service registry to register and manage services like wms, wfs, csw. (monolith app)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">users</span></code>: user-, group-, permission- and changelog-management for the hole project.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ws</span></code>: global websocket implementation to handle session authentication and other things.</p></li>
+</ul>
+<div class="section" id="package-app-structure">
+<h3>package/app structure<a class="headerlink" href="#package-app-structure" title="Permalink to this headline"></a></h3>
+<p>As described in <a class="reference internal" href="#what-is-an-app"><span class="std std-ref">Preamble</span></a> on the first hirachy level we only have <cite>independend</cite> packages.</p>
+<p>In django specific packages which are small, we use the common django way to split modules:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">app_folder/</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">models.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">urls.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">views.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">...</span></code></p></li>
+</ul>
+</li>
+</ul>
+<p>In larger apps we use the following structure:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">app_folder/</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">models/</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ogc_service.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">metadata.py</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">views/</span></code></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ogc_service.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">metadata.py</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">...</span></code></p></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="faq">
+<h2>FAQ<a class="headerlink" href="#faq" title="Permalink to this headline"></a></h2>
+<div class="section" id="why-is-the-registry-app-a-monolith">
+<h3>Why is the registry app a monolith?<a class="headerlink" href="#why-is-the-registry-app-a-monolith" title="Permalink to this headline"></a></h3>
+<p>Like described in <a class="reference internal" href="#what-is-an-app"><span class="std std-ref">Preamble</span></a> we are of the opinion that a django app shall be independend from others to reuse them.
+If we would split the registry app into different pieces like <code class="docutils literal notranslate"><span class="pre">monitoring</span></code>, <code class="docutils literal notranslate"><span class="pre">security</span></code>, <code class="docutils literal notranslate"><span class="pre">...</span></code> we will not can use these outsourced apps stand alone.
+So it makes no sens to split them into different <cite>apps</cite>.</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting-started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="environment.html" class="btn btn-neutral float-right" title="Environment Variables" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, mrmap-community.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+<div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    <span class="fa fa-book"> Other Versions</span>
+    v: feature/speed-up-github-actions
+    <span class="fa fa-caret-down"></span>
+  </span>
+  <div class="rst-other-versions">
+    <dl>
+      <dt>Branches</dt>
+      <dd><a href="project-structure.html">feature/speed-up-github-actions</a></dd>
+    </dl>
+  </div>
+</div><script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

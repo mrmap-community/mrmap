@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visual Studio Code configuration &mdash; MrMap v0.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Mr Map Features" href="../features/index.html" />
+    <link rel="prev" title="Pycharm configuration" href="pycharm-configuration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MrMap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="communication.html">Communication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting-started.html">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="project-structure.html">Project Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="environment.html">Environment Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="definition_of_done.html">Definition of Done (DoD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pycharm-configuration.html">Pycharm configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Visual Studio Code configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#open-repo-in-vscode">1. Open repo in vscode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#start-container-in-debugging-mode">2. Start container in debugging mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#connect-with-debugger-to-the-container">3. Connect with debugger to the container</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../features/index.html">Mr Map Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../models/index.html">Mr Map Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Development</a> &raquo;</li>
+      <li>Visual Studio Code configuration</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/development/vscode-configuration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="visual-studio-code-configuration">
+<span id="development-vscode-cfg"></span><h1>Visual Studio Code configuration<a class="headerlink" href="#visual-studio-code-configuration" title="Permalink to this headline"></a></h1>
+<p>All necessary run configurations to starting development are provided with the repository.
+The configuration file is located under <code class="docutils literal notranslate"><span class="pre">{local-path-to-repo}/.vscode/tasks.json</span></code>.</p>
+<div class="section" id="open-repo-in-vscode">
+<h2>1. Open repo in vscode<a class="headerlink" href="#open-repo-in-vscode" title="Permalink to this headline"></a></h2>
+<p>Go to <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">-&gt;</span> <span class="pre">Open</span> <span class="pre">Folder...</span></code> and select the root folder of the downloaded repo.</p>
+</div>
+<div class="section" id="start-container-in-debugging-mode">
+<h2>2. Start container in debugging mode<a class="headerlink" href="#start-container-in-debugging-mode" title="Permalink to this headline"></a></h2>
+<p>Currently there are three containers which executes MrMap application logic. For all of those containers one run configuration is provided.</p>
+<p>Use the vscode shortcut <code class="docutils literal notranslate"><span class="pre">ctrl</span> <span class="pre">+</span> <span class="pre">shift</span> <span class="pre">+</span> <span class="pre">p</span></code> to use the <cite>Command Palette</cite>.
+Start typing <code class="docutils literal notranslate"><span class="pre">tasks:</span> <span class="pre">r</span></code>. QuickOpen will show you possible results for your search. Select <code class="docutils literal notranslate"><span class="pre">Tasks:</span> <span class="pre">Run</span> <span class="pre">Task</span></code> and smash the enter button. In second autoselect listing you can now choice one of our pre configured run configurations.</p>
+<div class="figure align-default" id="id1">
+<a class="reference internal image-reference" href="../_images/start_task.gif"><img alt="Starting a task" src="../_images/start_task.gif" style="width: 100%;" /></a>
+<p class="caption"><span class="caption-text">Starting a task</span><a class="headerlink" href="#id1" title="Permalink to this image"></a></p>
+</div>
+<p>For example you choose <code class="docutils literal notranslate"><span class="pre">Docker-Compose:</span> <span class="pre">mrmap</span> <span class="pre">debug</span> <span class="pre">gunicorn</span></code> and smash the the enter button again, vscode will open a new terminal for you, where the docker container is running.</p>
+<div class="figure align-default" id="id2">
+<a class="reference internal image-reference" href="../_images/gunicorn_container_run_example.gif"><img alt="Gunicorn container run example" src="../_images/gunicorn_container_run_example.gif" style="width: 100%;" /></a>
+<p class="caption"><span class="caption-text">Gunicorn container run example</span><a class="headerlink" href="#id2" title="Permalink to this image"></a></p>
+</div>
+</div>
+<div class="section" id="connect-with-debugger-to-the-container">
+<h2>3. Connect with debugger to the container<a class="headerlink" href="#connect-with-debugger-to-the-container" title="Permalink to this headline"></a></h2>
+<p>The container will show you at least <code class="docutils literal notranslate"><span class="pre">waiting</span> <span class="pre">for</span> <span class="pre">debugging</span> <span class="pre">client</span></code>. Now you have to connect to the container with the integrated debugger of vscode. Again there are ready to use run configurations located under <code class="docutils literal notranslate"><span class="pre">{local-path-to-repo}/.vscode/launch.json</span></code>.</p>
+<p>Again you can start debugger by using the <cite>Command Palette</cite>. So use shortcut <code class="docutils literal notranslate"><span class="pre">ctrl</span> <span class="pre">+</span> <span class="pre">shift</span> <span class="pre">+</span> <span class="pre">p</span></code> again and start typing <code class="docutils literal notranslate"><span class="pre">&gt;debug:</span> <span class="pre">sel</span></code></p>
+<div class="figure align-default" id="id3">
+<a class="reference internal image-reference" href="../_images/gunicorn_container_debugger_connect.gif"><img alt="Gunicorn container debugger connect example" src="../_images/gunicorn_container_debugger_connect.gif" style="width: 100%;" /></a>
+<p class="caption"><span class="caption-text">Gunicorn container debugger connect example</span><a class="headerlink" href="#id3" title="Permalink to this image"></a></p>
+</div>
+<p>Visual studio code will now attach to the remote container. You will see that the container finaly start gunicorn service.</p>
+<div class="figure align-default" id="id4">
+<a class="reference internal image-reference" href="../_images/gunicorn_container_debugger_connect_done.gif"><img alt="Gunicorn container debugger connect successfully example" src="../_images/gunicorn_container_debugger_connect_done.gif" style="width: 100%;" /></a>
+<p class="caption"><span class="caption-text">Gunicorn container debugger connect successfully example</span><a class="headerlink" href="#id4" title="Permalink to this image"></a></p>
+</div>
+<p>Now you are able to debug code in vscode. See full example video below.</p>
+<div class="figure align-default" id="id5">
+<a class="reference internal image-reference" href="../_images/full_example1.gif"><img alt="Full example of starting container and connect with debugger" src="../_images/full_example1.gif" style="width: 100%;" /></a>
+<p class="caption"><span class="caption-text">Full example of starting container and connect with debugger</span><a class="headerlink" href="#id5" title="Permalink to this image"></a></p>
+</div>
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="pycharm-configuration.html" class="btn btn-neutral float-left" title="Pycharm configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../features/index.html" class="btn btn-neutral float-right" title="Mr Map Features" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, mrmap-community.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+<div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    <span class="fa fa-book"> Other Versions</span>
+    v: feature/speed-up-github-actions
+    <span class="fa fa-caret-down"></span>
+  </span>
+  <div class="rst-other-versions">
+    <dl>
+      <dt>Branches</dt>
+      <dd><a href="vscode-configuration.html">feature/speed-up-github-actions</a></dd>
+    </dl>
+  </div>
+</div><script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

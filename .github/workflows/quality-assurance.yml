@@ -22,8 +22,8 @@ jobs:
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
       
-  quality-assurance:
-    name: quality-assurance
+  acceptance-tests:
+    name: acceptance-tests
     runs-on: ubuntu-20.04
     steps:
       - name: checkout repo
@@ -31,14 +31,53 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract branch name
-        uses: nelonoel/branch-name@v1.0.1
-        id: extract_branch
-
       - name: Run behave tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
       
+    - uses: actions/upload-artifact@v2
+      with:
+        name: acceptance-tests-coverage
+        path: ./backend/acceptance-tests-coverage.xml
+
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Run unit tests
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from django-tests django-tests
+      
+      - uses: actions/upload-artifact@v2
+        with:
+          name: unit-tests-coverage
+          path: ./backend/unit-tests-coverage.xml
+
+  sonar-scanner:
+    needs: [acceptance-tests, unit-tests]
+    name: sonar-scanner
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: unit-tests-coverage
+          path: ./backend/unit-tests-coverage.xml
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: acceptance-tests-coverage
+          path: ./backend/acceptance-tests-coverage.xml
+
       - name: Run sonar-scanner
         run: |
           echo -en "\n" >> ./backend/sonar-project.properties

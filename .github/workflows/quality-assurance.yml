@@ -27,6 +27,9 @@ jobs:
       - uses: satackey/action-docker-layer-caching@v0.0.11
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
+        key: quality-assurance-docker-cache-{hash}
+        restore-keys: |
+          quality-assurance-docker-cache-
 
       - name: Run pre commit checks
         run: |
@@ -50,6 +53,9 @@ jobs:
       - uses: satackey/action-docker-layer-caching@v0.0.11
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
+        key: quality-assurance-docker-cache-{hash}
+        restore-keys: |
+          quality-assurance-docker-cache-
 
       - name: Run behave tests
         run: |
@@ -79,7 +85,10 @@ jobs:
       - uses: satackey/action-docker-layer-caching@v0.0.11
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
-
+        key: quality-assurance-docker-cache-{hash}
+        restore-keys: |
+          quality-assurance-docker-cache-
+      
       - name: Run unit tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from django-tests django-tests
@@ -109,6 +118,9 @@ jobs:
       - uses: satackey/action-docker-layer-caching@v0.0.11
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
+        key: quality-assurance-docker-cache-{hash}
+        restore-keys: |
+          quality-assurance-docker-cache-
 
       - name: download coverage reports
         uses: actions/download-artifact@v2

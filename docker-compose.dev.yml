@@ -71,6 +71,35 @@ services:
       - postgis
       - redis
 
+  django-tests:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
+      args:
+        MRMAP_PRODUCTION: 'False'
+    shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
+    tty: true # To support colorized log output of gherkin and other log information. 
+    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
+    command: >
+      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
+      /opt/mrmap/manage.py test /opt/mrmap/tests --noinput --tag=-skip && python
+      -m coverage xml -i"
+    hostname: "mrmap-django-tests"
+    volumes:
+      - type: bind
+        source: ./backend
+        target: /opt/mrmap
+    networks:
+      - mrmap-internal
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    environment:
+      - DJANGO_DEBUG=0
+    depends_on:
+      - postgis
+      - redis
+
   backend:
     build:
       args:

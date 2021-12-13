@@ -35,10 +35,11 @@ jobs:
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
       
-      - uses: actions/upload-artifact@v2
+      - name: upload coverage reports
+        uses: actions/upload-artifact@v2
         with:
-          name: coverage-reports
-          path: ./backend/acceptance-tests-coverage.xml
+          name: acceptance-reports
+          path: ./backend/acceptance-tests-coverage-report.xml
 
   unit-tests:
     name: unit-tests
@@ -53,10 +54,11 @@ jobs:
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from django-tests django-tests
       
-      - uses: actions/upload-artifact@v2
+      - name: upload coverage reports
+        uses: actions/upload-artifact@v2
         with:
-          name: coverage-reports
-          path: ./backend/unit-tests-coverage.xml
+          name: unit-reports
+          path: ./backend/unit-tests-coverage-report.xml
 
   sonar-scanner:
     needs: [acceptance-tests, unit-tests]
@@ -68,9 +70,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v2
-        with:
-          name: coverage-reports
+      - name: download coverage reports
+        uses: actions/download-artifact@v2
      
       - name: Run sonar-scanner
         run: |

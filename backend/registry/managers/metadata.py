@@ -1,9 +1,8 @@
 from datetime import date, datetime
 
+from crum import get_current_user
 from django.core.files.base import ContentFile
 from django.db import OperationalError, models, transaction
-from django.db.models import (BooleanField, Count, ExpressionWrapper, F, Q,
-                              Subquery)
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from registry.enums.metadata import MetadataOrigin
@@ -55,18 +54,18 @@ class IsoMetadataManager(models.Manager):
     metadata_contact_cls = None
     dataset_contact_cls = None
 
-    def _reset_local_variables(self, **kwargs):
+    def _reset_local_variables(self):
         self.keyword_cls = None
         self.reference_system_cls = None
         self.metadata_contact_cls = None
         self.dataset_contact_cls = None
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.common_info = {}
-        if "current_user" in kwargs:
-            self.common_info.update({"current_user": kwargs["current_user"]})
-        if "owner" in kwargs:
-            self.common_info.update({"owner": kwargs["owner"]})
+        self.current_user = get_current_user()
+        self.common_info = {
+            "created_by_user": self.current_user,
+            "last_modified_by": self.current_user
+        }
 
     def _create_contact(self, contact):
         contact, created = contact.get_model_class().objects.get_or_create(**
@@ -93,14 +92,10 @@ class IsoMetadataManager(models.Manager):
                 field_dict["date_stamp"], timezone.get_current_timezone())
             if dt_aware > db_dataset_metadata.date_stamp:
                 # todo: on update we need to check custom metadata
-                current_user = {}
-                if self.common_info.get('current_user', None):
-                    current_user.update(
-                        {'current_user': self.common_info['current_user']})
                 self.model.objects.update(metadata_contact=db_metadata_contact,
                                           dataset_contact=db_dataset_contact,
-                                          **field_dict,
-                                          **current_user)
+                                          last_modified_by=self.current_user,
+                                          **field_dict)
                 update = True
             exists = True
         except self.model.DoesNotExist:
@@ -121,15 +116,15 @@ class IsoMetadataManager(models.Manager):
                                              **kwargs)
         return db_service_metadata
 
-    def create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url, *args, **kwargs):
-        self._reset_local_variables(**kwargs)
+    def create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url):
+        self._reset_local_variables()
         with transaction.atomic():
             update = False
             if parsed_metadata.hierarchy_level == "service":
                 # todo: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
                 db_metadata = self._create_service_metadata(
-                    parsed_metadata=parsed_metadata, *args, **kwargs)
+                    parsed_metadata=parsed_metadata)
             else:
                 db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
                                                                             origin_url=origin_url)

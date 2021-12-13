@@ -10,5 +10,5 @@ class ObjectPermissionCheckerSerializerMixin:
             perm_checker = ObjectPermissionChecker(
                 user_or_group=self.context['request']['user'])
             settings.ROOT_LOGGER.warning(
-                f"slow handling of object permissions detected. Optimize your view by adding a permchecker in your view.")
+                "slow handling of object permissions detected. Optimize your view by adding a permchecker in your view.")
         return perm_checker

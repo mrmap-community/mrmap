@@ -1,5 +1,3 @@
-import threading
-
 from celery import current_task
 from crum import get_current_user
 from django.conf import settings
@@ -10,11 +8,8 @@ from django.urls import reverse
 from django.urls.exceptions import NoReverseMatch
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from guardian.shortcuts import assign_perm
 
 from extras.utils import camel_to_snake
-
-_thread_locals = threading.local()
 
 
 class GenericModelMixin:

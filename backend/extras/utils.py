@@ -17,7 +17,8 @@ def handle_protected_error(obj_list, request, e):
     """
     protected_objects = list(e.protected_objects)
     protected_count = (
-        len(protected_objects) if len(protected_objects) <= 50 else "More than 50"
+        len(protected_objects) if len(
+            protected_objects) <= 50 else "More than 50"
     )
     err_message = (
         f"Unable to delete <strong>{', '.join(str(obj) for obj in obj_list)}</strong>. "

@@ -1,7 +1,8 @@
 from celery import chord, shared_task, states
+from crum import get_current_user
 from django.conf import settings
 from django.db import transaction
-from extras.tasks import CommonInfoSetupMixin
+from extras.tasks import CurrentUserTaskMixin
 from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import DatasetMetadata, RemoteMetadata
 from registry.xmlmapper.ogc.capabilities import CswService as CswXmlMapper
@@ -13,7 +14,7 @@ from rest_framework.reverse import reverse
 
 
 @shared_task(bind=True,
-             base=CommonInfoSetupMixin)
+             base=CurrentUserTaskMixin)
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, auth: dict = None, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
@@ -42,13 +43,13 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         # FIXME: pass the current user
         if isinstance(parsed_service, WmsXmlMapper):
             db_service = WebMapService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service, **{"owner": self.owner})
+                parsed_service=parsed_service)
         elif isinstance(parsed_service, WfsXmlMapper):
             db_service = WebFeatureService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service, **{"owner": self.owner})
+                parsed_service=parsed_service)
         elif isinstance(parsed_service, CswXmlMapper):
             db_service = CatalougeService.capabilities.create_from_parsed_service(
-                parsed_service=parsed_service, **{"owner": self.owner})
+                parsed_service=parsed_service)
         else:
             raise NotImplementedError(
                 "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
@@ -62,10 +63,11 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
     if collect_metadata_records:
         remote_metadata_list = RemoteMetadata.objects.filter(
             service__pk=db_service.pk)
-
+        current_user = get_current_user()
         header = [fetch_remote_metadata_xml.s(
             remote_metadata.pk, **kwargs) for remote_metadata in remote_metadata_list]
-        callback = parse_remote_metadata_xml_for_service.s(**kwargs)
+        callback = parse_remote_metadata_xml_for_service.s(
+            **{"user_pk": current_user.pk if current_user else None}, **kwargs)
         chord(header)(callback)
 
     return {
@@ -94,7 +96,8 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, **kwargs):
         return None
 
 
-@shared_task(bind=True)
+@shared_task(bind=True,
+             base=CurrentUserTaskMixin)
 def parse_remote_metadata_xml_for_service(self, remote_metadata_ids: list, **kwargs):
     step = 0
     total = len(remote_metadata_ids)
@@ -109,8 +112,7 @@ def parse_remote_metadata_xml_for_service(self, remote_metadata_ids: list, **kwa
     if remote_metadata_list:
         for remote_metadata in remote_metadata_list:
             try:
-                db_metadata = remote_metadata.create_metadata_instance(
-                    **{"current_user": self.user, "owner": self.owner})
+                db_metadata = remote_metadata.create_metadata_instance()
                 successfully_list.append(db_metadata.pk)
                 if isinstance(db_metadata, DatasetMetadata):
                     dataset_list.append(db_metadata.pk)

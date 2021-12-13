@@ -5,9 +5,9 @@ import six
 from accounts.managers.users import CustomUserManager
 from accounts.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
-from django.contrib.auth.models import AbstractUser, Group
+from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.models import CommonInfo, GenericModelMixin

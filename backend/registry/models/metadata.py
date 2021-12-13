@@ -37,7 +37,8 @@ class Style(CommonInfo):
                               on_delete=models.CASCADE,
                               editable=False,
                               verbose_name=_("related layer"),
-                              help_text=_("the layer for that this style is for."),
+                              help_text=_(
+                                  "the layer for that this style is for."),
                               related_name="styles",
                               related_query_name="style")
     name = models.CharField(max_length=255,
@@ -75,7 +76,8 @@ class LegendUrl(CommonInfo):
                                  on_delete=models.CASCADE,
                                  editable=False,
                                  verbose_name=_("related style"),
-                                 help_text=_("the style entity which is linked to this legend url"),
+                                 help_text=_(
+                                     "the style entity which is linked to this legend url"),
                                  related_name="legend_url",
                                  related_query_name="legend_url")
 
@@ -221,7 +223,7 @@ class RemoteMetadata(CommonInfo):
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
-        
+
         session = Session()
         session.proxies = PROXIES
         # FIXME: Re add authentication
@@ -246,7 +248,8 @@ class RemoteMetadata(CommonInfo):
                                                                 xmlclass=WrappedIsoMetadata)
             return parsed_metadata.iso_metadata[0]
         else:
-            raise ValueError("there is no fetched content. You need to call fetch_remote_content() first.")
+            raise ValueError(
+                "there is no fetched content. You need to call fetch_remote_content() first.")
 
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
@@ -342,7 +345,8 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                         help_text=_("only searchable metadata will be returned from the search api"))
     hits = models.IntegerField(default=0,
                                verbose_name=_("hits"),
-                               help_text=_("how many times this metadata was requested by a client"),
+                               help_text=_(
+                                   "how many times this metadata was requested by a client"),
                                editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
                                       related_name="%(class)s_metadata",
@@ -490,9 +494,11 @@ class DatasetMetadataRelation(CommonInfo):
     def clean(self):
         """ Raise ValidationError if layer and feature type are null or if both are configured. """
         if not self.layer and not self.feature_type and not self.csw:
-            raise ValidationError("either layer, feature type or csw must be linked.")
+            raise ValidationError(
+                "either layer, feature type or csw must be linked.")
         elif self.layer and self.feature_type and self.csw:
-            raise ValidationError("link layer, feature type and csw is not supported.")
+            raise ValidationError(
+                "link layer, feature type and csw is not supported.")
         # todo: some more cases are possible
 
 
@@ -559,7 +565,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
     SPATIAL_RES_TYPE_CHOICES = [("groundDistance", "groundDistance"),
                                 ("scaleDenominator", "scaleDenominator")]
 
-    INDETERMINATE_POSITION_CHOICES = [("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
+    INDETERMINATE_POSITION_CHOICES = [
+        ("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
 
     LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
     CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
@@ -639,7 +646,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                                          related_name="dataset_metadata",
                                                          related_query_name="dataset_metadata",
                                                          blank=True,
-                                                         verbose_name=_("feature types"),
+                                                         verbose_name=_(
+                                                             "feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
     self_pointing_catalouge_service = models.ManyToManyField(to="registry.CatalougeService",
@@ -648,7 +656,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                                              related_name="dataset_metadata",
                                                              related_query_name="dataset_metadata",
                                                              blank=True,
-                                                             verbose_name=_("services"),
+                                                             verbose_name=_(
+                                                                 "services"),
                                                              help_text=_("all services from which this dataset was harvested."))
 
     objects = models.Manager()
@@ -749,16 +758,19 @@ class Dimension(CommonInfo):
             are configured.
         """
         if not self.layer and not self.feature_type and self.dataset_metadata:
-            raise ValidationError("either layer, feature type or dataset metadata must be linked.")
+            raise ValidationError(
+                "either layer, feature type or dataset metadata must be linked.")
         elif self.layer and self.feature_type or \
                 self.layer and self.dataset_metadata or \
                 self.feature_type and self.dataset_metadata:
-            raise ValidationError("link two or more related objects is not supported.")
+            raise ValidationError(
+                "link two or more related objects is not supported.")
 
 
 class TimeExtent(CommonInfo):
     start = models.DateTimeField()
-    stop = models.DateTimeField()  # FIXME: allow null=True, to signal no ending time interval
+    # FIXME: allow null=True, to signal no ending time interval
+    stop = models.DateTimeField()
     # null signals infinity resolution or a single value if start and stop is equal
     resolution = models.DurationField(null=True)
     dimension = models.ForeignKey(to=Dimension,

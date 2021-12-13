@@ -11,7 +11,7 @@ import sys
 from celery import shared_task, states
 from celery.utils.log import get_task_logger
 from django.utils import timezone
-from extras.tasks import CommonInfoSetupMixin
+from extras.tasks import CurrentUserTaskMixin
 from registry.enums.conformity import ConformityTypeEnum, ReportType
 from registry.helper.plugins.etf import EtfClient, QualityEtf
 from registry.helper.plugins.internal import QualityInternal
@@ -22,7 +22,7 @@ logger = get_task_logger(__name__)
 
 
 @shared_task(name='async_run_conformity_check',
-             base=CommonInfoSetupMixin,
+             base=CurrentUserTaskMixin,
              bind=True)
 def run_conformity_check(self, run_id: int, **kwargs):
     run = ConformityCheckRun.objects.get(id=run_id)
@@ -42,7 +42,7 @@ def run_conformity_check(self, run_id: int, **kwargs):
 
 
 @shared_task(name='async_run_conformity_check_etf',
-             base=CommonInfoSetupMixin,
+             base=CurrentUserTaskMixin,
              bind=True)
 def run_conformity_check_etf(self, run_id: int, **kwargs):
     if self.task:
@@ -87,7 +87,7 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
 
 
 @shared_task(name='async_run_conformity_check_internal',
-             base=CommonInfoSetupMixin,
+             base=CurrentUserTaskMixin,
              bind=True)
 def run_conformity_check_internal(self, run_id: int, **kwargs):
     if self.task:

@@ -42,30 +42,6 @@ services:
       - postgis
       - redis
 
-  test:
-    build:
-      context: ./backend
-      dockerfile: ../docker/backend/Dockerfile
-      args:
-        MRMAP_PRODUCTION: 'False'
-    tty: true # To support colorized log output of gherkin and other log information. 
-    entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
-    command: /bin/bash -c "coverage run manage.py test --noinput && coverage xml -i
-      -o behave-coverage-report.xml"
-    hostname: "mrmap-test"
-    volumes:
-      - type: bind
-        source: ./backend
-        target: /opt/mrmap
-    networks:
-      - mrmap-internal
-    env_file:
-      - ./docker/backend/.mrmap.env
-      - ./docker/backend/.mrmap.dev.env
-    depends_on:
-      - postgis
-      - redis
-
   behave:
     build:
       context: ./backend
@@ -76,8 +52,9 @@ services:
     tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "coverage run manage.py behave --noinput --tags=-skip
-      --no-skipped tests/behave/api/features"
+      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
+      /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped
+      tests/behave/api/features && python -m coverage xml -i"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -141,3 +118,34 @@ services:
     hostname: "mrmap-swagger-ui"
     networks:
       - mrmap-internal
+
+  sonarqube:
+    # initial admin account: admin:admin 
+    image: sonarqube
+    hostname: "mrmap-sonarqube"
+    ports:
+      - "0.0.0.0:9000:9000"
+    volumes:
+      - type: volume
+        source: sonar-db
+        target: /opt/sonarqube/data
+    networks:
+      - sonar
+
+  sonar-scanner:
+    image: sonarsource/sonar-scanner-cli
+    volumes:
+      - type: bind
+        source: ./backend
+        target: /opt/mrmap
+    depends_on:
+      - sonarqube
+    networks:
+      - sonar
+    working_dir: /opt/mrmap
+
+networks:
+  sonar:
+
+volumes:
+  sonar-db: 

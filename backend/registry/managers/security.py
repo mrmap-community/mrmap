@@ -3,13 +3,14 @@ from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import F, Exists, OuterRef, ExpressionWrapper, BooleanField, Q
-from django.db.models import Value as V, QuerySet
+from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
+                              OuterRef, Q, QuerySet)
+from django.db.models import Value as V
 from django.db.models.functions import Coalesce
-from ows_client.request_builder import WebService, WmsService, WfsService
-from registry.enums.service import OGCOperationEnum, HttpMethodEnum
-from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
+from ows_client.request_builder import WebService, WfsService, WmsService
 from polymorphic.managers import PolymorphicManager
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
 class AllowedOperationManager(models.Manager):
@@ -17,15 +18,18 @@ class AllowedOperationManager(models.Manager):
     def filter_qs_by_secured_element(self, qs, request):
         dummy_service = WebService.manufacture_service(request.get_full_path())
         if isinstance(dummy_service, WmsService):
-            layer_identifiers = dummy_service.get_requested_layers(query_params=request.query_parameters)
+            layer_identifiers = dummy_service.get_requested_layers(
+                query_params=request.query_parameters)
             qs.filter(
-                secured_layers__identifier__iregex=r'(' + '|'.join(layer_identifiers) + ')'
+                secured_layers__identifier__iregex=r'(' +
+                '|'.join(layer_identifiers) + ')'
             )
         elif isinstance(dummy_service, WfsService):
             feature_type_identifiers = dummy_service.get_requested_feature_types(query_params=request.query_parameters,
                                                                                  post_body=request.body)
             qs.filter(
-                secured_feature_types__identifier__iregex=r'(' + '|'.join(feature_type_identifiers) + ')'
+                secured_feature_types__identifier__iregex=r'(' + '|'.join(
+                    feature_type_identifiers) + ')'
             )
         return qs
 
@@ -54,7 +58,8 @@ class AllowedOperationManager(models.Manager):
 
     def is_spatial_secured(self, request):
         return ExpressionWrapper(Exists(self.find_all_allowed_areas_by_request(request=request)) and
-                                 ~Exists(self.find_all_empty_allowed_areas_by_request(request=request)),
+                                 ~Exists(self.find_all_empty_allowed_areas_by_request(
+                                     request=request)),
                                  output_field=BooleanField())
 
     def is_spatial_secured_and_covers(self, request) -> Exists:
@@ -77,7 +82,8 @@ class AllowedOperationManager(models.Manager):
         user_is_principle_entitled_subquery = self.get_queryset().filter(
             secured_service__pk=OuterRef('pk'),
             allowed_groups__pk__in=user_groups_subquery | anonymous_user_groups_subquery,
-            operations__operation__iexact=request.query_parameters.get("request")
+            operations__operation__iexact=request.query_parameters.get(
+                "request")
         )
         return Exists(user_is_principle_entitled_subquery)
 
@@ -105,17 +111,21 @@ class OperationUrlManager(models.Manager):
 class ServiceSecurityManager(PolymorphicManager):
 
     def _collect_data_for_security_facade(self, request) -> QuerySet:
-        from registry.models.service import OperationUrl  # to avoid circular import
-        from registry.models.security import AllowedOperation  # to avoid circular import
+        from registry.models.security import \
+            AllowedOperation  # to avoid circular import
+        from registry.models.service import \
+            OperationUrl  # to avoid circular import
         if request.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
             return super().get_queryset().select_related("document") \
                 .annotate(camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
-                          base_operation_url=OperationUrl.security_objects.get_base_url(request=request),
+                          base_operation_url=OperationUrl.security_objects.get_base_url(
+                              request=request),
                           unknown_operation_url=OperationUrl.security_objects.get_fallback_url())
         elif request.query_parameters.get("request").lower() not in SECURE_ABLE_OPERATIONS_LOWER:
             return super().get_queryset() \
                 .annotate(log_response=Coalesce(F("proxy_setting__log_response"), V(False)),
-                          base_operation_url=OperationUrl.security_objects.get_base_url(request=request),
+                          base_operation_url=OperationUrl.security_objects.get_base_url(
+                              request=request),
                           unknown_operation_url=OperationUrl.security_objects.get_fallback_url())
         else:
             return super().get_queryset().select_related(
@@ -123,11 +133,15 @@ class ServiceSecurityManager(PolymorphicManager):
                 "service_type",
                 "external_authentication", ) \
                 .annotate(camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
-                          log_response=Coalesce(F("proxy_setting__log_response"), V(False)),
-                          is_spatial_secured=AllowedOperation.objects.is_spatial_secured(request=request),
+                          log_response=Coalesce(
+                              F("proxy_setting__log_response"), V(False)),
+                          is_spatial_secured=AllowedOperation.objects.is_spatial_secured(
+                              request=request),
                           is_secured=AllowedOperation.objects.is_service_secured(),
-                          user_is_principle_entitled=AllowedOperation.objects.is_user_entitled(request=request),
-                          base_operation_url=OperationUrl.security_objects.get_base_url(request=request),
+                          user_is_principle_entitled=AllowedOperation.objects.is_user_entitled(
+                              request=request),
+                          base_operation_url=OperationUrl.security_objects.get_base_url(
+                              request=request),
                           unknown_operation_url=OperationUrl.security_objects.get_fallback_url(),
                           is_spatial_secured_and_covers=AllowedOperation.objects.is_spatial_secured_and_covers(
                               request=request),
@@ -138,14 +152,18 @@ class ServiceSecurityManager(PolymorphicManager):
     def construct_service(self, pk, request):
         service = None
         try:
-            service_qs = self._collect_data_for_security_facade(request=request)
+            service_qs = self._collect_data_for_security_facade(
+                request=request)
             if request.query_parameters.get("request").lower() in SECURE_ABLE_OPERATIONS_LOWER:
-                dummy_remote_service = WebService.manufacture_service(request.get_full_path())
+                dummy_remote_service = WebService.manufacture_service(
+                    request.get_full_path())
                 if isinstance(dummy_remote_service, WmsService):
                     service_qs.prefetch_related("allowed_operations")
                     service = service_qs.get(pk=pk)
-                    layer_identifiers = dummy_remote_service.get_requested_layers(query_params=request.query_parameters)
-                    query = Q(secured_layers__identifier__iregex=r'(' + '|'.join(layer_identifiers) + ')')
+                    layer_identifiers = dummy_remote_service.get_requested_layers(
+                        query_params=request.query_parameters)
+                    query = Q(secured_layers__identifier__iregex=r'(' +
+                              '|'.join(layer_identifiers) + ')')
                     service.allowed_areas = service.allowed_operations \
                         .filter(query) \
                         .distinct("pk") \

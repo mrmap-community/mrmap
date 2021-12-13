@@ -137,14 +137,11 @@ class OgcServiceViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        common_info_data = {'owner': serializer.validated_data['owner'].pk,
-                            'current_user': request.user.pk}
-
         task = build_ogc_service.delay(get_capabilities_url=serializer.validated_data['get_capabilities_url'],
                                        collect_metadata_records=serializer.validated_data[
                                            'collect_metadata_records'],
                                        auth=None,  # TODO: handle auth information
-                                       **common_info_data)
+                                       **{'current_user': request.user.pk})
         task_result, created = TaskResult.objects.get_or_create(
             task_id=task.id)
 

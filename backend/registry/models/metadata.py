@@ -99,9 +99,6 @@ class Licence(models.Model):
 
     objects = LicenceManager()
 
-    class Meta(CommonInfo.Meta):
-        pass
-
     def __str__(self):
         return "{} ({})".format(self.identifier, self.name)
 

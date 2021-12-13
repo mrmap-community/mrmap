@@ -26,29 +26,21 @@ from requests.auth import HTTPDigestAuth
 
 
 def key_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/ext_auth_keys/service_<id>/<filename>
-    return 'ext_auth_keys/service_{0}/{1}'.format(instance.secured_service_id, filename)
+    # file will be uploaded to MEDIA_ROOT/ext_auth_keys/service_authentication_<id>/<filename>
+    return 'ext_auth_keys/{0}/{1}'.format(instance.pk, filename)
 
 
 class ServiceAuthentication(GenericModelMixin, CommonInfo):
     username = models.CharField(max_length=255,
-                                blank=True,  # to support empty inline formset posting
                                 verbose_name=_("username"),
                                 help_text=_("the username used for the authentication."))
     password = models.CharField(max_length=500,
-                                blank=True,  # to support empty inline formset posting
                                 verbose_name=_("password"),
                                 help_text=_("the password used for the authentication."))
     auth_type = models.CharField(max_length=100,
-                                 blank=True,  # to support empty inline formset posting
                                  choices=AuthTypeEnum.as_choices(),
                                  verbose_name=_("authentication type"),
                                  help_text=_("kind of authentication mechanism shall used."))
-    test_url = models.URLField(validators=[validate_get_capablities_uri],
-                               editable=False,
-                               null=True,
-                               verbose_name=_("Service url"),
-                               help_text=_("this shall be the full get capabilities request url."))
     key_file = models.FileField(upload_to=key_file_path,
                                 editable=False,
                                 max_length=1024)
@@ -59,6 +51,7 @@ class ServiceAuthentication(GenericModelMixin, CommonInfo):
                                    related_query_name="auth",
                                    related_name="auth",
                                    on_delete=models.CASCADE,
+                                   null=True,
                                    blank=True)
 
     def save(self, *args, **kwargs):

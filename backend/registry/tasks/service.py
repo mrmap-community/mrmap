@@ -5,6 +5,7 @@ from django.db import transaction
 from extras.tasks import CurrentUserTaskMixin
 from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import DatasetMetadata, RemoteMetadata
+from registry.models.security import ServiceAuthentication
 from registry.xmlmapper.ogc.capabilities import CswService as CswXmlMapper
 from registry.xmlmapper.ogc.capabilities import Wfs200Service as WfsXmlMapper
 from registry.xmlmapper.ogc.capabilities import WmsService as WmsXmlMapper
@@ -15,13 +16,13 @@ from rest_framework.reverse import reverse
 
 @shared_task(bind=True,
              base=CurrentUserTaskMixin)
-def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, auth: dict = None, **kwargs):
+def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
 
-    if auth:
-        # TODO: init ServiceAuthentication
-        pass
+    auth = None
+    if service_auth_pk:
+        auth = ServiceAuthentication.objects.get(id=service_auth_pk)
 
     session = Session()
     session.proxies = settings.PROXIES

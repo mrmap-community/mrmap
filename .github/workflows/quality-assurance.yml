@@ -11,12 +11,15 @@ on:
 jobs:
   pre-commit-checks:
     name: pre-commit-checks
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
 
       - name: Run pre commit checks
         run: |
@@ -24,12 +27,15 @@ jobs:
       
   acceptance-tests:
     name: acceptance-tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull behave
 
       - name: Run behave tests
         run: |
@@ -43,13 +49,16 @@ jobs:
 
   unit-tests:
     name: unit-tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
+      
       - name: Run unit tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from django-tests django-tests
@@ -63,12 +72,15 @@ jobs:
   sonar-scanner:
     needs: [acceptance-tests, unit-tests]
     name: sonar-scanner
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
 
       - name: download coverage reports
         uses: actions/download-artifact@v2

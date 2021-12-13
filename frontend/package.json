@@ -92,6 +92,7 @@
     ],
     "collectCoverageFrom": [
       "src/**/*.ts",
+      "src/**/*.tsx",
       "!src/index.ts"
     ],
     "coverageReporters": [

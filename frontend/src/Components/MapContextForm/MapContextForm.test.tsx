@@ -1,11 +1,22 @@
 import '@testing-library/jest-dom';
 
-import { render } from '@testing-library/react';
+import { shallow } from 'enzyme';
 import React from 'react';
 
 import { MapContextForm } from './MapContextForm';
 
-test('Renders the MapContextForm Component', () => {
-  const element = render(<MapContextForm/>);
-  expect(element).toBeVisible();
+describe('MapContextForm component', () => {
+  const requiredProps = {};
+
+  const getComponent = (props?:any) => shallow((
+    <MapContextForm
+      {...requiredProps}
+      {...props}
+    />
+  ));
+
+  it('renders the component', () => {
+    const component = getComponent();
+    expect(component).toBeDefined();
+  });
 });

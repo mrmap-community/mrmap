@@ -1,15 +1,13 @@
-import '@testing-library/jest-dom';
-
-import { shallow } from 'enzyme';
+import { mount } from 'enzyme';
 import React from 'react';
 
-import { TreeFormField } from './TreeFormField';
+import { MapContext } from './MapContext';
 
-describe('TreeFormField component', () => {
+describe('MapContext component', () => {
   const requiredProps = {};
 
-  const getComponent = (props?:any) => shallow((
-    <TreeFormField
+  const getComponent = (props?:any) => mount((
+    <MapContext
       {...requiredProps}
       {...props}
     />

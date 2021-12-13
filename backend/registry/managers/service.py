@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from random import randrange
 
+from crum import get_current_user
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
@@ -30,9 +31,10 @@ class ServiceCapabilitiesManager(PolymorphicManager):
     dimension_cls = None
     reference_system_cls = None
 
+    current_user = None
     common_info = {}
 
-    def _reset_local_variables(self, **kwargs):
+    def _reset_local_variables(self):
         """helper function to reset local variables.
            It seems to be that a manager in django is a singleton object.
         """
@@ -57,11 +59,11 @@ class ServiceCapabilitiesManager(PolymorphicManager):
 
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.common_info = {}
-        if "current_user" in kwargs:
-            self.common_info.update({"current_user": kwargs["current_user"]})
-        if "owner" in kwargs:
-            self.common_info.update({"owner": kwargs["owner"]})
+        self.current_user = get_current_user()
+        self.common_info = {
+            "created_by_user": self.current_user,
+            "last_modified_by": self.current_user
+        }
 
     def _get_or_create_keywords(self, parsed_keywords, db_object):
         db_object.keyword_list = []
@@ -73,7 +75,7 @@ class ServiceCapabilitiesManager(PolymorphicManager):
                 **keyword.get_field_dict())
             db_object.keyword_list.append(db_keyword)
 
-    def _create_service_instance(self, parsed_service, *args, **kwargs):
+    def _create_service_instance(self, parsed_service):
         """ Creates the service instance and all depending/related objects """
         # create service instance first
 
@@ -85,8 +87,7 @@ class ServiceCapabilitiesManager(PolymorphicManager):
         service = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                  service_contact=db_service_contact,
                                  metadata_contact=db_service_contact,
-                                 *args,
-                                 **kwargs,
+                                 **self.common_info,
                                  **parsed_service.get_field_dict(),
                                  **parsed_service.service_metadata.get_field_dict())
 
@@ -106,6 +107,7 @@ class ServiceCapabilitiesManager(PolymorphicManager):
                 operation_url_model_cls = operation_url.get_model_class()
 
             db_operation_url = operation_url_model_cls(service=service,
+
                                                        **self.common_info,
                                                        **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
@@ -370,11 +372,11 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             db_layer.keywords.add(*db_layer.keyword_list)
             db_layer.reference_systems.add(*db_layer.reference_system_list)
 
-    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
-        self._reset_local_variables(**kwargs)
+    def create_from_parsed_service(self, parsed_service):
+        self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(
-                parsed_service=parsed_service, *args, **kwargs)
+                parsed_service=parsed_service)
             self._create_wms(parsed_service=parsed_service,
                              db_service=db_service)
         return db_service
@@ -425,22 +427,22 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
             db_feature_type.reference_systems.add(
                 *db_feature_type.reference_system_list)
 
-    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
+    def create_from_parsed_service(self, parsed_service):
         self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(
-                parsed_service=parsed_service, *args, **kwargs)
+                parsed_service=parsed_service)
             self._create_wfs(parsed_service=parsed_service,
                              db_service=db_service)
         return db_service
 
 
 class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):
-    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
-        self._reset_local_variables(**kwargs)
+    def create_from_parsed_service(self, parsed_service):
+        self._reset_local_variables()
         with transaction.atomic():
             db_service = self._create_service_instance(
-                parsed_service=parsed_service, *args, **kwargs)
+                parsed_service=parsed_service)
         return db_service
 
 
@@ -450,11 +452,11 @@ class FeatureTypeElementXmlManager(models.Manager):
     def _reset_local_variables(self, **kwargs):
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.common_info = {}
-        if "current_user" in kwargs:
-            self.common_info.update({"current_user": kwargs['current_user']})
-        if "owner" in kwargs:
-            self.common_info.update({"owner": kwargs["owner"]})
+        self.current_user = get_current_user()
+        self.common_info = {
+            "created_by_user": self.current_user,
+            "last_modified_by": self.current_user
+        }
 
     def create_from_parsed_xml(self, parsed_xml, related_object, *args, **kwargs):
         self._reset_local_variables(**kwargs)

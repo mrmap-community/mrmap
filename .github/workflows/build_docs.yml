@@ -1,4 +1,4 @@
-name: Build and Publishing docs on github pages
+name: Building docs
 on:
   workflow_dispatch:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   check-docs:
-    name: publish docs
+    name: build docs
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2

@@ -54,7 +54,8 @@ services:
     command: >
       /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
       /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped
-      tests/behave/api/features && python -m coverage xml -i"
+      tests/behave/api/features && python -m coverage xml -i -o
+      acceptance-tests-coverage-report.xml"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -82,8 +83,8 @@ services:
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
       /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
-      ./manage.py test /opt/mrmap/tests/ --noinput && python
-      -m coverage xml -i"
+      ./manage.py test /opt/mrmap/tests/ --noinput && python -m coverage xml -i
+      -o unit-tests-coverage-report.xml"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind
@@ -176,5 +177,6 @@ services:
 networks:
   sonar:
 
+    null
 volumes:
-  sonar-db: 
+  sonar-db: null

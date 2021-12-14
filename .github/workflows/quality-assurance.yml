@@ -101,9 +101,14 @@ jobs:
   # Tests successful build of Mr Map Client
   client-lint:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
       - name: Install modules
+        with:
+          path: ./frontend
         run: npm install
       - name: Run ESLint
+        with:
+          path: ./frontend
         run: npm run lint

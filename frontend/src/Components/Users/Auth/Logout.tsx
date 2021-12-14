@@ -24,7 +24,7 @@ export const Logout = (): ReactElement => {
       navigate('/login');
     }
     ensureLogoutAndForwardToLogin();
-  }, [auth]);
+  }, [auth, navigate]);
 
   return (
     <Row justify='center' align='middle' style={{ minHeight: '100vh', backgroundColor: '#001529' }}>

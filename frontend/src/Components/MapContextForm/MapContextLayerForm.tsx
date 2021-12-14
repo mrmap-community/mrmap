@@ -96,7 +96,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
         (boolean) => setIsRenderingLayerOptionsLoading(boolean)
       );
     }
-  }, []);
+  }, [form]);
 
   /**
    * @description: Hook to run on component mount. Fetches initial results for rendering layer autocomplete
@@ -125,7 +125,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
         (boolean) => setIsRenderingLayerOptionsLoading(boolean)
       );
     }
-  }, []);
+  }, [form]);
 
   /**
    * @description: Hook to run on component mount. Fetches initial results for rendering feature type selection
@@ -155,7 +155,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
         (boolean) => setIsRenderingLayerOptionsLoading(boolean)
       );
     }
-  }, []);
+  }, [form]);
 
   return (
       <Form

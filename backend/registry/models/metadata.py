@@ -14,7 +14,8 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOrigin, MetadataOriginEnum,
                                      MetadataRelationEnum,
                                      ReferenceSystemPrefixEnum)
-from registry.managers.metadata import IsoMetadataManager, LicenceManager
+from registry.managers.metadata import (IsoMetadataManager, KeywordManager,
+                                        LicenceManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.xmlmapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
@@ -185,13 +186,18 @@ class MetadataContact(models.Model):
 class Keyword(models.Model):
     keyword = models.CharField(max_length=255,
                                unique=True,
-                               db_index=True)
+                               db_index=True,)
+
+    objects = KeywordManager()
 
     def __str__(self):
         return self.keyword
 
     class Meta:
         ordering = ["keyword"]
+
+    def natural_key(self):
+        return (self.keyword,)
 
 
 class RemoteMetadata(CommonInfo):

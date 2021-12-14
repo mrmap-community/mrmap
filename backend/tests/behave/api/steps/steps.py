@@ -33,7 +33,7 @@ def step_impl(context):
     context.payload = context.text
 
 
-@given('I set a queryparam {param} with value {value}')
+@given('I set a queryparam "{param}" with value "{value}"')
 def step_impl(context, param, value):
     context.query_params.update({param: value})
 
@@ -45,6 +45,7 @@ def step_impl(context, content_type):
 
 @step('I send the request with GET method')
 def step_impl(context):
+    print(context.query_params)
     context.response = context.client.get(
         path=context.endpoint,
         data=context.query_params or None)

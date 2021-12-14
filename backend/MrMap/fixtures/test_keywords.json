@@ -1,0 +1,956 @@
+[
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "meteorology"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "climatology"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "ergiebiger Dauerregen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extrem ergiebiger Dauerregen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extrem heftiger Starkregen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extrem schweres Gewitter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extrem starke Schneeverwehung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extrem starker Schneefall"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extreme Orkanböen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "extreme Unwetterwarnung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gewitter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Schweres Gewitter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Biowettergebiete"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gefahrenindizes für Wetterfühlige"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Atmosphärische Bedingungen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gitterpunkt (reguläres geographisches Gitter)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "GRIB"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Horizontale Auflösung von 0,0625 Grad"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Luftfahrt"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Lufttemperatur"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Numerische Wettervorhersagen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Stündlich"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Vorhersage"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "2 m über Grund"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bodenluftdruck auf NN reduziert"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Luftdruck"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "QFF"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Ambrosia"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Beifuß"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Birke"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Erle"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Esche"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Gräser"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Hasel"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Pollenflug-Gefahrenindex Roggen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Staatsgebiet"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Täglich"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Beobachtungssystem"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Rasterzelle (Gebietsraster)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Aerologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Monatlich"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "TEMP"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Seemeteorologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bodendruck an der Erdoberfläche"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bodentemperatur"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Geographischer Ort"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wetter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wetterbeobachtungen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Windgeschwindigkeit"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Windrichtung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Meteorologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "SYNOP"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "10 m über Grund"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Relative Feuchte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bodenniveau"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Niederschlag"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Niederschlagsdefizit"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Verdunstung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bodenfeuchte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Frost"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Glätte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Glatteis"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Nebel"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Sichtweite"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Taupunkttemperatur"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Vertikalwind"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Atmosphärische Zusammensetzung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gesamtbedeckungsgrad"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "CWAM_REG025_FD_SL_DD10M"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Schifffahrt"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Synoptische Meteorologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wellenhöhe der Dünung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wellenhöhe der Windsee"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "ImageMosaic"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tageshöchstwert"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tagestiefstwert"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bedeckungsgrad"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Kurzfristvorhersage"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Mittelfristvorhersage"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Rastergrafikkarte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wettervorhersagen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Strahlung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Radarreflektivität"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Stundensumme"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Aktuell"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Radarauswertungen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Agrarmeteorologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bundesland"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Hydrologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tornado"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wintersport"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tagessumme"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Analyse"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Dauerregen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gitterpunktsfeld"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "heftiger Starkregen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Qualitätsgeprüfte Angaben"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "starkes Gewitter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Starkregen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Bedeckungsgrad (gesamt)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Glaziologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Satellitenbeobachtung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wolkengattung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Ozeanographie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Binnensee"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "cap"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Eisberg"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Geographisches Gebiet"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Leiterseilschwingung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Orkanböen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Schneefall"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Schneeverwehung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "starke Schneeverwehung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "starker Schneefall"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "starkes Tauewtter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "strenger Frost"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Sturmböen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tauwetter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Text"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tiefsttemperatur"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tropischer Wirbelsturm"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tropischer Wirbelsturm (Hurrikan)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tropischer Wirbelsturm (Taifun)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Tsunami"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Turbulenz in wolkenfreier Luft"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Unwetterwarnung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Vulkanaschewolke"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Warngebiet"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wetterwarnungen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Windböen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "XML"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Zyklon"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gemeinde"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "starkes Tauwetter"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Hochnebel"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Luftfeuchtigkeit"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Verwaltungsgebiet"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wettererscheinung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Klimatologie"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Meteorologisch-geografische Kennwerte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Globalstrahlung"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Klimatologische Zeitreihen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Sonnenscheindauer"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Niederschlag - fest (nur Schnee)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Vorläufige Angaben"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Geländehöhe"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Meteorologisch-geographische Kennwerte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Wettermeldungen"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "features"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "V_PERFORMANCE_INDICATOR_MONTH"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Meteorologische-geographische Kennwerte"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Untere Troposphäre"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Zeitreihe"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Geobasisdaten"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "WCS"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "GeoTIFF"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "GRAY_HR_SR_OB_DR"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Gitterpunkt (natives Modellgitter)"
+        }
+    },
+    {
+        "model": "registry.keyword",
+        "fields": {
+            "keyword": "Modellfläche"
+        }
+    }
+]

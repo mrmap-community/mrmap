@@ -8,8 +8,8 @@ import React, { ReactNode } from 'react';
 dayjs.extend(customParseFormat);
 
 export const buildSearchTransformDateRange = (dataIndex: string) => {
-  return (values: any[]) => {
-    const queryParams: {[key: string]: string} = {};
+  return (values: any[]): Record<string, string> => {
+    const queryParams: Record<string, string> = {};
     if (values[0]) {
       // re-parsing the date is not very nice, but as soon as we set a date format for the date picker
       // (via the column) the same (string) representation is used here in the transform function...
@@ -24,8 +24,8 @@ export const buildSearchTransformDateRange = (dataIndex: string) => {
 };
 
 export const buildSearchTransformText = (dataIndex: string, filterModifier?: string) => {
-  return (value: string) => {
-    const queryParams: {[key: string]: string} = {};
+  return (value: string): Record<string, string> => {
+    const queryParams: Record<string, string> = {};
     if (filterModifier) {
       queryParams[`filter[${dataIndex}.${filterModifier}]`] = value;
     } else {
@@ -35,7 +35,7 @@ export const buildSearchTransformText = (dataIndex: string, filterModifier?: str
   };
 };
 
-export const renderEllipsis = (dataIndex: string, text: ReactNode, record: any): ReactNode => {
+export const renderEllipsis = (dataIndex: string, text: ReactNode, record: Record<string, unknown>): ReactNode => {
   const value = record[dataIndex];
   if (!value) {
     return '-';
@@ -46,7 +46,7 @@ export const renderEllipsis = (dataIndex: string, text: ReactNode, record: any):
   return (<Text style={{ maxWidth: '200px' }} ellipsis={true}>{value}</Text>);
 };
 
-export const renderLink = (dataIndex: string, text: ReactNode, record: any): ReactNode => {
+export const renderLink = (dataIndex: string, text: ReactNode, record: Record<string, string>): ReactNode => {
   const value = record[dataIndex];
   if (!value) {
     return '-';
@@ -81,7 +81,6 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
   const name = column.dataIndex;
   if (column.valueType === 'text') {
     if (queryParams[`filter[${name}.icontains]`]) {
-      console.log('icontains filtering for column ' + name);
       column.search = {
         transform: buildSearchTransformText(`${name}`, 'icontains')
       };
@@ -90,8 +89,8 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
   return column;
 };
 
-export const augmentColumnWithJsonSchema = (column: ProColumnType, propSchema: any,
-  queryParams: any) : ProColumnType => {
+export const augmentColumnWithJsonSchema = (column: ProColumnType, propSchema: { type: string, format: string },
+  queryParams: Record<string, string>) : ProColumnType => {
   column.title = column.title || column.dataIndex;
 
   // https://procomponents.ant.design/components/schema#valuetype

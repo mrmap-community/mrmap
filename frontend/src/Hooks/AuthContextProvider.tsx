@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { ReactElement, useEffect } from 'react';
 
 import LoginRepo from '../Repos/LoginRepo';
 import LogoutRepo from '../Repos/LogoutRepo';
@@ -12,13 +12,14 @@ export interface AuthContextType {
   logout: () => Promise<boolean>;
 }
 
+// eslint-disable-next-line
 const AuthContext = React.createContext<AuthContextType>(null!);
 
 const loginRepo = new LoginRepo();
 const logoutRepo = new LogoutRepo();
 const userRepo = new UserRepo();
 
-export function AuthProvider ({ children }: { children: React.ReactNode }) {
+export function AuthProvider ({ children }: { children: React.ReactNode }): ReactElement {
   const [user, setUser] = React.useState('');
   const [userId, setUserId] = useLocalStorage('userId', '');
 
@@ -45,7 +46,7 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
     if (userId) {
       fetchCurrentUser();
     }
-  }, [userId]);
+  }, [userId, setUserId]);
 
   async function login (user: string, password: string): Promise<boolean> {
     try {
@@ -84,6 +85,6 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth () {
+export function useAuth (): AuthContextType {
   return React.useContext(AuthContext);
 }

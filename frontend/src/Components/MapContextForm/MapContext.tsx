@@ -5,9 +5,9 @@ import { useForm } from 'antd/lib/form/Form';
 import React, { FC, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
+import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
-import { hasOwnProperty } from '../../utils';
 import { MPTTListToTreeNodeList, TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
@@ -73,9 +73,8 @@ export const MapContext: FC<MapContextProps> = () => {
                 setIsSubmittingMapContext(true);
                 try {
                   const response = await mapContextRepo.create(values);
-                  if (response.data?.data &&
-                    hasOwnProperty(response.data.data, 'id')) {
-                    setCreatedMapContextId(response.data.data.id);
+                  if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
+                    setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
                   }
                   return response;
                 } catch (error) {

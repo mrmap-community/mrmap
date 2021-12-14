@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import LoginRepo from '../Repos/LoginRepo';
 import LogoutRepo from '../Repos/LogoutRepo';
 import { UserRepo } from '../Repos/UserRepo';
-import { hasOwnProperty, useLocalStorage } from '../utils';
+import { useLocalStorage } from '../utils';
 
 export interface AuthContextType {
   user: any;
@@ -31,10 +31,8 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
         res.data &&
         res.data.data &&
         // TODO remove this after backend is fixed
-        (res.data.data as any).id &&
-        hasOwnProperty(res.data.data, 'attributes') &&
-        res.data.data.attributes) {
-          setUser(res.data.data.attributes);
+        (res.data.data as any).attributes) {
+          setUser((res.data.data as any).attributes);
         } else {
           // not 200 -> no session for user in backend
           setUserId('');
@@ -56,10 +54,8 @@ export function AuthProvider ({ children }: { children: React.ReactNode }) {
       res.data &&
       res.data.data &&
       // TODO remove this after backend is fixed
-      (res.data.data as any).id &&
-      hasOwnProperty(res.data.data, 'attributes') &&
-      res.data.data.attributes) {
-        setUserId(res.data.data.id);
+      (res.data.data as any).id) {
+        setUserId((res.data.data as any).id);
         return Promise.resolve(true);
       } else {
         return Promise.resolve(false);

@@ -104,10 +104,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install modules
-        with:
-          path: ./frontend
-        run: npm install
+        run: ./frontend/npm install
       - name: Run ESLint
-        with:
-          path: ./frontend
-        run: npm run lint
+        run: ./frontend/npm run lint

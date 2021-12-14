@@ -24,7 +24,7 @@ jobs:
       - name: Run pre commit checks
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from pre-commit-check pre-commit-check
-      
+
   acceptance-tests:
     name: acceptance-tests
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
       - name: Run behave tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
-      
+
       - name: upload coverage reports
         uses: actions/upload-artifact@v2
         with:
@@ -58,11 +58,11 @@ jobs:
 
       - name: pull needed docker images
         run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
-      
+
       - name: Run unit tests
         run: |
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from django-tests django-tests
-      
+
       - name: upload coverage reports
         uses: actions/upload-artifact@v2
         with:
@@ -84,10 +84,10 @@ jobs:
 
       - name: download coverage reports
         uses: actions/download-artifact@v2
-        with: 
+        with:
           name: coverage-reports
           path: ./backend
-     
+
       - name: Run sonar-scanner
         run: |
           echo -en "\n" >> ./backend/sonar-project.properties
@@ -97,3 +97,29 @@ jobs:
           cat ./backend/sonar-project.properties
           ls ./backend
           GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner
+
+  install-node-modules:
+    name: install-node-modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install node modules
+        run: ./frontend/npm install
+
+  client-lint:
+    needs: [install-node-modules]
+    name: client-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run ESLint
+        run: ./frontend/npm run lint
+
+  client-unit-tests:
+    needs: [install-node-modules]
+    name: client-unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Client Unit Tests
+        run: ./frontend/npm run test

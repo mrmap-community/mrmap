@@ -1,4 +1,3 @@
-@qwertz
 Feature: DatasetMetadata List Endpoint
     As an API client,
     I want to search dataset metadata records,

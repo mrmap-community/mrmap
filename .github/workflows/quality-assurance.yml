@@ -122,7 +122,7 @@ jobs:
         with:
           path: "frontend/node_modules"
           key: node-modules-${{ hashFiles('frontend/package.json') }}
-      - run: npm ci
+      - run: npm install
         working-directory: ./frontend
       - run: npm run build --if-present
         working-directory: ./frontend

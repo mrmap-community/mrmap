@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 export interface OgcServiceCreate {
     get_capabilities_url: string;  // eslint-disable-line
     owner: string; // eslint-disable-line
-    collect_metadata_records: boolean;
+    collect_metadata_records: boolean; // eslint-disable-line
 }
 
 export class OgcServiceRepo extends JsonApiRepo {

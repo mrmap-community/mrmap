@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export function hasOwnProperty<X extends {}, Y extends PropertyKey>
+export function hasOwnProperty<X extends Record<string, never>, Y extends PropertyKey>
 (obj: X, prop: Y): obj is X & Record<Y, unknown> {
   return obj.hasOwnProperty(prop);
 }

@@ -98,28 +98,12 @@ jobs:
           ls ./backend
           GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner
 
-  install-node-modules:
-    name: install-node-modules
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install node modules
-        run: ./frontend/npm install
-
+  # Tests successful build of Mr Map Client
   client-lint:
-    needs: [install-node-modules]
-    name: client-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install modules
+        run: npm
       - name: Run ESLint
-        run: ./frontend/npm run lint
-
-  client-unit-tests:
-    needs: [install-node-modules]
-    name: client-unit-tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Run Client Unit Tests
-        run: ./frontend/npm run test
+        run: lint

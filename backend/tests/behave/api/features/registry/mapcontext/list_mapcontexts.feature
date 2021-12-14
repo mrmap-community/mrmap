@@ -18,7 +18,7 @@ Feature: MapContext List Endpoint
         Then I expect that response json has an attribute data.[0].relationships.map_context_layers.links.meta.count with value 5
 
     Scenario: Can retrieve list with included map context layers
-        Given I set a queryparam include with value map_context_layers
+        Given I set a queryparam "include" with value "map_context_layers"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute included

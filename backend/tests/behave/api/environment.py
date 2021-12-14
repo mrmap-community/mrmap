@@ -9,8 +9,13 @@ def before_scenario(context, scenario):
     context.client = APIClient()
     context.query_params = {}
 
-    # TODO: move test_mapcontext.json fixture loading to before_scenario for features where the name contains MapContext
-    context.fixtures = ['test_users.json', 'test_mapcontext.json']
+    # basicly there are users, groups and keywords
+    context.fixtures = ['test_users.json', 'test_keywords.json']
+
+    if 'MapContext' in scenario.feature.name:
+        context.fixtures.append('test_mapcontext.json')
+    elif 'DatasetMetadata' in scenario.feature.name:
+        context.fixtures.append('test_datasetmetadata.json')
 
 
 def after_step(context, step):

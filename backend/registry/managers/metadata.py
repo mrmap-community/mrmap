@@ -164,3 +164,9 @@ class IsoMetadataManager(models.Manager):
             # todo: categories
 
             return db_metadata
+
+
+class KeywordManager(models.Manager):
+
+    def get_by_natural_key(self, keyword):
+        return self.get(keyword=keyword)

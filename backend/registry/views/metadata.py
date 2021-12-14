@@ -13,7 +13,7 @@ class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
     )
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
-    filter_fields = {
+    filterset_fields = {
         'keyword': ['exact', 'icontains', 'contains'],
     }
     search_fields = ('keyword',)
@@ -25,7 +25,7 @@ class StyleViewSet(NestedViewSetMixin, ModelViewSet):
     )
     queryset = Style.objects.all()
     serializer_class = StyleSerializer
-    filter_fields = {
+    filterset_fields = {
         'name': ['exact', 'icontains', 'contains'],
         'title': ['exact', 'icontains', 'contains'],
     }
@@ -38,3 +38,9 @@ class DatasetMetadataViewSet(ModelViewSet):
     )
     queryset = DatasetMetadata.objects.all()
     serializer_class = DatasetMetadataSerializer
+    filterset_fields = {
+        'title': ['exact', 'icontains', 'contains'],
+        'abstract': ['exact', 'icontains', 'contains'],
+        'keywords__keyword': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ('title', 'abstract', 'keywords__keyword')

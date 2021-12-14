@@ -109,7 +109,7 @@ jobs:
   #     - name: Run ESLint
   #       run: ./frontend/npm run lint
 
-  client-setup:
+  client-quaality-assurance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -122,19 +122,12 @@ jobs:
         with:
           path: "frontend/node_modules"
           key: node-modules-${{ hashFiles('frontend/package.json') }}
-      - run: npm install
+      - name: Install node modules
+        run: npm install
         working-directory: ./frontend
-
-  client-lint:
-    runs-on: ubuntu-latest
-    needs: [client-setup]
-    steps:
-      - run: npm run lint
+      - name: Run ESLint
+        run: npm run lint
         working-directory: ./frontend
-
-  client-test:
-    runs-on: ubuntu-latest
-    needs: [client-setup]
-    steps:
-      - run: npm run test
+      - name: Run unit tests
+        run: npm run test
         working-directory: ./frontend

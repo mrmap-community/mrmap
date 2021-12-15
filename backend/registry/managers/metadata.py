@@ -5,6 +5,7 @@ from django.core.files.base import ContentFile
 from django.db import OperationalError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from extras.transaction import LockedAtomicTransaction
 from registry.enums.metadata import MetadataOrigin
 
 
@@ -68,8 +69,8 @@ class IsoMetadataManager(models.Manager):
         }
 
     def _create_contact(self, contact):
-        contact, created = contact.get_model_class().objects.get_or_create(**
-                                                                           contact.get_field_dict())
+        contact, created = contact.get_model_class(
+        ).objects.select_for_update().get_or_create(**contact.get_field_dict())
         return contact
 
     def _create_dataset_metadata(self, parsed_metadata, origin_url):
@@ -82,29 +83,31 @@ class IsoMetadataManager(models.Manager):
         update = False
         exists = False
         try:
-            db_dataset_metadata = self.model.objects.get(dataset_id=field_dict["dataset_id"],
-                                                         dataset_id_code_space=field_dict["dataset_id_code_space"])
-            # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
-            if isinstance(field_dict["date_stamp"], date):
-                field_dict["date_stamp"] = datetime.combine(
-                    field_dict["date_stamp"], datetime.min.time())
-            dt_aware = timezone.make_aware(
-                field_dict["date_stamp"], timezone.get_current_timezone())
-            if dt_aware > db_dataset_metadata.date_stamp:
-                # todo: on update we need to check custom metadata
-                self.model.objects.update(metadata_contact=db_metadata_contact,
-                                          dataset_contact=db_dataset_contact,
-                                          last_modified_by=self.current_user,
-                                          **field_dict)
-                update = True
-            exists = True
+            db_dataset_metadata = self.model.objects.select_for_update().get(dataset_id=field_dict["dataset_id"],
+                                                                             dataset_id_code_space=field_dict["dataset_id_code_space"])
+            with transaction.atomic():
+                # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
+                if isinstance(field_dict["date_stamp"], date):
+                    field_dict["date_stamp"] = datetime.combine(
+                        field_dict["date_stamp"], datetime.min.time())
+                dt_aware = timezone.make_aware(
+                    field_dict["date_stamp"], timezone.get_current_timezone())
+                if dt_aware > db_dataset_metadata.date_stamp:
+                    # todo: on update we need to check custom metadata
+                    self.model.objects.update(metadata_contact=db_metadata_contact,
+                                              dataset_contact=db_dataset_contact,
+                                              last_modified_by=self.current_user,
+                                              **field_dict)
+                    update = True
+                exists = True
         except self.model.DoesNotExist:
-            db_dataset_metadata = super().create(metadata_contact=db_metadata_contact,
-                                                 dataset_contact=db_dataset_contact,
-                                                 origin=MetadataOrigin.ISO_METADATA.value,
-                                                 origin_url=origin_url,
-                                                 **field_dict,
-                                                 **self.common_info)
+            with LockedAtomicTransaction(self.model):
+                db_dataset_metadata = super().create(metadata_contact=db_metadata_contact,
+                                                     dataset_contact=db_dataset_contact,
+                                                     origin=MetadataOrigin.ISO_METADATA.value,
+                                                     origin_url=origin_url,
+                                                     **field_dict,
+                                                     **self.common_info)
         return db_dataset_metadata, exists, update
 
     def _create_service_metadata(self, parsed_metadata, *args, **kwargs):

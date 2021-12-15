@@ -1,6 +1,7 @@
 [
     {
         "model": "auth.group",
+        "pk": 1,
         "fields": {
             "name": "Group1",
             "permissions": []
@@ -8,9 +9,69 @@
     },
     {
         "model": "auth.group",
+        "pk": 2,
         "fields": {
             "name": "Group2",
             "permissions": []
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 3,
+        "fields": {
+            "name": "Default-Permissions",
+            "permissions": [
+                [
+                    "add_ogcservice",
+                    "registry",
+                    "ogcservice"
+                ],
+                [
+                    "change_ogcservice",
+                    "registry",
+                    "ogcservice"
+                ],
+                [
+                    "delete_ogcservice",
+                    "registry",
+                    "ogcservice"
+                ],
+                [
+                    "add_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "change_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "delete_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ]
+            ]
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 4,
+        "fields": {
+            "name": "Testorganization",
+            "permissions": []
+        }
+    },
+    {
+        "model": "accounts.organization",
+        "pk": 4,
+        "fields": {
+            "group_ptr_id": 4,
+            "created_at": "2021-12-08T14:11:45.924Z",
+            "created_by_user": null,
+            "owner": null,
+            "last_modified_at": "2021-12-08T14:11:45.925Z",
+            "last_modified_by": null
         }
     },
     {
@@ -32,23 +93,9 @@
             "groups": [
                 [
                     "Group1"
-                ]
-            ],
-            "user_permissions": [
-                [
-                    "add_mapcontext",
-                    "registry",
-                    "mapcontext"
                 ],
                 [
-                    "change_mapcontext",
-                    "registry",
-                    "mapcontext"
-                ],
-                [
-                    "delete_mapcontext",
-                    "registry",
-                    "mapcontext"
+                    "Default-Permissions"
                 ]
             ]
         }
@@ -72,23 +119,9 @@
             "groups": [
                 [
                     "Group2"
-                ]
-            ],
-            "user_permissions": [
-                [
-                    "add_mapcontext",
-                    "registry",
-                    "mapcontext"
                 ],
                 [
-                    "change_mapcontext",
-                    "registry",
-                    "mapcontext"
-                ],
-                [
-                    "delete_mapcontext",
-                    "registry",
-                    "mapcontext"
+                    "Default-Permissions"
                 ]
             ]
         }

@@ -1,3 +1,6 @@
+import json
+from unittest.mock import Mock, patch
+
 from behave import given, step, then
 from rest_framework.authtoken.models import Token
 
@@ -96,3 +99,12 @@ def step_impl(context, attribute, expected_value=None):
     value = _traverse_json(context=context, attribute=attribute)
     if expected_value:
         context.test.assertEqual(str(value), expected_value)
+
+
+@given('I mock the function "{func_name}" of the module "{module_name}" with return value as object')
+def step_impl(context, func_name, module_name):
+    mock = Mock()
+    setattr(mock, func_name, Mock(return_value=json.loads(context.text)))
+    patcher = patch(module_name, mock)
+    patcher.start()
+    context.patchers.append(patcher)

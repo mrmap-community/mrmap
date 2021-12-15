@@ -140,7 +140,7 @@ export const RepoTable = ({
       setAugmentedColumns(augmentedColumns);
     }
     buildColumns();
-  }, []);
+  }, [columns, onEditRecord, repo]);
 
   // fetches data in format expected by antd ProTable component
   async function fetchData (params: any, sorter?: Record<string, SortOrder>): Promise<any> {

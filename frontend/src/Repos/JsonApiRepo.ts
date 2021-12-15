@@ -161,9 +161,13 @@ export class JsonApiRepo {
       });
     }
 
-    async partialUpdate (id:string, type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
+    async partialUpdate (
+      id: string,
+      type: string,
+      attributes: Record<string, unknown>,
+      relationships?: Record<string, unknown>
+    ): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
-
       // TODO: make relationships optional
       return await client['partial_update' + this.resourcePath + '{id}/'](id, {
         data: {

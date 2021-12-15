@@ -2,7 +2,7 @@ import './MapContext.css';
 
 import { Button, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
-import React, { FC, useEffect, useState } from 'react';
+import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
@@ -15,9 +15,7 @@ import { MapContextLayerForm } from './MapContextLayerForm';
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
 
-interface MapContextProps {}
-
-export const MapContext: FC<MapContextProps> = () => {
+export const MapContext = (): ReactElement => {
   const navigate = useNavigate();
   const [form] = useForm();
 
@@ -52,7 +50,7 @@ export const MapContext: FC<MapContextProps> = () => {
       };
       fetchMapContext();
     }
-  }, [id]);
+  }, [id, form]);
 
   const nextStep = () => {
     setCurrent(current + 1);

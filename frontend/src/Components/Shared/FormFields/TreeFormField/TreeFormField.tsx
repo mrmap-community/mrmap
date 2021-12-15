@@ -155,6 +155,7 @@ export const TreeFormField: FC<TreeProps> = ({
         });
       }
     }
+  // eslint-disable-next-line
   }, [isNodeAttributeFormVisible]);
 
   /**
@@ -540,7 +541,7 @@ export const TreeFormField: FC<TreeProps> = ({
    */
   useEffect(() => {
     setTreeData(treeData);
-  }, []);
+  }, [treeData]);
 
   /**
    * @description: Hook to run on component mount. Creates a root node in case the tree is empty
@@ -549,6 +550,7 @@ export const TreeFormField: FC<TreeProps> = ({
     if (_treeData.length === 0) {
       createRootNode();
     }
+    // eslint-disable-next-line
   }, []);
 
   return (

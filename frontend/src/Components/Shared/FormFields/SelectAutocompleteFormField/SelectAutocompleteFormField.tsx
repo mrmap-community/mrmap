@@ -59,6 +59,16 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
   const [isLoadingPaginatedResults, setIsLoadingPaginatedResults] = useState<boolean>(false);
 
   /**
+   * @description: Method to fetch paginaation data and set it to ther state.
+   * Assumes that the pagination data is  set as a parameter in every searchData element.
+   * @param list
+   */
+  const getPaginationData = (list: any[]) => {
+    const paginationInfo = list.map(listData => listData.pagination);
+    setNextPageData(paginationInfo[paginationInfo.length - 1]);
+  };
+
+  /**
    * @description Hook to run when searchData changes
    */
   useEffect(() => {
@@ -72,17 +82,7 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
     if (pagination && searchOptions) {
       getPaginationData(searchOptions);
     }
-  }, [searchOptions]);
-
-  /**
-   * @description: Method to fetch paginaation data and set it to ther state.
-   * Assumes that the pagination data is  set as a parameter in every searchData element.
-   * @param list
-   */
-  const getPaginationData = (list: any[]) => {
-    const paginationInfo = list.map(listData => listData.pagination);
-    setNextPageData(paginationInfo[paginationInfo.length - 1]);
-  };
+  }, [pagination, searchOptions]);
 
   /**
    * @description: Assyncronous method called when the popup menu is being scrolled.

@@ -124,9 +124,9 @@ export const TreeFormField: FC<TreeProps> = ({
   dragNodeDispatchAction = () => undefined,
   draggable = false,
   nodeAttributeForm = (<></>),
-  addNodeActionIcon = (<PlusCircleFilled />),
-  removeNodeActionIcon = (<MinusCircleFilled />),
-  editNodeActionIcon = (<EditFilled />),
+  addNodeActionIcon = (<PlusCircleFilled style={{ fontSize: '14px' }}/>),
+  removeNodeActionIcon = (<MinusCircleFilled style={{ fontSize: '14px' }}/>),
+  editNodeActionIcon = (<EditFilled style={{ fontSize: '14px' }} />),
   title = ''
 }) => {
   const [form] = useForm();
@@ -572,9 +572,9 @@ export const TreeFormField: FC<TreeProps> = ({
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
             <div className='tree-form-field-node-title'>
-              <h3> {nodeData.title}</h3>
+              {nodeData.title}
             </div>
-            <div className='tree-form-field-node-actions'>
+            <div>
               <Tooltip title='Create Node'>
                 <Button
                   onClick={() => {

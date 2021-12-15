@@ -38,6 +38,21 @@ Referer: {{host}}api/v1/registry/wms/
 
 ###
 
+# @name getTaskList
+GET {{host}}api/v1/registry/task-results/
+Content-Type: application/vnd.api+json
+Referer: {{host}}api/v1/registry/task-results/
+
+###
+
+# @name getTask
+GET {{host}}api/v1/registry/task-results/1/
+Content-Type: application/vnd.api+json
+Referer: {{host}}api/v1/registry/task-results/
+
+
+###
+
 # @name getUserList
 GET {{host}}api/v1/users/users/
 Content-Type: application/vnd.api+json

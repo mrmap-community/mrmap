@@ -16,17 +16,6 @@ from rest_framework import status
 class MockResponse:
 
     def __init__(self, status_code, content):
-        # TODO: handle some cases:
-
-        # https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities
-
-        # https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF
-        # https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RH
-        # https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RR
-        # https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_T2m
-        # https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_VPGB
-        # https://gdk.gdi-de.org/gdi-de/srv/eng/csw?Service=CSW&Request=GetRecordById&Version=2.0.2&outputSchema=http://www.isotc211.org/2005/gmd&elementSetName=full&id=de.dwd.geoserver.fach.RADOLAN-W4
-
         self.status_code = status_code
 
         if isinstance(content, Path):
@@ -38,17 +27,34 @@ class MockResponse:
             self.content = content
 
 
+def side_effect(request):
+    if request.url == 'https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml')))
+    elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_FF.xml')))
+    elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RH':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_RH.xml')))
+    elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RR':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_RR.xml')))
+    elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_T2m':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_T2m.xml')))
+    elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_VPGB':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_VPGB.xml')))
+    elif request.url == 'https://gdk.gdi-de.org/gdi-de/srv/eng/csw?Service=CSW&Request=GetRecordById&Version=2.0.2&outputSchema=http://www.isotc211.org/2005/gmd&elementSetName=full&id=de.dwd.geoserver.fach.RADOLAN-W4':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RADOLAN-W4.xml')))
+
+
 class BuildOgcServiceTaskTest(TestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch.object(Session, 'send', return_value=MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml'))))
+    @patch.object(Session, 'send', side_effect=side_effect)
     def test_success_without_service_auth(self, mock_response):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
 
-        result = build_ogc_service.delay(get_capabilities_url='http://someurl',
+        result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                          collect_metadata_records=False,
                                          service_auth_pk=None,
                                          **{'user_pk': 'somepk'})
@@ -70,7 +76,7 @@ class BuildOgcServiceTaskTest(TestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch.object(Session, 'send', return_value=MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml'))))
+    @patch.object(Session, 'send', side_effect=side_effect)
     def test_success_with_service_auth(self, mock_response):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
@@ -78,7 +84,7 @@ class BuildOgcServiceTaskTest(TestCase):
         auth = ServiceAuthentication.objects.create(
             username="user", password="password", auth_type=AuthTypeEnum.BASIC.value)
 
-        result = build_ogc_service.delay(get_capabilities_url='http://someurl',
+        result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                          collect_metadata_records=False,
                                          service_auth_pk=auth.pk,
                                          **{'user_pk': 'somepk'})
@@ -100,12 +106,12 @@ class BuildOgcServiceTaskTest(TestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch.object(Session, 'send', return_value=MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml'))))
+    @patch.object(Session, 'send', side_effect=side_effect)
     def test_success_with_collect_metadata_true(self, mock_response):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
 
-        result = build_ogc_service.delay(get_capabilities_url='http://someurl',
+        result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                          collect_metadata_records=True,
                                          service_auth_pk=None,
                                          **{'user_pk': 'somepk'})

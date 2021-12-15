@@ -29,7 +29,7 @@ from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 class WebMapServiceRelationshipView(RelationshipView):
     schema = AutoSchema(
-        tags=["WebMapServices"],
+        tags=["WebMapService"],
     )
     queryset = WebMapService.objects
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -37,7 +37,7 @@ class WebMapServiceRelationshipView(RelationshipView):
 
 class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
-        tags=["WebMapServices"],
+        tags=["WebMapService"],
     )
     queryset = WebMapService.objects.with_meta()
     serializer_class = WebMapServiceSerializer
@@ -57,7 +57,7 @@ class LayerRelationshipView(RelationshipView):
 
 class LayerViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
-        tags=["WebMapServices"],
+        tags=["WebMapService"],
     )
     queryset = Layer.objects.all()
     serializer_class = LayerSerializer
@@ -73,7 +73,7 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
 
 class WebFeatureServiceRelationshipView(RelationshipView):
     schema = AutoSchema(
-        tags=["WebFeatureServices"],
+        tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -81,7 +81,7 @@ class WebFeatureServiceRelationshipView(RelationshipView):
 
 class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
-        tags=["WebFeatureServices"],
+        tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects.with_meta()
     serializer_class = WebFeatureServiceSerializer
@@ -101,7 +101,7 @@ class FeatureTypeRelationshipView(RelationshipView):
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     schema = AutoSchema(
-        tags=["WebFeatureServices"],
+        tags=["WebFeatureService"],
     )
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer

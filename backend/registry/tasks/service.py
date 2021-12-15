@@ -45,12 +45,22 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         if isinstance(parsed_service, WmsXmlMapper):
             db_service = WebMapService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
+            resource_name = "WebMapService"
+            self_url = reverse(
+                viewname='registry:wms-detail', args=[db_service.pk])
         elif isinstance(parsed_service, WfsXmlMapper):
             db_service = WebFeatureService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
+            resource_name = "WebFeatureService"
+            self_url = reverse(
+                viewname='registry:wfs-detail', args=[db_service.pk])
         elif isinstance(parsed_service, CswXmlMapper):
             db_service = CatalougeService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
+            resource_name = "CatalougeService"
+            # FIXME: no csw modelviewset
+            self_url = reverse(
+                viewname='registry:csw-detail', args=[db_service.pk])
         else:
             raise NotImplementedError(
                 "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
@@ -63,10 +73,10 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     return_dict = {
         "data": {
-            "type": "OgcService",
-            "id": f"{db_service.pk}",
+            "type": resource_name,
+            "id": str(db_service.pk),
             "links": {
-                "self": f"{reverse(viewname='registry:ogcservice-detail', args=[db_service.pk])}"
+                "self": self_url
             }
         }
     }
@@ -83,7 +93,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             data = return_dict["data"]
             data.update({
                 "meta": {
-                    "collect_metadata_records_job_id": group_result.id
+                    "collect_metadata_records_job_id": str(group_result.id)
                 }
             })
 

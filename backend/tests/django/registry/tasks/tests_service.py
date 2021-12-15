@@ -63,10 +63,10 @@ class BuildOgcServiceTaskTest(TestCase):
 
         expected_result = {
             "data": {
-                "type": "OgcService",
+                "type": "WebMapService",
                 "id": f"{db_service.pk}",
                 "links": {
-                    "self": f"{reverse(viewname='registry:ogcservice-detail', args=[db_service.pk])}"
+                    "self": f"{reverse(viewname='registry:wms-detail', args=[db_service.pk])}"
                 }
             }
         }
@@ -93,10 +93,10 @@ class BuildOgcServiceTaskTest(TestCase):
 
         expected_result = {
             "data": {
-                "type": "OgcService",
+                "type": "WebMapService",
                 "id": f"{db_service.pk}",
                 "links": {
-                    "self": f"{reverse(viewname='registry:ogcservice-detail', args=[db_service.pk])}"
+                    "self": f"{reverse(viewname='registry:wms-detail', args=[db_service.pk])}"
                 }
             }
         }
@@ -121,10 +121,10 @@ class BuildOgcServiceTaskTest(TestCase):
 
         expected_result = {
             "data": {
-                "type": "OgcService",
+                "type": "WebMapService",
                 "id": f"{db_service.pk}",
                 "links": {
-                    "self": f"{reverse(viewname='registry:ogcservice-detail', args=[db_service.pk])}"
+                    "self": f"{reverse(viewname='registry:wms-detail', args=[db_service.pk])}"
                 },
                 "meta": {
                     "collect_metadata_records_job_id": group_result.group_id

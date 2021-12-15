@@ -1,12 +1,11 @@
-import 'moment/locale/de';
-import './App.css';
-
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { ConfigProvider, Layout, Space } from 'antd';
 import deDE from 'antd/lib/locale/de_DE';
-import React, { useState } from 'react';
+import 'moment/locale/de';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-
+import useWebSocket from 'react-use-websocket';
+import './App.css';
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import MapContextTable from './Components/MapContext/MapContextTable';
 import { MapContext } from './Components/MapContextForm/MapContext';
@@ -22,6 +21,8 @@ import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
+
+
 
 const { Content, Footer, Sider } = Layout;
 
@@ -49,6 +50,19 @@ export default function App (): JSX.Element {
   const onCollapse = (collapsed: boolean) => {
     setCollapsed(collapsed);
   };
+
+  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const hostname = window.location.hostname;
+  const port = window.location.port;
+  const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
+
+  const lastMessage = useWebSocket(defaultWsUrl);
+
+  useEffect(() => {
+    if (lastMessage !== null) {
+      console.log(lastMessage);
+    }
+  }, [lastMessage]);
 
   return (
     <Router>

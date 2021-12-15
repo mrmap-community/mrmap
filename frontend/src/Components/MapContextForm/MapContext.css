@@ -6,3 +6,23 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+.Map {
+  background: #ffffff;
+  position: relative;
+}
+
+.Map #map {
+  height: 100vh;
+  width: 100%;
+}
+
+.layer-section {
+  position: absolute;
+  top: 50px;
+  left: 10px;
+}
+
+/* .steps-content {
+  position: relative;
+  display: flex;
+} */

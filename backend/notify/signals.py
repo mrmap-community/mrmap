@@ -15,31 +15,33 @@ def update_task_result_listeners(**kwargs):
     channel_layer = get_channel_layer()
     # TODO: serialize the TaskResult as JSON:API
     json = {
-        "data": {
-            "type": "TaskResult",
-                    "id": "1",
-                    "attributes": {
-                        "title": "JSON:API paints my bikeshed!"
-                    },
-            "relationships": {
-                        "author": {
-                            "links": {
-                                "related": "http://example.com/articles/1/author"
+        "jsonapi": {
+            "data": {
+                "type": "TaskResult",
+                        "id": "1",
+                        "attributes": {
+                            "title": "JSON:API paints my bikeshed!"
+                        },
+                "relationships": {
+                            "author": {
+                                "links": {
+                                    "related": "http://example.com/articles/1/author"
+                                }
                             }
                         }
-                    }
+            }
         }
     }
     if 'created' in kwargs:
         if kwargs['created']:
             # post_save signal --> new TaskResult object
-            json.update({"meta": {"ws-event": "create"}})
+            json.update({"event": "create"})
         else:
             if kwargs['instance'].status in [states.SUCCESS, states.FAILURE]:
-                json.update({"meta": {"ws-event": "update"}})
+                json.update({"event": "update"})
     else:
         # post_delete signal
-        json.update({"meta": {"ws-event": "delete"}})
+        json.update({"event": "delete"})
 
     async_to_sync(channel_layer.group_send)(
         "default",

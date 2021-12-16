@@ -1,6 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit';
 
+import taskResultReducer from './Features/TaskResult/taskResultSlice';
+
 export default configureStore({
   // @ts-ignore
-  taskResults: { hello: 'world' }
+  reducer: {
+    taskResults: taskResultReducer
+  }
 });

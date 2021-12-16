@@ -5,6 +5,7 @@ import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { ConfigProvider, Layout, Space } from 'antd';
 import deDE from 'antd/lib/locale/de_DE';
 import React, { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
 
@@ -21,6 +22,7 @@ import WmsTable from './Components/OgcService/WmsTable';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
+import { remove, update } from './Features/TaskResult/taskResultSlice';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
 
@@ -57,12 +59,23 @@ export default function App (): JSX.Element {
   const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
 
   const lastMessage = useWebSocket(defaultWsUrl);
+  const dispatch = useDispatch();
+
+  const handleLastMessageChange = (lastJsonMessage:any) => {
+    if (lastJsonMessage.jsonapi.data.type === 'TaskResult') {
+      if (lastJsonMessage.event === 'update' || lastJsonMessage.event === 'create') {
+        dispatch(update(lastJsonMessage.jsonapi.data));
+      } else if (lastJsonMessage.event === 'delete') {
+        dispatch(remove(lastJsonMessage.jsonapi.data));
+      }
+    }
+  };
 
   useEffect(() => {
-    if (lastMessage !== null) {
-      console.log(lastMessage.lastJsonMessage);
+    if (lastMessage !== null && lastMessage.lastJsonMessage) {
+      handleLastMessageChange(lastMessage.lastJsonMessage);
     }
-  }, [lastMessage]);
+  }, [lastMessage, handleLastMessageChange]);
 
   return (
     <Router>

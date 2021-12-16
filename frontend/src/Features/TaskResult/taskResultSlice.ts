@@ -1,34 +1,48 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface TaskResult {
-    id: number,
-    task_id: string,
-    task_name: string,
-    task_args: string,
-    task_kwargs: string,
-    status: string,
-    worker: string,
-    content_type: string,
-    content_encoding: string,
-    result: string,
-    date_created: string,
-    date_done: string,
-    traceback: string,
-    task_meta: string
+import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
+
+interface TaskResultAttributes{
+  task_id: string,
+  task_name: string,
+  task_args: string,
+  task_kwargs: string,
+  status: string,
+  worker: string,
+  content_type: string,
+  content_encoding: string,
+  result: string,
+  date_created: string,
+  date_done: string,
+  traceback: string,
+  task_meta: string
+}
+
+interface TaskResult extends JsonApiPrimaryData {
+  type: 'TaskResult',
+  attributes: TaskResultAttributes
+}
+
+interface TaskResults {
+  [key: string]: TaskResult
 }
 
 export const taskResultsSlice = createSlice({
   name: 'taskResult',
   initialState: {
-    value: [] as TaskResult[]
+    value: {} as TaskResults
   },
   reducers: {
-    add: (state, action: PayloadAction<TaskResult>) => {
-      state.value.push(action.payload);
+    update: (state, action: PayloadAction<TaskResult>) => {
+      const key = action.payload.id;
+      state.value[key] = action.payload;
+    },
+    remove: (state, action: PayloadAction<TaskResult>) => {
+      const key = action.payload.id;
+      delete state.value[key];
     }
   }
 });
 
-export const { add } = taskResultsSlice.actions;
-
+export const { update, remove } = taskResultsSlice.actions;
 export default taskResultsSlice.reducer;

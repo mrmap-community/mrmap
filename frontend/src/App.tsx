@@ -23,7 +23,7 @@ import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import { TaskProgressList } from './Components/Task/TaskProgress';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
-import { remove, update } from './Features/TaskResult/taskResultSlice';
+import { push, remove, update } from './Features/TaskResult/taskResultSlice';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
 
@@ -67,8 +67,10 @@ export default function App (): JSX.Element {
 
   const handleLastMessageChange = (lastJsonMessage:any) => {
     if (lastJsonMessage.jsonapi.data.type === 'TaskResult') {
-      if (lastJsonMessage.event === 'update' || lastJsonMessage.event === 'create') {
+      if (lastJsonMessage.event === 'update') {
         dispatch(update(lastJsonMessage.jsonapi.data));
+      } else if (lastJsonMessage.event === 'create') {
+        dispatch(push(lastJsonMessage.jsonapi.data));
       } else if (lastJsonMessage.event === 'delete') {
         dispatch(remove(lastJsonMessage.jsonapi.data));
       }

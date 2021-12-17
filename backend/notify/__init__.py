@@ -1,1 +1,1 @@
-default_app_config = 'registry.apps.NotifyConfig'
+default_app_config = 'notify.apps.NotifyConfig'

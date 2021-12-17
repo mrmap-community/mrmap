@@ -57,7 +57,7 @@ export const TaskProgressList = (): JSX.Element => {
                   percent={calculatePercent(item)}
                   width={60}
                   status={item.attributes.status === 'FAILURE' ? 'exception' : undefined} />}
-                title={item.attributes.task_name.includes('build_ogc_service')
+                title={item.attributes.task_name?.includes('build_ogc_service')
                   ? 'Register new OGC Service'
                   : item.attributes.task_name}
                 description={getDescription(item)}

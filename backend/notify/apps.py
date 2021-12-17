@@ -7,3 +7,6 @@ class NotifyConfig(AppConfig):
     name = 'notify'
     label = 'notify'
     verbose_name = _('Notify')
+
+    def ready(self):
+        from notify import signals  # import your signals.py

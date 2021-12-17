@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "accounts",
     "registry",
+    "notify",
 ]
 
 MIDDLEWARE = [

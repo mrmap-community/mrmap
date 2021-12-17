@@ -33,10 +33,13 @@ export const taskResultsSlice = createSlice({
       state.total = ++state.total;
     },
     remove: (state, action: PayloadAction<TaskResult>) => {
-      state.list = state.list.filter(function (taskResult) {
+      const newList = state.list.filter(function (taskResult) {
         return taskResult.id !== action.payload.id;
       });
-      state.total = --state.total;
+      if (newList.length !== state.total) {
+        state.list = newList;
+        state.total = --state.total;
+      }
     },
     set: (state, action: PayloadAction<TaskResult[]>) => {
       state.list = action.payload;
@@ -48,9 +51,13 @@ export const taskResultsSlice = createSlice({
       state.isLoading = false;
       state.total = action.payload.length;
     },
-    update: (state, action: PayloadAction<TaskResult[]>) => {
-      // TODO
-      state.list = action.payload;
+    update: (state, action: PayloadAction<TaskResult>) => {
+      let taskResult = state.list.find(taskResult => {
+        return taskResult.id !== action.payload.id;
+      });
+      if (taskResult) {
+        taskResult = action.payload;
+      }
     },
     get: (state, action: PayloadAction<string>) => {
       state.list.find(taskResult => {

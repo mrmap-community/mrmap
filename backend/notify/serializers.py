@@ -22,7 +22,7 @@ class TaskResultSerializer(ModelSerializer):
         exclude = ("meta", )
 
     def get_task_meta(self, obj):
-        return json.loads(obj.meta)
+        return json.loads(obj.meta if obj.meta else '{}')
 
     def get_result(self, obj):
-        return json.loads(obj.result)
+        return json.loads(obj.result if obj.result else '{}')

@@ -1,4 +1,4 @@
-import JsonApiRepo, { JsonApiPrimaryData } from './JsonApiRepo';
+import JsonApiRepo, { JsonApiDocument, JsonApiPrimaryData } from './JsonApiRepo';
 
 interface TaskMeta{
   done?: number
@@ -16,7 +16,7 @@ interface TaskResultAttributes{
   worker: string,
   content_type: string,
   content_encoding: string,
-  result: any,
+  result: JsonApiDocument,
   date_created: string,
   date_done: string,
   traceback: string,

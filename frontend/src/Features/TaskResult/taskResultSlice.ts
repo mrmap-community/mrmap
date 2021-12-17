@@ -2,6 +2,13 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 
+interface TaskMeta{
+  done?: number
+  total?: number
+  phase?: string
+  children?: any
+}
+
 interface TaskResultAttributes{
   task_id: string,
   task_name: string,
@@ -15,15 +22,15 @@ interface TaskResultAttributes{
   date_created: string,
   date_done: string,
   traceback: string,
-  task_meta: string
+  task_meta: TaskMeta
 }
 
-interface TaskResult extends JsonApiPrimaryData {
+export interface TaskResult extends JsonApiPrimaryData {
   type: 'TaskResult',
   attributes: TaskResultAttributes
 }
 
-interface TaskResults {
+export interface TaskResults {
   [key: string]: TaskResult
 }
 

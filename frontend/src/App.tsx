@@ -20,6 +20,7 @@ import OgcServiceAdd from './Components/OgcService/OgcServiceAdd';
 import WfsTable from './Components/OgcService/WfsTable';
 import WmsTable from './Components/OgcService/WmsTable';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
+import { TaskProgressCard } from './Components/Task/TaskProgress';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { remove, update } from './Features/TaskResult/taskResultSlice';
@@ -58,7 +59,10 @@ export default function App (): JSX.Element {
   const port = window.location.port;
   const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
 
-  const lastMessage = useWebSocket(defaultWsUrl);
+  const lastMessage = useWebSocket(defaultWsUrl, {
+    shouldReconnect: () => { return true; },
+    reconnectInterval: 3000
+  });
   const dispatch = useDispatch();
 
   const handleLastMessageChange = (lastJsonMessage:any) => {
@@ -129,6 +133,10 @@ export default function App (): JSX.Element {
                 </RequireAuth>
               }
             >
+              <Route
+                path='/notify'
+                element={<TaskProgressCard />}
+              />
               <Route
                 path='/'
                 element={<Dashboard />}

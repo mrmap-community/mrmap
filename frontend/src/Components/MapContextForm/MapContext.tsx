@@ -23,6 +23,7 @@ import { MapContextLayerForm } from './MapContextLayerForm';
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
 
+// TODO: Should be in a separate component or helper
 const layerGroup = new OlLayerGroup({
   // @ts-ignore
   name: 'Layergroup',
@@ -69,6 +70,7 @@ const olMap = new OlMap({
   layers: [layerGroup]
 });
 
+// TODO: This is creating a component naamed map. Should be separated
 function Map () {
   const map = useMap();
 
@@ -129,32 +131,34 @@ export const MapContext = (): ReactElement => {
       title: 'Map Context',
       content: (
         <>
-          <MapContextForm
-            onSubmit={async (values) => {
-              if (!id) {
-                setIsSubmittingMapContext(true);
-                try {
-                  const response = await mapContextRepo.create(values);
-                  if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
-                    setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
+          <div className='mapcontextform-map-area'>
+            <MapContextForm
+              onSubmit={async (values) => {
+                if (!id) {
+                  setIsSubmittingMapContext(true);
+                  try {
+                    const response = await mapContextRepo.create(values);
+                    if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
+                      setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
+                    }
+                    return response;
+                  } catch (error) {
+                    setIsSubmittingMapContext(false);
+                    // @ts-ignore
+                    throw new Error(error);
+                  } finally {
+                    setIsSubmittingMapContext(false);
+                    nextStep();
                   }
-                  return response;
-                } catch (error) {
-                  setIsSubmittingMapContext(false);
-                  // @ts-ignore
-                  throw new Error(error);
-                } finally {
-                  setIsSubmittingMapContext(false);
+                } else {
+                  // TODO add action to edit
+                  setCreatedMapContextId(id);
                   nextStep();
                 }
-              } else {
-                // TODO add action to edit
-                setCreatedMapContextId(id);
-                nextStep();
-              }
-            }}
-            form={form}
-          />
+              }}
+              form={form}
+            />
+          </div>
           <div className='steps-action'>
             <Button
               type='primary'
@@ -165,7 +169,8 @@ export const MapContext = (): ReactElement => {
               Next Step
             </Button>
           </div>
-        </>
+
+          </>
       )
     },
     {

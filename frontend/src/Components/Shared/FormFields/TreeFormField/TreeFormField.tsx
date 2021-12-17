@@ -1,13 +1,13 @@
+import './TreeFormField.css';
+
 import { EditFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
 import { Button, Modal, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { DataNode } from 'antd/lib/tree';
 import React, { cloneElement, FC, ReactNode, useEffect, useState } from 'react';
+
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
-import './TreeFormField.css';
-
-
 
 interface MPTTJsonApiAttributeType {
   name: string;

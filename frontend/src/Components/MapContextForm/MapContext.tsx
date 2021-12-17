@@ -137,6 +137,8 @@ export const MapContext = (): ReactElement => {
             }}
             draggable
             nodeAttributeForm={(<MapContextLayerForm form={form}/>)}
+            attributeContainer='drawer'
+            contextMenuOnNode
           />
           <div className='steps-action'>
             <Button

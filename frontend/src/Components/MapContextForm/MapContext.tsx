@@ -1,4 +1,3 @@
-import 'ol/ol.css';
 import './MapContext.css';
 
 import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrestris/react-geo';

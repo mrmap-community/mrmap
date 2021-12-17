@@ -112,7 +112,7 @@ jobs:
           path: "frontend/node_modules"
           key: node-modules-${{ hashFiles('frontend/package.json') }}
       - name: Install node modules
-        run: npm install --force
+        run: npm install
         working-directory: ./frontend
       - name: Run ESLint
         run: npm run lint

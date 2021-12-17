@@ -1,6 +1,5 @@
 import 'ol/ol.css';
 import './MapContext.css';
-import './react-geo.css';
 
 import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrestris/react-geo';
 import { Button, Steps } from 'antd';

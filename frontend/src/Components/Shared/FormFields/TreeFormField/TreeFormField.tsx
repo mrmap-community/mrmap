@@ -1,13 +1,13 @@
-import './TreeFormField.css';
-
 import { EditFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
 import { Button, Modal, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { DataNode } from 'antd/lib/tree';
 import React, { cloneElement, FC, ReactNode, useEffect, useState } from 'react';
-
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
+import './TreeFormField.css';
+
+
 
 interface MPTTJsonApiAttributeType {
   name: string;
@@ -124,9 +124,9 @@ export const TreeFormField: FC<TreeProps> = ({
   dragNodeDispatchAction = () => undefined,
   draggable = false,
   nodeAttributeForm = (<></>),
-  addNodeActionIcon = (<PlusCircleFilled style={{ fontSize: '14px' }}/>),
-  removeNodeActionIcon = (<MinusCircleFilled style={{ fontSize: '14px' }}/>),
-  editNodeActionIcon = (<EditFilled style={{ fontSize: '14px' }} />),
+  addNodeActionIcon = (<PlusCircleFilled />),
+  removeNodeActionIcon = (<MinusCircleFilled />),
+  editNodeActionIcon = (<EditFilled />),
   title = ''
 }) => {
   const [form] = useForm();
@@ -572,9 +572,9 @@ export const TreeFormField: FC<TreeProps> = ({
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
             <div className='tree-form-field-node-title'>
-              {nodeData.title}
+              <h3> {nodeData.title} </h3>
             </div>
-            <div>
+            <div className='tree-form-field-node-actions'>
               <Tooltip title='Create Node'>
                 <Button
                   onClick={() => {

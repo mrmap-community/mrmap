@@ -8,7 +8,7 @@ class TaskResultSerializer(ModelSerializer):
     task_meta = CharField(source='meta')
 
     url = HyperlinkedIdentityField(
-        view_name='registry:taskresult-detail',
+        view_name='notify:taskresult-detail',
     )
 
     class Meta:

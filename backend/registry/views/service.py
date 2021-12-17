@@ -3,13 +3,13 @@ from typing import OrderedDict
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
+from notify.serializers import TaskResultSerializer
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       OgcServiceFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, OgcService, WebFeatureService,
                              WebMapService)
-from registry.serializers.jobs import TaskResultSerializer
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
                                           OgcServiceCreateSerializer,

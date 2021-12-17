@@ -1,38 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, Dispatch, PayloadAction } from '@reduxjs/toolkit';
 
-import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
-
-interface TaskMeta{
-  done?: number
-  total?: number
-  phase?: string
-  children?: any
-}
-
-interface TaskResultAttributes{
-  task_id: string,
-  task_name: string,
-  task_args: string,
-  task_kwargs: string,
-  status: string,
-  worker: string,
-  content_type: string,
-  content_encoding: string,
-  result: string,
-  date_created: string,
-  date_done: string,
-  traceback: string,
-  task_meta: TaskMeta
-}
-
-export interface TaskResult extends JsonApiPrimaryData {
-  type: 'TaskResult',
-  attributes: TaskResultAttributes
-}
-
-export interface TaskResults {
-  [key: string]: TaskResult
-}
+import TaskResultRepo, { TaskResult, TaskResults } from '../../Repos/TaskResultRepo';
 
 export const taskResultsSlice = createSlice({
   name: 'taskResult',
@@ -47,9 +15,29 @@ export const taskResultsSlice = createSlice({
     remove: (state, action: PayloadAction<TaskResult>) => {
       const key = action.payload.id;
       delete state.value[key];
+    },
+    set: (state, action: PayloadAction<TaskResults>) => {
+      state.value = action.payload;
     }
   }
 });
 
-export const { update, remove } = taskResultsSlice.actions;
+export const { update, remove, set } = taskResultsSlice.actions;
 export default taskResultsSlice.reducer;
+
+export async function initialTaskResults (dispatch: Dispatch): Promise<TaskResults> {
+  const taskResultRepo = new TaskResultRepo();
+  const response = await taskResultRepo.findAll(
+    { page: 1, pageSize: 10, filters: { 'filter[task_name__icontains]': 'build_ogc_service' } }
+  );
+  // TODO: move error/nulltype handling to Repo
+  if (response.data && response.data.data) {
+    let taskResults = {} as TaskResults;
+    (response.data.data as TaskResult[]).forEach((taskResult: TaskResult) => {
+      taskResults = { [taskResult.id]: taskResult, ...taskResults };
+    });
+    dispatch(set(taskResults));
+  }
+
+  return {} as TaskResults;
+}

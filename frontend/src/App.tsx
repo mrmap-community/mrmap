@@ -77,9 +77,11 @@ export default function App (): JSX.Element {
 
   useEffect(() => {
     if (lastMessage !== null && lastMessage.lastJsonMessage) {
+      // eslint-disable-next-line
       handleLastMessageChange(lastMessage.lastJsonMessage);
     }
-  }, [lastMessage, handleLastMessageChange]);
+    // eslint-disable-next-lint
+  }, [lastMessage]);
 
   return (
     <Router>

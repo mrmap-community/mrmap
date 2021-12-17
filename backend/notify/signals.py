@@ -23,6 +23,9 @@ def update_task_result_listeners(**kwargs):
     channel_layer = get_channel_layer()
     # TODO: serialize the TaskResult as JSON:API
     request = get_current_request()
+    if not request:
+        # FIXME: can't serialze data without request object
+        return
     request.query_params = OrderedDict()
     task_serializer = TaskResultSerializer(
         kwargs['instance'], **{"context": {"request": request}})

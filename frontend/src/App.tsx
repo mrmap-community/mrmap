@@ -65,6 +65,7 @@ export default function App (): JSX.Element {
   });
 
   const handleMessage = (lastJsonMessage:any) => {
+    // TODO: check if the schema matches
     store.dispatch(lastJsonMessage);
   };
 

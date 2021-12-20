@@ -20,7 +20,8 @@ def update_task_result_listeners(**kwargs):
     """
     Send the information to the channel group when a TaskResult is created/modified
     """
-
+    # TODO: check task_name and filter by it
+    print(kwargs['instance'].__dict__)
     request = get_current_request()
     if request and (not hasattr(request, 'query_params') or not request.query_params):
         request.query_params = OrderedDict()
@@ -40,8 +41,7 @@ def update_task_result_listeners(**kwargs):
             # post_save signal --> new TaskResult object
             action.update({'type': "taskResults/add"})
         else:
-            if kwargs['instance'].status in [states.SUCCESS, states.FAILURE]:
-                action.update({'type': "taskResults/update"})
+            action.update({'type': "taskResults/update"})
     else:
         # post_delete signal
         action.update({'type': "taskResults/remove"})
@@ -51,6 +51,6 @@ def update_task_result_listeners(**kwargs):
         "default",
         {
             "type": "send.msg",
-                    "json": str(action),
+                    "json": action,
         },
     )

@@ -4,7 +4,8 @@ import TaskResultRepo, { TaskResult } from '../../Repos/TaskResultRepo';
 import { RootState } from '../../store';
 
 const taskResultsAdapter = createEntityAdapter<TaskResult>({
-  selectId: (taskResult) => taskResult.id
+  selectId: (taskResult) => taskResult.id,
+  sortComparer: (a, b) => b.attributes.date_created.localeCompare(a.attributes.date_created) // new entities first
 });
 
 export const taskResultsSelectors = taskResultsAdapter.getSelectors<RootState>(

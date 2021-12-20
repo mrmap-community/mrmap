@@ -1,10 +1,11 @@
+import { PauseCircleTwoTone } from '@ant-design/icons';
 import { List, Progress } from 'antd';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+
 import { fetchTaskResults, taskResultsSelectors } from '../../Features/TaskResult/taskResultSlice';
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import { TaskResult } from '../../Repos/TaskResultRepo';
-
 
 // TODO: Rename to TaskProgressList
 export const TaskProgressList = (): JSX.Element => {
@@ -18,11 +19,11 @@ export const TaskProgressList = (): JSX.Element => {
 
   const calculatePercent = (taskResult: TaskResult): number => {
     let percent = 0;
-    if (Object.prototype.hasOwnProperty.call(taskResult.attributes.task_meta, 'total') &&
-          Object.prototype.hasOwnProperty.call(taskResult.attributes.task_meta, 'done') &&
-          taskResult.attributes.task_meta.total && taskResult.attributes.task_meta.done
+    if (Object.prototype.hasOwnProperty.call(taskResult.attributes.result, 'total') &&
+          Object.prototype.hasOwnProperty.call(taskResult.attributes.result, 'done') &&
+          taskResult.attributes.result.total && taskResult.attributes.result.done
     ) {
-      percent = Math.round((taskResult.attributes.task_meta.done / taskResult.attributes.task_meta.total) * 100);
+      percent = Math.round((taskResult.attributes.result.done / taskResult.attributes.result.total) * 100);
     } else if (taskResult.attributes.status === 'FAILURE' || taskResult.attributes.status === 'SUCCESS') {
       percent = 100;
     }
@@ -31,9 +32,12 @@ export const TaskProgressList = (): JSX.Element => {
 
   const getDescription = (taskResult: TaskResult): any => {
     let message;
-    if (Object.prototype.hasOwnProperty.call(taskResult.attributes.task_meta, 'phase') &&
-      taskResult.attributes.task_meta.phase) {
-      message = taskResult.attributes.task_meta.phase;
+    if (taskResult.attributes.status === 'PENDING') {
+      return 'Task is waiting for worker';
+    }
+    if (Object.prototype.hasOwnProperty.call(taskResult.attributes.result, 'phase') &&
+      taskResult.attributes.result.phase) {
+      message = taskResult.attributes.result.phase;
     } else if (
       taskResult.attributes.result && taskResult.attributes.result.data) {
       const data = taskResult.attributes.result.data as JsonApiPrimaryData;
@@ -43,6 +47,22 @@ export const TaskProgressList = (): JSX.Element => {
     return taskResult.attributes.traceback ? taskResult.attributes.traceback : message;
   };
 
+  const getStatus = (taskResult: TaskResult): any => {
+    switch (taskResult.attributes.status) {
+      case 'STARTED':
+      case 'SUCCESS':
+      case 'FAILURE':
+        return <Progress
+                type='circle'
+                percent={calculatePercent(taskResult)}
+                width={60}
+                status={taskResult.attributes.status === 'FAILURE' ? 'exception' : undefined} />;
+      default:
+        return <PauseCircleTwoTone
+                twoToneColor='#f2f207'
+                style={{ width: 60, fontSize: '2vw' }}/>;
+    }
+  };
   return (
 
         <List
@@ -50,13 +70,9 @@ export const TaskProgressList = (): JSX.Element => {
           renderItem={item => (
             <List.Item key={item.id}>
               <List.Item.Meta
-                avatar={<Progress
-                  type='circle'
-                  percent={calculatePercent(item)}
-                  width={60}
-                  status={item.attributes.status === 'FAILURE' ? 'exception' : undefined} />}
+                avatar={getStatus(item)}
                 title={item.attributes.task_name?.includes('build_ogc_service')
-                  ? 'Register new OGC Service'
+                  ? 'Register new OGC Service' + item.id
                   : item.attributes.task_name}
                 description={getDescription(item)}
               />

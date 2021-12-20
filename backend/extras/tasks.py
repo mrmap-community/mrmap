@@ -23,25 +23,22 @@ class CurrentUserTaskMixin(Task, ABC):
             pass
 
     def set_current_request(self, request=None):
-        try:
-            if request:
-                dummy_request = None
-                if request['method'].lower() == 'get':
-                    dummy_request = APIRequestFactory().get(
-                        path=request.path,
-                        data=request.data,
-                    )
-                elif request['method'].lower() == 'post':
-                    dummy_request = APIRequestFactory().post(
-                        path=request.path,
-                        data=request.data,
-                        content_type=request.content_type
-                    )
-                if dummy_request and (not hasattr(dummy_request, 'query_params') or not dummy_request.query_params):
-                    dummy_request.query_params = OrderedDict()
-                set_current_request(request=dummy_request)
-        except:
-            pass
+        if request:
+            dummy_request = None
+            if request['method'].lower() == 'get':
+                dummy_request = APIRequestFactory().get(
+                    path=request['path'],
+                    data=request['data'],
+                )
+            elif request['method'].lower() == 'post':
+                dummy_request = APIRequestFactory().post(
+                    path=request['path'],
+                    data=request['data'],
+                    content_type=request['content_type']
+                )
+            if dummy_request and (not hasattr(dummy_request, 'query_params') or not dummy_request.query_params):
+                dummy_request.query_params = OrderedDict()
+            set_current_request(request=dummy_request)
 
     def common_info_setup(self, **kwargs):
         self.set_current_user(kwargs.get("current_user", None))

@@ -30,7 +30,7 @@ def update_task_result_listeners(**kwargs):
     task_serializer = TaskResultSerializer(
         kwargs['instance'], **{"context": {"request": request}})
     json = {
-        'jsonapi': {
+        'payload': {
             'data': JSONRenderer.build_json_resource_obj(
                 fields=utils.get_serializer_fields(serializer=task_serializer),
                 resource=task_serializer.data,
@@ -44,13 +44,13 @@ def update_task_result_listeners(**kwargs):
     if 'created' in kwargs:
         if kwargs['created']:
             # post_save signal --> new TaskResult object
-            json.update({"event": "create"})
+            json.update({"type": "taskResults/add"})
         else:
             if kwargs['instance'].status in [states.SUCCESS, states.FAILURE]:
-                json.update({"event": "update"})
+                json.update({"type": "taskResults/update"})
     else:
         # post_delete signal
-        json.update({"event": "delete"})
+        json.update({"type": "taskResults/remove"})
 
     async_to_sync(channel_layer.group_send)(
         "default",

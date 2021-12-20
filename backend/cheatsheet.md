@@ -38,4 +38,4 @@ event: created | update | delete
 async_to_sync(get_channel_layer().group_send)("default", {"type": "send.msg", "json": {'event': 'update', 'jsonapi': {'data': {'type': 'TaskResult', 'id': '1', 'attributes': {'taskId': '958c2b95-ea2c-44a6-b15e-f14a0c2faa53'}}}}})
 
 
-async_to_sync(get_channel_layer().group_send)("default", {"type": "send.msg", "json": {'event': 'update', 'jsonapi': {'data': {'type': 'TaskResult', 'id': '1', 'attributes': {'taskId': '958c2b95-ea2c-44a6-b15e-f14a0c2faa53', 'status': 'STARTED', task_meta: {'done': 0, 'total': '1', 'phase': 'fetching remote document...'}}}}}})
+async_to_sync(get_channel_layer().group_send)("default", {"type": "send.msg", "json": {'type': 'taskResults/created', 'payload': {'data': {'type': 'TaskResult', 'id': '1234', 'attributes': {'taskId': '958c2b95-ea2c-44a6-b15e-f14a0c2faa53', 'status': 'STARTED', 'task_meta': {'done': 0, 'total': '1', 'phase': 'fetching remote document...'}}}}}})

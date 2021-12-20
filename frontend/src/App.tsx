@@ -5,7 +5,6 @@ import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { ConfigProvider, Layout, Space } from 'antd';
 import deDE from 'antd/lib/locale/de_DE';
 import React, { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
 
@@ -23,9 +22,9 @@ import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import { TaskProgressList } from './Components/Task/TaskProgress';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
-import { push, remove, update } from './Features/TaskResult/taskResultSlice';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
+import { store } from './store';
 
 const { Content, Footer, Sider } = Layout;
 
@@ -63,24 +62,15 @@ export default function App (): JSX.Element {
     shouldReconnect: () => { return true; },
     reconnectInterval: 3000
   });
-  const dispatch = useDispatch();
 
-  const handleLastMessageChange = (lastJsonMessage:any) => {
-    if (lastJsonMessage.jsonapi.data.type === 'TaskResult') {
-      if (lastJsonMessage.event === 'update') {
-        dispatch(update(lastJsonMessage.jsonapi.data));
-      } else if (lastJsonMessage.event === 'create') {
-        dispatch(push(lastJsonMessage.jsonapi.data));
-      } else if (lastJsonMessage.event === 'delete') {
-        dispatch(remove(lastJsonMessage.jsonapi.data));
-      }
-    }
+  const handleMessage = (lastJsonMessage:any) => {
+    store.dispatch(lastJsonMessage);
   };
 
   useEffect(() => {
     if (lastMessage !== null && lastMessage.lastJsonMessage) {
       // eslint-disable-next-line
-      handleLastMessageChange(lastMessage.lastJsonMessage);
+      handleMessage(lastMessage.lastJsonMessage);
     }
     // eslint-disable-next-lint
   }, [lastMessage]);

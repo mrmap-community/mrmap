@@ -1,77 +1,32 @@
-import { AnyAction, createSlice, PayloadAction, ThunkAction } from '@reduxjs/toolkit';
+import { AnyAction, createEntityAdapter, createSlice, ThunkAction } from '@reduxjs/toolkit';
 
 import TaskResultRepo, { TaskResult } from '../../Repos/TaskResultRepo';
 import { RootState } from '../../store';
 
-const taskResults:TaskResult[] = [];
+const taskResultsAdapter = createEntityAdapter<TaskResult>({
+  selectId: (taskResult) => taskResult.id
+});
+
+export const taskResultsSelectors = taskResultsAdapter.getSelectors<RootState>(
+  (state) => state.taskResults
+);
 
 export const taskResultsSlice = createSlice({
-  name: 'taskResult',
-  initialState: {
-    list: taskResults,
-    total: 0,
-    next: '',
-    isLoading: false,
-    error: false
-  },
+  name: 'taskResults',
+  initialState: taskResultsAdapter.getInitialState(),
   reducers: {
-    startLoading: state => {
-      state.isLoading = true;
-    },
-    hasError: (state, action) => {
-      state.error = action.payload;
-      state.isLoading = false;
-    },
-    hasNext: (state, action: PayloadAction<string>) => {
-      state.next = action.payload;
-    },
-    resetNext: (state) => {
-      state.next = '';
-    },
-    push: (state, action: PayloadAction<TaskResult>) => {
-      state.list.push(action.payload);
-      state.total = ++state.total;
-    },
-    remove: (state, action: PayloadAction<TaskResult>) => {
-      const newList = state.list.filter(function (taskResult) {
-        return taskResult.id !== action.payload.id;
-      });
-      if (newList.length !== state.total) {
-        state.list = newList;
-        state.total = --state.total;
-      }
-    },
-    set: (state, action: PayloadAction<TaskResult[]>) => {
-      state.list = action.payload;
-      state.isLoading = false;
-      state.total = action.payload.length;
-    },
-    extend: (state, action: PayloadAction<TaskResult[]>) => {
-      state.list.push(...action.payload);
-      state.isLoading = false;
-      state.total = action.payload.length;
-    },
-    update: (state, action: PayloadAction<TaskResult>) => {
-      let taskResult = state.list.find(taskResult => {
-        return taskResult.id !== action.payload.id;
-      });
-      if (taskResult) {
-        taskResult = action.payload;
-      }
-    },
-    get: (state, action: PayloadAction<string>) => {
-      state.list.find(taskResult => {
-        return taskResult.id !== action.payload;
-      });
-    }
+    add: taskResultsAdapter.addOne,
+    update: taskResultsAdapter.updateOne,
+    remove: taskResultsAdapter.removeOne,
+    set: taskResultsAdapter.setAll
   }
 });
 
-export const { push, remove, set, get, startLoading, hasError, hasNext, resetNext, update } = taskResultsSlice.actions;
+export const { add, update, remove, set } = taskResultsSlice.actions;
 export default taskResultsSlice.reducer;
 
+// TODO: use createAsyncThunk/AsyncThunkAction instead
 export const fetchTaskResults = (): ThunkAction<void, RootState, unknown, AnyAction> => async dispatch => {
-  dispatch(startLoading);
   try {
     const taskResultRepo = new TaskResultRepo();
     const response = await taskResultRepo.findAll(
@@ -79,14 +34,19 @@ export const fetchTaskResults = (): ThunkAction<void, RootState, unknown, AnyAct
     );
     // TODO: move error/nulltype handling to Repo
     if (response.data && response.data.data) {
-      dispatch(set(response.data.data as TaskResult[]));
-      if (response.data.links && Object.prototype.hasOwnProperty.call(response.data.links, 'next')) {
-        dispatch(hasNext(response.data.links.next));
-      } else {
-        dispatch(resetNext());
-      }
+      dispatch(
+        {
+          type: 'taskResults/set',
+          payload: response.data.data
+        }
+      );
+      // if (response.data.links && Object.prototype.hasOwnProperty.call(response.data.links, 'next')) {
+      //   dispatch(hasNext(response.data.links.next));
+      // } else {
+      //   dispatch(resetNext());
+      // }
     }
   } catch (e: any) {
-    dispatch(hasError(e.message));
+    // dispatch(hasError(e.message));
   }
 };

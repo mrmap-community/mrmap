@@ -16,8 +16,12 @@ export const taskResultsSlice = createSlice({
   initialState: taskResultsAdapter.getInitialState(),
   reducers: {
     add: taskResultsAdapter.addOne,
-    update: taskResultsAdapter.updateOne,
-    remove: taskResultsAdapter.removeOne,
+    update: (state, action) => {
+      taskResultsAdapter.updateOne(state, { id: action.payload.id, changes: action.payload });
+    },
+    remove: (state, action) => {
+      taskResultsAdapter.removeOne(state, action.payload.id);
+    },
     set: taskResultsAdapter.setAll
   }
 });

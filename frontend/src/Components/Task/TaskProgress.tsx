@@ -5,9 +5,10 @@ import { fetchTaskResults, taskResultsSelectors } from '../../Features/TaskResul
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import { TaskResult } from '../../Repos/TaskResultRepo';
 
+
 // TODO: Rename to TaskProgressList
 export const TaskProgressList = (): JSX.Element => {
-  const taskResults = useSelector(taskResultsSelectors.selectAll)
+  const taskResults = useSelector(taskResultsSelectors.selectAll);
 
   const dispatch = useDispatch();
 

@@ -1,21 +1,19 @@
 import { List, Progress } from 'antd';
 import React, { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-
+import { useDispatch, useSelector } from 'react-redux';
 import { fetchTaskResults, taskResultsSelectors } from '../../Features/TaskResult/taskResultSlice';
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import { TaskResult } from '../../Repos/TaskResultRepo';
-import { store } from '../../store';
 
 // TODO: Rename to TaskProgressList
 export const TaskProgressList = (): JSX.Element => {
-  const taskResults = taskResultsSelectors.selectAll(store.getState());
+  const taskResults = useSelector(taskResultsSelectors.selectAll)
 
   const dispatch = useDispatch();
 
   useEffect(() => {
     dispatch(fetchTaskResults());
-  }, [dispatch, taskResults]);
+  }, [dispatch]);
 
   const calculatePercent = (taskResult: TaskResult): number => {
     let percent = 0;

@@ -1,3 +1,4 @@
+import json
 from typing import OrderedDict
 
 from asgiref.sync import async_to_sync
@@ -19,43 +20,37 @@ def update_task_result_listeners(**kwargs):
     """
     Send the information to the channel group when a TaskResult is created/modified
     """
-    print('huhu')
-    channel_layer = get_channel_layer()
-    # TODO: serialize the TaskResult as JSON:API
+
     request = get_current_request()
-    if not request:
-        # FIXME: can't serialze data without request object
-        return
-    request.query_params = OrderedDict()
+    if request and (not hasattr(request, 'query_params') or not request.query_params):
+        request.query_params = OrderedDict()
     task_serializer = TaskResultSerializer(
-        kwargs['instance'], **{"context": {"request": request}})
-    json = {
-        'payload': {
-            'data': JSONRenderer.build_json_resource_obj(
-                fields=utils.get_serializer_fields(serializer=task_serializer),
-                resource=task_serializer.data,
-                resource_instance=kwargs['instance'],
-                resource_name=utils.get_resource_type_from_instance(
-                    kwargs['instance']),
-                serializer=task_serializer)
-        }
-    }
+        instance=kwargs['instance'], **{"context": {"request": request}})
+    renderer = JSONRenderer()
+    action = json.loads('{}')
+
+    class DummyView(object):
+        resource_name = 'TaskResult'
+
+    action.update({'payload': json.loads(renderer.render(
+        task_serializer.data, renderer_context={"view": DummyView(), "request": request}).decode("utf-8"))['data']})
 
     if 'created' in kwargs:
         if kwargs['created']:
             # post_save signal --> new TaskResult object
-            json.update({"type": "taskResults/add"})
+            action.update({'type': "taskResults/add"})
         else:
             if kwargs['instance'].status in [states.SUCCESS, states.FAILURE]:
-                json.update({"type": "taskResults/update"})
+                action.update({'type': "taskResults/update"})
     else:
         # post_delete signal
-        json.update({"type": "taskResults/remove"})
+        action.update({'type': "taskResults/remove"})
 
+    channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "default",
         {
             "type": "send.msg",
-                    "json": json,
+                    "json": str(action),
         },
     )

@@ -142,7 +142,7 @@ class OgcServiceViewSet(ModelViewSet):
                                            'collect_metadata_records'],
                                        service_auth_pk=serializer.service_auth.id if hasattr(
                                            serializer, 'service_auth') else None,
-                                       **{'current_user': request.user.pk})
+                                       **{'current_user': request.user.pk, 'request': {'url': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET if request.method == 'get' else request.body}})
         task_result, created = TaskResult.objects.get_or_create(
             task_id=task.id)
 

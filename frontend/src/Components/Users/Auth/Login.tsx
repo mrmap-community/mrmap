@@ -8,7 +8,9 @@ import { useAuth } from '../../../Hooks/AuthContextProvider';
 export const Login = (): ReactElement => {
   const auth = useAuth();
   const navigate = useNavigate();
-  const location:any = useLocation();
+  // workaround for a strange issue with TypeScript version 4.4.4
+  // (currently cannot update to 4.5.4 due to eslint incompatibility)
+  const location: any = useLocation();
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
 

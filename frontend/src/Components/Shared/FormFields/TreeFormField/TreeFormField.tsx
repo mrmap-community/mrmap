@@ -54,7 +54,7 @@ export interface TreeNodeType extends DataNode {
   expanded?: boolean;
 }
 
-interface TreeProps {
+export interface TreeProps {
   treeData: TreeNodeType[];
   asyncTree?: boolean;
   addNodeDispatchAction?:(
@@ -520,17 +520,19 @@ export const TreeFormField: FC<TreeProps> = ({
     onAddNode(nodeToCreate, nodeToCreateAttributes);
   };
 
-  // @ts-ignore
-  const clonedNodeAttributeForm = cloneElement(nodeAttributeForm, {
-    form,
-    onSubmit: (values) => {
-      if (!isEditingNodeAttributes) {
-        onAddNode(selectedNode, values);
-      } else {
-        onEditNode(selectedNode, values);
+  const clonedNodeAttributeForm = (node: TreeNodeType| undefined) => {
+    // @ts-ignore
+    return cloneElement(nodeAttributeForm, {
+      form,
+      onSubmit: (values) => {
+        if (!isEditingNodeAttributes) {
+          onAddNode(node, values);
+        } else {
+          onEditNode(node, values);
+        }
       }
-    }
-  });
+    });
+  };
 
   const onNodeNameEditing = (nodeData: TreeNodeType | undefined, newName: string) => {
     if (nodeData) {
@@ -560,7 +562,7 @@ export const TreeFormField: FC<TreeProps> = ({
           setIsNodeAttributeFormVisible(true);
         }}
         icon={addNodeActionIcon}
-        key='1'
+        key='add-node'
       >
         Add new layer
       </Menu.Item>
@@ -578,7 +580,7 @@ export const TreeFormField: FC<TreeProps> = ({
             });
           }}
           icon={removeNodeActionIcon}
-          key='2'
+          key='remove-node'
         >
           Delete
         </Menu.Item>
@@ -590,7 +592,7 @@ export const TreeFormField: FC<TreeProps> = ({
           setIsEditingNodeAttributes(true);
         }}
         icon={editNodeActionIcon}
-        key='3'
+        key='edit-node'
       >
         Properties
       </Menu.Item>
@@ -618,13 +620,15 @@ export const TreeFormField: FC<TreeProps> = ({
         {isEditingNodeName && nodeData.key === selectedNode?.key
           ? (
             <Input
+              id='nodeNameInput'
               ref={nodeNameTextInput}
               name='nodeName'
               value={newNodeName}
-              onChange={(e) => setNewNodeName(e.target.value)}
-              onKeyDown={(e) => {
-                e.preventDefault();
-                if (e.key === 'Enter') {
+              onChange={(e) => {
+                setNewNodeName(e.target.value);
+              }}
+              onKeyUp={(e) => {
+                if (newNodeName !== '' && e.key === 'Enter') {
                   onNodeNameEditing(selectedNode, newNodeName);
                   setNewNodeName('');
                   setIsEditingNewNodeName(false);
@@ -712,20 +716,22 @@ export const TreeFormField: FC<TreeProps> = ({
    * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value.
    * Event  will be removed when editingNodeName.id is not present
    */
-  // useEffect(() => {
-  //   const setNodeNameOnClick = () => {
-  //     setIsEditingNewNodeName(false);
-  //     setNewNodeName('');
-  //   };
-  //   if (isEditingNodeName) {
-  //     // TODO: shouldthe naame  be changed here  aas  well?
-  //     document.addEventListener('click', setNodeNameOnClick, false);
-  //   }
-  //   // cleanup. Removes event and changes the node name
-  //   return () => {
-  //     document.removeEventListener('click', setNodeNameOnClick, false);
-  //   };
-  // }, [isEditingNodeName]);
+  useEffect(() => {
+    const setNodeNameOnClick = (e:any) => {
+      if (e.target.id !== 'nodeNameInput') {
+        setIsEditingNewNodeName(false);
+        setNewNodeName('');
+      }
+    };
+    if (isEditingNodeName) {
+      // TODO: shouldthe name  be changed here  aas  well?
+      document.addEventListener('click', setNodeNameOnClick, false);
+    }
+    // cleanup. Removes event and changes the node name
+    return () => {
+      document.removeEventListener('click', setNodeNameOnClick, false);
+    };
+  }, [isEditingNodeName]);
 
   /**
    * @description: This hook is a backup since the modal is not being destroyed on close,
@@ -742,16 +748,16 @@ export const TreeFormField: FC<TreeProps> = ({
       }
     }
   // eslint-disable-next-line
-  }, [isNodeAttributeFormVisible]);
+  }, [isNodeAttributeFormVisible, selectedNode]);
 
   /**
    * @description: Hook to control focus once node name input edit field is shown on the node
    */
   useEffect(() => {
-    if (nodeNameTextInput.current && isEditingNode) {
+    if (nodeNameTextInput.current && isEditingNodeName) {
       nodeNameTextInput.current.focus();
     }
-  }, [nodeNameTextInput, isEditingNode]);
+  }, [nodeNameTextInput, isEditingNodeName]);
 
   return (
     <>
@@ -791,7 +797,7 @@ export const TreeFormField: FC<TreeProps> = ({
             loading: isAddingNode || isEditingNode
           }}
         >
-          {clonedNodeAttributeForm}
+          {clonedNodeAttributeForm(selectedNode)}
         </Modal>
       )}
       {attributeContainer === 'drawer' && (
@@ -811,7 +817,7 @@ export const TreeFormField: FC<TreeProps> = ({
             </Space>
           }
         >
-        {clonedNodeAttributeForm}
+        {clonedNodeAttributeForm(selectedNode)}
       </Drawer>
       )}
     </>

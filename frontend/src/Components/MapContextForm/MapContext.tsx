@@ -15,7 +15,8 @@ import { useNavigate, useParams } from 'react-router';
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
-import { MPTTListToTreeNodeList, TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
+import { LayerTree } from '../LayerTree/LayerTree';
+import { MPTTListToTreeNodeList, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
 
@@ -177,43 +178,40 @@ export const MapContext = (): ReactElement => {
       content: (
         <>
           <div className='Map'>
-          <ReactGeoMapContext.Provider value={olMap}>
-            <Map />
-          </ReactGeoMapContext.Provider>
-          <div className='layer-section'>
-          <TreeFormField
-            treeData={initTreeData}
-            asyncTree
-            addNodeDispatchAction={async (nodeAttributes, newNodeParent) => {
-              return await mapContextLayerRepo.create({
-                ...nodeAttributes,
-                parentLayerId: newNodeParent || '',
-                mapContextId: createdMapContextId
-              });
-            }}
-            removeNodeDispatchAction={async (nodeToRemove) => (
-              await mapContextLayerRepo?.delete(String(nodeToRemove.key))
-            )}
-            editNodeDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
-              await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
-            )}
-            dragNodeDispatchAction={async (nodeBeingDraggedInfo) => {
-              const dropKey = nodeBeingDraggedInfo.node.key;
-              const dragKey = nodeBeingDraggedInfo.dragNode.key;
-              let position:string;
-              if (nodeBeingDraggedInfo.node.parent === nodeBeingDraggedInfo.dragNode.parent) {
-                position = 'right';
-              } else {
-                position = 'first-child';
-              }
-              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
-            }}
-            draggable
-            nodeAttributeForm={(<MapContextLayerForm form={form}/>)}
-            attributeContainer='drawer'
-            contextMenuOnNode
-          />
-          </div>
+            <ReactGeoMapContext.Provider value={olMap}>
+              <Map />
+            </ReactGeoMapContext.Provider>
+            <div className='layer-section'>
+              <LayerTree
+                map={olMap}
+                layers={initTreeData}
+                addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
+                  return await mapContextLayerRepo.create({
+                    ...nodeAttributes,
+                    parentLayerId: newNodeParent || '',
+                    mapContextId: createdMapContextId
+                  });
+                }}
+                removeLayerDispatchAction={async (nodeToRemove) => (
+                  await mapContextLayerRepo?.delete(String(nodeToRemove.key))
+                )}
+                editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
+                  await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
+                )}
+                dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
+                  const dropKey = nodeBeingDraggedInfo.node.key;
+                  const dragKey = nodeBeingDraggedInfo.dragNode.key;
+                  let position:string;
+                  if (nodeBeingDraggedInfo.node.parent === nodeBeingDraggedInfo.dragNode.parent) {
+                    position = 'right';
+                  } else {
+                    position = 'first-child';
+                  }
+                  return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+                }}
+                layerAttributeForm={(<MapContextLayerForm form={form}/>)}
+              />
+            </div>
           </div>
 
           <div className='steps-action'>

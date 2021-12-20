@@ -572,7 +572,7 @@ export const TreeFormField: FC<TreeProps> = ({
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
             <div className='tree-form-field-node-title'>
-              <h3> {nodeData.title}</h3>
+              <h3> {nodeData.title} </h3>
             </div>
             <div className='tree-form-field-node-actions'>
               <Tooltip title='Create Node'>

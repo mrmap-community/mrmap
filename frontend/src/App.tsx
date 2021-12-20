@@ -1,4 +1,5 @@
 import 'moment/locale/de';
+import 'ol/ol.css';
 import './App.css';
 
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';

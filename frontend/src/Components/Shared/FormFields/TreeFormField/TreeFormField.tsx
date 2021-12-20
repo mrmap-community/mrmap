@@ -76,7 +76,10 @@ export interface TreeProps {
   checkableNodes?: boolean;
 }
 
-//  TODO: create helper with several tree methods
+// TODO: create helper files with several tree methods inside. This file is too big.
+// Maybe separate it into helper functions for specific aactions on the tree and aanother with rendering
+// of subcomponents
+
 /**
 * @description: Method to parse an MPTT tree array to a TreeNodeType array
 * @param list
